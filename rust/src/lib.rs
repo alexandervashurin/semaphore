@@ -7,6 +7,7 @@
 //!
 //! - **api** - HTTP API на базе Axum
 //! - **db** - Слой доступа к данным (SQLite, MySQL, PostgreSQL, BoltDB)
+//! - **db_lib** - Библиотека работы с БД (замена Go db_lib)
 //! - **services** - Бизнес-логика
 //! - **cli** - Интерфейс командной строки
 //! - **models** - Модели данных
@@ -17,6 +18,7 @@ pub mod api;
 pub mod cli;
 pub mod config;
 pub mod db;
+pub mod db_lib;
 pub mod ffi;
 pub mod models;
 pub mod services;
