@@ -323,7 +323,7 @@ MIT © [Alexander Vashurin](https://github.com/alexandervashurin)
 
 ## 📞 Контакты
 
-- **Репозиторий**: https://github.com/salexandervashurin/semaphore
+- **Репозиторий**: https://github.com/alexandervashurin/semaphore
 - **Discord**: https://discord.gg/5R6k7hNGcH
 - **Документация**: https://docs.semaphoreui.com
 
