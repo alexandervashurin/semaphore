@@ -3,9 +3,15 @@
 //! Замена Go db_lib пакета
 
 pub mod access_key_installer;
+pub mod cmd_git_client;
 
 pub use access_key_installer::{
     AccessKeyInstallerImpl, AccessKeyInstallerTrait,
     DbAccessKey, DbAccessKeyOwner, DbAccessKeyRole, DbAccessKeyType,
     DbAccessKeySourceStorageType, DbLoginPassword, DbSshKey,
+};
+
+pub use cmd_git_client::{
+    CmdGitClient, GitClient, GitRepository, GitRepositoryDirType,
+    DbRepository,
 };
