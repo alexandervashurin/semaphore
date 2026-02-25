@@ -3,14 +3,16 @@
 //! Предоставляет инфраструктуру для запуска задач Ansible, Terraform, Bash, PowerShell и других.
 
 use std::collections::HashMap;
+use std::fmt;
 use std::path::{Path, PathBuf};
-use std::process::Stdio;
+use std::process::{Command, Stdio};
 use std::sync::Arc;
+use chrono::{DateTime, Utc};
 use tokio::process::Command as TokioCommand;
 
 use crate::error::{Error, Result};
 use crate::models::{Inventory, Repository, Template, Task};
-use crate::services::task_logger::{TaskLogger, TaskStatus};
+use crate::services::task_logger::{TaskLogger, TaskStatus, StatusListener, LogListener};
 
 /// Тип приложения для выполнения
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -231,12 +233,28 @@ pub struct NullLogger;
 
 impl TaskLogger for NullLogger {
     fn log(&self, _msg: &str) {}
-    
+
+    fn logf(&self, _format: &str, _args: fmt::Arguments<'_>) {}
+
+    fn log_with_time(&self, _time: DateTime<Utc>, _msg: &str) {}
+
+    fn logf_with_time(&self, _time: DateTime<Utc>, _format: &str, _args: fmt::Arguments<'_>) {}
+
+    fn log_cmd(&self, _cmd: &Command) {}
+
     fn set_status(&self, _status: TaskStatus) {}
-    
+
     fn get_status(&self) -> TaskStatus {
         TaskStatus::Running
     }
+
+    fn add_status_listener(&self, _listener: StatusListener) {}
+
+    fn add_log_listener(&self, _listener: LogListener) {}
+
+    fn set_commit(&self, _hash: &str, _message: &str) {}
+
+    fn wait_log(&self) {}
 }
 
 /// Ansible приложение

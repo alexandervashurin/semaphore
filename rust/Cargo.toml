@@ -2,10 +2,10 @@
 name = "semaphore"
 version = "0.1.0"
 edition = "2021"
-authors = ["Denis Gukov <fiftin@semaphoreui.com>"]
-description = "Современный веб-интерфейс для управления DevOps-инструментами (Ansible, Terraform, PowerShell и др.)"
+authors = ["Alexander Vashurin <alexandervashurin@yandex.ru>"]
+description = "Rust-реализация Semaphore UI - современный веб-интерфейс для управления DevOps-инструментами (Ansible, Terraform, PowerShell и др.)"
 license = "MIT"
-repository = "https://github.com/semaphoreui/semaphore"
+repository = "https://github.com/alexandervashurin/semaphore"
 
 [dependencies]
 # Веб-фреймворк и HTTP

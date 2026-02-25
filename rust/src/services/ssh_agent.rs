@@ -5,13 +5,17 @@
 //! - Подключения к SSH серверам
 //! - Интеграции с Git через SSH
 //! - SSH agent forwarding
+//! - Установки ключей доступа (KeyInstaller)
 
 use std::path::{Path, PathBuf};
 use ssh2::Session;
 use std::net::TcpStream;
 use std::io::prelude::*;
+use std::fmt;
+use std::str::FromStr;
 
 use crate::error::{Error, Result};
+use crate::services::task_logger::TaskLogger;
 
 /// SSH ключ с опциональным паролем
 #[derive(Debug, Clone)]
@@ -118,6 +122,7 @@ pub struct SshCommandResult {
 }
 
 /// SSH агент
+#[derive(Clone)]
 pub struct SshAgent {
     /// Конфигурация
     config: SshConfig,
@@ -460,5 +465,500 @@ test
     fn test_utils_validate_key_invalid() {
         let key = SshKey::new(b"invalid key".to_vec(), None);
         assert!(utils::validate_key(&key).is_err());
+    }
+}
+
+// ============================================================================
+// AccessKeyRole - роли ключей доступа (как в Go db/AccessKey.go)
+// ============================================================================
+
+/// Роль ключа доступа
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AccessKeyRole {
+    /// Ключ используется для Git операций
+    Git,
+    /// Ключ используется как пароль для Ansible vault
+    AnsiblePasswordVault,
+    /// Ключ используется для Ansible become user
+    AnsibleBecomeUser,
+    /// Ключ используется для Ansible user
+    AnsibleUser,
+}
+
+impl FromStr for AccessKeyRole {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "git" => Ok(AccessKeyRole::Git),
+            "ansible_password_vault" => Ok(AccessKeyRole::AnsiblePasswordVault),
+            "ansible_become_user" => Ok(AccessKeyRole::AnsibleBecomeUser),
+            "ansible_user" => Ok(AccessKeyRole::AnsibleUser),
+            _ => Err(format!("Неизвестная роль ключа доступа: {}", s)),
+        }
+    }
+}
+
+impl fmt::Display for AccessKeyRole {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            AccessKeyRole::Git => write!(f, "git"),
+            AccessKeyRole::AnsiblePasswordVault => write!(f, "ansible_password_vault"),
+            AccessKeyRole::AnsibleBecomeUser => write!(f, "ansible_become_user"),
+            AccessKeyRole::AnsibleUser => write!(f, "ansible_user"),
+        }
+    }
+}
+
+// ============================================================================
+// AccessKeyInstallation - результат установки ключа
+// ============================================================================
+
+/// Результат установки ключа доступа
+pub struct AccessKeyInstallation {
+    /// SSH агент (если требуется)
+    pub ssh_agent: Option<SshAgent>,
+    /// Логин (если требуется)
+    pub login: Option<String>,
+    /// Пароль (если требуется)
+    pub password: Option<String>,
+    /// Скрипт (опционально)
+    pub script: Option<String>,
+}
+
+impl AccessKeyInstallation {
+    /// Создаёт новую установку
+    pub fn new() -> Self {
+        Self {
+            ssh_agent: None,
+            login: None,
+            password: None,
+            script: None,
+        }
+    }
+
+    /// Получает переменные окружения для Git
+    pub fn get_git_env(&self) -> Vec<(String, String)> {
+        let mut env = Vec::new();
+
+        env.push(("GIT_TERMINAL_PROMPT".to_string(), "0".to_string()));
+
+        if let Some(_agent) = &self.ssh_agent {
+            // SSH агент создан, но сокет не доступен напрямую
+            // В будущей реализации можно добавить socket_file в SshAgent
+            let mut ssh_cmd = "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null".to_string();
+            // if let Some(config_path) = crate::config::get_ssh_config_path() {
+            //     ssh_cmd.push_str(&format!(" -F {}", config_path));
+            // }
+            env.push(("GIT_SSH_COMMAND".to_string(), ssh_cmd));
+        }
+
+        env
+    }
+
+    /// Закрывает ресурсы (SSH агент)
+    pub fn destroy(&mut self) -> Result<()> {
+        if let Some(agent) = &mut self.ssh_agent {
+            agent.disconnect()?;
+        }
+        Ok(())
+    }
+}
+
+impl Default for AccessKeyInstallation {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// ============================================================================
+// AccessKey - модель ключа доступа
+// ============================================================================
+
+/// Тип ключа доступа
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AccessKeyType {
+    /// SSH ключ
+    Ssh,
+    /// Логин/пароль
+    LoginPassword,
+    /// Нет ключа (None)
+    None,
+}
+
+/// Ключ доступа
+#[derive(Debug, Clone)]
+pub struct AccessKey {
+    /// ID ключа
+    pub id: i64,
+    /// Тип ключа
+    pub key_type: AccessKeyType,
+    /// SSH ключ (если тип SSH)
+    pub ssh_key: Option<SshKeyData>,
+    /// Логин/пароль (если тип LoginPassword)
+    pub login_password: Option<LoginPasswordData>,
+    /// ID проекта (опционально)
+    pub project_id: Option<i64>,
+}
+
+/// Данные SSH ключа
+#[derive(Debug, Clone)]
+pub struct SshKeyData {
+    /// Приватный ключ (PEM)
+    pub private_key: String,
+    /// Passphrase (опционально)
+    pub passphrase: String,
+    /// Логин
+    pub login: String,
+}
+
+/// Данные логина/пароля
+#[derive(Debug, Clone)]
+pub struct LoginPasswordData {
+    /// Логин
+    pub login: String,
+    /// Пароль
+    pub password: String,
+}
+
+impl AccessKey {
+    /// Создаёт SSH ключ
+    pub fn new_ssh(id: i64, private_key: String, passphrase: String, login: String, project_id: Option<i64>) -> Self {
+        Self {
+            id,
+            key_type: AccessKeyType::Ssh,
+            ssh_key: Some(SshKeyData {
+                private_key,
+                passphrase,
+                login,
+            }),
+            login_password: None,
+            project_id,
+        }
+    }
+
+    /// Создаёт ключ с логином/паролем
+    pub fn new_login_password(id: i64, login: String, password: String, project_id: Option<i64>) -> Self {
+        Self {
+            id,
+            key_type: AccessKeyType::LoginPassword,
+            ssh_key: None,
+            login_password: Some(LoginPasswordData { login, password }),
+            project_id,
+        }
+    }
+
+    /// Создаёт пустой ключ
+    pub fn new_none(id: i64, project_id: Option<i64>) -> Self {
+        Self {
+            id,
+            key_type: AccessKeyType::None,
+            ssh_key: None,
+            login_password: None,
+            project_id,
+        }
+    }
+}
+
+// ============================================================================
+// KeyInstaller - установщик ключей доступа
+// ============================================================================
+
+/// Установщик ключей доступа
+pub struct KeyInstaller;
+
+impl KeyInstaller {
+    /// Создаёт новый установщик
+    pub fn new() -> Self {
+        Self
+    }
+
+    /// Устанавливает ключ доступа в соответствии с ролью
+    ///
+    /// # Аргументы
+    /// * `key` - ключ доступа
+    /// * `role` - роль ключа
+    /// * `logger` - логгер для вывода сообщений
+    ///
+    /// # Возвращает
+    /// * `Result<AccessKeyInstallation>` - установленный ключ или ошибку
+    pub fn install(
+        &self,
+        key: &AccessKey,
+        role: AccessKeyRole,
+        logger: &dyn TaskLogger,
+    ) -> Result<AccessKeyInstallation> {
+        let mut installation = AccessKeyInstallation::new();
+
+        match role {
+            AccessKeyRole::Git => {
+                match &key.key_type {
+                    AccessKeyType::Ssh => {
+                        if let Some(ssh_key_data) = &key.ssh_key {
+                            // Запускаем SSH агент
+                            let ssh_key = SshKey::from_string(
+                                ssh_key_data.private_key.clone(),
+                                if ssh_key_data.passphrase.is_empty() {
+                                    None
+                                } else {
+                                    Some(ssh_key_data.passphrase.clone())
+                                },
+                            );
+
+                            let mut agent = SshAgent::simple(
+                                "localhost".to_string(),
+                                ssh_key_data.login.clone(),
+                                ssh_key,
+                            );
+
+                            // Для Git нам не нужно подключаться, просто добавляем ключ в агент
+                            // SSH агент будет создан и готов к использованию
+                            installation.ssh_agent = Some(agent);
+                            installation.login = Some(ssh_key_data.login.clone());
+
+                            logger.logf("SSH агент запущен для ключа ID={}", format_args!("{}", key.id));
+                        } else {
+                            return Err(Error::Validation("SSH ключ не найден".to_string()));
+                        }
+                    }
+                    _ => {
+                        return Err(Error::Validation(
+                            "Неверный тип ключа для Git роли".to_string(),
+                        ));
+                    }
+                }
+            }
+
+            AccessKeyRole::AnsiblePasswordVault => {
+                match &key.key_type {
+                    AccessKeyType::LoginPassword => {
+                        if let Some(lp) = &key.login_password {
+                            installation.password = Some(lp.password.clone());
+                            logger.log("Пароль для Ansible vault установлен");
+                        } else {
+                            return Err(Error::Validation("Логин/пароль не найдены".to_string()));
+                        }
+                    }
+                    _ => {
+                        return Err(Error::Validation(
+                            "Неверный тип ключа для Ansible vault роли".to_string(),
+                        ));
+                    }
+                }
+            }
+
+            AccessKeyRole::AnsibleBecomeUser => {
+                if key.key_type != AccessKeyType::LoginPassword {
+                    return Err(Error::Validation(
+                        "Неверный тип ключа для Ansible become user роли".to_string(),
+                    ));
+                }
+                if let Some(lp) = &key.login_password {
+                    installation.login = Some(lp.login.clone());
+                    installation.password = Some(lp.password.clone());
+                    logger.logf("Ansible become user: {}", format_args!("{}", lp.login));
+                } else {
+                    return Err(Error::Validation("Логин/пароль не найдены".to_string()));
+                }
+            }
+
+            AccessKeyRole::AnsibleUser => {
+                match &key.key_type {
+                    AccessKeyType::Ssh => {
+                        if let Some(ssh_key_data) = &key.ssh_key {
+                            let ssh_key = SshKey::from_string(
+                                ssh_key_data.private_key.clone(),
+                                if ssh_key_data.passphrase.is_empty() {
+                                    None
+                                } else {
+                                    Some(ssh_key_data.passphrase.clone())
+                                },
+                            );
+
+                            let mut agent = SshAgent::simple(
+                                "localhost".to_string(),
+                                ssh_key_data.login.clone(),
+                                ssh_key,
+                            );
+
+                            installation.ssh_agent = Some(agent);
+                            installation.login = Some(ssh_key_data.login.clone());
+
+                            logger.logf("SSH агент запущен для Ansible user (ключ ID={})", format_args!("{}", key.id));
+                        } else {
+                            return Err(Error::Validation("SSH ключ не найден".to_string()));
+                        }
+                    }
+                    AccessKeyType::LoginPassword => {
+                        if let Some(lp) = &key.login_password {
+                            installation.login = Some(lp.login.clone());
+                            installation.password = Some(lp.password.clone());
+                            logger.logf("Ansible user: {} (логин/пароль)", format_args!("{}", lp.login));
+                        } else {
+                            return Err(Error::Validation("Логин/пароль не найдены".to_string()));
+                        }
+                    }
+                    AccessKeyType::None => {
+                        // Нет ключа - это допустимо для Ansible user
+                        logger.log("Ansible user без ключа доступа");
+                    }
+                }
+            }
+        }
+
+        Ok(installation)
+    }
+}
+
+impl Default for KeyInstaller {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(test)]
+mod key_installer_tests {
+    use super::*;
+    use crate::services::task_logger::BasicLogger;
+
+    #[test]
+    fn test_access_key_role_from_str() {
+        assert_eq!(
+            AccessKeyRole::from_str("git").unwrap(),
+            AccessKeyRole::Git
+        );
+        assert_eq!(
+            AccessKeyRole::from_str("ansible_password_vault").unwrap(),
+            AccessKeyRole::AnsiblePasswordVault
+        );
+        assert!(AccessKeyRole::from_str("invalid").is_err());
+    }
+
+    #[test]
+    fn test_access_key_installation_new() {
+        let installation = AccessKeyInstallation::new();
+        assert!(installation.ssh_agent.is_none());
+        assert!(installation.login.is_none());
+        assert!(installation.password.is_none());
+    }
+
+    #[test]
+    fn test_access_key_installation_git_env() {
+        let installation = AccessKeyInstallation::new();
+        let env = installation.get_git_env();
+        assert!(env.iter().any(|(k, _)| k == "GIT_TERMINAL_PROMPT"));
+    }
+
+    #[test]
+    fn test_access_key_new_ssh() {
+        let key = AccessKey::new_ssh(
+            1,
+            "private_key".to_string(),
+            "passphrase".to_string(),
+            "user".to_string(),
+            Some(1),
+        );
+        assert_eq!(key.key_type, AccessKeyType::Ssh);
+        assert!(key.ssh_key.is_some());
+    }
+
+    #[test]
+    fn test_access_key_new_login_password() {
+        let key = AccessKey::new_login_password(
+            1,
+            "admin".to_string(),
+            "secret".to_string(),
+            Some(1),
+        );
+        assert_eq!(key.key_type, AccessKeyType::LoginPassword);
+        assert!(key.login_password.is_some());
+    }
+
+    #[test]
+    fn test_key_installer_install_git_ssh() {
+        let installer = KeyInstaller::new();
+        let logger = BasicLogger::new();
+
+        let key = AccessKey::new_ssh(
+            1,
+            "-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----".to_string(),
+            "".to_string(),
+            "git".to_string(),
+            Some(1),
+        );
+
+        let result = installer.install(&key, AccessKeyRole::Git, &logger);
+        assert!(result.is_ok());
+
+        let installation = result.unwrap();
+        assert!(installation.ssh_agent.is_some());
+        assert_eq!(installation.login, Some("git".to_string()));
+    }
+
+    #[test]
+    fn test_key_installer_install_ansible_password_vault() {
+        let installer = KeyInstaller::new();
+        let logger = BasicLogger::new();
+
+        let key = AccessKey::new_login_password(
+            1,
+            "vault".to_string(),
+            "vault_pass".to_string(),
+            Some(1),
+        );
+
+        let result = installer.install(&key, AccessKeyRole::AnsiblePasswordVault, &logger);
+        assert!(result.is_ok());
+
+        let installation = result.unwrap();
+        assert_eq!(installation.password, Some("vault_pass".to_string()));
+    }
+
+    #[test]
+    fn test_key_installer_install_ansible_become_user() {
+        let installer = KeyInstaller::new();
+        let logger = BasicLogger::new();
+
+        let key = AccessKey::new_login_password(
+            1,
+            "become_user".to_string(),
+            "become_pass".to_string(),
+            Some(1),
+        );
+
+        let result = installer.install(&key, AccessKeyRole::AnsibleBecomeUser, &logger);
+        assert!(result.is_ok());
+
+        let installation = result.unwrap();
+        assert_eq!(installation.login, Some("become_user".to_string()));
+        assert_eq!(installation.password, Some("become_pass".to_string()));
+    }
+
+    #[test]
+    fn test_key_installer_install_ansible_user_none() {
+        let installer = KeyInstaller::new();
+        let logger = BasicLogger::new();
+
+        let key = AccessKey::new_none(1, Some(1));
+
+        let result = installer.install(&key, AccessKeyRole::AnsibleUser, &logger);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_key_installer_install_invalid_role() {
+        let installer = KeyInstaller::new();
+        let logger = BasicLogger::new();
+
+        let key = AccessKey::new_login_password(
+            1,
+            "user".to_string(),
+            "pass".to_string(),
+            Some(1),
+        );
+
+        // Пытаемся использовать LoginPassword ключ для Git роли - должно быть ошибкой
+        let result = installer.install(&key, AccessKeyRole::Git, &logger);
+        assert!(result.is_err());
     }
 }
