@@ -320,7 +320,7 @@ tracing-subscriber = "0.3"
 
 ## 📝 Лицензия
 
-MIT © [Denis Gukov](https://github.com/fiftin)
+MIT © [Alexander Vashurin](https://github.com/alexandervashurin)
 
 Оригинальный проект [Semaphore UI](https://github.com/semaphoreui/semaphore) на Go.
 
@@ -332,7 +332,7 @@ MIT © [Denis Gukov](https://github.com/fiftin)
 
 ## 📞 Контакты
 
-- **Репозиторий**: https://github.com/semaphoreui/semaphore
+- **Репозиторий**: https://github.com/alexandervashurin/semaphore
 - **Discord**: https://discord.gg/5R6k7hNGcH
 - **Документация**: https://docs.semaphoreui.com
 

@@ -7,3 +7,4 @@ pub mod ssh_agent;
 pub mod scheduler;
 pub mod task_pool;
 pub mod task_runner;
+pub mod job;

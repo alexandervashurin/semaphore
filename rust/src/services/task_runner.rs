@@ -189,13 +189,15 @@ impl TaskRunner {
 
     /// Создаёт Job для выполнения задачи
     fn create_job(&self) -> Result<Box<dyn Job>> {
-        // TODO: Создать соответствующий Job на основе типа шаблона
-        // Ansible -> AnsibleJob
-        // Terraform -> TerraformJob
-        // Shell -> ShellJob
+        use crate::services::job::JobFactory;
         
-        // Временно возвращаем заглушку
-        Err(Error::Other("Job not implemented".to_string()))
+        JobFactory::create(
+            self.task.clone(),
+            self.template.clone(),
+            self.inventory.clone(),
+            self.repository.clone(),
+            self.environment.clone(),
+        )
     }
 
     /// Устанавливает статус задачи

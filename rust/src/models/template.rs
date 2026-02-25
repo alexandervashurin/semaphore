@@ -22,6 +22,7 @@ pub enum TemplateApp {
     Terragrunt,
     Bash,
     PowerShell,
+    Python,
     Pulumi,
     Default,
 }
