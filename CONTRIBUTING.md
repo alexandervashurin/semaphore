@@ -1,157 +1,246 @@
-## Pull Requests
+# Руководство для участников
 
-When creating a pull-request you should:
+Спасибо за интерес к проекту Semaphore UI (Rust)! Это руководство поможет вам начать вносить вклад в проект.
 
-- __Open an issue first:__ Confirm that the change or feature will be accepted
-- __Update API documentation:__ If your pull-request adding/modifying an API request, make sure you update the Swagger documentation (`api-docs.yml`)
-- __Run API Tests:__ If your pull request modifies the API make sure you run the integration tests using **dredd**.
+## 📚 Содержание
 
-## Installation in a development environment
+- [С чего начать](#с-чего-начать)
+- [Архитектура проекта](#архитектура-проекта)
+- [Стиль кода](#стиль-кода)
+- [Тестирование](#тестирование)
+- [Pull Request](#pull-request)
+- [Сообщество](#сообщество)
 
-- Check out the `develop` branch
-- [Install Go](https://golang.org/doc/install). Go must be >= v1.21 for all the tools we use to work
-- Install MySQL / MariaDB (Optional)
-- Install node.js
+## 🚀 С чего начать
 
-1) Set up `GOPATH`
-   * Set `GOPATH` in your shell (for example, in your `.bashrc` or `.zshrc`):
-   
-      ```bash
-      export GOPATH=$HOME/go
-      export PATH=$PATH:$GOPATH/bin
-      ```
-   * Create required directory and switch to it:
-   
-      ```bash
-      mkdir -p $GOPATH/src/github.com/semaphoreui
-      cd $GOPATH/src/github.com/semaphoreui
-      ```
+### 1. Форк и клонирование
 
-2) Clone semaphore (with submodules)
+```bash
+# Форкните репозиторий на GitHub
+# Затем склонируйте:
+git clone https://github.com/YOUR_USERNAME/semaphore.git
+cd semaphore/rust
+```
 
-   ```
-   git clone --recursive git@github.com:semaphoreui/semaphore.git && cd semaphore
-   ```
+### 2. Установка зависимостей
 
-3) Install dev dependencies
+```bash
+# Установите Rust (если ещё не установлен)
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
-   ```
-   go install github.com/go-task/task/v3/cmd/task@latest
-   task deps
-   ```
-   Windows users will additionally need to manually install goreleaser from https://github.com/goreleaser/goreleaser/releases
+# Установите task (опционально)
+go install github.com/go-task/task/v3/cmd/task@latest
+```
 
-4) Create database if you want to use MySQL (Semaphore also supports SQLite, it doesn't require additional action)
+### 3. Первая сборка
 
-   ```
-   echo "create database semaphore;" | mysql -uroot -p
-   ```
+```bash
+# Загрузка зависимостей
+cargo fetch
 
-5) Compile, set up & run
+# Сборка
+cargo build
 
-   ```
-   task build
-   go run cli/main.go setup
-   go run cli/main.go service --config ./config.json
-   ```
+# Запуск тестов
+cargo test
+```
 
-Open [localhost:3000](http://localhost:3000)
+## 🏗 Архитектура проекта
 
-Note: for Windows, you may need [Cygwin](https://www.cygwin.com/) to run certain commands because the [reflex](github.com/cespare/reflex) package probably doesn't work on Windows.
-You may encounter issues when running `task watch`, but running `task build` etc... will still be OK.
+```
+src/
+├── api/           # HTTP API (Axum)
+├── cli/           # CLI (Clap)
+├── config/        # Конфигурация
+├── db/            # Слой доступа к данным
+├── models/        # Модели данных
+├── services/      # Бизнес-логика
+├── error.rs       # Ошибки
+└── logging.rs     # Логирование
+```
 
-## Integration tests
+### Основные модули
 
-Dredd is used for API integration tests, if you alter the API in any way you must make sure that the information in the api docs
-matches the responses.
+- **api** — обработчики HTTP-запросов, маршруты, middleware
+- **db** — трейты хранилищ и реализации (SQL, BoltDB)
+- **models** — структуры данных (User, Project, Task, etc.)
+- **services** — бизнес-логика (выполнение задач, планирование)
 
-As Dredd and the application database config may differ it expects it's own config.json in the .dredd folder.
+## 📝 Стиль кода
 
-### How to run Dredd tests locally
+### Общие правила
 
-1) Build Dredd hooks:
+1. **Русские комментарии** — все комментарии и документация на русском языке
+2. **Идентификаторы на английском** — имена переменных, функций, типов на английском
+3. **Форматирование** — используйте `cargo fmt`
+4. **Линтинг** — проверяйте код через `cargo clippy`
 
-    ```bash
-    task dredd:hooks
-    ```
-2) Install Dredd globally
+### Пример
 
-    ```bash
-    npm install -g dredd
-    ```
-3) Create `./dredd/config.json` for Dredd. It must contain database connection same as used in Semaphore server.
-   You can use any supported database dialect for tests. For example BoltDB.
-    ```json
-   {
-        "bolt": {
-            "host": "/tmp/database.boltdb"
-        },
-        "dialect": "bolt"
+```rust
+/// Проверяет валидность пользователя
+///
+/// Возвращает ошибку, если имя пользователя, email или имя пустые.
+pub fn validate(&self) -> Result<(), ValidationError> {
+    if self.username.is_empty() {
+        return Err(ValidationError::UsernameEmpty);
     }
-    ```
-4) Start Semaphore server (add `--config` option if required):
+    // ... остальные проверки
+}
+```
 
-5) ```bash
-    ./bin/semaphore server
-    ```
-5) Start Dredd tests
+### Именование
 
-    ```
-    dredd --config ./.dredd/dredd.local.yml
-    ```
+- **Типы**: `PascalCase` — `UserProfile`, `TaskStatus`
+- **Функции**: `snake_case` — `create_user`, `get_task`
+- **Константы**: `UPPER_SNAKE_CASE` — `MAX_PARALLEL_TASKS`
+- **Модули**: `snake_case` — `task_logger`, `access_key`
 
-## Goland debug configuration
+## 🧪 Тестирование
 
-<img width="700" alt="image" src="https://github.com/user-attachments/assets/cc6132ee-b31e-424c-8ca9-4eba56bf7fb0" />
+### Запуск тестов
 
-## Manual testing with using Semaphore MCP and Cursor agent
+```bash
+# Все тесты
+cargo test
 
-1. Install Semaphore MCP
+# Тесты с выводом
+cargo test -- --nocapture
 
-   ```bash
-   pipx install semaphore-mcp
-   ```
+# Тесты конкретного модуля
+cargo test --package semaphore --module cli
 
-   Upgrade:
+# Покрытие тестами
+cargo tarpaulin --out Html
+```
 
-   ```bash
-   pipx upgrade semaphore-mcp
-   ```
+### Написание тестов
 
-2. Install Cursor Agent CLI
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-   ```bash
-   curl https://cursor.com/install -fsSL | bash
-   ```
+    #[test]
+    fn test_user_validation() {
+        let user = User {
+            username: "".to_string(),
+            // ...
+        };
+        
+        assert!(user.validate().is_err());
+    }
+}
+```
 
-   You can check the agent using command:
+## 📤 Pull Request
 
-   ```bash
-   cursor-agent --version
-   ```
+### Перед отправкой
 
-3. Set up MCP server for Cursor
+1. ✅ Убедитесь, что все тесты проходят
+2. ✅ Запустите `cargo fmt` и `cargo clippy`
+3. ✅ Обновите документацию (если нужно)
+4. ✅ Добавьте тесты для новых функций
 
-   Add following block to `~/.cursor/mcp.json`:
+### Чеклист PR
 
-   ```json
-	{
-	  "mcpServers": {
-	    "semaphore": {
-	      "command": "semaphore-mcp",
-	      "args": [],
-	      "env": {
-	        "SEMAPHORE_URL": "http://localhost:3000",
-	        "SEMAPHORE_API_TOKEN": "<TOKEN>"
-	      }
-	    }
-	  }
-	}
-   ```
+```markdown
+## Чеклист
 
-4. Run tests
+- [ ] Код отформатирован (`cargo fmt`)
+- [ ] Нет предупреждений (`cargo clippy`)
+- [ ] Все тесты проходят
+- [ ] Документация обновлена
+- [ ] Добавлены тесты (если применимо)
+- [ ] Changelog обновлён (если применимо)
+```
 
-   ```bash
-   cd tests/manual
-   ./run.sh
-   ```
+### Название PR
+
+Используйте понятные названия:
+
+- ✅ `feat: Добавить поддержку WebSocket`
+- ✅ `fix: Исправить утечку памяти в обработчике задач`
+- ✅ `docs: Обновить README.md`
+- ❌ `update`, `fix bug`, `changes`
+
+## 🐛 Сообщение об ошибках
+
+### Хороший баг-репорт
+
+```markdown
+**Описание**
+Краткое описание проблемы.
+
+**Шаги воспроизведения**
+1. Запустить команду '...'
+2. Нажать кнопку '...'
+3. Увидеть ошибку
+
+**Ожидаемое поведение**
+Что должно было произойти.
+
+**Фактическое поведение**
+Что произошло вместо этого.
+
+**Окружение**
+- OS: Ubuntu 22.04
+- Rust: 1.75
+- База данных: SQLite
+
+**Логи**
+```
+[текст логов]
+```
+```
+
+## 💡 Предложения функций
+
+### Формат предложения
+
+```markdown
+**Проблема**
+Какую проблему решает эта функция?
+
+**Решение**
+Как должно работать решение?
+
+**Альтернативы**
+Какие альтернативы рассматривались?
+
+**Дополнительно**
+Скриншоты, мокапы, примеры кода.
+```
+
+## 🤝 Сообщество
+
+- **Discord**: [https://discord.gg/5R6k7hNGcH](https://discord.gg/5R6k7hNGcH)
+- **GitHub Issues**: [https://github.com/semaphoreui/semaphore/issues](https://github.com/semaphoreui/semaphore/issues)
+- **YouTube**: [https://www.youtube.com/@semaphoreui](https://www.youtube.com/@semaphoreui)
+
+## 📖 Ресурсы
+
+- [Rust Book](https://doc.rust-lang.org/book/)
+- [Axum Documentation](https://docs.rs/axum/)
+- [SQLx Documentation](https://docs.rs/sqlx/)
+- [Clap Documentation](https://docs.rs/clap/)
+
+## 🎯 Области для вклада
+
+### Начинающим
+
+- 📝 Документация
+- 🧪 Тесты
+- 🐛 Простые баг-фиксы
+- 🌐 Переводы
+
+### Опытным
+
+- 🏗 Архитектурные улучшения
+- ⚡ Оптимизация производительности
+- 🔐 Безопасность
+- 🚀 Новые функции
+
+---
+
+**Спасибо за ваш вклад!** 🎉

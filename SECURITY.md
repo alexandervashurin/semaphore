@@ -1,33 +1,105 @@
-# Security Policy
+# Политика безопасности
 
-## Supported Versions
+## Поддерживаемые версии
 
+| Версия | Поддерживается |
+|--------|----------------|
+| 0.0.x  | ✅              |
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 2.14.x  | :white_check_mark: |
-| 2.13.x  | :white_check_mark: |
-| < 2.13  | :x:                |
+## Сообщение об уязвимостях
 
-## Reporting a Vulnerability
+Мы серьёзно относимся к безопасности Semaphore UI. Если вы обнаружили уязвимость, пожалуйста, следуйте этим рекомендациям.
 
-If you believe you’ve found a security vulnerability in Semaphore UI, we encourage you to let us know as soon as possible.
+### Как сообщить
 
-Please email us at security@semaphoreui.com with:
+**Не создавайте публичные issues** для сообщений об уязвимостях безопасности.
 
-- A clear description of the vulnerability
-- Steps to reproduce the issue
-- Any related logs, screenshots, or payloads
+Вместо этого:
 
-We take security seriously and will respond as quickly as possible. We aim to confirm receipt within 1 business day and provide a full response within 7 business days.
+1. **Email**: Отправьте письмо на security@semaphoreui.com
+2. **GitHub**: Используйте [Private Vulnerability Reporting](https://github.com/semaphoreui/semaphore/security/advisories/new)
 
-We ask that you **do not publicly disclose** the issue until we’ve had a chance to investigate and release a fix.
+### Что включать
 
-## Scope
+- Описание уязвимости
+- Шаги для воспроизведения
+- Влияние на безопасность
+- Возможные пути эксплуатации
+- Предложения по исправлению (если есть)
 
-This policy applies to:
+### Время ответа
 
-- Semaphore UI (self-hosted)
-- Official installers, containers, and packages distributed through our GitHub or website
+- **Первичный ответ**: в течение 48 часов
+- **План исправления**: в течение 7 дней
+- **Исправление**: в зависимости от сложности
 
-This policy does **not** apply to third-party plugins or custom modifications.
+## Процесс исправления
+
+1. Получение сообщения
+2. Подтверждение уязвимости
+3. Разработка исправления
+4. Тестирование
+5. Публикация патча
+6. Публичное раскрытие (после 30 дней)
+
+## Лучшие практики безопасности
+
+### Для пользователей
+
+- Регулярно обновляйте Semaphore до последней версии
+- Используйте сложные пароли для пользователей
+- Включите двухфакторную аутентификацию (2FA)
+- Ограничьте доступ к API с помощью брандмауэра
+- Используйте HTTPS для продакшена
+- Регулярно создавайте резервные копии БД
+
+### Для разработчиков
+
+- Проверяйте зависимости на уязвимости (`cargo audit`)
+- Используйте `cargo clippy` для выявления проблем
+- Избегайте `unsafe` кода без необходимости
+- Валидируйте все входные данные
+- Логируйте ошибки безопасности (без чувствительных данных)
+- Используйте prepared statements для SQL-запросов
+
+## Зависимости
+
+Мы используем следующие инструменты для проверки зависимостей:
+
+- **cargo audit** — проверка уязвимостей в Rust-зависимостях
+- **cargo outdated** — проверка устаревших зависимостей
+- **cargo deny** — проверка лицензий и политик
+
+### Регулярные проверки
+
+```bash
+# Проверка уязвимостей
+cargo audit
+
+# Обновление зависимостей
+cargo update
+
+# Проверка лицензий
+cargo deny check
+```
+
+## История уязвимостей
+
+| Дата | Уязвимость | Статус | CVE |
+|------|------------|--------|-----|
+| - | - | - | - |
+
+*Начальная версия Rust-порта, история уязвимостей ещё не накоплена.*
+
+## Контакты
+
+- **Email**: security@semaphoreui.com
+- **PGP Key**: [ссылка на PGP ключ]
+
+## Благодарности
+
+Спасибо исследователям безопасности, которые помогают сделать Semaphore безопаснее.
+
+---
+
+**Последнее обновление**: 2024-01-01

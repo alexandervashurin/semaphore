@@ -1,53 +1,41 @@
-gin-bin
-build/
-/test/mcp/*/artifacts/
-/certs/
-web/public/js/bundle.js
-web/public/css/*.*
-web/public/html/**/*.*
-web/public/fonts/*.*
-web/.nyc_output
-api/public/**/*
-/server.json
-/config.json
-/config-secondary.json
-/config.runner.json
-/config.runner.token
-/config.runner.key
-/runner.json
-/runner.token
-/runner.key
-/.dredd/config.json
-/database.boltdb
-/database.sqlite
-/database.sqlite-journal
-/database.boltdb.lock
-/database_test.boltdb
+# Скомпилированные бинарники
+/target/
+**/target/
+
+# Файлы окружения
+.env
+.env.local
+.env.*.local
+
+# Lock-файлы (разрешаем только корневой Cargo.lock)
+Cargo.lock
+
+# Временные файлы
+*.swp
+*.swo
+*~
 .DS_Store
-/backup.json
-node_modules/
 
-/.idea/
-/semaphore.iml
-/bin/
+# Логи
+*.log
 
-/vendor/
-/coverage.out
-/public/package-lock.json
-!.gitkeep
+# Базы данных (для тестов)
+*.db
+*.sqlite
+*.bolt
 
-.dredd/compiled_hooks
-.dredd/compiled_hooks.exe
+# Тестовые артефакты
+coverage/
+*.profraw
+*.profdata
 
-__debug_bin*
-.task/
-/web/.env
-/.venv/
+# IDE
+.idea/
+.vscode/
+*.iml
 
-/events.log
-/tasks.log
-/task_results.log
-/pro_impl/
-/go.work.x
-/go.work
-/go.work.sum
+# Таргеты кросс-компиляции
+**/target-*/
+
+# Файлы отладки
+*.dSYM/

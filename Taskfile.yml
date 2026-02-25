@@ -1,334 +1,154 @@
 version: "3"
 
 vars:
+  BINARY_NAME: semaphore
   DOCKER_ORG: semaphoreui
-  DOCKER_SERVER: semaphore
-  DOCKER_RUNNER: runner
-  DOCKER_CMD: docker
+  DOCKER_SERVER: semaphore-rust
 
 tasks:
-  all:
-    desc: Install, test and build Semaphore for local architecture
+  default:
+    desc: Показать доступные команды
     cmds:
-      - task: deps
-      - task: test
-      - task: build
-        vars:
-          GOOS: ""
-          GOARCH: ""
-          APP_BUILD_TYPE: ""
-
-  deps:
-    desc: Install all build dependencies
-    cmds:
-      - task: deps:tools
-      - task: deps:be
-      - task: deps:fe
-
-  deps:tools:
-    desc: Installs required tools to build and publish
-    vars:
-      SWAGGER_VERSION: v0.30.5
-      GORELEASER_VERSION: v2.11.2
-      GOLINTER_VERSION: v1.57.2
-    cmds:
-#      - go install github.com/go-swagger/go-swagger/cmd/swagger@{{ .SWAGGER_VERSION }}
-      - go install github.com/goreleaser/goreleaser/v2@{{ .GORELEASER_VERSION }}
-#      - go install github.com/golangci/golangci-lint/cmd/golangci-lint@{{ .GOLINTER_VERSION }}
-    dir: /tmp
-
-  deps:be:
-    desc: Vendor application dependencies
-    cmds:
-      - go {{ if eq .APP_BUILD_TYPE "pro_selfhosted" }}work{{ else }}mod{{ end }} vendor
-
-  deps:fe:
-    desc: Installs nodejs requirements
-    dir: web
-    cmds:
-      - npm install
+      - task --list
 
   build:
-    desc: Build a full set of release binaries and packages
+    desc: Сборка проекта
+    deps:
+      - build:rust
+    
+  build:rust:
+    desc: Сборка Rust бинарника
     cmds:
-      - task: build:fe
-      - task: build:be
+      - cargo build --release
+      - echo "✓ Бинарный файл: target/release/{{.BINARY_NAME}}"
 
   build:debug:
-    desc: Build DEBUG server binary
+    desc: Отладочная сборка
     cmds:
-      - >-
-        env CGO_ENABLED=0 GOOS={{ .GOOS }} GOARCH={{ .GOARCH }}
-        go build -o bin/semaphore{{ if eq OS "windows" }}.exe{{ end }}
-        -tags "netgo"
-        -gcflags="all=-N -l"
-        -ldflags "-X {{ .IMPORT }}/util.Ver={{ .VERSION }} -X {{ .IMPORT }}/util.Commit={{ .SHA }} -X {{ .IMPORT }}/util.Date={{ .DATE }}" ./cli
-    vars:
-      TAG:
-        sh: git name-rev --name-only --tags --no-undefined HEAD 2>/dev/null || git rev-parse --abbrev-ref HEAD
-      SHA:
-        sh: git log --pretty=format:'%h' -n 1
-      VERSION: "{{ if eq .GITHUB_REF_TYPE \"tag\" }}{{ .GITHUB_REF_NAME }}{{ else }}{{ .TAG }}{{ end }}"
-      DATE: "{{ now | unixEpoch }}"
-      IMPORT: "github.com/semaphoreui/semaphore"
-
-  build:fe:
-    desc: Build VueJS project
-    dir: web
-    sources:
-      - src/*.*
-      - src/**/*.*
-      - public/index.html
-      - public/favicon.ico
-      - package.json
-      - package-lock.json
-      - babel.config.js
-      - vue.config.js
-    generates:
-      - ../api/public/css/*.css
-      - ../api/public/js/*.js
-      - ../api/public/index.html
-      - ../api/public/favicon.ico
-    cmds:
-      - >-
-        {{ if eq OS "windows" }}set VUE_APP_BUILD_TYPE={{ .APP_BUILD_TYPE }} && {{ else }}env VUE_APP_BUILD_TYPE={{ .APP_BUILD_TYPE }}{{ end }}
-        npm run build
-
-  build:be:
-    desc: Build server binary
-    cmds:
-      - >-
-        {{ if eq OS "windows" }}set CGO_ENABLED=0 && GOOS={{ .GOOS }} && GOARCH={{ .GOARCH }} && {{ else }}env CGO_ENABLED=0 GOOS={{ .GOOS }} GOARCH={{ .GOARCH }}{{ end }}
-        go build -o bin/semaphore{{ if eq OS "windows" }}.exe{{ end }}
-        -tags "netgo"
-        -ldflags "-s -w -X {{ .IMPORT }}/util.Ver={{ .VERSION }} -X {{ .IMPORT }}/util.Commit={{ .SHA }} -X {{ .IMPORT }}/util.Date={{ .DATE }}" ./cli
-    vars:
-      TAG:
-        sh: git name-rev --name-only --tags --no-undefined HEAD 2>/dev/null || git rev-parse --abbrev-ref HEAD
-      SHA:
-        sh: git log --pretty=format:'%h' -n 1
-      VERSION: "{{ if eq .GITHUB_REF_TYPE \"tag\" }}{{ .GITHUB_REF_NAME }}{{ else }}{{ .TAG }}{{ end }}"
-      DATE: "{{ now | unixEpoch }}"
-      IMPORT: "github.com/semaphoreui/semaphore"
-
-  lint:
-    cmds:
-      - task: lint:fe
-      - task: lint:be
-
-  lint:fe:
-    dir: web
-    cmds:
-      - npm run lint
-
-  lint:be:
-    cmds:
-      - golangci-lint run
-      - swagger validate ./api-docs.yml
+      - cargo build
 
   test:
+    desc: Запуск тестов
     cmds:
-      # - task: test:fe
-      - task: test:be
+      - cargo test -- --test-threads=1
 
-  test:fe:
-    dir: web
+  test:coverage:
+    desc: Проверка покрытия тестами
     cmds:
-      - npm run test:unit
+      - cargo tarpaulin --out Html
+      - echo "📊 Отчёт: tarpaulin-report.html"
 
-  test:be:
-    desc: Run go code tests
+  lint:
+    desc: Линтинг кода
     cmds:
-      - go test -v -coverprofile=coverage.out ./...
+      - cargo fmt -- --check
+      - cargo clippy -- -D warnings
 
-  dredd:goodman:
-    desc: Installs goodman which is required by dredd
+  fmt:
+    desc: Форматирование кода
     cmds:
-      - go install github.com/snikch/goodman/cmd/goodman@latest
+      - cargo fmt
 
-  dredd:deps:
-    desc: Installs dredd dep for integration testing
-    dir: web
+  check:
+    desc: Проверка кода без сборки
     cmds:
-      - npm install dredd@13.1.2
+      - cargo check
 
-  dredd:hooks:
-    desc: Compile required dredd hooks built
-    dir: ./.dredd/hooks
+  clean:
+    desc: Очистка артефактов сборки
     cmds:
-      - go build -o ../compiled_hooks{{ if eq OS "windows" }}.exe{{ end }}
+      - cargo clean
+      - rm -rf target/
 
-  dredd:test:
-    desc: Run end to end test for API with dredd
-    cmds:
-      - ./web/node_modules/.bin/dredd --config .dredd/dredd.testing.yml
-
-  dredd:test:local:
-    desc: Run end to end test for API with dredd
-    cmds:
-      - ./web/node_modules/.bin/dredd --config .dredd/dredd.local.yml
-
-  release:prod:
-    desc: Create and publish a release
-    cmds:
-      - goreleaser
-
-  release:test:
-    desc: Create a local test release
-    cmds:
-      - goreleaser --auto-snapshot --clean --skip=sign
-
-  docker:test:
-    desc: Test containers by building, running, testing and deleting them
+  run:
+    desc: Запуск сервера разработки
     deps:
-      - task: docker:deps
+      - build:debug
     cmds:
-      - task: docker:build
-        vars:
-          tag: test
+      - ./target/debug/{{.BINARY_NAME}} server
 
-      - task: docker:goss
-      - task: docker:lint
-
-      - "{{ .DOCKER_CMD }} rmi {{ .DOCKER_ORG }}/{{ .DOCKER_SERVER }}:test"
-      - "{{ .DOCKER_CMD }} rmi {{ .DOCKER_ORG }}/{{ .DOCKER_RUNNER }}:test"
-
-  docker:lint:
-    desc: Lint all dockerfiles based on Hadolint
-    deps:
-      - task: docker:deps
+  run:server:
+    desc: Запуск сервера
     cmds:
-      - task: docker:lint:server
-      - task: docker:lint:runner
+      - ./target/release/{{.BINARY_NAME}} server --host 0.0.0.0 --port 3000
 
-  docker:lint:server:
-    desc: Lint server dockerfile based on Hadolint
-    dir: deployment/docker/server
+  migrate:
+    desc: Применение миграций БД
     cmds:
-      - hadolint Dockerfile --ignore DL3018
+      - ./target/release/{{.BINARY_NAME}} migrate --upgrade
 
-  docker:lint:runner:
-    desc: Lint runner dockerfile based on Hadolint
-    dir: deployment/docker/runner
+  user:add:
+    desc: Добавление пользователя
     cmds:
-      - hadolint Dockerfile --ignore DL3018
-
-  docker:goss:
-    desc: Check if container contains defined files
-    deps:
-      - task: docker:deps
-    cmds:
-      - task: docker:goss:server
-      - task: docker:goss:runner
-
-  docker:goss:server:
-    desc: Check if server contains defined files
-    dir: deployment/docker/server
-    env:
-      GOSS_FILES_STRATEGY: cp
-    cmds:
-      - dgoss run -it "{{ .DOCKER_ORG }}/{{ .DOCKER_SERVER }}:test"
-
-  docker:goss:runner:
-    desc: Check if runner contains defined files
-    dir: deployment/docker/runner
-    env:
-      GOSS_FILES_STRATEGY: cp
-    cmds:
-      - dgoss run -it "{{ .DOCKER_ORG }}/{{ .DOCKER_RUNNER }}:test"
+      - echo "Использование: task user:add -- username name email password"
+      - ./target/release/{{.BINARY_NAME}} user add --username {{.CLI_ARGS}}
 
   docker:build:
-    desc: Build all defined images for Semaphore
-    vars:
-      tag: "{{ if .tag }}{{ .tag }}{{ else }}latest{{ end }}"
+    desc: Сборка Docker образа
     cmds:
-      - task: docker:build:server
-        vars:
-          tag: "{{ .tag }}"
-      - task: docker:build:runner
-        vars:
-          tag: "{{ .tag }}"
+      - docker build -t {{.DOCKER_ORG}}/{{.DOCKER_SERVER}}:latest .
 
-  docker:build:debug:
-    desc: Build an DEBUG image for Semaphore server
-    vars:
-      tag: "debug"
+  docker:run:
+    desc: Запуск в Docker
+    deps:
+      - docker:build
     cmds:
-      - "{{ .DOCKER_CMD }} build -f deployment/docker/debug/Dockerfile -t {{ .DOCKER_ORG }}/{{ .DOCKER_SERVER }}:{{ .tag }} ."
+      - docker run -p 3000:3000 \
+          -e SEMAPHORE_DB_DIALECT=sqlite \
+          -e SEMAPHORE_DB_PATH=/var/lib/semaphore/semaphore.db \
+          --name semaphore-rust \
+          {{.DOCKER_ORG}}/{{.DOCKER_SERVER}}:latest
 
-  docker:build:server:
-    desc: Build an image for Semaphore server
-    vars:
-      tag: "{{ if .tag }}{{ .tag }}{{ else }}latest{{ end }}"
+  docker:clean:
+    desc: Очистка Docker ресурсов
     cmds:
-      - "{{ .DOCKER_CMD }} build -f deployment/docker/server/Dockerfile -t {{ .DOCKER_ORG }}/{{ .DOCKER_SERVER }}:{{ .tag }} ."
+      - docker stop semaphore-rust || true
+      - docker rm semaphore-rust || true
 
-  docker:build:runner:
-    desc: Build an image for Semaphore runner
-    vars:
-      tag: "{{ if .tag }}{{ .tag }}{{ else }}latest{{ end }}"
+  docs:
+    desc: Генерация документации
     cmds:
-      - "{{ .DOCKER_CMD }} build -f deployment/docker/runner/Dockerfile -t {{ .DOCKER_ORG }}/{{ .DOCKER_RUNNER }}:{{ .tag }} ."
+      - cargo doc --no-deps --open
 
-  docker:push:
-    desc: Push the images to registry
+  deps:
+    desc: Обновление зависимостей
     cmds:
-      - docker push {{ .DOCKER_ORG }}/{{ .DOCKER_SERVER }}:{{ .tag }}
-      - docker push {{ .DOCKER_ORG }}/{{ .DOCKER_RUNNER }}:{{ .tag }}
+      - cargo update
 
-  docker:deps:
-    desc: Install docker testing dependencies
-    vars:
-      INSTALL_PATH: '{{ .INSTALL_PATH | default "/usr/local/bin" }}'
-      REQUIRE_SUDO: '{{ .REQUIRE_SUDO | default "true" }}'
+  deps:audit:
+    desc: Проверка уязвимостей в зависимостях
     cmds:
-      - task: docker:deps:hadolint
-        vars:
-          INSTALL_PATH: "{{ .INSTALL_PATH }}"
-          REQUIRE_SUDO: "{{ .REQUIRE_SUDO }}"
-      - task: docker:deps:goss
-        vars:
-          INSTALL_PATH: "{{ .INSTALL_PATH }}"
-          REQUIRE_SUDO: "{{ .REQUIRE_SUDO }}"
-      - task: docker:deps:dgoss
-        vars:
-          INSTALL_PATH: "{{ .INSTALL_PATH }}"
-          REQUIRE_SUDO: "{{ .REQUIRE_SUDO }}"
+      - cargo audit
 
-  docker:deps:hadolint:
-    platforms:
-      - linux/amd64
-      - linux/arm64
-      - darwin/amd64
-      - darwin/arm64
-    vars:
-      HADOLINT_VERSION: v2.10.0
-    status:
-      - test -f "{{ .INSTALL_PATH }}/hadolint"
+  install:
+    desc: Установка в систему
+    deps:
+      - build:release
     cmds:
-      - '{{ if eq .REQUIRE_SUDO "true" }}sudo {{ end }}curl -sSL https://github.com/hadolint/hadolint/releases/download/{{ .HADOLINT_VERSION }}/hadolint-{{ if eq OS "linux" }}Linux{{ end }}{{ if eq OS "darwin" }}Darwin{{ end }}-{{ if eq ARCH "amd64" }}x86_64{{ else }}{{ ARCH }}{{ end }} -o {{ .INSTALL_PATH }}/hadolint'
-      - '{{ if eq .REQUIRE_SUDO "true" }}sudo {{ end }}chmod +x {{ .INSTALL_PATH }}/hadolint'
+      - sudo cp target/release/{{.BINARY_NAME}} /usr/local/bin/
+      - echo "✓ Установлено в /usr/local/bin/{{.BINARY_NAME}}"
 
-  docker:deps:goss:
-    platforms:
-      - linux
-      - darwin
-    vars:
-      GOSS_VERSION: v0.3.5
-    status:
-      - test -f "{{ .INSTALL_PATH }}/goss"
+  uninstall:
+    desc: Удаление из системы
     cmds:
-      - '{{ if eq .REQUIRE_SUDO "true" }}sudo {{ end }}curl -sSL https://github.com/aelsabbahy/goss/releases/download/{{ .GOSS_VERSION }}/goss-{{ OS }}-{{ ARCH }} -o {{ .INSTALL_PATH }}/goss'
-      - '{{ if eq .REQUIRE_SUDO "true" }}sudo {{ end }}chmod +x {{ .INSTALL_PATH }}/goss'
+      - sudo rm /usr/local/bin/{{.BINARY_NAME}}
+      - echo "✓ Удалено"
 
-  docker:deps:dgoss:
-    platforms:
-      - linux
-      - darwin
-    vars:
-      GOSS_VERSION: v0.3.5
-    status:
-      - test -f "{{ .INSTALL_PATH }}/dgoss"
+  dev:
+    desc: Запуск в режиме разработки
     cmds:
-      - '{{ if eq .REQUIRE_SUDO "true" }}sudo {{ end }}curl -sSL https://raw.githubusercontent.com/aelsabbahy/goss/{{ .GOSS_VERSION }}/extras/dgoss/dgoss -o {{ .INSTALL_PATH }}/dgoss'
-      - '{{ if eq .REQUIRE_SUDO "true" }}sudo {{ end }}chmod +x {{ .INSTALL_PATH }}/dgoss'
+      - cargo watch -x run
+
+  bench:
+    desc: Бенчмарки
+    cmds:
+      - cargo bench
+
+  ci:
+    desc: Полный CI пайплайн
+    deps:
+      - lint
+      - test
+      - build:release
+    cmds:
+      - echo "✅ CI пройден успешно!"

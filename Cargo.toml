@@ -1,0 +1,130 @@
+[package]
+name = "semaphore"
+version = "0.1.0"
+edition = "2021"
+authors = ["Denis Gukov <fiftin@semaphoreui.com>"]
+description = "Современный веб-интерфейс для управления DevOps-инструментами (Ansible, Terraform, PowerShell и др.)"
+license = "MIT"
+repository = "https://github.com/semaphoreui/semaphore"
+
+[dependencies]
+# Веб-фреймворк и HTTP
+axum = { version = "0.8", features = ["macros"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "trace", "fs"] }
+hyper = { version = "1", features = ["full"] }
+hyper-util = { version = "0.1", features = ["full"] }
+tokio = { version = "1", features = ["full"] }
+
+# Сериализация
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# JWT
+jsonwebtoken = "9.3"
+
+# Работа с временем
+chrono = { version = "0.4", features = ["serde"] }
+
+# Логирование
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Ошибки
+thiserror = "2"
+anyhow = "1.0"
+
+# Валидация
+validator = { version = "0.20", features = ["derive"] }
+
+# Утилиты
+uuid = { version = "1", features = ["v4", "serde"] }
+bcrypt = "0.17"
+dotenvy = "0.15"
+
+# Асинхронные утилиты
+futures = "0.3"
+async-trait = "0.1"
+
+# Регулярные выражения
+regex = "1"
+
+# Парсинг Cron
+cron = "0.15"
+
+# Git2 (для работы с Git)
+git2 = { version = "0.20", features = ["ssh"] }
+
+# SSH (для подключений и агента)
+ssh2 = "0.9"
+# ssh2-agent = "0.1"  # Опционально для SSH agent forwarding
+
+# Сжатие
+flate2 = "1.1"
+
+# Хэширование
+sha2 = "0.10"
+sha1 = "0.10"
+hex = "0.4"
+
+# HMAC для TOTP
+hmac = "0.12"
+
+# Генерация случайных чисел
+rand = "0.9"
+
+# OTP (TOTP/HOTP)
+base32 = "0.5"
+
+# LDAP (опционально, для аутентификации)
+# ldap3 = "0.11"
+
+# OIDC (опционально, для OAuth)
+# oidc = "0.18"
+
+# WebSocket
+tokio-tungstenite = "0.27"
+axum-extra = { version = "0.10", features = ["typed-header"] }
+
+[dependencies.sqlx]
+version = "0.8"
+features = [
+    "runtime-tokio",
+    "tls-native-tls",
+    "sqlite",
+    "mysql",
+    "postgres",
+    "chrono",
+    "uuid"
+]
+
+# BoltDB-подобное хранилище (ключ-значение)
+[dependencies.sled]
+version = "0.34"
+
+# CLI
+[dependencies.clap]
+version = "4.5"
+features = ["derive", "env"]
+
+# Тестирование
+[dev-dependencies]
+tokio-test = "0.4"
+fake = { version = "4", features = ["derive", "chrono"] }
+
+# Профилирование
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+
+[profile.dev]
+debug = true
+
+# Флаги для разных баз данных
+[features]
+default = ["sqlite", "mysql", "postgres", "bolt"]
+sqlite = ["sqlx/sqlite"]
+mysql = ["sqlx/mysql"]
+postgres = ["sqlx/postgres"]
+bolt = []  # Sled для BoltDB-подобного режима

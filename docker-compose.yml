@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  semaphore:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - SEMAPHORE_DB_DIALECT=sqlite
+      - SEMAPHORE_DB_PATH=/var/lib/semaphore/semaphore.db
+      - SEMAPHORE_ADMIN=admin
+      - SEMAPHORE_ADMIN_PASSWORD=changeme
+      - RUST_LOG=info
+    volumes:
+      - semaphore_data:/var/lib/semaphore
+    restart: unless-stopped
+
+  # MySQL для Semaphore (опционально)
+  mysql:
+    image: mysql:8.0
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpassword
+      - MYSQL_DATABASE=semaphore
+      - MYSQL_USER=semaphore
+      - MYSQL_PASSWORD=secret
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    restart: unless-stopped
+    profiles:
+      - mysql
+
+  # PostgreSQL для Semaphore (опционально)
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=semaphore
+      - POSTGRES_PASSWORD=secret
+      - POSTGRES_DB=semaphore
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    profiles:
+      - postgres
+
+volumes:
+  semaphore_data:
+  mysql_data:
+  postgres_data:
