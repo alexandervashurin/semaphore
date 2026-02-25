@@ -17,11 +17,13 @@ use crate::api::middleware::ErrorResponse;
 /// Извлекатель для аутентифицированного пользователя
 ///
 /// Используется в обработчиках для получения информации о пользователе:
-/// ```rust
+/// ```rust,ignore
+/// # // Этот пример требует контекста Axum и не может быть запущен как doctest
 /// pub async fn handler(
 ///     auth_user: AuthUser,
-/// ) -> Result<Json<Response>, AppError> {
+/// ) -> axum::http::StatusCode {
 ///     println!("Пользователь: {}", auth_user.username);
+///     axum::http::StatusCode::OK
 /// }
 /// ```
 #[derive(Debug, Clone)]
