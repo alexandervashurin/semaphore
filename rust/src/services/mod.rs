@@ -8,3 +8,4 @@ pub mod scheduler;
 pub mod task_pool;
 pub mod task_runner;
 pub mod job;
+pub mod git_repository;
