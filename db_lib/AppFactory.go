@@ -1,0 +1,37 @@
+package db_lib
+
+import (
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
+)
+
+func CreateApp(template db.Template, repository db.Repository, inventory db.Inventory, logger task_logger.Logger) LocalApp {
+	switch template.App {
+	case db.AppAnsible:
+		return &AnsibleApp{
+			Template:   template,
+			Repository: repository,
+			Logger:     logger,
+			Playbook: &AnsiblePlaybook{
+				TemplateID: template.ID,
+				Repository: repository,
+				Logger:     logger,
+			},
+		}
+	case db.AppTerraform, db.AppTofu, db.AppTerragrunt:
+		return &TerraformApp{
+			Template:   template,
+			Repository: repository,
+			Logger:     logger,
+			Name:       string(template.App),
+			Inventory:  inventory,
+		}
+	default:
+		return &ShellApp{
+			Template:   template,
+			Repository: repository,
+			Logger:     logger,
+			App:        template.App,
+		}
+	}
+}

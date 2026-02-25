@@ -1,0 +1,97 @@
+version: 2
+dist: bin
+
+before:
+  hooks:
+    - task build:fe
+
+builds:
+  - binary: semaphore
+    env:
+      - CGO_ENABLED=0
+    main: ./cli/main.go
+    ldflags: -s -w -X github.com/semaphoreui/semaphore/util.Ver={{ .Version }} -X github.com/semaphoreui/semaphore/util.Commit={{ .ShortCommit }} -X github.com/semaphoreui/semaphore/util.Date={{ .Timestamp }}
+    tags:
+      - netgo
+    goos:
+      - windows
+      - darwin
+      - linux
+      - freebsd
+    goarch:
+      - 386
+      - amd64
+      - arm
+      - arm64
+      - ppc64le
+    ignore:
+      - goos: freebsd
+        goarch: arm
+      - goos: freebsd
+        goarch: 386
+      - goos: freebsd
+        goarch: ppc64le
+      - goos: darwin
+        goarch: 386
+      - goos: darwin
+        goarch: arm
+      - goos: darwin
+        goarch: ppc64le
+      - goos: windows
+        goarch: ppc64le
+      - goos: windows
+        goarch: arm
+
+archives:
+  - files:
+      - LICENSE
+    name_template: "{{ .Env.PROJECT_NAME }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+
+signs:
+  -
+    artifacts: checksum
+    signature: "{{ .Env.PROJECT_NAME }}_{{ .Version }}_checksums.txt.sig"
+    cmd: gpg
+    args: [
+      "-u", "{{ .Env.GPG_KEY_ID }}",
+      "--pinentry-mode", "loopback",
+      "--yes",
+      "--batch",
+      "--output", "${signature}",
+      "--detach-sign", "${artifact}"
+    ]
+
+checksum:
+  name_template: "{{ .Env.PROJECT_NAME }}_{{ .Version }}_checksums.txt"
+
+snapshot:
+  name_template: "{{ .Timestamp }}-{{ .ShortCommit }}-SNAPSHOT"
+
+nfpms:
+  - file_name_template: "{{ .Env.PROJECT_NAME }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    package_name: "semaphore"
+    description: Modern UI and powerful API for Ansible, Terraform, OpenTofu, PowerShell and other DevOps tools.
+    homepage: https://github.com/semaphoreui/semaphore
+    vendor: Semaphore UI
+    maintainer: Denis Gukov <denis@semaphoreui.com>
+    license: MIT
+
+    formats:
+      - deb
+      - rpm
+
+    dependencies:
+      - git
+
+    suggests:
+      - ansible
+
+    bindir: /usr/bin
+
+release:
+  draft: true
+  use_existing_draft: true
+  name_template: "{{.Tag}}"

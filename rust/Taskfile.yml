@@ -1,0 +1,154 @@
+version: "3"
+
+vars:
+  BINARY_NAME: semaphore
+  DOCKER_ORG: semaphoreui
+  DOCKER_SERVER: semaphore-rust
+
+tasks:
+  default:
+    desc: Показать доступные команды
+    cmds:
+      - task --list
+
+  build:
+    desc: Сборка проекта
+    deps:
+      - build:rust
+    
+  build:rust:
+    desc: Сборка Rust бинарника
+    cmds:
+      - cargo build --release
+      - echo "✓ Бинарный файл: target/release/{{.BINARY_NAME}}"
+
+  build:debug:
+    desc: Отладочная сборка
+    cmds:
+      - cargo build
+
+  test:
+    desc: Запуск тестов
+    cmds:
+      - cargo test -- --test-threads=1
+
+  test:coverage:
+    desc: Проверка покрытия тестами
+    cmds:
+      - cargo tarpaulin --out Html
+      - echo "📊 Отчёт: tarpaulin-report.html"
+
+  lint:
+    desc: Линтинг кода
+    cmds:
+      - cargo fmt -- --check
+      - cargo clippy -- -D warnings
+
+  fmt:
+    desc: Форматирование кода
+    cmds:
+      - cargo fmt
+
+  check:
+    desc: Проверка кода без сборки
+    cmds:
+      - cargo check
+
+  clean:
+    desc: Очистка артефактов сборки
+    cmds:
+      - cargo clean
+      - rm -rf target/
+
+  run:
+    desc: Запуск сервера разработки
+    deps:
+      - build:debug
+    cmds:
+      - ./target/debug/{{.BINARY_NAME}} server
+
+  run:server:
+    desc: Запуск сервера
+    cmds:
+      - ./target/release/{{.BINARY_NAME}} server --host 0.0.0.0 --port 3000
+
+  migrate:
+    desc: Применение миграций БД
+    cmds:
+      - ./target/release/{{.BINARY_NAME}} migrate --upgrade
+
+  user:add:
+    desc: Добавление пользователя
+    cmds:
+      - echo "Использование: task user:add -- username name email password"
+      - ./target/release/{{.BINARY_NAME}} user add --username {{.CLI_ARGS}}
+
+  docker:build:
+    desc: Сборка Docker образа
+    cmds:
+      - docker build -t {{.DOCKER_ORG}}/{{.DOCKER_SERVER}}:latest .
+
+  docker:run:
+    desc: Запуск в Docker
+    deps:
+      - docker:build
+    cmds:
+      - docker run -p 3000:3000 \
+          -e SEMAPHORE_DB_DIALECT=sqlite \
+          -e SEMAPHORE_DB_PATH=/var/lib/semaphore/semaphore.db \
+          --name semaphore-rust \
+          {{.DOCKER_ORG}}/{{.DOCKER_SERVER}}:latest
+
+  docker:clean:
+    desc: Очистка Docker ресурсов
+    cmds:
+      - docker stop semaphore-rust || true
+      - docker rm semaphore-rust || true
+
+  docs:
+    desc: Генерация документации
+    cmds:
+      - cargo doc --no-deps --open
+
+  deps:
+    desc: Обновление зависимостей
+    cmds:
+      - cargo update
+
+  deps:audit:
+    desc: Проверка уязвимостей в зависимостях
+    cmds:
+      - cargo audit
+
+  install:
+    desc: Установка в систему
+    deps:
+      - build:release
+    cmds:
+      - sudo cp target/release/{{.BINARY_NAME}} /usr/local/bin/
+      - echo "✓ Установлено в /usr/local/bin/{{.BINARY_NAME}}"
+
+  uninstall:
+    desc: Удаление из системы
+    cmds:
+      - sudo rm /usr/local/bin/{{.BINARY_NAME}}
+      - echo "✓ Удалено"
+
+  dev:
+    desc: Запуск в режиме разработки
+    cmds:
+      - cargo watch -x run
+
+  bench:
+    desc: Бенчмарки
+    cmds:
+      - cargo bench
+
+  ci:
+    desc: Полный CI пайплайн
+    deps:
+      - lint
+      - test
+      - build:release
+    cmds:
+      - echo "✅ CI пройден успешно!"

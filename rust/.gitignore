@@ -1,0 +1,41 @@
+# Скомпилированные бинарники
+/target/
+**/target/
+
+# Файлы окружения
+.env
+.env.local
+.env.*.local
+
+# Lock-файлы (разрешаем только корневой Cargo.lock)
+Cargo.lock
+
+# Временные файлы
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Логи
+*.log
+
+# Базы данных (для тестов)
+*.db
+*.sqlite
+*.bolt
+
+# Тестовые артефакты
+coverage/
+*.profraw
+*.profdata
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Таргеты кросс-компиляции
+**/target-*/
+
+# Файлы отладки
+*.dSYM/
