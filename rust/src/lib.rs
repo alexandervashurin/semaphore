@@ -11,11 +11,13 @@
 //! - **cli** - Интерфейс командной строки
 //! - **models** - Модели данных
 //! - **config** - Конфигурация приложения
+//! - **ffi** - FFI модуль для вызова из Go (cgo)
 
 pub mod api;
 pub mod cli;
 pub mod config;
 pub mod db;
+pub mod ffi;
 pub mod models;
 pub mod services;
 pub mod utils;

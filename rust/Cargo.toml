@@ -7,6 +7,11 @@ description = "Rust-реализация Semaphore UI - современный �
 license = "MIT"
 repository = "https://github.com/alexandervashurin/semaphore"
 
+[lib]
+name = "semaphore_ffi"
+crate-type = ["cdylib", "staticlib", "rlib"]
+path = "src/lib.rs"
+
 [dependencies]
 # Веб-фреймворк и HTTP
 axum = { version = "0.8", features = ["macros"] }
