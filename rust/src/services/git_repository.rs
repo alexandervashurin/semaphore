@@ -8,12 +8,10 @@
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use tokio::process::Command as TokioCommand;
-use tokio::io::{AsyncBufReadExt, BufReader};
-use tracing::{info, warn, error, debug};
+use tracing::{info, debug};
 
 use crate::error::{Error, Result};
 use crate::models::Repository;
-use crate::models::repository::RepositoryType;
 
 /// Тип директории репозитория
 #[derive(Debug, Clone, Copy)]
@@ -368,6 +366,7 @@ impl GitClient for CmdGitClient {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::repository::RepositoryType;
 
     #[test]
     fn test_git_repository_creation() {
@@ -382,7 +381,7 @@ mod tests {
         };
 
         let git_repo = GitRepository::new(repo, 1, 1);
-        
+
         assert_eq!(git_repo.project_id, 1);
         assert_eq!(git_repo.template_id, 1);
     }
@@ -401,7 +400,7 @@ mod tests {
 
         let git_repo = GitRepository::new(repo, 1, 1)
             .with_tmp_dir("test_tmp".to_string());
-        
+
         assert!(git_repo.tmp_dir_name.is_some());
         assert_eq!(git_repo.tmp_dir_name.unwrap(), "test_tmp");
     }
@@ -420,7 +419,7 @@ mod tests {
 
         let git_repo = GitRepository::new(repo, 1, 1);
         let path = git_repo.get_full_path();
-        
+
         assert!(path.display().to_string().contains("repo_1_1"));
     }
 
@@ -437,7 +436,7 @@ mod tests {
         };
 
         let git_repo = GitRepository::new(repo, 1, 1);
-        
+
         // Репозиторий ещё не существует
         assert!(!git_repo.can_be_pulled());
     }
