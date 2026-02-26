@@ -11,6 +11,8 @@ mod project;
 mod schedule;
 mod session;
 mod inventory_repository_environment;
+mod access_key;
+mod view_option;
 
 use crate::db::store::*;
 use crate::models::*;
@@ -329,24 +331,29 @@ impl EnvironmentManager for BoltStore {
 
 #[async_trait]
 impl AccessKeyManager for BoltStore {
-    async fn get_access_keys(&self, _project_id: i32) -> Result<Vec<AccessKey>> {
-        Ok(vec![])
+    async fn get_access_keys(&self, project_id: i32, options: GetAccessKeyOptions) -> Result<Vec<AccessKey>> {
+        let params = RetrieveQueryParams {
+            offset: 0,
+            count: 1000,
+            filter: String::new(),
+        };
+        self.get_access_keys(project_id, options, params).await
     }
 
-    async fn get_access_key(&self, _project_id: i32, _key_id: i32) -> Result<AccessKey> {
-        Err(Error::NotFound("Ключ доступа не найден".to_string()))
+    async fn get_access_key(&self, project_id: i32, access_key_id: i32) -> Result<AccessKey> {
+        self.get_access_key(project_id, access_key_id).await
     }
 
-    async fn create_access_key(&self, _key: AccessKey) -> Result<AccessKey> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn create_access_key(&self, key: AccessKey) -> Result<AccessKey> {
+        self.create_access_key(key).await
     }
 
-    async fn update_access_key(&self, _key: AccessKey) -> Result<()> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn update_access_key(&self, key: AccessKey) -> Result<()> {
+        self.update_access_key(key).await
     }
 
-    async fn delete_access_key(&self, _project_id: i32, _key_id: i32) -> Result<()> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn delete_access_key(&self, project_id: i32, access_key_id: i32) -> Result<()> {
+        self.delete_access_key(project_id, access_key_id).await
     }
 }
 
@@ -514,24 +521,52 @@ impl RunnerManager for BoltStore {
 
 #[async_trait]
 impl ViewManager for BoltStore {
-    async fn get_views(&self, _project_id: i32) -> Result<Vec<View>> {
-        Ok(vec![])
+    async fn get_views(&self, project_id: i32) -> Result<Vec<View>> {
+        self.get_views(project_id).await
     }
 
-    async fn get_view(&self, _project_id: i32, _view_id: i32) -> Result<View> {
-        Err(Error::NotFound("Представление не найдено".to_string()))
+    async fn get_view(&self, project_id: i32, view_id: i32) -> Result<View> {
+        self.get_view(project_id, view_id).await
     }
 
-    async fn create_view(&self, _view: View) -> Result<View> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn create_view(&self, view: View) -> Result<View> {
+        self.create_view(view).await
     }
 
-    async fn update_view(&self, _view: View) -> Result<()> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn update_view(&self, view: View) -> Result<()> {
+        self.update_view(view).await
     }
 
-    async fn delete_view(&self, _project_id: i32, _view_id: i32) -> Result<()> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn delete_view(&self, project_id: i32, view_id: i32) -> Result<()> {
+        self.delete_view(project_id, view_id).await
+    }
+}
+
+#[async_trait]
+impl OptionsManager for BoltStore {
+    async fn get_options(&self) -> Result<HashMap<String, String>> {
+        let params = RetrieveQueryParams {
+            offset: 0,
+            count: 1000,
+            filter: String::new(),
+        };
+        self.get_options(params).await
+    }
+
+    async fn get_option(&self, key: &str) -> Result<Option<String>> {
+        match self.get_option(key).await {
+            Ok(value) => Ok(Some(value)),
+            Err(Error::NotFound(_)) => Ok(None),
+            Err(e) => Err(e),
+        }
+    }
+
+    async fn set_option(&self, key: &str, value: &str) -> Result<()> {
+        self.set_option(key, value).await
+    }
+
+    async fn delete_option(&self, key: &str) -> Result<()> {
+        self.delete_option(key).await
     }
 }
 
