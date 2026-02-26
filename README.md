@@ -324,6 +324,7 @@ tracing-subscriber = "0.3"
 | **TaskRunner** | 1 модуль | 439 → 1,000 | ✅ 100% |
 | **db/bolt** | 14 модулей | 1,885 → 3,660 | ✅ 100% |
 | **db_lib** | TerraformApp, AnsibleApp | 566 → 850 | ✅ 100% |
+| **db/sql** | SqlDb | 982 → 1,200+ | ✅ 100% |
 | **services/alert** | 1 модуль | 584 → 450 | ✅ 100% |
 | **services/backup** | 1 модуль | 525 → 500 | ✅ 100% |
 | **services/restore** | 1 модуль | 621 → 550 | ✅ 100% |
@@ -335,7 +336,6 @@ tracing-subscriber = "0.3"
 
 | Категория | Файл | Строк | План декомпозиции | Прогресс |
 |-----------|------|-------|-------------------|----------|
-| **db/sql** | SqlDb.go | 982 | [План](db/sql/SQL_DB_DECOMPOSITION.md) (5 модулей) | 80% ✅ |
 | **db/sql** | template.go | 509 | В плане | 0% |
 | **db/sql** | user.go | 411 | В плане | 0% |
 | **db/sql** | task.go | 403 | В плане | 0% |
