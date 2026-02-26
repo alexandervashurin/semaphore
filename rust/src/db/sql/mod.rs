@@ -10,6 +10,7 @@ pub mod template_crud;
 pub mod template_vault;
 pub mod template_roles;
 pub mod template_utils;
+pub mod user_crud;
 
 use crate::db::store::*;
 use crate::models::*;
