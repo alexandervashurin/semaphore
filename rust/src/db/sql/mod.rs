@@ -6,6 +6,7 @@ pub mod init;
 pub mod migrations;
 pub mod queries;
 pub mod utils;
+pub mod template_crud;
 
 use crate::db::store::*;
 use crate::models::*;
