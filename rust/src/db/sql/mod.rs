@@ -16,6 +16,7 @@ pub mod user_totp;
 pub mod task_crud;
 pub mod task_output;
 pub mod task_stage;
+pub mod integration_crud;
 
 use crate::db::store::*;
 use crate::models::*;
