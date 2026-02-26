@@ -3,8 +3,11 @@
 //! Аналог services/tasks/local_job_vault.go из Go версии
 
 use std::collections::HashMap;
+use std::path::PathBuf;
+use tokio::fs;
 use crate::error::Result;
 use crate::services::local_job::LocalJob;
+use crate::db_lib::DbAccessKeyRole;
 
 impl LocalJob {
     /// Устанавливает файлы ключей Vault
@@ -14,13 +17,16 @@ impl LocalJob {
         for vault in &self.inventory.vaults {
             if let Some(vault_key_id) = vault.vault_key_id {
                 // TODO: Загрузить ключ из БД
-                // let key = self.key_installer.get_key(vault_key_id).await?;
+                // let key = self.store.get_access_key(vault_key_id).await?;
                 // let installation = self.key_installer.install(
                 //     &key,
                 //     DbAccessKeyRole::AnsiblePasswordVault,
                 //     &self.logger
                 // ).await?;
                 // self.vault_file_installations.insert(vault.name.clone(), installation);
+                
+                self.log(&format!("Vault key installation pending for vault '{}' (key ID: {})", 
+                    vault.name, vault_key_id));
             }
         }
 
@@ -30,6 +36,26 @@ impl LocalJob {
     /// Очищает файлы ключей Vault
     pub fn clear_vault_key_files(&mut self) {
         self.vault_file_installations.clear();
+    }
+
+    /// Создаёт временный файл для пароля Vault
+    pub async fn create_vault_password_file(&self, vault_name: &str, password: &str) -> Result<PathBuf> {
+        let tmp_dir = &self.tmp_dir;
+        let vault_password_file = tmp_dir.join(format!("vault_{}_password", vault_name));
+
+        fs::create_dir_all(tmp_dir).await?;
+        fs::write(&vault_password_file, password).await?;
+        
+        // Устанавливаем права 0600
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = fs::metadata(&vault_password_file).await?.permissions();
+            perms.set_mode(0o600);
+            fs::set_permissions(&vault_password_file, perms).await?;
+        }
+
+        Ok(vault_password_file)
     }
 }
 

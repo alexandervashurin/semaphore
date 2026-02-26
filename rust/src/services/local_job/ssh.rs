@@ -4,26 +4,31 @@
 
 use crate::error::Result;
 use crate::services::local_job::LocalJob;
+use crate::db_lib::DbAccessKeyRole;
 
 impl LocalJob {
     /// Устанавливает SSH ключи
     pub async fn install_ssh_keys(&mut self) -> Result<()> {
         // SSH ключ для инвентаря
         if let Some(key_id) = self.inventory.ssh_key_id {
-            // TODO: Загрузить ключ из БД
-            // let key = self.key_installer.get_key(key_id).await?;
+            // TODO: Загрузить ключ из БД через store
+            // let key = self.store.get_access_key(key_id).await?;
             // self.ssh_key_installation = Some(
             //     self.key_installer.install(&key, DbAccessKeyRole::Git, &self.logger).await?
             // );
+            
+            self.log(&format!("SSH key installation pending for key ID: {}", key_id));
         }
 
         // Become ключ
         if let Some(key_id) = self.inventory.become_key_id {
             // TODO: Загрузить ключ из БД
-            // let key = self.key_installer.get_key(key_id).await?;
+            // let key = self.store.get_access_key(key_id).await?;
             // self.become_key_installation = Some(
             //     self.key_installer.install(&key, DbAccessKeyRole::AnsibleBecomeUser, &self.logger).await?
             // );
+            
+            self.log(&format!("Become key installation pending for key ID: {}", key_id));
         }
 
         Ok(())

@@ -4,31 +4,59 @@
 
 use crate::error::Result;
 use crate::services::local_job::LocalJob;
+use crate::services::task_logger::TaskStatus;
 
 impl LocalJob {
     /// Запускает задачу
     pub async fn run(&mut self, username: &str, incoming_version: Option<&str>, alias: &str) -> Result<()> {
-        self.set_status(crate::services::task_logger::TaskStatus::Starting);
+        self.set_status(TaskStatus::Starting);
         self.log("Starting job...");
 
         // Устанавливаем SSH ключи
-        self.install_ssh_keys().await?;
+        if let Err(e) = self.install_ssh_keys().await {
+            self.log(&format!("Failed to install SSH keys: {}", e));
+            self.set_status(TaskStatus::Error);
+            return Err(e);
+        }
 
         // Устанавливаем файлы Vault
-        self.install_vault_key_files().await?;
+        if let Err(e) = self.install_vault_key_files().await {
+            self.log(&format!("Failed to install Vault keys: {}", e));
+            self.set_status(TaskStatus::Error);
+            return Err(e);
+        }
 
         // Обновляем репозиторий
-        self.update_repository().await?;
+        if let Err(e) = self.update_repository().await {
+            self.log(&format!("Failed to update repository: {}", e));
+            self.set_status(TaskStatus::Error);
+            return Err(e);
+        }
 
         // Переключаем на нужный коммит/ветку
-        self.checkout_repository().await?;
+        if let Err(e) = self.checkout_repository().await {
+            self.log(&format!("Failed to checkout repository: {}", e));
+            self.set_status(TaskStatus::Error);
+            return Err(e);
+        }
 
         // Создаём приложение и запускаем
-        // TODO: Интеграция с Executor
-        // self.prepare_run(username, incoming_version, alias).await?;
-        // self.app.run().await?;
+        if let Err(e) = self.prepare_run(username, incoming_version, alias).await {
+            self.log(&format!("Failed to prepare run: {}", e));
+            self.set_status(TaskStatus::Error);
+            return Err(e);
+        }
 
-        self.set_status(crate::services::task_logger::TaskStatus::Success);
+        // TODO: Запуск приложения
+        // if let Some(ref mut app) = self.app {
+        //     if let Err(e) = app.run().await {
+        //         self.log(&format!("Failed to run app: {}", e));
+        //         self.set_status(TaskStatus::Error);
+        //         return Err(e);
+        //     }
+        // }
+
+        self.set_status(TaskStatus::Success);
         self.log("Job completed successfully");
 
         Ok(())
@@ -36,24 +64,46 @@ impl LocalJob {
 
     /// Подготавливает запуск задачи
     async fn prepare_run(&mut self, username: &str, incoming_version: Option<&str>, alias: &str) -> Result<()> {
-        // TODO: Определить тип приложения и создать его
-        // match self.template.template_type {
-        //     TemplateType::Ansible => {
-        //         self.app = Some(Box::new(AnsibleApp::new(...)?));
-        //     }
-        //     TemplateType::Terraform => {
-        //         self.app = Some(Box::new(TerraformApp::new(...)?));
-        //     }
-        //     TemplateType::Shell => {
-        //         self.app = Some(Box::new(ShellApp::new(...)?));
-        //     }
-        //     _ => {}
-        // }
+        self.log("Preparing to run task...");
 
-        // TODO: Установить приложение
-        // self.app.install(installing_args).await?;
+        // Получаем аргументы в зависимости от типа шаблона
+        match self.template.template_type {
+            crate::models::TemplateType::Ansible => {
+                self.log("Preparing Ansible playbook...");
+                // TODO: Создать AnsibleApp
+                // let args = self.get_playbook_args(username, incoming_version)?;
+            }
+            crate::models::TemplateType::Terraform => {
+                self.log("Preparing Terraform...");
+                // TODO: Создать TerraformApp
+                // let args = self.get_terraform_args(username, incoming_version)?;
+            }
+            crate::models::TemplateType::Shell => {
+                self.log("Preparing Shell script...");
+                // TODO: Создать ShellApp
+                // let args = self.get_shell_args(username, incoming_version)?;
+            }
+            _ => {
+                self.log("Preparing local task...");
+            }
+        }
 
         Ok(())
+    }
+
+    /// Очищает ресурсы после выполнения
+    pub fn cleanup(&self) {
+        // Очищаем временные файлы
+        let _ = std::fs::remove_dir_all(&self.tmp_dir);
+        self.log("Cleanup completed");
+    }
+}
+
+impl Drop for LocalJob {
+    fn drop(&mut self) {
+        self.cleanup();
+        self.clear_ssh_keys();
+        self.clear_vault_key_files();
     }
 }
 
