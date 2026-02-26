@@ -7,5 +7,8 @@ pub mod types;
 pub mod environment;
 pub mod cli;
 pub mod args;
+pub mod ssh;
+pub mod vault;
+pub mod repository;
 
 pub use types::LocalJob;
