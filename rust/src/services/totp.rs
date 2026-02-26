@@ -25,7 +25,7 @@ const TOTP_SECRET_SIZE: usize = 20;
 pub fn generate_totp_secret(user: &User, issuer: &str) -> Result<TotpSecret> {
     // Генерируем случайный секрет
     let mut secret_bytes = [0u8; TOTP_SECRET_SIZE];
-    rand::rng().fill_bytes(&mut secret_bytes);
+    rand::thread_rng().fill_bytes(&mut secret_bytes);
 
     // Кодируем в Base32
     let secret = base32::encode(base32::Alphabet::Rfc4648 { padding: true }, &secret_bytes);
@@ -41,7 +41,7 @@ pub fn generate_totp_secret(user: &User, issuer: &str) -> Result<TotpSecret> {
 
     // Генерируем код восстановления
     let mut recovery_bytes = [0u8; 16];
-    rand::rng().fill_bytes(&mut recovery_bytes);
+    rand::thread_rng().fill_bytes(&mut recovery_bytes);
     let recovery_code = hex::encode(&recovery_bytes);
 
     // Хешируем код восстановления
@@ -126,7 +126,7 @@ pub fn verify_recovery_code(code: &str, hash: &str) -> bool {
 /// Генерирует новый код восстановления
 pub fn generate_recovery_code() -> Result<(String, String)> {
     let mut recovery_bytes = [0u8; 16];
-    rand::rng().fill_bytes(&mut recovery_bytes);
+    rand::thread_rng().fill_bytes(&mut recovery_bytes);
     let recovery_code = hex::encode(&recovery_bytes);
 
     let recovery_hash = bcrypt::hash(&recovery_code, bcrypt::DEFAULT_COST)
