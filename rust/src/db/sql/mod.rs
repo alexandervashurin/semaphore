@@ -5,6 +5,7 @@ pub mod types;
 pub mod init;
 pub mod migrations;
 pub mod queries;
+pub mod utils;
 
 use crate::db::store::*;
 use crate::models::*;
