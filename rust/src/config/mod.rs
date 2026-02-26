@@ -19,3 +19,4 @@ pub use config_ldap::{LdapConfigFull, load_ldap_from_env};
 pub use config_oidc::{OidcProvider, OidcEndpoint, load_oidc_from_env};
 pub use config_ha::{HAConfigFull, HARedisConfigFull, load_ha_from_env};
 pub use config_logging::{LoggingConfig, LogFormat, LogLevel, load_logging_from_env};
+pub use config_dirs::{clear_dir, ensure_dir_exists, get_project_tmp_dir, clear_project_tmp_dir, create_project_tmp_dir, get_or_create_project_tmp_dir, is_safe_path, create_unique_tmp_dir};
