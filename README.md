@@ -320,7 +320,7 @@ tracing-subscriber = "0.3"
 | **Утилиты** | config, mailer, encryption, shell | 1,809 → 2,200+ | ✅ 100% |
 | **API** | auth, users, user, integration | 766 → 966 | ✅ 100% |
 | **LocalJob** | 8 модулей | 1,021 → 1,210 | ✅ 100% |
-| **TaskPool** | 1 модуль | 752 → 324 | ✅ 100% |
+| **TaskPool** | 4 модуля | 752 → 700+ | ✅ 100% |
 | **TaskRunner** | 1 модуль | 439 → 1,000 | ✅ 100% |
 | **db/bolt** | 14 модулей | 1,885 → 3,660 | ✅ 100% |
 | **db_lib** | TerraformApp, AnsibleApp | 566 → 850 | ✅ 100% |
@@ -336,7 +336,6 @@ tracing-subscriber = "0.3"
 
 | Категория | Файл | Строк | План декомпозиции | Прогресс |
 |-----------|------|-------|-------------------|----------|
-| **services/tasks** | TaskPool.go | 752 | [План](services/tasks/TASK_POOL_DECOMPOSITION.md) (4 модуля) | 25% ✅ |
 | **services/tasks** | TaskRunner.go | 439 | В плане | 0% |
 | **services/export** | остальные модули | ~2,100 | [План](services/export/EXPORTER_DECOMPOSITION.md) | 0% |
 
