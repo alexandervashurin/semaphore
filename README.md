@@ -336,7 +336,7 @@ tracing-subscriber = "0.3"
 
 | Категория | Файл | Строк | План декомпозиции | Прогресс |
 |-----------|------|-------|-------------------|----------|
-| **services/tasks** | TaskPool.go | 752 | В плане | 0% |
+| **services/tasks** | TaskPool.go | 752 | [План](services/tasks/TASK_POOL_DECOMPOSITION.md) (4 модуля) | 25% ✅ |
 | **services/tasks** | TaskRunner.go | 439 | В плане | 0% |
 | **services/export** | остальные модули | ~2,100 | [План](services/export/EXPORTER_DECOMPOSITION.md) | 0% |
 
