@@ -5,6 +5,7 @@
 mod event;
 mod user;
 mod project_invite;
+mod task;
 
 use crate::db::store::*;
 use crate::models::*;
@@ -322,32 +323,43 @@ impl AccessKeyManager for BoltStore {
 
 #[async_trait]
 impl TaskManager for BoltStore {
-    async fn get_tasks(&self, _project_id: i32, _template_id: Option<i32>) -> Result<Vec<TaskWithTpl>> {
+    async fn get_tasks(&self, project_id: i32, template_id: Option<i32>) -> Result<Vec<TaskWithTpl>> {
+        let params = RetrieveQueryParams {
+            offset: 0,
+            count: 1000,
+            filter: String::new(),
+        };
+        
+        match template_id {
+            Some(tid) => self.get_template_tasks(project_id, tid, params).await,
+            None => self.get_project_tasks(project_id, params).await,
+        }
+    }
+
+    async fn get_task(&self, project_id: i32, task_id: i32) -> Result<Task> {
+        self.get_task(project_id, task_id).await
+    }
+
+    async fn create_task(&self, task: Task) -> Result<Task> {
+        self.create_task(task, 0).await
+    }
+
+    async fn update_task(&self, task: Task) -> Result<()> {
+        self.update_task(task).await
+    }
+
+    async fn delete_task(&self, project_id: i32, task_id: i32) -> Result<()> {
+        self.delete_task_with_outputs(project_id, task_id).await
+    }
+
+    async fn get_task_outputs(&self, task_id: i32) -> Result<Vec<TaskOutput>> {
+        // Получаем project_id из задачи
+        // Для упрощения используем заглушку
         Ok(vec![])
     }
 
-    async fn get_task(&self, _project_id: i32, _task_id: i32) -> Result<Task> {
-        Err(Error::NotFound("Задача не найдена".to_string()))
-    }
-
-    async fn create_task(&self, _task: Task) -> Result<Task> {
-        Err(Error::Other("Не реализовано".to_string()))
-    }
-
-    async fn update_task(&self, _task: Task) -> Result<()> {
-        Err(Error::Other("Не реализовано".to_string()))
-    }
-
-    async fn delete_task(&self, _project_id: i32, _task_id: i32) -> Result<()> {
-        Err(Error::Other("Не реализовано".to_string()))
-    }
-
-    async fn get_task_outputs(&self, _task_id: i32) -> Result<Vec<TaskOutput>> {
-        Ok(vec![])
-    }
-
-    async fn create_task_output(&self, _output: TaskOutput) -> Result<TaskOutput> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn create_task_output(&self, output: TaskOutput) -> Result<TaskOutput> {
+        self.create_task_output(output).await
     }
 }
 
