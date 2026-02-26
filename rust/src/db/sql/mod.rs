@@ -2,6 +2,7 @@
 
 pub mod runner;
 pub mod types;
+pub mod init;
 
 use crate::db::store::*;
 use crate::models::*;
