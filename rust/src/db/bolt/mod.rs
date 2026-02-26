@@ -10,6 +10,7 @@ mod template;
 mod project;
 mod schedule;
 mod session;
+mod inventory_repository_environment;
 
 use crate::db::store::*;
 use crate::models::*;
@@ -244,70 +245,85 @@ impl TemplateManager for BoltStore {
 
 #[async_trait]
 impl InventoryManager for BoltStore {
-    async fn get_inventories(&self, _project_id: i32) -> Result<Vec<Inventory>> {
-        Ok(vec![])
+    async fn get_inventories(&self, project_id: i32) -> Result<Vec<Inventory>> {
+        let params = RetrieveQueryParams {
+            offset: 0,
+            count: 1000,
+            filter: String::new(),
+        };
+        self.get_inventories(project_id, params, vec![]).await
     }
 
-    async fn get_inventory(&self, _project_id: i32, _inventory_id: i32) -> Result<Inventory> {
-        Err(Error::NotFound("Инвентарь не найден".to_string()))
+    async fn get_inventory(&self, project_id: i32, inventory_id: i32) -> Result<Inventory> {
+        self.get_inventory(project_id, inventory_id).await
     }
 
-    async fn create_inventory(&self, _inventory: Inventory) -> Result<Inventory> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn create_inventory(&self, inventory: Inventory) -> Result<Inventory> {
+        self.create_inventory(inventory).await
     }
 
-    async fn update_inventory(&self, _inventory: Inventory) -> Result<()> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn update_inventory(&self, inventory: Inventory) -> Result<()> {
+        self.update_inventory(inventory).await
     }
 
-    async fn delete_inventory(&self, _project_id: i32, _inventory_id: i32) -> Result<()> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn delete_inventory(&self, project_id: i32, inventory_id: i32) -> Result<()> {
+        self.delete_inventory(project_id, inventory_id).await
     }
 }
 
 #[async_trait]
 impl RepositoryManager for BoltStore {
-    async fn get_repositories(&self, _project_id: i32) -> Result<Vec<Repository>> {
-        Ok(vec![])
+    async fn get_repositories(&self, project_id: i32) -> Result<Vec<Repository>> {
+        let params = RetrieveQueryParams {
+            offset: 0,
+            count: 1000,
+            filter: String::new(),
+        };
+        self.get_repositories(project_id, params).await
     }
 
-    async fn get_repository(&self, _project_id: i32, _repository_id: i32) -> Result<Repository> {
-        Err(Error::NotFound("Репозиторий не найден".to_string()))
+    async fn get_repository(&self, project_id: i32, repository_id: i32) -> Result<Repository> {
+        self.get_repository(project_id, repository_id).await
     }
 
-    async fn create_repository(&self, _repository: Repository) -> Result<Repository> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn create_repository(&self, repository: Repository) -> Result<Repository> {
+        self.create_repository(repository).await
     }
 
-    async fn update_repository(&self, _repository: Repository) -> Result<()> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn update_repository(&self, repository: Repository) -> Result<()> {
+        self.update_repository(repository).await
     }
 
-    async fn delete_repository(&self, _project_id: i32, _repository_id: i32) -> Result<()> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn delete_repository(&self, project_id: i32, repository_id: i32) -> Result<()> {
+        self.delete_repository(project_id, repository_id).await
     }
 }
 
 #[async_trait]
 impl EnvironmentManager for BoltStore {
-    async fn get_environments(&self, _project_id: i32) -> Result<Vec<Environment>> {
-        Ok(vec![])
+    async fn get_environments(&self, project_id: i32) -> Result<Vec<Environment>> {
+        let params = RetrieveQueryParams {
+            offset: 0,
+            count: 1000,
+            filter: String::new(),
+        };
+        self.get_environments(project_id, params).await
     }
 
-    async fn get_environment(&self, _project_id: i32, _environment_id: i32) -> Result<Environment> {
-        Err(Error::NotFound("Окружение не найдено".to_string()))
+    async fn get_environment(&self, project_id: i32, environment_id: i32) -> Result<Environment> {
+        self.get_environment(project_id, environment_id).await
     }
 
-    async fn create_environment(&self, _environment: Environment) -> Result<Environment> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn create_environment(&self, environment: Environment) -> Result<Environment> {
+        self.create_environment(environment).await
     }
 
-    async fn update_environment(&self, _environment: Environment) -> Result<()> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn update_environment(&self, environment: Environment) -> Result<()> {
+        self.update_environment(environment).await
     }
 
-    async fn delete_environment(&self, _project_id: i32, _environment_id: i32) -> Result<()> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn delete_environment(&self, project_id: i32, environment_id: i32) -> Result<()> {
+        self.delete_environment(project_id, environment_id).await
     }
 }
 
