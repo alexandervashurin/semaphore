@@ -5,6 +5,7 @@
 pub mod access_key_installer;
 pub mod cmd_git_client;
 pub mod terraform_app;
+pub mod ansible_app;
 
 pub use access_key_installer::{
     AccessKeyInstallerImpl, AccessKeyInstallerTrait,
@@ -18,3 +19,4 @@ pub use cmd_git_client::{
 };
 
 pub use terraform_app::TerraformApp;
+pub use ansible_app::{AnsibleApp, AnsiblePlaybook, GalaxyRequirementsType};
