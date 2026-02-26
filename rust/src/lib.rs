@@ -21,6 +21,7 @@ pub mod db;
 pub mod db_lib;
 pub mod ffi;
 pub mod models;
+pub mod pro;
 pub mod services;
 pub mod utils;
 
