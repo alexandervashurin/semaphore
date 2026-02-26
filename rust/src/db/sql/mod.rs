@@ -1,5 +1,7 @@
 //! SQL-хранилище (SQLite)
 
+pub mod runner;
+
 use crate::db::store::*;
 use crate::models::*;
 use crate::error::{Error, Result};
