@@ -10,5 +10,6 @@ pub mod args;
 pub mod ssh;
 pub mod vault;
 pub mod repository;
+pub mod run;
 
 pub use types::LocalJob;
