@@ -2,6 +2,8 @@
 //!
 //! Это реализация хранилища данных, совместимая с оригинальной BoltDB-версией Semaphore.
 
+mod event;
+
 use crate::db::store::*;
 use crate::models::*;
 use crate::error::{Error, Result};
@@ -406,12 +408,21 @@ impl TokenManager for BoltStore {
 
 #[async_trait]
 impl EventManager for BoltStore {
-    async fn get_events(&self, _project_id: Option<i32>, _limit: usize) -> Result<Vec<Event>> {
-        Ok(vec![])
+    async fn get_events(&self, project_id: Option<i32>, limit: usize) -> Result<Vec<Event>> {
+        let params = RetrieveQueryParams {
+            offset: 0,
+            count: limit,
+            filter: String::new(),
+        };
+        
+        match project_id {
+            Some(pid) => self.get_events(pid, params).await,
+            None => self.get_all_events(params).await,
+        }
     }
 
-    async fn create_event(&self, _event: Event) -> Result<Event> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn create_event(&self, event: Event) -> Result<Event> {
+        self.create_event(event).await
     }
 }
 
