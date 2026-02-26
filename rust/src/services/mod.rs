@@ -8,6 +8,7 @@ pub mod executor;
 pub mod git_repository;
 pub mod job;
 pub mod local_job;
+pub mod restore;
 pub mod scheduler;
 pub mod ssh_agent;
 pub mod task_logger;
@@ -23,3 +24,4 @@ pub use access_key_installation_service::{
 pub use local_job::LocalJob;
 pub use alert::AlertService;
 pub use backup::{BackupFormat, BackupDB, BackupEntity, BackupSluggedEntity};
+pub use restore::{RestoreDB, RestoreEntry, generate_random_slug};
