@@ -6,6 +6,7 @@ mod event;
 mod user;
 mod project_invite;
 mod task;
+mod template;
 
 use crate::db::store::*;
 use crate::models::*;
@@ -208,24 +209,30 @@ impl ProjectStore for BoltStore {
 
 #[async_trait]
 impl TemplateManager for BoltStore {
-    async fn get_templates(&self, _project_id: i32) -> Result<Vec<Template>> {
-        Ok(vec![])
+    async fn get_templates(&self, project_id: i32) -> Result<Vec<Template>> {
+        let params = RetrieveQueryParams {
+            offset: 0,
+            count: 1000,
+            filter: String::new(),
+        };
+        
+        self.get_templates(project_id, TemplateFilter { view_id: None }, params).await
     }
 
-    async fn get_template(&self, _project_id: i32, _template_id: i32) -> Result<Template> {
-        Err(Error::NotFound("Шаблон не найден".to_string()))
+    async fn get_template(&self, project_id: i32, template_id: i32) -> Result<Template> {
+        self.get_template(project_id, template_id).await
     }
 
-    async fn create_template(&self, _template: Template) -> Result<Template> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn create_template(&self, template: Template) -> Result<Template> {
+        self.create_template(template).await
     }
 
-    async fn update_template(&self, _template: Template) -> Result<()> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn update_template(&self, template: Template) -> Result<()> {
+        self.update_template(template).await
     }
 
-    async fn delete_template(&self, _project_id: i32, _template_id: i32) -> Result<()> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn delete_template(&self, project_id: i32, template_id: i32) -> Result<()> {
+        self.delete_template(project_id, template_id).await
     }
 }
 
