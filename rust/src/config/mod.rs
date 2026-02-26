@@ -16,3 +16,4 @@ pub use loader::{load_config, load_from_file, load_from_env, merge_configs};
 pub use validator::{validate_config, validate_config_with_warnings, Validate, ValidationError};
 pub use defaults::{load_defaults, apply_defaults, create_default_config};
 pub use config_ldap::{LdapConfigFull, load_ldap_from_env};
+pub use config_oidc::{OidcProvider, OidcEndpoint, load_oidc_from_env};
