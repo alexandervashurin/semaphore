@@ -13,6 +13,7 @@ pub mod template_utils;
 pub mod user_crud;
 pub mod user_auth;
 pub mod user_totp;
+pub mod task_crud;
 
 use crate::db::store::*;
 use crate::models::*;
