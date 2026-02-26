@@ -64,15 +64,10 @@ where
 
         // Проверяем токен
         let claims = auth_service.verify_token(token)
-            .map_err(|e| {
-                let error_msg = match e {
-                    crate::api::auth::AuthError::TokenExpired => "Токен истёк",
-                    crate::api::auth::AuthError::InvalidToken(_) => "Неверный токен",
-                    _ => "Ошибка аутентификации",
-                };
+            .map_err(|_| {
                 (
                     StatusCode::UNAUTHORIZED,
-                    Json(ErrorResponse::new(error_msg.to_string())
+                    Json(ErrorResponse::new("Неверный токен".to_string())
                         .with_code("AUTH_FAILED")),
                 )
             })?;

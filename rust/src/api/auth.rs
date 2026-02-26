@@ -4,12 +4,15 @@
 //! - JWT токены для аутентификации
 //! - Проверку и валидацию токенов
 //! - Управление сессиями
+//! - TOTP верификацию
+//! - LDAP/OIDC аутентификацию (каркас)
 
 use chrono::{Duration, Utc};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 
 use crate::models::User;
+use crate::error::{Error, Result};
 
 /// Секретный ключ для JWT (в production должен загружаться из конфига)
 const JWT_SECRET: &str = "semaphore-jwt-secret-key-change-in-production";
@@ -64,7 +67,7 @@ impl AuthService {
     }
 
     /// Генерирует JWT токен для пользователя
-    pub fn generate_token(&self, user: &User) -> Result<TokenInfo, AuthError> {
+    pub fn generate_token(&self, user: &User) -> Result<TokenInfo> {
         let now = Utc::now();
         let expiry = now + Duration::hours(TOKEN_EXPIRY_HOURS);
 
@@ -81,7 +84,7 @@ impl AuthService {
             &Header::default(),
             &claims,
             &EncodingKey::from_secret(self.secret.as_bytes()),
-        )?;
+        ).map_err(|e| Error::Other(format!("JWT encode error: {}", e)))?;
 
         Ok(TokenInfo {
             token,
@@ -91,20 +94,20 @@ impl AuthService {
     }
 
     /// Проверяет и декодирует JWT токен
-    pub fn verify_token(&self, token: &str) -> Result<JwtClaims, AuthError> {
+    pub fn verify_token(&self, token: &str) -> Result<JwtClaims> {
         let token_data = decode::<JwtClaims>(
             token,
             &DecodingKey::from_secret(self.secret.as_bytes()),
             &Validation::default(),
-        )?;
+        ).map_err(|e| Error::Other(format!("JWT decode error: {}", e)))?;
 
         Ok(token_data.claims)
     }
 
     /// Обновляет токен (выпускает новый)
-    pub fn refresh_token(&self, old_token: &str) -> Result<TokenInfo, AuthError> {
+    pub fn refresh_token(&self, old_token: &str) -> Result<TokenInfo> {
         let claims = self.verify_token(old_token)?;
-        
+
         // Создаём "фейкового" пользователя для генерации нового токена
         let user = User {
             id: claims.sub,
@@ -179,8 +182,83 @@ pub fn verify_password(password: &str, hash: &str) -> bool {
 }
 
 /// Хеширует пароль
-pub fn hash_password(password: &str) -> Result<String, bcrypt::BcryptError> {
+pub fn hash_password(password: &str) -> Result<String> {
     bcrypt::hash(password, bcrypt::DEFAULT_COST)
+        .map_err(|e| Error::Other(format!("Bcrypt error: {}", e)))
+}
+
+// ============================================================================
+// Сессии (каркас)
+// ============================================================================
+
+// TODO: Реализовать методы для работы с сессиями после добавления их в Store trait
+
+// ============================================================================
+// TOTP верификация
+// ============================================================================
+
+/// Проверяет TOTP код
+pub fn verify_totp_passcode(_secret: &str, _passcode: &str) -> bool {
+    // TODO: Реализовать проверку TOTP
+    false
+}
+
+/// Генерирует TOTP секрет для пользователя
+pub fn generate_totp(_user: &User, _issuer: &str) -> Result<String> {
+    // TODO: Реализовать генерацию TOTP
+    Err(Error::Other("TOTP not implemented".to_string()))
+}
+
+/// Проверяет код восстановления
+pub fn verify_recovery_code(_code: &str, _hash: &str) -> bool {
+    // TODO: Реализовать проверку recovery code
+    false
+}
+
+// ============================================================================
+// LDAP/OIDC (каркас)
+// ============================================================================
+
+/// LDAP конфигурация (каркас)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LdapConfig {
+    pub enabled: bool,
+    pub server: String,
+    pub bind_dn: String,
+    pub bind_password: String,
+    pub search_dn: String,
+    pub search_filter: String,
+    pub need_tls: bool,
+}
+
+/// OIDC провайдер (каркас)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OidcProvider {
+    pub id: String,
+    pub display_name: String,
+    pub client_id: String,
+    pub client_secret: String,
+    pub redirect_url: String,
+    pub scopes: Vec<String>,
+}
+
+/// Аутентифицирует пользователя через LDAP
+pub async fn authenticate_ldap(
+    _username: &str,
+    _password: &str,
+    _config: &LdapConfig,
+) -> Result<User> {
+    // TODO: Реализовать LDAP аутентификацию
+    Err(crate::error::Error::Other("LDAP not implemented".to_string()))
+}
+
+/// Аутентифицирует пользователя через OIDC
+pub async fn authenticate_oidc(
+    _code: &str,
+    _provider: &OidcProvider,
+) -> Result<User> {
+    // TODO: Реализовать OIDC аутентификацию
+    Err(crate::error::Error::Other("OIDC not implemented".to_string()))
 }
 
 #[cfg(test)]
@@ -242,13 +320,13 @@ mod tests {
     #[test]
     fn test_invalid_token() {
         let service = AuthService::new();
-        
+
         let result = service.verify_token("invalid_token");
         assert!(result.is_err());
-        
+
         match result.unwrap_err() {
-            AuthError::InvalidToken(_) => (),
-            _ => panic!("Ожидалась ошибка InvalidToken"),
+            Error::Other(_) => (), // Ожидаем ошибку
+            _ => panic!("Ожидалась ошибка Other"),
         }
     }
 }
