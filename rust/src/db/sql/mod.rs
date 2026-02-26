@@ -3,6 +3,7 @@
 pub mod runner;
 pub mod types;
 pub mod init;
+pub mod migrations;
 
 use crate::db::store::*;
 use crate::models::*;
