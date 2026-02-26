@@ -9,10 +9,11 @@ use tokio::sync::{RwLock, Mutex};
 use tracing::{info, warn, error};
 
 use crate::error::Result;
-use crate::models::{Task, Project};
+use crate::models::{Task, Project, TaskStatus};
 use crate::services::task_logger::{TaskLogger, TaskStatus, BasicLogger};
 use crate::services::local_job::LocalJob;
 use crate::db_lib::AccessKeyInstallerImpl;
+use crate::db::Store;
 
 /// Задача в пуле
 pub struct PoolTask {
@@ -36,17 +37,20 @@ pub struct TaskPool {
     pub key_installer: AccessKeyInstallerImpl,
     /// Флаг остановки
     pub shutdown: Arc<Mutex<bool>>,
+    /// Хранилище данных
+    pub store: Arc<dyn Store + Send + Sync>,
 }
 
 impl TaskPool {
     /// Создаёт новый пул задач
-    pub fn new(project: Project, key_installer: AccessKeyInstallerImpl) -> Self {
+    pub fn new(project: Project, key_installer: AccessKeyInstallerImpl, store: Arc<dyn Store + Send + Sync>) -> Self {
         Self {
             queue: Arc::new(RwLock::new(Vec::new())),
             running: Arc::new(RwLock::new(HashMap::new())),
             project,
             key_installer,
             shutdown: Arc::new(Mutex::new(false)),
+            store,
         }
     }
 
@@ -62,6 +66,9 @@ impl TaskPool {
 
         let mut queue = self.queue.write().await;
         queue.push(pool_task);
+
+        // Обновляем статус задачи в БД
+        self.store.update_task_status(task.id, TaskStatus::Waiting).await?;
 
         info!("Task {} added to pool", task.id);
         Ok(())
@@ -166,9 +173,31 @@ impl TaskPool {
     async fn execute_task(&self, task_id: i32) -> Result<()> {
         info!("Executing task {}", task_id);
 
-        // TODO: Создать LocalJob и выполнить
-        // let mut job = LocalJob::new(...);
-        // job.run(...).await?;
+        // Получаем полную информацию о задаче из БД
+        let task = self.store.get_task(task_id).await?;
+        let template = self.store.get_template(task.template_id).await?;
+        let inventory = self.store.get_inventory(task.project_id, task.inventory_id.unwrap_or(0)).await?;
+        let repository = self.store.get_repository(task.project_id, task.repository_id.unwrap_or(0)).await?;
+        let environment = self.store.get_environment(task.project_id, task.environment_id.unwrap_or(0)).await?;
+
+        // Создаём LocalJob
+        let mut job = LocalJob::new(
+            task,
+            template,
+            inventory,
+            repository,
+            environment,
+            Arc::new(BasicLogger::new()),
+            self.key_installer.clone(),
+            std::path::PathBuf::from("/tmp/work"),
+            std::path::PathBuf::from("/tmp/tmp"),
+        );
+
+        // Запускаем задачу
+        if let Err(e) = job.run("system", None, "").await {
+            error!("Task {} failed: {}", task_id, e);
+            return Err(e);
+        }
 
         self.complete_task(task_id).await?;
         Ok(())
@@ -215,6 +244,7 @@ impl Drop for TaskPool {
 mod tests {
     use super::*;
     use chrono::Utc;
+    use crate::db::MemoryDB;
 
     fn create_test_task(id: i32) -> Task {
         Task {
@@ -234,7 +264,8 @@ mod tests {
     fn create_test_pool() -> TaskPool {
         let project = Project::default();
         let key_installer = AccessKeyInstallerImpl::new();
-        TaskPool::new(project, key_installer)
+        let store = Arc::new(MemoryDB::new());
+        TaskPool::new(project, key_installer, store)
     }
 
     #[tokio::test]
