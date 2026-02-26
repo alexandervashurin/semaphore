@@ -3,6 +3,7 @@
 pub mod access_key_installation_service;
 pub mod access_key_installer;
 pub mod alert;
+pub mod backup;
 pub mod executor;
 pub mod git_repository;
 pub mod job;
@@ -21,3 +22,4 @@ pub use access_key_installation_service::{
 };
 pub use local_job::LocalJob;
 pub use alert::AlertService;
+pub use backup::{BackupFormat, BackupDB, BackupEntity, BackupSluggedEntity};
