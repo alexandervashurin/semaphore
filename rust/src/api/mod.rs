@@ -5,6 +5,7 @@
 pub mod auth;
 pub mod extractors;
 pub mod handlers;
+pub mod integration;
 pub mod middleware;
 pub mod routes;
 pub mod state;
