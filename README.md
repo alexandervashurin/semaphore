@@ -335,7 +335,7 @@ tracing-subscriber = "0.3"
 
 | Категория | Файл | Строк | План декомпозиции | Прогресс |
 |-----------|------|-------|-------------------|----------|
-| **db/sql** | SqlDb.go | 982 | [План](db/sql/SQL_DB_DECOMPOSITION.md) (5 модулей) | 60% ✅ |
+| **db/sql** | SqlDb.go | 982 | [План](db/sql/SQL_DB_DECOMPOSITION.md) (5 модулей) | 80% ✅ |
 | **db/sql** | template.go | 509 | В плане | 0% |
 | **db/sql** | user.go | 411 | В плане | 0% |
 | **db/sql** | task.go | 403 | В плане | 0% |
