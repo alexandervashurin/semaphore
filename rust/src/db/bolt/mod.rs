@@ -9,6 +9,7 @@ mod task;
 mod template;
 mod project;
 mod schedule;
+mod session;
 
 use crate::db::store::*;
 use crate::models::*;
@@ -408,35 +409,47 @@ impl ScheduleManager for BoltStore {
 
 #[async_trait]
 impl SessionManager for BoltStore {
-    async fn get_session(&self, _user_id: i32, _session_id: i32) -> Result<Session> {
-        Err(Error::NotFound("Сессия не найдена".to_string()))
+    async fn get_session(&self, user_id: i32, session_id: i32) -> Result<Session> {
+        self.get_session(user_id, session_id).await
     }
 
-    async fn create_session(&self, _session: Session) -> Result<Session> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn create_session(&self, session: Session) -> Result<Session> {
+        self.create_session(session).await
     }
 
-    async fn expire_session(&self, _user_id: i32, _session_id: i32) -> Result<()> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn expire_session(&self, user_id: i32, session_id: i32) -> Result<()> {
+        self.expire_session(user_id, session_id).await
+    }
+
+    async fn verify_session(&self, user_id: i32, session_id: i32) -> Result<()> {
+        self.verify_session(user_id, session_id).await
+    }
+
+    async fn touch_session(&self, user_id: i32, session_id: i32) -> Result<()> {
+        self.touch_session(user_id, session_id).await
     }
 }
 
 #[async_trait]
 impl TokenManager for BoltStore {
-    async fn get_api_tokens(&self, _user_id: i32) -> Result<Vec<APIToken>> {
-        Ok(vec![])
+    async fn get_api_tokens(&self, user_id: i32) -> Result<Vec<APIToken>> {
+        self.get_api_tokens(user_id).await
     }
 
-    async fn create_api_token(&self, _token: APIToken) -> Result<APIToken> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn create_api_token(&self, token: APIToken) -> Result<APIToken> {
+        self.create_api_token(token).await
     }
 
-    async fn get_api_token(&self, _token_id: &str) -> Result<APIToken> {
-        Err(Error::NotFound("Токен не найден".to_string()))
+    async fn get_api_token(&self, token_id: &str) -> Result<APIToken> {
+        self.get_api_token(token_id).await
     }
 
-    async fn expire_api_token(&self, _user_id: i32, _token_id: &str) -> Result<()> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn expire_api_token(&self, user_id: i32, token_id: &str) -> Result<()> {
+        self.expire_api_token(user_id, token_id).await
+    }
+
+    async fn delete_api_token(&self, user_id: i32, token_id: &str) -> Result<()> {
+        self.delete_api_token(user_id, token_id).await
     }
 }
 
