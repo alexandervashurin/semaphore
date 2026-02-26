@@ -47,6 +47,10 @@ uuid = { version = "1", features = ["v4", "serde"] }
 bcrypt = "0.17"
 dotenvy = "0.15"
 
+# Email (mailer)
+lettre = { version = "0.11", features = ["tokio1-native-tls", "builder", "smtp-transport"] }
+rustls = "0.23"
+
 # Асинхронные утилиты
 futures = "0.3"
 async-trait = "0.1"
