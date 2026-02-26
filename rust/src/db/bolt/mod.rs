@@ -7,6 +7,7 @@ mod user;
 mod project_invite;
 mod task;
 mod template;
+mod project;
 
 use crate::db::store::*;
 use crate::models::*;
@@ -186,24 +187,27 @@ impl UserManager for BoltStore {
 
 #[async_trait]
 impl ProjectStore for BoltStore {
-    async fn get_projects(&self, _user_id: Option<i32>) -> Result<Vec<Project>> {
-        Ok(vec![])
+    async fn get_projects(&self, user_id: Option<i32>) -> Result<Vec<Project>> {
+        match user_id {
+            Some(uid) => self.get_projects(uid).await,
+            None => self.get_all_projects().await,
+        }
     }
 
-    async fn get_project(&self, _project_id: i32) -> Result<Project> {
-        Err(Error::NotFound("Проект не найден".to_string()))
+    async fn get_project(&self, project_id: i32) -> Result<Project> {
+        self.get_project(project_id).await
     }
 
-    async fn create_project(&self, _project: Project) -> Result<Project> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn create_project(&self, project: Project) -> Result<Project> {
+        self.create_project(project).await
     }
 
-    async fn update_project(&self, _project: Project) -> Result<()> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn update_project(&self, project: Project) -> Result<()> {
+        self.update_project(project).await
     }
 
-    async fn delete_project(&self, _project_id: i32) -> Result<()> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn delete_project(&self, project_id: i32) -> Result<()> {
+        self.delete_project(project_id).await
     }
 }
 
