@@ -1,6 +1,7 @@
 //! SQL-хранилище (SQLite)
 
 pub mod runner;
+pub mod types;
 
 use crate::db::store::*;
 use crate::models::*;
