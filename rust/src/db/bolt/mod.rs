@@ -3,6 +3,7 @@
 //! Это реализация хранилища данных, совместимая с оригинальной BoltDB-версией Semaphore.
 
 mod event;
+mod user;
 
 use crate::db::store::*;
 use crate::models::*;
@@ -143,40 +144,40 @@ impl OptionsManager for BoltStore {
 // Заглушки для остальных трейтов (реализация аналогична SQL)
 #[async_trait]
 impl UserManager for BoltStore {
-    async fn get_users(&self, _params: RetrieveQueryParams) -> Result<Vec<User>> {
-        Ok(vec![])
+    async fn get_users(&self, params: RetrieveQueryParams) -> Result<Vec<User>> {
+        self.get_users(params).await
     }
 
-    async fn get_user(&self, _user_id: i32) -> Result<User> {
-        Err(Error::NotFound("Пользователь не найден".to_string()))
+    async fn get_user(&self, user_id: i32) -> Result<User> {
+        self.get_user(user_id).await
     }
 
-    async fn get_user_by_login_or_email(&self, _login: &str, _email: &str) -> Result<User> {
-        Err(Error::NotFound("Пользователь не найден".to_string()))
+    async fn get_user_by_login_or_email(&self, login: &str, email: &str) -> Result<User> {
+        self.get_user_by_login_or_email(login, email).await
     }
 
-    async fn create_user(&self, _user: User, _password: &str) -> Result<User> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn create_user(&self, user: User, password: &str) -> Result<User> {
+        self.create_user(user, password).await
     }
 
-    async fn update_user(&self, _user: User) -> Result<()> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn update_user(&self, user: User) -> Result<()> {
+        self.update_user(user).await
     }
 
-    async fn delete_user(&self, _user_id: i32) -> Result<()> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn delete_user(&self, user_id: i32) -> Result<()> {
+        self.delete_user(user_id).await
     }
 
-    async fn set_user_password(&self, _user_id: i32, _password: &str) -> Result<()> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn set_user_password(&self, user_id: i32, password: &str) -> Result<()> {
+        self.set_user_password(user_id, password).await
     }
 
     async fn get_all_admins(&self) -> Result<Vec<User>> {
-        Ok(vec![])
+        self.get_all_admins().await
     }
 
     async fn get_user_count(&self) -> Result<usize> {
-        Ok(0)
+        self.get_user_count().await
     }
 }
 
