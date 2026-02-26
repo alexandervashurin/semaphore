@@ -18,3 +18,4 @@ pub use defaults::{load_defaults, apply_defaults, create_default_config};
 pub use config_ldap::{LdapConfigFull, load_ldap_from_env};
 pub use config_oidc::{OidcProvider, OidcEndpoint, load_oidc_from_env};
 pub use config_ha::{HAConfigFull, HARedisConfigFull, load_ha_from_env};
+pub use config_logging::{LoggingConfig, LogFormat, LogLevel, load_logging_from_env};
