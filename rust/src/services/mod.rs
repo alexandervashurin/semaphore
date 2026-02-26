@@ -2,6 +2,7 @@
 
 pub mod access_key_installation_service;
 pub mod access_key_installer;
+pub mod alert;
 pub mod executor;
 pub mod git_repository;
 pub mod job;
@@ -19,3 +20,4 @@ pub use access_key_installation_service::{
     AccessKeyServiceImpl, GetAccessKeyOptions, SimpleEncryptionService,
 };
 pub use local_job::LocalJob;
+pub use alert::AlertService;
