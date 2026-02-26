@@ -8,6 +8,7 @@ mod project_invite;
 mod task;
 mod template;
 mod project;
+mod schedule;
 
 use crate::db::store::*;
 use crate::models::*;
@@ -377,23 +378,31 @@ impl TaskManager for BoltStore {
 #[async_trait]
 impl ScheduleManager for BoltStore {
     async fn get_schedules(&self, _project_id: i32) -> Result<Vec<Schedule>> {
-        Ok(vec![])
+        self.get_schedules().await
     }
 
-    async fn get_schedule(&self, _project_id: i32, _schedule_id: i32) -> Result<Schedule> {
-        Err(Error::NotFound("Расписание не найдено".to_string()))
+    async fn get_schedule(&self, project_id: i32, schedule_id: i32) -> Result<Schedule> {
+        self.get_schedule(project_id, schedule_id).await
     }
 
-    async fn create_schedule(&self, _schedule: Schedule) -> Result<Schedule> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn create_schedule(&self, schedule: Schedule) -> Result<Schedule> {
+        self.create_schedule(schedule).await
     }
 
-    async fn update_schedule(&self, _schedule: Schedule) -> Result<()> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn update_schedule(&self, schedule: Schedule) -> Result<()> {
+        self.update_schedule(schedule).await
     }
 
-    async fn delete_schedule(&self, _project_id: i32, _schedule_id: i32) -> Result<()> {
-        Err(Error::Other("Не реализовано".to_string()))
+    async fn delete_schedule(&self, project_id: i32, schedule_id: i32) -> Result<()> {
+        self.delete_schedule(project_id, schedule_id).await
+    }
+
+    async fn set_schedule_active(&self, project_id: i32, schedule_id: i32, active: bool) -> Result<()> {
+        self.set_schedule_active(project_id, schedule_id, active).await
+    }
+
+    async fn set_schedule_commit_hash(&self, project_id: i32, schedule_id: i32, hash: &str) -> Result<()> {
+        self.set_schedule_commit_hash(project_id, schedule_id, hash).await
     }
 }
 
