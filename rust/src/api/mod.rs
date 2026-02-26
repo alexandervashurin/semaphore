@@ -8,6 +8,7 @@ pub mod handlers;
 pub mod middleware;
 pub mod routes;
 pub mod state;
+pub mod user;
 pub mod users;
 pub mod websocket;
 
