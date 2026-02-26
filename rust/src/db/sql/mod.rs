@@ -17,6 +17,8 @@ pub mod task_crud;
 pub mod task_output;
 pub mod task_stage;
 pub mod integration_crud;
+pub mod integration_matcher;
+pub mod integration_extract;
 
 use crate::db::store::*;
 use crate::models::*;
