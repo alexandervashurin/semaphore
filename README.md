@@ -335,7 +335,7 @@ tracing-subscriber = "0.3"
 
 | Категория | Файл | Строк | План декомпозиции | Прогресс |
 |-----------|------|-------|-------------------|----------|
-| **util/config** | config.go | 1,407 | [План](util/CONFIG_DECOMPOSITION.md) (10 модулей) | 30% ✅ |
+| **util/config** | config.go | 1,407 | [План](util/CONFIG_DECOMPOSITION.md) (10 модулей) | 40% ✅ |
 | **db/sql** | SqlDb.go | 982 | В плане | 0% |
 | **db/sql** | template.go | 509 | В плане | 0% |
 | **db/sql** | user.go | 411 | В плане | 0% |
