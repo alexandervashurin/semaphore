@@ -336,7 +336,7 @@ tracing-subscriber = "0.3"
 
 | Категория | Файл | Строк | План декомпозиции | Прогресс |
 |-----------|------|-------|-------------------|----------|
-| **db/sql** | integration.go | 340 | В плане | 0% |
+| **db/sql** | integration.go | 340 | [План](db/sql/INTEGRATION_DECOMPOSITION.md) (3 модуля) | 33% ✅ |
 | **services/tasks** | TaskPool.go | 752 | В плане | 0% |
 | **services/tasks** | TaskRunner.go | 439 | В плане | 0% |
 | **services/export** | остальные модули | ~2,100 | [План](services/export/EXPORTER_DECOMPOSITION.md) | 0% |
