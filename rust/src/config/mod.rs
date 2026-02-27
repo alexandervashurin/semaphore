@@ -2,13 +2,15 @@
 //!
 //! Конфигурация приложения
 
+pub mod config_auth;
 pub mod config_dirs;
 pub mod config_helpers;
-pub mod defaults;
-pub mod config_ldap;
-pub mod config_oidc;
 pub mod config_ha;
+pub mod config_ldap;
 pub mod config_logging;
+pub mod config_oidc;
+pub mod config_sysproc;
+pub mod defaults;
 pub mod loader;
 pub mod types;
 pub mod validator;
