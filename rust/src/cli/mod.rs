@@ -10,9 +10,30 @@
 #[cfg(test)]
 mod tests;
 
+pub mod cmd_migrate;
+pub mod cmd_project;
+pub mod cmd_runner;
+pub mod cmd_server;
+pub mod cmd_setup;
+pub mod cmd_token;
+pub mod cmd_user;
+pub mod cmd_vault;
+pub mod cmd_version;
+
 use clap::{Parser, Subcommand};
+use std::sync::Arc;
 use crate::config::{Config, DbDialect};
 use crate::db::{SqlStore, BoltStore};
+
+pub use cmd_migrate::MigrateCommand;
+pub use cmd_project::ProjectCommand;
+pub use cmd_runner::RunnerCommand;
+pub use cmd_server::ServerCommand;
+pub use cmd_setup::SetupCommand;
+pub use cmd_token::TokenCommand;
+pub use cmd_user::UserCommand;
+pub use cmd_vault::VaultCommand;
+pub use cmd_version::VersionCommand;
 
 /// Semaphore UI - современный веб-интерфейс для управления DevOps-инструментами
 #[derive(Parser, Debug)]
@@ -61,25 +82,31 @@ pub struct Cli {
 #[derive(Subcommand, Debug)]
 enum Commands {
     /// Запуск веб-сервера
-    Server(ServerArgs),
+    Server(ServerCommand),
 
     /// Запуск раннера задач
-    Runner(RunnerArgs),
+    Runner(RunnerCommand),
 
     /// Применение миграций базы данных
-    Migrate(MigrateArgs),
+    Migrate(MigrateCommand),
 
     /// Управление пользователями
-    User(UserArgs),
+    User(UserCommand),
 
     /// Управление проектами
-    Project(ProjectArgs),
+    Project(ProjectCommand),
 
     /// Настройка Semaphore (интерактивный мастер)
-    Setup(SetupArgs),
+    Setup(SetupCommand),
+
+    /// Управление API токенами
+    Token(TokenCommand),
+
+    /// Управление хранилищами секретов
+    Vault(VaultCommand),
 
     /// Версия приложения
-    Version,
+    Version(VersionCommand),
 }
 
 #[derive(Parser, Debug, Clone)]
@@ -312,13 +339,15 @@ impl Cli {
         }
 
         match self.command {
-            Commands::Server(args) => cmd_server(args, config),
-            Commands::Runner(args) => cmd_runner(args, config),
-            Commands::Migrate(args) => cmd_migrate(args, config),
-            Commands::User(args) => cmd_user(args, config),
-            Commands::Project(args) => cmd_project(args, config),
-            Commands::Setup(args) => cmd_setup(args, config),
-            Commands::Version => cmd_version(),
+            Commands::Server(cmd) => cmd.run(Arc::new(config)),
+            Commands::Runner(cmd) => cmd.run(),
+            Commands::Migrate(cmd) => cmd.run(),
+            Commands::User(cmd) => cmd.run(),
+            Commands::Project(cmd) => cmd.run(),
+            Commands::Setup(cmd) => cmd.run(),
+            Commands::Token(cmd) => cmd.run(),
+            Commands::Vault(cmd) => cmd.run(),
+            Commands::Version(cmd) => cmd.run(),
         }
     }
 }
