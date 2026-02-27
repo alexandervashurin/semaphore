@@ -1,1 +1,0 @@
-drop table user__email_otp;

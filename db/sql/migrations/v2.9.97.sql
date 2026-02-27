@@ -1,1 +1,0 @@
-alter table `task` add `integration_id` int null references project__integration(`id`) on delete set null;

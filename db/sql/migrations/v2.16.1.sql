@@ -1,1 +1,0 @@
-alter table project__template add allow_parallel_tasks boolean not null default false;

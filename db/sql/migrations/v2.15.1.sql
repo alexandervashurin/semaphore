@@ -1,1 +1,0 @@
-alter table `project__inventory` add `runner_tag` varchar(255);

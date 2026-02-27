@@ -1,1 +1,0 @@
-create index task__output_time_idx on task__output (time);

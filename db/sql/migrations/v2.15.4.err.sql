@@ -1,1 +1,0 @@
-alter table `task__ansible_error` drop `host`;

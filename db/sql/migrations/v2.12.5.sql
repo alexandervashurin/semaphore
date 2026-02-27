@@ -1,1 +1,0 @@
-alter table `runner` add column public_key text;
