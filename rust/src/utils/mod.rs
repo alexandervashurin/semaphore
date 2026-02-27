@@ -1,5 +1,7 @@
 //! Утилиты и вспомогательные функции
 
+pub mod ansi;
+pub mod app;
 pub mod conv;
 pub mod common_errors;
 pub mod debug;
@@ -9,6 +11,8 @@ pub mod encryption;
 pub mod shell;
 pub mod version;
 
+pub use ansi::{clear_from_ansi_codes, contains_ansi_codes, strip_ansi_and_trim};
+pub use app::App;
 pub use conv::{convert_float_to_int_if_possible, struct_to_flat_map};
 pub use common_errors::{
     get_error_context, new_user_error, InvalidSubscriptionError, UserVisibleError,
