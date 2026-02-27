@@ -2,6 +2,7 @@
 //!
 //! Это реализация хранилища данных, совместимая с оригинальной BoltDB-версией Semaphore.
 
+mod bolt_db;
 mod event;
 mod user;
 mod project_invite;
@@ -13,6 +14,21 @@ mod session;
 mod inventory_repository_environment;
 mod access_key;
 mod view_option;
+mod environment;
+mod inventory;
+mod repository;
+mod role;
+mod option;
+mod view;
+mod integration;
+mod secret_storage;
+mod runner;
+mod migration;
+mod template_vault;
+mod integration_alias;
+mod global_runner;
+mod public_alias;
+mod migration_system;
 
 use crate::db::store::*;
 use crate::models::{User, Project, Task, TaskWithTpl, TaskOutput, TaskStage, Template, TemplateFilter, Inventory, Repository, Environment, AccessKey, Integration, Schedule, Session, APIToken, Event, Runner, View, Role, ProjectInvite, ProjectInviteWithUser, RetrieveQueryParams, ObjectReferrers, OptionItem, SecretStorage, Hook, GetAccessKeyOptions};
