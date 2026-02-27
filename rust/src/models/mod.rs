@@ -27,6 +27,14 @@ pub mod option;
 pub mod secret_storage;
 pub mod hook;
 pub mod terraform_inventory;
+pub mod alias;
+pub mod ansible;
+pub mod backup_entity;
+pub mod export_entity_type;
+pub mod migration;
+pub mod project_stats;
+pub mod project_user;
+pub mod task_params;
 
 #[cfg(test)]
 mod tests;
@@ -56,4 +64,12 @@ pub use crate::services::access_key_installation_service::GetAccessKeyOptions;
 pub use option::{OptionItem, Option};
 pub use secret_storage::{SecretStorage, SecretStorageType};
 pub use hook::{Hook, HookType};
-pub use terraform_inventory::{TerraformInventoryAlias, TerraformInventoryState, Alias};
+pub use terraform_inventory::{TerraformInventoryAlias, TerraformInventoryState, Alias as TerraformAlias};
+pub use alias::Alias;
+pub use ansible::{AnsiblePlaybook, AnsibleGalaxyRequirements, GalaxyRequirement};
+pub use backup_entity::BackupEntity;
+pub use export_entity_type::ExportEntityType;
+pub use migration::Migration;
+pub use project_stats::ProjectStats;
+pub use project_user::ProjectUser;
+pub use task_params::{AnsibleTaskParams as AnsibleTaskParamsStruct, TerraformTaskParams as TerraformTaskParamsStruct, DefaultTaskParams as DefaultTaskParamsStruct};
