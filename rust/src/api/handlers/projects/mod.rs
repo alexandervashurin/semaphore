@@ -14,6 +14,9 @@ pub mod integration;
 pub mod views;
 pub mod integration_alias;
 pub mod secret_storages;
+pub mod project;
+pub mod backup_restore;
+pub mod refs;
 
 pub use keys::*;
 pub use schedules::*;
@@ -27,3 +30,6 @@ pub use integration::*;
 pub use views::*;
 pub use integration_alias::*;
 pub use secret_storages::*;
+pub use project::*;
+pub use backup_restore::*;
+pub use refs::*;
