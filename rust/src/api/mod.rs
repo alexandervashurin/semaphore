@@ -3,6 +3,7 @@
 //! Предоставляет REST API для управления Semaphore
 
 pub mod auth;
+pub mod auth_local;
 pub mod extractors;
 pub mod handlers;
 pub mod integration;
