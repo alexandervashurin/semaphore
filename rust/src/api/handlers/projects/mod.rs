@@ -11,6 +11,9 @@ pub mod inventory;
 pub mod repository;
 pub mod environment;
 pub mod integration;
+pub mod views;
+pub mod integration_alias;
+pub mod secret_storages;
 
 pub use keys::*;
 pub use schedules::*;
@@ -21,3 +24,6 @@ pub use inventory::*;
 pub use repository::*;
 pub use environment::*;
 pub use integration::*;
+pub use views::*;
+pub use integration_alias::*;
+pub use secret_storages::*;
