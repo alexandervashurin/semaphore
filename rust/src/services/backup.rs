@@ -336,7 +336,7 @@ pub fn find_name_by_id<T: BackupEntity>(id: i32, items: &[T]) -> Option<String> 
 }
 
 /// Вспомогательная функция для поиска сущности по имени
-pub fn find_entity_by_name<T: BackupEntity>(name: &str, items: &[T]) -> Option<&T> {
+pub fn find_entity_by_name<'a, T: BackupEntity>(name: &'a str, items: &'a [T]) -> Option<&'a T> {
     for item in items {
         if item.get_name() == name {
             return Some(item);

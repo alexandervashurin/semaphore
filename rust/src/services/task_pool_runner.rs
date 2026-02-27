@@ -6,7 +6,8 @@ use std::sync::Arc;
 use tokio::sync::{RwLock, Mutex};
 use tracing::{info, warn, error};
 
-use crate::models::{Task, TaskStatus};
+use crate::models::Task;
+use crate::services::task_logger::TaskStatus;
 use crate::services::task_pool_types::{TaskPool, RunningTask};
 use crate::services::task_logger::{TaskLogger, BasicLogger};
 

@@ -8,7 +8,8 @@ use serde::{Deserialize, Serialize};
 use tracing::{info, warn, error};
 
 use crate::error::{Error, Result};
-use crate::models::{Task, TaskStatus, User};
+use crate::models::{Task, User};
+use crate::services::task_logger::TaskStatus;
 use crate::services::task_logger::TaskLogger;
 
 /// Alert представляет уведомление

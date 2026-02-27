@@ -29,13 +29,13 @@ impl UsersController {
     /// Получает список пользователей
     pub async fn get_users(
         State(state): State<Arc<AppState>>,
-        AuthUser(current_user): AuthUser,
+        AuthUser { user_id, admin, .. }: AuthUser,
         Query(params): Query<RetrieveQueryParams>,
     ) -> Result<Json<Vec<User>>> {
         let users = state.store.get_users(params).await?;
 
         // Если текущий пользователь не админ, возвращаем только базовую информацию
-        if !current_user.admin {
+        if !admin {
             // TODO: Вернуть минимальную информацию о пользователе
             return Ok(Json(users));
         }
@@ -46,11 +46,11 @@ impl UsersController {
     /// Добавляет нового пользователя
     pub async fn add_user(
         State(state): State<Arc<AppState>>,
-        AuthUser(editor): AuthUser,
+        AuthUser { admin, .. }: AuthUser,
         Json(user): Json<UserWithPwd>,
     ) -> Result<(StatusCode, Json<User>)> {
         // Проверяем права администратора
-        if !editor.admin {
+        if !admin {
             return Err(Error::Other("User is not permitted to create users".to_string()));
         }
 
@@ -84,12 +84,12 @@ impl UsersController {
     /// Обновляет пользователя
     pub async fn update_user(
         State(state): State<Arc<AppState>>,
-        AuthUser(editor): AuthUser,
-        Path(user_id): Path<i32>,
+        AuthUser { user_id, admin, .. }: AuthUser,
+        Path(update_user_id): Path<i32>,
         Json(user): Json<User>,
     ) -> Result<Json<User>> {
         // Проверяем права (пользователь может редактировать только себя или админ может всех)
-        if !editor.admin && editor.user_id != user_id {
+        if !admin && user_id != update_user_id {
             return Err(Error::Other("User is not permitted to update other users".to_string()));
         }
 
@@ -100,11 +100,11 @@ impl UsersController {
     /// Удаляет пользователя
     pub async fn delete_user(
         State(state): State<Arc<AppState>>,
-        AuthUser(editor): AuthUser,
+        AuthUser { admin, .. }: AuthUser,
         Path(user_id): Path<i32>,
     ) -> Result<StatusCode> {
         // Проверяем права
-        if !editor.admin {
+        if !admin {
             return Err(Error::Other("User is not permitted to delete users".to_string()));
         }
 
@@ -115,11 +115,11 @@ impl UsersController {
     /// Создаёт TOTP секрет для пользователя
     pub async fn create_totp(
         State(state): State<Arc<AppState>>,
-        AuthUser(user): AuthUser,
+        AuthUser { user_id, .. }: AuthUser,
     ) -> Result<Json<TotpSecretResponse>> {
         // TODO: Интеграция с TOTP сервисом
         // let totp_secret = crate::services::totp::generate_totp_secret(&user, "Semaphore")?;
-        
+
         Ok(Json(TotpSecretResponse {
             secret: String::new(), // TODO: Реальный секрет
             url: String::new(),    // TODO: Реальный URL
@@ -129,18 +129,18 @@ impl UsersController {
     /// Проверяет TOTP код
     pub async fn verify_totp(
         State(state): State<Arc<AppState>>,
-        AuthUser(user): AuthUser,
+        AuthUser { user_id, .. }: AuthUser,
         Json(request): Json<TotpVerifyRequest>,
     ) -> Result<StatusCode> {
         // TODO: Интеграция с TOTP сервисом
         // let is_valid = crate::services::totp::verify_totp(&request.passcode, &user.totp.secret);
-        
+
         if request.passcode.is_empty() {
             return Err(Error::Other("Invalid passcode".to_string()));
         }
 
         // TODO: Сохранить TOTP для пользователя
-        // state.store.set_user_totp(user.user_id, totp_secret).await?;
+        // state.store.set_user_totp(user_id, totp_secret).await?;
 
         Ok(StatusCode::NO_CONTENT)
     }

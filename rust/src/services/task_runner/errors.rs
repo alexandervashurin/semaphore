@@ -58,7 +58,7 @@ impl TaskRunner {
         // Проверка на фатальную ошибку
         if self.is_error_fatal(&err) {
             self.log("Fatal error detected");
-            self.set_status(crate::models::TaskStatus::Error).await;
+            self.set_status(crate::services::task_logger::TaskStatus::Error).await;
         } else {
             self.log("Non-fatal error, continuing...");
         }

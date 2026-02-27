@@ -117,7 +117,7 @@ impl TaskRunner {
     }
 
     /// set_status устанавливает статус задачи
-    pub async fn set_status(&mut self, status: crate::models::TaskStatus) {
+    pub async fn set_status(&mut self, status: crate::services::task_logger::TaskStatus) {
         self.task.status = status;
         self.save_status().await;
     }

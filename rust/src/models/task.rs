@@ -154,6 +154,25 @@ pub struct TaskStage {
     pub r#type: TaskStageType,
 }
 
+/// Этап задачи с результатом
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct TaskStageWithResult {
+    #[serde(flatten)]
+    pub stage: TaskStage,
+    pub start_output: Option<String>,
+    pub end_output: Option<String>,
+}
+
+/// Результат этапа задачи
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct TaskStageResult {
+    pub id: i32,
+    pub stage_id: i32,
+    pub task_id: i32,
+    pub project_id: i32,
+    pub result: String,
+}
+
 /// Параметры задачи для Ansible
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AnsibleTaskParams {

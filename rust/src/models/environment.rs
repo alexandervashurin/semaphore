@@ -3,6 +3,25 @@
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
+/// Тип секрета окружения
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum EnvironmentSecretType {
+    /// Переменная окружения
+    Env,
+    /// Секретная переменная
+    Var,
+}
+
+/// Секрет окружения
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct EnvironmentSecret {
+    pub id: i32,
+    pub environment_id: i32,
+    pub secret_id: i32,
+    pub secret_type: EnvironmentSecretType,
+}
+
 /// Окружение - переменные окружения для задач
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Environment {

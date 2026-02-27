@@ -7,7 +7,8 @@ use tokio::sync::RwLock;
 use tracing::{info, warn, error};
 use chrono::{DateTime, Utc};
 
-use crate::models::{Task, TaskStatus};
+use crate::models::Task;
+use crate::services::task_logger::TaskStatus;
 use crate::services::task_pool_types::TaskPool;
 
 /// Сообщение статуса задачи

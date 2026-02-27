@@ -89,3 +89,12 @@ pub struct TemplateRolePerm {
     pub role_id: i32,
     pub role_slug: String,
 }
+
+/// Фильтр для шаблонов
+#[derive(Debug, Clone, Default)]
+pub struct TemplateFilter {
+    pub project_id: Option<i32>,
+    pub r#type: Option<TemplateType>,
+    pub app: Option<TemplateApp>,
+    pub deleted: Option<bool>,
+}

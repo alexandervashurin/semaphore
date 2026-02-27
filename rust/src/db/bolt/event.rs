@@ -3,11 +3,11 @@
 //! Аналог db/bolt/event.go из Go версии
 
 use std::sync::Arc;
-use crate::db::bolt::BoltDb;
+use crate::db::bolt::BoltStore;
 use crate::error::Result;
 use crate::models::{Event, RetrieveQueryParams};
 
-impl BoltDb {
+impl BoltStore {
     /// Создаёт новое событие
     pub async fn create_event(&self, mut evt: Event) -> Result<Event> {
         evt.created = chrono::Utc::now();

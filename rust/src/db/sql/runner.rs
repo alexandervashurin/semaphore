@@ -5,7 +5,7 @@
 use sqlx::{Executor, FromRow};
 use crate::error::{Error, Result};
 use crate::models::Runner;
-use crate::db::sql::SqlDb;
+use crate::db::sql::types::SqlDb;
 use chrono::Utc;
 
 impl SqlDb {

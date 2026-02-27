@@ -5,7 +5,7 @@
 use serde_json::json;
 use chrono::Utc;
 use crate::services::task_runner::TaskRunner;
-use crate::models::TaskStatus;
+use crate::services::task_logger::TaskStatus;
 
 impl TaskRunner {
     /// send_websocket_update отправляет обновление статуса через WebSocket

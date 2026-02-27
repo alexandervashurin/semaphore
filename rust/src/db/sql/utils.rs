@@ -7,7 +7,7 @@ use crate::error::{Error, Result};
 use sqlx::Row;
 
 /// Выполняет SQL запрос и возвращает количество затронутых строк
-pub async fn execute_query(db: &SqlDb, query: &str, params: Vec<sqlx::SqliteArg>) -> Result<u64> {
+pub async fn execute_query(db: &SqlDb, query: &str) -> Result<u64> {
     match db.get_dialect() {
         crate::db::sql::types::SqlDialect::SQLite => {
             // Для SQLite используем динамический запрос
@@ -16,7 +16,7 @@ pub async fn execute_query(db: &SqlDb, query: &str, params: Vec<sqlx::SqliteArg>
                 .execute(db.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
                 .map_err(|e| Error::Database(e))?;
-            
+
             Ok(result.rows_affected())
         }
         _ => Err(Error::Other("Only SQLite supported for now".to_string()))
@@ -117,11 +117,12 @@ pub async fn truncate_table(db: &SqlDb, table_name: &str) -> Result<()> {
 pub async fn reset_autoincrement(db: &SqlDb, table_name: &str) -> Result<()> {
     match db.get_dialect() {
         crate::db::sql::types::SqlDialect::SQLite => {
-            sqlx::query(&format!("DELETE FROM sqlite_sequence WHERE name=?", table_name))
+            sqlx::query("DELETE FROM sqlite_sequence WHERE name=?")
+                .bind(table_name)
                 .execute(db.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
                 .map_err(|e| Error::Database(e))?;
-            
+
             Ok(())
         }
         _ => Err(Error::Other("Only SQLite supported for now".to_string()))

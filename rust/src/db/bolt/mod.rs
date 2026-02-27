@@ -15,7 +15,7 @@ mod access_key;
 mod view_option;
 
 use crate::db::store::*;
-use crate::models::*;
+use crate::models::{User, Project, Task, TaskWithTpl, TaskOutput, TaskStage, Template, TemplateFilter, Inventory, Repository, Environment, AccessKey, Integration, Schedule, Session, APIToken, Event, Runner, View, Role, ProjectInvite, ProjectInviteWithUser, RetrieveQueryParams, ObjectReferrers, OptionItem, SecretStorage, Hook, GetAccessKeyOptions};
 use crate::error::{Error, Result};
 use async_trait::async_trait;
 use std::collections::HashMap;

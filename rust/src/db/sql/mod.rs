@@ -19,9 +19,11 @@ pub mod task_stage;
 pub mod integration_crud;
 pub mod integration_matcher;
 pub mod integration_extract;
+pub mod project_invite;
+pub mod terraform_inventory;
 
 use crate::db::store::*;
-use crate::models::*;
+use crate::models::{User, Project, Task, TaskWithTpl, TaskOutput, TaskStage, Template, Inventory, Repository, Environment, AccessKey, Integration, Schedule, Session, APIToken, Event, Runner, View, Role, ProjectInvite, ProjectInviteWithUser, RetrieveQueryParams, TerraformInventoryAlias, TerraformInventoryState};
 use crate::error::{Error, Result};
 use async_trait::async_trait;
 use sqlx::{SqlitePool, Row};
@@ -535,6 +537,80 @@ impl IntegrationManager for SqlStore {
     async fn create_integration(&self, _integration: Integration) -> Result<Integration> { Err(Error::Other("Не реализовано".to_string())) }
     async fn update_integration(&self, _integration: Integration) -> Result<()> { Err(Error::Other("Не реализовано".to_string())) }
     async fn delete_integration(&self, _project_id: i32, _integration_id: i32) -> Result<()> { Err(Error::Other("Не реализовано".to_string())) }
+}
+
+#[async_trait]
+impl ProjectInviteManager for SqlStore {
+    async fn get_project_invites(&self, project_id: i32, params: RetrieveQueryParams) -> Result<Vec<ProjectInviteWithUser>> {
+        self.get_project_invites(project_id, params).await
+    }
+
+    async fn create_project_invite(&self, invite: ProjectInvite) -> Result<ProjectInvite> {
+        self.create_project_invite(invite).await
+    }
+
+    async fn get_project_invite(&self, project_id: i32, invite_id: i32) -> Result<ProjectInvite> {
+        self.get_project_invite(project_id, invite_id).await
+    }
+
+    async fn get_project_invite_by_token(&self, token: &str) -> Result<ProjectInvite> {
+        self.get_project_invite_by_token(token).await
+    }
+
+    async fn update_project_invite(&self, invite: ProjectInvite) -> Result<()> {
+        self.update_project_invite(invite).await
+    }
+
+    async fn delete_project_invite(&self, project_id: i32, invite_id: i32) -> Result<()> {
+        self.delete_project_invite(project_id, invite_id).await
+    }
+}
+
+#[async_trait]
+impl TerraformInventoryManager for SqlStore {
+    async fn create_terraform_inventory_alias(&self, alias: TerraformInventoryAlias) -> Result<TerraformInventoryAlias> {
+        self.create_terraform_inventory_alias(alias).await
+    }
+
+    async fn update_terraform_inventory_alias(&self, alias: TerraformInventoryAlias) -> Result<()> {
+        self.update_terraform_inventory_alias(alias).await
+    }
+
+    async fn get_terraform_inventory_alias_by_alias(&self, alias: &str) -> Result<TerraformInventoryAlias> {
+        self.get_terraform_inventory_alias_by_alias(alias).await
+    }
+
+    async fn get_terraform_inventory_alias(&self, project_id: i32, inventory_id: i32, alias_id: &str) -> Result<TerraformInventoryAlias> {
+        self.get_terraform_inventory_alias(project_id, inventory_id, alias_id).await
+    }
+
+    async fn get_terraform_inventory_aliases(&self, project_id: i32, inventory_id: i32) -> Result<Vec<TerraformInventoryAlias>> {
+        self.get_terraform_inventory_aliases(project_id, inventory_id).await
+    }
+
+    async fn delete_terraform_inventory_alias(&self, project_id: i32, inventory_id: i32, alias_id: &str) -> Result<()> {
+        self.delete_terraform_inventory_alias(project_id, inventory_id, alias_id).await
+    }
+
+    async fn get_terraform_inventory_states(&self, project_id: i32, inventory_id: i32, params: RetrieveQueryParams) -> Result<Vec<TerraformInventoryState>> {
+        self.get_terraform_inventory_states(project_id, inventory_id, params).await
+    }
+
+    async fn create_terraform_inventory_state(&self, state: TerraformInventoryState) -> Result<TerraformInventoryState> {
+        self.create_terraform_inventory_state(state).await
+    }
+
+    async fn delete_terraform_inventory_state(&self, project_id: i32, inventory_id: i32, state_id: i32) -> Result<()> {
+        self.delete_terraform_inventory_state(project_id, inventory_id, state_id).await
+    }
+
+    async fn get_terraform_inventory_state(&self, project_id: i32, inventory_id: i32, state_id: i32) -> Result<TerraformInventoryState> {
+        self.get_terraform_inventory_state(project_id, inventory_id, state_id).await
+    }
+
+    async fn get_terraform_state_count(&self) -> Result<i32> {
+        self.get_terraform_state_count().await
+    }
 }
 
 #[async_trait]

@@ -159,6 +159,8 @@ pub trait ScheduleManager: Send + Sync {
     async fn create_schedule(&self, schedule: Schedule) -> Result<Schedule>;
     async fn update_schedule(&self, schedule: Schedule) -> Result<()>;
     async fn delete_schedule(&self, project_id: i32, schedule_id: i32) -> Result<()>;
+    async fn set_schedule_active(&self, project_id: i32, schedule_id: i32, active: bool) -> Result<()>;
+    async fn set_schedule_commit_hash(&self, project_id: i32, schedule_id: i32, hash: &str) -> Result<()>;
 }
 
 /// Менеджер сессий
@@ -167,6 +169,8 @@ pub trait SessionManager: Send + Sync {
     async fn get_session(&self, user_id: i32, session_id: i32) -> Result<Session>;
     async fn create_session(&self, session: Session) -> Result<Session>;
     async fn expire_session(&self, user_id: i32, session_id: i32) -> Result<()>;
+    async fn verify_session(&self, user_id: i32, session_id: i32) -> Result<()>;
+    async fn touch_session(&self, user_id: i32, session_id: i32) -> Result<()>;
 }
 
 /// Менеджер токенов
@@ -176,6 +180,7 @@ pub trait TokenManager: Send + Sync {
     async fn create_api_token(&self, token: APIToken) -> Result<APIToken>;
     async fn get_api_token(&self, token_id: &str) -> Result<APIToken>;
     async fn expire_api_token(&self, user_id: i32, token_id: &str) -> Result<()>;
+    async fn delete_api_token(&self, user_id: i32, token_id: &str) -> Result<()>;
 }
 
 /// Менеджер событий
@@ -215,6 +220,33 @@ pub trait IntegrationManager: Send + Sync {
     async fn delete_integration(&self, project_id: i32, integration_id: i32) -> Result<()>;
 }
 
+/// Менеджер приглашений проекта
+#[async_trait]
+pub trait ProjectInviteManager: Send + Sync {
+    async fn get_project_invites(&self, project_id: i32, params: RetrieveQueryParams) -> Result<Vec<ProjectInviteWithUser>>;
+    async fn create_project_invite(&self, invite: ProjectInvite) -> Result<ProjectInvite>;
+    async fn get_project_invite(&self, project_id: i32, invite_id: i32) -> Result<ProjectInvite>;
+    async fn get_project_invite_by_token(&self, token: &str) -> Result<ProjectInvite>;
+    async fn update_project_invite(&self, invite: ProjectInvite) -> Result<()>;
+    async fn delete_project_invite(&self, project_id: i32, invite_id: i32) -> Result<()>;
+}
+
+/// Менеджер Terraform Inventory (PRO)
+#[async_trait]
+pub trait TerraformInventoryManager: Send + Sync {
+    async fn create_terraform_inventory_alias(&self, alias: TerraformInventoryAlias) -> Result<TerraformInventoryAlias>;
+    async fn update_terraform_inventory_alias(&self, alias: TerraformInventoryAlias) -> Result<()>;
+    async fn get_terraform_inventory_alias_by_alias(&self, alias: &str) -> Result<TerraformInventoryAlias>;
+    async fn get_terraform_inventory_alias(&self, project_id: i32, inventory_id: i32, alias_id: &str) -> Result<TerraformInventoryAlias>;
+    async fn get_terraform_inventory_aliases(&self, project_id: i32, inventory_id: i32) -> Result<Vec<TerraformInventoryAlias>>;
+    async fn delete_terraform_inventory_alias(&self, project_id: i32, inventory_id: i32, alias_id: &str) -> Result<()>;
+    async fn get_terraform_inventory_states(&self, project_id: i32, inventory_id: i32, params: RetrieveQueryParams) -> Result<Vec<TerraformInventoryState>>;
+    async fn create_terraform_inventory_state(&self, state: TerraformInventoryState) -> Result<TerraformInventoryState>;
+    async fn delete_terraform_inventory_state(&self, project_id: i32, inventory_id: i32, state_id: i32) -> Result<()>;
+    async fn get_terraform_inventory_state(&self, project_id: i32, inventory_id: i32, state_id: i32) -> Result<TerraformInventoryState>;
+    async fn get_terraform_state_count(&self) -> Result<i32>;
+}
+
 /// Основной трейт хранилища - агрегирует все менеджеры
 #[async_trait]
 pub trait Store:
@@ -236,5 +268,7 @@ pub trait Store:
     + RunnerManager
     + ViewManager
     + IntegrationManager
+    + ProjectInviteManager
+    + TerraformInventoryManager
 {
 }

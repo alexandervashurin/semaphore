@@ -3,6 +3,21 @@
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
+/// Данные SSH ключа
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SshKeyData {
+    pub private_key: String,
+    pub passphrase: Option<String>,
+    pub login: String,
+}
+
+/// Данные логина/пароля
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LoginPasswordData {
+    pub login: String,
+    pub password: String,
+}
+
 /// Тип ключа доступа
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]

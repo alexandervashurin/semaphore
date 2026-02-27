@@ -81,9 +81,9 @@ impl BoltStore {
     /// Получает все опции
     pub async fn get_options(&self, params: RetrieveQueryParams) -> Result<std::collections::HashMap<String, String>> {
         let mut res = std::collections::HashMap::new();
-        
-        let all_options = self.get_objects::<crate::models::Option>(0, "options", params).await?;
-        
+
+        let all_options = self.get_objects::<crate::models::OptionItem>(0, "options", params).await?;
+
         for opt in all_options {
             if params.filter.is_empty() {
                 res.insert(opt.key, opt.value);
@@ -91,7 +91,7 @@ impl BoltStore {
                 res.insert(opt.key, opt.value);
             }
         }
-        
+
         Ok(res)
     }
 
@@ -101,7 +101,7 @@ impl BoltStore {
         match self.get_option(key).await {
             Ok(_) => {
                 // Обновляем существующую
-                let opt = crate::models::Option {
+                let opt = crate::models::OptionItem {
                     key: key.to_string(),
                     value: value.to_string(),
                 };
@@ -109,7 +109,7 @@ impl BoltStore {
             }
             Err(_) => {
                 // Создаём новую
-                let opt = crate::models::Option {
+                let opt = crate::models::OptionItem {
                     key: key.to_string(),
                     value: value.to_string(),
                 };
@@ -121,7 +121,7 @@ impl BoltStore {
 
     /// Получает опцию по ключу
     pub async fn get_option(&self, key: &str) -> Result<String> {
-        let options = self.get_objects::<crate::models::Option>(0, "options", RetrieveQueryParams {
+        let options = self.get_objects::<crate::models::OptionItem>(0, "options", RetrieveQueryParams {
             offset: 0,
             count: 1000,
             filter: String::new(),

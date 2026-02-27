@@ -39,10 +39,12 @@ pub struct User {
     pub pro: bool,
 
     /// Двухфакторная аутентификация TOTP
+    #[sqlx(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub totp: Option<UserTotp>,
 
     /// OTP по электронной почте
+    #[sqlx(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email_otp: Option<UserEmailOtp>,
 }

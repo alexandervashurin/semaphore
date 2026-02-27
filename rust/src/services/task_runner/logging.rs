@@ -5,7 +5,7 @@
 use chrono::Utc;
 use crate::error::Result;
 use crate::services::task_runner::TaskRunner;
-use crate::models::TaskStatus;
+use crate::services::task_logger::TaskStatus;
 
 impl TaskRunner {
     /// save_status сохраняет статус задачи и уведомляет пользователей

@@ -5,6 +5,7 @@
 use crate::db::sql::types::SqlDb;
 use crate::error::{Error, Result};
 use crate::models::*;
+use crate::services::task_logger::TaskStatus;
 use sqlx::Row;
 
 impl SqlDb {

@@ -48,11 +48,11 @@ pub async fn integration_middleware<B>(
 /// Получает интеграцию по ID
 pub async fn get_integration(
     State(state): State<Arc<AppState>>,
-    AuthUser(user): AuthUser,
+    AuthUser { user_id, .. }: AuthUser,
     Path(integration_id): Path<i32>,
 ) -> Result<Json<Integration>> {
     let project_id = get_project_id_from_context(&state)?;
-    
+
     let integration = state.store.get_integration(project_id, integration_id).await?;
     Ok(Json(integration))
 }
@@ -60,11 +60,11 @@ pub async fn get_integration(
 /// Получает все интеграции проекта
 pub async fn get_integrations(
     State(state): State<Arc<AppState>>,
-    AuthUser(user): AuthUser,
+    AuthUser { user_id, .. }: AuthUser,
     Query(params): Query<RetrieveQueryParams>,
 ) -> Result<Json<Vec<Integration>>> {
     let project_id = get_project_id_from_context(&state)?;
-    
+
     let integrations = state.store.get_integrations(project_id, params, false).await?;
     Ok(Json(integrations))
 }
@@ -72,11 +72,11 @@ pub async fn get_integrations(
 /// Получает рефереры интеграции
 pub async fn get_integration_refs(
     State(state): State<Arc<AppState>>,
-    AuthUser(user): AuthUser,
+    AuthUser { user_id, .. }: AuthUser,
     Path(integration_id): Path<i32>,
 ) -> Result<Json<IntegrationRefs>> {
     let project_id = get_project_id_from_context(&state)?;
-    
+
     let refs = state.store.get_integration_refs(project_id, integration_id).await?;
     Ok(Json(refs))
 }
@@ -84,19 +84,19 @@ pub async fn get_integration_refs(
 /// Добавляет новую интеграцию
 pub async fn add_integration(
     State(state): State<Arc<AppState>>,
-    AuthUser(user): AuthUser,
+    AuthUser { user_id, .. }: AuthUser,
     Json(integration): Json<Integration>,
 ) -> Result<(StatusCode, Json<Integration>)> {
     let project_id = get_project_id_from_context(&state)?;
-    
+
     // Проверяем что project_id совпадает
     if integration.project_id != project_id {
         return Err(Error::Other("Project ID in body and URL must be the same".to_string()));
     }
-    
+
     // Валидация интеграции
     integration.validate()?;
-    
+
     let new_integration = state.store.create_integration(integration).await?;
     Ok((StatusCode::CREATED, Json(new_integration)))
 }
@@ -104,17 +104,17 @@ pub async fn add_integration(
 /// Обновляет интеграцию
 pub async fn update_integration(
     State(state): State<Arc<AppState>>,
-    AuthUser(user): AuthUser,
+    AuthUser { user_id, .. }: AuthUser,
     Path(integration_id): Path<i32>,
     Json(integration): Json<Integration>,
 ) -> Result<StatusCode> {
     let project_id = get_project_id_from_context(&state)?;
-    
+
     // Проверяем что ID совпадает
     if integration.id != integration_id {
         return Err(Error::Other("Integration ID in body and URL must be the same".to_string()));
     }
-    
+
     state.store.update_integration(integration).await?;
     Ok(StatusCode::NO_CONTENT)
 }
@@ -122,7 +122,7 @@ pub async fn update_integration(
 /// Удаляет интеграцию
 pub async fn delete_integration(
     State(state): State<Arc<AppState>>,
-    AuthUser(user): AuthUser,
+    AuthUser { user_id, .. }: AuthUser,
     Path(integration_id): Path<i32>,
 ) -> Result<StatusCode> {
     let project_id = get_project_id_from_context(&state)?;

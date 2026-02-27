@@ -53,7 +53,7 @@ impl RestoreDB {
 }
 
 /// Получает сущность по имени
-pub fn get_entry_by_name<T: RestoreEntry>(name: &Option<String>, items: &[T]) -> Option<&T> {
+pub fn get_entry_by_name<'a, T: RestoreEntry>(name: &'a Option<String>, items: &'a [T]) -> Option<&'a T> {
     if name.is_none() {
         return None;
     }
