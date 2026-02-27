@@ -8,7 +8,9 @@ pub mod debug;
 pub mod error_logging;
 pub mod mailer;
 pub mod encryption;
+pub mod oidc_provider;
 pub mod shell;
+pub mod test_helpers;
 pub mod version;
 
 pub use ansi::{clear_from_ansi_codes, contains_ansi_codes, strip_ansi_and_trim};
@@ -23,5 +25,7 @@ pub use error_logging::{
 };
 pub use mailer::{send_email, Email, MailerError, SmtpConfig, is_valid_email};
 pub use encryption::{generate_private_key, EncryptionError, KeyPair};
+pub use oidc_provider::{OidcProvider, OidcEndpoint};
 pub use shell::{shell_quote, shell_strip_unsafe};
+pub use test_helpers::{rand_string, rand_range, rand_bool, rand_email, rand_username};
 pub use version::{version, get_version, get_commit, get_date, VER, COMMIT, DATE};
