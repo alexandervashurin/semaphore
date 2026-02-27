@@ -2,14 +2,21 @@
 //!
 //! Предоставляет REST API для управления Semaphore
 
+pub mod apps;
 pub mod auth;
 pub mod auth_local;
+pub mod cache;
+pub mod events;
 pub mod extractors;
 pub mod handlers;
 pub mod integration;
+pub mod login;
 pub mod middleware;
+pub mod options;
 pub mod routes;
+pub mod runners;
 pub mod state;
+pub mod system_info;
 pub mod user;
 pub mod users;
 pub mod websocket;
