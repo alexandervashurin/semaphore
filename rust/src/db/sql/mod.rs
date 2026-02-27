@@ -21,6 +21,14 @@ pub mod integration_matcher;
 pub mod integration_extract;
 pub mod project_invite;
 pub mod terraform_inventory;
+pub mod access_key;
+pub mod environment;
+pub mod event;
+pub mod inventory;
+pub mod repository;
+pub mod schedule;
+pub mod session;
+pub mod view;
 
 use crate::db::store::*;
 use crate::models::{User, Project, Task, TaskWithTpl, TaskOutput, TaskStage, Template, Inventory, Repository, Environment, AccessKey, Integration, Schedule, Session, APIToken, Event, Runner, View, Role, ProjectInvite, ProjectInviteWithUser, RetrieveQueryParams, TerraformInventoryAlias, TerraformInventoryState};
