@@ -24,7 +24,7 @@ pub fn api_routes() -> Router<Arc<AppState>> {
 
         // Проекты
         .route("/api/projects", get(handlers::get_projects))
-        .route("/api/projects", post(handlers::create_project))
+        .route("/api/projects", post(handlers::add_project))
         .route("/api/projects/:id", get(handlers::get_project))
         .route("/api/projects/:id", put(handlers::update_project))
         .route("/api/projects/:id", delete(handlers::delete_project))

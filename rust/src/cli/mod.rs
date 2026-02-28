@@ -7,6 +7,11 @@
 //! - user - управление пользователями
 //! - project - управление проектами
 
+use anyhow::Result;
+
+/// Тип результата для CLI команд
+pub type CliResult<T> = Result<T>;
+
 #[cfg(test)]
 mod tests;
 

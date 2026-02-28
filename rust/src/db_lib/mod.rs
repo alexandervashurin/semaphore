@@ -35,4 +35,3 @@ pub use go_git_client::GoGitClient;
 pub use local_app::{LocalApp, LocalAppRunningArgs, LocalAppInstallingArgs, AccessKeyInstaller};
 pub use shell_app::ShellApp;
 pub use terraform_app::TerraformApp;
-pub use types::{TerraformInventoryAlias, TerraformInventoryState};

@@ -29,9 +29,9 @@ pub struct BackupFormat {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BackupProject {
     pub name: String,
-    pub alert: bool,
+    pub alert: Option<bool>,
     pub alert_chat: Option<String>,
-    pub max_parallel_tasks: i32,
+    pub max_parallel_tasks: Option<i32>,
 }
 
 /// BackupTemplate - шаблон для backup
@@ -442,9 +442,9 @@ mod tests {
             version: "1.0".to_string(),
             project: BackupProject {
                 name: "Test Project".to_string(),
-                alert: false,
+                alert: Some(false),
                 alert_chat: None,
-                max_parallel_tasks: 5,
+                max_parallel_tasks: Some(5),
             },
             templates: Vec::new(),
             repositories: Vec::new(),

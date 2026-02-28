@@ -3,7 +3,7 @@
 //! Обработчики для задач в проектах
 
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     Json,
 };

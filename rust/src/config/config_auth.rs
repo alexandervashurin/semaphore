@@ -37,7 +37,7 @@ pub struct EmailAuthConfig {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AuthConfig {
     #[serde(default)]
-    pub totp: Option<super::config_oidc::TotpConfig>,
+    pub totp: Option<super::types::TotpConfig>,
 
     #[serde(default)]
     pub email: Option<EmailAuthConfig>,

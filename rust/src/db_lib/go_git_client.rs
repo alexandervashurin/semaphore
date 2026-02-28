@@ -3,7 +3,7 @@
 //! Git клиент на базе go-git (Rust аналог: git2)
 
 use std::sync::Arc;
-use git2::{Repository, BuildRepo, FetchOptions, RemoteCallbacks, Cred};
+use git2::{Repository, FetchOptions, RemoteCallbacks, Cred};
 use crate::error::{Error, Result};
 use crate::models::Repository as DbRepository;
 use crate::services::task_logger::TaskLogger;

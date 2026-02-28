@@ -16,7 +16,7 @@ pub mod totp;
 // Ре-экспорт всех handlers для удобства
 pub use auth::*;
 pub use users::*;
-pub use projects::*;
+pub use projects::project::*;
 pub use templates::*;
 pub use tasks::*;
 pub use inventory::*;

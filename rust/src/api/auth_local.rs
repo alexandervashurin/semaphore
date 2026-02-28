@@ -12,6 +12,25 @@ pub struct LocalAuthService {
     store: Arc<dyn Store + Send + Sync>,
 }
 
+/// Информация о токене
+#[derive(Debug, Clone)]
+pub struct TokenInfo {
+    pub token: String,
+    pub token_type: String,
+    pub expires_in: i64,
+}
+
+/// Claims для JWT токена
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct Claims {
+    pub sub: i32,
+    pub username: String,
+    pub email: String,
+    pub admin: bool,
+    pub exp: usize,
+    pub iat: usize,
+}
+
 impl LocalAuthService {
     /// Создаёт новый сервис локальной аутентификации
     pub fn new(store: Arc<dyn Store + Send + Sync>) -> Self {
@@ -34,6 +53,51 @@ impl LocalAuthService {
         }
 
         Ok(user)
+    }
+
+    /// Генерирует JWT токен для пользователя
+    pub fn generate_token(&self, user: &User) -> Result<TokenInfo> {
+        use chrono::Utc;
+        use jsonwebtoken::{encode, EncodingKey, Header};
+
+        let now = Utc::now().timestamp() as usize;
+        let exp = now + 86400; // 24 часа
+
+        let claims = Claims {
+            sub: user.id,
+            username: user.username.clone(),
+            email: user.email.clone(),
+            admin: user.admin,
+            exp,
+            iat: now,
+        };
+
+        // Получаем секретный ключ из окружения или используем дефолтный
+        let secret = std::env::var("SEMAPHORE_JWT_SECRET")
+            .unwrap_or_else(|_| "dev-secret-key-change-in-production".to_string());
+
+        let token = encode(&Header::default(), &claims, &EncodingKey::from_secret(secret.as_bytes()))
+            .map_err(|e| Error::Other(format!("Token generation error: {}", e)))?;
+
+        Ok(TokenInfo {
+            token,
+            token_type: "Bearer".to_string(),
+            expires_in: 86400,
+        })
+    }
+
+    /// Проверяет JWT токен и возвращает claims
+    pub fn verify_token(&self, token: &str) -> Result<Claims> {
+        use jsonwebtoken::{decode, Validation, EncodingKey};
+
+        // Получаем секретный ключ из окружения или используем дефолтный
+        let secret = std::env::var("SEMAPHORE_JWT_SECRET")
+            .unwrap_or_else(|_| "dev-secret-key-change-in-production".to_string());
+
+        let token_data = decode::<Claims>(token, &EncodingKey::from_secret(secret.as_bytes()), &Validation::default())
+            .map_err(|e| Error::Unauthorized(format!("Token verification error: {}", e)))?;
+
+        Ok(token_data.claims)
     }
 
     /// Регистрирует нового пользователя

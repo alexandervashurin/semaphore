@@ -2,7 +2,7 @@
 //!
 //! Команда для управления API токенами
 
-use clap::Args;
+use clap::{Args, Subcommand};
 use crate::cli::CliResult;
 
 /// Команда token

@@ -19,13 +19,13 @@ pub async fn health() -> &'static str {
 }
 
 /// Вход в систему
-/// 
+///
 /// POST /api/auth/login
 pub async fn login(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<LoginPayload>,
 ) -> Result<Json<LoginResponse>, (StatusCode, Json<ErrorResponse>)> {
-    use crate::api::auth::{AuthService, verify_password};
+    use crate::api::auth_local::{LocalAuthService, verify_password};
     use crate::services::totp::verify_totp_code;
 
     // Находим пользователя
@@ -71,7 +71,7 @@ pub async fn login(
     }
 
     // Генерируем токен
-    let auth_service = AuthService::new();
+    let auth_service = LocalAuthService::new(state.store.clone());
     let token_info = auth_service.generate_token(&user)
         .map_err(|e| (
             StatusCode::INTERNAL_SERVER_ERROR,

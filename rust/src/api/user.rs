@@ -125,13 +125,13 @@ impl UserController {
         let mut current_user = state.store.get_user(user_id).await?;
 
         // Проверяем старый пароль
-        let valid = crate::api::auth::verify_password(&request.old_password, &current_user.password);
+        let valid = crate::api::auth_local::verify_password(&request.old_password, &current_user.password);
         if !valid {
             return Err(Error::Other("Invalid old password".to_string()));
         }
 
         // Хешируем новый пароль
-        let new_hash = crate::api::auth::hash_password(&request.new_password)?;
+        let new_hash = crate::api::auth_local::hash_password(&request.new_password)?;
         current_user.password = new_hash;
 
         // Сохраняем изменения

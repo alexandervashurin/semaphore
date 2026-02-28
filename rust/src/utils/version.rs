@@ -5,11 +5,17 @@
 /// Версия приложения
 pub static VER: &str = env!("CARGO_PKG_VERSION");
 
-/// Commit хэш
-pub static COMMIT: &str = env!("GIT_COMMIT");
+/// Commit хэш (по умолчанию "unknown")
+pub static COMMIT: &str = match option_env!("GIT_COMMIT") {
+    Some(val) => val,
+    None => "unknown",
+};
 
-/// Дата сборки
-pub static DATE: &str = env!("BUILD_DATE");
+/// Дата сборки (по умолчанию "unknown")
+pub static DATE: &str = match option_env!("BUILD_DATE") {
+    Some(val) => val,
+    None => "unknown",
+};
 
 /// Получает полную версию приложения
 pub fn version() -> String {
@@ -52,7 +58,7 @@ mod tests {
 
     #[test]
     fn test_get_commit() {
-        // COMMIT может быть "00000000" если не установлен
+        // COMMIT может быть "unknown" если не установлен
         assert!(!COMMIT.is_empty());
     }
 }

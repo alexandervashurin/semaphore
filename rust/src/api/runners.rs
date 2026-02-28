@@ -3,7 +3,7 @@
 //! Обработчики для раннеров
 
 use axum::{
-    extract::State,
+    extract::{Path, State},
     http::StatusCode,
     Json,
 };

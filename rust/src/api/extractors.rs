@@ -11,8 +11,15 @@ use axum::{
     Json,
 };
 
-use crate::api::auth::AuthService;
+use crate::api::auth_local::LocalAuthService;
 use crate::api::middleware::ErrorResponse;
+
+/// Извлекает токен из заголовка Authorization
+fn extract_token_from_header(auth_header: Option<&str>) -> Option<&str> {
+    auth_header
+        .and_then(|h| h.strip_prefix("Bearer "))
+        .or(auth_header) // Если нет префикса Bearer, используем как есть
+}
 
 /// Извлекатель для аутентифицированного пользователя
 ///
@@ -42,7 +49,7 @@ where
 
     async fn from_request_parts(
         parts: &mut Parts,
-        _state: &State<S>,
+        state: &State<S>,
     ) -> Result<Self, Self::Rejection> {
         // Получаем токен из заголовка
         let auth_header = parts
@@ -50,17 +57,17 @@ where
             .get(axum::http::header::AUTHORIZATION)
             .and_then(|v| v.to_str().ok());
 
-        let token = crate::api::auth::extract_token_from_header(auth_header)
+        let token = extract_token_from_header(auth_header)
             .ok_or((
                 StatusCode::UNAUTHORIZED,
                 Json(ErrorResponse::new("Требуется аутентификация")
                     .with_code("AUTH_REQUIRED")),
             ))?;
 
-        // Получаем AuthService из состояния
+        // Получаем LocalAuthService из состояния
         // Пока используем дефолтный сервис
         // TODO: Интегрировать с AppState
-        let auth_service = AuthService::new();
+        let auth_service = LocalAuthService::new(std::sync::Arc::new(state.store.clone()));
 
         // Проверяем токен
         let claims = auth_service.verify_token(token)
@@ -125,7 +132,7 @@ where
             .get(axum::http::header::AUTHORIZATION)
             .and_then(|v| v.to_str().ok());
 
-        let token = crate::api::auth::extract_token_from_header(auth_header)
+        let token = extract_token_from_header(auth_header)
             .ok_or((
                 StatusCode::UNAUTHORIZED,
                 Json(ErrorResponse::new("Требуется аутентификация")
