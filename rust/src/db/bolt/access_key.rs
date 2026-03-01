@@ -5,7 +5,7 @@
 use std::sync::Arc;
 use crate::db::bolt::BoltStore;
 use crate::error::Result;
-use crate::models::{AccessKey, AccessKeyOwner, RetrieveQueryParams};
+use crate::models::AccessKey;
 
 impl BoltStore {
     /// Получает ключ доступа по ID
@@ -19,23 +19,15 @@ impl BoltStore {
     }
 
     /// Получает ключи доступа проекта
-    pub async fn get_access_keys(&self, project_id: i32, options: crate::models::GetAccessKeyOptions, params: RetrieveQueryParams) -> Result<Vec<AccessKey>> {
-        let mut keys = Vec::new();
-        
-        let all_keys = self.get_objects::<AccessKey>(project_id, "access_keys", params).await?;
-        
-        for key in all_keys {
-            // Фильтрация по owner
-            if options.owner.is_some() {
-                if key.owner != options.owner.unwrap() {
-                    continue;
-                }
-            }
-            
-            keys.push(key);
-        }
-        
-        Ok(keys)
+    pub async fn get_access_keys(&self, project_id: i32) -> Result<Vec<AccessKey>> {
+        let params = crate::db::store::RetrieveQueryParams {
+            offset: 0,
+            count: None,
+            filter: None,
+            sort_by: None,
+            sort_inverted: false,
+        };
+        self.get_objects::<AccessKey>(project_id, "access_keys", params).await
     }
 
     /// Обновляет ключ доступа

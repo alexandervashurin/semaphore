@@ -4,11 +4,11 @@
 
 use crate::db::sql::types::SqlDb;
 use crate::error::{Error, Result};
-use crate::models::{AccessKey, RetrieveQueryParams};
+use crate::models::AccessKey;
 
 impl SqlDb {
     /// Получает ключи доступа проекта
-    pub async fn get_access_keys(&self, project_id: i32, _params: RetrieveQueryParams) -> Result<Vec<AccessKey>> {
+    pub async fn get_access_keys(&self, project_id: i32) -> Result<Vec<AccessKey>> {
         match self.get_dialect() {
             crate::db::sql::types::SqlDialect::SQLite => {
                 let keys = sqlx::query_as::<_, AccessKey>(
