@@ -88,13 +88,13 @@ impl LocalAuthService {
 
     /// Проверяет JWT токен и возвращает claims
     pub fn verify_token(&self, token: &str) -> Result<Claims> {
-        use jsonwebtoken::{decode, Validation, EncodingKey};
+        use jsonwebtoken::{decode, Validation, DecodingKey};
 
         // Получаем секретный ключ из окружения или используем дефолтный
         let secret = std::env::var("SEMAPHORE_JWT_SECRET")
             .unwrap_or_else(|_| "dev-secret-key-change-in-production".to_string());
 
-        let token_data = decode::<Claims>(token, &EncodingKey::from_secret(secret.as_bytes()), &Validation::default())
+        let token_data = decode::<Claims>(token, &DecodingKey::from_secret(secret.as_bytes()), &Validation::default())
             .map_err(|e| Error::Unauthorized(format!("Token verification error: {}", e)))?;
 
         Ok(token_data.claims)
@@ -135,8 +135,8 @@ impl LocalAuthService {
             email_otp: None,
         };
 
-        // Сохраняем в БД
-        let new_user = self.store.create_user(user).await?;
+        // Сохраняем в БД - create_user теперь требует password отдельным аргументом
+        let new_user = self.store.create_user(user, password).await?;
 
         Ok(new_user)
     }

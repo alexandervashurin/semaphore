@@ -119,16 +119,6 @@ impl TaskRunner {
     pub async fn is_killed(&self) -> bool {
         *self.killed.lock().await
     }
-
-    /// Останавливает задачу
-    pub async fn kill(&self) {
-        let mut killed = self.killed.lock().await;
-        *killed = true;
-        
-        if let Some(ref mut job) = &self.job {
-            job.kill();
-        }
-    }
 }
 
 #[cfg(test)]

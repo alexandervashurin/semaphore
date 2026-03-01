@@ -485,12 +485,12 @@ impl EventManager for BoltStore {
     async fn get_events(&self, project_id: Option<i32>, limit: usize) -> Result<Vec<Event>> {
         let params = RetrieveQueryParams {
             offset: 0,
-            count: Some()limit,
+            count: Some(limit),
             filter: None,
             sort_by: None,
             sort_inverted: false,
         };
-        
+
         match project_id {
             Some(pid) => self.get_events(pid, params).await,
             None => self.get_all_events(params).await,

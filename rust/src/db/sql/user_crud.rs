@@ -13,17 +13,22 @@ impl SqlDb {
         match self.get_dialect() {
             crate::db::sql::types::SqlDialect::SQLite => {
                 let mut query = String::from("SELECT * FROM user");
-                
+
                 // Добавляем фильтр если указан
-                if !params.filter.is_empty() {
-                    query.push_str(" WHERE username LIKE ? OR name LIKE ? OR email LIKE ?");
+                if let Some(ref filter) = params.filter {
+                    if !filter.is_empty() {
+                        query.push_str(" WHERE username LIKE ? OR name LIKE ? OR email LIKE ?");
+                    }
                 }
-                
+
                 // Добавляем лимит и оффсет
-                query.push_str(&format!(" LIMIT {} OFFSET {}", params.count, params.offset));
-                
-                let users = if !params.filter.is_empty() {
-                    let filter_pattern = format!("%{}%", params.filter);
+                if let Some(count) = params.count {
+                    let offset = params.offset.unwrap_or(0);
+                    query.push_str(&format!(" LIMIT {} OFFSET {}", count, offset));
+                }
+
+                let users = if params.filter.as_ref().map_or(false, |f| !f.is_empty()) {
+                    let filter_pattern = format!("%{}%", params.filter.as_ref().unwrap());
                     sqlx::query_as::<_, User>(&query)
                         .bind(&filter_pattern)
                         .bind(&filter_pattern)
@@ -37,7 +42,7 @@ impl SqlDb {
                         .await
                         .map_err(|e| Error::Database(e))?
                 };
-                
+
                 Ok(users)
             }
             _ => Err(Error::Other("Only SQLite supported for now".to_string()))
@@ -84,8 +89,8 @@ impl SqlDb {
         match self.get_dialect() {
             crate::db::sql::types::SqlDialect::SQLite => {
                 let result = sqlx::query(
-                    "INSERT INTO user (username, name, email, password, admin, external, alert, pro, created, totp, email_otp) 
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                    "INSERT INTO user (username, name, email, password, admin, external, alert, pro, created)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
                 )
                 .bind(&user.username)
                 .bind(&user.name)
@@ -96,12 +101,10 @@ impl SqlDb {
                 .bind(user.alert)
                 .bind(user.pro)
                 .bind(user.created)
-                .bind(&user.totp)
-                .bind(&user.email_otp)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
                 .map_err(|e| Error::Database(e))?;
-                
+
                 user.id = result.last_insert_rowid() as i32;
                 Ok(user)
             }
@@ -120,8 +123,8 @@ impl SqlDb {
         match self.get_dialect() {
             crate::db::sql::types::SqlDialect::SQLite => {
                 sqlx::query(
-                    "UPDATE user SET username = ?, name = ?, email = ?, password = ?, 
-                     admin = ?, external = ?, alert = ?, pro = ?, totp = ?, email_otp = ? 
+                    "UPDATE user SET username = ?, name = ?, email = ?, password = ?,
+                     admin = ?, external = ?, alert = ?, pro = ?
                      WHERE id = ?"
                 )
                 .bind(&user.username)
@@ -132,13 +135,11 @@ impl SqlDb {
                 .bind(user.external)
                 .bind(user.alert)
                 .bind(user.pro)
-                .bind(&user.totp)
-                .bind(&user.email_otp)
                 .bind(user.id)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
                 .map_err(|e| Error::Database(e))?;
-                
+
                 Ok(())
             }
             _ => Err(Error::Other("Only SQLite supported for now".to_string()))

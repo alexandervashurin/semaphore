@@ -13,12 +13,28 @@ pub struct Runner {
     pub name: String,
     pub active: bool,
     pub last_active: Option<DateTime<Utc>>,
-}
-
-/// Тег раннера
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct RunnerTag {
-    pub id: i32,
-    pub runner_id: i32,
-    pub tag: String,
+    
+    /// Webhook URL для уведомлений
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub webhook: Option<String>,
+    
+    /// Максимальное количество параллельных задач
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_parallel_tasks: Option<i32>,
+    
+    /// Тег раннера
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tag: Option<String>,
+    
+    /// Время запроса очистки
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cleaning_requested: Option<DateTime<Utc>>,
+    
+    /// Время последнего обращения
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub touched: Option<DateTime<Utc>>,
+    
+    /// Дата создания
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created: Option<DateTime<Utc>>,
 }

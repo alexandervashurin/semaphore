@@ -2,7 +2,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
+use sqlx::{FromRow, Type, decode::Decode, encode::Encode, database::Database};
 
 /// Метод верификации сессии
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -11,6 +11,41 @@ pub enum SessionVerificationMethod {
     None,
     Totp,
     EmailOtp,
+}
+
+impl<DB: Database> Type<DB> for SessionVerificationMethod {
+    fn type_info() -> DB::TypeInfo {
+        String::type_info()
+    }
+
+    fn compatible(ty: &DB::TypeInfo) -> bool {
+        String::compatible(ty)
+    }
+}
+
+impl<'r, DB: Database> Decode<'r, DB> for SessionVerificationMethod {
+    fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
+        let s = String::decode(value)?;
+        Ok(match s.as_str() {
+            "totp" => SessionVerificationMethod::Totp,
+            "email_otp" => SessionVerificationMethod::EmailOtp,
+            _ => SessionVerificationMethod::None,
+        })
+    }
+}
+
+impl<'q, DB: Database> Encode<'q, DB> for SessionVerificationMethod
+where
+    DB: 'q,
+{
+    fn encode_by_ref(&self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
+        let s: String = match self {
+            SessionVerificationMethod::None => "none",
+            SessionVerificationMethod::Totp => "totp",
+            SessionVerificationMethod::EmailOtp => "email_otp",
+        }.to_string();
+        Encode::encode(s, buf)
+    }
 }
 
 /// Сессия пользователя

@@ -70,23 +70,6 @@ impl TaskRunner {
     pub fn get_status(&self) -> TaskStatus {
         self.task.status
     }
-
-    /// notify_status_change уведомляет об изменении статуса
-    pub async fn notify_status_change(&self, status: TaskStatus) {
-        self.save_status().await;
-        
-        for listener in &self.status_listeners {
-            listener(status);
-        }
-    }
-
-    /// notify_log уведомляет о новом логе
-    pub fn notify_log(&self, msg: &str) {
-        let now = Utc::now();
-        for listener in &self.log_listeners {
-            listener(now, msg.to_string());
-        }
-    }
 }
 
 #[cfg(test)]

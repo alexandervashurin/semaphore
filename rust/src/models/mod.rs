@@ -40,7 +40,7 @@ pub mod task_params;
 mod tests;
 
 // Ре-экспорт основных типов
-pub use user::{User, UserTotp, UserEmailOtp, UserWithProjectRole};
+pub use user::{User, UserTotp, UserEmailOtp, UserWithProjectRole, ProjectUserRole};
 pub use project::Project;
 pub use task::{Task, TaskWithTpl, TaskOutput, TaskStage, TaskStageType, TaskStageWithResult, TaskStageResult, AnsibleTaskParams, TerraformTaskParams, DefaultTaskParams};
 pub use template::{Template, TemplateWithPerms, TemplateRolePerm, TemplateType, TemplateApp, TemplateFilter};
@@ -55,10 +55,10 @@ pub use schedule::{Schedule, ScheduleWithTpl};
 pub use session::{Session, SessionVerificationMethod};
 pub use token::APIToken;
 pub use event::{Event, EventType};
-pub use runner::{Runner, RunnerTag};
+pub use runner::Runner;
 pub use view::View;
 pub use role::Role;
-pub use project_invite::{ProjectInvite, ProjectInviteWithUser, RetrieveQueryParams};
+pub use project_invite::{ProjectInvite, ProjectInviteWithUser};
 pub use object_referrers::ObjectReferrers;
 pub use crate::services::access_key_installation_service::GetAccessKeyOptions;
 pub use option::OptionItem;
@@ -73,3 +73,6 @@ pub use migration::Migration;
 pub use project_stats::ProjectStats;
 pub use project_user::ProjectUser;
 pub use task_params::{AnsibleTaskParams as AnsibleTaskParamsStruct, TerraformTaskParams as TerraformTaskParamsStruct, DefaultTaskParams as DefaultTaskParamsStruct};
+
+// Ре-экспорт RetrieveQueryParams из db::store
+pub use crate::db::store::RetrieveQueryParams;

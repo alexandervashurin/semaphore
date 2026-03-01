@@ -90,6 +90,18 @@ pub enum ProjectUserRole {
     None,
 }
 
+impl std::fmt::Display for ProjectUserRole {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ProjectUserRole::Owner => write!(f, "owner"),
+            ProjectUserRole::Manager => write!(f, "manager"),
+            ProjectUserRole::TaskRunner => write!(f, "task_runner"),
+            ProjectUserRole::Guest => write!(f, "guest"),
+            ProjectUserRole::None => write!(f, "none"),
+        }
+    }
+}
+
 /// Пользователь с паролем (для создания/обновления)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserWithPwd {

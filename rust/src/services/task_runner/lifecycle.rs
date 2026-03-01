@@ -76,7 +76,7 @@ impl TaskRunner {
     /// create_task_event создаёт событие задачи в БД
     pub async fn create_task_event(&self) -> Result<()> {
         use crate::models::{Event, EventType};
-        
+
         let obj_type = EventType::Task;
         let desc = format!(
             "Task {} ({}) finished - {}",
@@ -84,7 +84,7 @@ impl TaskRunner {
             self.template.name,
             self.task.status.to_string().to_uppercase()
         );
-        
+
         match self.pool.store.create_event(Event {
             id: 0,
             object_type: obj_type,
@@ -99,40 +99,6 @@ impl TaskRunner {
                 error!("Failed to create task event: {}", e);
                 Err(e)
             }
-        }
-    }
-
-    /// log записывает лог задачи
-    pub fn log(&self, msg: &str) {
-        info!("[Task {}] {}", self.task.id, msg);
-        
-        // TODO: Запись в БД
-        // self.pool.store.create_task_output(...).await?;
-        
-        // Уведомление слушателей логов
-        let now = chrono::Utc::now();
-        for listener in &self.log_listeners {
-            listener(now, msg.to_string());
-        }
-    }
-
-    /// set_status устанавливает статус задачи
-    pub async fn set_status(&mut self, status: crate::services::task_logger::TaskStatus) {
-        self.task.status = status;
-        self.save_status().await;
-    }
-
-    /// save_status сохраняет статус задачи и уведомляет пользователей
-    async fn save_status(&self) {
-        // Уведомление пользователей через WebSocket
-        for &user_id in &self.users {
-            // TODO: Отправка WebSocket уведомления
-            // sockets.Message(user_id, ...);
-        }
-        
-        // Уведомление слушателей статусов
-        for listener in &self.status_listeners {
-            listener(self.task.status);
         }
     }
 }

@@ -108,17 +108,6 @@ impl TaskPool {
         running.clone()
     }
     
-    /// Обновляет статус задачи
-    async fn update_task_status(&self, task_id: i32, status: TaskStatus) -> Result<(), String> {
-        self.store.update_task_status(self.project.id, task_id, status)
-            .await
-            .map_err(|e| format!("Failed to update task status: {}", e))?;
-        
-        info!("Task {} status updated to {:?}", task_id, status);
-        
-        Ok(())
-    }
-    
     /// Обрабатывает очередь задач
     pub async fn process_queue(&self) {
         while !self.is_shutdown().await {

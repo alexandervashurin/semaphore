@@ -16,20 +16,6 @@ impl BoltStore {
         Ok(!tree.is_empty())
     }
 
-    /// Применяет миграцию
-    pub async fn apply_migration(&self, version: i64, name: String) -> Result<()> {
-        let tree = self.db.open_tree("migration")
-            .map_err(|e| Error::Database(sqlx::Error::Protocol(e.to_string())))?;
-
-        let key = version.to_string();
-        let value = format!("{}|{}", name, Utc::now().to_rfc3339());
-
-        tree.insert(key.as_bytes(), value.as_bytes())
-            .map_err(|e| Error::Database(sqlx::Error::Protocol(e.to_string())))?;
-
-        Ok(())
-    }
-
     /// Откатывает миграцию
     pub async fn rollback_migration(&self, version: i64) -> Result<()> {
         let tree = self.db.open_tree("migration")

@@ -2,7 +2,7 @@
 //!
 //! Аналог db/sql/global_runner.go из Go версии
 
-use sqlx::{Executor, FromRow};
+use sqlx::FromRow;
 use crate::error::{Error, Result};
 use crate::models::Runner;
 use crate::db::sql::types::SqlDb;
@@ -15,7 +15,7 @@ impl SqlDb {
             r#"SELECT * FROM runner WHERE token = ?"#
         )
         .bind(token)
-        .fetch_optional(&*self.pool)
+        .fetch_optional(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
         .await?;
 
         runner.ok_or(Error::NotFound("Runner not found".to_string()))
@@ -27,7 +27,7 @@ impl SqlDb {
             r#"SELECT * FROM runner WHERE id = ? AND project_id IS NULL"#
         )
         .bind(runner_id)
-        .fetch_optional(&*self.pool)
+        .fetch_optional(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
         .await?;
 
         runner.ok_or(Error::NotFound("Global runner not found".to_string()))
@@ -36,17 +36,17 @@ impl SqlDb {
     /// Получает всех раннеров
     pub async fn get_all_runners(&self, active_only: bool, global_only: bool) -> Result<Vec<Runner>> {
         let mut query = String::from("SELECT * FROM runner WHERE 1=1");
-        
+
         if global_only {
             query.push_str(" AND project_id IS NULL");
         }
-        
+
         if active_only {
             query.push_str(" AND active = TRUE");
         }
 
         let runners = sqlx::query_as::<_, Runner>(&query)
-            .fetch_all(&*self.pool)
+            .fetch_all(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
             .await?;
 
         Ok(runners)
@@ -58,7 +58,7 @@ impl SqlDb {
             r#"DELETE FROM runner WHERE id = ? AND project_id IS NULL"#
         )
         .bind(runner_id)
-        .execute(&*self.pool)
+        .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
         .await?;
 
         if result.rows_affected() == 0 {
@@ -76,7 +76,7 @@ impl SqlDb {
             )
             .bind(Utc::now())
             .bind(runner.id)
-            .execute(&*self.pool)
+            .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
             .await?;
         } else {
             sqlx::query(
@@ -85,7 +85,7 @@ impl SqlDb {
             .bind(Utc::now())
             .bind(runner.id)
             .bind(runner.project_id.unwrap())
-            .execute(&*self.pool)
+            .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
             .await?;
         }
 
@@ -100,7 +100,7 @@ impl SqlDb {
             )
             .bind(Utc::now())
             .bind(runner.id)
-            .execute(&*self.pool)
+            .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
             .await?;
         } else {
             sqlx::query(
@@ -109,7 +109,7 @@ impl SqlDb {
             .bind(Utc::now())
             .bind(runner.id)
             .bind(runner.project_id.unwrap())
-            .execute(&*self.pool)
+            .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
             .await?;
         }
 
@@ -127,7 +127,7 @@ impl SqlDb {
         .bind(runner.max_parallel_tasks)
         .bind(&runner.tag)
         .bind(runner.id)
-        .execute(&*self.pool)
+        .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
         .await?;
 
         Ok(())
@@ -136,7 +136,7 @@ impl SqlDb {
     /// Создаёт раннера
     pub async fn create_runner(&self, runner: &Runner) -> Result<Runner> {
         let result = sqlx::query(
-            r#"INSERT INTO runner (name, active, webhook, max_parallel_tasks, tag, token, project_id) 
+            r#"INSERT INTO runner (name, active, webhook, max_parallel_tasks, tag, token, project_id)
                VALUES (?, ?, ?, ?, ?, ?, ?)"#
         )
         .bind(&runner.name)
@@ -146,7 +146,7 @@ impl SqlDb {
         .bind(&runner.tag)
         .bind(&runner.token)
         .bind(runner.project_id)
-        .execute(&*self.pool)
+        .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
         .await?;
 
         let mut new_runner = runner.clone();

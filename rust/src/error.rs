@@ -21,6 +21,10 @@ pub enum Error {
     #[error("Ошибка аутентификации: {0}")]
     Auth(String),
 
+    /// Неавторизован
+    #[error("Неавторизован: {0}")]
+    Unauthorized(String),
+
     /// Ошибка авторизации
     #[error("Доступ запрещён: {0}")]
     Forbidden(String),
@@ -48,6 +52,18 @@ pub enum Error {
     /// Ошибка планировщика
     #[error("Ошибка планировщика: {0}")]
     Scheduler(String),
+
+    /// Функция не реализована
+    #[error("Не реализовано: {0}")]
+    NotImplemented(String),
+
+    /// Ошибка reqwest
+    #[error("Ошибка HTTP: {0}")]
+    Http(#[from] reqwest::Error),
+
+    /// Ошибка SystemTime
+    #[error("Ошибка времени: {0}")]
+    SystemTime(#[from] std::time::SystemTimeError),
 
     /// Другая ошибка
     #[error("{0}")]

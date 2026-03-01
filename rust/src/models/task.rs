@@ -2,7 +2,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
+use sqlx::{FromRow, Type, decode::Decode, encode::Encode, database::Database};
 use std::collections::HashMap;
 use crate::models::template::{TemplateType, TemplateApp};
 use crate::services::task_logger::TaskStatus;
@@ -210,3 +210,76 @@ pub struct TerraformTaskParams {
 /// Параметры задачи по умолчанию
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DefaultTaskParams {}
+
+// ============================================================================
+// SQLx реализации для TaskStatus
+// ============================================================================
+
+impl<DB: Database> Type<DB> for TaskStatus {
+    fn type_info() -> DB::TypeInfo {
+        String::type_info()
+    }
+
+    fn compatible(ty: &DB::TypeInfo) -> bool {
+        String::compatible(ty)
+    }
+}
+
+impl<'r, DB: Database> Decode<'r, DB> for TaskStatus {
+    fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
+        let s = String::decode(value)?;
+        Ok(s.parse().unwrap_or(TaskStatus::Waiting))
+    }
+}
+
+impl<'q, DB: Database> Encode<'q, DB> for TaskStatus
+where
+    DB: 'q,
+{
+    fn encode_by_ref(&self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
+        let s: String = self.to_string();
+        Encode::encode(s, buf)
+    }
+}
+
+// ============================================================================
+// SQLx реализации для TaskStageType
+// ============================================================================
+
+impl<DB: Database> Type<DB> for TaskStageType {
+    fn type_info() -> DB::TypeInfo {
+        String::type_info()
+    }
+
+    fn compatible(ty: &DB::TypeInfo) -> bool {
+        String::compatible(ty)
+    }
+}
+
+impl<'r, DB: Database> Decode<'r, DB> for TaskStageType {
+    fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
+        let s = String::decode(value)?;
+        Ok(match s.as_str() {
+            "init" => TaskStageType::Init,
+            "terraform_plan" => TaskStageType::TerraformPlan,
+            "running" => TaskStageType::Running,
+            "print_result" => TaskStageType::PrintResult,
+            _ => TaskStageType::Init,
+        })
+    }
+}
+
+impl<'q, DB: Database> Encode<'q, DB> for TaskStageType
+where
+    DB: 'q,
+{
+    fn encode_by_ref(&self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
+        let s: String = match self {
+            TaskStageType::Init => "init",
+            TaskStageType::TerraformPlan => "terraform_plan",
+            TaskStageType::Running => "running",
+            TaskStageType::PrintResult => "print_result",
+        }.to_string();
+        Encode::encode(s, buf)
+    }
+}

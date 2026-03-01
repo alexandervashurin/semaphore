@@ -2,7 +2,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
+use sqlx::{FromRow, Type, decode::Decode, encode::Encode, database::Database};
 
 /// Тип шаблона
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -10,6 +10,39 @@ use sqlx::FromRow;
 pub enum TemplateType {
     Default,
     Build,
+}
+
+impl<DB: Database> Type<DB> for TemplateType {
+    fn type_info() -> DB::TypeInfo {
+        String::type_info()
+    }
+
+    fn compatible(ty: &DB::TypeInfo) -> bool {
+        String::compatible(ty)
+    }
+}
+
+impl<'r, DB: Database> Decode<'r, DB> for TemplateType {
+    fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
+        let s = String::decode(value)?;
+        Ok(match s.as_str() {
+            "build" => TemplateType::Build,
+            _ => TemplateType::Default,
+        })
+    }
+}
+
+impl<'q, DB: Database> Encode<'q, DB> for TemplateType
+where
+    DB: 'q,
+{
+    fn encode_by_ref(&self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
+        let s: String = match self {
+            TemplateType::Build => "build",
+            TemplateType::Default => "default",
+        }.to_string();
+        Encode::encode(s, buf)
+    }
 }
 
 /// Приложение, используемое шаблоном
@@ -25,6 +58,53 @@ pub enum TemplateApp {
     Python,
     Pulumi,
     Default,
+}
+
+impl<DB: Database> Type<DB> for TemplateApp {
+    fn type_info() -> DB::TypeInfo {
+        String::type_info()
+    }
+
+    fn compatible(ty: &DB::TypeInfo) -> bool {
+        String::compatible(ty)
+    }
+}
+
+impl<'r, DB: Database> Decode<'r, DB> for TemplateApp {
+    fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
+        let s = String::decode(value)?;
+        Ok(match s.as_str() {
+            "ansible" => TemplateApp::Ansible,
+            "terraform" => TemplateApp::Terraform,
+            "tofu" => TemplateApp::Tofu,
+            "terragrunt" => TemplateApp::Terragrunt,
+            "bash" => TemplateApp::Bash,
+            "powershell" => TemplateApp::PowerShell,
+            "python" => TemplateApp::Python,
+            "pulumi" => TemplateApp::Pulumi,
+            _ => TemplateApp::Default,
+        })
+    }
+}
+
+impl<'q, DB: Database> Encode<'q, DB> for TemplateApp
+where
+    DB: 'q,
+{
+    fn encode_by_ref(&self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
+        let s: String = match self {
+            TemplateApp::Ansible => "ansible",
+            TemplateApp::Terraform => "terraform",
+            TemplateApp::Tofu => "tofu",
+            TemplateApp::Terragrunt => "terragrunt",
+            TemplateApp::Bash => "bash",
+            TemplateApp::PowerShell => "powershell",
+            TemplateApp::Python => "python",
+            TemplateApp::Pulumi => "pulumi",
+            TemplateApp::Default => "default",
+        }.to_string();
+        Encode::encode(s, buf)
+    }
 }
 
 /// Шаблон задачи

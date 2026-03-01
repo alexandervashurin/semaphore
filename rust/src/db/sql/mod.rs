@@ -497,6 +497,8 @@ impl ScheduleManager for SqlStore {
     async fn create_schedule(&self, _schedule: Schedule) -> Result<Schedule> { Err(Error::Other("Не реализовано".to_string())) }
     async fn update_schedule(&self, _schedule: Schedule) -> Result<()> { Err(Error::Other("Не реализовано".to_string())) }
     async fn delete_schedule(&self, _project_id: i32, _schedule_id: i32) -> Result<()> { Err(Error::Other("Не реализовано".to_string())) }
+    async fn set_schedule_active(&self, _project_id: i32, _schedule_id: i32, _active: bool) -> Result<()> { Err(Error::Other("Не реализовано".to_string())) }
+    async fn set_schedule_commit_hash(&self, _project_id: i32, _schedule_id: i32, _hash: &str) -> Result<()> { Err(Error::Other("Не реализовано".to_string())) }
 }
 
 #[async_trait]
@@ -504,6 +506,8 @@ impl SessionManager for SqlStore {
     async fn get_session(&self, _user_id: i32, _session_id: i32) -> Result<Session> { Err(Error::NotFound("Сессия не найдена".to_string())) }
     async fn create_session(&self, _session: Session) -> Result<Session> { Err(Error::Other("Не реализовано".to_string())) }
     async fn expire_session(&self, _user_id: i32, _session_id: i32) -> Result<()> { Err(Error::Other("Не реализовано".to_string())) }
+    async fn verify_session(&self, _user_id: i32, _session_id: i32) -> Result<()> { Err(Error::Other("Не реализовано".to_string())) }
+    async fn touch_session(&self, _user_id: i32, _session_id: i32) -> Result<()> { Err(Error::Other("Не реализовано".to_string())) }
 }
 
 #[async_trait]
@@ -512,6 +516,7 @@ impl TokenManager for SqlStore {
     async fn create_api_token(&self, _token: APIToken) -> Result<APIToken> { Err(Error::Other("Не реализовано".to_string())) }
     async fn get_api_token(&self, _token_id: &str) -> Result<APIToken> { Err(Error::NotFound("Токен не найден".to_string())) }
     async fn expire_api_token(&self, _user_id: i32, _token_id: &str) -> Result<()> { Err(Error::Other("Не реализовано".to_string())) }
+    async fn delete_api_token(&self, _user_id: i32, _token_id: &str) -> Result<()> { Err(Error::Other("Не реализовано".to_string())) }
 }
 
 #[async_trait]

@@ -1,7 +1,7 @@
 //! Модель ключа доступа (AccessKey)
 
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
+use sqlx::{FromRow, Type, decode::Decode, encode::Encode, database::Database};
 
 /// Данные SSH ключа
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -26,6 +26,43 @@ pub enum AccessKeyType {
     LoginPassword,
     SSH,
     AccessKey,
+}
+
+impl<DB: Database> Type<DB> for AccessKeyType {
+    fn type_info() -> DB::TypeInfo {
+        String::type_info()
+    }
+
+    fn compatible(ty: &DB::TypeInfo) -> bool {
+        String::compatible(ty)
+    }
+}
+
+impl<'r, DB: Database> Decode<'r, DB> for AccessKeyType {
+    fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
+        let s = String::decode(value)?;
+        Ok(match s.as_str() {
+            "login_password" => AccessKeyType::LoginPassword,
+            "ssh" => AccessKeyType::SSH,
+            "access_key" => AccessKeyType::AccessKey,
+            _ => AccessKeyType::None,
+        })
+    }
+}
+
+impl<'q, DB: Database> Encode<'q, DB> for AccessKeyType
+where
+    DB: 'q,
+{
+    fn encode_by_ref(&self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
+        let s: String = match self {
+            AccessKeyType::None => "none",
+            AccessKeyType::LoginPassword => "login_password",
+            AccessKeyType::SSH => "ssh",
+            AccessKeyType::AccessKey => "access_key",
+        }.to_string();
+        Encode::encode(s, buf)
+    }
 }
 
 /// Владелец ключа
