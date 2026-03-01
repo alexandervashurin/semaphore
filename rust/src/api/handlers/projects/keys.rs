@@ -17,7 +17,7 @@ use crate::api::middleware::ErrorResponse;
 pub async fn get_keys(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
-) -> Result<Json<Vec<AccessKey>>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<Vec<AccessKey>>, (StatusCode, Json<ErrorResponse>)> {
     let keys = state.store.get_access_keys(project_id, crate::db::store::RetrieveQueryParams::default())
         .await
         .map_err(|e| (
@@ -32,7 +32,7 @@ pub async fn get_keys(
 pub async fn get_key(
     State(state): State<Arc<AppState>>,
     Path((project_id, key_id)): Path<(i32, i32)>,
-) -> Result<Json<AccessKey>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<AccessKey>, (StatusCode, Json<ErrorResponse>)> {
     let key = state.store.get_access_key(project_id, key_id)
         .await
         .map_err(|e| match e {
@@ -54,7 +54,7 @@ pub async fn add_key(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
     Json(payload): Json<AccessKey>,
-) -> Result<(StatusCode, Json<AccessKey>), (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<(StatusCode, Json<AccessKey>), (StatusCode, Json<ErrorResponse>)> {
     let mut key = payload;
     key.project_id = Some(project_id);
 
@@ -73,7 +73,7 @@ pub async fn update_key(
     State(state): State<Arc<AppState>>,
     Path((project_id, key_id)): Path<(i32, i32)>,
     Json(payload): Json<AccessKey>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     let mut key = payload;
     key.id = key_id;
     key.project_id = Some(project_id);
@@ -92,7 +92,7 @@ pub async fn update_key(
 pub async fn delete_key(
     State(state): State<Arc<AppState>>,
     Path((project_id, key_id)): Path<(i32, i32)>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     state.store.delete_access_key(project_id, key_id)
         .await
         .map_err(|e| (

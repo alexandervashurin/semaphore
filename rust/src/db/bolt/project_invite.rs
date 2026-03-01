@@ -4,8 +4,9 @@
 
 use std::sync::Arc;
 use crate::db::bolt::BoltStore;
+use crate::db::store::RetrieveQueryParams;
 use crate::error::Result;
-use crate::models::{ProjectInvite, ProjectInviteWithUser, User, RetrieveQueryParams};
+use crate::models::{ProjectInvite, ProjectInviteWithUser, User};
 
 impl BoltStore {
     /// Получает приглашения проекта
@@ -59,8 +60,10 @@ impl BoltStore {
         for project in projects {
             let params = RetrieveQueryParams {
                 offset: 0,
-                count: 1000,
-                filter: String::new(),
+                count: Some(1000),
+                filter: None,
+            sort_by: None,
+            sort_inverted: false,
             };
             
             let project_invites = self.get_objects::<ProjectInvite>(project.id, "project_invites", params).await?;
@@ -181,8 +184,10 @@ mod tests {
         
         let params = RetrieveQueryParams {
             offset: 0,
-            count: 10,
-            filter: String::new(),
+            count: Some(10),
+            filter: None,
+            sort_by: None,
+            sort_inverted: false,
         };
         
         let invites = db.get_project_invites(1, params).await;

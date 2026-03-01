@@ -318,7 +318,7 @@ mod tests {
         let params = RetrieveQueryParams {
             offset: 0,
             count: 10,
-            filter: String::new(),
+            filter: None,
         };
         
         let users = db.get_users(&params).await.unwrap();

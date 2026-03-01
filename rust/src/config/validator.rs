@@ -23,11 +23,11 @@ impl std::error::Error for ValidationError {}
 
 /// Трейт для валидации
 pub trait Validate {
-    fn validate(&self) -> Result<(), ValidationError>;
+    fn validate(&self) -> std::result::Result<(), ValidationError>;
 }
 
 impl Validate for Config {
-    fn validate(&self) -> Result<(), ValidationError> {
+    fn validate(&self) -> std::result::Result<(), ValidationError> {
         // Валидация БД
         self.database.validate()?;
         
@@ -61,7 +61,7 @@ impl Validate for Config {
 }
 
 impl Validate for DbConfig {
-    fn validate(&self) -> Result<(), ValidationError> {
+    fn validate(&self) -> std::result::Result<(), ValidationError> {
         // Проверка диалекта
         match self.dialect {
             Some(DbDialect::MySQL) | Some(DbDialect::Postgres) | Some(DbDialect::SQLite) => {
@@ -104,7 +104,7 @@ impl Validate for DbConfig {
 }
 
 impl Validate for LdapConfig {
-    fn validate(&self) -> Result<(), ValidationError> {
+    fn validate(&self) -> std::result::Result<(), ValidationError> {
         if self.server.is_empty() {
             return Err(ValidationError {
                 field: "ldap.server".to_string(),
@@ -131,7 +131,7 @@ impl Validate for LdapConfig {
 }
 
 /// Проверяет существование пути
-pub fn validate_path_exists(path: &str, create_if_not_exists: bool) -> Result<(), ValidationError> {
+pub fn validate_path_exists(path: &str, create_if_not_exists: bool) -> std::result::Result<(), ValidationError> {
     use std::path::Path;
     use std::fs;
     
@@ -164,7 +164,7 @@ pub fn validate_path_exists(path: &str, create_if_not_exists: bool) -> Result<()
 }
 
 /// Проверяет порт
-pub fn validate_port(port: u16) -> Result<(), ValidationError> {
+pub fn validate_port(port: u16) -> std::result::Result<(), ValidationError> {
     if port == 0 {
         return Err(ValidationError {
             field: "port".to_string(),
@@ -175,7 +175,7 @@ pub fn validate_port(port: u16) -> Result<(), ValidationError> {
 }
 
 /// Валидирует конфигурацию и возвращает ошибки
-pub fn validate_config(config: &Config) -> Result<(), Vec<ValidationError>> {
+pub fn validate_config(config: &Config) -> std::result::Result<(), Vec<ValidationError>> {
     let mut errors = Vec::new();
     
     if let Err(e) = config.validate() {
@@ -194,7 +194,7 @@ pub fn validate_config(config: &Config) -> Result<(), Vec<ValidationError>> {
 }
 
 /// Валидирует и выводит предупреждения
-pub fn validate_config_with_warnings(config: &Config) -> (Result<(), Vec<ValidationError>>, Vec<String>) {
+pub fn validate_config_with_warnings(config: &Config) -> (std::result::Result<(), Vec<ValidationError>>, Vec<String>) {
     let mut warnings = Vec::new();
     
     // Проверка на deprecated настройки

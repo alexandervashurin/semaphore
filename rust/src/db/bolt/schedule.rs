@@ -28,8 +28,10 @@ impl BoltStore {
         
         let all_schedules = self.get_objects::<Schedule>(project_id, "schedules", RetrieveQueryParams {
             offset: 0,
-            count: 1000,
-            filter: String::new(),
+            count: Some(1000),
+            filter: None,
+            sort_by: None,
+            sort_inverted: false,
         }).await?;
         
         for schedule in all_schedules {

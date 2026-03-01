@@ -72,7 +72,7 @@ impl LocalJob {
 
     /// Получает JSON дополнительных переменных
     pub fn get_environment_extra_vars_json(
-        &self,
+        &mut self,
         username: &str,
         incoming_version: Option<&str>,
     ) -> Result<String> {
@@ -86,7 +86,6 @@ impl LocalJob {
         }
 
         // Очищаем секреты после использования
-        let secret_copy = self.secret.clone();
         self.secret = String::new();
 
         let task_details = self.get_task_details(username, incoming_version);

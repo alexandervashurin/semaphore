@@ -21,8 +21,10 @@ impl BoltStore {
     pub async fn get_views(&self, project_id: i32) -> Result<Vec<View>> {
         self.get_objects::<View>(project_id, "views", RetrieveQueryParams {
             offset: 0,
-            count: 1000,
-            filter: String::new(),
+            count: Some(1000),
+            filter: None,
+            sort_by: None,
+            sort_inverted: false,
         }).await
     }
 
@@ -123,8 +125,10 @@ impl BoltStore {
     pub async fn get_option(&self, key: &str) -> Result<String> {
         let options = self.get_objects::<crate::models::OptionItem>(0, "options", RetrieveQueryParams {
             offset: 0,
-            count: 1000,
-            filter: String::new(),
+            count: Some(1000),
+            filter: None,
+            sort_by: None,
+            sort_inverted: false,
         }).await?;
         
         for opt in options {
@@ -145,7 +149,7 @@ impl BoltStore {
     pub async fn delete_options(&self, filter: &str) -> Result<()> {
         let options = self.get_options(RetrieveQueryParams {
             offset: 0,
-            count: 1000,
+            count: Some(1000),
             filter: filter.to_string(),
         }).await?;
         
@@ -269,7 +273,7 @@ mod tests {
         
         let params = RetrieveQueryParams {
             offset: 0,
-            count: 100,
+            count: Some(100),
             filter: "app".to_string(),
         };
         

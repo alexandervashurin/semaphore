@@ -252,8 +252,10 @@ mod tests {
         // Получаем события
         let params = RetrieveQueryParams {
             offset: 0,
-            count: 10,
-            filter: String::new(),
+            count: Some(10),
+            filter: None,
+            sort_by: None,
+            sort_inverted: false,
         };
         
         let events = db.get_events(1, params).await;
@@ -273,8 +275,10 @@ mod tests {
         // Получаем все события
         let params = RetrieveQueryParams {
             offset: 0,
-            count: 100,
-            filter: String::new(),
+            count: Some(100),
+            filter: None,
+            sort_by: None,
+            sort_inverted: false,
         };
         
         let events = db.get_all_events(params).await;

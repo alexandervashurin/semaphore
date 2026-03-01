@@ -19,7 +19,7 @@ use crate::db::store::RetrieveQueryParams;
 pub async fn get_last_events(
     State(state): State<Arc<AppState>>,
     auth_user: AuthUser,
-) -> Result<Json<Vec<Event>>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<Vec<Event>>, (StatusCode, Json<ErrorResponse>)> {
     get_events(state, auth_user, 200).await
 }
 
@@ -27,7 +27,7 @@ pub async fn get_last_events(
 pub async fn get_all_events(
     State(state): State<Arc<AppState>>,
     auth_user: AuthUser,
-) -> Result<Json<Vec<Event>>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<Vec<Event>>, (StatusCode, Json<ErrorResponse>)> {
     get_events(state, auth_user, 0).await
 }
 
@@ -36,7 +36,7 @@ async fn get_events(
     State(state): State<Arc<AppState>>,
     auth_user: AuthUser,
     limit: usize,
-) -> Result<Json<Vec<Event>>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<Vec<Event>>, (StatusCode, Json<ErrorResponse>)> {
     let mut params = RetrieveQueryParams::default();
     if limit > 0 {
         params.count = Some(limit);
@@ -57,7 +57,7 @@ pub async fn get_project_events(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
     auth_user: AuthUser,
-) -> Result<Json<Vec<Event>>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<Vec<Event>>, (StatusCode, Json<ErrorResponse>)> {
     let mut params = RetrieveQueryParams::default();
     params.count = Some(200);
 

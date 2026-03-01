@@ -17,7 +17,7 @@ use crate::api::extractors::AuthUser;
 pub async fn clear_cache(
     State(state): State<Arc<AppState>>,
     auth_user: AuthUser,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     // Проверяем, что пользователь админ
     if !auth_user.admin {
         return Err((

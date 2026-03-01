@@ -3,8 +3,9 @@
 //! Аналог db/sql/project_invite.go из Go версии
 
 use crate::db::sql::types::SqlDb;
+use crate::db::store::RetrieveQueryParams;
 use crate::error::{Error, Result};
-use crate::models::{ProjectInvite, ProjectInviteWithUser, RetrieveQueryParams};
+use crate::models::{ProjectInvite, ProjectInviteWithUser};
 use sqlx::Row;
 
 impl SqlDb {

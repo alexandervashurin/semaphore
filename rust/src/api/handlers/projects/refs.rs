@@ -25,7 +25,7 @@ pub struct ObjectRefs {
 pub async fn get_key_refs(
     State(state): State<Arc<AppState>>,
     Path((project_id, key_id)): Path<(i32, i32)>,
-) -> Result<Json<ObjectRefs>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<ObjectRefs>, (StatusCode, Json<ErrorResponse>)> {
     // В реальной реализации нужно получить ссылки из БД
     // let refs = state.store.get_access_key_refs(project_id, key_id).await?;
     
@@ -42,7 +42,7 @@ pub async fn get_key_refs(
 pub async fn get_repository_refs(
     State(state): State<Arc<AppState>>,
     Path((project_id, repository_id)): Path<(i32, i32)>,
-) -> Result<Json<ObjectRefs>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<ObjectRefs>, (StatusCode, Json<ErrorResponse>)> {
     // В реальной реализации нужно получить ссылки из БД
     // let refs = state.store.get_repository_refs(project_id, repository_id).await?;
     
@@ -59,7 +59,7 @@ pub async fn get_repository_refs(
 pub async fn get_inventory_refs(
     State(state): State<Arc<AppState>>,
     Path((project_id, inventory_id)): Path<(i32, i32)>,
-) -> Result<Json<ObjectRefs>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<ObjectRefs>, (StatusCode, Json<ErrorResponse>)> {
     // В реальной реализации нужно получить ссылки из БД
     // let refs = state.store.get_inventory_refs(project_id, inventory_id).await?;
     
@@ -76,7 +76,7 @@ pub async fn get_inventory_refs(
 pub async fn get_template_refs(
     State(state): State<Arc<AppState>>,
     Path((project_id, template_id)): Path<(i32, i32)>,
-) -> Result<Json<ObjectRefs>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<ObjectRefs>, (StatusCode, Json<ErrorResponse>)> {
     // В реальной реализации нужно получить ссылки из БД
     // let refs = state.store.get_template_refs(project_id, template_id).await?;
     
@@ -93,7 +93,7 @@ pub async fn get_template_refs(
 pub async fn get_integration_refs(
     State(state): State<Arc<AppState>>,
     Path((project_id, integration_id)): Path<(i32, i32)>,
-) -> Result<Json<ObjectRefs>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<ObjectRefs>, (StatusCode, Json<ErrorResponse>)> {
     // В реальной реализации нужно получить ссылки из БД
     // let refs = state.store.get_integration_refs(project_id, integration_id).await?;
     

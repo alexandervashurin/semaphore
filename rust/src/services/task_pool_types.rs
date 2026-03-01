@@ -103,7 +103,7 @@ impl RunningTask {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::TaskStatus;
+    use crate::services::task_logger::TaskStatus;
 
     fn create_test_project() -> Project {
         Project {

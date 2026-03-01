@@ -145,7 +145,7 @@ mod tests {
         let params = RetrieveQueryParams {
             offset: 0,
             count: 10,
-            filter: String::new(),
+            filter: None,
         };
         
         let outputs = db.get_task_outputs(1, 1, &params).await.unwrap();
@@ -189,7 +189,7 @@ mod tests {
         let params = RetrieveQueryParams {
             offset: 0,
             count: 10,
-            filter: String::new(),
+            filter: None,
         };
         
         let outputs = db.get_task_outputs(1, 1, &params).await.unwrap();
@@ -218,7 +218,7 @@ mod tests {
         let params = RetrieveQueryParams {
             offset: 0,
             count: 10,
-            filter: String::new(),
+            filter: None,
         };
         
         let outputs = db.get_task_outputs(1, 1, &params).await.unwrap();

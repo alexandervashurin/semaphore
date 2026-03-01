@@ -26,7 +26,7 @@ pub struct RunnerWithToken {
 /// Получает все раннеры
 pub async fn get_all_runners(
     State(state): State<Arc<AppState>>,
-) -> Result<Json<Vec<Runner>>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<Vec<Runner>>, (StatusCode, Json<ErrorResponse>)> {
     let runners = state.store.get_runners(None)
         .await
         .map_err(|e| (
@@ -41,7 +41,7 @@ pub async fn get_all_runners(
 pub async fn add_global_runner(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<Runner>,
-) -> Result<(StatusCode, Json<RunnerWithToken>), (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<(StatusCode, Json<RunnerWithToken>), (StatusCode, Json<ErrorResponse>)> {
     let mut runner = payload;
     runner.project_id = None;
 
@@ -68,7 +68,7 @@ pub async fn update_runner(
     State(state): State<Arc<AppState>>,
     Path(runner_id): Path<i32>,
     Json(payload): Json<Runner>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     let mut runner = payload;
     runner.id = runner_id;
 
@@ -86,7 +86,7 @@ pub async fn update_runner(
 pub async fn delete_runner(
     State(state): State<Arc<AppState>>,
     Path(runner_id): Path<i32>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     state.store.delete_runner(runner_id)
         .await
         .map_err(|e| (

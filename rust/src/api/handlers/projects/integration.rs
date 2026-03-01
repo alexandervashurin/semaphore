@@ -19,7 +19,7 @@ pub async fn get_integrations(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
     Query(params): Query<RetrieveQueryParams>,
-) -> Result<Json<Vec<Integration>>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<Vec<Integration>>, (StatusCode, Json<ErrorResponse>)> {
     let integrations = state.store.get_integrations(project_id, params)
         .await
         .map_err(|e| (
@@ -34,7 +34,7 @@ pub async fn get_integrations(
 pub async fn get_integration(
     State(state): State<Arc<AppState>>,
     Path((project_id, integration_id)): Path<(i32, i32)>,
-) -> Result<Json<Integration>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<Integration>, (StatusCode, Json<ErrorResponse>)> {
     let integration = state.store.get_integration(project_id, integration_id)
         .await
         .map_err(|e| match e {
@@ -56,7 +56,7 @@ pub async fn add_integration(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
     Json(payload): Json<Integration>,
-) -> Result<(StatusCode, Json<Integration>), (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<(StatusCode, Json<Integration>), (StatusCode, Json<ErrorResponse>)> {
     let mut integration = payload;
     integration.project_id = project_id;
 
@@ -75,7 +75,7 @@ pub async fn update_integration(
     State(state): State<Arc<AppState>>,
     Path((project_id, integration_id)): Path<(i32, i32)>,
     Json(payload): Json<Integration>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     let mut integration = payload;
     integration.id = integration_id;
     integration.project_id = project_id;
@@ -94,7 +94,7 @@ pub async fn update_integration(
 pub async fn delete_integration(
     State(state): State<Arc<AppState>>,
     Path((project_id, integration_id)): Path<(i32, i32)>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     state.store.delete_integration(project_id, integration_id)
         .await
         .map_err(|e| (

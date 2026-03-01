@@ -33,7 +33,7 @@ pub struct LoginResponse {
 pub async fn login(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<LoginPayload>,
-) -> Result<Json<LoginResponse>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<LoginResponse>, (StatusCode, Json<ErrorResponse>)> {
     // В реальной реализации нужно проверить учётные данные
     // и создать токен
 

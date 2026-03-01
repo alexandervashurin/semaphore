@@ -25,7 +25,7 @@ pub struct PublicAlias {
 pub async fn get_integration_aliases(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
-) -> Result<Json<Vec<PublicAlias>>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<Vec<PublicAlias>>, (StatusCode, Json<ErrorResponse>)> {
     // В реальной реализации нужно получить псевдонимы из БД
     // let aliases = state.store.get_integration_aliases(project_id, None).await?;
     
@@ -36,7 +36,7 @@ pub async fn get_integration_aliases(
 pub async fn add_integration_alias(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
-) -> Result<(StatusCode, Json<PublicAlias>), (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<(StatusCode, Json<PublicAlias>), (StatusCode, Json<ErrorResponse>)> {
     // Генерация случайного алиаса
     let alias_value = rand::random::<u128>().to_string();
 
@@ -52,7 +52,7 @@ pub async fn add_integration_alias(
 pub async fn delete_integration_alias(
     State(state): State<Arc<AppState>>,
     Path((project_id, alias_id)): Path<(i32, i32)>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     // В реальной реализации нужно удалить псевдоним из БД
     // state.store.delete_integration_alias(project_id, alias_id).await?;
 

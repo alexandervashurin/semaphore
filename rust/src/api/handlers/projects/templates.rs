@@ -20,7 +20,7 @@ pub async fn get_templates(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
     Query(params): Query<RetrieveQueryParams>,
-) -> Result<Json<Vec<Template>>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<Vec<Template>>, (StatusCode, Json<ErrorResponse>)> {
     let templates = state.store.get_templates(project_id)
         .await
         .map_err(|e| (
@@ -35,7 +35,7 @@ pub async fn get_templates(
 pub async fn get_template(
     State(state): State<Arc<AppState>>,
     Path((project_id, template_id)): Path<(i32, i32)>,
-) -> Result<Json<Template>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<Template>, (StatusCode, Json<ErrorResponse>)> {
     let template = state.store.get_template(project_id, template_id)
         .await
         .map_err(|e| match e {
@@ -57,7 +57,7 @@ pub async fn add_template(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
     Json(payload): Json<Template>,
-) -> Result<(StatusCode, Json<Template>), (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<(StatusCode, Json<Template>), (StatusCode, Json<ErrorResponse>)> {
     let mut template = payload;
     template.project_id = project_id;
 
@@ -76,7 +76,7 @@ pub async fn update_template(
     State(state): State<Arc<AppState>>,
     Path((project_id, template_id)): Path<(i32, i32)>,
     Json(payload): Json<Template>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     let mut template = payload;
     template.id = template_id;
     template.project_id = project_id;
@@ -95,7 +95,7 @@ pub async fn update_template(
 pub async fn delete_template(
     State(state): State<Arc<AppState>>,
     Path((project_id, template_id)): Path<(i32, i32)>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     state.store.delete_template(project_id, template_id)
         .await
         .map_err(|e| (

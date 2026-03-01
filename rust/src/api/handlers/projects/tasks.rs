@@ -21,7 +21,7 @@ pub async fn get_tasks(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
     Query(params): Query<RetrieveQueryParams>,
-) -> Result<Json<Vec<TaskWithTpl>>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<Vec<TaskWithTpl>>, (StatusCode, Json<ErrorResponse>)> {
     let tasks = state.store.get_tasks(project_id, params)
         .await
         .map_err(|e| (
@@ -36,7 +36,7 @@ pub async fn get_tasks(
 pub async fn get_task(
     State(state): State<Arc<AppState>>,
     Path((project_id, task_id)): Path<(i32, i32)>,
-) -> Result<Json<Task>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<Task>, (StatusCode, Json<ErrorResponse>)> {
     let task = state.store.get_task(project_id, task_id)
         .await
         .map_err(|e| match e {
@@ -58,7 +58,7 @@ pub async fn add_task(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
     Json(payload): Json<CreateTaskPayload>,
-) -> Result<(StatusCode, Json<Task>), (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<(StatusCode, Json<Task>), (StatusCode, Json<ErrorResponse>)> {
     let task = Task {
         id: 0,
         template_id: payload.template_id,
@@ -98,7 +98,7 @@ pub async fn add_task(
 pub async fn stop_task(
     State(state): State<Arc<AppState>>,
     Path((project_id, task_id)): Path<(i32, i32)>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     // В реальной реализации нужно остановить задачу
     // state.store.stop_task(project_id, task_id).await?;
 
@@ -109,7 +109,7 @@ pub async fn stop_task(
 pub async fn delete_task(
     State(state): State<Arc<AppState>>,
     Path((project_id, task_id)): Path<(i32, i32)>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     state.store.delete_task(project_id, task_id)
         .await
         .map_err(|e| (

@@ -10,7 +10,7 @@ use axum::{
 use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use crate::api::state::AppState;
-use crate::models::{User, ProjectUser};
+use crate::models::{User, ProjectUser, ProjectUserRole};
 use crate::error::{Error, Result};
 use crate::api::middleware::ErrorResponse;
 use crate::db::store::RetrieveQueryParams;
@@ -28,7 +28,7 @@ pub struct ProjectUserResponse {
 pub async fn get_users(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
-) -> Result<Json<Vec<ProjectUserResponse>>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<Vec<ProjectUserResponse>>, (StatusCode, Json<ErrorResponse>)> {
     let users = state.store.get_project_users(project_id, RetrieveQueryParams::default())
         .await
         .map_err(|e| (
@@ -53,12 +53,12 @@ pub async fn add_user(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
     Json(payload): Json<AddUserPayload>,
-) -> Result<(StatusCode, Json<ProjectUserResponse>), (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<(StatusCode, Json<ProjectUserResponse>), (StatusCode, Json<ErrorResponse>)> {
     let project_user = ProjectUser {
         id: 0,
         project_id,
         user_id: payload.user_id,
-        role: payload.role,
+        role: payload.role.clone(),
     };
 
     // В реальной реализации нужно сохранить в БД
@@ -79,7 +79,7 @@ pub async fn update_user_role(
     State(state): State<Arc<AppState>>,
     Path((project_id, user_id)): Path<(i32, i32)>,
     Json(payload): Json<UpdateUserRolePayload>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     // В реальной реализации нужно обновить в БД
     // state.store.update_project_user_role(project_id, user_id, payload.role).await?;
 
@@ -90,7 +90,7 @@ pub async fn update_user_role(
 pub async fn delete_user(
     State(state): State<Arc<AppState>>,
     Path((project_id, user_id)): Path<(i32, i32)>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     // В реальной реализации нужно удалить из БД
     // state.store.delete_project_user(project_id, user_id).await?;
 
@@ -101,13 +101,13 @@ pub async fn delete_user(
 #[derive(Debug, Deserialize)]
 pub struct AddUserPayload {
     pub user_id: i32,
-    pub role: String,
+    pub role: ProjectUserRole,
 }
 
 /// Payload для обновления роли
 #[derive(Debug, Deserialize)]
 pub struct UpdateUserRolePayload {
-    pub role: String,
+    pub role: ProjectUserRole,
 }
 
 // ============================================================================

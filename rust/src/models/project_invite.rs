@@ -38,12 +38,3 @@ pub struct ProjectInviteWithUser {
     /// Email пользователя
     pub user_email: String,
 }
-
-/// Параметры для получения приглашений
-#[derive(Debug, Clone, Default)]
-pub struct RetrieveQueryParams {
-    pub limit: Option<i64>,
-    pub offset: Option<i64>,
-    pub order: Option<String>,
-    pub sort: Option<String>,
-}

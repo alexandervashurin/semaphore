@@ -19,7 +19,7 @@ use crate::api::extractors::AuthUser;
 pub async fn get_options(
     State(state): State<Arc<AppState>>,
     auth_user: AuthUser,
-) -> Result<Json<Vec<OptionItem>>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<Vec<OptionItem>>, (StatusCode, Json<ErrorResponse>)> {
     // Проверяем, что пользователь админ
     if !auth_user.admin {
         return Err((
@@ -48,7 +48,7 @@ pub async fn set_option(
     State(state): State<Arc<AppState>>,
     auth_user: AuthUser,
     Json(payload): Json<OptionItem>,
-) -> Result<Json<OptionItem>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<OptionItem>, (StatusCode, Json<ErrorResponse>)> {
     // Проверяем, что пользователь админ
     if !auth_user.admin {
         return Err((

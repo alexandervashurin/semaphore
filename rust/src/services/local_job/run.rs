@@ -99,13 +99,7 @@ impl LocalJob {
     }
 }
 
-impl Drop for LocalJob {
-    fn drop(&mut self) {
-        self.cleanup();
-        self.clear_ssh_keys();
-        self.clear_vault_key_files();
-    }
-}
+// Drop реализация находится в types.rs
 
 #[cfg(test)]
 mod tests {

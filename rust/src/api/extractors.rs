@@ -10,9 +10,11 @@ use axum::{
     http::{request::Parts, StatusCode},
     Json,
 };
+use std::sync::Arc;
 
 use crate::api::auth_local::LocalAuthService;
 use crate::api::middleware::ErrorResponse;
+use crate::api::state::AppState;
 
 /// Извлекает токен из заголовка Authorization
 fn extract_token_from_header(auth_header: Option<&str>) -> Option<&str> {
@@ -41,15 +43,12 @@ pub struct AuthUser {
     pub admin: bool,
 }
 
-impl<S> FromRequestParts<State<S>> for AuthUser
-where
-    S: Send + Sync,
-{
+impl FromRequestParts<State<Arc<AppState>>> for AuthUser {
     type Rejection = (StatusCode, Json<ErrorResponse>);
 
     async fn from_request_parts(
         parts: &mut Parts,
-        state: &State<S>,
+        state: &State<Arc<AppState>>,
     ) -> Result<Self, Self::Rejection> {
         // Получаем токен из заголовка
         let auth_header = parts
@@ -65,8 +64,6 @@ where
             ))?;
 
         // Получаем LocalAuthService из состояния
-        // Пока используем дефолтный сервис
-        // TODO: Интегрировать с AppState
         let auth_service = LocalAuthService::new(std::sync::Arc::new(state.store.clone()));
 
         // Проверяем токен
@@ -94,17 +91,14 @@ where
 #[derive(Debug, Clone)]
 pub struct OptionalAuthUser(pub Option<AuthUser>);
 
-impl<S> FromRequestParts<State<S>> for OptionalAuthUser
-where
-    S: Send + Sync,
-{
+impl FromRequestParts<State<Arc<AppState>>> for OptionalAuthUser {
     type Rejection = (StatusCode, Json<ErrorResponse>);
 
     async fn from_request_parts(
         parts: &mut Parts,
-        _state: &State<S>,
+        state: &State<Arc<AppState>>,
     ) -> Result<Self, Self::Rejection> {
-        match AuthUser::from_request_parts(parts, _state).await {
+        match AuthUser::from_request_parts(parts, state).await {
             Ok(user) => Ok(OptionalAuthUser(Some(user))),
             Err(_) => Ok(OptionalAuthUser(None)),
         }
@@ -117,15 +111,12 @@ where
 #[derive(Debug, Clone)]
 pub struct AuthToken(pub String);
 
-impl<S> FromRequestParts<State<S>> for AuthToken
-where
-    S: Send + Sync,
-{
+impl FromRequestParts<State<Arc<AppState>>> for AuthToken {
     type Rejection = (StatusCode, Json<ErrorResponse>);
 
     async fn from_request_parts(
         parts: &mut Parts,
-        _state: &State<S>,
+        _state: &State<Arc<AppState>>,
     ) -> Result<Self, Self::Rejection> {
         let auth_header = parts
             .headers
@@ -155,17 +146,14 @@ impl AdminUser {
     }
 }
 
-impl<S> FromRequestParts<State<S>> for AdminUser
-where
-    S: Send + Sync,
-{
+impl FromRequestParts<State<Arc<AppState>>> for AdminUser {
     type Rejection = (StatusCode, Json<ErrorResponse>);
 
     async fn from_request_parts(
         parts: &mut Parts,
-        _state: &State<S>,
+        state: &State<Arc<AppState>>,
     ) -> Result<Self, Self::Rejection> {
-        let user = AuthUser::from_request_parts(parts, _state).await?;
+        let user = AuthUser::from_request_parts(parts, state).await?;
 
         if !user.admin {
             return Err((

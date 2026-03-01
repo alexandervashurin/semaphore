@@ -14,13 +14,17 @@ impl BoltStore {
             self.get_objects::<Runner>(pid, "runners", crate::db::store::RetrieveQueryParams {
                 offset: 0,
                 count: Some(1000),
-                filter: String::new(),
+                filter: None,
+            sort_by: None,
+            sort_inverted: false,
             }).await
         } else {
             self.get_objects::<Runner>(0, "global_runners", crate::db::store::RetrieveQueryParams {
                 offset: 0,
                 count: Some(1000),
-                filter: String::new(),
+                filter: None,
+            sort_by: None,
+            sort_inverted: false,
             }).await
         }
     }

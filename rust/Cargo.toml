@@ -95,6 +95,7 @@ hmac = "0.12"
 
 # OTP (TOTP/HOTP)
 base32 = "0.5"
+base64 = "0.22"
 
 # LDAP (опционально, для аутентификации)
 # ldap3 = "0.11"
@@ -127,10 +128,14 @@ version = "0.34"
 version = "4.5"
 features = ["derive", "env"]
 
+# System
+libc = "0.2"
+
 # Тестирование
 [dev-dependencies]
 tokio-test = "0.4"
 fake = { version = "4", features = ["derive", "chrono"] }
+tempfile = "3"
 
 # Профилирование
 [profile.release]

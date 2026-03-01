@@ -211,8 +211,10 @@ impl BoltStore {
         
         let all_keys = self.get_objects::<AccessKey>(project_id, "access_keys", RetrieveQueryParams {
             offset: 0,
-            count: 1000,
-            filter: String::new(),
+            count: Some(1000),
+            filter: None,
+            sort_by: None,
+            sort_inverted: false,
         }).await?;
         
         for key in all_keys {
@@ -349,8 +351,10 @@ mod tests {
         
         let params = RetrieveQueryParams {
             offset: 0,
-            count: 10,
-            filter: String::new(),
+            count: Some(10),
+            filter: None,
+            sort_by: None,
+            sort_inverted: false,
         };
         
         let environments = db.get_environments(1, params).await;

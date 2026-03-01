@@ -10,7 +10,7 @@ use axum::{
 use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use crate::api::state::AppState;
-use crate::error::{Error, Result};
+use crate::error::Result;
 use crate::api::middleware::ErrorResponse;
 
 /// Приложение
@@ -29,7 +29,7 @@ pub struct App {
 /// Получает все приложения
 pub async fn get_apps(
     State(state): State<Arc<AppState>>,
-) -> Result<Json<Vec<App>>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<Vec<App>>, (StatusCode, Json<ErrorResponse>)> {
     // В реальной реализации нужно получить приложения из конфига
     let apps = vec![
         App {
@@ -51,7 +51,7 @@ pub async fn get_apps(
 pub async fn get_app(
     State(state): State<Arc<AppState>>,
     Path(app_id): Path<String>,
-) -> Result<Json<App>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<App>, (StatusCode, Json<ErrorResponse>)> {
     // В реальной реализации нужно получить приложение из конфига
     let app = App {
         id: app_id,
@@ -71,7 +71,7 @@ pub async fn get_app(
 pub async fn delete_app(
     State(state): State<Arc<AppState>>,
     Path(app_id): Path<String>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     // В реальной реализации нужно удалить приложение из конфига
     Ok(StatusCode::NO_CONTENT)
 }

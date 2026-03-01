@@ -243,8 +243,9 @@ impl Drop for TaskPool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::services::task_logger::TaskStatus;
     use chrono::Utc;
-    use crate::db::MemoryDB;
+    use crate::db::MockStore;
 
     fn create_test_task(id: i32) -> Task {
         Task {
@@ -264,7 +265,7 @@ mod tests {
     fn create_test_pool() -> TaskPool {
         let project = Project::default();
         let key_installer = AccessKeyInstallerImpl::new();
-        let store = Arc::new(MemoryDB::new());
+        let store = Arc::new(MockStore::new());
         TaskPool::new(project, key_installer, store)
     }
 

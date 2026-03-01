@@ -13,7 +13,9 @@ impl BoltStore {
         self.get_objects::<Repository>(project_id, "repositories", crate::db::store::RetrieveQueryParams {
             offset: 0,
             count: Some(1000),
-            filter: String::new(),
+            filter: None,
+            sort_by: None,
+            sort_inverted: false,
         }).await
     }
 

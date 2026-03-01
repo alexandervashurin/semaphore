@@ -18,7 +18,7 @@ use crate::db::store::RetrieveQueryParams;
 pub async fn get_project_schedules(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
-) -> Result<Json<Vec<Schedule>>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<Vec<Schedule>>, (StatusCode, Json<ErrorResponse>)> {
     let schedules = state.store.get_schedules(project_id)
         .await
         .map_err(|e| (
@@ -33,7 +33,7 @@ pub async fn get_project_schedules(
 pub async fn get_schedule(
     State(state): State<Arc<AppState>>,
     Path((project_id, schedule_id)): Path<(i32, i32)>,
-) -> Result<Json<Schedule>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<Schedule>, (StatusCode, Json<ErrorResponse>)> {
     let schedule = state.store.get_schedule(project_id, schedule_id)
         .await
         .map_err(|e| match e {
@@ -55,7 +55,7 @@ pub async fn add_schedule(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
     Json(payload): Json<Schedule>,
-) -> Result<(StatusCode, Json<Schedule>), (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<(StatusCode, Json<Schedule>), (StatusCode, Json<ErrorResponse>)> {
     let mut schedule = payload;
     schedule.project_id = project_id;
 
@@ -74,7 +74,7 @@ pub async fn update_schedule(
     State(state): State<Arc<AppState>>,
     Path((project_id, schedule_id)): Path<(i32, i32)>,
     Json(payload): Json<Schedule>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     let mut schedule = payload;
     schedule.id = schedule_id;
     schedule.project_id = project_id;
@@ -93,7 +93,7 @@ pub async fn update_schedule(
 pub async fn delete_schedule(
     State(state): State<Arc<AppState>>,
     Path((project_id, schedule_id)): Path<(i32, i32)>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     state.store.delete_schedule(project_id, schedule_id)
         .await
         .map_err(|e| (

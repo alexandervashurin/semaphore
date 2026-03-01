@@ -19,7 +19,7 @@ pub async fn get_environments(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
     Query(params): Query<RetrieveQueryParams>,
-) -> Result<Json<Vec<Environment>>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<Vec<Environment>>, (StatusCode, Json<ErrorResponse>)> {
     let environments = state.store.get_environments(project_id)
         .await
         .map_err(|e| (
@@ -34,7 +34,7 @@ pub async fn get_environments(
 pub async fn get_environment(
     State(state): State<Arc<AppState>>,
     Path((project_id, environment_id)): Path<(i32, i32)>,
-) -> Result<Json<Environment>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<Environment>, (StatusCode, Json<ErrorResponse>)> {
     let environment = state.store.get_environment(project_id, environment_id)
         .await
         .map_err(|e| match e {
@@ -56,7 +56,7 @@ pub async fn add_environment(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
     Json(payload): Json<Environment>,
-) -> Result<(StatusCode, Json<Environment>), (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<(StatusCode, Json<Environment>), (StatusCode, Json<ErrorResponse>)> {
     let mut environment = payload;
     environment.project_id = project_id;
 
@@ -75,7 +75,7 @@ pub async fn update_environment(
     State(state): State<Arc<AppState>>,
     Path((project_id, environment_id)): Path<(i32, i32)>,
     Json(payload): Json<Environment>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     let mut environment = payload;
     environment.id = environment_id;
     environment.project_id = project_id;
@@ -94,7 +94,7 @@ pub async fn update_environment(
 pub async fn delete_environment(
     State(state): State<Arc<AppState>>,
     Path((project_id, environment_id)): Path<(i32, i32)>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     state.store.delete_environment(project_id, environment_id)
         .await
         .map_err(|e| (

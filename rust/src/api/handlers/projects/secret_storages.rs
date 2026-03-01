@@ -17,7 +17,7 @@ use crate::api::middleware::ErrorResponse;
 pub async fn get_secret_storages(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
-) -> Result<Json<Vec<SecretStorage>>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<Vec<SecretStorage>>, (StatusCode, Json<ErrorResponse>)> {
     let storages = state.store.get_secret_storages(project_id)
         .await
         .map_err(|e| (
@@ -32,7 +32,7 @@ pub async fn get_secret_storages(
 pub async fn get_secret_storage(
     State(state): State<Arc<AppState>>,
     Path((project_id, storage_id)): Path<(i32, i32)>,
-) -> Result<Json<SecretStorage>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<SecretStorage>, (StatusCode, Json<ErrorResponse>)> {
     let storage = state.store.get_secret_storage(project_id, storage_id)
         .await
         .map_err(|e| match e {
@@ -54,7 +54,7 @@ pub async fn add_secret_storage(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
     Json(payload): Json<SecretStorage>,
-) -> Result<(StatusCode, Json<SecretStorage>), (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<(StatusCode, Json<SecretStorage>), (StatusCode, Json<ErrorResponse>)> {
     let mut storage = payload;
     storage.project_id = project_id;
 
@@ -73,7 +73,7 @@ pub async fn update_secret_storage(
     State(state): State<Arc<AppState>>,
     Path((project_id, storage_id)): Path<(i32, i32)>,
     Json(payload): Json<SecretStorage>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     let mut storage = payload;
     storage.id = storage_id;
     storage.project_id = project_id;
@@ -92,7 +92,7 @@ pub async fn update_secret_storage(
 pub async fn delete_secret_storage(
     State(state): State<Arc<AppState>>,
     Path((project_id, storage_id)): Path<(i32, i32)>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     state.store.delete_secret_storage(project_id, storage_id)
         .await
         .map_err(|e| (

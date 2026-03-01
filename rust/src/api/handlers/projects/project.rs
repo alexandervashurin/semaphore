@@ -17,7 +17,7 @@ use crate::api::middleware::ErrorResponse;
 pub async fn get_projects(
     State(state): State<Arc<AppState>>,
     Path(user_id): Path<i32>,
-) -> Result<Json<Vec<Project>>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<Vec<Project>>, (StatusCode, Json<ErrorResponse>)> {
     let projects = state.store.get_projects(Some(user_id))
         .await
         .map_err(|e| (
@@ -32,7 +32,7 @@ pub async fn get_projects(
 pub async fn get_project(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
-) -> Result<Json<Project>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<Project>, (StatusCode, Json<ErrorResponse>)> {
     let project = state.store.get_project(project_id)
         .await
         .map_err(|e| match e {
@@ -53,7 +53,7 @@ pub async fn get_project(
 pub async fn add_project(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<Project>,
-) -> Result<(StatusCode, Json<Project>), (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<(StatusCode, Json<Project>), (StatusCode, Json<ErrorResponse>)> {
     let created = state.store.create_project(payload)
         .await
         .map_err(|e| (
@@ -69,7 +69,7 @@ pub async fn update_project(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
     Json(payload): Json<Project>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     let mut project = payload;
     project.id = project_id;
 
@@ -87,7 +87,7 @@ pub async fn update_project(
 pub async fn delete_project(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     state.store.delete_project(project_id)
         .await
         .map_err(|e| (

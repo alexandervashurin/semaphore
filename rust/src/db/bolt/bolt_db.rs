@@ -33,6 +33,17 @@ impl BoltStore {
         })
     }
 
+    /// Сериализует объект в JSON
+    pub fn serialize<T: serde::Serialize>(&self, obj: &T) -> Result<Vec<u8>> {
+        serde_json::to_vec(obj).map_err(|e| Error::Json(e))
+    }
+
+    /// Десериализует объект из JSON
+    #[allow(dead_code)]
+    pub fn deserialize<T: serde::de::DeserializeOwned>(&self, bytes: &[u8]) -> Result<T> {
+        serde_json::from_slice(bytes).map_err(|e| Error::Json(e))
+    }
+
     /// Получает следующий ID для объекта
     pub fn get_next_id(&self, bucket_name: &str) -> Result<i32> {
         let mut counter = self.id_counter.lock()

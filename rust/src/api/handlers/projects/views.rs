@@ -17,7 +17,7 @@ use crate::api::middleware::ErrorResponse;
 pub async fn get_views(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
-) -> Result<Json<Vec<View>>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<Vec<View>>, (StatusCode, Json<ErrorResponse>)> {
     let views = state.store.get_views(project_id)
         .await
         .map_err(|e| (
@@ -32,7 +32,7 @@ pub async fn get_views(
 pub async fn get_view(
     State(state): State<Arc<AppState>>,
     Path((project_id, view_id)): Path<(i32, i32)>,
-) -> Result<Json<View>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<View>, (StatusCode, Json<ErrorResponse>)> {
     let view = state.store.get_view(project_id, view_id)
         .await
         .map_err(|e| match e {
@@ -54,7 +54,7 @@ pub async fn add_view(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
     Json(payload): Json<View>,
-) -> Result<(StatusCode, Json<View>), (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<(StatusCode, Json<View>), (StatusCode, Json<ErrorResponse>)> {
     let mut view = payload;
     view.project_id = project_id;
 
@@ -73,7 +73,7 @@ pub async fn update_view(
     State(state): State<Arc<AppState>>,
     Path((project_id, view_id)): Path<(i32, i32)>,
     Json(payload): Json<View>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     let mut view = payload;
     view.id = view_id;
     view.project_id = project_id;
@@ -92,7 +92,7 @@ pub async fn update_view(
 pub async fn delete_view(
     State(state): State<Arc<AppState>>,
     Path((project_id, view_id)): Path<(i32, i32)>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     state.store.delete_view(project_id, view_id)
         .await
         .map_err(|e| (

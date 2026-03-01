@@ -61,7 +61,7 @@ pub use role::Role;
 pub use project_invite::{ProjectInvite, ProjectInviteWithUser, RetrieveQueryParams};
 pub use object_referrers::ObjectReferrers;
 pub use crate::services::access_key_installation_service::GetAccessKeyOptions;
-pub use option::{OptionItem, Option};
+pub use option::OptionItem;
 pub use secret_storage::{SecretStorage, SecretStorageType};
 pub use hook::{Hook, HookType};
 pub use terraform_inventory::{TerraformInventoryAlias, TerraformInventoryState, Alias as TerraformAlias};

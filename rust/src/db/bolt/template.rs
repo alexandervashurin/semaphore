@@ -240,8 +240,10 @@ impl BoltStore {
     pub async fn get_template_roles(&self, project_id: i32, template_id: i32) -> Result<Vec<TemplateRolePerm>> {
         let roles = self.get_objects::<TemplateRolePerm>(template_id, "template_roles", RetrieveQueryParams {
             offset: 0,
-            count: 1000,
-            filter: String::new(),
+            count: Some(1000),
+            filter: None,
+            sort_by: None,
+            sort_inverted: false,
         }).await?;
         
         Ok(roles)
@@ -338,8 +340,10 @@ mod tests {
         
         let params = RetrieveQueryParams {
             offset: 0,
-            count: 10,
-            filter: String::new(),
+            count: Some(10),
+            filter: None,
+            sort_by: None,
+            sort_inverted: false,
         };
         
         let templates = db.get_templates(1, TemplateFilter { view_id: None }, params).await;

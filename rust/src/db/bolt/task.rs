@@ -207,8 +207,10 @@ impl BoltStore {
         
         let stages = self.get_objects::<TaskStage>(task_id, "task_stages", RetrieveQueryParams {
             offset: 0,
-            count: 1000,
-            filter: String::new(),
+            count: Some(1000),
+            filter: None,
+            sort_by: None,
+            sort_inverted: false,
         }).await?;
         
         // Конвертируем TaskStage в TaskStageWithResult
@@ -229,8 +231,10 @@ impl BoltStore {
     pub async fn end_task_stage(&self, task_id: i32, stage_id: i32, end: chrono::DateTime<Utc>) -> Result<()> {
         let stages = self.get_objects::<TaskStage>(task_id, "task_stages", RetrieveQueryParams {
             offset: 0,
-            count: 1000,
-            filter: String::new(),
+            count: Some(1000),
+            filter: None,
+            sort_by: None,
+            sort_inverted: false,
         }).await?;
         
         for mut stage in stages {
@@ -260,67 +264,75 @@ impl BoltStore {
         // TODO: Реализовать фильтрацию по stage_id
         self.get_task_outputs(project_id, task_id, RetrieveQueryParams {
             offset: 0,
-            count: 1000,
-            filter: String::new(),
+            count: Some(1000),
+            filter: None,
+            sort_by: None,
+            sort_inverted: false,
         }).await
     }
 
     /// Вспомогательный метод для получения задач
     async fn get_tasks_internal(&self, project_id: i32, template_id: Option<i32>, params: RetrieveQueryParams) -> Result<Vec<TaskWithTpl>> {
         let mut tasks_with_tpl = Vec::new();
-        
-        self.db.view(|tx| {
+
+        // Сначала получаем все задачи из БД
+        let tasks: Vec<Task> = self.db.view(|tx| {
             let bucket = tx.bucket(b"tasks");
             if bucket.is_none() {
-                return Ok(());
+                return Ok(Vec::new());
             }
-            
+
             let bucket = bucket.unwrap();
             let mut cursor = bucket.cursor();
-            
+
             let mut i = 0;
             let mut n = 0;
-            
+            let mut result = Vec::new();
+
             while let Some((k, v)) = cursor.first() {
                 if params.offset > 0 && i < params.offset {
                     i += 1;
                     continue;
                 }
-                
+
                 let task: Task = serde_json::from_slice(&v)?;
-                
+
                 if task.project_id != project_id {
                     continue;
                 }
-                
+
                 if let Some(tid) = template_id {
                     if task.template_id != tid {
                         continue;
                     }
                 }
-                
-                // Получаем информацию о шаблоне
-                let template_name = match self.get_template(project_id, task.template_id).await {
-                    Ok(tpl) => tpl.name,
-                    Err(_) => String::new(),
-                };
-                
-                let task_with_tpl = TaskWithTpl {
-                    task,
-                    template_name,
-                };
-                
-                tasks_with_tpl.push(task_with_tpl);
+
+                result.push(task);
                 n += 1;
-                
+
                 if n > params.count {
                     break;
                 }
             }
-            
-            Ok(())
-        }).await?;
-        
+
+            Ok(result)
+        })?;
+
+        // Затем получаем информацию о шаблонах
+        for task in tasks {
+            let template_name = match self.get_template(project_id, task.template_id).await {
+                Ok(tpl) => tpl.name,
+                Err(_) => String::new(),
+            };
+
+            let task_with_tpl = TaskWithTpl {
+                task,
+                template_name,
+            };
+
+            tasks_with_tpl.push(task_with_tpl);
+        }
+
         Ok(tasks_with_tpl)
     }
 
@@ -329,8 +341,10 @@ impl BoltStore {
         // Получаем количество задач
         let tasks = self.get_template_tasks(project_id, template_id, RetrieveQueryParams {
             offset: 0,
-            count: 10000,
-            filter: String::new(),
+            count: Some(10000),
+            filter: None,
+            sort_by: None,
+            sort_inverted: false,
         }).await?;
         
         if tasks.len() <= max_tasks as usize {
@@ -422,8 +436,10 @@ mod tests {
         
         let params = RetrieveQueryParams {
             offset: 0,
-            count: 10,
-            filter: String::new(),
+            count: Some(10),
+            filter: None,
+            sort_by: None,
+            sort_inverted: false,
         };
         
         let tasks = db.get_template_tasks(1, 1, params).await;
@@ -491,8 +507,10 @@ mod tests {
         
         let params = RetrieveQueryParams {
             offset: 0,
-            count: 10,
-            filter: String::new(),
+            count: Some(10),
+            filter: None,
+            sort_by: None,
+            sort_inverted: false,
         };
         
         let outputs = db.get_task_outputs(1, created_task.id, params).await;

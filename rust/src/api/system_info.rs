@@ -59,7 +59,7 @@ pub struct RoleInfo {
 pub async fn get_system_info(
     State(state): State<Arc<AppState>>,
     auth_user: AuthUser,
-) -> Result<Json<SystemInfo>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<SystemInfo>, (StatusCode, Json<ErrorResponse>)> {
     let info = SystemInfo {
         version: env!("CARGO_PKG_VERSION").to_string(),
         auth_methods: LoginAuthMethods {

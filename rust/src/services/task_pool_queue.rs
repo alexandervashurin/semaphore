@@ -76,7 +76,8 @@ impl TaskPool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{Task, TaskStatus};
+    use crate::models::Task;
+    use crate::services::task_logger::TaskStatus;
     use chrono::Utc;
 
     fn create_test_task(id: i32) -> Task {

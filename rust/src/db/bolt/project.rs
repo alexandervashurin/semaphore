@@ -37,10 +37,14 @@ impl BoltStore {
 
     /// Получает все проекты
     pub async fn get_all_projects(&self) -> Result<Vec<Project>> {
-        self.get_objects::<Project>(0, "projects", crate::models::RetrieveQueryParams {
+        self.get_objects::<Project>(0, "projects", crate::db::store::RetrieveQueryParams {
             offset: 0,
-            count: 1000,
-            filter: String::new(),
+            count: Some(1000),
+            sort_by: None,
+            sort_inverted: false,
+            filter: None,
+            sort_by: None,
+            sort_inverted: false,
         }).await
     }
 

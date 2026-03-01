@@ -19,7 +19,7 @@ pub async fn get_inventories(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
     Query(params): Query<RetrieveQueryParams>,
-) -> Result<Json<Vec<Inventory>>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<Vec<Inventory>>, (StatusCode, Json<ErrorResponse>)> {
     let inventories = state.store.get_inventories(project_id)
         .await
         .map_err(|e| (
@@ -34,7 +34,7 @@ pub async fn get_inventories(
 pub async fn get_inventory(
     State(state): State<Arc<AppState>>,
     Path((project_id, inventory_id)): Path<(i32, i32)>,
-) -> Result<Json<Inventory>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<Inventory>, (StatusCode, Json<ErrorResponse>)> {
     let inventory = state.store.get_inventory(project_id, inventory_id)
         .await
         .map_err(|e| match e {
@@ -56,7 +56,7 @@ pub async fn add_inventory(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
     Json(payload): Json<Inventory>,
-) -> Result<(StatusCode, Json<Inventory>), (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<(StatusCode, Json<Inventory>), (StatusCode, Json<ErrorResponse>)> {
     let mut inventory = payload;
     inventory.project_id = project_id;
 
@@ -75,7 +75,7 @@ pub async fn update_inventory(
     State(state): State<Arc<AppState>>,
     Path((project_id, inventory_id)): Path<(i32, i32)>,
     Json(payload): Json<Inventory>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     let mut inventory = payload;
     inventory.id = inventory_id;
     inventory.project_id = project_id;
@@ -94,7 +94,7 @@ pub async fn update_inventory(
 pub async fn delete_inventory(
     State(state): State<Arc<AppState>>,
     Path((project_id, inventory_id)): Path<(i32, i32)>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     state.store.delete_inventory(project_id, inventory_id)
         .await
         .map_err(|e| (

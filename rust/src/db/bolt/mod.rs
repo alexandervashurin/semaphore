@@ -3,6 +3,8 @@
 //! Это реализация хранилища данных, совместимая с оригинальной BoltDB-версией Semaphore.
 
 mod bolt_db;
+pub use bolt_db::BoltStore;
+
 mod event;
 mod user;
 mod project_invite;
@@ -35,32 +37,6 @@ use crate::models::{User, Project, Task, TaskWithTpl, TaskOutput, TaskStage, Tem
 use crate::error::{Error, Result};
 use async_trait::async_trait;
 use std::collections::HashMap;
-
-/// BoltDB-хранилище данных
-pub struct BoltStore {
-    db: sled::Db,
-}
-
-impl BoltStore {
-    /// Создаёт новое BoltDB-хранилище
-    pub fn new(path: &str) -> Result<Self> {
-        let db = sled::open(path)
-            .map_err(|e| Error::Database(sqlx::Error::Protocol(e.to_string())))?;
-
-        Ok(Self { db })
-    }
-
-    /// Сериализует объект в JSON
-    fn serialize<T: serde::Serialize>(&self, obj: &T) -> Result<Vec<u8>> {
-        serde_json::to_vec(obj).map_err(|e| Error::Json(e))
-    }
-
-    /// Десериализует объект из JSON
-    #[allow(dead_code)]
-    fn deserialize<T: serde::de::DeserializeOwned>(&self, bytes: &[u8]) -> Result<T> {
-        serde_json::from_slice(bytes).map_err(|e| Error::Json(e))
-    }
-}
 
 #[async_trait]
 impl ConnectionManager for BoltStore {
@@ -237,8 +213,10 @@ impl TemplateManager for BoltStore {
     async fn get_templates(&self, project_id: i32) -> Result<Vec<Template>> {
         let params = RetrieveQueryParams {
             offset: 0,
-            count: 1000,
-            filter: String::new(),
+            count: Some(1000),
+            filter: None,
+            sort_by: None,
+            sort_inverted: false,
         };
         
         self.get_templates(project_id, TemplateFilter { view_id: None }, params).await
@@ -266,8 +244,10 @@ impl InventoryManager for BoltStore {
     async fn get_inventories(&self, project_id: i32) -> Result<Vec<Inventory>> {
         let params = RetrieveQueryParams {
             offset: 0,
-            count: 1000,
-            filter: String::new(),
+            count: Some(1000),
+            filter: None,
+            sort_by: None,
+            sort_inverted: false,
         };
         self.get_inventories(project_id, params, vec![]).await
     }
@@ -294,8 +274,10 @@ impl RepositoryManager for BoltStore {
     async fn get_repositories(&self, project_id: i32) -> Result<Vec<Repository>> {
         let params = RetrieveQueryParams {
             offset: 0,
-            count: 1000,
-            filter: String::new(),
+            count: Some(1000),
+            filter: None,
+            sort_by: None,
+            sort_inverted: false,
         };
         self.get_repositories(project_id, params).await
     }
@@ -322,8 +304,10 @@ impl EnvironmentManager for BoltStore {
     async fn get_environments(&self, project_id: i32) -> Result<Vec<Environment>> {
         let params = RetrieveQueryParams {
             offset: 0,
-            count: 1000,
-            filter: String::new(),
+            count: Some(1000),
+            filter: None,
+            sort_by: None,
+            sort_inverted: false,
         };
         self.get_environments(project_id, params).await
     }
@@ -350,8 +334,10 @@ impl AccessKeyManager for BoltStore {
     async fn get_access_keys(&self, project_id: i32, options: GetAccessKeyOptions) -> Result<Vec<AccessKey>> {
         let params = RetrieveQueryParams {
             offset: 0,
-            count: 1000,
-            filter: String::new(),
+            count: Some(1000),
+            filter: None,
+            sort_by: None,
+            sort_inverted: false,
         };
         self.get_access_keys(project_id, options, params).await
     }
@@ -378,8 +364,10 @@ impl TaskManager for BoltStore {
     async fn get_tasks(&self, project_id: i32, template_id: Option<i32>) -> Result<Vec<TaskWithTpl>> {
         let params = RetrieveQueryParams {
             offset: 0,
-            count: 1000,
-            filter: String::new(),
+            count: Some(1000),
+            filter: None,
+            sort_by: None,
+            sort_inverted: false,
         };
         
         match template_id {
@@ -497,8 +485,10 @@ impl EventManager for BoltStore {
     async fn get_events(&self, project_id: Option<i32>, limit: usize) -> Result<Vec<Event>> {
         let params = RetrieveQueryParams {
             offset: 0,
-            count: limit,
-            filter: String::new(),
+            count: Some()limit,
+            filter: None,
+            sort_by: None,
+            sort_inverted: false,
         };
         
         match project_id {
@@ -558,33 +548,7 @@ impl ViewManager for BoltStore {
     }
 }
 
-#[async_trait]
-impl OptionsManager for BoltStore {
-    async fn get_options(&self) -> Result<HashMap<String, String>> {
-        let params = RetrieveQueryParams {
-            offset: 0,
-            count: 1000,
-            filter: String::new(),
-        };
-        self.get_options(params).await
-    }
-
-    async fn get_option(&self, key: &str) -> Result<Option<String>> {
-        match self.get_option(key).await {
-            Ok(value) => Ok(Some(value)),
-            Err(Error::NotFound(_)) => Ok(None),
-            Err(e) => Err(e),
-        }
-    }
-
-    async fn set_option(&self, key: &str, value: &str) -> Result<()> {
-        self.set_option(key, value).await
-    }
-
-    async fn delete_option(&self, key: &str) -> Result<()> {
-        self.delete_option(key).await
-    }
-}
+// OptionsManager реализация уже определена выше (строка 118)
 
 #[async_trait]
 impl IntegrationManager for BoltStore {

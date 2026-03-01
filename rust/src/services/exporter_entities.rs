@@ -17,10 +17,12 @@ pub struct UserExporter {
 impl TypeExporter for UserExporter {
     fn load(&mut self, store: &dyn Store, _exporter: &dyn DataExporter) -> Result<(), String> {
         // Загружаем всех пользователей
-        let users = store.get_users(&crate::models::RetrieveQueryParams {
+        let users = store.get_users(&crate::db::store::RetrieveQueryParams {
             offset: 0,
-            count: 1000,
-            filter: String::new(),
+            count: Some(1000),
+            sort_by: None,
+            sort_inverted: false,
+            filter: None,
         })
         .map_err(|e| format!("Failed to load users: {}", e))?;
         

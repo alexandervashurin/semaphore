@@ -141,12 +141,13 @@ impl TaskRunner {
 mod tests {
     use super::*;
     use chrono::Utc;
-    use crate::models::{Task, TaskStatus};
+    use crate::models::Task;
+    use crate::services::task_logger::TaskStatus;
+    use crate::db::MockStore;
 
     fn create_test_task_runner() -> TaskRunner {
         use crate::services::task_pool::TaskPool;
-        use crate::db::MemoryDB;
-        
+
         let task = Task {
             id: 1,
             created: Utc::now(),
@@ -159,13 +160,13 @@ mod tests {
             project_id: 1,
             ..Default::default()
         };
-        
+
         let pool = Arc::new(TaskPool::new(
             crate::models::Project::default(),
             AccessKeyInstallerImpl::new(),
-            Arc::new(MemoryDB::new()),
+            Arc::new(MockStore::new()),
         ));
-        
+
         TaskRunner::new(task, pool, "testuser".to_string(), AccessKeyInstallerImpl::new())
     }
 

@@ -34,7 +34,7 @@ pub struct BackupFormat {
 pub async fn get_backup(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
-) -> Result<Json<BackupFormat>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<BackupFormat>, (StatusCode, Json<ErrorResponse>)> {
     // В реальной реализации нужно получить бэкап из БД
     // let backup = state.store.get_backup(project_id).await?;
     
@@ -64,7 +64,7 @@ pub async fn restore_backup(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
     Json(payload): Json<BackupFormat>,
-) -> Result<(StatusCode, Json<Project>), (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<(StatusCode, Json<Project>), (StatusCode, Json<ErrorResponse>)> {
     // В реальной реализации нужно восстановить проект из бэкапа
     // let project = state.store.restore_backup(project_id, payload).await?;
     
@@ -75,7 +75,7 @@ pub async fn restore_backup(
 pub async fn verify_backup(
     State(_state): State<Arc<AppState>>,
     Json(payload): Json<BackupFormat>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     // В реальной реализации нужно проверить бэкап
     // state.store.verify_backup(payload).await?;
     

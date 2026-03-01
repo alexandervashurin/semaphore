@@ -125,35 +125,45 @@ impl SqlDb {
     }
     
     /// Получает всех пользователей
-    pub async fn get_users(&self, params: &crate::models::RetrieveQueryParams) -> Result<Vec<User>> {
+    pub async fn get_users(&self, params: &crate::db::store::RetrieveQueryParams) -> Result<Vec<User>> {
         match self.get_dialect() {
             crate::db::sql::types::SqlDialect::SQLite => {
                 let mut query = String::from("SELECT * FROM user");
-                
+
                 // Добавляем фильтр если указан
-                if !params.filter.is_empty() {
-                    query.push_str(" WHERE username LIKE ? OR name LIKE ? OR email LIKE ?");
+                if let Some(ref filter) = params.filter {
+                    if !filter.is_empty() {
+                        query.push_str(" WHERE username LIKE ? OR name LIKE ? OR email LIKE ?");
+                    }
                 }
-                
+
                 // Добавляем лимит и оффсет
-                query.push_str(&format!(" LIMIT {} OFFSET {}", params.count, params.offset));
-                
-                let users = if !params.filter.is_empty() {
-                    let filter_pattern = format!("%{}%", params.filter);
-                    sqlx::query_as::<_, User>(&query)
-                        .bind(&filter_pattern)
-                        .bind(&filter_pattern)
-                        .bind(&filter_pattern)
-                        .fetch_all(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-                        .await
-                        .map_err(|e| Error::Database(e))?
+                let count = params.count.unwrap_or(1000);
+                query.push_str(&format!(" LIMIT {} OFFSET {}", count, params.offset));
+
+                let users = if let Some(ref filter) = params.filter {
+                    if !filter.is_empty() {
+                        let filter_pattern = format!("%{}%", filter);
+                        sqlx::query_as::<_, User>(&query)
+                            .bind(&filter_pattern)
+                            .bind(&filter_pattern)
+                            .bind(&filter_pattern)
+                            .fetch_all(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
+                            .await
+                            .map_err(|e| Error::Database(e))?
+                    } else {
+                        sqlx::query_as::<_, User>(&query)
+                            .fetch_all(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
+                            .await
+                            .map_err(|e| Error::Database(e))?
+                    }
                 } else {
                     sqlx::query_as::<_, User>(&query)
                         .fetch_all(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                         .await
                         .map_err(|e| Error::Database(e))?
                 };
-                
+
                 Ok(users)
             }
             _ => Err(Error::Other("Only SQLite supported for now".to_string()))
@@ -375,10 +385,12 @@ mod tests {
             db.create_user(user).await.unwrap();
         }
         
-        let params = crate::models::RetrieveQueryParams {
+        let params = crate::db::store::RetrieveQueryParams {
             offset: 0,
-            count: 10,
-            filter: String::new(),
+            count: Some(10),
+            sort_by: None,
+            sort_inverted: false,
+            filter: None,
         };
         
         let users = db.get_users(&params).await.unwrap();

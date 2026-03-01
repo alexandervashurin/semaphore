@@ -19,7 +19,7 @@ pub async fn get_repositories(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
     Query(params): Query<RetrieveQueryParams>,
-) -> Result<Json<Vec<Repository>>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<Vec<Repository>>, (StatusCode, Json<ErrorResponse>)> {
     let repositories = state.store.get_repositories(project_id)
         .await
         .map_err(|e| (
@@ -34,7 +34,7 @@ pub async fn get_repositories(
 pub async fn get_repository(
     State(state): State<Arc<AppState>>,
     Path((project_id, repository_id)): Path<(i32, i32)>,
-) -> Result<Json<Repository>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<Repository>, (StatusCode, Json<ErrorResponse>)> {
     let repository = state.store.get_repository(project_id, repository_id)
         .await
         .map_err(|e| match e {
@@ -56,7 +56,7 @@ pub async fn add_repository(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
     Json(payload): Json<Repository>,
-) -> Result<(StatusCode, Json<Repository>), (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<(StatusCode, Json<Repository>), (StatusCode, Json<ErrorResponse>)> {
     let mut repository = payload;
     repository.project_id = project_id;
 
@@ -75,7 +75,7 @@ pub async fn update_repository(
     State(state): State<Arc<AppState>>,
     Path((project_id, repository_id)): Path<(i32, i32)>,
     Json(payload): Json<Repository>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     let mut repository = payload;
     repository.id = repository_id;
     repository.project_id = project_id;
@@ -94,7 +94,7 @@ pub async fn update_repository(
 pub async fn delete_repository(
     State(state): State<Arc<AppState>>,
     Path((project_id, repository_id)): Path<(i32, i32)>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     state.store.delete_repository(project_id, repository_id)
         .await
         .map_err(|e| (

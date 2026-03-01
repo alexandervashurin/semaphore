@@ -35,3 +35,8 @@ pub use store::{
 
 pub use sql::SqlStore;
 pub use bolt::BoltStore;
+
+#[cfg(test)]
+pub mod mock;
+#[cfg(test)]
+pub use mock::MockStore;

@@ -64,17 +64,18 @@ impl TaskStatusMessage {
             version: Option<&'a str>,
         }
         
+        let status_string = self.status.to_string();
         let msg = SerializableMessage {
             message_type: &self.message_type,
             task_id: self.task_id,
-            status: self.status.to_string().as_str(),
+            status: status_string.as_str(),
             start: self.start,
             end: self.end,
             template_id: self.template_id,
             project_id: self.project_id,
             version: self.version.as_deref(),
         };
-        
+
         serde_json::to_string(&msg).unwrap_or_default()
     }
 }
@@ -139,14 +140,14 @@ impl TaskPool {
     
     /// Получает логи задачи
     pub async fn get_task_logs(&self, task_id: i32) -> Result<Vec<crate::models::TaskOutput>, String> {
-        use crate::models::RetrieveQueryParams;
-        
+        use crate::db::store::RetrieveQueryParams;
+
         let params = RetrieveQueryParams {
             offset: 0,
-            count: 1000,
-            filter: String::new(),
+            count: Some(1000),
+            filter: None,
         };
-        
+
         self.store.get_task_outputs(self.project.id, task_id, &params)
             .await
             .map_err(|e| format!("Failed to get task outputs: {}", e))
