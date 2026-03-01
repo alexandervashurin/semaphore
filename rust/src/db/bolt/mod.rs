@@ -331,15 +331,8 @@ impl EnvironmentManager for BoltStore {
 
 #[async_trait]
 impl AccessKeyManager for BoltStore {
-    async fn get_access_keys(&self, project_id: i32, options: GetAccessKeyOptions) -> Result<Vec<AccessKey>> {
-        let params = RetrieveQueryParams {
-            offset: 0,
-            count: Some(1000),
-            filter: None,
-            sort_by: None,
-            sort_inverted: false,
-        };
-        self.get_access_keys(project_id, options, params).await
+    async fn get_access_keys(&self, project_id: i32) -> Result<Vec<AccessKey>> {
+        self.get_access_keys(project_id).await
     }
 
     async fn get_access_key(&self, project_id: i32, access_key_id: i32) -> Result<AccessKey> {

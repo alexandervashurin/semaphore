@@ -152,7 +152,7 @@ impl BackupDB {
         self.repositories = store.get_repositories(project_id).await?;
         self.inventories = store.get_inventories(project_id).await?;
         self.environments = store.get_environments(project_id).await?;
-        self.access_keys = store.get_access_keys(project_id, crate::models::GetAccessKeyOptions::default()).await?;
+        self.access_keys = store.get_access_keys(project_id).await?;
         self.schedules = store.get_project_schedules(project_id, false, false).await?;
         self.integrations = store.get_integrations(project_id).await?;
         self.views = store.get_views(project_id).await?;
