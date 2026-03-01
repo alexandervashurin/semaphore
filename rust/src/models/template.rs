@@ -149,6 +149,37 @@ pub struct Template {
 
     /// Дата создания
     pub created: DateTime<Utc>,
+    
+    /// Аргументы командной строки
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub arguments: Option<String>,
+    
+    /// Тип шаблона (для совместимости)
+    #[sqlx(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub template_type: Option<TemplateType>,
+    
+    /// Начальная версия
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub start_version: Option<String>,
+    
+    /// Версия сборки
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub build_version: Option<String>,
+    
+    /// Переменные опроса
+    #[sqlx(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub survey_vars: Option<String>,
+    
+    /// Хранилища секретов
+    #[sqlx(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub vaults: Option<String>,
+    
+    /// Количество задач
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tasks: Option<i32>,
 }
 
 /// Шаблон с правами доступа
