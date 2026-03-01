@@ -33,7 +33,7 @@ mod public_alias;
 mod migration_system;
 
 use crate::db::store::*;
-use crate::models::{User, Project, Task, TaskWithTpl, TaskOutput, TaskStage, Template, TemplateFilter, Inventory, Repository, Environment, AccessKey, Integration, Schedule, Session, APIToken, Event, Runner, View, Role, ProjectInvite, ProjectInviteWithUser, RetrieveQueryParams, ObjectReferrers, OptionItem, SecretStorage, Hook, GetAccessKeyOptions};
+use crate::models::{User, Project, Task, TaskWithTpl, TaskOutput, TaskStage, Template, TemplateFilter, Inventory, Repository, Environment, AccessKey, Integration, Schedule, Session, APIToken, Event, Runner, View, Role, ProjectInvite, ProjectInviteWithUser, RetrieveQueryParams, ObjectReferrers, OptionItem, SecretStorage, Hook, GetAccessKeyOptions, TerraformInventoryAlias, TerraformInventoryState};
 use crate::error::{Error, Result};
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -590,6 +590,43 @@ impl ProjectInviteManager for BoltStore {
 
     async fn delete_project_invite(&self, project_id: i32, invite_id: i32) -> Result<()> {
         self.delete_project_invite(project_id, invite_id).await
+    }
+}
+
+#[async_trait]
+impl TerraformInventoryManager for BoltStore {
+    async fn create_terraform_inventory_alias(&self, _alias: TerraformInventoryAlias) -> Result<TerraformInventoryAlias> {
+        Err(Error::Other("TerraformInventoryManager not implemented for BoltDB".to_string()))
+    }
+    async fn update_terraform_inventory_alias(&self, _alias: TerraformInventoryAlias) -> Result<()> {
+        Err(Error::Other("TerraformInventoryManager not implemented for BoltDB".to_string()))
+    }
+    async fn get_terraform_inventory_alias_by_alias(&self, _alias: &str) -> Result<TerraformInventoryAlias> {
+        Err(Error::Other("TerraformInventoryManager not implemented for BoltDB".to_string()))
+    }
+    async fn get_terraform_inventory_alias(&self, _project_id: i32, _inventory_id: i32, _alias_id: &str) -> Result<TerraformInventoryAlias> {
+        Err(Error::Other("TerraformInventoryManager not implemented for BoltDB".to_string()))
+    }
+    async fn get_terraform_inventory_aliases(&self, _project_id: i32, _inventory_id: i32) -> Result<Vec<TerraformInventoryAlias>> {
+        Ok(vec![])
+    }
+    async fn delete_terraform_inventory_alias(&self, _project_id: i32, _inventory_id: i32, _alias_id: &str) -> Result<()> {
+        Err(Error::Other("TerraformInventoryManager not implemented for BoltDB".to_string()))
+    }
+    async fn get_terraform_inventory_states(&self, _project_id: i32, _inventory_id: i32, _params: RetrieveQueryParams) -> Result<Vec<TerraformInventoryState>> {
+        Ok(vec![])
+    }
+    async fn create_terraform_inventory_state(&self, _state: TerraformInventoryState) -> Result<TerraformInventoryState> {
+        Err(Error::Other("TerraformInventoryManager not implemented for BoltDB".to_string()))
+    }
+    async fn delete_terraform_inventory_state(&self, _project_id: i32, _inventory_id: i32, _state_id: i32) -> Result<()> {
+        Err(Error::Other("TerraformInventoryManager not implemented for BoltDB".to_string()))
+    }
+    async fn get_terraform_inventory_state(&self, _project_id: i32, _inventory_id: i32, _state_id: i32) -> Result<TerraformInventoryState> {
+        Err(Error::Other("TerraformInventoryManager not implemented for BoltDB".to_string()))
+    }
+    async fn get_terraform_state_count(&self) -> Result<i32> {
+        Ok(0)
     }
 }
 
