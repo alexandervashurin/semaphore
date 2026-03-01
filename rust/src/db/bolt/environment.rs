@@ -12,7 +12,7 @@ impl BoltStore {
     pub async fn get_environments(&self, project_id: i32) -> Result<Vec<Environment>> {
         self.get_objects::<Environment>(project_id, "environments", crate::db::store::RetrieveQueryParams {
             offset: 0,
-            count: Some(1000),
+            count: None,
             filter: None,
             sort_by: None,
             sort_inverted: false,
