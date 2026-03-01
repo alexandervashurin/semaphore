@@ -86,7 +86,7 @@ pub struct TaskPool {
     /// Состояние
     state: Arc<RwLock<TaskPoolState>>,
     /// Хранилище данных
-    store: Arc<dyn Store>,
+    pub store: Arc<dyn Store>,
     /// Флаг работы
     running: Arc<RwLock<bool>>,
     /// Максимум задач на проект
