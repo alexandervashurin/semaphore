@@ -88,6 +88,19 @@ pub struct Inventory {
     /// Дополнительные параметры
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extra_vars: Option<String>,
+    
+    /// ID SSH ключа
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ssh_key_id: Option<i32>,
+    
+    /// ID ключа become
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub become_key_id: Option<i32>,
+    
+    /// Хранилища секретов
+    #[sqlx(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub vaults: Option<String>,
 }
 
 impl Inventory {
