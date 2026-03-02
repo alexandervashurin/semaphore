@@ -323,7 +323,8 @@ impl RestoreEntry for BackupTemplate {
             name: self.name.clone(),
             playbook: self.playbook.clone(),
             arguments: self.arguments.clone(),
-            template_type: self.template_type.parse().unwrap_or(TemplateType::Task),
+            r#type: self.template_type.parse().unwrap_or(TemplateType::Default),
+            template_type: None,
             inventory_id: None,
             repository_id: None,
             environment_id: None,
@@ -331,9 +332,12 @@ impl RestoreEntry for BackupTemplate {
             build_version: None,
             description: None,
             survey_vars: None,
-            vaults: Vec::new(),
-            tasks: 0,
+            vaults: None,
+            tasks: None,
             created: chrono::Utc::now(),
+            app: TemplateApp::Default,
+            git_branch: String::new(),
+            deleted: false,
         };
         
         // Находим инвентарь по имени
