@@ -71,6 +71,7 @@ where
 pub enum AccessKeyOwner {
     User,
     Project,
+    Shared,
 }
 
 /// Ключ доступа - учётные данные для подключения
