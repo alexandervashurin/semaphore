@@ -234,7 +234,10 @@ pub struct DefaultTaskParams {}
 // SQLx реализации для TaskStatus
 // ============================================================================
 
-impl<DB: Database> Type<DB> for TaskStatus {
+impl<DB: Database> Type<DB> for TaskStatus
+where
+    String: Type<DB>,
+{
     fn type_info() -> DB::TypeInfo {
         <String as Type<DB>>::type_info()
     }
@@ -269,7 +272,10 @@ where
 // SQLx реализации для TaskStageType
 // ============================================================================
 
-impl<DB: Database> Type<DB> for TaskStageType {
+impl<DB: Database> Type<DB> for TaskStageType
+where
+    String: Type<DB>,
+{
     fn type_info() -> DB::TypeInfo {
         <String as Type<DB>>::type_info()
     }
