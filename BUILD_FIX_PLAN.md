@@ -1,5 +1,33 @@
 # План исправления ошибок сборки Semaphore Rust
 Дата: 2026-03-02
+Последнее обновление: 2026-03-02 (сессия 2)
+
+## Прогресс
+
+### ✅ Выполнено (Этап 1-3 частично)
+- [x] Исправлены все основные модели данных
+- [x] Добавлены missing поля в Inventory, Repository, Schedule, View, Environment, Task, TaskStage
+- [x] Исправлены TemplateType, AccessKeyOwner, AccessKey
+- [x] Добавлены методы в Config
+- [x] Исправлен DbDialect::PostgreSQL → Postgres
+- [x] Добавлен SecretStorageManager в Store trait
+- [x] Реализован SecretStorageManager для SqlStore и BoltStore
+- [x] Исправлена инициализация ProjectUser, Project, Template, Task в API handlers
+- [x] Убран FromRow из UserTotp/UserEmailOtp
+
+### ⏳ В процессе
+- [ ] Исправить инициализацию Task в сервисах (scheduler.rs, task_pool*.rs, local_job/*.rs)
+- [ ] Исправить инициализацию Template в db/sql/template_crud.rs
+- [ ] Исправить BoltDB update/view методы
+
+### 🔴 Критические ошибки (557 осталось)
+1. **BoltDB** - `update`/`view` методы (41 ошибка)
+2. **type annotations** - нужно указать типы (105 ошибок)
+3. **mismatched types** - несоответствие типов (67 ошибок)
+4. **Job::run** - неправильная сигнатура метода
+5. **GitClient** - lifetime параметры
+
+---
 
 ## Приоритеты исправлений
 
