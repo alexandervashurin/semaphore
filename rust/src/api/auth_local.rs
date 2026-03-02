@@ -4,7 +4,7 @@
 
 use crate::error::{Error, Result};
 use crate::models::User;
-use crate::db::store::Store;
+use crate::db::store::{Store, UserManager};
 use crate::api::store_wrapper::StoreWrapper;
 use std::sync::Arc;
 
