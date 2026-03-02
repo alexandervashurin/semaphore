@@ -15,20 +15,20 @@ pub enum EnvironmentSecretType {
 
 impl<DB: Database> Type<DB> for EnvironmentSecretType {
     fn type_info() -> DB::TypeInfo {
-        <&str as Type<DB>>::type_info()
+        <String as Type<DB>>::type_info()
     }
 
     fn compatible(ty: &DB::TypeInfo) -> bool {
-        <&str as Type<DB>>::compatible(ty)
+        <String as Type<DB>>::compatible(ty)
     }
 }
 
 impl<'r, DB: Database> Decode<'r, DB> for EnvironmentSecretType
 where
-    &'r str: Decode<'r, DB>,
+    String: Decode<'r, DB>,
 {
     fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
-        let s = <&str as Decode<'r, DB>>::decode(value)?;
+        let s = <String as Decode<'r, DB>>::decode(value)?;
         Ok(match s.as_str() {
             "env" => EnvironmentSecretType::Env,
             "var" => EnvironmentSecretType::Var,
@@ -40,14 +40,14 @@ where
 impl<'q, DB: Database> Encode<'q, DB> for EnvironmentSecretType
 where
     DB: 'q,
-    for<'a> &'a str: Encode<'q, DB>,
+    String: Encode<'q, DB>,
 {
     fn encode_by_ref(&self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
         let s = match self {
             EnvironmentSecretType::Env => "env",
             EnvironmentSecretType::Var => "var",
-        };
-        <&str as Encode<'q, DB>>::encode(&s, buf)
+        }.to_string();
+        <String as Encode<'q, DB>>::encode(s, buf)
     }
 }
 

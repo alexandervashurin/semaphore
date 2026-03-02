@@ -33,20 +33,20 @@ impl std::fmt::Display for TemplateType {
 
 impl<DB: Database> Type<DB> for TemplateType {
     fn type_info() -> DB::TypeInfo {
-        <&str as Type<DB>>::type_info()
+        <String as Type<DB>>::type_info()
     }
 
     fn compatible(ty: &DB::TypeInfo) -> bool {
-        <&str as Type<DB>>::compatible(ty)
+        <String as Type<DB>>::compatible(ty)
     }
 }
 
 impl<'r, DB: Database> Decode<'r, DB> for TemplateType
 where
-    &'r str: Decode<'r, DB>,
+    String: Decode<'r, DB>,
 {
     fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
-        let s = <&str as Decode<'r, DB>>::decode(value)?;
+        let s = <String as Decode<'r, DB>>::decode(value)?;
         Ok(match s.as_str() {
             "build" => TemplateType::Build,
             "deploy" => TemplateType::Deploy,
@@ -62,7 +62,7 @@ where
 impl<'q, DB: Database> Encode<'q, DB> for TemplateType
 where
     DB: 'q,
-    for<'a> &'a str: Encode<'q, DB>,
+    String: Encode<'q, DB>,
 {
     fn encode_by_ref(&self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
         let s = match self {
@@ -73,8 +73,8 @@ where
             TemplateType::Terraform => "terraform",
             TemplateType::Shell => "shell",
             TemplateType::Default => "default",
-        };
-        <&str as Encode<'q, DB>>::encode(&s, buf)
+        }.to_string();
+        <String as Encode<'q, DB>>::encode(s, buf)
     }
 }
 
@@ -111,20 +111,20 @@ impl std::fmt::Display for TemplateApp {
 
 impl<DB: Database> Type<DB> for TemplateApp {
     fn type_info() -> DB::TypeInfo {
-        <&str as Type<DB>>::type_info()
+        <String as Type<DB>>::type_info()
     }
 
     fn compatible(ty: &DB::TypeInfo) -> bool {
-        <&str as Type<DB>>::compatible(ty)
+        <String as Type<DB>>::compatible(ty)
     }
 }
 
 impl<'r, DB: Database> Decode<'r, DB> for TemplateApp
 where
-    &'r str: Decode<'r, DB>,
+    String: Decode<'r, DB>,
 {
     fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
-        let s = <&str as Decode<'r, DB>>::decode(value)?;
+        let s = <String as Decode<'r, DB>>::decode(value)?;
         Ok(match s.as_str() {
             "ansible" => TemplateApp::Ansible,
             "terraform" => TemplateApp::Terraform,
@@ -142,7 +142,7 @@ where
 impl<'q, DB: Database> Encode<'q, DB> for TemplateApp
 where
     DB: 'q,
-    for<'a> &'a str: Encode<'q, DB>,
+    String: Encode<'q, DB>,
 {
     fn encode_by_ref(&self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
         let s = match self {
@@ -155,8 +155,8 @@ where
             TemplateApp::Python => "python",
             TemplateApp::Pulumi => "pulumi",
             TemplateApp::Default => "default",
-        };
-        <&str as Encode<'q, DB>>::encode(&s, buf)
+        }.to_string();
+        <String as Encode<'q, DB>>::encode(s, buf)
     }
 }
 
