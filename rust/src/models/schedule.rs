@@ -10,8 +10,11 @@ pub struct Schedule {
     pub template_id: i32,
     pub project_id: i32,
     pub cron: String,
+    pub cron_format: Option<String>,
     pub name: String,
     pub active: bool,
+    pub last_commit_hash: Option<String>,
+    pub repository_id: Option<i32>,
 }
 
 /// Расписание с дополнительными полями
