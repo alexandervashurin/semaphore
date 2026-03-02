@@ -28,11 +28,9 @@ impl BoltStore {
                 invite_with_user.invited_by_user = Some(invited_by_user);
             }
 
-            // Получаем информацию о пользователе, если есть
-            if let Some(user_id) = invite.user_id {
-                if let Ok(user) = self.get_user(user_id).await {
-                    invite_with_user.user = Some(user);
-                }
+            // Получаем информацию о пользователе
+            if let Ok(user) = self.get_user(invite.user_id).await {
+                invite_with_user.user = Some(user);
             }
 
             invites.push(invite_with_user);

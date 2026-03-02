@@ -38,13 +38,15 @@ impl BoltStore {
     /// Создаёт раннер
     pub async fn create_runner(&self, mut runner: Runner) -> Result<Runner> {
         runner.id = self.get_next_id("runners")?;
-        self.create_object(runner.project_id, "runners", &runner).await?;
+        let project_id = runner.project_id.unwrap_or(0);
+        self.create_object(project_id, "runners", &runner).await?;
         Ok(runner)
     }
 
     /// Обновляет раннер
     pub async fn update_runner(&self, runner: Runner) -> Result<()> {
-        self.update_object(runner.project_id, "runners", runner.id, &runner).await
+        let project_id = runner.project_id.unwrap_or(0);
+        self.update_object(project_id, "runners", runner.id, &runner).await
     }
 
     /// Удаляет раннер

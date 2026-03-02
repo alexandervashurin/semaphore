@@ -33,7 +33,7 @@ impl BoltStore {
         let options = self.get_options(RetrieveQueryParams {
             offset: 0,
             count: Some(1000),
-            filter: filter.to_string(),
+            filter: Some(filter.to_string()),
             sort_by: None,
             sort_inverted: false,
         }).await?;

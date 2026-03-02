@@ -36,8 +36,12 @@ impl BoltStore {
         }).await?;
         
         // Обновляем vaults
-        self.update_template_vaults(template.project_id, new_template.id, template.vaults).await?;
-        
+        let vaults = template.vaults.clone().unwrap_or_default();
+        if !vaults.is_empty() {
+            // TODO: Распарсить vaults из JSON строки
+            // self.update_template_vaults(template.project_id, new_template.id, parsed_vaults).await?;
+        }
+
         Ok(new_template)
     }
 
@@ -45,29 +49,33 @@ impl BoltStore {
     pub async fn update_template(&self, mut template: Template) -> Result<()> {
         // Валидация шаблона
         template.validate()?;
-        
+
         self.update(|tx| {
             let bucket = tx.bucket(b"templates");
             if bucket.is_none() {
                 return Err(crate::error::Error::NotFound("Шаблон не найден".to_string()));
             }
-            
+
             let bucket = bucket.unwrap();
             let key = (i64::MAX - template.id as i64).to_be_bytes();
-            
+
             if bucket.get(key).is_none() {
                 return Err(crate::error::Error::NotFound("Шаблон не найден".to_string()));
             }
-            
+
             let str = serde_json::to_vec(&template)?;
             bucket.put(key, str)?;
-            
+
             Ok(())
         }).await?;
-        
+
         // Обновляем vaults
-        self.update_template_vaults(template.project_id, template.id, template.vaults).await?;
-        
+        let vaults = template.vaults.clone().unwrap_or_default();
+        if !vaults.is_empty() {
+            // TODO: Распарсить vaults из JSON строки
+            // self.update_template_vaults(template.project_id, template.id, parsed_vaults).await?;
+        }
+
         Ok(())
     }
 

@@ -375,7 +375,7 @@ impl Config {
         };
 
         let mut config = Self::default();
-        config.database.dialect = dialect;
+        config.database.dialect = Some(dialect);
         
         // Загрузка пути к БД для SQLite
         if let Ok(db_path) = env::var("SEMAPHORE_DB_PATH") {
@@ -408,12 +408,12 @@ impl Config {
 
     /// Получает диалект базы данных
     pub fn db_dialect(&self) -> DbDialect {
-        self.database.dialect
+        self.database.dialect.unwrap_or(DbDialect::SQLite)
     }
 
     /// Проверяет может ли пользователь создавать проекты
     pub fn non_admin_can_create_project(&self) -> bool {
-        self.database.dialect == DbDialect::SQLite // Пример условия
+        self.database.dialect.unwrap_or(DbDialect::SQLite) == DbDialect::SQLite
     }
 
     /// Генерирует секреты для cookie

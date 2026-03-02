@@ -197,7 +197,8 @@ impl BoltStore {
 
     /// Создаёт стадию задачи
     pub async fn create_task_stage(&self, stage: TaskStage) -> Result<TaskStage> {
-        self.create_object(stage.task_id, "task_stages", stage).await
+        self.create_object(stage.task_id, "task_stages", &stage).await?;
+        Ok(stage)
     }
 
     /// Получает стадии задачи

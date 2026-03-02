@@ -24,7 +24,7 @@ pub fn validate_template(template: &Template) -> Result<()> {
     
     // Проверка типа шаблона
     match template.template_type {
-        TemplateType::Task | TemplateType::Build | TemplateType::Deploy => {
+        Some(TemplateType::Task) | Some(TemplateType::Build) | Some(TemplateType::Deploy) => {
             // OK
         }
         _ => {
