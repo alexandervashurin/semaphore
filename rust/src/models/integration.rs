@@ -17,11 +17,14 @@ pub struct Integration {
 pub struct IntegrationExtractValue {
     pub id: i32,
     pub integration_id: i32,
+    pub project_id: i32,
     pub name: String,
     pub value_source: String,
     pub body_data_type: String,
     pub key: Option<String>,
     pub variable: Option<String>,
+    pub value_name: String,
+    pub value_type: String,
 }
 
 /// Матчер интеграции
@@ -29,10 +32,12 @@ pub struct IntegrationExtractValue {
 pub struct IntegrationMatcher {
     pub id: i32,
     pub integration_id: i32,
+    pub project_id: i32,
     pub name: String,
     pub body_data_type: String,
     pub key: Option<String>,
-    pub value: Option<String>,
+    pub matcher_type: String,
+    pub matcher_value: String,
     pub method: String,
 }
 
