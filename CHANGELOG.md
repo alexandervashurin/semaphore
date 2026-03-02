@@ -10,6 +10,10 @@
 ### 🔒 Безопасность
 
 #### Исправлено
+- ✅ Обновлены отчёты о сборке и плане исправлений (BUILD_ERRORS.md, BUILD_FIX_PLAN.md)
+- ✅ Исправлено ~28 ошибок компиляции (585 → 557)
+
+#### Известные проблемы
 - ✅ Обновлён `SECURITY.md` с информацией об уязвимостях
 - ✅ Создан `SECURITY_ADVISORY.md` с текущими проблемами безопасности
 - ✅ Создан `SECURITY_AUDIT_2026_02_28.md` с полным отчётом о проверке
@@ -26,7 +30,35 @@
 ### 🛠 Исправления
 
 #### Исправлено
-- ✅ Тип `BackupProject.max_parallel_tasks` изменён на `Option<i32>`
+- ✅ Модели данных:
+  - `TemplateType` - добавлены варианты: Deploy, Task, Ansible, Terraform, Shell
+  - `AccessKeyOwner` - добавлен вариант: Shared
+  - `Inventory` - исправлено поле: inventory → inventory_type
+  - `Repository` - добавлено поле: git_branch
+  - `Schedule` - добавлены поля: cron_format, last_commit_hash, repository_id
+  - `View` - добавлен алиас name для title
+  - `Environment` - добавлено поле: secrets
+  - `Task` - добавлены поля: repository_id, environment_id
+  - `TaskStage` - добавлено поле: project_id
+  - `IntegrationMatcher` - добавлены поля: project_id, matcher_type, matcher_value
+  - `IntegrationExtractValue` - добавлены поля: project_id, value_name, value_type
+  - `Role` - добавлены поля: id, project_id
+  - `ProjectInvite` - добавлены поля: token, inviter_user_id
+  - `AccessKey` - добавлены поля: owner, environment_id
+  - `UserTotp/UserEmailOtp` - убран FromRow
+- ✅ Конфигурация:
+  - `Config` - добавлены методы: from_env(), database_url(), db_path(), db_dialect()
+  - `DbDialect` - исправлено: PostgreSQL → Postgres
+- ✅ Store Trait:
+  - Добавлен `SecretStorageManager` trait
+  - Реализован для `SqlStore` и `BoltStore`
+- ✅ Инициализация моделей:
+  - `ProjectUser` - добавлено поле: created
+  - `Project` - добавлены поля в инициализацию
+  - `Template` - добавлены поля в инициализацию
+  - `Task` - добавлены поля в инициализацию
+
+#### Изменения
 - ✅ Добавлен `CliResult` тип в CLI модуль
 - ✅ Добавлены методы `generate_token` и `verify_token` в `LocalAuthService`
 - ✅ Исправлены импорты `Query` и `Path` в API handlers
