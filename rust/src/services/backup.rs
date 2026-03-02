@@ -71,7 +71,6 @@ pub struct BackupInventory {
 pub struct BackupEnvironment {
     pub name: String,
     pub json: String,
-    pub env: Option<String>,
 }
 
 /// BackupAccessKey - ключ доступа для backup
@@ -252,7 +251,6 @@ impl BackupDB {
             backup.environments.push(BackupEnvironment {
                 name: env.name.clone(),
                 json: env.json.clone(),
-                env: env.env.clone(),
             });
         }
 

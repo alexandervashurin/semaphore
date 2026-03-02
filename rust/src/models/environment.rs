@@ -74,6 +74,11 @@ pub struct Environment {
     /// ID хранилища секретов
     #[serde(skip_serializing_if = "Option::is_none")]
     pub secret_storage_id: Option<i32>,
+
+    /// Секреты окружения
+    #[sqlx(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub secrets: Option<String>,
 }
 
 impl Environment {
@@ -85,6 +90,7 @@ impl Environment {
             name,
             json,
             secret_storage_id: None,
+            secrets: None,
         }
     }
 
