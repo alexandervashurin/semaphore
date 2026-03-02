@@ -81,6 +81,8 @@ pub async fn add_task(
         build_task_id: payload.build_task_id,
         version: None,
         inventory_id: payload.inventory_id,
+        repository_id: payload.repository_id,
+        environment_id: payload.environment_id,
         params: None,
     };
 
