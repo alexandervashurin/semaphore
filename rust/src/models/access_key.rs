@@ -74,6 +74,16 @@ pub enum AccessKeyOwner {
     Shared,
 }
 
+impl std::fmt::Display for AccessKeyOwner {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AccessKeyOwner::User => write!(f, "user"),
+            AccessKeyOwner::Project => write!(f, "project"),
+            AccessKeyOwner::Shared => write!(f, "shared"),
+        }
+    }
+}
+
 /// Ключ доступа - учётные данные для подключения
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct AccessKey {
@@ -121,6 +131,14 @@ pub struct AccessKey {
     /// ID хранилища секретов
     #[serde(skip_serializing_if = "Option::is_none")]
     pub secret_storage_id: Option<i32>,
+
+    /// Владелец ключа
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub owner: Option<AccessKeyOwner>,
+
+    /// ID окружения
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub environment_id: Option<i32>,
 }
 
 impl AccessKey {
@@ -139,6 +157,8 @@ impl AccessKey {
             access_key_access_key: None,
             access_key_secret_key: None,
             secret_storage_id: None,
+            owner: None,
+            environment_id: None,
         }
     }
 }

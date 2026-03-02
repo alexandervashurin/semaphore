@@ -258,8 +258,8 @@ impl BackupDB {
         for key in &self.access_keys {
             let mut backup_key = BackupAccessKey {
                 name: key.name.clone(),
-                key_type: key.key_type.to_string(),
-                owner: key.owner.to_string(),
+                key_type: key.r#type.to_string(),
+                owner: key.owner.as_ref().map(|o| o.to_string()).unwrap_or_default(),
                 ssh_key: None,
                 login_password: None,
             };
