@@ -627,4 +627,102 @@ impl TerraformInventoryManager for SqlStore {
 }
 
 #[async_trait]
+impl SecretStorageManager for SqlStore {
+    async fn get_secret_storages(&self, project_id: i32) -> Result<Vec<SecretStorage>> {
+        match self.get_dialect() {
+            crate::db::sql::types::SqlDialect::SQLite => {
+                let storages = sqlx::query_as::<_, SecretStorage>(
+                    "SELECT * FROM secret_storage WHERE project_id = ? ORDER BY name"
+                )
+                .bind(project_id)
+                .fetch_all(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
+                .await
+                .map_err(|e| Error::Database(e))?;
+
+                Ok(storages)
+            }
+            _ => Err(Error::Other("Only SQLite supported for now".to_string()))
+        }
+    }
+
+    async fn get_secret_storage(&self, project_id: i32, storage_id: i32) -> Result<SecretStorage> {
+        match self.get_dialect() {
+            crate::db::sql::types::SqlDialect::SQLite => {
+                let storage = sqlx::query_as::<_, SecretStorage>(
+                    "SELECT * FROM secret_storage WHERE id = ? AND project_id = ?"
+                )
+                .bind(storage_id)
+                .bind(project_id)
+                .fetch_optional(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
+                .await
+                .map_err(|e| Error::Database(e))?;
+
+                storage.ok_or(Error::NotFound("SecretStorage not found".to_string()))
+            }
+            _ => Err(Error::Other("Only SQLite supported for now".to_string()))
+        }
+    }
+
+    async fn create_secret_storage(&self, mut storage: SecretStorage) -> Result<SecretStorage> {
+        match self.get_dialect() {
+            crate::db::sql::types::SqlDialect::SQLite => {
+                let result = sqlx::query(
+                    "INSERT INTO secret_storage (project_id, name, type, params, read_only) VALUES (?, ?, ?, ?, ?)"
+                )
+                .bind(storage.project_id)
+                .bind(&storage.name)
+                .bind(&storage.r#type.to_string())
+                .bind(&storage.params)
+                .bind(storage.read_only)
+                .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
+                .await
+                .map_err(|e| Error::Database(e))?;
+
+                storage.id = result.last_insert_rowid() as i32;
+                Ok(storage)
+            }
+            _ => Err(Error::Other("Only SQLite supported for now".to_string()))
+        }
+    }
+
+    async fn update_secret_storage(&self, storage: SecretStorage) -> Result<()> {
+        match self.get_dialect() {
+            crate::db::sql::types::SqlDialect::SQLite => {
+                sqlx::query(
+                    "UPDATE secret_storage SET name = ?, type = ?, params = ?, read_only = ? WHERE id = ? AND project_id = ?"
+                )
+                .bind(&storage.name)
+                .bind(&storage.r#type.to_string())
+                .bind(&storage.params)
+                .bind(storage.read_only)
+                .bind(storage.id)
+                .bind(storage.project_id)
+                .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
+                .await
+                .map_err(|e| Error::Database(e))?;
+
+                Ok(())
+            }
+            _ => Err(Error::Other("Only SQLite supported for now".to_string()))
+        }
+    }
+
+    async fn delete_secret_storage(&self, project_id: i32, storage_id: i32) -> Result<()> {
+        match self.get_dialect() {
+            crate::db::sql::types::SqlDialect::SQLite => {
+                sqlx::query("DELETE FROM secret_storage WHERE id = ? AND project_id = ?")
+                    .bind(storage_id)
+                    .bind(project_id)
+                    .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                Ok(())
+            }
+            _ => Err(Error::Other("Only SQLite supported for now".to_string()))
+        }
+    }
+}
+
+#[async_trait]
 impl Store for SqlStore {}

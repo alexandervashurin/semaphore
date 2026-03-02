@@ -631,4 +631,29 @@ impl TerraformInventoryManager for BoltStore {
 }
 
 #[async_trait]
+impl SecretStorageManager for BoltStore {
+    async fn get_secret_storages(&self, project_id: i32) -> Result<Vec<SecretStorage>> {
+        self.get_objects::<SecretStorage>(project_id, "secret_storages", crate::db::store::RetrieveQueryParams::default()).await
+    }
+
+    async fn get_secret_storage(&self, project_id: i32, storage_id: i32) -> Result<SecretStorage> {
+        self.get_object(project_id, "secret_storages", storage_id).await
+    }
+
+    async fn create_secret_storage(&self, mut storage: SecretStorage) -> Result<SecretStorage> {
+        storage.id = self.get_next_id("secret_storages")?;
+        self.create_object(storage.project_id, "secret_storages", &storage).await?;
+        Ok(storage)
+    }
+
+    async fn update_secret_storage(&self, storage: SecretStorage) -> Result<()> {
+        self.update_object(storage.project_id, "secret_storages", storage.id, &storage).await
+    }
+
+    async fn delete_secret_storage(&self, project_id: i32, storage_id: i32) -> Result<()> {
+        self.delete_object(project_id, "secret_storages", storage_id).await
+    }
+}
+
+#[async_trait]
 impl Store for BoltStore {}
