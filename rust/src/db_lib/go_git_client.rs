@@ -68,8 +68,8 @@ impl GoGitClient {
 
 impl GitClient for GoGitClient {
     /// Клонирует репозиторий
-    fn clone(&self, repo: GitRepository) -> Result<()> {
-        let auth_callbacks = self.get_auth_method(&repo)?;
+    async fn clone(&self, repo: &GitRepository) -> Result<()> {
+        let auth_callbacks = self.get_auth_method(repo)?;
 
         let mut builder = BuildRepo::new();
         if let Some(callbacks) = auth_callbacks {
@@ -81,10 +81,10 @@ impl GitClient for GoGitClient {
     }
 
     /// Выполняет pull
-    fn pull(&self, repo: GitRepository) -> Result<()> {
+    async fn pull(&self, repo: &GitRepository) -> Result<()> {
         let mut git_repo = Repository::open(repo.get_full_path())?;
 
-        let auth_callbacks = self.get_auth_method(&repo)?;
+        let auth_callbacks = self.get_auth_method(repo)?;
 
         if let Some(mut callbacks) = auth_callbacks {
             let mut fetch_options = FetchOptions::new();
@@ -98,7 +98,7 @@ impl GitClient for GoGitClient {
     }
 
     /// Выполняет checkout
-    fn checkout(&self, repo: GitRepository, target: &str) -> Result<()> {
+    async fn checkout(&self, repo: &GitRepository, target: &str) -> Result<()> {
         let git_repo = Repository::open(repo.get_full_path())?;
 
         // Checkout на указанную ветку/commit
@@ -116,13 +116,13 @@ impl GitClient for GoGitClient {
     }
 
     /// Проверяет, можно ли сделать pull
-    fn can_be_pulled(&self, _repo: GitRepository) -> bool {
+    fn can_be_pulled(&self, _repo: &GitRepository) -> bool {
         // В реальной реализации нужно проверить наличие .git директории
         true
     }
 
     /// Получает сообщение последнего коммита
-    fn get_last_commit_message(&self, repo: GitRepository) -> Result<String> {
+    async fn get_last_commit_message(&self, repo: &GitRepository) -> Result<String> {
         let git_repo = Repository::open(repo.get_full_path())?;
         let head = git_repo.head()?;
         let commit = head.peel_to_commit()?;
@@ -130,7 +130,7 @@ impl GitClient for GoGitClient {
     }
 
     /// Получает хэш последнего коммита
-    fn get_last_commit_hash(&self, repo: GitRepository) -> Result<String> {
+    async fn get_last_commit_hash(&self, repo: &GitRepository) -> Result<String> {
         let git_repo = Repository::open(repo.get_full_path())?;
         let head = git_repo.head()?;
         let commit = head.peel_to_commit()?;
@@ -138,13 +138,13 @@ impl GitClient for GoGitClient {
     }
 
     /// Получает хэш последнего remote коммита
-    fn get_last_remote_commit_hash(&self, repo: GitRepository) -> Result<String> {
+    async fn get_last_remote_commit_hash(&self, repo: &GitRepository) -> Result<String> {
         // В реальной реализации нужно получить remote и fetch
         Ok(String::new())
     }
 
     /// Получает список remote веток
-    fn get_remote_branches(&self, repo: GitRepository) -> Result<Vec<String>> {
+    async fn get_remote_branches(&self, repo: &GitRepository) -> Result<Vec<String>> {
         let git_repo = Repository::open(repo.get_full_path())?;
         let mut branches = Vec::new();
 

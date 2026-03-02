@@ -7,6 +7,7 @@ use crate::error::Result;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// Параметры для выборки объектов
 #[derive(Debug, Clone, Default)]

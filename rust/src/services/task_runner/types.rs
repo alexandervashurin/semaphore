@@ -10,9 +10,10 @@ use crate::db_lib::AccessKeyInstallerImpl;
 use crate::services::task_pool::TaskPool;
 
 /// Job trait определяет интерфейс для выполнения задачи
+#[async_trait::async_trait]
 pub trait Job: Send + Sync {
     /// Запускает задачу
-    fn run(&mut self, username: &str, incoming_version: Option<&str>, alias: &str) -> Result<(), crate::error::Error>;
+    async fn run(&mut self) -> Result<(), crate::error::Error>;
     /// Останавливает задачу
     fn kill(&mut self);
     /// Проверяет, убита ли задача

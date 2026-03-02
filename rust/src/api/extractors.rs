@@ -64,7 +64,7 @@ impl FromRequestParts<State<Arc<AppState>>> for AuthUser {
             ))?;
 
         // Получаем LocalAuthService из состояния
-        let auth_service = LocalAuthService::new(std::sync::Arc::new(state.store.clone()));
+        let auth_service = LocalAuthService::new(state.store.clone());
 
         // Проверяем токен
         let claims = auth_service.verify_token(token)

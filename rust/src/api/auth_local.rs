@@ -5,11 +5,12 @@
 use crate::error::{Error, Result};
 use crate::models::User;
 use crate::db::store::Store;
+use crate::api::store_wrapper::StoreWrapper;
 use std::sync::Arc;
 
 /// Сервис локальной аутентификации
 pub struct LocalAuthService {
-    store: Arc<dyn Store + Send + Sync>,
+    store: StoreWrapper,
 }
 
 /// Информация о токене
@@ -33,7 +34,7 @@ pub struct Claims {
 
 impl LocalAuthService {
     /// Создаёт новый сервис локальной аутентификации
-    pub fn new(store: Arc<dyn Store + Send + Sync>) -> Self {
+    pub fn new(store: StoreWrapper) -> Self {
         Self { store }
     }
 

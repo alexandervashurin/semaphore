@@ -194,7 +194,7 @@ impl TaskPool {
         );
 
         // Запускаем задачу
-        if let Err(e) = job.run("system", None, "").await {
+        if let Err(e) = job.run().await {
             error!("Task {} failed: {}", task_id, e);
             return Err(e);
         }

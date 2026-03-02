@@ -31,7 +31,7 @@ impl ServerCommand {
         let store = Self::create_store(&config)?;
 
         // Создаём приложение
-        let app = api::create_app(Box::new(store));
+        let app = api::create_app(store);
 
         // Запускаем сервер
         let runtime = tokio::runtime::Builder::new_multi_thread()

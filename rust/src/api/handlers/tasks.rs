@@ -140,6 +140,10 @@ pub struct TaskCreatePayload {
     pub build_task_id: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub inventory_id: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub repository_id: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub environment_id: Option<i32>,
 }
 
 // ============================================================================

@@ -46,7 +46,7 @@ impl TaskRunner {
         
         // Запуск задачи
         if let Some(ref mut job) = self.job {
-            if let Err(e) = job.run(&self.username, self.incoming_version.as_deref(), self.alias.as_deref()).await {
+            if let Err(e) = job.run().await {
                 let msg = format!("Task failed: {}", e);
                 self.log(&msg);
                 return Err(e);

@@ -5,6 +5,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use sled::Db;
+use sled::transaction::TransactionalTree;
 use crate::error::{Error, Result};
 use crate::db::store::RetrieveQueryParams;
 
@@ -24,24 +25,24 @@ pub struct BoltStore {
 pub trait BoltDbOperations {
     fn update<F, T>(&self, f: F) -> Result<T>
     where
-        F: FnOnce(&sled::TransactionalTree) -> Result<T>;
+        F: FnOnce(&TransactionalTree) -> Result<T>;
 
     fn view<F, T>(&self, f: F) -> Result<T>
     where
-        F: FnOnce(&sled::TransactionalTree) -> Result<T>;
+        F: FnOnce(&TransactionalTree) -> Result<T>;
 }
 
 impl BoltDbOperations for BoltStore {
     fn update<F, T>(&self, f: F) -> Result<T>
     where
-        F: FnOnce(&sled::TransactionalTree) -> Result<T>,
+        F: FnOnce(&TransactionalTree) -> Result<T>,
     {
         self.db.transaction(|tx| f(tx)).map_err(|e| Error::Other(e.to_string()))
     }
 
     fn view<F, T>(&self, f: F) -> Result<T>
     where
-        F: FnOnce(&sled::TransactionalTree) -> Result<T>,
+        F: FnOnce(&TransactionalTree) -> Result<T>,
     {
         self.db.transaction(|tx| f(tx)).map_err(|e| Error::Other(e.to_string()))
     }

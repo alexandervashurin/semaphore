@@ -1,0 +1,538 @@
+//! Wrapper for Arc<Box<dyn Store>> to provide Store methods
+
+use crate::db::store::*;
+use crate::models::*;
+use crate::error::Result;
+use async_trait::async_trait;
+use chrono::{DateTime, Utc};
+use std::collections::HashMap;
+use std::sync::Arc;
+
+/// Wrapper для Arc<Box<dyn Store>>
+pub struct StoreWrapper {
+    inner: Arc<Box<dyn Store>>,
+}
+
+impl StoreWrapper {
+    pub fn new(store: Arc<Box<dyn Store>>) -> Self {
+        Self { inner: store }
+    }
+}
+
+#[async_trait]
+impl ConnectionManager for StoreWrapper {
+    async fn connect(&self) -> Result<()> {
+        self.inner.as_ref().as_ref().connect().await
+    }
+
+    async fn close(&self) -> Result<()> {
+        self.inner.as_ref().as_ref().close().await
+    }
+
+    fn is_permanent(&self) -> bool {
+        self.inner.as_ref().as_ref().is_permanent()
+    }
+}
+
+#[async_trait]
+impl MigrationManager for StoreWrapper {
+    fn get_dialect(&self) -> &str {
+        self.inner.as_ref().as_ref().get_dialect()
+    }
+
+    async fn is_initialized(&self) -> Result<bool> {
+        self.inner.as_ref().as_ref().is_initialized().await
+    }
+
+    async fn apply_migration(&self, version: i64, name: String) -> Result<()> {
+        self.inner.as_ref().as_ref().apply_migration(version, name).await
+    }
+
+    async fn is_migration_applied(&self, version: i64) -> Result<bool> {
+        self.inner.as_ref().as_ref().is_migration_applied(version).await
+    }
+}
+
+#[async_trait]
+impl OptionsManager for StoreWrapper {
+    async fn get_options(&self) -> Result<HashMap<String, String>> {
+        self.inner.as_ref().as_ref().get_options().await
+    }
+
+    async fn get_option(&self, key: &str) -> Result<Option<String>> {
+        self.inner.as_ref().as_ref().get_option(key).await
+    }
+
+    async fn set_option(&self, key: &str, value: &str) -> Result<()> {
+        self.inner.as_ref().as_ref().set_option(key, value).await
+    }
+
+    async fn delete_option(&self, key: &str) -> Result<()> {
+        self.inner.as_ref().as_ref().delete_option(key).await
+    }
+}
+
+#[async_trait]
+impl UserManager for StoreWrapper {
+    async fn get_users(&self, params: RetrieveQueryParams) -> Result<Vec<User>> {
+        self.inner.as_ref().as_ref().get_users(params).await
+    }
+
+    async fn get_user(&self, user_id: i32) -> Result<User> {
+        self.inner.as_ref().as_ref().get_user(user_id).await
+    }
+
+    async fn get_user_by_login_or_email(&self, login: &str, email: &str) -> Result<User> {
+        self.inner.as_ref().as_ref().get_user_by_login_or_email(login, email).await
+    }
+
+    async fn create_user(&self, user: User, password: &str) -> Result<User> {
+        self.inner.as_ref().as_ref().create_user(user, password).await
+    }
+
+    async fn update_user(&self, user: User) -> Result<()> {
+        self.inner.as_ref().as_ref().update_user(user).await
+    }
+
+    async fn delete_user(&self, user_id: i32) -> Result<()> {
+        self.inner.as_ref().as_ref().delete_user(user_id).await
+    }
+
+    async fn set_user_password(&self, user_id: i32, password: &str) -> Result<()> {
+        self.inner.as_ref().as_ref().set_user_password(user_id, password).await
+    }
+
+    async fn get_all_admins(&self) -> Result<Vec<User>> {
+        self.inner.as_ref().as_ref().get_all_admins().await
+    }
+
+    async fn get_user_count(&self) -> Result<usize> {
+        self.inner.as_ref().as_ref().get_user_count().await
+    }
+}
+
+#[async_trait]
+impl ProjectStore for StoreWrapper {
+    async fn get_projects(&self, user_id: Option<i32>) -> Result<Vec<Project>> {
+        self.inner.as_ref().as_ref().get_projects(user_id).await
+    }
+
+    async fn get_project(&self, project_id: i32) -> Result<Project> {
+        self.inner.as_ref().as_ref().get_project(project_id).await
+    }
+
+    async fn create_project(&self, project: Project) -> Result<Project> {
+        self.inner.as_ref().as_ref().create_project(project).await
+    }
+
+    async fn update_project(&self, project: Project) -> Result<()> {
+        self.inner.as_ref().as_ref().update_project(project).await
+    }
+
+    async fn delete_project(&self, project_id: i32) -> Result<()> {
+        self.inner.as_ref().as_ref().delete_project(project_id).await
+    }
+}
+
+#[async_trait]
+impl TemplateManager for StoreWrapper {
+    async fn get_templates(&self, project_id: i32) -> Result<Vec<Template>> {
+        self.inner.as_ref().as_ref().get_templates(project_id).await
+    }
+
+    async fn get_template(&self, project_id: i32, template_id: i32) -> Result<Template> {
+        self.inner.as_ref().as_ref().get_template(project_id, template_id).await
+    }
+
+    async fn create_template(&self, template: Template) -> Result<Template> {
+        self.inner.as_ref().as_ref().create_template(template).await
+    }
+
+    async fn update_template(&self, template: Template) -> Result<()> {
+        self.inner.as_ref().as_ref().update_template(template).await
+    }
+
+    async fn delete_template(&self, project_id: i32, template_id: i32) -> Result<()> {
+        self.inner.as_ref().as_ref().delete_template(project_id, template_id).await
+    }
+}
+
+#[async_trait]
+impl InventoryManager for StoreWrapper {
+    async fn get_inventories(&self, project_id: i32) -> Result<Vec<Inventory>> {
+        self.inner.as_ref().as_ref().get_inventories(project_id).await
+    }
+
+    async fn get_inventory(&self, project_id: i32, inventory_id: i32) -> Result<Inventory> {
+        self.inner.as_ref().as_ref().get_inventory(project_id, inventory_id).await
+    }
+
+    async fn create_inventory(&self, inventory: Inventory) -> Result<Inventory> {
+        self.inner.as_ref().as_ref().create_inventory(inventory).await
+    }
+
+    async fn update_inventory(&self, inventory: Inventory) -> Result<()> {
+        self.inner.as_ref().as_ref().update_inventory(inventory).await
+    }
+
+    async fn delete_inventory(&self, project_id: i32, inventory_id: i32) -> Result<()> {
+        self.inner.as_ref().as_ref().delete_inventory(project_id, inventory_id).await
+    }
+}
+
+#[async_trait]
+impl RepositoryManager for StoreWrapper {
+    async fn get_repositories(&self, project_id: i32) -> Result<Vec<Repository>> {
+        self.inner.as_ref().as_ref().get_repositories(project_id).await
+    }
+
+    async fn get_repository(&self, project_id: i32, repository_id: i32) -> Result<Repository> {
+        self.inner.as_ref().as_ref().get_repository(project_id, repository_id).await
+    }
+
+    async fn create_repository(&self, repository: Repository) -> Result<Repository> {
+        self.inner.as_ref().as_ref().create_repository(repository).await
+    }
+
+    async fn update_repository(&self, repository: Repository) -> Result<()> {
+        self.inner.as_ref().as_ref().update_repository(repository).await
+    }
+
+    async fn delete_repository(&self, project_id: i32, repository_id: i32) -> Result<()> {
+        self.inner.as_ref().as_ref().delete_repository(project_id, repository_id).await
+    }
+}
+
+#[async_trait]
+impl EnvironmentManager for StoreWrapper {
+    async fn get_environments(&self, project_id: i32) -> Result<Vec<Environment>> {
+        self.inner.as_ref().as_ref().get_environments(project_id).await
+    }
+
+    async fn get_environment(&self, project_id: i32, environment_id: i32) -> Result<Environment> {
+        self.inner.as_ref().as_ref().get_environment(project_id, environment_id).await
+    }
+
+    async fn create_environment(&self, environment: Environment) -> Result<Environment> {
+        self.inner.as_ref().as_ref().create_environment(environment).await
+    }
+
+    async fn update_environment(&self, environment: Environment) -> Result<()> {
+        self.inner.as_ref().as_ref().update_environment(environment).await
+    }
+
+    async fn delete_environment(&self, project_id: i32, environment_id: i32) -> Result<()> {
+        self.inner.as_ref().as_ref().delete_environment(project_id, environment_id).await
+    }
+}
+
+#[async_trait]
+impl AccessKeyManager for StoreWrapper {
+    async fn get_access_keys(&self, project_id: i32) -> Result<Vec<AccessKey>> {
+        self.inner.as_ref().as_ref().get_access_keys(project_id).await
+    }
+
+    async fn get_access_key(&self, project_id: i32, access_key_id: i32) -> Result<AccessKey> {
+        self.inner.as_ref().as_ref().get_access_key(project_id, access_key_id).await
+    }
+
+    async fn create_access_key(&self, access_key: AccessKey) -> Result<AccessKey> {
+        self.inner.as_ref().as_ref().create_access_key(access_key).await
+    }
+
+    async fn update_access_key(&self, access_key: AccessKey) -> Result<()> {
+        self.inner.as_ref().as_ref().update_access_key(access_key).await
+    }
+
+    async fn delete_access_key(&self, project_id: i32, access_key_id: i32) -> Result<()> {
+        self.inner.as_ref().as_ref().delete_access_key(project_id, access_key_id).await
+    }
+}
+
+#[async_trait]
+impl TaskManager for StoreWrapper {
+    async fn get_tasks(&self, project_id: i32, params: RetrieveQueryParams) -> Result<Vec<TaskWithTpl>> {
+        self.inner.as_ref().as_ref().get_tasks(project_id, params).await
+    }
+
+    async fn get_task(&self, project_id: i32, task_id: i32) -> Result<Task> {
+        self.inner.as_ref().as_ref().get_task(project_id, task_id).await
+    }
+
+    async fn create_task(&self, task: Task) -> Result<Task> {
+        self.inner.as_ref().as_ref().create_task(task).await
+    }
+
+    async fn update_task(&self, task: Task) -> Result<()> {
+        self.inner.as_ref().as_ref().update_task(task).await
+    }
+
+    async fn delete_task(&self, project_id: i32, task_id: i32) -> Result<()> {
+        self.inner.as_ref().as_ref().delete_task(project_id, task_id).await
+    }
+
+    async fn get_task_outputs(&self, task_id: i32, params: RetrieveQueryParams) -> Result<Vec<TaskOutput>> {
+        self.inner.as_ref().as_ref().get_task_outputs(task_id, params).await
+    }
+
+    async fn create_task_output(&self, output: TaskOutput) -> Result<TaskOutput> {
+        self.inner.as_ref().as_ref().create_task_output(output).await
+    }
+}
+
+#[async_trait]
+impl ScheduleManager for StoreWrapper {
+    async fn get_schedules(&self, project_id: i32) -> Result<Vec<Schedule>> {
+        self.inner.as_ref().as_ref().get_schedules(project_id).await
+    }
+
+    async fn get_schedule(&self, project_id: i32, schedule_id: i32) -> Result<Schedule> {
+        self.inner.as_ref().as_ref().get_schedule(project_id, schedule_id).await
+    }
+
+    async fn create_schedule(&self, schedule: Schedule) -> Result<Schedule> {
+        self.inner.as_ref().as_ref().create_schedule(schedule).await
+    }
+
+    async fn update_schedule(&self, schedule: Schedule) -> Result<()> {
+        self.inner.as_ref().as_ref().update_schedule(schedule).await
+    }
+
+    async fn delete_schedule(&self, project_id: i32, schedule_id: i32) -> Result<()> {
+        self.inner.as_ref().as_ref().delete_schedule(project_id, schedule_id).await
+    }
+
+    async fn set_schedule_active(&self, schedule_id: i32, active: bool) -> Result<()> {
+        self.inner.as_ref().as_ref().set_schedule_active(schedule_id, active).await
+    }
+
+    async fn set_schedule_commit_hash(&self, schedule_id: i32, hash: String) -> Result<()> {
+        self.inner.as_ref().as_ref().set_schedule_commit_hash(schedule_id, hash).await
+    }
+}
+
+#[async_trait]
+impl SessionManager for StoreWrapper {
+    async fn get_session(&self, session_id: &str) -> Result<Session> {
+        self.inner.as_ref().as_ref().get_session(session_id).await
+    }
+
+    async fn create_session(&self, session: Session) -> Result<Session> {
+        self.inner.as_ref().as_ref().create_session(session).await
+    }
+
+    async fn expire_session(&self, session_id: &str) -> Result<()> {
+        self.inner.as_ref().as_ref().expire_session(session_id).await
+    }
+
+    async fn verify_session(&self, session_id: &str) -> Result<Session> {
+        self.inner.as_ref().as_ref().verify_session(session_id).await
+    }
+
+    async fn touch_session(&self, session_id: &str) -> Result<()> {
+        self.inner.as_ref().as_ref().touch_session(session_id).await
+    }
+}
+
+#[async_trait]
+impl TokenManager for StoreWrapper {
+    async fn get_api_tokens(&self, user_id: i32) -> Result<Vec<APIToken>> {
+        self.inner.as_ref().as_ref().get_api_tokens(user_id).await
+    }
+
+    async fn create_api_token(&self, token: APIToken) -> Result<APIToken> {
+        self.inner.as_ref().as_ref().create_api_token(token).await
+    }
+
+    async fn get_api_token(&self, token_id: i32) -> Result<APIToken> {
+        self.inner.as_ref().as_ref().get_api_token(token_id).await
+    }
+
+    async fn expire_api_token(&self, token_id: i32) -> Result<()> {
+        self.inner.as_ref().as_ref().expire_api_token(token_id).await
+    }
+
+    async fn delete_api_token(&self, token_id: i32) -> Result<()> {
+        self.inner.as_ref().as_ref().delete_api_token(token_id).await
+    }
+}
+
+#[async_trait]
+impl EventManager for StoreWrapper {
+    async fn get_events(&self, params: RetrieveQueryParams) -> Result<Vec<Event>> {
+        self.inner.as_ref().as_ref().get_events(params).await
+    }
+
+    async fn create_event(&self, event: Event) -> Result<Event> {
+        self.inner.as_ref().as_ref().create_event(event).await
+    }
+}
+
+#[async_trait]
+impl RunnerManager for StoreWrapper {
+    async fn get_runners(&self) -> Result<Vec<Runner>> {
+        self.inner.as_ref().as_ref().get_runners().await
+    }
+
+    async fn get_runner(&self, runner_id: i32) -> Result<Runner> {
+        self.inner.as_ref().as_ref().get_runner(runner_id).await
+    }
+
+    async fn create_runner(&self, runner: Runner) -> Result<Runner> {
+        self.inner.as_ref().as_ref().create_runner(runner).await
+    }
+
+    async fn update_runner(&self, runner: Runner) -> Result<()> {
+        self.inner.as_ref().as_ref().update_runner(runner).await
+    }
+
+    async fn delete_runner(&self, runner_id: i32) -> Result<()> {
+        self.inner.as_ref().as_ref().delete_runner(runner_id).await
+    }
+}
+
+#[async_trait]
+impl ViewManager for StoreWrapper {
+    async fn get_views(&self, project_id: i32) -> Result<Vec<View>> {
+        self.inner.as_ref().as_ref().get_views(project_id).await
+    }
+
+    async fn get_view(&self, project_id: i32, view_id: i32) -> Result<View> {
+        self.inner.as_ref().as_ref().get_view(project_id, view_id).await
+    }
+
+    async fn create_view(&self, view: View) -> Result<View> {
+        self.inner.as_ref().as_ref().create_view(view).await
+    }
+
+    async fn update_view(&self, view: View) -> Result<()> {
+        self.inner.as_ref().as_ref().update_view(view).await
+    }
+
+    async fn delete_view(&self, project_id: i32, view_id: i32) -> Result<()> {
+        self.inner.as_ref().as_ref().delete_view(project_id, view_id).await
+    }
+}
+
+#[async_trait]
+impl IntegrationManager for StoreWrapper {
+    async fn get_integrations(&self, project_id: i32) -> Result<Vec<Integration>> {
+        self.inner.as_ref().as_ref().get_integrations(project_id).await
+    }
+
+    async fn get_integration(&self, project_id: i32, integration_id: i32) -> Result<Integration> {
+        self.inner.as_ref().as_ref().get_integration(project_id, integration_id).await
+    }
+
+    async fn create_integration(&self, integration: Integration) -> Result<Integration> {
+        self.inner.as_ref().as_ref().create_integration(integration).await
+    }
+
+    async fn update_integration(&self, integration: Integration) -> Result<()> {
+        self.inner.as_ref().as_ref().update_integration(integration).await
+    }
+
+    async fn delete_integration(&self, project_id: i32, integration_id: i32) -> Result<()> {
+        self.inner.as_ref().as_ref().delete_integration(project_id, integration_id).await
+    }
+}
+
+#[async_trait]
+impl ProjectInviteManager for StoreWrapper {
+    async fn get_project_invites(&self, project_id: i32, params: RetrieveQueryParams) -> Result<Vec<ProjectInviteWithUser>> {
+        self.inner.as_ref().as_ref().get_project_invites(project_id, params).await
+    }
+
+    async fn create_project_invite(&self, invite: ProjectInvite) -> Result<ProjectInvite> {
+        self.inner.as_ref().as_ref().create_project_invite(invite).await
+    }
+
+    async fn get_project_invite(&self, project_id: i32, invite_id: i32) -> Result<ProjectInvite> {
+        self.inner.as_ref().as_ref().get_project_invite(project_id, invite_id).await
+    }
+
+    async fn get_project_invite_by_token(&self, token: &str) -> Result<ProjectInvite> {
+        self.inner.as_ref().as_ref().get_project_invite_by_token(token).await
+    }
+
+    async fn update_project_invite(&self, invite: ProjectInvite) -> Result<()> {
+        self.inner.as_ref().as_ref().update_project_invite(invite).await
+    }
+
+    async fn delete_project_invite(&self, project_id: i32, invite_id: i32) -> Result<()> {
+        self.inner.as_ref().as_ref().delete_project_invite(project_id, invite_id).await
+    }
+}
+
+#[async_trait]
+impl TerraformInventoryManager for StoreWrapper {
+    async fn create_terraform_inventory_alias(&self, alias: TerraformInventoryAlias) -> Result<TerraformInventoryAlias> {
+        self.inner.as_ref().as_ref().create_terraform_inventory_alias(alias).await
+    }
+
+    async fn update_terraform_inventory_alias(&self, alias: TerraformInventoryAlias) -> Result<()> {
+        self.inner.as_ref().as_ref().update_terraform_inventory_alias(alias).await
+    }
+
+    async fn get_terraform_inventory_alias_by_alias(&self, alias: &str) -> Result<TerraformInventoryAlias> {
+        self.inner.as_ref().as_ref().get_terraform_inventory_alias_by_alias(alias).await
+    }
+
+    async fn get_terraform_inventory_alias(&self, project_id: i32, inventory_id: i32, alias_id: &str) -> Result<TerraformInventoryAlias> {
+        self.inner.as_ref().as_ref().get_terraform_inventory_alias(project_id, inventory_id, alias_id).await
+    }
+
+    async fn get_terraform_inventory_aliases(&self, project_id: i32, inventory_id: i32) -> Result<Vec<TerraformInventoryAlias>> {
+        self.inner.as_ref().as_ref().get_terraform_inventory_aliases(project_id, inventory_id).await
+    }
+
+    async fn delete_terraform_inventory_alias(&self, project_id: i32, inventory_id: i32, alias_id: &str) -> Result<()> {
+        self.inner.as_ref().as_ref().delete_terraform_inventory_alias(project_id, inventory_id, alias_id).await
+    }
+
+    async fn get_terraform_inventory_states(&self, project_id: i32, inventory_id: i32, params: RetrieveQueryParams) -> Result<Vec<TerraformInventoryState>> {
+        self.inner.as_ref().as_ref().get_terraform_inventory_states(project_id, inventory_id, params).await
+    }
+
+    async fn create_terraform_inventory_state(&self, state: TerraformInventoryState) -> Result<TerraformInventoryState> {
+        self.inner.as_ref().as_ref().create_terraform_inventory_state(state).await
+    }
+
+    async fn delete_terraform_inventory_state(&self, project_id: i32, inventory_id: i32, state_id: i32) -> Result<()> {
+        self.inner.as_ref().as_ref().delete_terraform_inventory_state(project_id, inventory_id, state_id).await
+    }
+
+    async fn get_terraform_inventory_state(&self, project_id: i32, inventory_id: i32, state_id: i32) -> Result<TerraformInventoryState> {
+        self.inner.as_ref().as_ref().get_terraform_inventory_state(project_id, inventory_id, state_id).await
+    }
+
+    async fn get_terraform_state_count(&self) -> Result<i32> {
+        self.inner.as_ref().as_ref().get_terraform_state_count().await
+    }
+}
+
+#[async_trait]
+impl SecretStorageManager for StoreWrapper {
+    async fn get_secret_storages(&self, project_id: i32) -> Result<Vec<SecretStorage>> {
+        self.inner.as_ref().as_ref().get_secret_storages(project_id).await
+    }
+
+    async fn get_secret_storage(&self, project_id: i32, storage_id: i32) -> Result<SecretStorage> {
+        self.inner.as_ref().as_ref().get_secret_storage(project_id, storage_id).await
+    }
+
+    async fn create_secret_storage(&self, storage: SecretStorage) -> Result<SecretStorage> {
+        self.inner.as_ref().as_ref().create_secret_storage(storage).await
+    }
+
+    async fn update_secret_storage(&self, storage: SecretStorage) -> Result<()> {
+        self.inner.as_ref().as_ref().update_secret_storage(storage).await
+    }
+
+    async fn delete_secret_storage(&self, project_id: i32, storage_id: i32) -> Result<()> {
+        self.inner.as_ref().as_ref().delete_secret_storage(project_id, storage_id).await
+    }
+}
+
+#[async_trait]
+impl Store for StoreWrapper {}

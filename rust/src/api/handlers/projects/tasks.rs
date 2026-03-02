@@ -134,6 +134,8 @@ pub struct CreateTaskPayload {
     pub message: Option<String>,
     pub build_task_id: Option<i32>,
     pub inventory_id: Option<i32>,
+    pub repository_id: Option<i32>,
+    pub environment_id: Option<i32>,
 }
 
 // ============================================================================

@@ -16,6 +16,7 @@ pub mod options;
 pub mod routes;
 pub mod runners;
 pub mod state;
+pub mod store_wrapper;
 pub mod system_info;
 pub mod user;
 pub mod users;
@@ -32,12 +33,11 @@ use websocket::WebSocketManager;
 /// Создаёт приложение Axum
 pub fn create_app(store: Box<dyn crate::db::Store + Send + Sync>) -> Router {
     let ws_manager = Arc::new(WebSocketManager::new());
-    
-    let state = Arc::new(AppState {
+
+    let state = Arc::new(AppState::new(
         store,
-        config: crate::config::Config::default(),
-        ws_manager,
-    });
+        crate::config::Config::default(),
+    ));
 
     let cors = CorsLayer::new()
         .allow_origin(Any)

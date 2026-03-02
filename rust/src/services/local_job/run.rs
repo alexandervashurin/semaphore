@@ -146,7 +146,7 @@ mod tests {
     fn test_run() {
         let mut job = create_test_job();
         let result = futures::executor::block_on(
-            job.run("testuser", None, "test")
+            job.run()
         );
         // Пока всегда Ok, так как методы-заглушки возвращают Ok
         assert!(result.is_ok());
