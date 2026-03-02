@@ -66,6 +66,7 @@ impl GoGitClient {
     }
 }
 
+#[async_trait::async_trait]
 impl GitClient for GoGitClient {
     /// Клонирует репозиторий
     async fn clone(&self, repo: &GitRepository) -> Result<()> {
