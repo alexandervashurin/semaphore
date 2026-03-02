@@ -12,12 +12,39 @@ use crate::db::store::RetrieveQueryParams;
 pub struct BoltStore {
     /// Sled database
     pub db: Db,
-    
+
     /// Имя файла БД
     pub filename: String,
-    
+
     /// Счётчик ID
     id_counter: Arc<Mutex<HashMap<String, i32>>>,
+}
+
+/// Extension trait для операций update/view
+pub trait BoltDbOperations {
+    fn update<F, T>(&self, f: F) -> Result<T>
+    where
+        F: FnOnce(&sled::Transaction) -> Result<T>;
+
+    fn view<F, T>(&self, f: F) -> Result<T>
+    where
+        F: FnOnce(&sled::Transaction) -> Result<T>;
+}
+
+impl BoltDbOperations for BoltStore {
+    fn update<F, T>(&self, f: F) -> Result<T>
+    where
+        F: FnOnce(&sled::Transaction) -> Result<T>,
+    {
+        self.db.transaction(|tx| f(tx)).map_err(|e| Error::Other(e.to_string()))
+    }
+
+    fn view<F, T>(&self, f: F) -> Result<T>
+    where
+        F: FnOnce(&sled::Transaction) -> Result<T>,
+    {
+        self.db.transaction(|tx| f(tx)).map_err(|e| Error::Other(e.to_string()))
+    }
 }
 
 impl BoltStore {

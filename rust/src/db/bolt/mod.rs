@@ -3,7 +3,7 @@
 //! Это реализация хранилища данных, совместимая с оригинальной BoltDB-версией Semaphore.
 
 mod bolt_db;
-pub use bolt_db::BoltStore;
+pub use bolt_db::{BoltStore, BoltDbOperations};
 
 mod event;
 mod user;
