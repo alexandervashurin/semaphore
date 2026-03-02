@@ -10,6 +10,11 @@ use sqlx::{FromRow, Type, decode::Decode, encode::Encode, database::Database};
 pub enum TemplateType {
     Default,
     Build,
+    Deploy,
+    Task,
+    Ansible,
+    Terraform,
+    Shell,
 }
 
 impl<DB: Database> Type<DB> for TemplateType {
@@ -27,6 +32,11 @@ impl<'r, DB: Database> Decode<'r, DB> for TemplateType {
         let s = String::decode(value)?;
         Ok(match s.as_str() {
             "build" => TemplateType::Build,
+            "deploy" => TemplateType::Deploy,
+            "task" => TemplateType::Task,
+            "ansible" => TemplateType::Ansible,
+            "terraform" => TemplateType::Terraform,
+            "shell" => TemplateType::Shell,
             _ => TemplateType::Default,
         })
     }
@@ -39,6 +49,11 @@ where
     fn encode_by_ref(&self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
         let s: String = match self {
             TemplateType::Build => "build",
+            TemplateType::Deploy => "deploy",
+            TemplateType::Task => "task",
+            TemplateType::Ansible => "ansible",
+            TemplateType::Terraform => "terraform",
+            TemplateType::Shell => "shell",
             TemplateType::Default => "default",
         }.to_string();
         Encode::encode(s, buf)
