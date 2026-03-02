@@ -36,7 +36,7 @@ async fn get_events_inner(
     state: &AppState,
     limit: usize,
 ) -> std::result::Result<Json<Vec<Event>>, (StatusCode, Json<ErrorResponse>)> {
-    let events: Result<Vec<Event>, Error> = state.store
+    let events = state.store
         .get_events(None, limit)
         .await;
 

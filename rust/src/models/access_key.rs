@@ -54,17 +54,20 @@ impl std::str::FromStr for AccessKeyType {
 
 impl<DB: Database> Type<DB> for AccessKeyType {
     fn type_info() -> DB::TypeInfo {
-        <String as Type<DB>>::type_info()
+        <&str as Type<DB>>::type_info()
     }
 
     fn compatible(ty: &DB::TypeInfo) -> bool {
-        <String as Type<DB>>::compatible(ty)
+        <&str as Type<DB>>::compatible(ty)
     }
 }
 
-impl<'r, DB: Database> Decode<'r, DB> for AccessKeyType {
+impl<'r, DB: Database> Decode<'r, DB> for AccessKeyType
+where
+    &'r str: Decode<'r, DB>,
+{
     fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
-        let s = <String as Decode<'r, DB>>::decode(value)?;
+        let s = <&str as Decode<'r, DB>>::decode(value)?;
         Ok(match s.as_str() {
             "login_password" => AccessKeyType::LoginPassword,
             "ssh" => AccessKeyType::SSH,
@@ -77,15 +80,16 @@ impl<'r, DB: Database> Decode<'r, DB> for AccessKeyType {
 impl<'q, DB: Database> Encode<'q, DB> for AccessKeyType
 where
     DB: 'q,
+    for<'a> &'a str: Encode<'q, DB>,
 {
     fn encode_by_ref(&self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
-        let s: String = match self {
+        let s = match self {
             AccessKeyType::None => "none",
             AccessKeyType::LoginPassword => "login_password",
             AccessKeyType::SSH => "ssh",
             AccessKeyType::AccessKey => "access_key",
-        }.to_string();
-        <String as Encode<'q, DB>>::encode(s, buf)
+        };
+        <&str as Encode<'q, DB>>::encode(&s, buf)
     }
 }
 

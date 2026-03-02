@@ -15,17 +15,20 @@ pub enum RepositoryType {
 
 impl<DB: Database> Type<DB> for RepositoryType {
     fn type_info() -> DB::TypeInfo {
-        <String as Type<DB>>::type_info()
+        <&str as Type<DB>>::type_info()
     }
 
     fn compatible(ty: &DB::TypeInfo) -> bool {
-        <String as Type<DB>>::compatible(ty)
+        <&str as Type<DB>>::compatible(ty)
     }
 }
 
-impl<'r, DB: Database> Decode<'r, DB> for RepositoryType {
+impl<'r, DB: Database> Decode<'r, DB> for RepositoryType
+where
+    &'r str: Decode<'r, DB>,
+{
     fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
-        let s = <String as Decode<'r, DB>>::decode(value)?;
+        let s = <&str as Decode<'r, DB>>::decode(value)?;
         Ok(match s.as_str() {
             "git" => RepositoryType::Git,
             "http" => RepositoryType::Http,
@@ -39,15 +42,16 @@ impl<'r, DB: Database> Decode<'r, DB> for RepositoryType {
 impl<'q, DB: Database> Encode<'q, DB> for RepositoryType
 where
     DB: 'q,
+    for<'a> &'a str: Encode<'q, DB>,
 {
     fn encode_by_ref(&self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
-        let s: String = match self {
+        let s = match self {
             RepositoryType::Git => "git",
             RepositoryType::Http => "http",
             RepositoryType::Https => "https",
             RepositoryType::File => "file",
-        }.to_string();
-        <String as Encode<'q, DB>>::encode(s, buf)
+        };
+        <&str as Encode<'q, DB>>::encode(&s, buf)
     }
 }
 

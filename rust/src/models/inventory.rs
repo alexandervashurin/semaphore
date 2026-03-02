@@ -43,17 +43,20 @@ impl std::str::FromStr for InventoryType {
 
 impl<DB: Database> Type<DB> for InventoryType {
     fn type_info() -> DB::TypeInfo {
-        <String as Type<DB>>::type_info()
+        <&str as Type<DB>>::type_info()
     }
 
     fn compatible(ty: &DB::TypeInfo) -> bool {
-        <String as Type<DB>>::compatible(ty)
+        <&str as Type<DB>>::compatible(ty)
     }
 }
 
-impl<'r, DB: Database> Decode<'r, DB> for InventoryType {
+impl<'r, DB: Database> Decode<'r, DB> for InventoryType
+where
+    &'r str: Decode<'r, DB>,
+{
     fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
-        let s = <String as Decode<'r, DB>>::decode(value)?;
+        let s = <&str as Decode<'r, DB>>::decode(value)?;
         Ok(match s.as_str() {
             "static" => InventoryType::Static,
             "static_yaml" => InventoryType::StaticYaml,
@@ -68,16 +71,17 @@ impl<'r, DB: Database> Decode<'r, DB> for InventoryType {
 impl<'q, DB: Database> Encode<'q, DB> for InventoryType
 where
     DB: 'q,
+    for<'a> &'a str: Encode<'q, DB>,
 {
     fn encode_by_ref(&self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
-        let s: String = match self {
+        let s = match self {
             InventoryType::Static => "static",
             InventoryType::StaticYaml => "static_yaml",
             InventoryType::StaticJson => "static_json",
             InventoryType::File => "file",
             InventoryType::TerraformInventory => "terraform_inventory",
-        }.to_string();
-        <String as Encode<'q, DB>>::encode(s, buf)
+        };
+        <&str as Encode<'q, DB>>::encode(&s, buf)
     }
 }
 

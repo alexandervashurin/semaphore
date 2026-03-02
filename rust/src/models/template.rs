@@ -111,17 +111,20 @@ impl std::fmt::Display for TemplateApp {
 
 impl<DB: Database> Type<DB> for TemplateApp {
     fn type_info() -> DB::TypeInfo {
-        <String as Type<DB>>::type_info()
+        <&str as Type<DB>>::type_info()
     }
 
     fn compatible(ty: &DB::TypeInfo) -> bool {
-        <String as Type<DB>>::compatible(ty)
+        <&str as Type<DB>>::compatible(ty)
     }
 }
 
-impl<'r, DB: Database> Decode<'r, DB> for TemplateApp {
+impl<'r, DB: Database> Decode<'r, DB> for TemplateApp
+where
+    &'r str: Decode<'r, DB>,
+{
     fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
-        let s = <String as Decode<'r, DB>>::decode(value)?;
+        let s = <&str as Decode<'r, DB>>::decode(value)?;
         Ok(match s.as_str() {
             "ansible" => TemplateApp::Ansible,
             "terraform" => TemplateApp::Terraform,
@@ -139,9 +142,10 @@ impl<'r, DB: Database> Decode<'r, DB> for TemplateApp {
 impl<'q, DB: Database> Encode<'q, DB> for TemplateApp
 where
     DB: 'q,
+    for<'a> &'a str: Encode<'q, DB>,
 {
     fn encode_by_ref(&self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
-        let s: String = match self {
+        let s = match self {
             TemplateApp::Ansible => "ansible",
             TemplateApp::Terraform => "terraform",
             TemplateApp::Tofu => "tofu",
@@ -151,8 +155,8 @@ where
             TemplateApp::Python => "python",
             TemplateApp::Pulumi => "pulumi",
             TemplateApp::Default => "default",
-        }.to_string();
-        <String as Encode<'q, DB>>::encode(s, buf)
+        };
+        <&str as Encode<'q, DB>>::encode(&s, buf)
     }
 }
 
