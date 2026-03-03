@@ -241,7 +241,7 @@ impl BackupDB {
                 name: inv.name.clone(),
                 inventory_type: inv.inventory_type.to_string(),
                 // inventory: inv.inventory.clone(),  // поле удалено
-                inventory: None,
+                inventory: String::new(),
                 ssh_key: inv.ssh_key_id.and_then(|id| access_key_map.get(&id).cloned()),
                 become_key: inv.become_key_id.and_then(|id| access_key_map.get(&id).cloned()),
             });
