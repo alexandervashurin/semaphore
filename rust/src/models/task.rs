@@ -2,12 +2,12 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::{FromRow, Type, decode::Decode, encode::Encode, database::Database};
+use sqlx::FromRow;
 use crate::models::template::{TemplateType, TemplateApp};
 use crate::services::task_logger::TaskStatus;
 
 /// Задача - экземпляр выполнения шаблона
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Task {
     /// Уникальный идентификатор
     pub id: i32,
@@ -102,7 +102,7 @@ pub struct Task {
 }
 
 /// Задача с дополнительными полями шаблона
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskWithTpl {
     #[serde(flatten)]
     pub task: Task,
@@ -115,17 +115,14 @@ pub struct TaskWithTpl {
 
     /// Тип шаблона
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[sqlx(default)]
     pub tpl_type: Option<TemplateType>,
 
     /// Приложение шаблона
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[sqlx(default)]
     pub tpl_app: Option<TemplateApp>,
 
     /// Имя пользователя
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[sqlx(default)]
     pub user_name: Option<String>,
 
     /// Задача сборки (игнорируется для SQLx)

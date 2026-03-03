@@ -23,20 +23,54 @@ impl SqlDb {
                 if let Some(tpl_id) = template_id {
                     query.push_str(" AND t.template_id = ?");
 
-                    let tasks = sqlx::query_as::<_, TaskWithTpl>(&query)
+                    let rows = sqlx::query(&query)
                         .bind(project_id)
                         .bind(tpl_id)
                         .fetch_all(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                         .await
                         .map_err(|e| Error::Database(e))?;
 
+                    let mut tasks = Vec::new();
+                    for row in rows {
+                        let task = Self::row_to_task(&row)?;
+                        let tpl_playbook: String = row.get("tpl_playbook");
+                        let tpl_alias: String = row.get("tpl_alias");
+                        
+                        tasks.push(TaskWithTpl {
+                            task,
+                            tpl_playbook,
+                            tpl_alias,
+                            tpl_type: None,
+                            tpl_app: None,
+                            user_name: None,
+                            build_task: None,
+                        });
+                    }
+
                     Ok(tasks)
                 } else {
-                    let tasks = sqlx::query_as::<_, TaskWithTpl>(&query)
+                    let rows = sqlx::query(&query)
                         .bind(project_id)
                         .fetch_all(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                         .await
                         .map_err(|e| Error::Database(e))?;
+
+                    let mut tasks = Vec::new();
+                    for row in rows {
+                        let task = Self::row_to_task(&row)?;
+                        let tpl_playbook: String = row.get("tpl_playbook");
+                        let tpl_alias: String = row.get("tpl_alias");
+                        
+                        tasks.push(TaskWithTpl {
+                            task,
+                            tpl_playbook,
+                            tpl_alias,
+                            tpl_type: None,
+                            tpl_app: None,
+                            user_name: None,
+                            build_task: None,
+                        });
+                    }
 
                     Ok(tasks)
                 }
@@ -44,12 +78,52 @@ impl SqlDb {
             _ => Err(Error::Other("Only SQLite supported for now".to_string()))
         }
     }
+
+    /// Конвертирует SQL row в Task
+    fn row_to_task(row: &sqlx::SqliteRow) -> Result<Task> {
+        use sqlx::Row;
+        
+        let params_json: Option<String> = row.try_get("params").ok().flatten();
+        let params = if let Some(json_str) = params_json {
+            serde_json::from_str(&json_str).ok()
+        } else {
+            None
+        };
+
+        Ok(Task {
+            id: row.get("id"),
+            template_id: row.get("template_id"),
+            project_id: row.get("project_id"),
+            status: serde_json::from_str(&format!("\"{}\"", row.get::<String, _>("status")))
+                .map_err(|e| Error::Other(format!("Failed to parse TaskStatus: {}", e)))?,
+            playbook: row.get("playbook"),
+            environment: row.get("environment"),
+            secret: row.get("secret"),
+            arguments: row.get("arguments"),
+            git_branch: row.get("git_branch"),
+            user_id: row.get("user_id"),
+            integration_id: row.get("integration_id"),
+            schedule_id: row.get("schedule_id"),
+            created: row.get("created"),
+            start: row.get("start"),
+            end: row.get("end"),
+            message: row.get("message"),
+            commit_hash: row.get("commit_hash"),
+            commit_message: row.get("commit_message"),
+            build_task_id: row.get("build_task_id"),
+            version: row.get("version"),
+            inventory_id: row.get("inventory_id"),
+            repository_id: row.get("repository_id"),
+            environment_id: row.get("environment_id"),
+            params,
+        })
+    }
     
     /// Получает задачу по ID
     pub async fn get_task(&self, project_id: i32, task_id: i32) -> Result<Task> {
         match self.get_dialect() {
             crate::db::sql::types::SqlDialect::SQLite => {
-                let task = sqlx::query_as::<_, Task>(
+                let row = sqlx::query(
                     "SELECT * FROM task WHERE project_id = ? AND id = ?"
                 )
                 .bind(project_id)
@@ -57,8 +131,8 @@ impl SqlDb {
                 .fetch_one(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
                 .map_err(|e| Error::Database(e))?;
-                
-                Ok(task)
+
+                Self::row_to_task(&row)
             }
             _ => Err(Error::Other("Only SQLite supported for now".to_string()))
         }
