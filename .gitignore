@@ -28,6 +28,8 @@ Cargo.lock
 coverage/
 *.profraw
 *.profdata
+test_output*.txt
+test_errors.txt
 
 # IDE
 .idea/
