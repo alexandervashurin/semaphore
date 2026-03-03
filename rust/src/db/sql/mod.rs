@@ -33,6 +33,7 @@ pub mod view;
 use crate::db::store::*;
 use crate::models::{User, Project, Task, TaskWithTpl, TaskOutput, TaskStage, Template, Inventory, Repository, Environment, AccessKey, Integration, Schedule, Session, APIToken, Event, Runner, View, Role, ProjectInvite, ProjectInviteWithUser, ProjectUser, RetrieveQueryParams, TerraformInventoryAlias, TerraformInventoryState, SecretStorage};
 use crate::error::{Error, Result};
+use crate::services::task_logger::TaskStatus;
 use async_trait::async_trait;
 use sqlx::{SqlitePool, Row};
 use std::collections::HashMap;

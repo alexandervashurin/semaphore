@@ -3,6 +3,7 @@
 use crate::db::store::*;
 use crate::models::*;
 use crate::error::Result;
+use crate::services::task_logger::TaskStatus;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;

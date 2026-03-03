@@ -7,7 +7,7 @@ use crate::services::task_logger::TaskLogger;
 use crate::error::Result;
 
 /// Аргументы для запуска локального приложения
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct LocalAppRunningArgs {
     /// Аргументы командной строки по стадиям
     pub cli_args: std::collections::HashMap<String, Vec<String>>,
@@ -42,7 +42,7 @@ impl Default for LocalAppRunningArgs {
 }
 
 /// Аргументы для установки зависимостей локального приложения
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct LocalAppInstallingArgs {
     /// Переменные окружения
     pub environment_vars: Vec<String>,

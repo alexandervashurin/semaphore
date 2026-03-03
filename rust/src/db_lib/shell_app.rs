@@ -108,7 +108,7 @@ impl LocalApp for ShellApp {
         let mut child = cmd.spawn()
             .map_err(|e| Error::Other(format!("Failed to start shell command: {}", e)))?;
 
-        let pid = child.id().unwrap_or(0);
+        let pid = child.id();
         (args.callback)(pid);
 
         // Ждём завершения

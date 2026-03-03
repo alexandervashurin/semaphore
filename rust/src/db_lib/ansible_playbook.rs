@@ -71,7 +71,7 @@ impl AnsiblePlaybook {
         let mut child = cmd.spawn()
             .map_err(|e| Error::Other(format!("Failed to start ansible-playbook: {}", e)))?;
 
-        let pid = child.id().unwrap_or(0);
+        let pid = child.id();
         callback(pid);
 
         let status = child.wait()
