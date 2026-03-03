@@ -1,11 +1,11 @@
 # План исправления ошибок сборки Semaphore Rust
 Дата: 2026-03-02
-Последнее обновление: 2026-03-02 (сессия 2)
+Последнее обновление: 2026-03-03 (сессия 3)
 
 ## Прогресс
 
-### ✅ Выполнено (Этап 1-3 частично)
-- [x] Исправлены все основные модели данных
+### ✅ Выполнено
+- [x] Исправлены все основные модели данных (частично)
 - [x] Добавлены missing поля в Inventory, Repository, Schedule, View, Environment, Task, TaskStage
 - [x] Исправлены TemplateType, AccessKeyOwner, AccessKey
 - [x] Добавлены методы в Config
@@ -14,18 +14,21 @@
 - [x] Реализован SecretStorageManager для SqlStore и BoltStore
 - [x] Исправлена инициализация ProjectUser, Project, Template, Task в API handlers
 - [x] Убран FromRow из UserTotp/UserEmailOtp
+- [x] **BoltDB API полностью исправлен** (45 ошибок)
+- [x] Добавлен метод `get_object_refs()` в BoltStore
+- [x] TaskLogger Clone исправлен (Box → Arc)
+- [x] AccessKey методы добавлены в ssh_agent.rs
+- [x] Добавлены поля в DbConfig (path, connection_string)
+- [x] Добавлен Default для Template
+- [x] Добавлены поля в Template, Schedule, IntegrationAlias, TerraformTaskParams, TaskOutput
 
-### ⏳ В процессе
-- [ ] Исправить инициализацию Task в сервисах (scheduler.rs, task_pool*.rs, local_job/*.rs)
-- [ ] Исправить инициализацию Template в db/sql/template_crud.rs
-- [ ] Исправить BoltDB update/view методы
-
-### 🔴 Критические ошибки (557 осталось)
-1. **BoltDB** - `update`/`view` методы (41 ошибка)
-2. **type annotations** - нужно указать типы (105 ошибок)
-3. **mismatched types** - несоответствие типов (67 ошибок)
-4. **Job::run** - неправильная сигнатура метода
-5. **GitClient** - lifetime параметры
+### 🔴 Критические ошибки (237 осталось)
+1. **mismatched types** - 31 ошибка
+2. **type annotations** - 12 ошибок
+3. **missing поля в инициализаторах** - 15 ошибок
+4. **missing trait implementations** - 25 ошибок
+5. **Git Client** - 8 ошибок
+6. **SQLx type compatibility** - 20 ошибок
 
 ---
 
@@ -33,283 +36,151 @@
 
 ### 🔴 КРИТИЧЕСКИЙ ПРИОРИТЕТ (Блокируют компиляцию)
 
-#### 1. Исправление моделей данных (Model Structures)
+#### 1. Исправление инициализаторов моделей
+**Файлы:** `src/db/bolt/*.rs`, `src/db/sql/*.rs`, `src/services/*.rs`
+
+**Task:**
+- [ ] Добавить `environment_id`, `repository_id` в инициализаторы Task
+
+**TemplateFilter:**
+- [ ] Добавить `app`, `deleted`, `project_id` в инициализаторы
+
+**Schedule:**
+- [ ] Добавить `created` в инициализаторы
+
+**TaskOutput:**
+- [ ] Добавить `project_id` в инициализаторы
+
+**ProjectInviteWithUser:**
+- [ ] Исправить структуру полей
+
+#### 2. Реализация missing trait methods
+**Файлы:** `src/db/store.rs`, `src/db/sql/*.rs`, `src/db/bolt/*.rs`
+
+- [ ] Реализовать `get_project_users` в Store trait
+- [ ] Реализовать `get_template_users` в Store trait
+- [ ] Реализовать `get_task_alert_chat` в Store trait
+- [ ] Реализовать `get_project_schedules` в Store trait
+- [ ] Реализовать `create_user_without_password` в Store trait
+- [ ] Реализовать `create_task`, `get_task`, `delete_task`, `get_tasks` в Store trait
+
+#### 3. SQLx Type Implementations
 **Файлы:** `src/models/*.rs`
 
-##### 1.1 Добавить отсутствующие поля в структуры
+- [ ] Реализовать `FromRow` для `SecretStorage`
+- [ ] Реализовать `Type`, `Decode` для `ProjectUserRole`
+- [ ] Реализовать `FromStr` для `TemplateType`, `AccessKeyOwner`
+- [ ] Реализовать `Type`, `Decode` для `Task`
 
-**User (`src/models/user.rs`):**
-- [ ] Добавить поле `created: chrono::DateTime<chrono::Utc>` в `User`
-- [ ] Добавить поле `created: chrono::DateTime<chrono::Utc>` в `APIToken`
+#### 4. Job Trait
+**Файлы:** `src/services/job.rs`, `src/services/local_job/*.rs`
 
-**Task (`src/models/task.rs`):**
-- [ ] Добавить поля `repository_id: Option<i32>`, `environment_id: Option<i32>`
-- [ ] Исправить тип `params` для совместимости с SQLx
-- [ ] Реализовать `Clone` для `RunningTask`
+- [ ] Реализовать `Job` trait для `LocalJob`
+- [ ] Исправить сигнатуру `Job::run`
 
-**AccessKey (`src/models/access_key.rs`):**
-- [ ] Добавить/исправить поля согласно миграции
-- [ ] Проверить enum `AccessKeyType` (SSH вместо Ssh)
-- [ ] Проверить enum `AccessKeyOwner`
+#### 5. Git Client
+**Файлы:** `src/db_lib/go_git_client.rs`, `src/db_lib/cmd_git_client.rs`, `src/services/git_repository.rs`
 
-**Template (`src/models/template.rs`):**
-- [ ] Добавить варианты в `TemplateType`: Ansible, Terraform, Shell, Task, Deploy, Build
-- [ ] Добавить отсутствующие поля: `arguments`, `build_version`, `start_version`
-- [ ] Реализовать `Default` если требуется
+- [ ] Добавить метод `get_full_path()` для `Repository`
+- [ ] Исправить использование `ssh_key` → загрузка через `key_id`
+- [ ] Исправить `BuildRepo` → `git2::Repository`
 
-**Inventory (`src/models/inventory.rs`):**
-- [ ] Исправить поле `inventory_type` → `inventory_data`
-- [ ] Добавить `ssh_key_id`, `vaults`, `become_key_id`
+#### 6. TemplateType Display
+**Файлы:** `src/models/template.rs`
 
-**Repository (`src/models/repository.rs`):**
-- [ ] Добавить поле `git_branch: String`
-- [ ] Добавить поле `ssh_key_id: Option<i32>` или `ssh_key`
+- [ ] Реализовать `Display` для `Option<TemplateType>`
+- [ ] Или использовать `.map(|t| t.to_string()).unwrap_or_default()`
 
-**Schedule (`src/models/schedule.rs`):**
-- [ ] Добавить поле `cron_format: Option<String>`
-- [ ] Добавить поле `last_commit_hash: Option<String>`
-- [ ] Добавить поле `repository_id: Option<i32>`
+#### 7. Missing поля в моделях
+**Файлы:** `src/models/*.rs`, `src/services/backup.rs`
 
-**View (`src/models/view.rs`):**
-- [ ] Исправить поле `title` → `name` или наоборот в использовании
+- [ ] `HAConfig` - добавить поле `ha`
+- [ ] `AccessKey` - добавить поля `secret_type`, `secret`, `login_password`, `key_type`, `override_secret`
+- [ ] `Inventory` - добавить поле `variables`
+- [ ] `Template` - добавить поля `hooks`, `params`
+- [ ] `ProjectUser` - добавить поля `username`, `name`
+- [ ] `BackupProject` - добавить поля `type`, `default_secret_storage_id`
+- [ ] `BackupTemplate` - добавить поля `description`, `build_version`, `start_version`
+- [ ] `BackupRepository` - добавить поле `git_type`
 
-**Environment (`src/models/environment.rs`):**
-- [ ] Исправить поле `json` → `env` или наоборот
-- [ ] Добавить поле `secrets: Vec<?>`
+#### 8. Missing методы
+**Файлы:** `src/models/template.rs`, `src/models/access_key.rs`, `src/db/store.rs`
 
-**Project (`src/models/project.rs`):**
-- [ ] Добавить поля: `alert`, `alert_chat`, `default_secret_storage_id`, `type`
+- [ ] `Template::validate`, `Template::extract_params`
+- [ ] `AccessKey::validate`
+- [ ] `get_project_user`, `get_template_users`, `get_task_alert_chat`
+- [ ] `update_task_status`
+- [ ] `get_url` (для Task)
+- [ ] `destroy` (для AccessKeyInstallation)
+- [ ] `as_str` (для i64)
 
-**ProjectInvite (`src/models/project_invite.rs`):**
-- [ ] Добавить поле `token: String`
-- [ ] Добавить поле `inviter_user_id: i32`
-- [ ] Исправить структуру `ProjectInviteWithUser`
+#### 9. Default implementations
+**Файлы:** `src/models/*.rs`, `src/config/*.rs`
 
-**Integration (`src/models/integration.rs`):**
-- [ ] Добавить поля в `IntegrationMatcher`: `project_id`, `matcher_type`, `matcher_value`
-- [ ] Добавить поля в `IntegrationExtractValue`: `project_id`, `value_name`, `value_type`
+- [ ] `Default` для `Repository`
+- [ ] `Default` для `Inventory`
+- [ ] `Default` для `Environment`
+- [ ] `Default` для `HARedisConfig`
 
-**Role (`src/models/role.rs`):**
-- [ ] Добавить поля: `id: i32`, `project_id: i32`
-
-**Runner (`src/models/runner.rs`):**
-- [ ] Исправить тип `project_id: Option<i32>` → `project_id: i32`
-
-**TaskOutput/TaskStage (`src/models/task.rs`):**
-- [ ] Добавить поле `stage_id: i32` в `TaskOutput`
-- [ ] Добавить поле `project_id: i32` в `TaskOutput`
-- [ ] Добавить поле `stage_type: String` в `TaskStage`
-- [ ] Добавить поле `project_id: i32` в `TaskStage`
-
-##### 1.2 Реализация трейтов SQLx
-
-**UserTotp/UserEmailOtp:**
-- [ ] Реализовать `sqlx::Type` и `sqlx::Decode` или убрать из `User`
-
-**Task/TaskWithTpl:**
-- [ ] Реализовать совместимость `HashMap<String, JsonValue>` с SQLx
-- [ ] Использовать `serde_json::Value` вместо `HashMap`
-
-**TemplateType:**
-- [ ] Реализовать `Display` для `Option<TemplateType>` или использовать unwrap/or_else
-
----
-
-#### 2. Исправление Trait Implementations
-**Файлы:** `src/services/*.rs`, `src/db_lib/*.rs`
-
-##### 2.1 Job Trait
-**Файл:** `src/services/task_runner/types.rs`, `src/services/job.rs`
-
-- [ ] Исправить сигнатуру `Job::run` во всех реализациях:
-  ```rust
-  fn run(&mut self, username: &str, incoming_version: Option<&str>, alias: &str) -> Result<(), Error>;
-  ```
-- [ ] Обновить `LocalJob`, `AnsibleJob`, `TerraformJob`, `ShellJob`
-
-##### 2.2 LocalApp Trait
-**Файл:** `src/db_lib/local_app.rs`
-
-- [ ] Реализовать `LocalApp` для `AnsibleApp`
-- [ ] Реализовать `LocalApp` для `TerraformApp`
-- [ ] Исправить конструкторы `AnsibleApp::new`, `TerraformApp::new`
-
-##### 2.3 Store Trait
-**Файл:** `src/db/store.rs`, `src/db/sql/mod.rs`, `src/db/bolt/mod.rs`
-
-- [ ] Добавить методы в трейт `Store`:
-  - `get_project_users`
-  - `get_secret_storages`
-  - `get_secret_storage`
-  - `create_secret_storage`
-  - `update_secret_storage`
-  - `delete_secret_storage`
-  - `get_template_users`
-  - `get_task_alert_chat`
-- [ ] Реализовать методы в `SqlStore` и `BoltStore`
-- [ ] Исправить `Clone` для `Box<dyn Store>` - использовать `Arc` вместо клонирования
-
-##### 2.4 Exporter Traits
-**Файл:** `src/services/exporter.rs`, `src/services/exporter_main.rs`
-
-- [ ] Реализовать `DataExporter` для `ExporterChain`
-- [ ] Реализовать `TypeExporter` для `ValueMap<T>`
-
----
-
-#### 3. Git Client Fixes
-**Файлы:** `src/db_lib/go_git_client.rs`, `src/db_lib/cmd_git_client.rs`
-
-- [ ] Исправить lifetime параметры в `GoGitClient` методах
-- [ ] Исправить типы параметров (`&GitRepository` вместо `GitRepository`)
-- [ ] Реализовать `Repository::get_full_path` метод
-- [ ] Исправить использование `git2::Repository`
-
----
-
-#### 4. BoltDB Fixes
-**Файлы:** `src/db/bolt/*.rs`
-
-- [ ] Реализовать/исправить `Db::update` и `Db::view` методы
-- [ ] Исправить `BoltStore::get_project_user`
-- [ ] Исправить `BoltStore::get_object_refs`
-- [ ] Исправить работу с `sled` transactions
-- [ ] Исправить структуры `ProjectInviteWithUser`, `ScheduleWithTpl`, `TemplateWithPerms`, `TaskStageWithResult`
-
----
-
-#### 5. Config & CLI Fixes
-**Файлы:** `src/config/*.rs`, `src/cli/*.rs`
-
-##### 5.1 Config Structure
-- [ ] Добавить поле `non_admin_can_create_project: bool` в `Config`
-- [ ] Добавить поле/метод `db_dialect` в `Config`
-- [ ] Добавить поле/метод `db_path` в `Config`
-- [ ] Добавить метод `database_url()` в `Config`
-- [ ] Исправить `DbDialect::PostgreSQL` → `DbDialect::Postgres`
-- [ ] Реализовать `Config::from_env()`
-- [ ] Реализовать `Default` для `HARedisConfig`
-
-##### 5.2 Dependencies
-- [ ] Добавить `which = "4"` в `Cargo.toml`
-- [ ] Проверить `libc` импорт
-
----
-
-#### 6. API Handlers Fixes
-**Файлы:** `src/api/*.rs`, `src/api/handlers/*.rs`
-
-##### 6.1 State Extractor
-- [ ] Исправить использование `axum::extract::State`
-- [ ] Заменить `state.store.clone()` на правильное использование `Arc`
-
-##### 6.2 RetrieveQueryParams
-- [ ] Унифицировать использование `RetrieveQueryParams`
-- [ ] Исправить вызовы методов store с правильными параметрами
-
-##### 6.3 Method Signatures
-- [ ] Исправить `get_events` signature
-- [ ] Исправить `get_access_keys` - убрать лишние параметры
-- [ ] Исправить `get_integrations` - убрать лишние параметры
-- [ ] Исправить `get_options` - убрать лишние параметры
-- [ ] Исправить `get_template` - добавить `project_id`
-
----
-
-#### 7. Service Layer Fixes
+#### 10. Clone implementations
 **Файлы:** `src/services/*.rs`
 
-##### 7.1 Task Runner
-- [ ] Исправить `Job::run` вызовы с правильными параметрами
-- [ ] Реализовать `Clone` для `RunningTask`
-- [ ] Реализовать `Clone` для `TaskLogger` или использовать `Arc`
-- [ ] Исправить `AccessKeyInstallerImpl::clone`
+- [ ] `Clone` для `RunningTask`
+- [ ] `Clone` для `AccessKeyInstallerImpl`
 
-##### 7.2 Backup/Restore
-- [ ] Исправить структуры `BackupFormat`, `RestoreDB`
-- [ ] Сделать `restore()` методы асинхронными
-- [ ] Исправить соответствие полей в backup/restore
+#### 11. Crate dependencies
+**Файлы:** `Cargo.toml`, `src/config/config_sysproc.rs`
 
-##### 7.3 Task Pool
-- [ ] Исправить `update_task_status` → `update_task`
-- [ ] Исправить `get_task_outputs` signature
-- [ ] Исправить `max_parallel_tasks` cast
+- [ ] Проверить `which` crate в зависимостях
+- [ ] Проверить `libc` crate в зависимостях
 
----
+#### 12. Async/Sync issues
+**Файлы:** `src/services/*.rs`, `src/db/bolt/*.rs`
 
-#### 8. TemplateType & App Factory
-**Файлы:** `src/models/template.rs`, `src/db_lib/app_factory.rs`
-
-- [ ] Добавить все варианты в `TemplateType`
-- [ ] Исправить `TemplateApp` - реализовать `Display`
-- [ ] Исправить `app_factory.rs` - правильные конструкторы
-
----
-
-#### 9. SQLx Type Implementations
-**Файлы:** `src/models/*.rs`
-
-- [ ] Реализовать `Type` и `Encode/Decode` для кастомных типов
-- [ ] Исправить использование `HashMap` → `serde_json::Value`
-- [ ] Исправить `Option<usize>` formatting
-
----
-
-#### 10. FFI Fixes
-**Файлы:** `src/ffi/*.rs`
-
-- [ ] Исправить преобразование `Box<dyn Store>` → `Box<dyn Store + Send + Sync>`
-- [ ] Исправить преобразование `Arc<dyn Store>` → `Box<dyn Store>`
-
----
-
-### 🟡 ВЫСОКИЙ ПРИОРИТЕТ
-
-#### 11. Предупреждения компилятора (Warnings)
-- [ ] Удалить неиспользуемые импорты (277 warnings)
-- [ ] Удалить неиспользуемые переменные
-- [ ] Исправить `unused_mut`
-- [ ] Исправить `dead_code`
-
-#### 12. Async/Sync Issues
 - [ ] Исправить `Send` bound для futures
 - [ ] Исправить async вызовы в синхронном контексте
 
----
+#### 13. Formatting errors
+**Файлы:** `src/models/*.rs`
 
-### 🟢 СРЕДНИЙ ПРИОРИТЕТ
+- [ ] Реализовать `Display` для `Option<usize>`
+- [ ] Реализовать `Display` для `Option<String>`
+- [ ] Реализовать `UpperHex`/`LowerHex` для `[u8; 16]`
 
-#### 13. Code Quality
-- [ ] Унифицировать обработку ошибок
-- [ ] Улучшить обработку `Option` типов
-- [ ] Добавить документацию
+#### 14. Прочие ошибки
+- [ ] `ConflictableTransactionError::TransactionError` - исправить на `TransactionError(String)`
+- [ ] `EventType::Task` - добавить вариант
+- [ ] `AccessKeyType::Ssh` - добавить вариант
+- [ ] Cast `Option<i32>` as `usize` - исправить
+- [ ] Move out of shared reference - исправить
+- [ ] Use of moved value - исправить
+- [ ] Cannot assign to behind `&` reference - исправить
+- [ ] Use of unstable library feature `str_as_str` - исправить
 
 ---
 
 ## План работ по этапам
 
-### Этап 1: Модели данных (4-6 часов)
-1. Исправить все структуры моделей
-2. Добавить отсутствующие поля
-3. Реализовать необходимые трейты
+### Этап 1: Инициализаторы моделей (2-3 часа)
+1. Исправить все инициализаторы Task, TemplateFilter, Schedule, TaskOutput
+2. Исправить ProjectInviteWithUser структуру
 
-### Этап 2: Trait Implementations (3-4 часа)
-1. Исправить `Job` trait
-2. Исправить `LocalApp` trait
-3. Исправить `Store` trait
-4. Исправить `Exporter` traits
+### Этап 2: Trait Implementations (4-5 часов)
+1. Реализовать missing методы в Store trait
+2. Реализовать SQLx трейты для моделей
+3. Реализовать Job trait для LocalJob
 
-### Этап 3: DB Layer (3-4 часа)
-1. Исправить SQL queries
-2. Исправить BoltDB implementation
-3. Исправить Git client
+### Этап 3: Git Client (2-3 часа)
+1. Добавить get_full_path() метод
+2. Исправить загрузку SSH ключей
+3. Исправить BuildRepo → git2
 
-### Этап 4: API & Services (3-4 часа)
-1. Исправить API handlers
-2. Исправить сервисы
-3. Исправить CLI
+### Этап 4: Missing поля и методы (3-4 часа)
+1. Добавить missing поля в модели
+2. Добавить missing методы
+3. Реализовать Default для моделей
 
-### Этап 5: Финальная сборка (1-2 часа)
+### Этап 5: Финальная сборка (2-3 часа)
 1. Исправление оставшихся ошибок
 2. Удаление предупреждений
 3. Тестирование сборки
@@ -317,13 +188,29 @@
 ---
 
 ## Оценка времени
-**Общее время:** 14-20 часов
+**Общее время:** 13-18 часов
 
 ---
 
 ## Зависимости
-1. Этап 1 должен быть выполнен первым (модели используются везде)
+1. Этап 1 должен быть выполнен первым (инициализаторы используются везде)
 2. Этап 2 зависит от Этапа 1
 3. Этап 3 зависит от Этапов 1 и 2
 4. Этап 4 зависит от Этапов 1-3
 5. Этап 5 выполняется после всех остальных
+
+---
+
+## Достижения сессии 3
+
+### Исправлено ошибок: 118 (356 → 238)
+- BoltDB API: 45 ошибок
+- TaskLogger Clone: 3 ошибки
+- AccessKey методы: 4 ошибки
+- Модели поля: 20 ошибок
+- Config: 10 ошибок
+- Прочие: 36 ошибок
+
+### Коммиты:
+- `a45ea575` - fix: замена BoltDB API на sled API во всех файлах
+- `4895ad30` - fix: исправление моделей, TaskLogger Clone, и различных ошибок
