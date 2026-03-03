@@ -72,7 +72,7 @@ impl ShellApp {
 
     /// Получает полный путь к репозиторию
     fn get_full_path(&self) -> String {
-        self.repository.get_full_path(self.template.id)
+        self.repository.get_full_path()
     }
 }
 

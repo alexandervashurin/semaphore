@@ -29,7 +29,7 @@ pub async fn get_options(
         ));
     }
 
-    let options = state.store.get_options(crate::db::store::RetrieveQueryParams::default())
+    let options = state.store.get_options()
         .await
         .map_err(|e| (
             StatusCode::INTERNAL_SERVER_ERROR,

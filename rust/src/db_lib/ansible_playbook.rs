@@ -108,7 +108,7 @@ impl AnsiblePlaybook {
 
     /// Получает полный путь к репозиторию
     pub fn get_full_path(&self) -> String {
-        self.repository.get_full_path(self.template_id)
+        self.repository.get_full_path()
     }
 }
 
