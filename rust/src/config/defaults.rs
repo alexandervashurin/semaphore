@@ -93,6 +93,8 @@ pub fn create_default_config() -> Config {
             password: String::new(),
             db_name: default_db_name(),
             options: Default::default(),
+            path: None,
+            connection_string: None,
         },
         ldap: None,
         auth: AuthConfig {

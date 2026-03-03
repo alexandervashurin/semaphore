@@ -341,6 +341,8 @@ impl UserManager for SqlStore {
             user_id: row.get("user_id"),
             role: row.get("role"),
             created: row.get("created"),
+            username: row.get("username"),
+            name: row.get("name"),
         }).collect())
     }
 }

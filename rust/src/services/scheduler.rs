@@ -177,11 +177,13 @@ impl SchedulePool {
             build_task_id: None,
             version: None,
             inventory_id: None,
+            repository_id: None,
+            environment_id: None,
             params: None,
         };
 
         let created_task = store.create_task(task).await?;
-        
+
         info!("Создана задача {} по расписанию {}", created_task.id, schedule_id);
 
         // Здесь должна быть логика отправки задачи в TaskPool

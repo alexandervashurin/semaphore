@@ -39,13 +39,14 @@ impl TaskRunner {
     /// log записывает лог задачи
     pub fn log(&self, msg: &str) {
         use tracing::info;
-        
+
         info!("[Task {}] {}", self.task.id, msg);
 
         // Запись в БД
         let task_output = crate::models::TaskOutput {
             id: 0,
             task_id: self.task.id,
+            project_id: self.task.project_id,
             output: msg.to_string(),
             time: Utc::now(),
             stage_id: None,

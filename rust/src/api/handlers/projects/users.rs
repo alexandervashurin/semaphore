@@ -61,6 +61,8 @@ pub async fn add_user(
         user_id: payload.user_id,
         role: payload.role.clone(),
         created: chrono::Utc::now(),
+        username: String::new(),
+        name: String::new(),
     };
 
     // В реальной реализации нужно сохранить в БД

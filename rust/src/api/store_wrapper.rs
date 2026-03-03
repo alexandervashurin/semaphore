@@ -110,6 +110,10 @@ impl UserManager for StoreWrapper {
     async fn get_user_count(&self) -> Result<usize> {
         self.inner.as_ref().as_ref().get_user_count().await
     }
+
+    async fn get_project_users(&self, project_id: i32, params: RetrieveQueryParams) -> Result<Vec<ProjectUser>> {
+        self.inner.as_ref().as_ref().get_project_users(project_id, params).await
+    }
 }
 
 #[async_trait]

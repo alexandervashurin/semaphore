@@ -39,7 +39,7 @@ impl UserController {
 
         let response = UserResponse {
             user: full_user,
-            can_create_project: admin || state.config.non_admin_can_create_project,
+            can_create_project: admin || state.config.non_admin_can_create_project(),
             has_active_subscription: false, // TODO: Интеграция с subscription service
         };
 
@@ -114,7 +114,7 @@ impl UserController {
         }
 
         // Сохраняем изменения
-        state.store.update_user(current_user).await?;
+        state.store.update_user(current_user.clone()).await?;
         Ok(Json(current_user))
     }
 

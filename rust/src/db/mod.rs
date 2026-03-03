@@ -1,14 +1,12 @@
 //! Слой доступа к данным
 //!
 //! Этот модуль предоставляет абстракции для работы с различными базами данных:
-//! - BoltDB (ключ-значение, через sled)
 //! - SQLite
 //! - MySQL
 //! - PostgreSQL
 
 pub mod store;
 pub mod sql;
-pub mod bolt;
 
 // Ре-экспорт основных типов
 pub use store::{
@@ -34,7 +32,6 @@ pub use store::{
 };
 
 pub use sql::SqlStore;
-pub use bolt::BoltStore;
 
 #[cfg(test)]
 pub mod mock;

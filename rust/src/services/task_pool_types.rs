@@ -32,16 +32,16 @@ pub struct TaskPool {
 pub struct RunningTask {
     /// Задача
     pub task: Task,
-    
+
     /// Логгер
     pub logger: Arc<dyn TaskLogger>,
-    
+
     /// Время запуска
     pub start_time: DateTime<Utc>,
-    
+
     /// Шаблон
     pub template: Template,
-    
+
     /// Флаг остановки
     pub killed: bool,
 }

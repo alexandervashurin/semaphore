@@ -28,7 +28,7 @@ pub mod cmd_version;
 use clap::{Parser, Subcommand};
 use std::sync::Arc;
 use crate::config::{Config, DbDialect};
-use crate::db::{SqlStore, BoltStore};
+use crate::db::SqlStore;
 
 pub use cmd_migrate::MigrateCommand;
 pub use cmd_project::ProjectCommand;
@@ -327,11 +327,10 @@ impl Cli {
         // Переопределение из аргументов командной строки
         if let Some(db_dialect) = self.db_dialect {
             config.database.dialect = match db_dialect.as_str() {
-                "bolt" => DbDialect::Bolt,
                 "sqlite" => DbDialect::SQLite,
                 "mysql" => DbDialect::MySQL,
                 "postgres" => DbDialect::Postgres,
-                _ => DbDialect::Bolt,
+                _ => DbDialect::SQLite,
             };
         }
 
@@ -529,12 +528,7 @@ fn cmd_version() -> anyhow::Result<()> {
 fn create_store(config: &Config) -> anyhow::Result<Box<dyn crate::db::Store + Send + Sync>> {
     let database_url = config.database_url().map_err(|e| anyhow::anyhow!("{}", e))?;
 
-    let store: Box<dyn crate::db::Store + Send + Sync> = match config.database.dialect.unwrap_or(DbDialect::SQLite) {
-        DbDialect::Bolt => {
-            let path = config.database.path.as_ref()
-                .ok_or_else(|| anyhow::anyhow!("Путь к базе данных не указан"))?;
-            Box::new(BoltStore::new(path).map_err(|e| anyhow::anyhow!("{}", e))?)
-        }
+    let store: Box<dyn crate::db::Store + Send + Sync> = match config.database.dialect.clone().unwrap_or(DbDialect::SQLite) {
         DbDialect::SQLite | DbDialect::MySQL | DbDialect::Postgres => {
             Box::new(
                 tokio::runtime::Builder::new_current_thread()

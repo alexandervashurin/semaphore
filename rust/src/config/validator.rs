@@ -67,10 +67,6 @@ impl Validate for DbConfig {
             Some(DbDialect::MySQL) | Some(DbDialect::Postgres) | Some(DbDialect::SQLite) => {
                 // OK
             }
-            Some(DbDialect::Bolt) => {
-                // Deprecated
-                eprintln!("Warning: Bolt dialect is deprecated, use SQLite instead");
-            }
             None => {
                 return Err(ValidationError {
                     field: "db.dialect".to_string(),
@@ -78,7 +74,7 @@ impl Validate for DbConfig {
                 });
             }
         }
-        
+
         // Проверка hostname для MySQL/Postgres
         if matches!(self.dialect, Some(DbDialect::MySQL) | Some(DbDialect::Postgres)) {
             if self.hostname.is_empty() {
@@ -88,7 +84,7 @@ impl Validate for DbConfig {
                 });
             }
         }
-        
+
         // Проверка db_name для SQLite
         if matches!(self.dialect, Some(DbDialect::SQLite)) {
             if self.db_name.is_empty() {
@@ -98,7 +94,7 @@ impl Validate for DbConfig {
                 });
             }
         }
-        
+
         Ok(())
     }
 }
@@ -197,20 +193,15 @@ pub fn validate_config(config: &Config) -> std::result::Result<(), Vec<Validatio
 pub fn validate_config_with_warnings(config: &Config) -> (std::result::Result<(), Vec<ValidationError>>, Vec<String>) {
     let mut warnings = Vec::new();
     
-    // Проверка на deprecated настройки
-    if config.database.dialect == Some(DbDialect::Bolt) {
-        warnings.push("Bolt database dialect is deprecated, use SQLite instead".to_string());
-    }
-    
     // Проверка на insecure настройки
     if config.cookie_hash.len() < 32 {
         warnings.push("Cookie hash is too short, should be at least 32 bytes".to_string());
     }
-    
+
     if config.cookie_encryption.len() < 32 {
         warnings.push("Cookie encryption key is too short, should be at least 32 bytes".to_string());
     }
-    
+
     let result = validate_config(config);
     (result, warnings)
 }

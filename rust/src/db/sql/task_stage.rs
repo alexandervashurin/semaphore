@@ -192,22 +192,22 @@ mod tests {
     #[tokio::test]
     async fn test_create_and_get_task_stage() {
         let db = create_test_db().await;
-        
+
         let stage = TaskStage {
             id: 0,
             task_id: 1,
             project_id: 1,
-            stage_type: TaskStageType::InstallRoles,
+            r#type: TaskStageType::Init,
             start: Some(Utc::now()),
             end: None,
         };
-        
+
         let created = db.create_task_stage(stage.clone()).await.unwrap();
         assert!(created.id > 0);
-        
+
         let stages = db.get_task_stages(1, 1).await.unwrap();
         assert!(stages.len() >= 1);
-        
+
         // Cleanup
         let _ = db.close().await;
     }
@@ -215,26 +215,26 @@ mod tests {
     #[tokio::test]
     async fn test_update_task_stage() {
         let db = create_test_db().await;
-        
+
         let stage = TaskStage {
             id: 0,
             task_id: 1,
             project_id: 1,
-            stage_type: TaskStageType::InstallRoles,
+            r#type: TaskStageType::Init,
             start: Some(Utc::now()),
             end: None,
         };
-        
+
         let created = db.create_task_stage(stage).await.unwrap();
-        
+
         let mut updated = created.clone();
         updated.end = Some(Utc::now());
-        
+
         db.update_task_stage(updated).await.unwrap();
-        
+
         let stages = db.get_task_stages(1, 1).await.unwrap();
         assert!(stages[0].end.is_some());
-        
+
         // Cleanup
         let _ = db.close().await;
     }

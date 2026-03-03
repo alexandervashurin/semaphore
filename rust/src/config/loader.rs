@@ -119,6 +119,8 @@ fn merge_db_configs(first: DbConfig, second: DbConfig) -> DbConfig {
         password: if !second.password.is_empty() { second.password } else { first.password },
         db_name: if !second.db_name.is_empty() { second.db_name } else { first.db_name },
         options: if !second.options.is_empty() { second.options } else { first.options },
+        path: second.path.or(first.path),
+        connection_string: second.connection_string.or(first.connection_string),
     }
 }
 
@@ -139,7 +141,7 @@ fn merge_ha_configs(first: HAConfig, second: HAConfig) -> HAConfig {
             port: if second.redis.port != 0 { second.redis.port } else { first.redis.port },
             password: if !second.redis.password.is_empty() { second.redis.password } else { first.redis.password },
         },
-        node_id: if !second.ha.node_id.is_empty() { second.ha.node_id } else { first.ha.node_id },
+        node_id: if !second.node_id.is_empty() { second.node_id } else { first.node_id },
     }
 }
 
@@ -165,10 +167,10 @@ pub fn load_config(config_path: Option<&str>) -> Result<Config> {
     }
     
     // 5. Инициализируем HA node ID если нужно
-    if config.ha_enabled() && config.ha.node_id.is_empty() {
+    if config.ha_enabled() && config.node_id.is_empty() {
         config.init_ha_node_id();
     }
-    
+
     Ok(config)
 }
 

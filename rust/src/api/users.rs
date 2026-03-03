@@ -100,7 +100,7 @@ impl UsersController {
         user_to_update.name = user.name;
         user_to_update.email = user.email;
 
-        state.store.update_user(user_to_update).await?;
+        state.store.update_user(user_to_update.clone()).await?;
         Ok(Json(user_to_update))
     }
 

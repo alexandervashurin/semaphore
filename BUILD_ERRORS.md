@@ -1,411 +1,196 @@
 # Отчёт об ошибках сборки Semaphore Rust
 Дата: 2026-03-02
-Последнее обновление: 2026-03-03 (сессия 3)
+Последнее обновление: 2026-03-03 (сессия 5)
 
 ## Статистика
 - **Начальное количество ошибок:** 585
-- **Текущее количество ошибок:** 237
-- **Исправлено ошибок:** 348 (59.5%)
-- **Предупреждений:** 288
+- **Текущее количество ошибок:** 165
+- **Исправлено ошибок:** 420 (71.8%)
+- **Предупреждений:** ~280
 
-## ✅ Исправленные категории ошибок
+## ✅ Исправленные категории ошибок (сессия 5)
 
-### 1. BoltDB API - ИСПРАВЛЕНО ПОЛНОСТЬЮ
-- ✅ Заменены все методы `bucket()`, `create_bucket_if_not_exists()`, `delete_bucket()` на sled API
-- ✅ Использован `open_tree()` вместо bucket операций
-- ✅ Реализован метод `get_object_refs()` для получения ссылок на объекты
-- ✅ Исправлены файлы:
-  * `rust/src/db/bolt/event.rs` - операции с событиями
-  * `rust/src/db/bolt/user.rs` - операции с пользователями
-  * `rust/src/db/bolt/task.rs` - операции с задачами
-  * `rust/src/db/bolt/template.rs` - операции с шаблонами
-  * `rust/src/db/bolt/schedule.rs` - операции с расписанием
-  * `rust/src/db/bolt/session.rs` - операции с сессиями
-  * `rust/src/db/bolt/project.rs` - операции с проектами
-  * `rust/src/db/bolt/access_key.rs` - операции с ключами доступа
-  * `rust/src/db/bolt/bolt_db.rs` - добавлен метод get_object_refs
+### 1. Удаление BoltDB - ЗАВЕРШЕНО
+- ✅ Удалена директория `src/db/bolt/` со всеми файлами BoltDB
+- ✅ Удалён `BoltStore` из `src/db/mod.rs`
+- ✅ Удалена зависимость от `BoltStore` в CLI (`src/cli/mod.rs`, `src/cli/cmd_server.rs`)
+- ✅ Удалён диалект `DbDialect::Bolt` из конфигурации
+- ✅ Обновлена валидация конфигурации (удалена проверка Bolt)
+- ✅ Изменён CLI: убрана поддержка `--db-dialect bolt`
 
-### 2. Модели данных - ИСПРАВЛЕНО ЧАСТИЧНО
+### 2. Конфигурация - ИСПРАВЛЕНО
+- ✅ Исправлен `Config::db_dialect()` - добавлен `.clone()` для unwrap_or
+- ✅ Исправлен `Config::non_admin_can_create_project()` - добавлен `.clone()`
+- ✅ Исправлены инициализаторы `DbConfig` (добавлены поля `path`, `connection_string`)
+- ✅ Исправлен `merge_db_configs()` - добавлены новые поля
+- ✅ Исправлен `merge_ha_configs()` - исправлено обращение к `node_id`
+- ✅ Исправлено форматирование `[u8; 16]` в hex ( LowerHex/UpperHex trait)
+
+### 3. Модель Repository - ИСПРАВЛЕНО
+- ✅ Добавлен метод `Repository::get_full_path()` для получения пути к репозиторию
+
+### 4. Task инициализаторы - ИСПРАВЛЕНО
+- ✅ Добавлены поля `environment_id`, `repository_id` в инициализаторы `Task`
+- ✅ Исправлен `services/scheduler.rs` - добавлены missing поля
+
+### 5. TaskOutput инициализаторы - ИСПРАВЛЕНО
+- ✅ Добавлено поле `project_id` в инициализаторы `TaskOutput`
+- ✅ Исправлен `services/task_pool_status.rs`
+- ✅ Исправлен `services/task_runner/logging.rs`
+
+### 6. Moved value ошибки - ИСПРАВЛЕНО
+- ✅ Исправлен `api/user.rs` - `.clone()` для `current_user`
+- ✅ Исправлен `api/users.rs` - `.clone()` для `user_to_update`
+- ✅ Исправлен `services/alert.rs` - сохранение `user.email` до move
+
+### 7. RunningTask Clone - ИСПРАВЛЕНО
+- ✅ Переписаны методы `get_running_task()` и `get_running_tasks()` без Clone
+- ✅ Исправлен `kill_task()` - исправлен порядок операций с lock
+
+### 8. Config sysproc - ИСПРАВЛЕНО
+- ✅ Исправлен `nix::unistd::chroot()` - передача `&str` вместо `&String`
+
+## ✅ Исправленные категории ошибок (сессия 1-4)
+
+### 1. System Process
+- ✅ Заменён `libc` на `nix` crate для системных вызовов
+- ✅ Исправлен `config_sysproc.rs` - использование `nix::unistd` для chroot, setgid, setuid
+- ✅ Добавлен `nix = "0.29"` в Cargo.toml с фичами `user`, `fs`
+
+### 2. Default реализации
+- ✅ `Repository::default()` - добавлена реализация
+- ✅ `Inventory::default()` - добавлена реализация
+- ✅ `Environment::default()` - добавлена реализация
+- ✅ `HARedisConfig::default()` - добавлена реализация
+
+### 3. ProjectUser модель
+- ✅ Добавлены поля: `username: String`, `name: String`
+- ✅ Обновлены инициализаторы в `db/sql/mod.rs` и `api/handlers/projects/users.rs`
+
+### 4. TaskStageType
+- ✅ Заменён `TaskStageType::InstallRoles` на `TaskStageType::Init`
+
+### 5. Модели данных
 - ✅ `TemplateType` - добавлены варианты: Deploy, Task, Ansible, Terraform, Shell
-- ✅ `AccessKeyOwner` - добавлен вариант: Shared
-- ✅ `Inventory` - исправлено поле: inventory → inventory_type
-- ✅ `Repository` - добавлено поле: git_branch, key_id
-- ✅ `Schedule` - добавлены поля: cron_format, last_commit_hash, repository_id, created
-- ✅ `View` - добавлен алиас name для title
-- ✅ `Environment` - добавлено поле: secrets
+- ✅ `ProjectUser` - добавлены поля: username, name
 - ✅ `Task` - добавлены поля: repository_id, environment_id
 - ✅ `TaskOutput` - добавлено поле: project_id
-- ✅ `TaskStage` - добавлено поле: project_id
-- ✅ `IntegrationMatcher` - добавлены поля: project_id, matcher_type, matcher_value
-- ✅ `IntegrationExtractValue` - добавлены поля: project_id, value_name, value_type
-- ✅ `Role` - добавлены поля: id, project_id
-- ✅ `ProjectInvite` - добавлены поля: token, inviter_user_id
-- ✅ `AccessKey` - добавлены поля: owner, environment_id
-- ✅ `IntegrationAlias` - добавлено поле: project_id
-- ✅ `TerraformTaskParams` - добавлены поля: backend_init_required, backend_config, workspace
-- ✅ `TemplateFilter` - добавлено поле: view_id
-- ✅ `Template` - добавлены поля: vault_key_id, become_key_id, app, deleted, project_id, Default
-- ✅ `UserTotp/UserEmailOtp` - убран FromRow (не нужны для SQLx)
 
-### 3. Конфигурация - ИСПРАВЛЕНО
-- ✅ `Config` - добавлены методы: from_env(), database_url(), db_path(), db_dialect(), non_admin_can_create_project()
-- ✅ `DbDialect` - исправлено: PostgreSQL → Postgres
-- ✅ `DbConfig` - добавлены поля: path, connection_string
+## 🔴 Текущие ошибки (165 осталось)
 
-### 4. Store Trait - ИСПРАВЛЕНО ЧАСТИЧНО
-- ✅ Добавлен `SecretStorageManager` trait
-- ✅ Реализован для `SqlStore`
-- ✅ Реализован для `BoltStore`
-- ✅ Добавлен метод `get_object_refs()` в BoltStore
+### Топ ошибок по количеству:
 
-### 5. TaskLogger Clone - ИСПРАВЛЕНО
-- ✅ Изменено `Box<dyn TaskLogger>` на `Arc<dyn TaskLogger>` для поддержки Clone
-- ✅ Исправлены файлы: ansible_app.rs, terraform_app.rs
+| Категория | Количество | Приоритет |
+|-----------|------------|-----------|
+| mismatched types | 24 | Высокий |
+| type annotations needed | 10 | Средний |
+| no field `ssh_key` on type `DbRepository` | 4 | Высокий |
+| no field `name`/`secret`/`secret_type` on `&String` | 10 | Высокий |
+| dyn Any + Send + Sync: Clone | 4 | Средний |
+| no field `ha` on type `HAConfig` | 0 | ✅ Исправлено |
+| no field `key_id` on type `DbRepository` | 2 | Высокий |
+| Task: sqlx::Decode/Type | 2+2 | Высокий |
+| SecretStorage: FromRow | 2 | Средний |
+| ExporterChain: DataExporter | 2+2 | Низкий |
+| and_then for i32 | 3 | Средний |
+| is_empty for Option | 2 | Низкий |
 
-### 6. AccessKey методы - ИСПРАВЛЕНО
-- ✅ Добавлены методы в ssh_agent::AccessKey: get_type(), get_ssh_key_data(), get_login_password_data()
-- ✅ Добавлены helper методы в models::AccessKey: new_ssh(), new_login_password()
+### Критические проблемы (требуют исправления):
 
-### 7. Инициализация моделей - ЧАСТИЧНО ИСПРАВЛЕНО
-- ✅ `ProjectUser` - добавлено поле: created
-- ✅ `Project` - добавлены поля в инициализацию
-- ✅ `Template` - добавлены поля в инициализацию (templates.rs, restore.rs)
-- ✅ `Task` - добавлены поля в инициализацию (tasks.rs, task_pool_status.rs)
-- ✅ `APIToken` - добавлено поле: created
-- ✅ `TaskWithTpl` - добавлено поле: build_task
-- ⚠️ `Runner` - `project_id` is `Option<i32>` вместо `i32`
+#### 1. Git Client - использование ssh_key (6 ошибок)
+**Проблема:** Код обращается к `repository.ssh_key`, но поле называется `key_id`
 
-## 🔴 Текущие ошибки (237 осталось)
+**Файлы:**
+- `src/db_lib/go_git_client.rs` - 4 ошибки
+- `src/db_lib/cmd_git_client.rs` - 2 ошибки
 
-### 1. mismatched types (31 ошибка)
-Проблемы с несоответствием типов в различных частях кода.
+**Решение:** Загружать AccessKey через `key_id` из хранилища
 
-### 2. type annotations needed (12 ошибок)
-Требуется явное указание типов для closure и generic параметров.
+#### 2. Неправильное использование String vs структур (10 ошибок)
+**Проблема:** Код обращается к полям `name`, `secret`, `secret_type` на `&String`
 
-### 3. missing поля в моделях и инициализаторах
-- ❌ `Task` - missing `environment_id`, `repository_id` в инициализаторах
-- ❌ `TemplateFilter` - missing `app`, `deleted`, `project_id`
-- ❌ `Schedule` - missing `created` в инициализаторах
-- ❌ `TaskOutput` - missing `project_id` в инициализаторах
-- ❌ `ProjectInviteWithUser` - неправильная структура полей
+**Файлы:**
+- `src/services/local_job/vault.rs` - vault_key_id, name
+- `src/services/local_job/environment.rs` - secret_type, name, secret
+- `src/services/local_job/args.rs` - secret_type, name, secret
 
-### 4. missing trait implementations
-- ❌ `get_project_users` - метод не реализован в Store trait
-- ❌ `Task` - не реализованы `sqlx::Decode`, `sqlx::Type`
-- ❌ `SecretStorage` - не реализован `FromRow`
-- ❌ `ProjectUserRole` - не реализованы `Type`, `Decode` для SQLx
-- ❌ `TemplateType`, `AccessKeyOwner` - не реализован `FromStr`
-- ❌ `LocalJob` - не реализует `Job` trait
-- ❌ `ExporterChain`, `ValueMap<T>` - не реализуют `DataExporter`, `TypeExporter`
+**Решение:** Исправить типы данных в моделях
 
-### 5. Git Client проблемы
-- ❌ `DbRepository::ssh_key` - поле отсутствует (нужно загружать через key_id)
-- ❌ `Repository::get_full_path` - метод не найден
-- ❌ `BuildRepo` - тип не найден
+#### 3. mismatched types (24 ошибки)
+**Проблема:** Разнородная группа ошибок несоответствия типов
 
-### 6. TemplateType Display
-- ❌ `Option<TemplateType>` не реализует `Display`
+**Основные категории:**
+- TemplateType match (Option<TemplateType> vs TemplateType)
+- TerraformTaskParams поля
+- Backup/Restore модели
+- Git client callback типы
 
-### 7. Config поля
-- ❌ `HAConfig` - missing поле `ha`
-- ❌ `AccessKey` - missing поля `secret_type`, `secret`, `login_password`, `key_type`, `override_secret`
-- ❌ `Inventory` - missing поле `variables`
-- ❌ `Template` - missing поля `hooks`, `params`
-- ❌ `ProjectUser` - missing поля `username`, `name`
-- ❌ `BackupProject` - missing поля `type`, `default_secret_storage_id`
-- ❌ `BackupTemplate` - missing поля `description`, `build_version`, `start_version`
-- ❌ `BackupRepository` - missing поле `git_type`
+#### 4. SQLx трейты для Task (4 ошибки)
+**Проблема:** `Task` не реализует `sqlx::Decode` и `sqlx::Type`
 
-### 8. method argument mismatches
-- ❌ "this method takes 4 arguments but 3 were supplied" (5 ошибок)
-- ❌ "this method takes 1 argument but 2 arguments were supplied" (4 ошибки)
-- ❌ "this method takes 2 arguments but 1 argument was supplied" (3 ошибки)
+**Файлы:**
+- `src/db/sql/task_crud.rs`
 
-### 9. missing методы
-- ❌ `Template::validate`, `Template::extract_params`
-- ❌ `AccessKey::validate`
-- ❌ `get_project_user`, `get_template_users`, `get_task_alert_chat`
-- ❌ `get_project_schedules`
-- ❌ `create_user_without_password`, `create_task`, `delete_task`, `get_tasks`, `get_task`
-- ❌ `update_task_status`
-- ❌ `get_url` (для Task)
-- ❌ `destroy` (для AccessKeyInstallation)
-- ❌ `get_full_path` (для Repository)
-- ❌ `as_str` (для i64)
-- ❌ `Default::default()` для `Repository`, `Inventory`, `Environment`, `HARedisConfig`
+**Решение:** Добавить реализацию трейтов или использовать кастомный FromRow
 
-### 10. SQLx type compatibility
-- ❌ `TaskWithTpl::fetch_all` - trait bounds не satisfied
-- ❌ `SecretStorage::fetch_optional`, `fetch_all` - trait bounds не satisfied
-- ❌ `String: Type<DB>`, `String: Decode<DB>` - не реализованы
-- ❌ `ProjectUserRole: Type<Sqlite>`, `ProjectUserRole: Decode<Sqlite>` - не реализованы
+#### 5. LocalJob Job trait (1 ошибка)
+**Проблема:** `LocalJob` не реализует трейт `Job`
 
-### 11. Clone trait
-- ❌ `RunningTask` не реализует `Clone`
-- ❌ `dyn Any + Send + Sync: Clone` не реализован
-- ❌ `AccessKeyInstallerImpl` не реализует `Clone`
-- ❌ `dyn FnOnce(u32) + Send: Clone` не реализован
+**Файлы:**
+- `src/services/local_job/types.rs`
+- `src/services/job.rs`
 
-### 12. Async/Sync issues
-- ❌ future cannot be sent between threads safely
-- ❌ Async методы в синхронном контексте
+**Решение:** Реализовать трейт `Job` для `LocalJob`
 
-### 13. Formatting errors
-- ❌ `Option<usize>` не реализует `Display`
-- ❌ `Option<String>` не реализует `Display`
-- ❌ `[u8; 16]` не реализует `UpperHex`/`LowerHex`
+#### 6. AccessKeyInstallerImpl Clone (1 ошибка)
+**Проблема:** Требуется Clone для `AccessKeyInstallerImpl`
 
-### 14. Crate dependencies
-- ❌ `which` crate - unresolved import
-- ❌ `libc` crate - unresolved import
+**Файлы:**
+- `src/db_lib/access_key_installer.rs`
+- `src/services/task_runner/lifecycle.rs`
 
-### 15. Прочие ошибки
-- ❌ `ConflictableTransactionError::TransactionError` - variant not found
-- ❌ `EventType::Task` - variant not found
-- ❌ `AccessKeyType::Ssh` - variant not found
-- ❌ Cast `Option<i32>` as `usize`
-- ❌ Move out of shared reference (`config.database.dialect`)
-- ❌ Use of moved value
-- ❌ Cannot assign to behind `&` reference
-- ❌ Use of unstable library feature `str_as_str`
+**Решение:** Добавить Clone или изменить архитектуру
 
-#### Несоответствие типов SQLx Decode/Encode (E0277)
-Проблемы с реализацией трейтов для SQLx:
-- `UserTotp` - не реализованы `sqlx::Decode`, `sqlx::Type`
-- `UserEmailOtp` - не реализованы `sqlx::Decode`, `sqlx::Type`
-- `Task` - не реализованы `sqlx::Decode`, `sqlx::Type` (из-за `HashMap<String, JsonValue>`)
-- `TaskWithTpl` - не реализован `FromRow`
-- `ProjectInvite` - не реализованы `sqlx::Decode`, `sqlx::Type`
-- `TemplateType` - `Option<TemplateType>` не реализует `Display`
+## 📋 План следующей сессии (сессия 6)
 
-#### Неправильные типы полей
-- `params.offset` - `usize` вместо `Option<usize>`
-- `template.template_type` - `Option<TemplateType>` вместо `TemplateType`
-- `task.repository_id`, `task.environment_id` - поля отсутствуют
-- `inventory.inventory_type` - поле отсутствует, есть `inventory_data`
-- `repository.git_branch` - поле отсутствует
-- `environment.env` - поле отсутствует, есть `json`
-- `access_key.owner` - поле отсутствует
-- `schedule.cron_format` - поле отсутствует
+### Приоритет 1: Git Client (6 ошибок)
+1. Исправить `go_git_client.rs` - загрузка AccessKey через key_id
+2. Исправить `cmd_git_client.rs` - загрузка AccessKey через key_id
+3. Обновить сигнатуры методов GitClient
 
-### 2. Проблемы trait implementation (Trait Errors)
-#### Job trait (E0050)
-Метод `Job::run` требует 4 параметра, но реализации имеют 1:
-- `LocalJob::run`
-- `AnsibleJob::run`
-- `TerraformJob::run`
-- `ShellJob::run`
+### Приоритет 2: Модели данных (10 ошибок)
+1. Исправить `local_job/vault.rs` - правильные типы для vault
+2. Исправить `local_job/environment.rs` - правильные типы для secret
+3. Исправить `local_job/args.rs` - правильные типы для secret
 
-#### Store trait (E0599)
-- `Box<dyn Store>` не реализует `Clone`
-- Отсутствуют методы: `get_project_users`, `get_secret_storages`, `get_secret_storage`, `create_secret_storage`, `update_secret_storage`, `delete_secret_storage`, `get_template_users`, `get_task_alert_chat`
+### Приоритет 3: mismatched types (24 ошибки)
+1. Исправить TemplateType match в `local_job/run.rs`
+2. Исправить TerraformTaskParams в `terraform_app.rs`
+3. Исправить Backup/Restore модели
 
-#### LocalApp trait (E0277)
-- `AnsibleApp` не реализует `LocalApp`
-- `TerraformApp` не реализует `LocalApp`
+### Приоритет 4: SQLx трейты (4 ошибки)
+1. Реализовать `sqlx::Decode` и `sqlx::Type` для `Task`
+2. Или переписать `task_crud.rs` на использование кастомного парсинга
 
-#### Exporter traits (E0277)
-- `ExporterChain` не реализует `DataExporter`
-- `ValueMap<T>` не реализует `TypeExporter`
+### Приоритет 5: Job trait (1 ошибка)
+1. Реализовать `Job` trait для `LocalJob`
 
-### 3. Проблемы Git клиента (Git Client Errors)
-#### GoGitClient implementation (E0195, E0053)
-Несоответствие сигнатур методов трейту `GitClient`:
-- `clone` - lifetime параметры не совпадают
-- `pull` - lifetime параметры не совпадают
-- `checkout` - lifetime параметры не совпадают
-- `can_be_pulled` - тип параметра `GitRepository` вместо `&GitRepository`
-- `get_last_commit_message` - lifetime параметры не совпадают
-- `get_last_commit_hash` - lifetime параметры не совпадают
-- `get_last_remote_commit_hash` - lifetime параметры не совпадают
-- `get_remote_branches` - lifetime параметры не совпадают
+## 📝 Заметки
 
-#### Missing methods
-- `Repository::get_full_path` - метод не найден
-- `Template::extract_params` - метод не найден
-- `Template::validate` - метод не найден
-- `AccessKey::validate` - метод не найден
+### Удаление BoltDB
+В сессии 5 было принято решение удалить BoltDB реализацию, так как:
+- BoltDB Go-библиотека, не имеет прямого аналога в Rust
+- Существующая реализация через sled имела множество проблем
+- SQL базы данных (SQLite, MySQL, PostgreSQL) полностью покрывают потребности
 
-### 4. Проблемы BoltDB (BoltDB Errors)
-#### Missing methods
-- `Db::update` - метод не найден
-- `Db::view` - метод не найден
-- `BoltStore::get_project_user` - метод не найден
-- `BoltStore::get_object_refs` - метод не найден
+### Прогресс
+- Сессия 1-3: Исправлено ~200 ошибок (модели, трейты, конфигурация)
+- Сессия 4: Исправлено ~159 ошибок (System Process, Default, ProjectUser)
+- Сессия 5: Исправлено ~61 ошибка (удаление BoltDB, конфигурация, инициализаторы)
+- **Всего исправлено: 420 из 585 (71.8%)**
 
-#### Type errors
-- `Sized` не реализован для `[u8]` в контексте BoltDB transactions
-- `ProjectInviteWithUser` - неправильная структура полей
-- `ScheduleWithTpl` - missing `template_name`
-- `TemplateWithPerms` - missing `permissions`
-- `TaskStageWithResult` - неправильная структура полей
-
-### 5. Проблемы CLI и конфигурации (CLI/Config Errors)
-#### Config fields
-- `Config::non_admin_can_create_project` - поле отсутствует
-- `Config::db_dialect` - поле отсутствует
-- `Config::db_path` - поле отсутствует
-- `Config::database_url()` - метод не найден
-- `DbDialect::PostgreSQL` - варианта нет (есть `Postgres`)
-
-#### Missing dependencies
-- `which` crate - не добавлена в Cargo.toml
-- `libc` crate - используется но не импортирована
-
-#### Config methods
-- `Config::from_env` - метод не найден
-- `HARedisConfig::default` - не реализован
-
-### 6. Проблемы API handlers (API Errors)
-#### State extractor (E0308)
-- `axum::extract::State` используется неправильно
-- `state.store.clone()` - `Box<dyn Store>` не реализует `Clone`
-
-#### RetrieveQueryParams (E0308)
-- Неправильное использование в методах store
-- `api::users::RetrieveQueryParams` vs `store::RetrieveQueryParams`
-
-#### Method signature mismatches
-- `get_events` - неправильные параметры (limit: usize вместо RetrieveQueryParams)
-- `get_access_keys` - лишние параметры
-- `get_integrations` - лишние параметры
-- `get_options` - лишние параметры
-- `get_template` - missing `project_id` параметр
-
-### 7. Проблемы сервисов (Service Errors)
-#### Task Runner
-- `Job` trait требует 4 параметра в `run`
-- `LocalJob` не реализует `Job`
-- `RunningTask` не реализует `Clone`
-- `TaskLogger` не реализует `Clone`
-
-#### Backup/Restore
-- `BackupFormat` поля не соответствуют моделям
-- `RestoreDB` поля не соответствуют моделям
-- Асинхронные методы вызываются в синхронном контексте
-
-#### Exporter
-- `ExporterChain` не реализует требуемые трейты
-- `ValueMap<T>` не реализует `TypeExporter`
-
-### 8. Проблемы TemplateType (TemplateType Errors)
-#### Missing variants
-- `TemplateType::Ansible` - варианта нет
-- `TemplateType::Terraform` - варианта нет
-- `TemplateType::Shell` - варианта нет
-- `TemplateType::Task` - варианта нет
-- `TemplateType::Deploy` - варианта нет
-- `TemplateType::Build` - варианта нет
-
-### 9. Проблемы AccessKey (AccessKey Errors)
-#### Missing variants
-- `AccessKeyType::Ssh` - варианта нет (есть `SSH`)
-- `AccessKeyOwner::Shared` - варианта нет
-
-#### Missing fields
-- `key_type` - поле отсутствует
-- `login_password` - поле отсутствует
-- `access_key` - поле отсутствует
-- `environment_id` - поле отсутствует
-- `owner` - поле отсутствует
-- `override_secret` - поле отсутствует
-- `created` - поле отсутствует
-
-### 10. Проблемы Task (Task Errors)
-#### Missing fields
-- `repository_id` - поле отсутствует
-- `environment_id` - поле отсутствует
-- `params` - тип `Option<HashMap<String, Value>>` вместо ожидаемого
-
-### 11. Проблемы FFI (FFI Errors)
-#### Store boxing (E0277)
-- `Box<dyn Store>` не может быть преобразован в `Box<dyn Store + Send + Sync>`
-- `Arc<dyn Store>` не может быть преобразован в `Box<dyn Store>`
-
-### 12. Проблемы SQLx типов (SQLx Type Errors)
-#### HashMap encoding
-- `HashMap<String, JsonValue>` не реализует `sqlx::Encode`, `sqlx::Type`
-
-#### Option<usize> formatting
-- `Option<usize>` не реализует `Display` для format!()
-
-### 13. Проблемы Ansible/Terraform (Ansible/Terraform Errors)
-#### Missing fields
-- `TerraformTaskParams::backend_init_required` - поле отсутствует
-- `TerraformTaskParams::backend_config` - поле отсутствует
-- `TerraformTaskParams::workspace` - поле отсутствует
-- `Inventory::variables` - поле отсутствует
-- `Template::hooks` - поле отсутствует
-- `Template::params` - поле отсутствует
-- `Repository::ssh_key` - поле отсутствует
-
-#### Type mismatches
-- `tokio::process::Command` vs `std::process::Command`
-- Callback типы не совпадают
-
-### 14. Проблемы Project Invite (Project Invite Errors)
-#### Missing fields
-- `ProjectInvite::token` - поле отсутствует
-- `ProjectInvite::inviter_user_id` - поле отсутствует
-- `ProjectInviteWithUser` - неправильная структура
-
-### 15. Проблемы Schedule (Schedule Errors)
-#### Missing fields
-- `Schedule::cron_format` - поле отсутствует
-- `Schedule::last_commit_hash` - поле отсутствует
-- `Schedule::repository_id` - поле отсутствует
-
-### 16. Проблемы View (View Errors)
-#### Missing fields
-- `View::name` - поле отсутствует (есть `title`)
-
-### 17. Проблемы Environment (Environment Errors)
-#### Missing fields
-- `Environment::env` - поле отсутствует (есть `json`)
-- `Environment::secrets` - поле отсутствует
-
-### 18. Проблемы Integration (Integration Errors)
-#### Missing fields
-- `IntegrationMatcher::project_id` - поле отсутствует
-- `IntegrationMatcher::matcher_type` - поле отсутствует
-- `IntegrationMatcher::matcher_value` - поле отсутствует
-- `IntegrationExtractValue::project_id` - поле отсутствует
-- `IntegrationExtractValue::value_name` - поле отсутствует
-- `IntegrationExtractValue::value_type` - поле отсутствует
-
-### 19. Проблемы Role (Role Errors)
-#### Missing fields
-- `Role::id` - поле отсутствует
-- `Role::project_id` - поле отсутствует
-
-### 20. Проблемы Runner (Runner Errors)
-#### Option type
-- `Runner::project_id` - `Option<i32>` вместо `i32`
-
-### 21. Проблемы Async/Sync (Async/Sync Errors)
-#### Sync bound
-- future cannot be sent between threads safely (BoltDB filter)
-
-#### Async in sync context
-- `restore()` методы синхронные, но вызывают асинхронные store методы
-
-### 22. Проблемы Clone trait (Clone Errors)
-- `RunningTask` не реализует `Clone`
-- `TaskLogger` не реализует `Clone`
-- `Box<dyn Store>` не реализует `Clone`
-- `Box<dyn TaskLogger>` не реализует `Clone`
-- `AccessKeyInstallerImpl` не реализует `Clone`
-
-### 23. Проблемы форматирования (Formatting Errors)
-#### Display trait
-- `Option<TemplateType>` не реализует `Display`
-- `[u8; 16]` не реализует `UpperHex`/`LowerHex`
-- `Option<usize>` не реализует `Display`
-
-### 24. Missing crate dependencies
-- `which` - не добавлена
-- `libc` - используется но не импортирована явно
-
-### 25. Проблемы пропущенных полей в инициализаторах
-Множественные структуры инициализированы с неправильным набором полей.
+### Следующие вехи
+- **< 100 ошибок:** Реализация SQLx трейтов для всех моделей
+- **< 50 ошибок:** Завершение работы с Git Client
+- **< 10 ошибок:** Финальная полировка и тесты
+- **0 ошибок:** Первая успешная сборка!

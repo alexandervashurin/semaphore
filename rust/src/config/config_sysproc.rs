@@ -4,7 +4,7 @@
 
 use std::os::unix::process::CommandExt;
 use std::process::Command;
-use libc;
+use nix;
 
 /// Конфигурация процесса
 #[derive(Debug, Clone, Default)]
@@ -20,16 +20,14 @@ pub struct ProcessConfig {
 /// # Безопасность
 ///
 /// Эта функция должна вызываться только перед exec()
+#[cfg(unix)]
 pub fn configure_process_command(cmd: &mut Command, config: &ProcessConfig) -> std::io::Result<()> {
     // Устанавливаем chroot если указан
     if let Some(ref chroot) = config.chroot {
+        let chroot = chroot.clone();
         unsafe {
             cmd.pre_exec(move || {
-                use std::os::unix::ffi::OsStrExt;
-                let path = std::ffi::CStr::from_bytes_with_nul_unchecked(
-                    format!("{}\0", chroot).as_bytes()
-                );
-                libc::chroot(path.as_ptr());
+                nix::unistd::chroot(chroot.as_str()).map_err(std::io::Error::from)?;
                 Ok(())
             });
         }
@@ -37,9 +35,10 @@ pub fn configure_process_command(cmd: &mut Command, config: &ProcessConfig) -> s
 
     // Устанавливаем GID если указан
     if let Some(gid) = config.gid {
+        let gid = nix::unistd::Gid::from_raw(gid);
         unsafe {
             cmd.pre_exec(move || {
-                libc::setgid(gid);
+                nix::unistd::setgid(gid).map_err(std::io::Error::from)?;
                 Ok(())
             });
         }
@@ -50,17 +49,11 @@ pub fn configure_process_command(cmd: &mut Command, config: &ProcessConfig) -> s
         let username = username.clone();
         unsafe {
             cmd.pre_exec(move || {
-                use std::ffi::CString;
-                
                 // Получаем UID пользователя
-                let c_username = CString::new(username.as_str()).unwrap();
-                let pwd = libc::getpwnam(c_username.as_ptr());
-                
-                if !pwd.is_null() {
-                    let uid = (*pwd).pw_uid;
-                    libc::setuid(uid);
-                }
-                
+                let user = nix::unistd::User::from_name(&username)
+                    .map_err(std::io::Error::from)?
+                    .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "User not found"))?;
+                nix::unistd::setuid(user.uid).map_err(std::io::Error::from)?;
                 Ok(())
             });
         }

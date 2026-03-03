@@ -89,7 +89,7 @@ impl HAConfigFull {
         let mut rng = rand::thread_rng();
         let mut bytes = [0u8; 16];
         rng.fill_bytes(&mut bytes);
-        self.node_id = format!("{:x}", bytes);
+        self.node_id = bytes.iter().map(|b| format!("{:02x}", b)).collect::<String>();
     }
     
     /// Получает Node ID или генерирует новый

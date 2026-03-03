@@ -24,6 +24,14 @@ pub struct ProjectUser {
 
     /// Дата создания
     pub created: DateTime<Utc>,
+
+    /// Имя пользователя (логин)
+    #[sqlx(default)]
+    pub username: String,
+
+    /// Полное имя пользователя
+    #[sqlx(default)]
+    pub name: String,
 }
 
 impl ProjectUser {
@@ -35,6 +43,8 @@ impl ProjectUser {
             user_id,
             role,
             created: Utc::now(),
+            username: String::new(),
+            name: String::new(),
         }
     }
 }

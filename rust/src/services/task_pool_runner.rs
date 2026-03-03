@@ -78,34 +78,47 @@ impl TaskPool {
     /// Останавливает задачу
     pub async fn kill_task(&self, task_id: i32) -> Result<(), String> {
         let mut running = self.running_tasks.write().await;
-        
+
         if let Some(running_task) = running.get_mut(&task_id) {
             running_task.kill();
             info!("Task {} killed", task_id);
-            
-            // Обновляем статус на Stopped
-            drop(running);
-            self.update_task_status(task_id, TaskStatus::Stopped).await?;
-            
+
             // Удаляем из запущенных
             running.remove(&task_id);
-            
-            return Ok(());
+        } else {
+            return Err(format!("Task {} not found", task_id));
         }
-        
-        Err(format!("Task {} not found", task_id))
+
+        drop(running);
+
+        // Обновляем статус на Stopped
+        self.update_task_status(task_id, TaskStatus::Stopped).await?;
+
+        Ok(())
     }
     
     /// Получает запущенную задачу
     pub async fn get_running_task(&self, task_id: i32) -> Option<RunningTask> {
         let running = self.running_tasks.read().await;
-        running.get(&task_id).cloned()
+        running.get(&task_id).map(|rt| RunningTask {
+            task: rt.task.clone(),
+            logger: rt.logger.clone(),
+            start_time: rt.start_time,
+            template: rt.template.clone(),
+            killed: rt.killed,
+        })
     }
-    
+
     /// Получает все запущенные задачи
     pub async fn get_running_tasks(&self) -> std::collections::HashMap<i32, RunningTask> {
         let running = self.running_tasks.read().await;
-        running.clone()
+        running.iter().map(|(k, v)| (*k, RunningTask {
+            task: v.task.clone(),
+            logger: v.logger.clone(),
+            start_time: v.start_time,
+            template: v.template.clone(),
+            killed: v.killed,
+        })).collect()
     }
     
     /// Обрабатывает очередь задач
@@ -113,8 +126,8 @@ impl TaskPool {
         while !self.is_shutdown().await {
             // Проверяем количество запущенных задач
             let running_count = self.running_tasks.read().await.len();
-            let max_parallel = self.project.max_parallel_tasks as usize;
-            
+            let max_parallel = self.project.max_parallel_tasks.unwrap_or(5) as usize;
+
             if running_count >= max_parallel {
                 tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
                 continue;

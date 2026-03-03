@@ -149,7 +149,8 @@ impl AlertService {
                 continue;
             }
 
-            info!("Attempting to send email alert to {}", user.email);
+            let user_email = user.email.clone();
+            info!("Attempting to send email alert to {}", user_email);
 
             let config = SmtpConfig::default(); // TODO: Загрузить из конфига
             let email = Email::new(
@@ -160,7 +161,7 @@ impl AlertService {
             );
 
             if let Err(e) = send_email(&config, &email).await {
-                error!("Failed to send email to {}: {}", user.email, e);
+                error!("Failed to send email to {}: {}", user_email, e);
             }
         }
 

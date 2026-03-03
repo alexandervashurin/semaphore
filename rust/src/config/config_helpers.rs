@@ -61,15 +61,15 @@ pub fn generate_recovery_code() -> (String, String) {
     let mut rng = rand::thread_rng();
     let mut bytes = [0u8; 16];
     rng.fill_bytes(&mut bytes);
-    
-    let code = format!("{:016X}", bytes);
-    
+
+    let code = bytes.iter().map(|b| format!("{:02X}", b)).collect::<String>();
+
     // Хешируем код
     use sha2::{Sha256, Digest};
     let mut hasher = Sha256::new();
     hasher.update(&code);
     let hash = format!("{:x}", hasher.finalize());
-    
+
     (code, hash)
 }
 

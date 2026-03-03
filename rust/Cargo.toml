@@ -129,8 +129,15 @@ version = "4.5"
 features = ["derive", "env"]
 
 # System
-libc = "0.2"
-which = "4"
+[dependencies.libc]
+version = "0.2"
+
+[dependencies.which]
+version = "4"
+
+[dependencies.nix]
+version = "0.29"
+features = ["user", "fs"]
 
 # Тестирование
 [dev-dependencies]

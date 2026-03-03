@@ -156,4 +156,23 @@ impl Inventory {
             vaults: None,
         }
     }
+
+    /// Создаёт инвентарь по умолчанию
+    pub fn default() -> Self {
+        Self {
+            id: 0,
+            project_id: 0,
+            name: String::new(),
+            inventory_type: InventoryType::Static,
+            inventory_data: String::new(),
+            key_id: 0,
+            secret_storage_id: None,
+            ssh_login: "root".to_string(),
+            ssh_port: 22,
+            extra_vars: None,
+            ssh_key_id: None,
+            become_key_id: None,
+            vaults: None,
+        }
+    }
 }

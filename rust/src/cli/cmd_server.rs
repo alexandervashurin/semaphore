@@ -6,7 +6,7 @@ use clap::Args;
 use std::sync::Arc;
 use crate::cli::CliResult;
 use crate::config::Config;
-use crate::db::{SqlStore, BoltStore};
+use crate::db::SqlStore;
 use crate::api;
 
 /// Команда server
@@ -60,12 +60,6 @@ impl ServerCommand {
                     .enable_all()
                     .build()?
                     .block_on(SqlStore::new(&url))?;
-                Ok(Box::new(store))
-            }
-            crate::config::DbDialect::Bolt => {
-                let path = config.database.path.as_ref()
-                    .ok_or("DB path not specified")?;
-                let store = BoltStore::new(path)?;
                 Ok(Box::new(store))
             }
         }

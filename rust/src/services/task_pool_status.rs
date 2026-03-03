@@ -124,6 +124,7 @@ impl TaskPool {
         let task_output = TaskOutput {
             id: 0,
             task_id,
+            project_id: self.project.id,
             output: output.to_string(),
             time: Utc::now(),
             stage_id: None,
@@ -145,10 +146,12 @@ impl TaskPool {
         let params = RetrieveQueryParams {
             offset: 0,
             count: Some(1000),
+            sort_by: None,
+            sort_inverted: false,
             filter: None,
         };
 
-        self.store.get_task_outputs(self.project.id, task_id, &params)
+        self.store.get_task_outputs(task_id)
             .await
             .map_err(|e| format!("Failed to get task outputs: {}", e))
     }

@@ -11,7 +11,6 @@ use validator::Validate;
 #[serde(rename_all = "lowercase")]
 pub enum DbDialect {
     MySQL,
-    Bolt,      // Deprecated
     Postgres,
     SQLite,
 }
@@ -292,12 +291,22 @@ pub struct HAConfig {
 pub struct HARedisConfig {
     #[serde(default)]
     pub host: String,
-    
+
     #[serde(default)]
     pub port: u16,
-    
+
     #[serde(default)]
     pub password: String,
+}
+
+impl Default for HARedisConfig {
+    fn default() -> Self {
+        Self {
+            host: String::new(),
+            port: 6379,
+            password: String::new(),
+        }
+    }
 }
 
 impl Default for HAConfig {
@@ -418,12 +427,12 @@ impl Config {
 
     /// Получает диалект базы данных
     pub fn db_dialect(&self) -> DbDialect {
-        self.database.dialect.unwrap_or(DbDialect::SQLite)
+        self.database.dialect.clone().unwrap_or(DbDialect::SQLite)
     }
 
     /// Проверяет может ли пользователь создавать проекты
     pub fn non_admin_can_create_project(&self) -> bool {
-        self.database.dialect.unwrap_or(DbDialect::SQLite) == DbDialect::SQLite
+        self.database.dialect.clone().unwrap_or(DbDialect::SQLite) == DbDialect::SQLite
     }
 
     /// Генерирует секреты для cookie
@@ -455,7 +464,7 @@ impl Config {
         let mut rng = rand::thread_rng();
         let mut bytes = [0u8; 16];
         rng.fill_bytes(&mut bytes);
-        self.ha.node_id = format!("{:x}", bytes);
+        self.ha.node_id = bytes.iter().map(|b| format!("{:02x}", b)).collect::<String>();
     }
 }
 
