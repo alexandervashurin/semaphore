@@ -80,7 +80,7 @@ impl SqlDb {
     }
 
     /// Конвертирует SQL row в Task
-    fn row_to_task(row: &sqlx::Row) -> Result<Task> {
+    fn row_to_task(row: &sqlx::sqlite::SqliteRow) -> Result<Task> {
         use sqlx::Row;
         
         let params_json: Option<String> = row.try_get("params").ok().flatten();

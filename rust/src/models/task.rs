@@ -235,7 +235,6 @@ pub struct DefaultTaskParams {}
 // SQLx реализации для TaskStatus
 // ============================================================================
 
-#[cfg(feature = "sqlx")]
 impl<DB: sqlx::database::Database> sqlx::Type<DB> for TaskStatus
 where
     String: sqlx::Type<DB>,
@@ -249,7 +248,6 @@ where
     }
 }
 
-#[cfg(feature = "sqlx")]
 impl<'r, DB: sqlx::database::Database> sqlx::Decode<'r, DB> for TaskStatus
 where
     String: sqlx::Decode<'r, DB>,
@@ -260,7 +258,6 @@ where
     }
 }
 
-#[cfg(feature = "sqlx")]
 impl<'q, DB: sqlx::database::Database> sqlx::Encode<'q, DB> for TaskStatus
 where
     DB: 'q,
@@ -276,25 +273,25 @@ where
 // SQLx реализации для TaskStageType
 // ============================================================================
 
-impl<DB: Database> Type<DB> for TaskStageType
+impl<DB: sqlx::database::Database> sqlx::Type<DB> for TaskStageType
 where
-    String: Type<DB>,
+    String: sqlx::Type<DB>,
 {
     fn type_info() -> DB::TypeInfo {
-        <String as Type<DB>>::type_info()
+        <String as sqlx::Type<DB>>::type_info()
     }
 
     fn compatible(ty: &DB::TypeInfo) -> bool {
-        <String as Type<DB>>::compatible(ty)
+        <String as sqlx::Type<DB>>::compatible(ty)
     }
 }
 
-impl<'r, DB: Database> Decode<'r, DB> for TaskStageType
+impl<'r, DB: sqlx::database::Database> sqlx::Decode<'r, DB> for TaskStageType
 where
-    String: Decode<'r, DB>,
+    String: sqlx::Decode<'r, DB>,
 {
-    fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
-        let s = <String as Decode<'r, DB>>::decode(value)?;
+    fn decode(value: <DB as sqlx::database::Database>::ValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
+        let s = <String as sqlx::Decode<'r, DB>>::decode(value)?;
         Ok(match s.as_str() {
             "init" => TaskStageType::Init,
             "terraform_plan" => TaskStageType::TerraformPlan,
@@ -305,18 +302,18 @@ where
     }
 }
 
-impl<'q, DB: Database> Encode<'q, DB> for TaskStageType
+impl<'q, DB: sqlx::database::Database> sqlx::Encode<'q, DB> for TaskStageType
 where
     DB: 'q,
-    String: Encode<'q, DB>,
+    String: sqlx::Encode<'q, DB>,
 {
-    fn encode_by_ref(&self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
+    fn encode_by_ref(&self, buf: &mut <DB as sqlx::database::Database>::ArgumentBuffer<'q>) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
         let s = match self {
             TaskStageType::Init => "init",
             TaskStageType::TerraformPlan => "terraform_plan",
             TaskStageType::Running => "running",
             TaskStageType::PrintResult => "print_result",
         }.to_string();
-        <String as Encode<'q, DB>>::encode(s, buf)
+        <String as sqlx::Encode<'q, DB>>::encode(s, buf)
     }
 }
