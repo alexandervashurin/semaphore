@@ -13,7 +13,10 @@ pub enum SessionVerificationMethod {
     EmailOtp,
 }
 
-impl<DB: Database> Type<DB> for SessionVerificationMethod {
+impl<DB: Database> Type<DB> for SessionVerificationMethod
+where
+    String: Type<DB>,
+{
     fn type_info() -> DB::TypeInfo {
         <String as Type<DB>>::type_info()
     }
@@ -23,7 +26,10 @@ impl<DB: Database> Type<DB> for SessionVerificationMethod {
     }
 }
 
-impl<'r, DB: Database> Decode<'r, DB> for SessionVerificationMethod {
+impl<'r, DB: Database> Decode<'r, DB> for SessionVerificationMethod
+where
+    String: Decode<'r, DB>,
+{
     fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
         let s = <String as Decode<'r, DB>>::decode(value)?;
         Ok(match s.as_str() {
@@ -37,6 +43,7 @@ impl<'r, DB: Database> Decode<'r, DB> for SessionVerificationMethod {
 impl<'q, DB: Database> Encode<'q, DB> for SessionVerificationMethod
 where
     DB: 'q,
+    String: Encode<'q, DB>,
 {
     fn encode_by_ref(&self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
         let s: String = match self {

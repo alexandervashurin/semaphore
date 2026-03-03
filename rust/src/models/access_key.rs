@@ -115,23 +115,26 @@ impl std::fmt::Display for AccessKeyOwner {
     }
 }
 
-impl<DB: Database> Type<DB> for AccessKeyOwner {
+impl<DB: Database> Type<DB> for AccessKeyOwner
+where
+    String: Type<DB>,
+{
     fn type_info() -> DB::TypeInfo {
-        <&str as Type<DB>>::type_info()
+        <String as Type<DB>>::type_info()
     }
 
     fn compatible(ty: &DB::TypeInfo) -> bool {
-        <&str as Type<DB>>::compatible(ty)
+        <String as Type<DB>>::compatible(ty)
     }
 }
 
 impl<'r, DB: Database> Decode<'r, DB> for AccessKeyOwner
 where
-    &'r str: Decode<'r, DB>,
+    String: Decode<'r, DB>,
 {
     fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
-        let s = <&str as Decode<'r, DB>>::decode(value)?;
-        Ok(match s {
+        let s = <String as Decode<'r, DB>>::decode(value)?;
+        Ok(match s.as_str() {
             "user" => AccessKeyOwner::User,
             "project" => AccessKeyOwner::Project,
             "shared" => AccessKeyOwner::Shared,
