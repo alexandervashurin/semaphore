@@ -64,11 +64,12 @@ impl UsersController {
         // }
 
         // Создаём пользователя
-        let new_user = if user.external {
-            state.store.create_user_without_password(user.user).await?
-        } else {
-            state.store.create_user(user.user, "").await?
-        };
+        // let new_user = if user.external {
+        //     state.store.create_user_without_password(user.user).await?
+        // } else {
+        //     state.store.create_user(user.user, "").await?
+        // };
+        let new_user = state.store.create_user(user.user, "").await?;
 
         Ok((StatusCode::CREATED, Json(new_user)))
     }

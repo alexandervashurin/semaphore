@@ -51,7 +51,7 @@ impl ServerCommand {
 
     /// Создаёт хранилище
     fn create_store(config: &Config) -> CliResult<Box<dyn crate::db::Store + Send + Sync>> {
-        match config.database.dialect.unwrap_or(crate::config::DbDialect::SQLite) {
+        match config.database.dialect.clone().unwrap_or(crate::config::DbDialect::SQLite) {
             crate::config::DbDialect::SQLite |
             crate::config::DbDialect::MySQL |
             crate::config::DbDialect::Postgres => {

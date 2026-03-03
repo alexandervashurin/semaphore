@@ -18,6 +18,7 @@ pub fn create_app(
     logger: Arc<dyn TaskLogger>,
 ) -> Box<dyn LocalApp> {
     // TODO: Восстановить полную реализацию после реализации LocalApp
+    let app = template.app.clone();
     match template.app {
         // crate::models::template::TemplateApp::Ansible => {
         //     let playbook = AnsiblePlaybook::new(template.id, repository.clone(), logger.clone());
@@ -29,7 +30,7 @@ pub fn create_app(
         //     Box::new(TerraformApp::new(template, repository, inventory, logger))
         // }
         _ => {
-            Box::new(ShellApp::new(template, repository, template.app))
+            Box::new(ShellApp::new(template, repository, app))
         }
     }
 }

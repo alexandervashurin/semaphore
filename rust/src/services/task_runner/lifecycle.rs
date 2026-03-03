@@ -39,7 +39,8 @@ impl TaskRunner {
             self.repository.clone(),
             self.environment.clone(),
             logger,
-            self.key_installer.clone(),
+            // self.key_installer.clone(),  // AccessKeyInstallerImpl не реализует Clone
+            crate::db_lib::AccessKeyInstallerImpl::new(),  // Создаём новый экземпляр
             std::path::PathBuf::from("/tmp/work"),
             std::path::PathBuf::from("/tmp/tmp"),
         )));
@@ -77,7 +78,7 @@ impl TaskRunner {
     pub async fn create_task_event(&self) -> Result<()> {
         use crate::models::{Event, EventType};
 
-        let obj_type = EventType::Task;
+        let obj_type = EventType::TaskCreated;
         let desc = format!(
             "Task {} ({}) finished - {}",
             self.task.id,

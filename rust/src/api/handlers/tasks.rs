@@ -15,6 +15,7 @@ use crate::models::{Task, TaskWithTpl};
 use crate::services::task_logger::TaskStatus;
 use crate::error::Error;
 use crate::api::middleware::ErrorResponse;
+use crate::db::store::TaskManager;
 
 /// Получить список задач проекта
 ///

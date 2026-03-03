@@ -38,18 +38,18 @@ impl TaskRunner {
     /// populate_task_environment подготавливает окружение задачи
     pub async fn populate_task_environment(&mut self) -> Result<()> {
         // Получение пользователей для уведомлений
-        self.users = self.pool.store
-            .get_template_users(self.task.template_id)
-            .await?;
-        
+        // self.users = self.pool.store
+        //     .get_template_users(self.task.template_id)
+        //     .await?;
+
         // Получение алертов
-        let (alert, alert_chat) = self.pool.store
-            .get_task_alert_chat(self.task.template_id)
-            .await?;
-        
-        self.alert = alert;
-        self.alert_chat = alert_chat;
-        
+        // let (alert, alert_chat) = self.pool.store
+        //     .get_task_alert_chat(self.task.template_id)
+        //     .await?;
+
+        // self.alert = alert;
+        // self.alert_chat = alert_chat;
+
         Ok(())
     }
 }
