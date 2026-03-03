@@ -272,12 +272,12 @@ impl BackupDB {
                 });
             }
 
-            if let Some(ref lp) = key.login_password {
-                backup_key.login_password = Some(BackupLoginPassword {
-                    login: lp.login.clone(),
-                    password: lp.password.clone(),
-                });
-            }
+            // if let Some(ref lp) = key.login_password {  // поле удалено
+            //     backup_key.login_password = Some(BackupLoginPassword {
+            //         login: lp.login.clone(),
+            //         password: lp.password.clone(),
+            //     });
+            // }
 
             backup.access_keys.push(backup_key);
         }

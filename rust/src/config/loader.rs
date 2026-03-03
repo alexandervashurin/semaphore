@@ -167,7 +167,7 @@ pub fn load_config(config_path: Option<&str>) -> Result<Config> {
     }
     
     // 5. Инициализируем HA node ID если нужно
-    if config.ha_enabled() && config.node_id.is_empty() {
+    if config.ha_enabled() && config.ha.node_id.is_empty() {
         config.init_ha_node_id();
     }
 

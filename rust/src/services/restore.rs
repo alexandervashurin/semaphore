@@ -318,7 +318,8 @@ impl RestoreEntryAsync for BackupRepository {
             project_id: backup_db.meta.id,
             name: self.name.clone(),
             git_url: self.git_url.clone(),
-            git_type: self.git_type.parse().unwrap_or(RepositoryType::Git),
+            // git_type: self.git_type.parse().unwrap_or(RepositoryType::Git),  // поле удалено
+            git_type: RepositoryType::Git,
             git_branch: self.git_branch.clone().into(),
             key_id: 0,
             git_path: None,
@@ -351,7 +352,8 @@ impl RestoreEntryAsync for BackupTemplate {
             project_id: backup_db.meta.id,
             name: self.name.clone(),
             playbook: self.playbook.clone(),
-            description: self.description.clone().unwrap_or_default(),
+            // description: self.description.clone().unwrap_or_default(),  // поле удалено
+            description: String::new(),
             inventory_id: 0,
             repository_id: 0,
             environment_id: 0,
@@ -362,8 +364,10 @@ impl RestoreEntryAsync for BackupTemplate {
             created: chrono::Utc::now(),
             arguments: self.arguments.clone(),
             template_type: None,
-            start_version: self.start_version.clone(),
-            build_version: self.build_version.clone(),
+            // start_version: self.start_version.clone(),  // поле удалено
+            start_version: None,
+            // build_version: self.build_version.clone(),  // поле удалено
+            build_version: None,
             survey_vars: None,
             vaults: None,
             tasks: None,
