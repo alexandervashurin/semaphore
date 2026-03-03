@@ -15,8 +15,10 @@ impl LocalJob {
 
         details.insert("id".to_string(), Value::Number(self.task.id.into()));
 
-        if !self.task.message.is_empty() {
-            details.insert("message".to_string(), Value::String(self.task.message.clone()));
+        if let Some(ref message) = self.task.message {
+            if !message.is_empty() {
+                details.insert("message".to_string(), Value::String(message.clone()));
+            }
         }
 
         details.insert("username".to_string(), Value::String(username.to_string()));

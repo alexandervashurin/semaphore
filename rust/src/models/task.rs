@@ -101,6 +101,13 @@ pub struct Task {
     pub params: Option<serde_json::Value>,
 }
 
+impl Task {
+    /// Получает URL задачи
+    pub fn get_url(&self) -> String {
+        format!("/project/{}/tasks/{}", self.project_id, self.id)
+    }
+}
+
 /// Задача с дополнительными полями шаблона
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskWithTpl {

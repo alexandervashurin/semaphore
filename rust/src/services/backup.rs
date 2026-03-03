@@ -218,9 +218,9 @@ impl BackupDB {
                 playbook: tpl.playbook.clone(),
                 arguments: tpl.arguments.clone(),
                 template_type: tpl.template_type.as_ref().map(|t| t.to_string()).unwrap_or_default(),
-                inventory: tpl.inventory_id.and_then(|id| inventory_map.get(&id).cloned()),
-                repository: tpl.repository_id.and_then(|id| repository_map.get(&id).cloned()),
-                environment: tpl.environment_id.and_then(|id| environment_map.get(&id).cloned()),
+                inventory: tpl.inventory_id.map(|id| inventory_map.get(&id).cloned()).flatten(),
+                repository: tpl.repository_id.map(|id| repository_map.get(&id).cloned()).flatten(),
+                environment: tpl.environment_id.map(|id| environment_map.get(&id).cloned()).flatten(),
                 cron: schedule,
             });
         }
@@ -230,8 +230,8 @@ impl BackupDB {
             backup.repositories.push(BackupRepository {
                 name: repo.name.clone(),
                 git_url: repo.git_url.clone(),
-                git_branch: repo.git_branch.clone(),
-                ssh_key: Some(repo.key_id).and_then(|id| access_key_map.get(&id).cloned()),
+                git_branch: repo.git_branch.clone().unwrap_or_default(),
+                ssh_key: repo.key_id.map(|id| access_key_map.get(&id).cloned()).flatten(),
             });
         }
 
@@ -287,7 +287,7 @@ impl BackupDB {
             if let Some(tpl_name) = get_template_name_by_id(schedule.template_id, &self.templates) {
                 backup.schedules.push(BackupSchedule {
                     template: tpl_name,
-                    cron_format: schedule.cron_format.clone(),
+                    cron_format: schedule.cron_format.clone().unwrap_or_default(),
                     active: schedule.active,
                 });
             }
@@ -297,7 +297,7 @@ impl BackupDB {
         for integration in &self.integrations {
             backup.integrations.push(BackupIntegration {
                 name: integration.name.clone(),
-                template_id: integration.template_id,
+                template_id: Some(integration.template_id),
             });
         }
 
@@ -355,7 +355,7 @@ pub fn get_schedules_by_project(project_id: i32, schedules: &[Schedule]) -> Vec<
 pub fn get_schedule_by_template(template_id: i32, schedules: &[Schedule]) -> Option<String> {
     schedules.iter()
         .find(|s| s.template_id == template_id)
-        .map(|s| s.cron_format.clone())
+        .and_then(|s| s.cron_format.clone())
 }
 
 /// Генерирует случайное имя

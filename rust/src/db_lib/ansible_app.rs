@@ -387,7 +387,7 @@ impl AnsibleApp {
     }
 
     /// Запускает задачу
-    pub fn run(&self, args: crate::db_lib::LocalAppRunningArgs) -> Result<()> {
+    pub async fn run(&self, args: crate::db_lib::LocalAppRunningArgs) -> Result<()> {
         // Получаем аргументы для "default" ключа
         let cli_args = args.cli_args.get("default").cloned().unwrap_or_default();
 
@@ -396,7 +396,7 @@ impl AnsibleApp {
             args.environment_vars,
             args.inputs,
             args.callback,
-        )
+        ).await
     }
 
     /// Очищает ресурсы

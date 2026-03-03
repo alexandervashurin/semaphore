@@ -6,17 +6,17 @@ use std::sync::Arc;
 use git2::{Repository, FetchOptions, RemoteCallbacks, Cred};
 use crate::error::{Error, Result};
 use crate::services::task_logger::TaskLogger;
-use super::{GitClient, GitRepository, AccessKeyInstaller};
+use super::{GitClient, GitRepository, AccessKeyInstallerTrait};
 
 /// Go Git Client (в Rust используем git2)
 pub struct GoGitClient {
     /// Установщик ключей доступа
-    key_installer: Box<dyn AccessKeyInstaller>,
+    key_installer: Box<dyn AccessKeyInstallerTrait>,
 }
 
 impl GoGitClient {
     /// Создаёт новый Go Git клиент
-    pub fn new(key_installer: Box<dyn AccessKeyInstaller>) -> Self {
+    pub fn new(key_installer: Box<dyn AccessKeyInstallerTrait>) -> Self {
         Self { key_installer }
     }
 

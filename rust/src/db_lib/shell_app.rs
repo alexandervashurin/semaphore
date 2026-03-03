@@ -80,12 +80,12 @@ impl LocalApp for ShellApp {
     fn set_logger(&mut self, logger: Arc<dyn TaskLogger>) -> Arc<dyn TaskLogger> {
         let old_logger = self.logger.clone();
         self.logger = Some(logger.clone());
-        
+
         // Добавляем слушатель статусов
-        logger.add_status_listener(|status| {
+        logger.add_status_listener(Box::new(|status| {
             // Обработка изменений статуса
-        });
-        
+        }));
+
         old_logger.unwrap_or(logger)
     }
 
