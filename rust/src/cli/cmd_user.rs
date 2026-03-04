@@ -79,40 +79,42 @@ impl UserAddCommand {
         println!("  Email: {}", self.email);
         println!("  Admin: {}", self.admin);
 
-        // Создаём хранилище
-        let url = config.database_url()?;
-        let store = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()?
-            .block_on(SqlStore::new(&url))?;
-
-        // Хешируем пароль
-        use crate::api::auth_local::hash_password;
-        let password_hash = hash_password(&self.password)?;
-
-        // Создаём пользователя
-        let user = User {
-            id: 0,
-            created: Utc::now(),
-            username: self.username.clone(),
-            name: self.name.clone(),
-            email: self.email.clone(),
-            password: password_hash.clone(),
-            admin: self.admin,
-            external: false,
-            alert: false,
-            pro: false,
-            totp: None,
-            email_otp: None,
-        };
-
+        // Создаём runtime и выполняем async операцию
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()?;
 
-        runtime.block_on(store.create_user(user, &password_hash))?;
+        runtime.block_on(async {
+            // Создаём хранилище
+            let url = config.database_url()
+                .map_err(|e| crate::error::Error::Other(e.to_string()))?;
+            let store = SqlStore::new(&url).await?;
 
-        println!("User {} successfully created", self.username);
+            // Хешируем пароль
+            use crate::api::auth_local::hash_password;
+            let password_hash = hash_password(&self.password)?;
+
+            // Создаём пользователя
+            let user = User {
+                id: 0,
+                created: Utc::now(),
+                username: self.username.clone(),
+                name: self.name.clone(),
+                email: self.email.clone(),
+                password: password_hash.clone(),
+                admin: self.admin,
+                external: false,
+                alert: false,
+                pro: false,
+                totp: None,
+                email_otp: None,
+            };
+
+            store.create_user(user, &password_hash).await?;
+
+            println!("User {} successfully created", self.username);
+            Ok::<(), crate::error::Error>(())
+        })?;
 
         Ok(())
     }

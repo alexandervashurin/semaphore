@@ -27,18 +27,19 @@ impl ServerCommand {
         println!("Starting Semaphore UI server...");
         println!("Listening on {}:{}", self.host, self.port);
 
-        // Создаём хранилище
-        let store = Self::create_store(&config)?;
-
-        // Создаём приложение
-        let app = api::create_app(store);
-
-        // Запускаем сервер
+        // Создаём хранилище и запускаем сервер в одном runtime
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()?;
 
         runtime.block_on(async {
+            // Создаём хранилище
+            let store = Self::create_store_async(&config).await?;
+
+            // Создаём приложение
+            let app = api::create_app(store);
+
+            // Запускаем сервер
             let listener = tokio::net::TcpListener::bind(format!("{}:{}", self.host, self.port))
                 .await
                 .map_err(|e| crate::error::Error::Other(e.to_string()))?;
@@ -51,17 +52,15 @@ impl ServerCommand {
         Ok(())
     }
 
-    /// Создаёт хранилище
-    fn create_store(config: &Config) -> CliResult<Box<dyn crate::db::Store + Send + Sync>> {
+    /// Создаёт хранилище (async версия)
+    async fn create_store_async(config: &Config) -> Result<Box<dyn crate::db::Store + Send + Sync>, crate::error::Error> {
         match config.database.dialect.clone().unwrap_or(crate::config::DbDialect::SQLite) {
             crate::config::DbDialect::SQLite |
             crate::config::DbDialect::MySQL |
             crate::config::DbDialect::Postgres => {
-                let url = config.database_url()?;
-                let store = tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()?
-                    .block_on(SqlStore::new(&url))?;
+                let url = config.database_url()
+                    .map_err(|e| crate::error::Error::Other(e.to_string()))?;
+                let store = SqlStore::new(&url).await?;
                 Ok(Box::new(store))
             }
         }

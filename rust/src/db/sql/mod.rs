@@ -530,7 +530,7 @@ impl UserManager for SqlStore {
                 })
             }
             SqlDialect::PostgreSQL => {
-                let query = "SELECT * FROM \"user\" WHERE username = $1 OR email = $2";
+                let query = "SELECT id, created, username, name, email, password, admin, external, alert, pro FROM \"user\" WHERE username = $1 OR email = $2";
                 let row = sqlx::query(query)
                     .bind(login)
                     .bind(email)
@@ -541,17 +541,38 @@ impl UserManager for SqlStore {
                         _ => Error::Database(e),
                     })?;
 
+                let id: i32 = row.try_get("id")
+                    .map_err(|e| Error::Database(e))?;
+                let created: chrono::DateTime<chrono::Utc> = row.try_get("created")
+                    .map_err(|e| Error::Database(e))?;
+                let username: String = row.try_get("username")
+                    .map_err(|e| Error::Database(e))?;
+                let name: String = row.try_get("name")
+                    .map_err(|e| Error::Database(e))?;
+                let email: String = row.try_get("email")
+                    .map_err(|e| Error::Database(e))?;
+                let password: String = row.try_get("password")
+                    .map_err(|e| Error::Database(e))?;
+                let admin: bool = row.try_get("admin")
+                    .map_err(|e| Error::Database(e))?;
+                let external: bool = row.try_get("external")
+                    .map_err(|e| Error::Database(e))?;
+                let alert: bool = row.try_get("alert")
+                    .map_err(|e| Error::Database(e))?;
+                let pro: bool = row.try_get("pro")
+                    .map_err(|e| Error::Database(e))?;
+
                 Ok(User {
-                    id: row.get("id"),
-                    created: row.get("created"),
-                    username: row.get("username"),
-                    name: row.get("name"),
-                    email: row.get("email"),
-                    password: row.get("password"),
-                    admin: row.get("admin"),
-                    external: row.get("external"),
-                    alert: row.get("alert"),
-                    pro: row.get("pro"),
+                    id,
+                    created,
+                    username,
+                    name,
+                    email,
+                    password,
+                    admin,
+                    external,
+                    alert,
+                    pro,
                     totp: None,
                     email_otp: None,
                 })
