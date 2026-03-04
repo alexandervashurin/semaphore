@@ -2051,29 +2051,902 @@ impl InventoryManager for SqlStore {
 
 #[async_trait]
 impl RepositoryManager for SqlStore {
-    async fn get_repositories(&self, _project_id: i32) -> Result<Vec<Repository>> { Ok(vec![]) }
-    async fn get_repository(&self, _project_id: i32, _repository_id: i32) -> Result<Repository> { Err(Error::NotFound("Репозиторий не найден".to_string())) }
-    async fn create_repository(&self, _repository: Repository) -> Result<Repository> { Err(Error::Other("Не реализовано".to_string())) }
-    async fn update_repository(&self, _repository: Repository) -> Result<()> { Err(Error::Other("Не реализовано".to_string())) }
-    async fn delete_repository(&self, _project_id: i32, _repository_id: i32) -> Result<()> { Err(Error::Other("Не реализовано".to_string())) }
+    async fn get_repositories(&self, project_id: i32) -> Result<Vec<Repository>> {
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let query = "SELECT * FROM repository WHERE project_id = ? ORDER BY name";
+                let rows = sqlx::query(query)
+                    .bind(project_id)
+                    .fetch_all(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                Ok(rows.into_iter().map(|row| Repository {
+                    id: row.get("id"),
+                    project_id: row.get("project_id"),
+                    name: row.get("name"),
+                    git_url: row.get("git_url"),
+                    git_type: row.get("git_type"),
+                    git_branch: row.get("git_branch"),
+                    key_id: row.get("key_id"),
+                    git_path: row.get("git_path"),
+                }).collect())
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "SELECT * FROM repository WHERE project_id = $1 ORDER BY name";
+                let rows = sqlx::query(query)
+                    .bind(project_id)
+                    .fetch_all(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                Ok(rows.into_iter().map(|row| Repository {
+                    id: row.get("id"),
+                    project_id: row.get("project_id"),
+                    name: row.get("name"),
+                    git_url: row.get("git_url"),
+                    git_type: row.get("git_type"),
+                    git_branch: row.get("git_branch"),
+                    key_id: row.get("key_id"),
+                    git_path: row.get("git_path"),
+                }).collect())
+            }
+            SqlDialect::MySQL => {
+                let query = "SELECT * FROM `repository` WHERE project_id = ? ORDER BY name";
+                let rows = sqlx::query(query)
+                    .bind(project_id)
+                    .fetch_all(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                Ok(rows.into_iter().map(|row| Repository {
+                    id: row.get("id"),
+                    project_id: row.get("project_id"),
+                    name: row.get("name"),
+                    git_url: row.get("git_url"),
+                    git_type: row.get("git_type"),
+                    git_branch: row.get("git_branch"),
+                    key_id: row.get("key_id"),
+                    git_path: row.get("git_path"),
+                }).collect())
+            }
+        }
+    }
+
+    async fn get_repository(&self, project_id: i32, repository_id: i32) -> Result<Repository> {
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let query = "SELECT * FROM repository WHERE id = ? AND project_id = ?";
+                let row = sqlx::query(query)
+                    .bind(repository_id)
+                    .bind(project_id)
+                    .fetch_one(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| match e {
+                        sqlx::Error::RowNotFound => Error::NotFound("Репозиторий не найден".to_string()),
+                        _ => Error::Database(e),
+                    })?;
+
+                Ok(Repository {
+                    id: row.get("id"),
+                    project_id: row.get("project_id"),
+                    name: row.get("name"),
+                    git_url: row.get("git_url"),
+                    git_type: row.get("git_type"),
+                    git_branch: row.get("git_branch"),
+                    key_id: row.get("key_id"),
+                    git_path: row.get("git_path"),
+                })
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "SELECT * FROM repository WHERE id = $1 AND project_id = $2";
+                let row = sqlx::query(query)
+                    .bind(repository_id)
+                    .bind(project_id)
+                    .fetch_one(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| match e {
+                        sqlx::Error::RowNotFound => Error::NotFound("Репозиторий не найден".to_string()),
+                        _ => Error::Database(e),
+                    })?;
+
+                Ok(Repository {
+                    id: row.get("id"),
+                    project_id: row.get("project_id"),
+                    name: row.get("name"),
+                    git_url: row.get("git_url"),
+                    git_type: row.get("git_type"),
+                    git_branch: row.get("git_branch"),
+                    key_id: row.get("key_id"),
+                    git_path: row.get("git_path"),
+                })
+            }
+            SqlDialect::MySQL => {
+                let query = "SELECT * FROM `repository` WHERE id = ? AND project_id = ?";
+                let row = sqlx::query(query)
+                    .bind(repository_id)
+                    .bind(project_id)
+                    .fetch_one(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| match e {
+                        sqlx::Error::RowNotFound => Error::NotFound("Репозиторий не найден".to_string()),
+                        _ => Error::Database(e),
+                    })?;
+
+                Ok(Repository {
+                    id: row.get("id"),
+                    project_id: row.get("project_id"),
+                    name: row.get("name"),
+                    git_url: row.get("git_url"),
+                    git_type: row.get("git_type"),
+                    git_branch: row.get("git_branch"),
+                    key_id: row.get("key_id"),
+                    git_path: row.get("git_path"),
+                })
+            }
+        }
+    }
+
+    async fn create_repository(&self, mut repository: Repository) -> Result<Repository> {
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let query = "INSERT INTO repository (project_id, name, git_url, git_type, git_branch, key_id, git_path) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id";
+                let id: i32 = sqlx::query_scalar(query)
+                    .bind(repository.project_id)
+                    .bind(&repository.name)
+                    .bind(&repository.git_url)
+                    .bind(&repository.git_type)
+                    .bind(&repository.git_branch)
+                    .bind(repository.key_id)
+                    .bind(&repository.git_path)
+                    .fetch_one(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                repository.id = id;
+                Ok(repository)
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "INSERT INTO repository (project_id, name, git_url, git_type, git_branch, key_id, git_path) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id";
+                let id: i32 = sqlx::query_scalar(query)
+                    .bind(repository.project_id)
+                    .bind(&repository.name)
+                    .bind(&repository.git_url)
+                    .bind(&repository.git_type)
+                    .bind(&repository.git_branch)
+                    .bind(repository.key_id)
+                    .bind(&repository.git_path)
+                    .fetch_one(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                repository.id = id;
+                Ok(repository)
+            }
+            SqlDialect::MySQL => {
+                let query = "INSERT INTO `repository` (project_id, name, git_url, git_type, git_branch, key_id, git_path) VALUES (?, ?, ?, ?, ?, ?, ?)";
+                sqlx::query(query)
+                    .bind(repository.project_id)
+                    .bind(&repository.name)
+                    .bind(&repository.git_url)
+                    .bind(&repository.git_type)
+                    .bind(&repository.git_branch)
+                    .bind(repository.key_id)
+                    .bind(&repository.git_path)
+                    .execute(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                let id: i32 = sqlx::query_scalar("SELECT LAST_INSERT_ID()")
+                    .fetch_one(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                repository.id = id;
+                Ok(repository)
+            }
+        }
+    }
+
+    async fn update_repository(&self, repository: Repository) -> Result<()> {
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let query = "UPDATE repository SET name = ?, git_url = ?, git_type = ?, git_branch = ?, key_id = ?, git_path = ? WHERE id = ? AND project_id = ?";
+                sqlx::query(query)
+                    .bind(&repository.name)
+                    .bind(&repository.git_url)
+                    .bind(&repository.git_type)
+                    .bind(&repository.git_branch)
+                    .bind(repository.key_id)
+                    .bind(&repository.git_path)
+                    .bind(repository.id)
+                    .bind(repository.project_id)
+                    .execute(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "UPDATE repository SET name = $1, git_url = $2, git_type = $3, git_branch = $4, key_id = $5, git_path = $6 WHERE id = $6 AND project_id = $8";
+                sqlx::query(query)
+                    .bind(&repository.name)
+                    .bind(&repository.git_url)
+                    .bind(&repository.git_type)
+                    .bind(&repository.git_branch)
+                    .bind(repository.key_id)
+                    .bind(&repository.git_path)
+                    .bind(repository.id)
+                    .bind(repository.project_id)
+                    .execute(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+            SqlDialect::MySQL => {
+                let query = "UPDATE `repository` SET name = ?, git_url = ?, git_type = ?, git_branch = ?, key_id = ?, git_path = ? WHERE id = ? AND project_id = ?";
+                sqlx::query(query)
+                    .bind(&repository.name)
+                    .bind(&repository.git_url)
+                    .bind(&repository.git_type)
+                    .bind(&repository.git_branch)
+                    .bind(repository.key_id)
+                    .bind(&repository.git_path)
+                    .bind(repository.id)
+                    .bind(repository.project_id)
+                    .execute(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+        }
+        Ok(())
+    }
+
+    async fn delete_repository(&self, project_id: i32, repository_id: i32) -> Result<()> {
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let query = "DELETE FROM repository WHERE id = ? AND project_id = ?";
+                sqlx::query(query)
+                    .bind(repository_id)
+                    .bind(project_id)
+                    .execute(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "DELETE FROM repository WHERE id = $1 AND project_id = $2";
+                sqlx::query(query)
+                    .bind(repository_id)
+                    .bind(project_id)
+                    .execute(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+            SqlDialect::MySQL => {
+                let query = "DELETE FROM `repository` WHERE id = ? AND project_id = ?";
+                sqlx::query(query)
+                    .bind(repository_id)
+                    .bind(project_id)
+                    .execute(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+        }
+        Ok(())
+    }
 }
 
 #[async_trait]
 impl EnvironmentManager for SqlStore {
-    async fn get_environments(&self, _project_id: i32) -> Result<Vec<Environment>> { Ok(vec![]) }
-    async fn get_environment(&self, _project_id: i32, _environment_id: i32) -> Result<Environment> { Err(Error::NotFound("Окружение не найдено".to_string())) }
-    async fn create_environment(&self, _environment: Environment) -> Result<Environment> { Err(Error::Other("Не реализовано".to_string())) }
-    async fn update_environment(&self, _environment: Environment) -> Result<()> { Err(Error::Other("Не реализовано".to_string())) }
-    async fn delete_environment(&self, _project_id: i32, _environment_id: i32) -> Result<()> { Err(Error::Other("Не реализовано".to_string())) }
+    async fn get_environments(&self, project_id: i32) -> Result<Vec<Environment>> {
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let query = "SELECT * FROM environment WHERE project_id = ? ORDER BY name";
+                let rows = sqlx::query(query)
+                    .bind(project_id)
+                    .fetch_all(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                Ok(rows.into_iter().map(|row| Environment {
+                    id: row.get("id"),
+                    project_id: row.get("project_id"),
+                    name: row.get("name"),
+                    json: row.get("json"),
+                    secret_storage_id: row.get("secret_storage_id"),
+                    secrets: row.get("secrets"),
+                }).collect())
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "SELECT * FROM environment WHERE project_id = $1 ORDER BY name";
+                let rows = sqlx::query(query)
+                    .bind(project_id)
+                    .fetch_all(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                Ok(rows.into_iter().map(|row| Environment {
+                    id: row.get("id"),
+                    project_id: row.get("project_id"),
+                    name: row.get("name"),
+                    json: row.get("json"),
+                    secret_storage_id: row.get("secret_storage_id"),
+                    secrets: row.get("secrets"),
+                }).collect())
+            }
+            SqlDialect::MySQL => {
+                let query = "SELECT * FROM `environment` WHERE project_id = ? ORDER BY name";
+                let rows = sqlx::query(query)
+                    .bind(project_id)
+                    .fetch_all(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                Ok(rows.into_iter().map(|row| Environment {
+                    id: row.get("id"),
+                    project_id: row.get("project_id"),
+                    name: row.get("name"),
+                    json: row.get("json"),
+                    secret_storage_id: row.get("secret_storage_id"),
+                    secrets: row.get("secrets"),
+                }).collect())
+            }
+        }
+    }
+
+    async fn get_environment(&self, project_id: i32, environment_id: i32) -> Result<Environment> {
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let query = "SELECT * FROM environment WHERE id = ? AND project_id = ?";
+                let row = sqlx::query(query)
+                    .bind(environment_id)
+                    .bind(project_id)
+                    .fetch_one(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| match e {
+                        sqlx::Error::RowNotFound => Error::NotFound("Окружение не найдено".to_string()),
+                        _ => Error::Database(e),
+                    })?;
+
+                Ok(Environment {
+                    id: row.get("id"),
+                    project_id: row.get("project_id"),
+                    name: row.get("name"),
+                    json: row.get("json"),
+                    secret_storage_id: row.get("secret_storage_id"),
+                    secrets: row.get("secrets"),
+                })
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "SELECT * FROM environment WHERE id = $1 AND project_id = $2";
+                let row = sqlx::query(query)
+                    .bind(environment_id)
+                    .bind(project_id)
+                    .fetch_one(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| match e {
+                        sqlx::Error::RowNotFound => Error::NotFound("Окружение не найдено".to_string()),
+                        _ => Error::Database(e),
+                    })?;
+
+                Ok(Environment {
+                    id: row.get("id"),
+                    project_id: row.get("project_id"),
+                    name: row.get("name"),
+                    json: row.get("json"),
+                    secret_storage_id: row.get("secret_storage_id"),
+                    secrets: row.get("secrets"),
+                })
+            }
+            SqlDialect::MySQL => {
+                let query = "SELECT * FROM `environment` WHERE id = ? AND project_id = ?";
+                let row = sqlx::query(query)
+                    .bind(environment_id)
+                    .bind(project_id)
+                    .fetch_one(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| match e {
+                        sqlx::Error::RowNotFound => Error::NotFound("Окружение не найдено".to_string()),
+                        _ => Error::Database(e),
+                    })?;
+
+                Ok(Environment {
+                    id: row.get("id"),
+                    project_id: row.get("project_id"),
+                    name: row.get("name"),
+                    json: row.get("json"),
+                    secret_storage_id: row.get("secret_storage_id"),
+                    secrets: row.get("secrets"),
+                })
+            }
+        }
+    }
+
+    async fn create_environment(&self, mut environment: Environment) -> Result<Environment> {
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let query = "INSERT INTO environment (project_id, name, json, secret_storage_id, secrets) VALUES (?, ?, ?, ?, ?) RETURNING id";
+                let id: i32 = sqlx::query_scalar(query)
+                    .bind(environment.project_id)
+                    .bind(&environment.name)
+                    .bind(&environment.json)
+                    .bind(&environment.secret_storage_id)
+                    .bind(&environment.secrets)
+                    .fetch_one(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                environment.id = id;
+                Ok(environment)
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "INSERT INTO environment (project_id, name, json, secret_storage_id, secrets) VALUES ($1, $2, $3, $4, $5) RETURNING id";
+                let id: i32 = sqlx::query_scalar(query)
+                    .bind(environment.project_id)
+                    .bind(&environment.name)
+                    .bind(&environment.json)
+                    .bind(&environment.secret_storage_id)
+                    .bind(&environment.secrets)
+                    .fetch_one(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                environment.id = id;
+                Ok(environment)
+            }
+            SqlDialect::MySQL => {
+                let query = "INSERT INTO `environment` (project_id, name, json, secret_storage_id, secrets) VALUES (?, ?, ?, ?, ?)";
+                sqlx::query(query)
+                    .bind(environment.project_id)
+                    .bind(&environment.name)
+                    .bind(&environment.json)
+                    .bind(&environment.secret_storage_id)
+                    .bind(&environment.secrets)
+                    .execute(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                let id: i32 = sqlx::query_scalar("SELECT LAST_INSERT_ID()")
+                    .fetch_one(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                environment.id = id;
+                Ok(environment)
+            }
+        }
+    }
+
+    async fn update_environment(&self, environment: Environment) -> Result<()> {
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let query = "UPDATE environment SET name = ?, json = ?, secret_storage_id = ?, secrets = ? WHERE id = ? AND project_id = ?";
+                sqlx::query(query)
+                    .bind(&environment.name)
+                    .bind(&environment.json)
+                    .bind(&environment.secret_storage_id)
+                    .bind(&environment.secrets)
+                    .bind(environment.id)
+                    .bind(environment.project_id)
+                    .execute(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "UPDATE environment SET name = $1, json = $2, secret_storage_id = $3, secrets = $4 WHERE id = $5 AND project_id = $6";
+                sqlx::query(query)
+                    .bind(&environment.name)
+                    .bind(&environment.json)
+                    .bind(&environment.secret_storage_id)
+                    .bind(&environment.secrets)
+                    .bind(environment.id)
+                    .bind(environment.project_id)
+                    .execute(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+            SqlDialect::MySQL => {
+                let query = "UPDATE `environment` SET name = ?, json = ?, secret_storage_id = ?, secrets = ? WHERE id = ? AND project_id = ?";
+                sqlx::query(query)
+                    .bind(&environment.name)
+                    .bind(&environment.json)
+                    .bind(&environment.secret_storage_id)
+                    .bind(&environment.secrets)
+                    .bind(environment.id)
+                    .bind(environment.project_id)
+                    .execute(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+        }
+        Ok(())
+    }
+
+    async fn delete_environment(&self, project_id: i32, environment_id: i32) -> Result<()> {
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let query = "DELETE FROM environment WHERE id = ? AND project_id = ?";
+                sqlx::query(query)
+                    .bind(environment_id)
+                    .bind(project_id)
+                    .execute(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "DELETE FROM environment WHERE id = $1 AND project_id = $2";
+                sqlx::query(query)
+                    .bind(environment_id)
+                    .bind(project_id)
+                    .execute(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+            SqlDialect::MySQL => {
+                let query = "DELETE FROM `environment` WHERE id = ? AND project_id = ?";
+                sqlx::query(query)
+                    .bind(environment_id)
+                    .bind(project_id)
+                    .execute(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+        }
+        Ok(())
+    }
 }
 
 #[async_trait]
 impl AccessKeyManager for SqlStore {
-    async fn get_access_keys(&self, _project_id: i32) -> Result<Vec<AccessKey>> { Ok(vec![]) }
-    async fn get_access_key(&self, _project_id: i32, _key_id: i32) -> Result<AccessKey> { Err(Error::NotFound("Ключ доступа не найден".to_string())) }
-    async fn create_access_key(&self, _key: AccessKey) -> Result<AccessKey> { Err(Error::Other("Не реализовано".to_string())) }
-    async fn update_access_key(&self, _key: AccessKey) -> Result<()> { Err(Error::Other("Не реализовано".to_string())) }
-    async fn delete_access_key(&self, _project_id: i32, _key_id: i32) -> Result<()> { Err(Error::Other("Не реализовано".to_string())) }
+    async fn get_access_keys(&self, project_id: i32) -> Result<Vec<AccessKey>> {
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let query = "SELECT * FROM access_key WHERE project_id = ? ORDER BY name";
+                let rows = sqlx::query(query)
+                    .bind(project_id)
+                    .fetch_all(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                Ok(rows.into_iter().map(|row| AccessKey {
+                    id: row.get("id"),
+                    project_id: row.get("project_id"),
+                    name: row.get("name"),
+                    r#type: row.get("type"),
+                    user_id: row.get("user_id"),
+                    login_password_login: row.get("login_password_login"),
+                    login_password_password: row.get("login_password_password"),
+                    ssh_key: row.get("ssh_key"),
+                    ssh_passphrase: row.get("ssh_passphrase"),
+                    access_key_access_key: row.get("access_key_access_key"),
+                    access_key_secret_key: row.get("access_key_secret_key"),
+                    secret_storage_id: row.get("secret_storage_id"),
+                    owner: row.get("owner"),
+                    environment_id: row.get("environment_id"),
+                }).collect())
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "SELECT * FROM access_key WHERE project_id = $1 ORDER BY name";
+                let rows = sqlx::query(query)
+                    .bind(project_id)
+                    .fetch_all(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                Ok(rows.into_iter().map(|row| AccessKey {
+                    id: row.get("id"),
+                    project_id: row.get("project_id"),
+                    name: row.get("name"),
+                    r#type: row.get("type"),
+                    user_id: row.get("user_id"),
+                    login_password_login: row.get("login_password_login"),
+                    login_password_password: row.get("login_password_password"),
+                    ssh_key: row.get("ssh_key"),
+                    ssh_passphrase: row.get("ssh_passphrase"),
+                    access_key_access_key: row.get("access_key_access_key"),
+                    access_key_secret_key: row.get("access_key_secret_key"),
+                    secret_storage_id: row.get("secret_storage_id"),
+                    owner: row.get("owner"),
+                    environment_id: row.get("environment_id"),
+                }).collect())
+            }
+            SqlDialect::MySQL => {
+                let query = "SELECT * FROM `access_key` WHERE project_id = ? ORDER BY name";
+                let rows = sqlx::query(query)
+                    .bind(project_id)
+                    .fetch_all(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                Ok(rows.into_iter().map(|row| AccessKey {
+                    id: row.get("id"),
+                    project_id: row.get("project_id"),
+                    name: row.get("name"),
+                    r#type: row.get("type"),
+                    user_id: row.get("user_id"),
+                    login_password_login: row.get("login_password_login"),
+                    login_password_password: row.get("login_password_password"),
+                    ssh_key: row.get("ssh_key"),
+                    ssh_passphrase: row.get("ssh_passphrase"),
+                    access_key_access_key: row.get("access_key_access_key"),
+                    access_key_secret_key: row.get("access_key_secret_key"),
+                    secret_storage_id: row.get("secret_storage_id"),
+                    owner: row.get("owner"),
+                    environment_id: row.get("environment_id"),
+                }).collect())
+            }
+        }
+    }
+
+    async fn get_access_key(&self, project_id: i32, key_id: i32) -> Result<AccessKey> {
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let query = "SELECT * FROM access_key WHERE id = ? AND project_id = ?";
+                let row = sqlx::query(query)
+                    .bind(key_id)
+                    .bind(project_id)
+                    .fetch_one(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| match e {
+                        sqlx::Error::RowNotFound => Error::NotFound("Ключ доступа не найден".to_string()),
+                        _ => Error::Database(e),
+                    })?;
+
+                Ok(AccessKey {
+                    id: row.get("id"),
+                    project_id: row.get("project_id"),
+                    name: row.get("name"),
+                    r#type: row.get("type"),
+                    user_id: row.get("user_id"),
+                    login_password_login: row.get("login_password_login"),
+                    login_password_password: row.get("login_password_password"),
+                    ssh_key: row.get("ssh_key"),
+                    ssh_passphrase: row.get("ssh_passphrase"),
+                    access_key_access_key: row.get("access_key_access_key"),
+                    access_key_secret_key: row.get("access_key_secret_key"),
+                    secret_storage_id: row.get("secret_storage_id"),
+                    owner: row.get("owner"),
+                    environment_id: row.get("environment_id"),
+                })
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "SELECT * FROM access_key WHERE id = $1 AND project_id = $2";
+                let row = sqlx::query(query)
+                    .bind(key_id)
+                    .bind(project_id)
+                    .fetch_one(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| match e {
+                        sqlx::Error::RowNotFound => Error::NotFound("Ключ доступа не найден".to_string()),
+                        _ => Error::Database(e),
+                    })?;
+
+                Ok(AccessKey {
+                    id: row.get("id"),
+                    project_id: row.get("project_id"),
+                    name: row.get("name"),
+                    r#type: row.get("type"),
+                    user_id: row.get("user_id"),
+                    login_password_login: row.get("login_password_login"),
+                    login_password_password: row.get("login_password_password"),
+                    ssh_key: row.get("ssh_key"),
+                    ssh_passphrase: row.get("ssh_passphrase"),
+                    access_key_access_key: row.get("access_key_access_key"),
+                    access_key_secret_key: row.get("access_key_secret_key"),
+                    secret_storage_id: row.get("secret_storage_id"),
+                    owner: row.get("owner"),
+                    environment_id: row.get("environment_id"),
+                })
+            }
+            SqlDialect::MySQL => {
+                let query = "SELECT * FROM `access_key` WHERE id = ? AND project_id = ?";
+                let row = sqlx::query(query)
+                    .bind(key_id)
+                    .bind(project_id)
+                    .fetch_one(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| match e {
+                        sqlx::Error::RowNotFound => Error::NotFound("Ключ доступа не найден".to_string()),
+                        _ => Error::Database(e),
+                    })?;
+
+                Ok(AccessKey {
+                    id: row.get("id"),
+                    project_id: row.get("project_id"),
+                    name: row.get("name"),
+                    r#type: row.get("type"),
+                    user_id: row.get("user_id"),
+                    login_password_login: row.get("login_password_login"),
+                    login_password_password: row.get("login_password_password"),
+                    ssh_key: row.get("ssh_key"),
+                    ssh_passphrase: row.get("ssh_passphrase"),
+                    access_key_access_key: row.get("access_key_access_key"),
+                    access_key_secret_key: row.get("access_key_secret_key"),
+                    secret_storage_id: row.get("secret_storage_id"),
+                    owner: row.get("owner"),
+                    environment_id: row.get("environment_id"),
+                })
+            }
+        }
+    }
+
+    async fn create_access_key(&self, mut key: AccessKey) -> Result<AccessKey> {
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let query = "INSERT INTO access_key (project_id, name, type, user_id, login_password_login, login_password_password, ssh_key, ssh_passphrase, access_key_access_key, access_key_secret_key, secret_storage_id, owner, environment_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id";
+                let id: i32 = sqlx::query_scalar(query)
+                    .bind(key.project_id)
+                    .bind(&key.name)
+                    .bind(&key.r#type)
+                    .bind(&key.user_id)
+                    .bind(&key.login_password_login)
+                    .bind(&key.login_password_password)
+                    .bind(&key.ssh_key)
+                    .bind(&key.ssh_passphrase)
+                    .bind(&key.access_key_access_key)
+                    .bind(&key.access_key_secret_key)
+                    .bind(&key.secret_storage_id)
+                    .bind(key.owner.as_ref().map(|o| o.to_string()))
+                    .bind(&key.environment_id)
+                    .fetch_one(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                key.id = id;
+                Ok(key)
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "INSERT INTO access_key (project_id, name, type, user_id, login_password_login, login_password_password, ssh_key, ssh_passphrase, access_key_access_key, access_key_secret_key, secret_storage_id, owner, environment_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id";
+                let id: i32 = sqlx::query_scalar(query)
+                    .bind(key.project_id)
+                    .bind(&key.name)
+                    .bind(&key.r#type)
+                    .bind(&key.user_id)
+                    .bind(&key.login_password_login)
+                    .bind(&key.login_password_password)
+                    .bind(&key.ssh_key)
+                    .bind(&key.ssh_passphrase)
+                    .bind(&key.access_key_access_key)
+                    .bind(&key.access_key_secret_key)
+                    .bind(&key.secret_storage_id)
+                    .bind(key.owner.as_ref().map(|o| o.to_string()))
+                    .bind(&key.environment_id)
+                    .fetch_one(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                key.id = id;
+                Ok(key)
+            }
+            SqlDialect::MySQL => {
+                let query = "INSERT INTO `access_key` (project_id, name, type, user_id, login_password_login, login_password_password, ssh_key, ssh_passphrase, access_key_access_key, access_key_secret_key, secret_storage_id, owner, environment_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                sqlx::query(query)
+                    .bind(key.project_id)
+                    .bind(&key.name)
+                    .bind(&key.r#type)
+                    .bind(&key.user_id)
+                    .bind(&key.login_password_login)
+                    .bind(&key.login_password_password)
+                    .bind(&key.ssh_key)
+                    .bind(&key.ssh_passphrase)
+                    .bind(&key.access_key_access_key)
+                    .bind(&key.access_key_secret_key)
+                    .bind(&key.secret_storage_id)
+                    .bind(key.owner.as_ref().map(|o| o.to_string()))
+                    .bind(&key.environment_id)
+                    .execute(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                let id: i32 = sqlx::query_scalar("SELECT LAST_INSERT_ID()")
+                    .fetch_one(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                key.id = id;
+                Ok(key)
+            }
+        }
+    }
+
+    async fn update_access_key(&self, key: AccessKey) -> Result<()> {
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let query = "UPDATE access_key SET name = ?, type = ?, user_id = ?, login_password_login = ?, login_password_password = ?, ssh_key = ?, ssh_passphrase = ?, access_key_access_key = ?, access_key_secret_key = ?, secret_storage_id = ?, owner = ?, environment_id = ? WHERE id = ? AND project_id = ?";
+                sqlx::query(query)
+                    .bind(&key.name)
+                    .bind(&key.r#type)
+                    .bind(&key.user_id)
+                    .bind(&key.login_password_login)
+                    .bind(&key.login_password_password)
+                    .bind(&key.ssh_key)
+                    .bind(&key.ssh_passphrase)
+                    .bind(&key.access_key_access_key)
+                    .bind(&key.access_key_secret_key)
+                    .bind(&key.secret_storage_id)
+                    .bind(key.owner.as_ref().map(|o| o.to_string()))
+                    .bind(&key.environment_id)
+                    .bind(key.id)
+                    .bind(key.project_id.unwrap_or(0))
+                    .execute(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "UPDATE access_key SET name = $1, type = $2, user_id = $3, login_password_login = $4, login_password_password = $5, ssh_key = $6, ssh_passphrase = $7, access_key_access_key = $8, access_key_secret_key = $9, secret_storage_id = $10, owner = $11, environment_id = $12 WHERE id = $13 AND project_id = $14";
+                sqlx::query(query)
+                    .bind(&key.name)
+                    .bind(&key.r#type)
+                    .bind(&key.user_id)
+                    .bind(&key.login_password_login)
+                    .bind(&key.login_password_password)
+                    .bind(&key.ssh_key)
+                    .bind(&key.ssh_passphrase)
+                    .bind(&key.access_key_access_key)
+                    .bind(&key.access_key_secret_key)
+                    .bind(&key.secret_storage_id)
+                    .bind(key.owner.as_ref().map(|o| o.to_string()))
+                    .bind(&key.environment_id)
+                    .bind(key.id)
+                    .bind(key.project_id.unwrap_or(0))
+                    .execute(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+            SqlDialect::MySQL => {
+                let query = "UPDATE `access_key` SET name = ?, type = ?, user_id = ?, login_password_login = ?, login_password_password = ?, ssh_key = ?, ssh_passphrase = ?, access_key_access_key = ?, access_key_secret_key = ?, secret_storage_id = ?, owner = ?, environment_id = ? WHERE id = ? AND project_id = ?";
+                sqlx::query(query)
+                    .bind(&key.name)
+                    .bind(&key.r#type)
+                    .bind(&key.user_id)
+                    .bind(&key.login_password_login)
+                    .bind(&key.login_password_password)
+                    .bind(&key.ssh_key)
+                    .bind(&key.ssh_passphrase)
+                    .bind(&key.access_key_access_key)
+                    .bind(&key.access_key_secret_key)
+                    .bind(&key.secret_storage_id)
+                    .bind(key.owner.as_ref().map(|o| o.to_string()))
+                    .bind(&key.environment_id)
+                    .bind(key.id)
+                    .bind(key.project_id.unwrap_or(0))
+                    .execute(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+        }
+        Ok(())
+    }
+
+    async fn delete_access_key(&self, project_id: i32, key_id: i32) -> Result<()> {
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let query = "DELETE FROM access_key WHERE id = ? AND project_id = ?";
+                sqlx::query(query)
+                    .bind(key_id)
+                    .bind(project_id)
+                    .execute(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "DELETE FROM access_key WHERE id = $1 AND project_id = $2";
+                sqlx::query(query)
+                    .bind(key_id)
+                    .bind(project_id)
+                    .execute(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+            SqlDialect::MySQL => {
+                let query = "DELETE FROM `access_key` WHERE id = ? AND project_id = ?";
+                sqlx::query(query)
+                    .bind(key_id)
+                    .bind(project_id)
+                    .execute(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+        }
+        Ok(())
+    }
 }
 
 #[async_trait]
