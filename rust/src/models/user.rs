@@ -123,6 +123,56 @@ impl<'r> sqlx::Decode<'r, sqlx::Sqlite> for ProjectUserRole {
     }
 }
 
+// PostgreSQL поддержка
+impl sqlx::Type<sqlx::Postgres> for ProjectUserRole {
+    fn type_info() -> sqlx::postgres::PgTypeInfo {
+        <String as sqlx::Type<sqlx::Postgres>>::type_info()
+    }
+
+    fn compatible(ty: &sqlx::postgres::PgTypeInfo) -> bool {
+        <String as sqlx::Type<sqlx::Postgres>>::compatible(ty)
+    }
+}
+
+impl<'r> sqlx::Decode<'r, sqlx::Postgres> for ProjectUserRole {
+    fn decode(value: sqlx::postgres::PgValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
+        let s = <String as sqlx::Decode<'r, sqlx::Postgres>>::decode(value)?;
+        Ok(match s.as_str() {
+            "owner" => ProjectUserRole::Owner,
+            "manager" => ProjectUserRole::Manager,
+            "task_runner" => ProjectUserRole::TaskRunner,
+            "guest" => ProjectUserRole::Guest,
+            "none" => ProjectUserRole::None,
+            _ => ProjectUserRole::None,
+        })
+    }
+}
+
+// MySQL поддержка
+impl sqlx::Type<sqlx::MySql> for ProjectUserRole {
+    fn type_info() -> sqlx::mysql::MySqlTypeInfo {
+        <String as sqlx::Type<sqlx::MySql>>::type_info()
+    }
+
+    fn compatible(ty: &sqlx::mysql::MySqlTypeInfo) -> bool {
+        <String as sqlx::Type<sqlx::MySql>>::compatible(ty)
+    }
+}
+
+impl<'r> sqlx::Decode<'r, sqlx::MySql> for ProjectUserRole {
+    fn decode(value: sqlx::mysql::MySqlValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
+        let s = <String as sqlx::Decode<'r, sqlx::MySql>>::decode(value)?;
+        Ok(match s.as_str() {
+            "owner" => ProjectUserRole::Owner,
+            "manager" => ProjectUserRole::Manager,
+            "task_runner" => ProjectUserRole::TaskRunner,
+            "guest" => ProjectUserRole::Guest,
+            "none" => ProjectUserRole::None,
+            _ => ProjectUserRole::None,
+        })
+    }
+}
+
 /// Пользователь с паролем (для создания/обновления)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserWithPwd {

@@ -44,13 +44,6 @@ pub struct SqlStore {
     db: SqlDb,
 }
 
-/// Pool для разных типов БД
-pub enum DbPool {
-    Sqlite(SqlitePool),
-    Postgres(PgPool),
-    Mysql(MySqlPool),
-}
-
 impl SqlStore {
     /// Создаёт новое SQL-хранилище
     pub async fn new(database_url: &str) -> Result<Self> {
@@ -212,47 +205,141 @@ impl MigrationManager for SqlStore {
 #[async_trait]
 impl OptionsManager for SqlStore {
     async fn get_options(&self) -> Result<HashMap<String, String>> {
-        let query = "SELECT key, value FROM option";
-        let rows = sqlx::query(query)
-            .fetch_all(self.get_pool()?)
-            .await
-            .map_err(|e| Error::Database(e))?;
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let query = "SELECT key, value FROM option";
+                let rows = sqlx::query(query)
+                    .fetch_all(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
 
-        Ok(rows.into_iter().map(|row| {
-            let key: String = row.get("key");
-            let value: String = row.get("value");
-            (key, value)
-        }).collect())
+                Ok(rows.into_iter().map(|row| {
+                    let key: String = row.get("key");
+                    let value: String = row.get("value");
+                    (key, value)
+                }).collect())
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "SELECT key, value FROM option";
+                let rows = sqlx::query(query)
+                    .fetch_all(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                Ok(rows.into_iter().map(|row| {
+                    let key: String = row.get("key");
+                    let value: String = row.get("value");
+                    (key, value)
+                }).collect())
+            }
+            SqlDialect::MySQL => {
+                let query = "SELECT key, value FROM option";
+                let rows = sqlx::query(query)
+                    .fetch_all(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                Ok(rows.into_iter().map(|row| {
+                    let key: String = row.get("key");
+                    let value: String = row.get("value");
+                    (key, value)
+                }).collect())
+            }
+        }
     }
 
     async fn get_option(&self, key: &str) -> Result<Option<String>> {
-        let query = "SELECT value FROM option WHERE key = ?";
-        let result = sqlx::query_scalar::<_, String>(query)
-            .bind(key)
-            .fetch_optional(self.get_pool()?)
-            .await
-            .map_err(|e| Error::Database(e))?;
-        Ok(result)
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let query = "SELECT value FROM option WHERE key = ?";
+                let result = sqlx::query_scalar::<_, String>(query)
+                    .bind(key)
+                    .fetch_optional(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+                Ok(result)
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "SELECT value FROM option WHERE key = $1";
+                let result = sqlx::query_scalar::<_, String>(query)
+                    .bind(key)
+                    .fetch_optional(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+                Ok(result)
+            }
+            SqlDialect::MySQL => {
+                let query = "SELECT value FROM option WHERE key = ?";
+                let result = sqlx::query_scalar::<_, String>(query)
+                    .bind(key)
+                    .fetch_optional(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+                Ok(result)
+            }
+        }
     }
 
     async fn set_option(&self, key: &str, value: &str) -> Result<()> {
-        let query = "INSERT OR REPLACE INTO option (key, value) VALUES (?, ?)";
-        sqlx::query(query)
-            .bind(key)
-            .bind(value)
-            .execute(self.get_pool()?)
-            .await
-            .map_err(|e| Error::Database(e))?;
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let query = "INSERT OR REPLACE INTO option (key, value) VALUES (?, ?)";
+                sqlx::query(query)
+                    .bind(key)
+                    .bind(value)
+                    .execute(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "INSERT INTO option (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value";
+                sqlx::query(query)
+                    .bind(key)
+                    .bind(value)
+                    .execute(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+            SqlDialect::MySQL => {
+                let query = "INSERT INTO option (key, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value)";
+                sqlx::query(query)
+                    .bind(key)
+                    .bind(value)
+                    .execute(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+        }
         Ok(())
     }
 
     async fn delete_option(&self, key: &str) -> Result<()> {
-        let query = "DELETE FROM option WHERE key = ?";
-        sqlx::query(query)
-            .bind(key)
-            .execute(self.get_pool()?)
-            .await
-            .map_err(|e| Error::Database(e))?;
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let query = "DELETE FROM option WHERE key = ?";
+                sqlx::query(query)
+                    .bind(key)
+                    .execute(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "DELETE FROM option WHERE key = $1";
+                sqlx::query(query)
+                    .bind(key)
+                    .execute(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+            SqlDialect::MySQL => {
+                let query = "DELETE FROM option WHERE key = ?";
+                sqlx::query(query)
+                    .bind(key)
+                    .execute(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+        }
         Ok(())
     }
 }
@@ -260,291 +347,886 @@ impl OptionsManager for SqlStore {
 #[async_trait]
 impl UserManager for SqlStore {
     async fn get_users(&self, _params: RetrieveQueryParams) -> Result<Vec<User>> {
-        let query = "SELECT * FROM user ORDER BY id";
-        let rows = sqlx::query(query)
-            .fetch_all(self.get_pool()?)
-            .await
-            .map_err(|e| Error::Database(e))?;
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let query = "SELECT * FROM user ORDER BY id";
+                let rows = sqlx::query(query)
+                    .fetch_all(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
 
-        Ok(rows.into_iter().map(|row| User {
-            id: row.get("id"),
-            created: row.get("created"),
-            username: row.get("username"),
-            name: row.get("name"),
-            email: row.get("email"),
-            password: row.get("password"),
-            admin: row.get("admin"),
-            external: row.get("external"),
-            alert: row.get("alert"),
-            pro: row.get("pro"),
-            totp: None,
-            email_otp: None,
-        }).collect())
+                Ok(rows.into_iter().map(|row| User {
+                    id: row.get("id"),
+                    created: row.get("created"),
+                    username: row.get("username"),
+                    name: row.get("name"),
+                    email: row.get("email"),
+                    password: row.get("password"),
+                    admin: row.get("admin"),
+                    external: row.get("external"),
+                    alert: row.get("alert"),
+                    pro: row.get("pro"),
+                    totp: None,
+                    email_otp: None,
+                }).collect())
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "SELECT * FROM \"user\" ORDER BY id";
+                let rows = sqlx::query(query)
+                    .fetch_all(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                Ok(rows.into_iter().map(|row| User {
+                    id: row.get("id"),
+                    created: row.get("created"),
+                    username: row.get("username"),
+                    name: row.get("name"),
+                    email: row.get("email"),
+                    password: row.get("password"),
+                    admin: row.get("admin"),
+                    external: row.get("external"),
+                    alert: row.get("alert"),
+                    pro: row.get("pro"),
+                    totp: None,
+                    email_otp: None,
+                }).collect())
+            }
+            SqlDialect::MySQL => {
+                let query = "SELECT * FROM `user` ORDER BY id";
+                let rows = sqlx::query(query)
+                    .fetch_all(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                Ok(rows.into_iter().map(|row| User {
+                    id: row.get("id"),
+                    created: row.get("created"),
+                    username: row.get("username"),
+                    name: row.get("name"),
+                    email: row.get("email"),
+                    password: row.get("password"),
+                    admin: row.get("admin"),
+                    external: row.get("external"),
+                    alert: row.get("alert"),
+                    pro: row.get("pro"),
+                    totp: None,
+                    email_otp: None,
+                }).collect())
+            }
+        }
     }
 
     async fn get_user(&self, user_id: i32) -> Result<User> {
-        let query = "SELECT * FROM user WHERE id = ?";
-        let row = sqlx::query(query)
-            .bind(user_id)
-            .fetch_one(self.get_pool()?)
-            .await
-            .map_err(|e| match e {
-                sqlx::Error::RowNotFound => Error::NotFound("Пользователь не найден".to_string()),
-                _ => Error::Database(e),
-            })?;
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let query = "SELECT * FROM user WHERE id = ?";
+                let row = sqlx::query(query)
+                    .bind(user_id)
+                    .fetch_one(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| match e {
+                        sqlx::Error::RowNotFound => Error::NotFound("Пользователь не найден".to_string()),
+                        _ => Error::Database(e),
+                    })?;
 
-        Ok(User {
-            id: row.get("id"),
-            created: row.get("created"),
-            username: row.get("username"),
-            name: row.get("name"),
-            email: row.get("email"),
-            password: row.get("password"),
-            admin: row.get("admin"),
-            external: row.get("external"),
-            alert: row.get("alert"),
-            pro: row.get("pro"),
-            totp: None,
-            email_otp: None,
-        })
+                Ok(User {
+                    id: row.get("id"),
+                    created: row.get("created"),
+                    username: row.get("username"),
+                    name: row.get("name"),
+                    email: row.get("email"),
+                    password: row.get("password"),
+                    admin: row.get("admin"),
+                    external: row.get("external"),
+                    alert: row.get("alert"),
+                    pro: row.get("pro"),
+                    totp: None,
+                    email_otp: None,
+                })
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "SELECT * FROM \"user\" WHERE id = $1";
+                let row = sqlx::query(query)
+                    .bind(user_id)
+                    .fetch_one(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| match e {
+                        sqlx::Error::RowNotFound => Error::NotFound("Пользователь не найден".to_string()),
+                        _ => Error::Database(e),
+                    })?;
+
+                Ok(User {
+                    id: row.get("id"),
+                    created: row.get("created"),
+                    username: row.get("username"),
+                    name: row.get("name"),
+                    email: row.get("email"),
+                    password: row.get("password"),
+                    admin: row.get("admin"),
+                    external: row.get("external"),
+                    alert: row.get("alert"),
+                    pro: row.get("pro"),
+                    totp: None,
+                    email_otp: None,
+                })
+            }
+            SqlDialect::MySQL => {
+                let query = "SELECT * FROM `user` WHERE id = ?";
+                let row = sqlx::query(query)
+                    .bind(user_id)
+                    .fetch_one(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| match e {
+                        sqlx::Error::RowNotFound => Error::NotFound("Пользователь не найден".to_string()),
+                        _ => Error::Database(e),
+                    })?;
+
+                Ok(User {
+                    id: row.get("id"),
+                    created: row.get("created"),
+                    username: row.get("username"),
+                    name: row.get("name"),
+                    email: row.get("email"),
+                    password: row.get("password"),
+                    admin: row.get("admin"),
+                    external: row.get("external"),
+                    alert: row.get("alert"),
+                    pro: row.get("pro"),
+                    totp: None,
+                    email_otp: None,
+                })
+            }
+        }
     }
 
     async fn get_user_by_login_or_email(&self, login: &str, email: &str) -> Result<User> {
-        let query = "SELECT * FROM user WHERE username = ? OR email = ?";
-        let row = sqlx::query(query)
-            .bind(login)
-            .bind(email)
-            .fetch_one(self.get_pool()?)
-            .await
-            .map_err(|e| match e {
-                sqlx::Error::RowNotFound => Error::NotFound("Пользователь не найден".to_string()),
-                _ => Error::Database(e),
-            })?;
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let query = "SELECT * FROM user WHERE username = ? OR email = ?";
+                let row = sqlx::query(query)
+                    .bind(login)
+                    .bind(email)
+                    .fetch_one(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| match e {
+                        sqlx::Error::RowNotFound => Error::NotFound("Пользователь не найден".to_string()),
+                        _ => Error::Database(e),
+                    })?;
 
-        Ok(User {
-            id: row.get("id"),
-            created: row.get("created"),
-            username: row.get("username"),
-            name: row.get("name"),
-            email: row.get("email"),
-            password: row.get("password"),
-            admin: row.get("admin"),
-            external: row.get("external"),
-            alert: row.get("alert"),
-            pro: row.get("pro"),
-            totp: None,
-            email_otp: None,
-        })
+                Ok(User {
+                    id: row.get("id"),
+                    created: row.get("created"),
+                    username: row.get("username"),
+                    name: row.get("name"),
+                    email: row.get("email"),
+                    password: row.get("password"),
+                    admin: row.get("admin"),
+                    external: row.get("external"),
+                    alert: row.get("alert"),
+                    pro: row.get("pro"),
+                    totp: None,
+                    email_otp: None,
+                })
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "SELECT * FROM \"user\" WHERE username = $1 OR email = $2";
+                let row = sqlx::query(query)
+                    .bind(login)
+                    .bind(email)
+                    .fetch_one(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| match e {
+                        sqlx::Error::RowNotFound => Error::NotFound("Пользователь не найден".to_string()),
+                        _ => Error::Database(e),
+                    })?;
+
+                Ok(User {
+                    id: row.get("id"),
+                    created: row.get("created"),
+                    username: row.get("username"),
+                    name: row.get("name"),
+                    email: row.get("email"),
+                    password: row.get("password"),
+                    admin: row.get("admin"),
+                    external: row.get("external"),
+                    alert: row.get("alert"),
+                    pro: row.get("pro"),
+                    totp: None,
+                    email_otp: None,
+                })
+            }
+            SqlDialect::MySQL => {
+                let query = "SELECT * FROM `user` WHERE username = ? OR email = ?";
+                let row = sqlx::query(query)
+                    .bind(login)
+                    .bind(email)
+                    .fetch_one(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| match e {
+                        sqlx::Error::RowNotFound => Error::NotFound("Пользователь не найден".to_string()),
+                        _ => Error::Database(e),
+                    })?;
+
+                Ok(User {
+                    id: row.get("id"),
+                    created: row.get("created"),
+                    username: row.get("username"),
+                    name: row.get("name"),
+                    email: row.get("email"),
+                    password: row.get("password"),
+                    admin: row.get("admin"),
+                    external: row.get("external"),
+                    alert: row.get("alert"),
+                    pro: row.get("pro"),
+                    totp: None,
+                    email_otp: None,
+                })
+            }
+        }
     }
 
     async fn create_user(&self, user: User, password: &str) -> Result<User> {
-        let query = "INSERT INTO user (username, name, email, password, admin, external, alert, pro, created) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        sqlx::query(query)
-            .bind(&user.username)
-            .bind(&user.name)
-            .bind(&user.email)
-            .bind(password)
-            .bind(user.admin)
-            .bind(user.external)
-            .bind(user.alert)
-            .bind(user.pro)
-            .bind(user.created)
-            .execute(self.get_pool()?)
-            .await
-            .map_err(|e| Error::Database(e))?;
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let query = "INSERT INTO user (username, name, email, password, admin, external, alert, pro, created) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                sqlx::query(query)
+                    .bind(&user.username)
+                    .bind(&user.name)
+                    .bind(&user.email)
+                    .bind(password)
+                    .bind(user.admin)
+                    .bind(user.external)
+                    .bind(user.alert)
+                    .bind(user.pro)
+                    .bind(user.created)
+                    .execute(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "INSERT INTO \"user\" (username, name, email, password, admin, external, alert, pro, created) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)";
+                sqlx::query(query)
+                    .bind(&user.username)
+                    .bind(&user.name)
+                    .bind(&user.email)
+                    .bind(password)
+                    .bind(user.admin)
+                    .bind(user.external)
+                    .bind(user.alert)
+                    .bind(user.pro)
+                    .bind(user.created)
+                    .execute(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+            SqlDialect::MySQL => {
+                let query = "INSERT INTO `user` (username, name, email, password, admin, external, alert, pro, created) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                sqlx::query(query)
+                    .bind(&user.username)
+                    .bind(&user.name)
+                    .bind(&user.email)
+                    .bind(password)
+                    .bind(user.admin)
+                    .bind(user.external)
+                    .bind(user.alert)
+                    .bind(user.pro)
+                    .bind(user.created)
+                    .execute(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+        }
 
         self.get_user_by_login_or_email(&user.username, &user.email).await
     }
 
     async fn update_user(&self, user: User) -> Result<()> {
-        let query = "UPDATE user SET username = ?, name = ?, email = ?, admin = ?, external = ?, alert = ?, pro = ? WHERE id = ?";
-        sqlx::query(query)
-            .bind(&user.username)
-            .bind(&user.name)
-            .bind(&user.email)
-            .bind(user.admin)
-            .bind(user.external)
-            .bind(user.alert)
-            .bind(user.pro)
-            .bind(user.id)
-            .execute(self.get_pool()?)
-            .await
-            .map_err(|e| Error::Database(e))?;
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let query = "UPDATE user SET username = ?, name = ?, email = ?, admin = ?, external = ?, alert = ?, pro = ? WHERE id = ?";
+                sqlx::query(query)
+                    .bind(&user.username)
+                    .bind(&user.name)
+                    .bind(&user.email)
+                    .bind(user.admin)
+                    .bind(user.external)
+                    .bind(user.alert)
+                    .bind(user.pro)
+                    .bind(user.id)
+                    .execute(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "UPDATE \"user\" SET username = $1, name = $2, email = $3, admin = $4, external = $5, alert = $6, pro = $7 WHERE id = $8";
+                sqlx::query(query)
+                    .bind(&user.username)
+                    .bind(&user.name)
+                    .bind(&user.email)
+                    .bind(user.admin)
+                    .bind(user.external)
+                    .bind(user.alert)
+                    .bind(user.pro)
+                    .bind(user.id)
+                    .execute(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+            SqlDialect::MySQL => {
+                let query = "UPDATE `user` SET username = ?, name = ?, email = ?, admin = ?, external = ?, alert = ?, pro = ? WHERE id = ?";
+                sqlx::query(query)
+                    .bind(&user.username)
+                    .bind(&user.name)
+                    .bind(&user.email)
+                    .bind(user.admin)
+                    .bind(user.external)
+                    .bind(user.alert)
+                    .bind(user.pro)
+                    .bind(user.id)
+                    .execute(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+        }
         Ok(())
     }
 
     async fn delete_user(&self, user_id: i32) -> Result<()> {
-        let query = "DELETE FROM user WHERE id = ?";
-        sqlx::query(query)
-            .bind(user_id)
-            .execute(self.get_pool()?)
-            .await
-            .map_err(|e| Error::Database(e))?;
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let query = "DELETE FROM user WHERE id = ?";
+                sqlx::query(query)
+                    .bind(user_id)
+                    .execute(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "DELETE FROM \"user\" WHERE id = $1";
+                sqlx::query(query)
+                    .bind(user_id)
+                    .execute(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+            SqlDialect::MySQL => {
+                let query = "DELETE FROM `user` WHERE id = ?";
+                sqlx::query(query)
+                    .bind(user_id)
+                    .execute(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+        }
         Ok(())
     }
 
     async fn set_user_password(&self, user_id: i32, password: &str) -> Result<()> {
-        let query = "UPDATE user SET password = ? WHERE id = ?";
-        sqlx::query(query)
-            .bind(password)
-            .bind(user_id)
-            .execute(self.get_pool()?)
-            .await
-            .map_err(|e| Error::Database(e))?;
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let query = "UPDATE user SET password = ? WHERE id = ?";
+                sqlx::query(query)
+                    .bind(password)
+                    .bind(user_id)
+                    .execute(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "UPDATE \"user\" SET password = $1 WHERE id = $2";
+                sqlx::query(query)
+                    .bind(password)
+                    .bind(user_id)
+                    .execute(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+            SqlDialect::MySQL => {
+                let query = "UPDATE `user` SET password = ? WHERE id = ?";
+                sqlx::query(query)
+                    .bind(password)
+                    .bind(user_id)
+                    .execute(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+        }
         Ok(())
     }
 
     async fn get_all_admins(&self) -> Result<Vec<User>> {
-        let query = "SELECT * FROM user WHERE admin = 1";
-        let rows = sqlx::query(query)
-            .fetch_all(self.get_pool()?)
-            .await
-            .map_err(|e| Error::Database(e))?;
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let query = "SELECT * FROM user WHERE admin = 1";
+                let rows = sqlx::query(query)
+                    .fetch_all(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
 
-        Ok(rows.into_iter().map(|row| User {
-            id: row.get("id"),
-            created: row.get("created"),
-            username: row.get("username"),
-            name: row.get("name"),
-            email: row.get("email"),
-            password: row.get("password"),
-            admin: row.get("admin"),
-            external: row.get("external"),
-            alert: row.get("alert"),
-            pro: row.get("pro"),
-            totp: None,
-            email_otp: None,
-        }).collect())
+                Ok(rows.into_iter().map(|row| User {
+                    id: row.get("id"),
+                    created: row.get("created"),
+                    username: row.get("username"),
+                    name: row.get("name"),
+                    email: row.get("email"),
+                    password: row.get("password"),
+                    admin: row.get("admin"),
+                    external: row.get("external"),
+                    alert: row.get("alert"),
+                    pro: row.get("pro"),
+                    totp: None,
+                    email_otp: None,
+                }).collect())
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "SELECT * FROM \"user\" WHERE admin = $1";
+                let rows = sqlx::query(query)
+                    .bind(true)
+                    .fetch_all(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                Ok(rows.into_iter().map(|row| User {
+                    id: row.get("id"),
+                    created: row.get("created"),
+                    username: row.get("username"),
+                    name: row.get("name"),
+                    email: row.get("email"),
+                    password: row.get("password"),
+                    admin: row.get("admin"),
+                    external: row.get("external"),
+                    alert: row.get("alert"),
+                    pro: row.get("pro"),
+                    totp: None,
+                    email_otp: None,
+                }).collect())
+            }
+            SqlDialect::MySQL => {
+                let query = "SELECT * FROM `user` WHERE admin = 1";
+                let rows = sqlx::query(query)
+                    .fetch_all(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                Ok(rows.into_iter().map(|row| User {
+                    id: row.get("id"),
+                    created: row.get("created"),
+                    username: row.get("username"),
+                    name: row.get("name"),
+                    email: row.get("email"),
+                    password: row.get("password"),
+                    admin: row.get("admin"),
+                    external: row.get("external"),
+                    alert: row.get("alert"),
+                    pro: row.get("pro"),
+                    totp: None,
+                    email_otp: None,
+                }).collect())
+            }
+        }
     }
 
     async fn get_user_count(&self) -> Result<usize> {
-        let query = "SELECT COUNT(*) FROM user";
-        let count: i64 = sqlx::query_scalar(query)
-            .fetch_one(self.get_pool()?)
-            .await
-            .map_err(|e| Error::Database(e))?;
-        Ok(count as usize)
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let query = "SELECT COUNT(*) FROM user";
+                let count: i64 = sqlx::query_scalar(query)
+                    .fetch_one(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+                Ok(count as usize)
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "SELECT COUNT(*) FROM \"user\"";
+                let count: i64 = sqlx::query_scalar(query)
+                    .fetch_one(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+                Ok(count as usize)
+            }
+            SqlDialect::MySQL => {
+                let query = "SELECT COUNT(*) FROM `user`";
+                let count: i64 = sqlx::query_scalar(query)
+                    .fetch_one(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+                Ok(count as usize)
+            }
+        }
     }
 
     async fn get_project_users(&self, project_id: i32, _params: RetrieveQueryParams) -> Result<Vec<ProjectUser>> {
-        let query = "SELECT pu.*, u.username, u.name, u.email
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let query = "SELECT pu.*, u.username, u.name, u.email
                      FROM project__user pu
                      JOIN user u ON pu.user_id = u.id
                      WHERE pu.project_id = ?
                      ORDER BY pu.id";
-        let rows = sqlx::query(query)
-            .bind(project_id)
-            .fetch_all(self.get_pool()?)
-            .await
-            .map_err(|e| Error::Database(e))?;
+                let rows = sqlx::query(query)
+                    .bind(project_id)
+                    .fetch_all(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
 
-        Ok(rows.into_iter().map(|row| ProjectUser {
-            id: row.get("id"),
-            project_id: row.get("project_id"),
-            user_id: row.get("user_id"),
-            role: row.get("role"),
-            created: row.get("created"),
-            username: row.get("username"),
-            name: row.get("name"),
-        }).collect())
+                Ok(rows.into_iter().map(|row| ProjectUser {
+                    id: row.get("id"),
+                    project_id: row.get("project_id"),
+                    user_id: row.get("user_id"),
+                    role: row.get("role"),
+                    created: row.get("created"),
+                    username: row.get("username"),
+                    name: row.get("name"),
+                }).collect())
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "SELECT pu.*, u.username, u.name, u.email
+                     FROM project__user pu
+                     JOIN \"user\" u ON pu.user_id = u.id
+                     WHERE pu.project_id = $1
+                     ORDER BY pu.id";
+                let rows = sqlx::query(query)
+                    .bind(project_id)
+                    .fetch_all(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                Ok(rows.into_iter().map(|row| ProjectUser {
+                    id: row.get("id"),
+                    project_id: row.get("project_id"),
+                    user_id: row.get("user_id"),
+                    role: row.get("role"),
+                    created: row.get("created"),
+                    username: row.get("username"),
+                    name: row.get("name"),
+                }).collect())
+            }
+            SqlDialect::MySQL => {
+                let query = "SELECT pu.*, u.username, u.name, u.email
+                     FROM project__user pu
+                     JOIN `user` u ON pu.user_id = u.id
+                     WHERE pu.project_id = ?
+                     ORDER BY pu.id";
+                let rows = sqlx::query(query)
+                    .bind(project_id)
+                    .fetch_all(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                Ok(rows.into_iter().map(|row| ProjectUser {
+                    id: row.get("id"),
+                    project_id: row.get("project_id"),
+                    user_id: row.get("user_id"),
+                    role: row.get("role"),
+                    created: row.get("created"),
+                    username: row.get("username"),
+                    name: row.get("name"),
+                }).collect())
+            }
+        }
     }
 }
 
 #[async_trait]
 impl ProjectStore for SqlStore {
     async fn get_projects(&self, user_id: Option<i32>) -> Result<Vec<Project>> {
-        let (query, bind_user_id) = if let Some(uid) = user_id {
-            ("SELECT p.* FROM project p JOIN project__user pu ON p.id = pu.project_id WHERE pu.user_id = ?", Some(uid))
-        } else {
-            ("SELECT * FROM project", None)
-        };
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let (query, bind_user_id) = if let Some(uid) = user_id {
+                    ("SELECT p.* FROM project p JOIN project__user pu ON p.id = pu.project_id WHERE pu.user_id = ?", Some(uid))
+                } else {
+                    ("SELECT * FROM project", None)
+                };
 
-        let mut q = sqlx::query(query);
-        if let Some(uid) = bind_user_id {
-            q = q.bind(uid);
+                let mut q = sqlx::query(query);
+                if let Some(uid) = bind_user_id {
+                    q = q.bind(uid);
+                }
+
+                let rows = q
+                    .fetch_all(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                Ok(rows.into_iter().map(|row| Project {
+                    id: row.get("id"),
+                    created: row.get("created"),
+                    name: row.get("name"),
+                    alert: row.get("alert"),
+                    alert_chat: row.get("alert_chat"),
+                    max_parallel_tasks: row.get("max_parallel_tasks"),
+                    r#type: row.get("type"),
+                    default_secret_storage_id: row.get("default_secret_storage_id"),
+                }).collect())
+            }
+            SqlDialect::PostgreSQL => {
+                let (query, bind_user_id) = if let Some(uid) = user_id {
+                    ("SELECT p.* FROM project p JOIN project__user pu ON p.id = pu.project_id WHERE pu.user_id = $1", Some(uid))
+                } else {
+                    ("SELECT * FROM project", None)
+                };
+
+                let mut q = sqlx::query(query);
+                if let Some(uid) = bind_user_id {
+                    q = q.bind(uid);
+                }
+
+                let rows = q
+                    .fetch_all(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                Ok(rows.into_iter().map(|row| Project {
+                    id: row.get("id"),
+                    created: row.get("created"),
+                    name: row.get("name"),
+                    alert: row.get("alert"),
+                    alert_chat: row.get("alert_chat"),
+                    max_parallel_tasks: row.get("max_parallel_tasks"),
+                    r#type: row.get("type"),
+                    default_secret_storage_id: row.get("default_secret_storage_id"),
+                }).collect())
+            }
+            SqlDialect::MySQL => {
+                let (query, bind_user_id) = if let Some(uid) = user_id {
+                    ("SELECT p.* FROM project p JOIN project__user pu ON p.id = pu.project_id WHERE pu.user_id = ?", Some(uid))
+                } else {
+                    ("SELECT * FROM project", None)
+                };
+
+                let mut q = sqlx::query(query);
+                if let Some(uid) = bind_user_id {
+                    q = q.bind(uid);
+                }
+
+                let rows = q
+                    .fetch_all(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                Ok(rows.into_iter().map(|row| Project {
+                    id: row.get("id"),
+                    created: row.get("created"),
+                    name: row.get("name"),
+                    alert: row.get("alert"),
+                    alert_chat: row.get("alert_chat"),
+                    max_parallel_tasks: row.get("max_parallel_tasks"),
+                    r#type: row.get("type"),
+                    default_secret_storage_id: row.get("default_secret_storage_id"),
+                }).collect())
+            }
         }
-
-        let rows = q
-            .fetch_all(self.get_pool()?)
-            .await
-            .map_err(|e| Error::Database(e))?;
-
-        Ok(rows.into_iter().map(|row| Project {
-            id: row.get("id"),
-            created: row.get("created"),
-            name: row.get("name"),
-            alert: row.get("alert"),
-            alert_chat: row.get("alert_chat"),
-            max_parallel_tasks: row.get("max_parallel_tasks"),
-            r#type: row.get("type"),
-            default_secret_storage_id: row.get("default_secret_storage_id"),
-        }).collect())
     }
 
     async fn get_project(&self, project_id: i32) -> Result<Project> {
-        let query = "SELECT * FROM project WHERE id = ?";
-        let row = sqlx::query(query)
-            .bind(project_id)
-            .fetch_one(self.get_pool()?)
-            .await
-            .map_err(|e| match e {
-                sqlx::Error::RowNotFound => Error::NotFound("Проект не найден".to_string()),
-                _ => Error::Database(e),
-            })?;
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let query = "SELECT * FROM project WHERE id = ?";
+                let row = sqlx::query(query)
+                    .bind(project_id)
+                    .fetch_one(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| match e {
+                        sqlx::Error::RowNotFound => Error::NotFound("Проект не найден".to_string()),
+                        _ => Error::Database(e),
+                    })?;
 
-        Ok(Project {
-            id: row.get("id"),
-            created: row.get("created"),
-            name: row.get("name"),
-            alert: row.get("alert"),
-            alert_chat: row.get("alert_chat"),
-            max_parallel_tasks: row.get("max_parallel_tasks"),
-            r#type: row.get("type"),
-            default_secret_storage_id: row.get("default_secret_storage_id"),
-        })
+                Ok(Project {
+                    id: row.get("id"),
+                    created: row.get("created"),
+                    name: row.get("name"),
+                    alert: row.get("alert"),
+                    alert_chat: row.get("alert_chat"),
+                    max_parallel_tasks: row.get("max_parallel_tasks"),
+                    r#type: row.get("type"),
+                    default_secret_storage_id: row.get("default_secret_storage_id"),
+                })
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "SELECT * FROM project WHERE id = $1";
+                let row = sqlx::query(query)
+                    .bind(project_id)
+                    .fetch_one(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| match e {
+                        sqlx::Error::RowNotFound => Error::NotFound("Проект не найден".to_string()),
+                        _ => Error::Database(e),
+                    })?;
+
+                Ok(Project {
+                    id: row.get("id"),
+                    created: row.get("created"),
+                    name: row.get("name"),
+                    alert: row.get("alert"),
+                    alert_chat: row.get("alert_chat"),
+                    max_parallel_tasks: row.get("max_parallel_tasks"),
+                    r#type: row.get("type"),
+                    default_secret_storage_id: row.get("default_secret_storage_id"),
+                })
+            }
+            SqlDialect::MySQL => {
+                let query = "SELECT * FROM project WHERE id = ?";
+                let row = sqlx::query(query)
+                    .bind(project_id)
+                    .fetch_one(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| match e {
+                        sqlx::Error::RowNotFound => Error::NotFound("Проект не найден".to_string()),
+                        _ => Error::Database(e),
+                    })?;
+
+                Ok(Project {
+                    id: row.get("id"),
+                    created: row.get("created"),
+                    name: row.get("name"),
+                    alert: row.get("alert"),
+                    alert_chat: row.get("alert_chat"),
+                    max_parallel_tasks: row.get("max_parallel_tasks"),
+                    r#type: row.get("type"),
+                    default_secret_storage_id: row.get("default_secret_storage_id"),
+                })
+            }
+        }
     }
 
     async fn create_project(&self, mut project: Project) -> Result<Project> {
-        let query = "INSERT INTO project (name, created, alert, alert_chat, max_parallel_tasks, type, default_secret_storage_id) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id";
-        let id: i32 = sqlx::query_scalar(query)
-            .bind(&project.name)
-            .bind(project.created)
-            .bind(project.alert)
-            .bind(&project.alert_chat)
-            .bind(project.max_parallel_tasks)
-            .bind(&project.r#type)
-            .bind(&project.default_secret_storage_id)
-            .fetch_one(self.get_pool()?)
-            .await
-            .map_err(|e| Error::Database(e))?;
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let query = "INSERT INTO project (name, created, alert, alert_chat, max_parallel_tasks, type, default_secret_storage_id) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id";
+                let id: i32 = sqlx::query_scalar(query)
+                    .bind(&project.name)
+                    .bind(project.created)
+                    .bind(project.alert)
+                    .bind(&project.alert_chat)
+                    .bind(project.max_parallel_tasks)
+                    .bind(&project.r#type)
+                    .bind(&project.default_secret_storage_id)
+                    .fetch_one(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
 
-        project.id = id;
-        Ok(project)
+                project.id = id;
+                Ok(project)
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "INSERT INTO project (name, created, alert, alert_chat, max_parallel_tasks, type, default_secret_storage_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id";
+                let id: i32 = sqlx::query_scalar(query)
+                    .bind(&project.name)
+                    .bind(project.created)
+                    .bind(project.alert)
+                    .bind(&project.alert_chat)
+                    .bind(project.max_parallel_tasks)
+                    .bind(&project.r#type)
+                    .bind(&project.default_secret_storage_id)
+                    .fetch_one(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                project.id = id;
+                Ok(project)
+            }
+            SqlDialect::MySQL => {
+                let query = "INSERT INTO project (name, created, alert, alert_chat, max_parallel_tasks, type, default_secret_storage_id) VALUES (?, ?, ?, ?, ?, ?, ?)";
+                sqlx::query(query)
+                    .bind(&project.name)
+                    .bind(project.created)
+                    .bind(project.alert)
+                    .bind(&project.alert_chat)
+                    .bind(project.max_parallel_tasks)
+                    .bind(&project.r#type)
+                    .bind(&project.default_secret_storage_id)
+                    .execute(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                // Для MySQL нужно получить последний вставленный ID отдельно
+                let last_id: i32 = sqlx::query_scalar("SELECT LAST_INSERT_ID()")
+                    .fetch_one(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                project.id = last_id;
+                Ok(project)
+            }
+        }
     }
 
     async fn update_project(&self, project: Project) -> Result<()> {
-        let query = "UPDATE project SET name = ?, alert = ?, alert_chat = ?, max_parallel_tasks = ?, type = ?, default_secret_storage_id = ? WHERE id = ?";
-        sqlx::query(query)
-            .bind(&project.name)
-            .bind(project.alert)
-            .bind(&project.alert_chat)
-            .bind(project.max_parallel_tasks)
-            .bind(&project.r#type)
-            .bind(&project.default_secret_storage_id)
-            .bind(project.id)
-            .execute(self.get_pool()?)
-            .await
-            .map_err(|e| Error::Database(e))?;
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let query = "UPDATE project SET name = ?, alert = ?, alert_chat = ?, max_parallel_tasks = ?, type = ?, default_secret_storage_id = ? WHERE id = ?";
+                sqlx::query(query)
+                    .bind(&project.name)
+                    .bind(project.alert)
+                    .bind(&project.alert_chat)
+                    .bind(project.max_parallel_tasks)
+                    .bind(&project.r#type)
+                    .bind(&project.default_secret_storage_id)
+                    .bind(project.id)
+                    .execute(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "UPDATE project SET name = $1, alert = $2, alert_chat = $3, max_parallel_tasks = $4, type = $5, default_secret_storage_id = $6 WHERE id = $7";
+                sqlx::query(query)
+                    .bind(&project.name)
+                    .bind(project.alert)
+                    .bind(&project.alert_chat)
+                    .bind(project.max_parallel_tasks)
+                    .bind(&project.r#type)
+                    .bind(&project.default_secret_storage_id)
+                    .bind(project.id)
+                    .execute(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+            SqlDialect::MySQL => {
+                let query = "UPDATE project SET name = ?, alert = ?, alert_chat = ?, max_parallel_tasks = ?, type = ?, default_secret_storage_id = ? WHERE id = ?";
+                sqlx::query(query)
+                    .bind(&project.name)
+                    .bind(project.alert)
+                    .bind(&project.alert_chat)
+                    .bind(project.max_parallel_tasks)
+                    .bind(&project.r#type)
+                    .bind(&project.default_secret_storage_id)
+                    .bind(project.id)
+                    .execute(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+        }
         Ok(())
     }
 
     async fn delete_project(&self, project_id: i32) -> Result<()> {
-        let query = "DELETE FROM project WHERE id = ?";
-        sqlx::query(query)
-            .bind(project_id)
-            .execute(self.get_pool()?)
-            .await
-            .map_err(|e| Error::Database(e))?;
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let query = "DELETE FROM project WHERE id = ?";
+                sqlx::query(query)
+                    .bind(project_id)
+                    .execute(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "DELETE FROM project WHERE id = $1";
+                sqlx::query(query)
+                    .bind(project_id)
+                    .execute(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+            SqlDialect::MySQL => {
+                let query = "DELETE FROM project WHERE id = ?";
+                sqlx::query(query)
+                    .bind(project_id)
+                    .execute(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+        }
         Ok(())
     }
 }
@@ -756,71 +1438,212 @@ impl TerraformInventoryManager for SqlStore {
 #[async_trait]
 impl SecretStorageManager for SqlStore {
     async fn get_secret_storages(&self, project_id: i32) -> Result<Vec<SecretStorage>> {
-        let storages = sqlx::query_as::<_, SecretStorage>(
-            "SELECT * FROM secret_storage WHERE project_id = ? ORDER BY name"
-        )
-        .bind(project_id)
-        .fetch_all(self.get_pool()?)
-        .await
-        .map_err(|e| Error::Database(e))?;
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let storages = sqlx::query_as::<_, SecretStorage>(
+                    "SELECT * FROM secret_storage WHERE project_id = ? ORDER BY name"
+                )
+                .bind(project_id)
+                .fetch_all(self.get_sqlite_pool()?)
+                .await
+                .map_err(|e| Error::Database(e))?;
 
-        Ok(storages)
+                Ok(storages)
+            }
+            SqlDialect::PostgreSQL => {
+                let storages = sqlx::query_as::<_, SecretStorage>(
+                    "SELECT * FROM secret_storage WHERE project_id = $1 ORDER BY name"
+                )
+                .bind(project_id)
+                .fetch_all(self.get_postgres_pool()?)
+                .await
+                .map_err(|e| Error::Database(e))?;
+
+                Ok(storages)
+            }
+            SqlDialect::MySQL => {
+                let storages = sqlx::query_as::<_, SecretStorage>(
+                    "SELECT * FROM secret_storage WHERE project_id = ? ORDER BY name"
+                )
+                .bind(project_id)
+                .fetch_all(self.get_mysql_pool()?)
+                .await
+                .map_err(|e| Error::Database(e))?;
+
+                Ok(storages)
+            }
+        }
     }
 
     async fn get_secret_storage(&self, project_id: i32, storage_id: i32) -> Result<SecretStorage> {
-        let storage = sqlx::query_as::<_, SecretStorage>(
-            "SELECT * FROM secret_storage WHERE id = ? AND project_id = ?"
-        )
-        .bind(storage_id)
-        .bind(project_id)
-        .fetch_optional(self.get_pool()?)
-        .await
-        .map_err(|e| Error::Database(e))?;
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let storage = sqlx::query_as::<_, SecretStorage>(
+                    "SELECT * FROM secret_storage WHERE id = ? AND project_id = ?"
+                )
+                .bind(storage_id)
+                .bind(project_id)
+                .fetch_optional(self.get_sqlite_pool()?)
+                .await
+                .map_err(|e| Error::Database(e))?;
 
-        storage.ok_or(Error::NotFound("SecretStorage not found".to_string()))
+                storage.ok_or(Error::NotFound("SecretStorage not found".to_string()))
+            }
+            SqlDialect::PostgreSQL => {
+                let storage = sqlx::query_as::<_, SecretStorage>(
+                    "SELECT * FROM secret_storage WHERE id = $1 AND project_id = $2"
+                )
+                .bind(storage_id)
+                .bind(project_id)
+                .fetch_optional(self.get_postgres_pool()?)
+                .await
+                .map_err(|e| Error::Database(e))?;
+
+                storage.ok_or(Error::NotFound("SecretStorage not found".to_string()))
+            }
+            SqlDialect::MySQL => {
+                let storage = sqlx::query_as::<_, SecretStorage>(
+                    "SELECT * FROM secret_storage WHERE id = ? AND project_id = ?"
+                )
+                .bind(storage_id)
+                .bind(project_id)
+                .fetch_optional(self.get_mysql_pool()?)
+                .await
+                .map_err(|e| Error::Database(e))?;
+
+                storage.ok_or(Error::NotFound("SecretStorage not found".to_string()))
+            }
+        }
     }
 
     async fn create_secret_storage(&self, mut storage: SecretStorage) -> Result<SecretStorage> {
-        let result = sqlx::query(
-            "INSERT INTO secret_storage (project_id, name, type, params, read_only) VALUES (?, ?, ?, ?, ?)"
-        )
-        .bind(storage.project_id)
-        .bind(&storage.name)
-        .bind(&storage.r#type.to_string())
-        .bind(&storage.params)
-        .bind(storage.read_only)
-        .execute(self.get_pool()?)
-        .await
-        .map_err(|e| Error::Database(e))?;
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let result = sqlx::query(
+                    "INSERT INTO secret_storage (project_id, name, type, params, read_only) VALUES (?, ?, ?, ?, ?)"
+                )
+                .bind(storage.project_id)
+                .bind(&storage.name)
+                .bind(&storage.r#type.to_string())
+                .bind(&storage.params)
+                .bind(storage.read_only)
+                .execute(self.get_sqlite_pool()?)
+                .await
+                .map_err(|e| Error::Database(e))?;
 
-        storage.id = result.last_insert_rowid() as i32;
-        Ok(storage)
+                storage.id = result.last_insert_rowid() as i32;
+                Ok(storage)
+            }
+            SqlDialect::PostgreSQL => {
+                let query = "INSERT INTO secret_storage (project_id, name, type, params, read_only) VALUES ($1, $2, $3, $4, $5) RETURNING id";
+                let id: i32 = sqlx::query_scalar(query)
+                    .bind(storage.project_id)
+                    .bind(&storage.name)
+                    .bind(&storage.r#type.to_string())
+                    .bind(&storage.params)
+                    .bind(storage.read_only)
+                    .fetch_one(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+
+                storage.id = id;
+                Ok(storage)
+            }
+            SqlDialect::MySQL => {
+                let result = sqlx::query(
+                    "INSERT INTO secret_storage (project_id, name, type, params, read_only) VALUES (?, ?, ?, ?, ?)"
+                )
+                .bind(storage.project_id)
+                .bind(&storage.name)
+                .bind(&storage.r#type.to_string())
+                .bind(&storage.params)
+                .bind(storage.read_only)
+                .execute(self.get_mysql_pool()?)
+                .await
+                .map_err(|e| Error::Database(e))?;
+
+                storage.id = result.last_insert_id() as i32;
+                Ok(storage)
+            }
+        }
     }
 
     async fn update_secret_storage(&self, storage: SecretStorage) -> Result<()> {
-        sqlx::query(
-            "UPDATE secret_storage SET name = ?, type = ?, params = ?, read_only = ? WHERE id = ? AND project_id = ?"
-        )
-        .bind(&storage.name)
-        .bind(&storage.r#type.to_string())
-        .bind(&storage.params)
-        .bind(storage.read_only)
-        .bind(storage.id)
-        .bind(storage.project_id)
-        .execute(self.get_pool()?)
-        .await
-        .map_err(|e| Error::Database(e))?;
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                sqlx::query(
+                    "UPDATE secret_storage SET name = ?, type = ?, params = ?, read_only = ? WHERE id = ? AND project_id = ?"
+                )
+                .bind(&storage.name)
+                .bind(&storage.r#type.to_string())
+                .bind(&storage.params)
+                .bind(storage.read_only)
+                .bind(storage.id)
+                .bind(storage.project_id)
+                .execute(self.get_sqlite_pool()?)
+                .await
+                .map_err(|e| Error::Database(e))?;
+            }
+            SqlDialect::PostgreSQL => {
+                sqlx::query(
+                    "UPDATE secret_storage SET name = $1, type = $2, params = $3, read_only = $4 WHERE id = $5 AND project_id = $6"
+                )
+                .bind(&storage.name)
+                .bind(&storage.r#type.to_string())
+                .bind(&storage.params)
+                .bind(storage.read_only)
+                .bind(storage.id)
+                .bind(storage.project_id)
+                .execute(self.get_postgres_pool()?)
+                .await
+                .map_err(|e| Error::Database(e))?;
+            }
+            SqlDialect::MySQL => {
+                sqlx::query(
+                    "UPDATE secret_storage SET name = ?, type = ?, params = ?, read_only = ? WHERE id = ? AND project_id = ?"
+                )
+                .bind(&storage.name)
+                .bind(&storage.r#type.to_string())
+                .bind(&storage.params)
+                .bind(storage.read_only)
+                .bind(storage.id)
+                .bind(storage.project_id)
+                .execute(self.get_mysql_pool()?)
+                .await
+                .map_err(|e| Error::Database(e))?;
+            }
+        }
 
         Ok(())
     }
 
     async fn delete_secret_storage(&self, project_id: i32, storage_id: i32) -> Result<()> {
-        sqlx::query("DELETE FROM secret_storage WHERE id = ? AND project_id = ?")
-            .bind(storage_id)
-            .bind(project_id)
-            .execute(self.get_pool()?)
-            .await
-            .map_err(|e| Error::Database(e))?;
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                sqlx::query("DELETE FROM secret_storage WHERE id = ? AND project_id = ?")
+                    .bind(storage_id)
+                    .bind(project_id)
+                    .execute(self.get_sqlite_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+            SqlDialect::PostgreSQL => {
+                sqlx::query("DELETE FROM secret_storage WHERE id = $1 AND project_id = $2")
+                    .bind(storage_id)
+                    .bind(project_id)
+                    .execute(self.get_postgres_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+            SqlDialect::MySQL => {
+                sqlx::query("DELETE FROM secret_storage WHERE id = ? AND project_id = ?")
+                    .bind(storage_id)
+                    .bind(project_id)
+                    .execute(self.get_mysql_pool()?)
+                    .await
+                    .map_err(|e| Error::Database(e))?;
+            }
+        }
 
         Ok(())
     }
