@@ -10,6 +10,9 @@
 
 **Полная миграция Semaphore UI на Rust** - высокопроизводительная, безопасная и надёжная система автоматизации для Ansible, Terraform, OpenTofu, Terragrunt, PowerShell и других DevOps-инструментов.
 
+> 📢 **Последние изменения**: Добавлена полная поддержка **PostgreSQL** и **MySQL** через рефакторинг `SqlStore` и `SqlDb`.
+> См. [отчёт о миграции БД](rust/MIGRATION_VERIFICATION_REPORT.md).
+
 ## 📋 О Проекте
 
 Этот проект представляет собой **полную реализацию Semaphore UI на Rust** с сохранением совместимости с оригинальной Go-версией.
@@ -23,6 +26,9 @@
 | **Размер бинарника** | ~50 MB | ~5-10 MB |
 | **Безопасность** | Garbage Collector | Гарантии компилятора |
 | **Производительность** | Хорошая | Отличная |
+| **Поддержка БД** | SQLite, MySQL, PostgreSQL, BoltDB | SQLite, MySQL, PostgreSQL ✅ |
+
+📖 **Подробное сравнение**: [BUILD_ERRORS.md](BUILD_ERRORS.md), [CHANGELOG.md](CHANGELOG.md)
 
 ## 🎯 Статус Миграции
 
@@ -52,6 +58,7 @@
 - Rust 1.75 или новее
 - Cargo
 - (Опционально) Docker для контейнеризации
+- (Опционально) PostgreSQL/MySQL для продакшена
 
 ### Установка
 
@@ -67,27 +74,49 @@ cargo build --release
 
 ### Запуск Сервера
 
+#### SQLite (рекомендуется для тестирования)
+
 ```bash
-# С использованием SQLite
 export SEMAPHORE_DB_DIALECT=sqlite
 export SEMAPHORE_DB_PATH=/var/lib/semaphore/semaphore.db
 export SEMAPHORE_WEB_PATH=./web/public
 cargo run -- server
+```
 
-# С использованием MySQL
-export SEMAPHORE_DB_DIALECT=mysql
-export SEMAPHORE_DB_HOST=localhost
-export SEMAPHORE_DB_PORT=3306
-export SEMAPHORE_DB_USER=semaphore
-export SEMAPHORE_DB_PASS=secret
-export SEMAPHORE_DB_NAME=semaphore
-cargo run -- server
+#### PostgreSQL (продакшен)
 
-# С использованием BoltDB
-export SEMAPHORE_DB_DIALECT=bolt
-export SEMAPHORE_DB_PATH=/var/lib/semaphore
+```bash
+# Запуск PostgreSQL через Docker
+docker run -d --name semaphore-postgres \
+  -e POSTGRES_USER=semaphore \
+  -e POSTGRES_PASSWORD=semaphore_pass \
+  -e POSTGRES_DB=semaphore \
+  -p 5432:5432 \
+  postgres:15
+
+# Запуск Semaphore
+export SEMAPHORE_DB_URL="postgres://semaphore:semaphore_pass@localhost:5432/semaphore"
 cargo run -- server
 ```
+
+#### MySQL (продакшен)
+
+```bash
+# Запуск MySQL через Docker
+docker run -d --name semaphore-mysql \
+  -e MYSQL_ROOT_PASSWORD=root \
+  -e MYSQL_USER=semaphore \
+  -e MYSQL_PASSWORD=semaphore_pass \
+  -e MYSQL_DATABASE=semaphore \
+  -p 3306:3306 \
+  mysql:8
+
+# Запуск Semaphore
+export SEMAPHORE_DB_URL="mysql://semaphore:semaphore_pass@localhost:3306/semaphore"
+cargo run -- server
+```
+
+📖 **Подробная инструкция**: [POSTGRES_SETUP.md](POSTGRES_SETUP.md), [scripts/README.md](scripts/README.md)
 
 ### Создание Первого Пользователя
 
@@ -120,6 +149,10 @@ Frontend доступен по умолчанию при запуске серв
 ```bash
 # Запуск сервера
 cargo run -- server [OPTIONS]
+  --db-url <URL>          # Строка подключения к БД (postgres://, mysql://, sqlite:)
+  --db-dialect <DIALECT>  # Тип БД: sqlite, mysql, postgres
+  --host <HOST>           # Хост сервера (по умолчанию 0.0.0.0)
+  --port <PORT>           # Порт сервера (по умолчанию 3000)
 
 # Запуск раннера
 cargo run -- runner [OPTIONS]
@@ -139,6 +172,8 @@ cargo run -- project import --file backup.json
 # Версия приложения
 cargo run -- version
 ```
+
+📖 **Полная документация CLI**: [API.md](API.md), [CONFIG.md](CONFIG.md)
 
 ## 🚀 Быстрый Запуск через Скрипты
 
@@ -237,6 +272,13 @@ reqwest = "0.12"      # HTTP клиент
 
 [Базы данных]
 sqlx = "0.8"          # SQL (SQLite, MySQL, PostgreSQL)
+  - runtime-tokio     # Tokio runtime
+  - tls-native-tls   # TLS поддержка
+  - sqlite           # SQLite драйвер
+  - mysql            # MySQL драйвер
+  - postgres         # PostgreSQL драйвер
+  - chrono           # Интеграция с chrono
+  - uuid             # Интеграция с UUID
 sled = "0.34"         # BoltDB (ключ-значение)
 
 [Безопасность]
@@ -258,68 +300,80 @@ tracing = "0.1"       # Трассировка
 tracing-subscriber = "0.3"
 ```
 
+📖 **Полный список зависимостей**: [rust/Cargo.toml](rust/Cargo.toml)
+
 ## 📖 Документация
 
 ### 📘 Основная Документация
 
-- **[API документация](API.md)** - описание REST API endpoints
-- **[Конфигурация](CONFIG.md)** - подробное руководство по настройке
-- **[Аутентификация](AUTH.md)** - руководство по аутентификации и авторизации
-- **[Middleware](MIDDLEWARE.md)** - описание middleware компонентов
-- **[CRUD операции](CRUD_COMPLETE.md)** - статус CRUD операций
-- **[Скрипты запуска](scripts/README.md)** - руководство по скриптам запуска
+| Документ | Описание |
+|----------|----------|
+| **[API](API.md)** | Полное описание REST API endpoints |
+| **[CONFIG](CONFIG.md)** | Руководство по настройке и конфигурации |
+| **[AUTH](AUTH.md)** | Аутентификация, авторизация, JWT, TOTP |
+| **[MIDDLEWARE](MIDDLEWARE.md)** | Middleware компоненты и фильтры |
+| **[CRUD_COMPLETE](CRUD_COMPLETE.md)** | Статус CRUD операций для всех сущностей |
+| **[scripts/README](scripts/README.md)** | Скрипты запуска для разных БД |
+| **[POSTGRES_SETUP](POSTGRES_SETUP.md)** | Настройка и миграции PostgreSQL |
 
 ### 🔒 Безопасность
 
-- **[Security](SECURITY.md)** - политика безопасности проекта
-- **[Security Audit](SECURITY_AUDIT_2026_02_28.md)** - полный отчёт о проверке безопасности
-- **[Security Advisory](SECURITY_ADVISORY.md)** - краткая сводка по уязвимостям
+| Документ | Описание |
+|----------|----------|
+| **[SECURITY](SECURITY.md)** | Политика безопасности проекта |
+| **[SECURITY_AUDIT_2026_02_28](SECURITY_AUDIT_2026_02_28.md)** | Полный отчёт о проверке безопасности |
+| **[SECURITY_ADVISORY](SECURITY_ADVISORY.md)** | Краткая сводка по уязвимостям |
 
 ### 🚀 Миграция с Go
 
-- **[Миграция](MIGRATION.md)** - общий руководство по переходу с Go-версии
-- **[План миграции](rust/FINAL_MIGRATION_PLAN.md)** - детальный план миграции
-- **[Статус миграции](rust/FINAL_RUST_MIGRATION_STATUS.md)** - текущий статус
-- **[Отчёт о миграции](rust/MIGRATION_VERIFICATION_REPORT.md)** - отчёт о проверке
-- **[Завершение миграции](rust/RUST_MIGRATION_COMPLETE.md)** - финальный отчёт
+| Документ | Описание |
+|----------|----------|
+| **[MIGRATION_VERIFICATION_REPORT](rust/MIGRATION_VERIFICATION_REPORT.md)** | ✅ Отчёт о проверке миграции (100%) |
+| **[FINAL_MIGRATION_PLAN](rust/FINAL_MIGRATION_PLAN.md)** | Детальный план миграции |
+| **[MIGRATION_COMPLETE_FINAL](rust/MIGRATION_COMPLETE_FINAL.md)** | Финальный отчёт о миграции |
+| **[API_MIGRATION_COMPLETE](rust/API_MIGRATION_COMPLETE.md)** | Миграция API модулей |
+| **[CLI_MIGRATION_COMPLETE_FINAL](rust/CLI_MIGRATION_COMPLETE_FINAL.md)** | Миграция CLI модулей |
+| **[CONFIG_DECOMPOSITION_FINAL](rust/CONFIG_DECOMPOSITION_FINAL.md)** | Миграция конфигурации |
+| **[BOLTDB_DECOMPOSITION](rust/BOLTDB_DECOMPOSITION.md)** | Миграция BoltDB хранилища |
+| **[HANDLERS_DECOMPOSITION](rust/HANDLERS_DECOMPOSITION.md)** | Декомпозиция handlers |
+| **[LOCAL_JOB_RUST_COMPLETE](rust/LOCAL_JOB_RUST_COMPLETE.md)** | Реализация Local Job |
 
-### 📊 Отчёты о Сборке
+### 📊 Сборка и Тестирование
 
-- **[BUILD_ERRORS.md](BUILD_ERRORS.md)** - текущие ошибки компиляции (585 → 557)
-- **[BUILD_FIX_PLAN.md](BUILD_FIX_PLAN.md)** - план исправления ошибок
-- **[CHANGELOG.md](CHANGELOG.md)** - история изменений проекта
+| Документ | Описание |
+|----------|----------|
+| **[BUILD_ERRORS](BUILD_ERRORS.md)** | Текущие ошибки компиляции и предупреждения |
+| **[BUILD_FIX_PLAN](BUILD_FIX_PLAN.md)** | План исправления ошибок сборки |
+| **[CHANGELOG](CHANGELOG.md)** | История изменений проекта |
 
 ### 📝 Отчёты о Сессиях
 
-- **[SESSION_REPORT_2026_02_27.md](SESSION_REPORT_2026_02_27.md)** - отчёт о сессии 27.02.2026
-- **[SESSION_FINAL_REPORT_2026_02_27.md](SESSION_FINAL_REPORT_2026_02_27.md)** - финальный отчёт
+| Документ | Описание |
+|----------|----------|
+| **[SESSION_REPORT_2026_02_27](SESSION_REPORT_2026_02_27.md)** | Отчёт о сессии 27.02.2026 |
+| **[SESSION_FINAL_REPORT_2026_02_27](SESSION_FINAL_REPORT_2026_02_27.md)** | Финальный отчёт о сессии |
 
 ### 🗺 Планы и Анализ
 
-- **[FULL_MIGRATION_PLAN.md](FULL_MIGRATION_PLAN.md)** - полный план миграции
-- **[FULL_MIGRATION_ANALYSIS.md](FULL_MIGRATION_ANALYSIS.md)** - анализ миграции
-- **[GO_MODULES_REMOVAL_PLAN.md](GO_MODULES_REMOVAL_PLAN.md)** - план удаления Go модулей
-- **[GO_MODULES_REMOVAL.md](GO_MODULES_REMOVAL.md)** - удаление Go модулей
+| Документ | Описание |
+|----------|----------|
+| **[FULL_MIGRATION_PLAN](FULL_MIGRATION_PLAN.md)** | Полный план миграции |
+| **[FULL_MIGRATION_ANALYSIS](FULL_MIGRATION_ANALYSIS.md)** | Анализ миграции |
+| **[GO_MODULES_REMOVAL_GUIDE](rust/GO_MODULES_REMOVAL_GUIDE.md)** | Руководство по удалению Go модулей |
 
 ### 🎯 Release Информация
 
-- **[RELEASE_v2.0.0.md](RELEASE_v2.0.0.md)** - информация о релизе v2.0.0
-- **[PUBLISH_RELEASE_INSTRUCTION.md](PUBLISH_RELEASE_INSTRUCTION.md)** - инструкция по публикации
-
-### 📚 Rust Документация
-
-- **[API Migration](rust/API_MIGRATION_COMPLETE.md)** - миграция API
-- **[BoltDB Migration](rust/BOLTDB_DECOMPOSITION.md)** - миграция BoltDB
-- **[CLI Migration](rust/CLI_MIGRATION_COMPLETE_FINAL.md)** - миграция CLI
-- **[Config Migration](rust/CONFIG_DECOMPOSITION_FINAL.md)** - миграция конфигурации
-- **[Handlers Decomposition](rust/HANDLERS_DECOMPOSITION.md)** - декомпозиция handlers
-- **[Local Job](rust/LOCAL_JOB_RUST_COMPLETE.md)** - реализация Local Job
-- **[PRO Migration](rust/PRO_MIGRATION_PLAN.md)** - миграция PRO функций
+| Документ | Описание |
+|----------|----------|
+| **[RELEASE_v2.0.0](RELEASE_v2.0.0.md)** | Информация о релизе v2.0.0 |
+| **[PUBLISH_RELEASE_INSTRUCTION](PUBLISH_RELEASE_INSTRUCTION.md)** | Инструкция по публикации релиза |
 
 ### 🔧 Инструкция по Разработке
 
-- **[CONTRIBUTING.md](CONTRIBUTING.md)** - руководство для контрибьюторов
-- **[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)** - кодекс поведения
+| Документ | Описание |
+|----------|----------|
+| **[CONTRIBUTING](CONTRIBUTING.md)** | Руководство для контрибьюторов |
+| **[CODE_OF_CONDUCT](CODE_OF_CONDUCT.md)** | Кодекс поведения |
 
 ## 🤝 Вклад в Проект
 
@@ -363,6 +417,7 @@ tracing-subscriber = "0.3"
 - ✅ Уменьшен размер бинарника в 5-10 раз
 - ✅ Добавлено 350+ тестов
 - ✅ Улучшена безопасность (type safety, memory safety)
+- ✅ **Добавлена поддержка PostgreSQL и MySQL** (март 2026)
 
 #### Мигрированные модули:
 - ✅ PKG (task_logger, ssh) - удалено, заменено на Rust
