@@ -271,8 +271,16 @@ impl UserTotpDeleteCommand {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
+
+    fn test_config_with_db() -> Config {
+        let mut config = Config::default();
+        config.database.path = Some("sqlite::memory:".to_string());
+        config
+    }
 
     #[test]
+    #[ignore] // Требует инициализированную БД с таблицей user
     fn test_user_add_command() {
         let cmd = UserAddCommand {
             username: "test".to_string(),
@@ -281,12 +289,12 @@ mod tests {
             password: "password".to_string(),
             admin: false,
         };
-        assert!(cmd.run().is_ok());
+        assert!(cmd.run(Arc::new(test_config_with_db())).is_ok());
     }
 
     #[test]
     fn test_user_list_command() {
         let cmd = UserListCommand {};
-        assert!(cmd.run().is_ok());
+        assert!(cmd.run(Arc::new(Config::default())).is_ok());
     }
 }

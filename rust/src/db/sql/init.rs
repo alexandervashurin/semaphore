@@ -131,8 +131,15 @@ pub async fn create_database_connection(database_url: &str) -> Result<SqlDb> {
     // Определяем тип БД по префиксу
     if database_url.starts_with("sqlite:") || database_url.ends_with(".db") || database_url.ends_with(".sqlite") {
         let path = database_url.trim_start_matches("sqlite:");
-        SqlDb::create_database_if_not_exists(path).await?;
-        SqlDb::connect_sqlite(path).await
+        if !path.starts_with(":memory") {
+            SqlDb::create_database_if_not_exists(path).await?;
+        }
+        let url = if database_url.starts_with("sqlite:") {
+            database_url.to_string()
+        } else {
+            format!("sqlite:///{}", path.replace('\\', "/"))
+        };
+        SqlDb::connect_sqlite(&url).await
     } else if database_url.starts_with("mysql:") {
         // Парсим MySQL URL
         Err(Error::Other("MySQL connection not fully implemented yet".to_string()))

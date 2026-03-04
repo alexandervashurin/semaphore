@@ -15,7 +15,7 @@ static ANSI_CODE_RE: Lazy<Regex> = Lazy::new(|| {
 /// # Пример
 ///
 /// ```
-/// use crate::utils::ansi::clear_from_ansi_codes;
+/// use semaphore_ffi::utils::ansi::clear_from_ansi_codes;
 ///
 /// let input = "\x1b[31mRed Text\x1b[0m";
 /// let output = clear_from_ansi_codes(input);

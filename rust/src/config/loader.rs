@@ -187,6 +187,7 @@ mod tests {
         };
         
         let second = DbConfig {
+            hostname: String::new(),
             username: "admin".to_string(),
             ..Default::default()
         };

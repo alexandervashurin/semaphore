@@ -9,7 +9,7 @@ use rand::{distributions::Alphanumeric, Rng};
 /// # Пример
 ///
 /// ```
-/// use crate::utils::test_helpers::rand_string;
+/// use semaphore_ffi::utils::test_helpers::rand_string;
 ///
 /// let s = rand_string(10);
 /// assert_eq!(s.len(), 10);

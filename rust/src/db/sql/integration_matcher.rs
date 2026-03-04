@@ -32,12 +32,16 @@ impl SqlDb {
         match self.get_dialect() {
             crate::db::sql::types::SqlDialect::SQLite => {
                 let result = sqlx::query(
-                    "INSERT INTO integration_matcher (integration_id, project_id, matcher_type, matcher_value) VALUES (?, ?, ?, ?)"
+                    "INSERT INTO integration_matcher (integration_id, project_id, name, body_data_type, key, matcher_type, matcher_value, method) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
                 )
                 .bind(matcher.integration_id)
                 .bind(matcher.project_id)
+                .bind(&matcher.name)
+                .bind(&matcher.body_data_type)
+                .bind(&matcher.key)
                 .bind(&matcher.matcher_type)
                 .bind(&matcher.matcher_value)
+                .bind(&matcher.method)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
                 .map_err(|e| Error::Database(e))?;
@@ -54,10 +58,14 @@ impl SqlDb {
         match self.get_dialect() {
             crate::db::sql::types::SqlDialect::SQLite => {
                 sqlx::query(
-                    "UPDATE integration_matcher SET matcher_type = ?, matcher_value = ? WHERE id = ? AND integration_id = ? AND project_id = ?"
+                    "UPDATE integration_matcher SET name = ?, body_data_type = ?, key = ?, matcher_type = ?, matcher_value = ?, method = ? WHERE id = ? AND integration_id = ? AND project_id = ?"
                 )
+                .bind(&matcher.name)
+                .bind(&matcher.body_data_type)
+                .bind(&matcher.key)
                 .bind(&matcher.matcher_type)
                 .bind(&matcher.matcher_value)
+                .bind(&matcher.method)
                 .bind(matcher.id)
                 .bind(matcher.integration_id)
                 .bind(matcher.project_id)
@@ -105,8 +113,12 @@ mod tests {
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 integration_id INTEGER NOT NULL,
                 project_id INTEGER NOT NULL,
+                name TEXT NOT NULL DEFAULT '',
+                body_data_type TEXT NOT NULL DEFAULT 'json',
+                key TEXT,
                 matcher_type TEXT NOT NULL,
-                matcher_value TEXT NOT NULL
+                matcher_value TEXT NOT NULL,
+                method TEXT NOT NULL DEFAULT 'GET'
             )"
         )
         .execute(db.get_sqlite_pool().unwrap())

@@ -70,7 +70,7 @@ impl SqlDb {
                 .bind(&template.description)
                 .bind(&template.survey_vars)
                 .bind(&template.vaults)
-                .bind(template.tasks)
+                .bind(template.tasks.unwrap_or(0))
                 .bind(template.created)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
@@ -107,7 +107,7 @@ impl SqlDb {
                 .bind(&template.description)
                 .bind(&template.survey_vars)
                 .bind(&template.vaults)
-                .bind(template.tasks)
+                .bind(template.tasks.unwrap_or(0))
                 .bind(template.id)
                 .bind(template.project_id)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
@@ -157,6 +157,9 @@ mod tests {
                 playbook TEXT NOT NULL,
                 arguments TEXT,
                 type TEXT NOT NULL,
+                app TEXT NOT NULL DEFAULT 'ansible',
+                git_branch TEXT DEFAULT '',
+                deleted INTEGER NOT NULL DEFAULT 0,
                 inventory_id INTEGER,
                 repository_id INTEGER,
                 environment_id INTEGER,
@@ -165,7 +168,9 @@ mod tests {
                 description TEXT,
                 survey_vars TEXT,
                 vaults TEXT,
-                tasks INTEGER NOT NULL,
+                tasks INTEGER NOT NULL DEFAULT 0,
+                vault_key_id INTEGER,
+                become_key_id INTEGER,
                 created DATETIME NOT NULL
             )"
         )

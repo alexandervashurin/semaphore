@@ -185,25 +185,25 @@ mod tests {
 
     #[test]
     fn test_roles_controller_creation() {
-        let controller = RolesController::new();
+        let _controller = RolesController::new();
         assert!(true);
     }
 
     #[test]
     fn test_subscription_controller_creation() {
-        let controller = SubscriptionController::new();
+        let _controller = SubscriptionController::new();
         assert!(true);
     }
 
     #[test]
     fn test_terraform_controller_creation() {
-        let controller = TerraformController::new();
+        let _controller = TerraformController::new();
         assert!(true);
     }
 
     #[test]
     fn test_roles_controller_default() {
-        let controller = RolesController::default();
+        let _controller = RolesController::default();
         assert!(true);
     }
 }

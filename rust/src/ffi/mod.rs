@@ -73,6 +73,7 @@ pub enum C_TaskStatus {
 }
 
 /// C представление Logger (opaque pointer)
+#[allow(non_camel_case_types)]
 pub struct C_Logger {
     _private: [u8; 0],
 }

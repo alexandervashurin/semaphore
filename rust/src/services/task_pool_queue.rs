@@ -94,7 +94,7 @@ mod tests {
         use crate::db::sql::SqlStore;
         use crate::models::Project;
         
-        let store = Arc::new(SqlStore::new(":memory:").await.unwrap());
+        let store = Arc::new(SqlStore::new("sqlite::memory:").await.unwrap());
         let project = Project {
             id: 1,
             name: "Test Project".to_string(),

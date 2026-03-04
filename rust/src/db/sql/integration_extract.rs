@@ -32,11 +32,15 @@ impl SqlDb {
         match self.get_dialect() {
             crate::db::sql::types::SqlDialect::SQLite => {
                 let result = sqlx::query(
-                    "INSERT INTO integration_extract_value (integration_id, project_id, value_source, value_name, value_type) VALUES (?, ?, ?, ?, ?)"
+                    "INSERT INTO integration_extract_value (integration_id, project_id, name, value_source, body_data_type, key, variable, value_name, value_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
                 )
                 .bind(value.integration_id)
                 .bind(value.project_id)
+                .bind(&value.name)
                 .bind(&value.value_source)
+                .bind(&value.body_data_type)
+                .bind(&value.key)
+                .bind(&value.variable)
                 .bind(&value.value_name)
                 .bind(&value.value_type)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
@@ -55,9 +59,13 @@ impl SqlDb {
         match self.get_dialect() {
             crate::db::sql::types::SqlDialect::SQLite => {
                 sqlx::query(
-                    "UPDATE integration_extract_value SET value_source = ?, value_name = ?, value_type = ? WHERE id = ? AND integration_id = ? AND project_id = ?"
+                    "UPDATE integration_extract_value SET name = ?, value_source = ?, body_data_type = ?, key = ?, variable = ?, value_name = ?, value_type = ? WHERE id = ? AND integration_id = ? AND project_id = ?"
                 )
+                .bind(&value.name)
                 .bind(&value.value_source)
+                .bind(&value.body_data_type)
+                .bind(&value.key)
+                .bind(&value.variable)
                 .bind(&value.value_name)
                 .bind(&value.value_type)
                 .bind(value.id)
@@ -107,7 +115,11 @@ mod tests {
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 integration_id INTEGER NOT NULL,
                 project_id INTEGER NOT NULL,
+                name TEXT NOT NULL DEFAULT '',
                 value_source TEXT NOT NULL,
+                body_data_type TEXT NOT NULL DEFAULT 'json',
+                key TEXT,
+                variable TEXT,
                 value_name TEXT NOT NULL,
                 value_type TEXT NOT NULL
             )"

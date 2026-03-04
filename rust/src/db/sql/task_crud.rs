@@ -14,9 +14,9 @@ impl SqlDb {
         match self.get_dialect() {
             crate::db::sql::types::SqlDialect::SQLite => {
                 let mut query = String::from(
-                    "SELECT t.*, tpl.name as template_name
+                    "SELECT t.*, tpl.playbook as tpl_playbook, tpl.name as tpl_alias
                      FROM task t
-                     LEFT JOIN template tpl ON t.template_id = tpl.id
+                     LEFT JOIN template tpl ON t.template_id = tpl.id AND tpl.project_id = t.project_id
                      WHERE t.project_id = ?"
                 );
 
@@ -33,8 +33,8 @@ impl SqlDb {
                     let mut tasks = Vec::new();
                     for row in rows {
                         let task = Self::row_to_task(&row)?;
-                        let tpl_playbook: String = row.get("tpl_playbook");
-                        let tpl_alias: String = row.get("tpl_alias");
+                        let tpl_playbook: String = row.try_get("tpl_playbook").unwrap_or_default();
+                        let tpl_alias: String = row.try_get("tpl_alias").unwrap_or_default();
                         
                         tasks.push(TaskWithTpl {
                             task,
@@ -58,8 +58,8 @@ impl SqlDb {
                     let mut tasks = Vec::new();
                     for row in rows {
                         let task = Self::row_to_task(&row)?;
-                        let tpl_playbook: String = row.get("tpl_playbook");
-                        let tpl_alias: String = row.get("tpl_alias");
+                        let tpl_playbook: String = row.try_get("tpl_playbook").unwrap_or_default();
+                        let tpl_alias: String = row.try_get("tpl_alias").unwrap_or_default();
                         
                         tasks.push(TaskWithTpl {
                             task,
@@ -147,8 +147,8 @@ impl SqlDb {
                         project_id, template_id, status, message, 
                         commit_hash, commit_message, version,
                         inventory_id, repository_id, environment_id,
-                        arguments, params, playbook, start, end
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                        arguments, params, playbook, start, end, created
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
                 )
                 .bind(task.project_id)
                 .bind(task.template_id)
@@ -165,6 +165,7 @@ impl SqlDb {
                 .bind(&task.playbook)
                 .bind(task.start)
                 .bind(task.end)
+                .bind(task.created)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
                 .map_err(|e| Error::Database(e))?;
@@ -274,11 +275,19 @@ mod tests {
                 inventory_id INTEGER,
                 repository_id INTEGER,
                 environment_id INTEGER,
+                environment TEXT,
+                secret TEXT,
+                user_id INTEGER,
+                integration_id INTEGER,
+                schedule_id INTEGER,
+                build_task_id INTEGER,
+                git_branch TEXT,
                 arguments TEXT,
                 params TEXT,
                 playbook TEXT,
                 start DATETIME,
-                end DATETIME
+                end DATETIME,
+                created DATETIME
             )"
         )
         .execute(db.get_sqlite_pool().unwrap())
@@ -290,7 +299,8 @@ mod tests {
             "CREATE TABLE IF NOT EXISTS template (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 project_id INTEGER NOT NULL,
-                name TEXT NOT NULL
+                name TEXT NOT NULL,
+                playbook TEXT NOT NULL DEFAULT ''
             )"
         )
         .execute(db.get_sqlite_pool().unwrap())
