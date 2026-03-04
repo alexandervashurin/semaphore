@@ -16,6 +16,25 @@ http://localhost:3000/api
 Authorization: Bearer <token>
 ```
 
+## Frontend
+
+Приложение включает веб-интерфейс, доступный по адресу `http://localhost:3000`
+
+### Быстрый старт через API
+
+```bash
+# 1. Вход и получение токена
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}'
+
+# Ответ: {"token":"eyJ...","token_type":"Bearer","expires_in":86400}
+
+# 2. Использование токена
+curl -H "Authorization: Bearer eyJ..." \
+  http://localhost:3000/api/projects
+```
+
 ## Содержание
 
 - [Аутентификация](#аутентификация)

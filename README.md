@@ -70,6 +70,7 @@ cargo build --release
 # С использованием SQLite
 export SEMAPHORE_DB_DIALECT=sqlite
 export SEMAPHORE_DB_PATH=/var/lib/semaphore/semaphore.db
+export SEMAPHORE_WEB_PATH=./web/public
 cargo run -- server
 
 # С использованием MySQL
@@ -97,6 +98,21 @@ cargo run -- user add \
     --password changeme \
     --admin
 ```
+
+### Frontend
+
+Проект включает **frontend на чистом JavaScript/CSS/HTML** (без Node.js):
+
+- Форма входа с JWT аутентификацией
+- Dashboard с навигацией по разделам
+- Управление проектами, задачами, шаблонами
+- Просмотр инвентаря, репозиториев, окружений, ключей
+
+Frontend доступен по умолчанию при запуске сервера на `http://localhost:3000`
+
+**Тестовые учётные данные** (для тестовой БД):
+- Логин: `admin`
+- Пароль: `admin123`
 
 ## 📚 Основные Команды CLI
 
