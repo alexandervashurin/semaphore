@@ -349,7 +349,7 @@ impl Cli {
             Commands::Server(cmd) => cmd.run(Arc::new(config)),
             Commands::Runner(cmd) => cmd.run(),
             Commands::Migrate(cmd) => cmd.run(),
-            Commands::User(cmd) => cmd.run(),
+            Commands::User(cmd) => cmd.run(Arc::new(config.clone())),
             Commands::Project(cmd) => cmd.run(),
             Commands::Setup(cmd) => cmd.run(),
             Commands::Token(cmd) => cmd.run(),

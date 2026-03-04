@@ -4,6 +4,12 @@
 
 use clap::{Args, Subcommand};
 use crate::cli::CliResult;
+use crate::config::Config;
+use crate::db::SqlStore;
+use crate::db::store::UserManager;
+use crate::models::User;
+use chrono::Utc;
+use std::sync::Arc;
 
 /// Команда user
 #[derive(Debug, Args)]
@@ -30,14 +36,14 @@ pub enum UserCommands {
 
 impl UserCommand {
     /// Выполняет команду
-    pub fn run(&self) -> CliResult<()> {
+    pub fn run(&self, config: Arc<Config>) -> CliResult<()> {
         match &self.command {
-            UserCommands::Add(cmd) => cmd.run(),
-            UserCommands::List(cmd) => cmd.run(),
-            UserCommands::Delete(cmd) => cmd.run(),
-            UserCommands::Get(cmd) => cmd.run(),
-            UserCommands::Change(cmd) => cmd.run(),
-            UserCommands::Totp(cmd) => cmd.run(),
+            UserCommands::Add(cmd) => cmd.run(config),
+            UserCommands::List(cmd) => cmd.run(config),
+            UserCommands::Delete(cmd) => cmd.run(config),
+            UserCommands::Get(cmd) => cmd.run(config),
+            UserCommands::Change(cmd) => cmd.run(config),
+            UserCommands::Totp(cmd) => cmd.run(config),
         }
     }
 }
@@ -67,12 +73,47 @@ pub struct UserAddCommand {
 }
 
 impl UserAddCommand {
-    pub fn run(&self) -> CliResult<()> {
+    pub fn run(&self, config: Arc<Config>) -> CliResult<()> {
         println!("Adding user: {}", self.username);
         println!("  Name: {}", self.name);
         println!("  Email: {}", self.email);
         println!("  Admin: {}", self.admin);
-        // В реальной реализации нужно добавить пользователя в БД
+
+        // Создаём хранилище
+        let url = config.database_url()?;
+        let store = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()?
+            .block_on(SqlStore::new(&url))?;
+
+        // Хешируем пароль
+        use crate::api::auth_local::hash_password;
+        let password_hash = hash_password(&self.password)?;
+
+        // Создаём пользователя
+        let user = User {
+            id: 0,
+            created: Utc::now(),
+            username: self.username.clone(),
+            name: self.name.clone(),
+            email: self.email.clone(),
+            password: password_hash.clone(),
+            admin: self.admin,
+            external: false,
+            alert: false,
+            pro: false,
+            totp: None,
+            email_otp: None,
+        };
+
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()?;
+
+        runtime.block_on(store.create_user(user, &password_hash))?;
+
+        println!("User {} successfully created", self.username);
+
         Ok(())
     }
 }
@@ -82,7 +123,7 @@ impl UserAddCommand {
 pub struct UserListCommand {}
 
 impl UserListCommand {
-    pub fn run(&self) -> CliResult<()> {
+    pub fn run(&self, _config: Arc<Config>) -> CliResult<()> {
         println!("Listing users...");
         // В реальной реализации нужно получить список пользователей из БД
         Ok(())
@@ -102,7 +143,7 @@ pub struct UserDeleteCommand {
 }
 
 impl UserDeleteCommand {
-    pub fn run(&self) -> CliResult<()> {
+    pub fn run(&self, _config: Arc<Config>) -> CliResult<()> {
         println!("Deleting user...");
         // В реальной реализации нужно удалить пользователя из БД
         Ok(())
@@ -122,7 +163,7 @@ pub struct UserGetCommand {
 }
 
 impl UserGetCommand {
-    pub fn run(&self) -> CliResult<()> {
+    pub fn run(&self, _config: Arc<Config>) -> CliResult<()> {
         println!("Getting user...");
         // В реальной реализации нужно получить пользователя из БД
         Ok(())
@@ -154,7 +195,7 @@ pub struct UserChangeCommand {
 }
 
 impl UserChangeCommand {
-    pub fn run(&self) -> CliResult<()> {
+    pub fn run(&self, _config: Arc<Config>) -> CliResult<()> {
         println!("Changing user {}...", self.id);
         // В реальной реализации нужно изменить пользователя в БД
         Ok(())
@@ -177,10 +218,10 @@ pub enum UserTotpCommands {
 }
 
 impl UserTotpCommand {
-    pub fn run(&self) -> CliResult<()> {
+    pub fn run(&self, config: Arc<Config>) -> CliResult<()> {
         match &self.command {
-            UserTotpCommands::Add(cmd) => cmd.run(),
-            UserTotpCommands::Delete(cmd) => cmd.run(),
+            UserTotpCommands::Add(cmd) => cmd.run(config),
+            UserTotpCommands::Delete(cmd) => cmd.run(config),
         }
     }
 }
@@ -194,7 +235,7 @@ pub struct UserTotpAddCommand {
 }
 
 impl UserTotpAddCommand {
-    pub fn run(&self) -> CliResult<()> {
+    pub fn run(&self, _config: Arc<Config>) -> CliResult<()> {
         println!("Adding TOTP for user {}...", self.user_id);
         // В реальной реализации нужно добавить TOTP
         Ok(())
@@ -214,7 +255,7 @@ pub struct UserTotpDeleteCommand {
 }
 
 impl UserTotpDeleteCommand {
-    pub fn run(&self) -> CliResult<()> {
+    pub fn run(&self, _config: Arc<Config>) -> CliResult<()> {
         println!("Deleting TOTP for user {}...", self.user_id);
         // В реальной реализации нужно удалить TOTP
         Ok(())
