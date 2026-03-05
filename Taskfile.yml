@@ -12,10 +12,28 @@ tasks:
       - task --list
 
   build:
-    desc: Сборка проекта
+    desc: Сборка проекта (backend + frontend)
     deps:
+      - build:frontend
       - build:rust
-    
+
+  build:frontend:
+    desc: Сборка Vue frontend (через Docker)
+    cmds:
+      - echo "🐳 Сборка frontend через Docker..."
+      - ./web/build.sh
+      - echo "✓ Frontend собран в web/public/"
+
+  build:frontend:local:
+    desc: Сборка Vue frontend (требуется Node.js)
+    dir: web
+    cmds:
+      - echo "📦 Установка зависимостей frontend..."
+      - npm install
+      - echo "🔨 Сборка frontend..."
+      - npm run build
+      - echo "✓ Frontend собран в web/public/"
+
   build:rust:
     desc: Сборка Rust бинарника
     cmds:

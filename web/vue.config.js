@@ -15,6 +15,10 @@ module.exports = {
         },
       },
     },
+    output: {
+      filename: 'app.js',
+      chunkFilename: 'js/[name].js'
+    },
   },
   chainWebpack: (config) => {
     config.plugin('html')
@@ -27,6 +31,17 @@ module.exports = {
   transpileDependencies: [
     'vuetify',
   ],
+  // Публичный путь - используем относительные пути для локальной работы
   publicPath: './',
-  outputDir: '../api/public',
+  // Собираем в web/public для локальной раздачи через Rust-сервер
+  outputDir: '../web/public',
+  // Имя файла HTML
+  indexPath: 'index.html',
+  // Отключаем хеширование для предсказуемых имен файлов
+  filenameHashing: false,
+  css: {
+    extract: {
+      filename: 'app.css'
+    }
+  },
 };

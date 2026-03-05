@@ -5,6 +5,7 @@
   "scripts": {
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
+    "build:clean": "rm -rf ../web/public/*.js ../web/public/*.css ../web/public/js && npm run build",
     "test:unit": "vue-cli-service test:unit",
     "lint": "vue-cli-service lint"
   },

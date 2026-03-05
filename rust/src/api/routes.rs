@@ -82,7 +82,8 @@ pub fn api_routes() -> Router<Arc<AppState>> {
 
 /// Создаёт маршруты для статических файлов
 pub fn static_routes() -> Router<Arc<AppState>> {
-    // Путь к директории с frontend (абсолютный или относительно рабочей директории)
+    // Путь к директории с frontend (относительно рабочей директории)
+    // После сборки Vue приложение находится в web/public/
     let web_path = std::env::var("SEMAPHORE_WEB_PATH")
         .unwrap_or_else(|_| "./web/public".to_string());
 

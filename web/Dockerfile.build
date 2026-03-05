@@ -1,0 +1,25 @@
+# Dockerfile для сборки frontend Semaphore UI
+# Использование: docker build -f web/Dockerfile.build -t semaphore-frontend-build .
+
+FROM node:18-alpine AS builder
+
+# Установка рабочей директории
+WORKDIR /app
+
+# Копирование package файлов для кэширования зависимостей
+COPY web/package*.json ./
+
+# Установка зависимостей
+RUN npm ci --only=production
+
+# Копирование исходного кода
+COPY web/ ./
+
+# Сборка приложения
+RUN npm run build
+
+# Финальный образ с очищенными файлами
+FROM scratch AS export
+
+# Копируем только результат сборки
+COPY --from=builder /app/web/public /

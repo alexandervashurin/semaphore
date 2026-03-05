@@ -1,0 +1,35 @@
+version: '3.8'
+
+# Docker Compose для сборки frontend Semaphore UI
+# Использование: docker-compose -f web/docker-compose.build.yml build
+
+services:
+  frontend-build:
+    build:
+      context: ..
+      dockerfile: web/Dockerfile.build
+    volumes:
+      # Монтируем директорию web/public для копирования результата сборки
+      - ./public:/output
+    command: >
+      sh -c "
+        cp -r /app/web/public/* /output/ &&
+        echo '✓ Frontend собран в web/public/'
+      "
+    working_dir: /app
+
+  # Альтернативный вариант - сборка с установкой зависимостей
+  frontend-build-clean:
+    image: node:18-alpine
+    working_dir: /app
+    volumes:
+      - ..:/app
+    command: >
+      sh -c "
+        cd /app/web &&
+        echo '📦 Установка зависимостей...' &&
+        npm ci --only=production &&
+        echo '🔨 Сборка frontend...' &&
+        npm run build &&
+        echo '✓ Frontend собран в web/public/'
+      "

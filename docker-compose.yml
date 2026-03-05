@@ -1,54 +1,92 @@
 version: '3.8'
 
+# Docker Compose для полного стека Semaphore UI
+# Использование: docker-compose up -d
+
 services:
-  semaphore:
+  # PostgreSQL с демо-данными
+  db:
+    image: postgres:15-alpine
+    container_name: semaphore-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: semaphore
+      POSTGRES_USER: semaphore
+      POSTGRES_PASSWORD: semaphore123
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Инициализация БД демонстрационными данными
+      - ./db/postgres/init-demo.sql:/docker-entrypoint-initdb.d/init-demo.sql:ro
+    networks:
+      - semaphore-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U semaphore -d semaphore"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Backend (Rust)
+  backend:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: semaphore-backend
+    restart: unless-stopped
+    environment:
+      SEMAPHORE_DB_DIALECT: postgres
+      SEMAPHORE_DB_HOST: db
+      SEMAPHORE_DB_PORT: 5432
+      SEMAPHORE_DB_NAME: semaphore
+      SEMAPHORE_DB_USER: semaphore
+      SEMAPHORE_DB_PASS: semaphore123
+      SEMAPHORE_WEB_PATH: /app/web/public
+      SEMAPHORE_ADMIN: admin
+      SEMAPHORE_ADMIN_NAME: Administrator
+      SEMAPHORE_ADMIN_EMAIL: admin@localhost
+      SEMAPHORE_ADMIN_PASSWORD: admin123
     ports:
       - "3000:3000"
-    environment:
-      - SEMAPHORE_DB_DIALECT=sqlite
-      - SEMAPHORE_DB_PATH=/var/lib/semaphore/semaphore.db
-      - SEMAPHORE_ADMIN=admin
-      - SEMAPHORE_ADMIN_PASSWORD=changeme
-      - RUST_LOG=info
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - semaphore-network
     volumes:
-      - semaphore_data:/var/lib/semaphore
-    restart: unless-stopped
+      - ./web/public:/app/web/public:ro
+    command: >
+      sh -c "
+        echo '⏳ Ожидание готовности PostgreSQL...' &&
+        sleep 5 &&
+        echo '🚀 Запуск Semaphore UI...' &&
+        /usr/local/bin/semaphore server --host 0.0.0.0 --port 3000
+      "
 
-  # MySQL для Semaphore (опционально)
-  mysql:
-    image: mysql:8.0
-    environment:
-      - MYSQL_ROOT_PASSWORD=rootpassword
-      - MYSQL_DATABASE=semaphore
-      - MYSQL_USER=semaphore
-      - MYSQL_PASSWORD=secret
+  # Frontend build (собирает и обновляет файлы)
+  frontend-build:
+    image: node:18-alpine
+    container_name: semaphore-frontend-build
+    working_dir: /app
     volumes:
-      - mysql_data:/var/lib/mysql
-    ports:
-      - "3306:3306"
-    restart: unless-stopped
-    profiles:
-      - mysql
+      - ./web:/app
+    command: >
+      sh -c "
+        if [ ! -f /app/public/app.js ] || [ ! -s /app/public/app.js ]; then
+          echo '📦 Frontend не собран. Установка зависимостей...' &&
+          npm ci --only=production &&
+          echo '🔨 Сборка frontend...' &&
+          npm run build &&
+          echo '✓ Frontend собран!'
+        else
+          echo '✓ Frontend уже собран'
+        fi
+      "
+    networks:
+      - semaphore-network
 
-  # PostgreSQL для Semaphore (опционально)
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      - POSTGRES_USER=semaphore
-      - POSTGRES_PASSWORD=secret
-      - POSTGRES_DB=semaphore
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    restart: unless-stopped
-    profiles:
-      - postgres
+networks:
+  semaphore-network:
+    driver: bridge
 
 volumes:
-  semaphore_data:
-  mysql_data:
   postgres_data:
+    driver: local

@@ -5,7 +5,7 @@
 [![Tests](https://img.shields.io/badge/tests-475%20passed-brightgreen.svg)]()
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
 [![Migration](https://img.shields.io/badge/migration-100%25-brightgreen.svg)]()
-[![Frontend](https://img.shields.io/badge/frontend-vanilla%20JS-brightgreen.svg)]()
+[![Frontend](https://img.shields.io/badge/frontend-Vue%202-brightgreen.svg)]()
 [![Production Ready](https://img.shields.io/badge/status-production%20ready-brightgreen.svg)]()
 
 **Полная миграция Semaphore UI на Rust** - высокопроизводительная, безопасная и надёжная система автоматизации для Ansible, Terraform, OpenTofu, Terragrunt, PowerShell и других DevOps-инструментов.
@@ -61,7 +61,28 @@
 - (Опционально) Docker для контейнеризации
 - (Опционально) PostgreSQL/MySQL для продакшена
 
-### 🎯 Демонстрационное окружение (рекомендуется)
+### 🐳 Запуск через Docker (рекомендуется)
+
+**Одна команда для запуска всего стека:**
+
+```bash
+./start.sh
+```
+
+Это автоматически:
+- ✅ Соберет frontend (если не собран)
+- ✅ Соберет Docker-образы
+- ✅ Запустит PostgreSQL с демо-данными
+- ✅ Запустит backend на Rust
+
+**Доступ к системе:**
+- URL: http://localhost:3000
+- Логин: `admin`
+- Пароль: `admin123`
+
+📖 **Подробная документация**: [DOCKER_RUN.md](DOCKER_RUN.md)
+
+### 🎯 Демонстрационное окружение
 
 Для быстрого знакомства с Semaphore используйте демонстрационное окружение с готовыми данными:
 
@@ -88,15 +109,41 @@
 
 ### Установка
 
+#### Вариант 1: Через Docker (рекомендуется для сервера)
+
 ```bash
+# Сборка frontend через Docker (не требует Node.js)
+./web/build.sh
+
+# Сборка backend
 cd rust
-
-# Загрузка зависимостей
-cargo fetch
-
-# Сборка проекта
 cargo build --release
 ```
+
+#### Вариант 2: Полная сборка через Taskfile
+
+```bash
+# Автоматическая сборка frontend + backend
+task build
+```
+
+#### Вариант 3: Ручная сборка с Node.js (для разработки)
+
+```bash
+# 1. Сборка frontend (требуется Node.js 16+)
+cd web
+npm install
+npm run build
+cd ..
+
+# 2. Сборка backend (требуется Rust 1.75+)
+cd rust
+cargo fetch
+cargo build --release
+```
+
+**Переменные окружения для фронтенда:**
+- `SEMAPHORE_WEB_PATH` - путь к директории с фронтендом (по умолчанию `./web/public`)
 
 ### Запуск Сервера
 
@@ -160,12 +207,47 @@ cargo run -- user add \
 
 ### Frontend
 
-Проект включает **frontend на чистом JavaScript/CSS/HTML** (без Node.js):
+Проект включает **Vue 2 frontend** с полным набором функций:
 
 - Форма входа с JWT аутентификацией
 - Dashboard с навигацией по разделам
 - Управление проектами, задачами, шаблонами
 - Просмотр инвентаря, репозиториев, окружений, ключей
+- Real-time обновления через WebSocket
+- Мультиязычность (15 языков)
+- Темная тема
+
+**Все ресурсы фронтенда локальные** - не требуется загрузка из интернета:
+- ✅ Шрифты Roboto - локальные (`.ttf` файлы)
+- ✅ Иконки Material Design - из npm-пакета `@mdi/font`
+- ✅ Кастомные иконки (OpenTofu, Pulumi, Terragrunt, HashiCorp Vault, DVLS) - Vue-компоненты
+
+#### Сборка фронтенда
+
+**Через Docker (рекомендуется):**
+
+```bash
+# Скрипт сборки
+./web/build.sh
+
+# Или через Taskfile
+task build:frontend
+```
+
+**Через Node.js (для разработки):**
+
+```bash
+cd web
+npm install
+npm run build
+```
+
+После сборки Vue-приложение находится в `web/public/` и раздается Rust-сервером.
+
+**Требования:**
+- **Docker**: 20.x или новее (для сборки через Docker)
+- **Node.js**: 16.x или новее (для ручной сборки)
+- **npm**: 7.x или новее (для ручной сборки)
 
 Frontend доступен по умолчанию при запуске сервера на `http://localhost:3000`
 
