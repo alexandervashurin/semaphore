@@ -389,8 +389,8 @@ INSERT INTO repository (id, project_id, name, git_url, git_type, git_branch, key
 (5, 1, 'Common Roles', 'https://github.com/semaphore-demo/common-roles.git', 'git', 'develop', 1, NOW());
 
 -- Окружения (Environment)
-INSERT INTO environment (id, project_id, name, description, json, created) VALUES
-(1, 1, 'Production Variables', 'Переменные для продакшена', '{
+INSERT INTO environment (id, project_id, name, json, created) VALUES
+(1, 1, 'Production Variables', '{
   "env": "production",
   "domain": "example.com",
   "ssl_enabled": true,
@@ -398,7 +398,7 @@ INSERT INTO environment (id, project_id, name, description, json, created) VALUE
   "backup_enabled": true,
   "log_level": "warn"
 }', NOW()),
-(2, 1, 'Staging Variables', 'Переменные для staging', '{
+(2, 1, 'Staging Variables', '{
   "env": "staging",
   "domain": "staging.example.com",
   "ssl_enabled": true,
@@ -406,21 +406,21 @@ INSERT INTO environment (id, project_id, name, description, json, created) VALUE
   "backup_enabled": false,
   "log_level": "debug"
 }', NOW()),
-(3, 2, 'Web App Config', 'Конфигурация веб-приложения', '{
+(3, 2, 'Web App Config', '{
   "app_name": "MyWebApp",
   "app_port": 8080,
   "workers": 4,
   "cache_enabled": true,
   "session_timeout": 3600
 }', NOW()),
-(4, 3, 'Database Config', 'Конфигурация БД', '{
+(4, 3, 'Database Config', '{
   "postgres_version": "15",
   "mysql_version": "8.0",
   "max_connections": 200,
   "shared_buffers": "256MB",
   "backup_retention_days": 7
 }', NOW()),
-(5, 4, 'Security Scan Config', 'Настройки сканирования', '{
+(5, 4, 'Security Scan Config', '{
   "scan_type": "full",
   "severity_threshold": "medium",
   "report_format": "html",
