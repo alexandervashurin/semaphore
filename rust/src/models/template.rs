@@ -202,13 +202,16 @@ pub struct Template {
     pub description: String,
 
     /// ID инвентаря
-    pub inventory_id: i32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub inventory_id: Option<i32>,
 
     /// ID репозитория
-    pub repository_id: i32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub repository_id: Option<i32>,
 
     /// ID окружения
-    pub environment_id: i32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub environment_id: Option<i32>,
 
     /// Тип шаблона
     pub r#type: TemplateType,
@@ -217,7 +220,8 @@ pub struct Template {
     pub app: TemplateApp,
 
     /// Ветка Git по умолчанию
-    pub git_branch: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub git_branch: Option<String>,
 
     /// Флаг удаления
     #[serde(skip_serializing)]
