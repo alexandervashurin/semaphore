@@ -5,7 +5,40 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 этот проект придерживается [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.1] - 2026-02-28 (В разработке)
+## [2.0.1] - 2026-03-05
+
+### 🎯 Исправление авторизации
+
+#### Исправлено
+- ✅ **Критическая проблема**: Backend не запускался с PostgreSQL
+  - Причина: `Config::from_env()` не обрабатывал переменные `SEMAPHORE_DB_HOST/USER/PASS`
+  - Решение: Использовать `SEMAPHORE_DB_URL` для PostgreSQL/MySQL
+  - Файлы: `config/types.rs`, `config/loader.rs`
+
+- ✅ Обновлены все скрипты и документация:
+  - `.env.example` - переписан с правильными переменными
+  - `CONFIG.md` - добавлены предупреждения о неработающих переменных
+  - `docker-compose.yml` - изменён пароль на `semaphore_pass`
+  - `Dockerfile` - используется `SEMAPHORE_DB_URL`
+  - `DOCKER_DEMO.md` - обновлены примеры
+  - `scripts/run-postgres.sh` - исправлен пароль
+
+### 📚 Очистка документации
+
+#### Удалено (33 устаревших файла)
+- Отчёты о миграции: `rust/MIGRATION_*.md`, `rust/API_*.md`, `rust/CLI_*.md`
+- Планы работ: `PORTING_PLAN.md`, `PLAN_FURTHER_WORK.md`, `BUILD_FIX_PLAN.md`
+- Дубликаты: `QUICK_START.md`, `QUICK_START_DEMO.md`, `POSTGRES_SETUP.md`
+- Завершённые: `BUILD_ERRORS.md`, `CRUD_COMPLETE.md`
+
+#### Создано
+- ✅ `DOCUMENTATION.md` - единый указатель всей документации
+
+#### Оставлено (30 файлов актуальной документации)
+- Основная: `README.md`, `CONFIG.md`, `API.md`, `AUTH.md`
+- Развёртывание: `DOCKER_DEMO.md`, `scripts/README.md`, `db/postgres/DEMO.md`
+- Безопасность: `SECURITY.md`, `SECURITY_AUDIT_2026_02_28.md`
+- Разработка: `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `MIDDLEWARE.md`
 
 ### 🔒 Безопасность
 

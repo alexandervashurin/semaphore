@@ -48,12 +48,7 @@ USER semaphore
 EXPOSE 3000
 
 # Переменные окружения по умолчанию
-ENV SEMAPHORE_DB_DIALECT=postgres
-ENV SEMAPHORE_DB_HOST=db
-ENV SEMAPHORE_DB_PORT=5432
-ENV SEMAPHORE_DB_NAME=semaphore
-ENV SEMAPHORE_DB_USER=semaphore
-ENV SEMAPHORE_DB_PASS=semaphore123
+ENV SEMAPHORE_DB_URL="postgres://semaphore:semaphore_pass@db:5432/semaphore"
 ENV SEMAPHORE_WEB_PATH=/app/web/public
 
 # Запуск приложения

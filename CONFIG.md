@@ -38,27 +38,28 @@ RUST_LOG=info
 
 ### База данных
 
+**ВАЖНО:** Для PostgreSQL и MySQL необходимо использовать `SEMAPHORE_DB_URL`. 
+Отдельные переменные `SEMAPHORE_DB_HOST`, `SEMAPHORE_DB_USER` и т.д. **НЕ работают** в Rust версии!
+
 | Переменная | Описание | По умолчанию |
 |------------|----------|--------------|
-| `SEMAPHORE_DB_URL` | Connection string для БД (postgres://, mysql://, sqlite:) | - |
-| `SEMAPHORE_DB_DIALECT` | Тип БД: `bolt`, `sqlite`, `mysql`, `postgres` | bolt |
-| `SEMAPHORE_DB_PATH` | Путь к файлу БД (для bolt/sqlite) | - |
-| `SEMAPHORE_DB_HOST` | Хост БД (для mysql/postgres) | localhost |
-| `SEMAPHORE_DB_PORT` | Порт БД | 3306 (MySQL), 5432 (PostgreSQL) |
-| `SEMAPHORE_DB_USER` | Пользователь БД | - |
-| `SEMAPHORE_DB_PASS` | Пароль БД | - |
-| `SEMAPHORE_DB_NAME` | Имя базы данных | semaphore |
+| `SEMAPHORE_DB_URL` | **Обязательно для PostgreSQL/MySQL!** Connection string для БД | - |
+| `SEMAPHORE_DB_DIALECT` | Тип БД: `sqlite`, `mysql`, `postgres` | sqlite |
+| `SEMAPHORE_DB_PATH` | Путь к файлу БД (для SQLite) | /tmp/semaphore.db |
 
 **Примеры connection string:**
 ```bash
 # PostgreSQL
-postgres://semaphore:semaphore_pass@localhost:5433/semaphore?sslmode=disable
+postgres://semaphore:semaphore_pass@localhost:5432/semaphore
+
+# PostgreSQL (через Docker, порт 5433)
+postgres://semaphore:semaphore_pass@localhost:5433/semaphore
 
 # MySQL
 mysql://semaphore:semaphore_pass@localhost:3306/semaphore
 
 # SQLite
-sqlite:/var/lib/semaphore/semaphore.db
+sqlite:///tmp/semaphore.db
 ```
 
 ### Администратор

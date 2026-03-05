@@ -239,21 +239,16 @@ docker-compose exec -T db psql -U semaphore semaphore < backup.sql
 |------------|----------|
 | `POSTGRES_DB` | semaphore |
 | `POSTGRES_USER` | semaphore |
-| `POSTGRES_PASSWORD` | semaphore123 |
+| `POSTGRES_PASSWORD` | semaphore_pass |
 | `POSTGRES_HOST` | localhost |
 | `POSTGRES_PORT` | 5432 |
 
 ### Переменные окружения backend
 
-Для подключения backend к БД:
+**ВАЖНО:** Для Rust версии необходимо использовать `SEMAPHORE_DB_URL` вместо отдельных переменных!
 
 ```bash
-export SEMAPHORE_DB_DIALECT=postgres
-export SEMAPHORE_DB_HOST=localhost
-export SEMAPHORE_DB_PORT=5432
-export SEMAPHORE_DB_NAME=semaphore
-export SEMAPHORE_DB_USER=semaphore
-export SEMAPHORE_DB_PASS=semaphore123
+export SEMAPHORE_DB_URL="postgres://semaphore:semaphore_pass@localhost:5432/semaphore"
 export SEMAPHORE_WEB_PATH=./web/public
 ```
 

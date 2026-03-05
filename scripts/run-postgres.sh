@@ -10,7 +10,7 @@ export SEMAPHORE_DB_DIALECT=postgres
 export SEMAPHORE_DB_HOST="${SEMAPHORE_DB_HOST:-localhost}"
 export SEMAPHORE_DB_PORT="${SEMAPHORE_DB_PORT:-5432}"
 export SEMAPHORE_DB_USER="${SEMAPHORE_DB_USER:-semaphore}"
-export SEMAPHORE_DB_PASS="${SEMAPHORE_DB_PASS:-semaphore}"
+export SEMAPHORE_DB_PASS="${SEMAPHORE_DB_PASS:-semaphore_pass}"
 export SEMAPHORE_DB_NAME="${SEMAPHORE_DB_NAME:-semaphore}"
 export SEMAPHORE_WEB_PATH="${SEMAPHORE_WEB_PATH:-./web/public}"
 
