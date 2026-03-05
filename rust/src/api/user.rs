@@ -62,14 +62,16 @@ impl UserController {
         State(state): State<Arc<AppState>>,
         AuthUser { user_id, .. }: AuthUser,
     ) -> Result<(StatusCode, Json<APIToken>)> {
-        // Генерируем случайный ID токена
+        // Генерируем случайный токен
         let mut token_bytes = vec![0u8; 32];
         rand::thread_rng().fill_bytes(&mut token_bytes);
-        let token_id = base64::engine::general_purpose::STANDARD.encode(&token_bytes);
+        let token_str = base64::engine::general_purpose::STANDARD.encode(&token_bytes);
 
         let token = state.store.create_api_token(APIToken {
-            id: token_id.to_lowercase(),
+            id: 0, // Будет установлен БД
             user_id,
+            name: format!("Token {}", Utc::now().format("%Y-%m-%d %H:%M")),
+            token: token_str.to_lowercase(),
             created: Utc::now(),
             expired: false,
         }).await?;
@@ -81,9 +83,9 @@ impl UserController {
     pub async fn delete_api_token(
         State(state): State<Arc<AppState>>,
         AuthUser { user_id, .. }: AuthUser,
-        Path(token_id): Path<String>,
+        Path(token_id): Path<i32>,
     ) -> Result<StatusCode> {
-        state.store.delete_api_token(user_id, &token_id).await?;
+        state.store.delete_api_token(user_id, token_id).await?;
         Ok(StatusCode::NO_CONTENT)
     }
 

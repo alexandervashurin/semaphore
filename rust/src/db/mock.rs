@@ -383,10 +383,10 @@ impl TokenManager for MockStore {
     async fn get_api_token(&self, token_id: i32) -> Result<APIToken> {
         Err(Error::NotFound(format!("Token {} not found", token_id)))
     }
-    async fn expire_api_token(&self, _user_id: i32, _token_id: &str) -> Result<()> {
+    async fn expire_api_token(&self, _user_id: i32, _token_id: i32) -> Result<()> {
         Ok(())
     }
-    async fn delete_api_token(&self, _user_id: i32, _token_id: &str) -> Result<()> {
+    async fn delete_api_token(&self, _user_id: i32, _token_id: i32) -> Result<()> {
         Ok(())
     }
 }

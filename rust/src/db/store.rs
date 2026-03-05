@@ -183,8 +183,8 @@ pub trait TokenManager: Send + Sync {
     async fn get_api_tokens(&self, user_id: i32) -> Result<Vec<APIToken>>;
     async fn create_api_token(&self, token: APIToken) -> Result<APIToken>;
     async fn get_api_token(&self, token_id: i32) -> Result<APIToken>;
-    async fn expire_api_token(&self, user_id: i32, token_id: &str) -> Result<()>;
-    async fn delete_api_token(&self, user_id: i32, token_id: &str) -> Result<()>;
+    async fn expire_api_token(&self, user_id: i32, token_id: i32) -> Result<()>;
+    async fn delete_api_token(&self, user_id: i32, token_id: i32) -> Result<()>;
 }
 
 /// Менеджер событий

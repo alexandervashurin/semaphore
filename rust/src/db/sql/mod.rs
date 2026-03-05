@@ -4053,7 +4053,7 @@ impl TokenManager for SqlStore {
         }
     }
 
-    async fn expire_api_token(&self, _user_id: i32, token_id: &str) -> Result<()> {
+    async fn expire_api_token(&self, _user_id: i32, token_id: i32) -> Result<()> {
         match self.get_dialect() {
             SqlDialect::SQLite => {
                 let query = "UPDATE api_token SET expired = 1 WHERE id = ?";
@@ -4071,7 +4071,7 @@ impl TokenManager for SqlStore {
         Ok(())
     }
 
-    async fn delete_api_token(&self, _user_id: i32, token_id: &str) -> Result<()> {
+    async fn delete_api_token(&self, _user_id: i32, token_id: i32) -> Result<()> {
         match self.get_dialect() {
             SqlDialect::SQLite => {
                 let query = "DELETE FROM api_token WHERE id = ?";
