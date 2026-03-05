@@ -354,7 +354,7 @@ impl TokenManager for StoreWrapper {
         self.inner.as_ref().as_ref().create_api_token(token).await
     }
 
-    async fn get_api_token(&self, token_id: &str) -> Result<APIToken> {
+    async fn get_api_token(&self, token_id: i32) -> Result<APIToken> {
         self.inner.as_ref().as_ref().get_api_token(token_id).await
     }
 

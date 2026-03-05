@@ -54,16 +54,7 @@ impl UserController {
     ) -> Result<Json<Vec<APIToken>>> {
         let tokens = state.store.get_api_tokens(user_id).await?;
 
-        // Обрезаем ID токенов до 8 символов для безопасности
-        let mut result = Vec::new();
-        for mut token in tokens {
-            if token.id.len() >= 8 {
-                token.id = token.id[..8].to_string();
-            }
-            result.push(token);
-        }
-
-        Ok(Json(result))
+        Ok(Json(tokens))
     }
 
     /// Создаёт новый API токен

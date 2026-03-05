@@ -3945,9 +3945,11 @@ impl TokenManager for SqlStore {
                 Ok(token)
             }
             SqlDialect::PostgreSQL => {
-                let query = "INSERT INTO api_token (user_id, created, expired) VALUES ($1, $2, $3) RETURNING id";
-                let id: String = sqlx::query_scalar(query)
+                let query = "INSERT INTO api_token (user_id, name, token, created, expired) VALUES ($1, $2, $3, $4, $5) RETURNING id";
+                let id: i32 = sqlx::query_scalar(query)
                     .bind(token.user_id)
+                    .bind(&token.name)
+                    .bind(&token.token)
                     .bind(token.created)
                     .bind(token.expired)
                     .fetch_one(self.get_postgres_pool()?).await.map_err(|e| Error::Database(e))?;
@@ -3955,19 +3957,21 @@ impl TokenManager for SqlStore {
                 Ok(token)
             }
             SqlDialect::MySQL => {
-                let query = "INSERT INTO `api_token` (user_id, created, expired) VALUES (?, ?, ?)";
+                let query = "INSERT INTO `api_token` (user_id, name, token, created, expired) VALUES (?, ?, ?, ?, ?)";
                 let result = sqlx::query(query)
                     .bind(token.user_id)
+                    .bind(&token.name)
+                    .bind(&token.token)
                     .bind(token.created)
                     .bind(token.expired)
                     .execute(self.get_mysql_pool()?).await.map_err(|e| Error::Database(e))?;
-                token.id = result.last_insert_id().to_string();
+                token.id = result.last_insert_id() as i32;
                 Ok(token)
             }
         }
     }
 
-    async fn get_api_token(&self, token_id: &str) -> Result<APIToken> {
+    async fn get_api_token(&self, token_id: i32) -> Result<APIToken> {
         match self.get_dialect() {
             SqlDialect::SQLite => {
                 let query = "SELECT * FROM api_token WHERE id = ?";
