@@ -259,6 +259,7 @@ mod tests {
             secret_storage_id: None,
             environment_id: None,
             owner: Some(AccessKeyOwner::Project),
+            created: None,
         }
     }
 
@@ -340,11 +341,12 @@ mod tests {
             secret_storage_id: None,
             environment_id: None,
             owner: Some(AccessKeyOwner::Project),
+            created: None,
         };
 
         let installer = AccessKeyInstaller::default();
         let result = installer.install(&key, AccessKeyRole::Git);
-        
+
         assert!(result.is_err());
     }
 }

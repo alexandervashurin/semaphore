@@ -379,6 +379,7 @@ mod tests {
             git_branch: None,
             key_id: 1,
             git_path: None,
+            created: None,
         };
 
         let git_repo = GitRepository::new(repo, 1, 1);
@@ -398,6 +399,7 @@ mod tests {
             git_branch: None,
             key_id: 1,
             git_path: None,
+            created: None,
         };
 
         let git_repo = GitRepository::new(repo, 1, 1)
@@ -418,6 +420,7 @@ mod tests {
             git_branch: None,
             key_id: 1,
             git_path: None,
+            created: None,
         };
 
         let git_repo = GitRepository::new(repo, 1, 1);
@@ -437,6 +440,7 @@ mod tests {
             git_branch: None,
             key_id: 1,
             git_path: None,
+            created: None,
         };
 
         let git_repo = GitRepository::new(repo, 1, 1);

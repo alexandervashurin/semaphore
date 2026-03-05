@@ -201,6 +201,7 @@ mod tests {
             json: String::from(r#"{"key": "value"}"#),
             secret_storage_id: None,
             secrets: None,
+            created: None,
         };
 
         let mut template = crate::models::Template::default();

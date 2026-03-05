@@ -154,6 +154,7 @@ mod tests {
             json: String::from(r#"{"var1": "value1"}"#),
             secret_storage_id: None,
             secrets: None,
+            created: None,
         };
 
         LocalJob::new(
