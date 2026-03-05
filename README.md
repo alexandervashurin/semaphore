@@ -63,7 +63,7 @@
 
 ### 🐳 Запуск через Docker (demo)
 
-**Frontend + PostgreSQL (backend отдельно):**
+**Frontend + PostgreSQL с демо-данными** (backend отдельно):
 
 ```bash
 # 1. Запуск frontend и БД
@@ -79,22 +79,7 @@ cd rust && cargo run -- server
 - Frontend: http://localhost
 - Backend API: http://localhost:3000/api
 - Логин: `admin` / `admin123`
-
-📖 **Подробная документация**: [DOCKER_DEMO.md](DOCKER_DEMO.md)
-
-### 🎯 Демонстрационное окружение
-
-Для быстрого знакомства с Semaphore используйте демонстрационное окружение с готовыми данными:
-
-```bash
-# Запуск PostgreSQL с демонстрационными данными
-./scripts/postgres-demo-start.sh
-```
-
-**Доступ к системе:**
-- URL: http://localhost:3000
-- Логин: `admin` (или `john.doe`, `jane.smith`, `devops`)
-- Пароль: `demo123` (для всех пользователей)
+- Демо-пользователи: `john.doe` / `demo123`, `jane.smith` / `demo123`, `devops` / `demo123`
 
 **Что включено:**
 - ✅ 4 проекта (Infrastructure, Web App, Database, Security)
@@ -105,7 +90,7 @@ cd rust && cargo run -- server
 - ✅ 4 расписания
 - ✅ 6 задач (выполненные, запущенные, ожидающие)
 
-📖 **Подробная документация**: [db/postgres/DEMO.md](db/postgres/DEMO.md)
+📖 **Подробная документация**: [DOCKER_DEMO.md](DOCKER_DEMO.md), [db/postgres/DEMO.md](db/postgres/DEMO.md)
 
 ### Установка
 

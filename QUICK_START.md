@@ -2,13 +2,13 @@
 
 ## 🐳 Запуск через Docker (demo)
 
-### 1. Frontend + БД
+### 1️⃣ Frontend + БД
 
 ```bash
 ./start.sh
 ```
 
-### 2. Backend (отдельно)
+### 2️⃣ Backend (отдельно)
 
 ```bash
 ./start.sh --backend
@@ -16,19 +16,23 @@
 cd rust && cargo run -- server
 ```
 
-### Доступ
+### 3️⃣ Доступ
 
 - **Frontend**: http://localhost
 - **Backend**: http://localhost:3000
 - **Логин**: `admin` / `admin123`
 
-### Управление
+---
+
+## 🛠 Управление
 
 ```bash
-./start.sh              # Запуск
-./start.sh --build      # Запуск с пересборкой
-./start.sh --clean      # Полный сброс + запуск
+./start.sh              # Запуск frontend + БД
+./start.sh --backend    # + Запуск backend
+./start.sh --build      # + Пересборка образов
+./start.sh --clean      # + Очистка данных БД
 ./start.sh --logs       # Просмотр логов
+
 ./stop.sh               # Остановка
 ./stop.sh --clean       # Остановка + очистка данных
 ```
@@ -60,22 +64,22 @@ cd rust && cargo run -- server
 
 - Docker 20.x+
 - Docker Compose 2.x+
+- Rust 1.75+ (для backend)
 
 ### Установка Docker
 
 ```bash
 curl -fsSL https://get.docker.com | sh
 sudo usermod -aG docker $USER
-# Перелогиньтесь
 ```
 
 ---
 
 ## 📚 Документация
 
-- [DOCKER_RUN.md](DOCKER_RUN.md) - полный гайд по Docker-запуску
-- [README.md](README.md) - основная документация
-- [DOCKER_BUILD.md](web/DOCKER_BUILD.md) - сборка frontend
+- [DOCKER_DEMO.md](DOCKER_DEMO.md) — полная инструкция по Docker
+- [README.md](README.md) — основная документация
+- [web/DOCKER_BUILD.md](web/DOCKER_BUILD.md) — сборка frontend
 
 ---
 

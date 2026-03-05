@@ -1,16 +1,16 @@
 # 🐳 Демонстрационное окружение Semaphore UI
 
-Frontend (Nginx) + PostgreSQL с демо-данными. Backend запускается отдельно.
+**Frontend (Nginx) + PostgreSQL с демо-данными**. Backend запускается отдельно через `cargo`.
 
 ## 🚀 Быстрый старт
 
-### 1. Запуск frontend и БД
+### 1️⃣ Запуск frontend и БД
 
 ```bash
 ./start.sh
 ```
 
-### 2. Запуск backend (отдельно)
+### 2️⃣ Запуск backend (отдельно)
 
 ```bash
 # Вариант 1: Через скрипт
@@ -21,31 +21,49 @@ cd rust
 cargo run -- server --host 0.0.0.0 --port 3000
 ```
 
-## 📋 Доступ к системе
+### 3️⃣ Открыть браузер
+
+- **Frontend**: http://localhost
+- **Логин**: `admin`
+- **Пароль**: `admin123`
+
+---
+
+## 📋 Полная информация
 
 | Компонент | URL | Описание |
 |-----------|-----|----------|
-| **Frontend** | http://localhost | Nginx раздает статику |
+| **Frontend** | http://localhost | Nginx раздает Vue статику |
 | **Backend API** | http://localhost:3000/api | Rust backend |
 | **PostgreSQL** | localhost:5432 | БД с демо-данными |
 
-**Логин/пароль:**
-- `admin` / `admin123`
-- Демо: `john.doe` / `demo123`, `jane.smith` / `demo123`, `devops` / `demo123`
+### Демо-пользователи
+
+| Логин | Пароль | Роль |
+|-------|--------|------|
+| `admin` | `demo123` | Admin |
+| `john.doe` | `demo123` | Manager |
+| `jane.smith` | `demo123` | Developer |
+| `devops` | `demo123` | DevOps |
+
+---
 
 ## 🛠 Команды управления
 
 ### Запуск
 
 ```bash
-# Frontend + БД
+# Только frontend + БД
 ./start.sh
 
 # Frontend + БД + Backend
 ./start.sh --backend
 
-# Пересборка образов
+# С пересборкой образов
 ./start.sh --build
+
+# С полным сбросом (удаление данных БД)
+./start.sh --clean --build
 ```
 
 ### Остановка
@@ -71,41 +89,75 @@ docker-compose logs -f db
 docker-compose logs -f frontend
 ```
 
+### Статус
+
+```bash
+# Через docker-compose
+docker-compose ps
+
+# Через скрипт
+./start.sh  # покажет статус при запуске
+```
+
+---
+
 ## 📦 Что входит в стек
 
 | Сервис | Образ | Порт | Назначение |
 |--------|-------|------|------------|
 | **db** | `postgres:15-alpine` | 5432 | PostgreSQL с демо-данными |
-| **frontend** | `nginx:alpine` | 80 | Раздача статики Vue |
+| **frontend** | `nginx:alpine` | 80 | Раздача Vue статики |
 
-**Backend не входит в Docker** - запускается отдельно через `cargo run`.
+**Backend не входит в Docker** — запускается отдельно через `cargo run`.
+
+### Почему так?
+
+- ✅ **Backend с отладкой** — `cargo run` показывает логи в реальном времени
+- ✅ **Меньше ресурсов** — не нужно собирать Docker-образ backend
+- ✅ **Быстрая разработка** — изменения в коде backend применяются сразу
+- ✅ **Проще деплой** — в продакшене backend запускается отдельно
+
+---
 
 ## 🔧 Требования
 
 - **Docker**: 20.x или новее
 - **Docker Compose**: 2.x или новее
 - **Rust**: 1.75+ (для запуска backend)
+- **Node.js**: 16+ (опционально, для сборки frontend)
 
 ### Установка Docker
 
 ```bash
+# Автоматическая установка (Linux)
 curl -fsSL https://get.docker.com | sh
+
+# Добавить пользователя в группу docker
 sudo usermod -aG docker $USER
+
+# Перелогиньтесь или выполните: newgrp docker
 ```
 
-## 🗂 Структура
+---
+
+## 🗂 Структура файлов
 
 ```
 semaphore/
-├── docker-compose.yml    # Frontend + PostgreSQL
-├── nginx.conf            # Конфигурация Nginx
-├── start.sh              # Скрипт запуска
-├── stop.sh               # Скрипт остановки
-├── rust/                 # Backend (запускается отдельно)
+├── docker-compose.yml       # Конфигурация Docker (frontend + БД)
+├── nginx.conf               # Конфигурация Nginx
+├── start.sh                 # Скрипт запуска
+├── stop.sh                  # Скрипт остановки
+├── DOCKER_DEMO.md           # Эта документация
+├── rust/                    # Backend
+│   └── src/
 └── web/
-    ├── public/           # Скомпилированный frontend
-    └── build.sh          # Сборка frontend
+    ├── public/              # Скомпилированный frontend
+    ├── build.sh             # Сборка frontend через Docker
+    └── Dockerfile.build     # Dockerfile для сборки
 ```
+
+---
 
 ## 🔍 Диагностика
 
@@ -123,6 +175,9 @@ docker-compose exec db pg_isready -U semaphore -d semaphore
 
 # Подключение к БД
 docker-compose exec db psql -U semaphore -d semaphore
+
+# Список таблиц
+docker-compose exec db psql -U semaphore -d semaphore -c "\dt"
 ```
 
 ### Проверка frontend
@@ -133,30 +188,48 @@ ls -lh web/public/
 
 # Тест Nginx
 curl http://localhost
+
+# Проверка подключения к API
+curl http://localhost/api/health
 ```
+
+### Проверка backend
+
+```bash
+# Проверка доступности
+curl http://localhost:3000/api/health
+
+# Логи backend (если запущен через cargo)
+# Смотрите в терминале, где запущен cargo
+```
+
+---
 
 ## 💾 Хранение данных
 
 Данные PostgreSQL хранятся в Docker volume `postgres_data`.
 
-### Экспорт БД
+### Резервное копирование
 
 ```bash
+# Экспорт БД
 docker-compose exec db pg_dump -U semaphore semaphore > backup.sql
-```
 
-### Импорт БД
-
-```bash
+# Импорт БД
 docker-compose exec -T db psql -U semaphore semaphore < backup.sql
 ```
 
 ### Сброс данных
 
 ```bash
+# Остановка с очисткой volumes
 ./stop.sh --clean
+
+# Запуск с чистой БД
 ./start.sh
 ```
+
+---
 
 ## ⚙️ Конфигурация
 
@@ -167,6 +240,22 @@ docker-compose exec -T db psql -U semaphore semaphore < backup.sql
 | `POSTGRES_DB` | semaphore |
 | `POSTGRES_USER` | semaphore |
 | `POSTGRES_PASSWORD` | semaphore123 |
+| `POSTGRES_HOST` | localhost |
+| `POSTGRES_PORT` | 5432 |
+
+### Переменные окружения backend
+
+Для подключения backend к БД:
+
+```bash
+export SEMAPHORE_DB_DIALECT=postgres
+export SEMAPHORE_DB_HOST=localhost
+export SEMAPHORE_DB_PORT=5432
+export SEMAPHORE_DB_NAME=semaphore
+export SEMAPHORE_DB_USER=semaphore
+export SEMAPHORE_DB_PASS=semaphore123
+export SEMAPHORE_WEB_PATH=./web/public
+```
 
 ### Изменение порта frontend
 
@@ -176,54 +265,125 @@ docker-compose exec -T db psql -U semaphore semaphore < backup.sql
 services:
   frontend:
     ports:
-      - "8080:80"  # Измените 80 на нужный порт
+      - "8080:80"  # Измените 80 на 8080
 ```
+
+### Изменение порта backend
+
+В `nginx.conf` измените `proxy_pass`:
+
+```nginx
+location /api/ {
+    proxy_pass http://host.docker.internal:3001/api/;  # Было :3000
+}
+```
+
+---
 
 ## 🐛 Решение проблем
 
 ### "Cannot connect to the Docker daemon"
 
 ```bash
+# Проверьте статус Docker
 sudo systemctl status docker
+
+# Запустите Docker
 sudo systemctl start docker
 ```
 
 ### "Port 80 is already in use"
 
 ```bash
-# Найдите процесс
-lsof -i :80
+# Найдите процесс на порту 80
+sudo lsof -i :80
 
-# Остановите или измените порт в docker-compose.yml
+# Остановите процесс или измените порт в docker-compose.yml
+```
+
+### "Port 5432 is already in use"
+
+```bash
+# Найдите процесс на порту 5432
+sudo lsof -i :5432
+
+# Остановите PostgreSQL на хосте или измените порт в docker-compose.yml
 ```
 
 ### "Backend не подключается к БД"
 
-Проверьте переменные окружения backend:
+1. Проверьте переменные окружения:
+   ```bash
+   echo $SEMAPHORE_DB_HOST
+   echo $SEMAPHORE_DB_PORT
+   ```
 
-```bash
-export SEMAPHORE_DB_DIALECT=postgres
-export SEMAPHORE_DB_HOST=localhost
-export SEMAPHORE_DB_PORT=5432
-export SEMAPHORE_DB_NAME=semaphore
-export SEMAPHORE_DB_USER=semaphore
-export SEMAPHORE_DB_PASS=semaphore123
-```
+2. Проверьте доступность БД:
+   ```bash
+   docker-compose exec db pg_isready -U semaphore -d semaphore
+   ```
+
+3. Проверьте логи БД:
+   ```bash
+   docker-compose logs db
+   ```
 
 ### "Frontend показывает ошибку подключения к API"
 
-Убедитесь, что backend запущен:
+1. Убедитесь, что backend запущен:
+   ```bash
+   curl http://localhost:3000/api/health
+   ```
+
+2. Проверьте логи backend
+
+3. Проверьте `nginx.conf`:
+   ```bash
+   cat nginx.conf | grep proxy_pass
+   ```
+
+### "Nginx возвращает 502 Bad Gateway"
+
+Backend не запущен или недоступен:
 
 ```bash
-# Проверка backend
+# Проверьте backend
 curl http://localhost:3000/api/health
 
-# Запуск backend
+# Перезапустите backend
+pkill semaphore
 cd rust && cargo run -- server
 ```
 
-## 📚 Документация
+### "Ошибки сборки frontend"
 
-- [README.md](README.md) - основная документация
-- [QUICK_START.md](QUICK_START.md) - шпаргалка
-- [db/postgres/DEMO.md](db/postgres/DEMO.md) - демо-данные
+```bash
+# Очистите и пересоберите
+cd web
+rm -rf public/app.js public/app.css public/js
+./build.sh
+```
+
+---
+
+## 📚 Дополнительная документация
+
+- [README.md](README.md) — основная документация проекта
+- [QUICK_START.md](QUICK_START.md) — краткая шпаргалка
+- [db/postgres/DEMO.md](db/postgres/DEMO.md) — описание демо-данных
+- [web/DOCKER_BUILD.md](web/DOCKER_BUILD.md) — сборка frontend через Docker
+- [CONFIG.md](CONFIG.md) — конфигурация Semaphore
+
+---
+
+## 🎯 Следующие шаги
+
+1. ✅ Запустите `./start.sh`
+2. ✅ Запустите backend: `./start.sh --backend`
+3. ✅ Откройте http://localhost
+4. ✅ Войдите как `admin` / `admin123`
+5. ✅ Изучите демонстрационные проекты
+6. ✅ Создайте свой первый шаблон
+7. ✅ Запустите задачу!
+
+🎉 Приятной работы с Semaphore UI!
