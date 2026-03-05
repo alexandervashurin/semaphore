@@ -6,7 +6,7 @@
 //! - Заголовков запросов
 
 use axum::{
-    extract::{FromRequestParts, State},
+    extract::FromRequestParts,
     http::{request::Parts, StatusCode},
     Json,
 };
@@ -41,12 +41,12 @@ pub struct AuthUser {
     pub admin: bool,
 }
 
-impl FromRequestParts<State<Arc<AppState>>> for AuthUser {
+impl FromRequestParts<Arc<AppState>> for AuthUser {
     type Rejection = (StatusCode, Json<ErrorResponse>);
 
     async fn from_request_parts(
         parts: &mut Parts,
-        state: &State<Arc<AppState>>,
+        state: &Arc<AppState>,
     ) -> Result<Self, Self::Rejection> {
         // Получаем токен из заголовка
         let auth_header = parts
@@ -89,12 +89,12 @@ impl FromRequestParts<State<Arc<AppState>>> for AuthUser {
 #[derive(Debug, Clone)]
 pub struct OptionalAuthUser(pub Option<AuthUser>);
 
-impl FromRequestParts<State<Arc<AppState>>> for OptionalAuthUser {
+impl FromRequestParts<Arc<AppState>> for OptionalAuthUser {
     type Rejection = (StatusCode, Json<ErrorResponse>);
 
     async fn from_request_parts(
         parts: &mut Parts,
-        state: &State<Arc<AppState>>,
+        state: &Arc<AppState>,
     ) -> Result<Self, Self::Rejection> {
         match AuthUser::from_request_parts(parts, state).await {
             Ok(user) => Ok(OptionalAuthUser(Some(user))),
@@ -109,12 +109,12 @@ impl FromRequestParts<State<Arc<AppState>>> for OptionalAuthUser {
 #[derive(Debug, Clone)]
 pub struct AuthToken(pub String);
 
-impl FromRequestParts<State<Arc<AppState>>> for AuthToken {
+impl FromRequestParts<Arc<AppState>> for AuthToken {
     type Rejection = (StatusCode, Json<ErrorResponse>);
 
     async fn from_request_parts(
         parts: &mut Parts,
-        _state: &State<Arc<AppState>>,
+        _state: &Arc<AppState>,
     ) -> Result<Self, Self::Rejection> {
         let auth_header = parts
             .headers
@@ -144,12 +144,12 @@ impl AdminUser {
     }
 }
 
-impl FromRequestParts<State<Arc<AppState>>> for AdminUser {
+impl FromRequestParts<Arc<AppState>> for AdminUser {
     type Rejection = (StatusCode, Json<ErrorResponse>);
 
     async fn from_request_parts(
         parts: &mut Parts,
-        state: &State<Arc<AppState>>,
+        state: &Arc<AppState>,
     ) -> Result<Self, Self::Rejection> {
         let user = AuthUser::from_request_parts(parts, state).await?;
 

@@ -10,6 +10,7 @@ use axum::{
 use std::sync::Arc;
 use serde::Deserialize;
 use crate::api::state::AppState;
+use crate::api::extractors::AuthUser;
 use crate::models::User;
 use crate::db::store::{RetrieveQueryParams, UserManager};
 use crate::error::Error;
@@ -112,9 +113,61 @@ pub async fn delete_user(
     Ok(StatusCode::NO_CONTENT)
 }
 
+/// Обновить пароль пользователя
+///
+/// POST /api/users/:id/password
+/// Только администратор или сам пользователь может менять пароль.
+/// Внешние пользователи (LDAP/OIDC) не могут менять пароль через API.
+pub async fn update_user_password(
+    State(state): State<Arc<AppState>>,
+    AuthUser { user_id: editor_id, admin, .. }: AuthUser,
+    Path(target_user_id): Path<i32>,
+    Json(payload): Json<PasswordUpdatePayload>,
+) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+    // Только админ или сам пользователь
+    if !admin && editor_id != target_user_id {
+        let err = ErrorResponse::new("Нет прав на изменение пароля").with_code("FORBIDDEN");
+        return Err((StatusCode::FORBIDDEN, Json(err)));
+    }
+
+    let target_user = state.store.get_user(target_user_id)
+        .await
+        .map_err(|e| match e {
+            Error::NotFound(_) => (
+                StatusCode::NOT_FOUND,
+                Json(ErrorResponse::new(e.to_string())),
+            ),
+            _ => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            ),
+        })?;
+
+    if target_user.external {
+        let err = ErrorResponse::new("Пароль внешних пользователей нельзя изменить")
+            .with_code("EXTERNAL_USER");
+        return Err((StatusCode::BAD_REQUEST, Json(err)));
+    }
+
+    state.store.set_user_password(target_user_id, &payload.password)
+        .await
+        .map_err(|e| {
+            let (status, resp) = ErrorResponse::from_crate_error(&e);
+            (status, Json(resp))
+        })?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
 // ============================================================================
 // Types
 // ============================================================================
+
+/// Payload для смены пароля
+#[derive(Debug, Deserialize)]
+pub struct PasswordUpdatePayload {
+    pub password: String,
+}
 
 /// Payload для обновления пользователя
 #[derive(Debug, Deserialize)]

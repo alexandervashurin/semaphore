@@ -65,11 +65,13 @@ impl LocalJob {
         Ok((template_args_map, task_args_map))
     }
 
-    /// Получает параметры шаблона
+    /// Получает параметры шаблона (из задачи)
     pub fn get_template_params(&self) -> Result<Value> {
-        // TODO: params поле удалено из Template
-        // let params: Value = serde_json::from_str(&self.template.params)?;
-        Ok(Value::Null)
+        self.task
+            .params
+            .clone()
+            .map(Ok)
+            .unwrap_or(Ok(Value::Null))
     }
 
     /// Получает параметры задачи

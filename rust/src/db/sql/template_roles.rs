@@ -32,11 +32,12 @@ impl SqlDb {
         match self.get_dialect() {
             crate::db::sql::types::SqlDialect::SQLite => {
                 let result = sqlx::query(
-                    "INSERT INTO template_role (template_id, project_id, role_id) VALUES (?, ?, ?)"
+                    "INSERT INTO template_role (template_id, project_id, role_id, role_slug) VALUES (?, ?, ?, ?)"
                 )
                 .bind(role.template_id)
                 .bind(role.project_id)
                 .bind(role.role_id)
+                .bind(&role.role_slug)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
                 .map_err(|e| Error::Database(e))?;
@@ -53,9 +54,10 @@ impl SqlDb {
         match self.get_dialect() {
             crate::db::sql::types::SqlDialect::SQLite => {
                 sqlx::query(
-                    "UPDATE template_role SET role_id = ? WHERE id = ? AND template_id = ? AND project_id = ?"
+                    "UPDATE template_role SET role_id = ?, role_slug = ? WHERE id = ? AND template_id = ? AND project_id = ?"
                 )
                 .bind(role.role_id)
+                .bind(&role.role_slug)
                 .bind(role.id)
                 .bind(role.template_id)
                 .bind(role.project_id)
@@ -105,7 +107,8 @@ mod tests {
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 template_id INTEGER NOT NULL,
                 project_id INTEGER NOT NULL,
-                role_id INTEGER NOT NULL
+                role_id INTEGER NOT NULL,
+                role_slug TEXT NOT NULL DEFAULT ''
             )"
         )
         .execute(db.get_sqlite_pool().unwrap())

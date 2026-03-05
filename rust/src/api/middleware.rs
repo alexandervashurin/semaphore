@@ -53,6 +53,38 @@ impl ErrorResponse {
         self.details = Some(details);
         self
     }
+
+    /// Создаёт ответ из crate::Error с правильным HTTP статусом
+    pub fn from_crate_error(err: &crate::error::Error) -> (axum::http::StatusCode, Self) {
+        let status = err.to_status_code();
+        let code = err.error_code().to_string();
+        let response = Self {
+            error: err.to_string(),
+            code: Some(code),
+            details: None,
+        };
+        (status, response)
+    }
+
+    /// Добавляет request_id в details для отладки
+    pub fn with_request_id(mut self, request_id: &str) -> Self {
+        let mut details = match &self.details {
+            Some(serde_json::Value::Object(m)) => m.clone(),
+            _ => serde_json::Map::new(),
+        };
+        details.insert("request_id".to_string(), serde_json::Value::String(request_id.to_string()));
+        self.details = Some(serde_json::Value::Object(details));
+        self
+    }
+
+    /// Создаёт ответ об ошибке валидации с деталями
+    pub fn validation_error(message: impl Into<String>, details: impl Into<serde_json::Value>) -> Self {
+        Self {
+            error: message.into(),
+            code: Some("VALIDATION_ERROR".to_string()),
+            details: Some(details.into()),
+        }
+    }
 }
 
 impl IntoResponse for ErrorResponse {

@@ -239,6 +239,11 @@ mod tests {
     fn test_validate_config_empty_tmp_path() {
         let config = Config {
             tmp_path: String::new(),
+            database: DbConfig {
+                dialect: Some(DbDialect::SQLite),
+                db_name: "test.db".to_string(),
+                ..Default::default()
+            },
             ..Default::default()
         };
         

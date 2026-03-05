@@ -37,12 +37,13 @@ impl SqlDb {
         match self.get_dialect() {
             crate::db::sql::types::SqlDialect::SQLite => {
                 let result = sqlx::query(
-                    "INSERT INTO task_output (task_id, project_id, output, time) VALUES (?, ?, ?, ?)"
+                    "INSERT INTO task_output (task_id, project_id, output, time, stage_id) VALUES (?, ?, ?, ?, ?)"
                 )
                 .bind(output.task_id)
                 .bind(output.project_id)
                 .bind(&output.output)
                 .bind(output.time)
+                .bind(output.stage_id)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
                 .map_err(|e| Error::Database(e))?;
@@ -115,7 +116,8 @@ mod tests {
                 task_id INTEGER NOT NULL,
                 project_id INTEGER NOT NULL,
                 output TEXT NOT NULL,
-                time DATETIME NOT NULL
+                time DATETIME NOT NULL,
+                stage_id INTEGER
             )"
         )
         .execute(db.get_sqlite_pool().unwrap())

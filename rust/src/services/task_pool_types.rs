@@ -124,7 +124,7 @@ mod tests {
                 .enable_all()
                 .build()
                 .unwrap()
-                .block_on(crate::db::sql::SqlStore::new(":memory:"))
+                .block_on(crate::db::sql::SqlStore::new("sqlite::memory:"))
                 .unwrap()
         )
     }
@@ -140,7 +140,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_task_pool_shutdown() {
-        let store = Arc::new(crate::db::sql::SqlStore::new(":memory:").await.unwrap());
+        let store = Arc::new(crate::db::sql::SqlStore::new("sqlite::memory:").await.unwrap());
         let project = create_test_project();
         
         let pool = TaskPool::new(store, project);

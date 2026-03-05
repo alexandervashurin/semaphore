@@ -17,15 +17,20 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/api/auth/login", post(handlers::login))
         .route("/api/auth/logout", post(handlers::logout))
 
+        // Текущий пользователь
+        .route("/api/user", get(handlers::get_current_user))
+
         // Пользователи
         .route("/api/users", get(handlers::get_users))
         .route("/api/users/{id}", get(handlers::get_user))
         .route("/api/users/{id}", put(handlers::update_user))
         .route("/api/users/{id}", delete(handlers::delete_user))
+        .route("/api/users/{id}/password", post(handlers::update_user_password))
 
         // Проекты
         .route("/api/projects", get(handlers::get_projects))
         .route("/api/projects", post(handlers::add_project))
+        .route("/api/projects/restore", post(handlers::restore_project))
         .route("/api/projects/{id}", get(handlers::get_project))
         .route("/api/projects/{id}", put(handlers::update_project))
         .route("/api/projects/{id}", delete(handlers::delete_project))

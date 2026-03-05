@@ -1,6 +1,7 @@
 //! Модуль ошибок приложения
 
 use thiserror::Error;
+use axum::http::StatusCode;
 
 /// Основной тип ошибок приложения
 #[derive(Error, Debug)]
@@ -72,3 +73,55 @@ pub enum Error {
 
 /// Результат выполнения операции
 pub type Result<T> = std::result::Result<T, Error>;
+
+impl Error {
+    /// Преобразует ошибку в HTTP статус-код
+    pub fn to_status_code(&self) -> StatusCode {
+        match self {
+            Error::Validation(_) => StatusCode::BAD_REQUEST,
+            Error::NotFound(_) => StatusCode::NOT_FOUND,
+            Error::Auth(_) | Error::Unauthorized(_) => StatusCode::UNAUTHORIZED,
+            Error::Forbidden(_) => StatusCode::FORBIDDEN,
+            Error::Config(_) => StatusCode::SERVICE_UNAVAILABLE,
+            Error::Database(_) | Error::Io(_) | Error::SystemTime(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Error::Json(_) => StatusCode::BAD_REQUEST,
+            Error::Git(_) | Error::Http(_) => StatusCode::BAD_GATEWAY,
+            Error::WebSocket(_) | Error::Scheduler(_) | Error::NotImplemented(_) | Error::Other(_) => {
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
+        }
+    }
+
+    /// Возвращает код ошибки для API
+    pub fn error_code(&self) -> &'static str {
+        match self {
+            Error::Validation(_) => "VALIDATION_ERROR",
+            Error::NotFound(_) => "NOT_FOUND",
+            Error::Auth(_) | Error::Unauthorized(_) => "UNAUTHORIZED",
+            Error::Forbidden(_) => "FORBIDDEN",
+            Error::Config(_) => "CONFIG_ERROR",
+            Error::Database(_) => "DATABASE_ERROR",
+            Error::Json(_) => "INVALID_JSON",
+            Error::Other(_) => "INTERNAL_ERROR",
+            _ => "INTERNAL_ERROR",
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_error_to_status_code() {
+        assert_eq!(Error::NotFound("x".to_string()).to_status_code(), StatusCode::NOT_FOUND);
+        assert_eq!(Error::Unauthorized("x".to_string()).to_status_code(), StatusCode::UNAUTHORIZED);
+        assert_eq!(Error::Validation("x".to_string()).to_status_code(), StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn test_error_code() {
+        assert_eq!(Error::NotFound("x".to_string()).error_code(), "NOT_FOUND");
+        assert_eq!(Error::Validation("x".to_string()).error_code(), "VALIDATION_ERROR");
+    }
+}

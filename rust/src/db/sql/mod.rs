@@ -54,6 +54,30 @@ impl SqlStore {
         Ok(Self { db })
     }
 
+    #[cfg(test)]
+    /// Инициализирует таблицу user для тестов (без миграций)
+    pub async fn init_user_table_for_test(&self) -> Result<()> {
+        let schema = "CREATE TABLE IF NOT EXISTS user (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            name TEXT NOT NULL,
+            email TEXT NOT NULL,
+            password TEXT NOT NULL,
+            admin INTEGER NOT NULL,
+            external INTEGER NOT NULL,
+            alert INTEGER NOT NULL,
+            pro INTEGER NOT NULL,
+            created DATETIME NOT NULL,
+            totp TEXT,
+            email_otp TEXT
+        )";
+        sqlx::query(schema)
+            .execute(self.get_sqlite_pool()?)
+            .await
+            .map_err(|e| Error::Database(e))?;
+        Ok(())
+    }
+
     /// Получает диалект БД
     fn get_dialect(&self) -> SqlDialect {
         self.db.get_dialect()

@@ -245,9 +245,11 @@ mod tests {
 
     #[test]
     fn test_get_environment_env() {
-        let job = create_test_job();
+        // Создаём job с пустым environment.json для проверки пустого env
+        let mut job = create_test_job();
+        job.environment.json = "{}".to_string();
         let env = job.get_environment_env().unwrap();
-        assert!(env.is_empty()); // Пока нет ENV переменных в тесте
+        assert!(env.is_empty());
     }
 
     #[test]

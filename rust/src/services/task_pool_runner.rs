@@ -166,12 +166,11 @@ impl Clone for TaskPool {
 mod tests {
     use super::*;
     use crate::models::Project;
+    use crate::db::mock::MockStore;
     use chrono::Utc;
 
     async fn create_test_pool() -> TaskPool {
-        use crate::db::sql::SqlStore;
-        
-        let store = Arc::new(SqlStore::new(":memory:").await.unwrap());
+        let store = Arc::new(MockStore::new());
         let project = Project {
             id: 1,
             name: "Test Project".to_string(),

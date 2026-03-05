@@ -13,16 +13,30 @@ use crate::models::*;
 /// BackupFormat - формат backup проекта
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BackupFormat {
+    #[serde(default = "default_backup_version")]
     pub version: String,
+    #[serde(alias = "meta")]
     pub project: BackupProject,
+    #[serde(default)]
     pub templates: Vec<BackupTemplate>,
+    #[serde(default)]
     pub repositories: Vec<BackupRepository>,
+    #[serde(default)]
     pub inventories: Vec<BackupInventory>,
+    #[serde(default)]
     pub environments: Vec<BackupEnvironment>,
+    #[serde(alias = "keys", default)]
     pub access_keys: Vec<BackupAccessKey>,
+    #[serde(default)]
     pub schedules: Vec<BackupSchedule>,
+    #[serde(default)]
     pub integrations: Vec<BackupIntegration>,
+    #[serde(default)]
     pub views: Vec<BackupView>,
+}
+
+fn default_backup_version() -> String {
+    "1.0".to_string()
 }
 
 /// BackupProject - информация о проекте
@@ -38,8 +52,10 @@ pub struct BackupProject {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BackupTemplate {
     pub name: String,
+    #[serde(default)]
     pub playbook: String,
     pub arguments: Option<String>,
+    #[serde(alias = "type", default)]
     pub template_type: String,
     pub inventory: Option<String>,
     pub repository: Option<String>,
@@ -51,7 +67,9 @@ pub struct BackupTemplate {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BackupRepository {
     pub name: String,
+    #[serde(default)]
     pub git_url: String,
+    #[serde(default)]
     pub git_branch: String,
     pub ssh_key: Option<String>,
 }
@@ -60,10 +78,16 @@ pub struct BackupRepository {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BackupInventory {
     pub name: String,
+    #[serde(alias = "type", default = "default_inventory_type")]
     pub inventory_type: String,
+    #[serde(default)]
     pub inventory: String,
     pub ssh_key: Option<String>,
     pub become_key: Option<String>,
+}
+
+fn default_inventory_type() -> String {
+    "static".to_string()
 }
 
 /// BackupEnvironment - окружение для backup
@@ -77,10 +101,16 @@ pub struct BackupEnvironment {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BackupAccessKey {
     pub name: String,
+    #[serde(alias = "type", default = "default_key_type")]
     pub key_type: String,
+    #[serde(default)]
     pub owner: String,
     pub ssh_key: Option<BackupSshKey>,
     pub login_password: Option<BackupLoginPassword>,
+}
+
+fn default_key_type() -> String {
+    "none".to_string()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -114,7 +144,9 @@ pub struct BackupIntegration {
 /// BackupView - представление для backup
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BackupView {
+    #[serde(alias = "title")]
     pub name: String,
+    #[serde(default)]
     pub position: i32,
 }
 

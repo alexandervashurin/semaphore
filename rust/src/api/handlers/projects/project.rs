@@ -9,10 +9,13 @@ use axum::{
 };
 use std::sync::Arc;
 use crate::api::state::AppState;
+use crate::api::extractors::AuthUser;
 use crate::models::Project;
-use crate::error::{Error, Result};
+use crate::error::Error;
 use crate::api::middleware::ErrorResponse;
-use crate::db::store::ProjectStore;
+use crate::db::store::{ProjectStore, UserManager};
+use crate::services::demo_project;
+use crate::services::backup::BackupFormat;
 
 /// Получает проекты пользователя
 pub async fn get_projects(
@@ -54,12 +57,34 @@ pub async fn add_project(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<Project>,
 ) -> std::result::Result<(StatusCode, Json<Project>), (StatusCode, Json<ErrorResponse>)> {
-    let created = state.store.create_project(payload)
-        .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+    let created = if payload.demo == Some(true) {
+        // Создание демо-проекта с предзаполненными ресурсами
+        let project_name = if payload.name.is_empty() {
+            "Demo".to_string()
+        } else {
+            payload.name.clone()
+        };
+        let backup = demo_project::demo_backup(&project_name);
+        backup
+            .restore_demo(&state.store)
+            .await
+            .map_err(|e| (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            ))?
+    } else {
+        // Обычное создание проекта
+        let mut project = payload;
+        project.demo = None;
+        state
+            .store
+            .create_project(project)
+            .await
+            .map_err(|e| (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            ))?
+    };
 
     Ok((StatusCode::CREATED, Json(created)))
 }
@@ -81,6 +106,39 @@ pub async fn update_project(
         ))?;
 
     Ok(StatusCode::OK)
+}
+
+/// Восстанавливает проект из backup
+///
+/// POST /api/projects/restore
+pub async fn restore_project(
+    State(state): State<Arc<AppState>>,
+    AuthUser { user_id, admin, .. }: AuthUser,
+    Json(payload): Json<BackupFormat>,
+) -> std::result::Result<(StatusCode, Json<Project>), (StatusCode, Json<ErrorResponse>)> {
+    if !admin && !state.config.non_admin_can_create_project() {
+        let err = ErrorResponse::new("Нет прав на создание проектов").with_code("FORBIDDEN");
+        return Err((StatusCode::FORBIDDEN, Json(err)));
+    }
+
+    let user = state.store.get_user(user_id).await.map_err(|e| {
+        let (status, resp) = ErrorResponse::from_crate_error(&e);
+        (status, Json(resp))
+    })?;
+
+    payload.verify().map_err(|e| {
+        (
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse::new(e.to_string()).with_code("INVALID_BACKUP")),
+        )
+    })?;
+
+    let project = payload.restore(&user, &state.store).await.map_err(|e| {
+        let (status, resp) = ErrorResponse::from_crate_error(&e);
+        (status, Json(resp))
+    })?;
+
+    Ok((StatusCode::OK, Json(project)))
 }
 
 /// Удаляет проект

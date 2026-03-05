@@ -126,11 +126,17 @@ mod tests {
     fn test_verify_recovery_code_normalization() {
         let (code, hash) = generate_recovery_code();
         
-        // Проверяем что пробелы игнорируются
-        let code_with_spaces = code.chars()
+        // Вставляем пробелы между группами по 4 символа (не заменяя символы)
+        let code_with_spaces: String = code.chars()
             .enumerate()
-            .map(|(i, c)| if i % 4 == 0 && i > 0 { ' ' } else { c })
-            .collect::<String>();
+            .flat_map(|(i, c)| {
+                if i > 0 && i % 4 == 0 {
+                    vec![' ', c]
+                } else {
+                    vec![c]
+                }
+            })
+            .collect();
         
         assert!(verify_recovery_code(&code_with_spaces, &hash));
     }

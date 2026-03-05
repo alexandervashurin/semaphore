@@ -10,6 +10,7 @@ use axum::{
 use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use crate::api::state::AppState;
+use crate::api::extractors::AuthUser;
 use crate::error::Error;
 use crate::api::middleware::ErrorResponse;
 use crate::db::store::UserManager;
@@ -96,6 +97,28 @@ pub async fn logout(
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     // TODO: Реализовать выход (добавление токена в чёрный список)
     Ok(StatusCode::OK)
+}
+
+/// Текущий пользователь
+///
+/// GET /api/user/
+/// Возвращает данные аутентифицированного пользователя с can_create_project и has_active_subscription
+pub async fn get_current_user(
+    State(state): State<Arc<AppState>>,
+    AuthUser { user_id, admin, .. }: AuthUser,
+) -> Result<Json<crate::api::user::UserResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let full_user = state.store.get_user(user_id).await.map_err(|e| {
+        let (status, resp) = ErrorResponse::from_crate_error(&e);
+        (status, Json(resp))
+    })?;
+
+    let response = crate::api::user::UserResponse {
+        user: full_user,
+        can_create_project: admin || state.config.non_admin_can_create_project(),
+        has_active_subscription: false, // TODO: Интеграция с subscription service
+    };
+
+    Ok(Json(response))
 }
 
 // ============================================================================

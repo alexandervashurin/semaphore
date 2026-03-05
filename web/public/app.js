@@ -29,10 +29,16 @@ const API = {
                 throw new Error('Unauthorized');
             }
 
-            const data = await response.json();
+            let data = {};
+            const text = await response.text();
+            if (text) {
+                try {
+                    data = JSON.parse(text);
+                } catch (_) {}
+            }
             
             if (!response.ok) {
-                throw new Error(data.error || 'Request failed');
+                throw new Error(data.error || `Request failed (${response.status})`);
             }
 
             return data;
@@ -232,7 +238,7 @@ const Pages = {
                 <div class="list-item">
                     <div class="list-item-info">
                         <h4>${this.escapeHtml(repo.name)}</h4>
-                        <p>${this.escapeHtml(repo.url)}</p>
+                        <p>${this.escapeHtml(repo.git_url || repo.url || '')}</p>
                     </div>
                     <div class="list-item-actions">
                         <button class="btn btn-secondary" onclick="Pages.editRepository(${projectId}, ${repo.id})">Изменить</button>
@@ -397,6 +403,22 @@ const App = {
             this.showAddProjectModal();
         });
 
+        document.getElementById('add-repository-btn')?.addEventListener('click', () => {
+            App.showAddRepositoryModal();
+        });
+        document.getElementById('add-environment-btn')?.addEventListener('click', () => {
+            App.showAddEnvironmentModal();
+        });
+        document.getElementById('add-inventory-btn')?.addEventListener('click', () => {
+            App.showAddInventoryModal();
+        });
+        document.getElementById('add-template-btn')?.addEventListener('click', () => {
+            App.showAddTemplateModal();
+        });
+        document.getElementById('add-key-btn')?.addEventListener('click', () => {
+            App.showAddKeyModal();
+        });
+
         Navigation.init();
 
         // Check if already logged in
@@ -462,6 +484,206 @@ const App = {
             UI.hideModal();
             Pages.loadProjects();
             alert(`Проект "${name}" создан (ID: ${project.id})`);
+        } catch (error) {
+            alert('Ошибка: ' + error.message);
+        }
+    },
+
+    showAddRepositoryModal() {
+        if (!Pages.currentProjectId) {
+            alert('Сначала выберите проект');
+            return;
+        }
+        const content = `
+            <form id="add-repository-form">
+                <div class="form-group">
+                    <label>Название</label>
+                    <input type="text" id="repo-name" required>
+                </div>
+                <div class="form-group">
+                    <label>Git URL</label>
+                    <input type="text" id="repo-git-url" placeholder="https://github.com/..." required>
+                </div>
+            </form>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="UI.hideModal()">Отмена</button>
+                <button class="btn btn-primary" onclick="App.submitAddRepository()">Создать</button>
+            </div>
+        `;
+        UI.showModal('Новый репозиторий', content);
+    },
+
+    async submitAddRepository() {
+        const name = document.getElementById('repo-name').value;
+        const git_url = document.getElementById('repo-git-url').value;
+        if (!name || !git_url) return;
+        try {
+            await API.post(`/projects/${Pages.currentProjectId}/repositories`, { name, git_url });
+            UI.hideModal();
+            Pages.loadProjectResources(Pages.currentProjectId);
+        } catch (error) {
+            alert('Ошибка: ' + error.message);
+        }
+    },
+
+    showAddEnvironmentModal() {
+        if (!Pages.currentProjectId) {
+            alert('Сначала выберите проект');
+            return;
+        }
+        const content = `
+            <form id="add-environment-form">
+                <div class="form-group">
+                    <label>Название</label>
+                    <input type="text" id="env-name" required>
+                </div>
+                <div class="form-group">
+                    <label>JSON переменные</label>
+                    <textarea id="env-json" placeholder='{"KEY": "value"}'></textarea>
+                </div>
+            </form>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="UI.hideModal()">Отмена</button>
+                <button class="btn btn-primary" onclick="App.submitAddEnvironment()">Создать</button>
+            </div>
+        `;
+        UI.showModal('Новое окружение', content);
+    },
+
+    async submitAddEnvironment() {
+        const name = document.getElementById('env-name').value;
+        const json = document.getElementById('env-json').value || '{}';
+        if (!name) return;
+        try {
+            await API.post(`/projects/${Pages.currentProjectId}/environments`, { name, json });
+            UI.hideModal();
+            Pages.loadProjectResources(Pages.currentProjectId);
+        } catch (error) {
+            alert('Ошибка: ' + error.message);
+        }
+    },
+
+    showAddInventoryModal() {
+        if (!Pages.currentProjectId) {
+            alert('Сначала выберите проект');
+            return;
+        }
+        const content = `
+            <form id="add-inventory-form">
+                <div class="form-group">
+                    <label>Название</label>
+                    <input type="text" id="inv-name" required>
+                </div>
+                <div class="form-group">
+                    <label>Тип</label>
+                    <select id="inv-type">
+                        <option value="static">Static</option>
+                        <option value="dynamic">Dynamic</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Данные (JSON/YAML)</label>
+                    <textarea id="inv-data" placeholder="localhost"></textarea>
+                </div>
+            </form>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="UI.hideModal()">Отмена</button>
+                <button class="btn btn-primary" onclick="App.submitAddInventory()">Создать</button>
+            </div>
+        `;
+        UI.showModal('Новый инвентарь', content);
+    },
+
+    async submitAddInventory() {
+        const name = document.getElementById('inv-name').value;
+        const inventory_type = document.getElementById('inv-type').value;
+        const inventory_data = document.getElementById('inv-data').value || '{}';
+        if (!name) return;
+        try {
+            await API.post(`/projects/${Pages.currentProjectId}/inventories`, { name, inventory_type, inventory_data });
+            UI.hideModal();
+            Pages.loadProjectResources(Pages.currentProjectId);
+        } catch (error) {
+            alert('Ошибка: ' + error.message);
+        }
+    },
+
+    showAddTemplateModal() {
+        if (!Pages.currentProjectId) {
+            alert('Сначала выберите проект');
+            return;
+        }
+        const content = `
+            <form id="add-template-form">
+                <div class="form-group">
+                    <label>Название</label>
+                    <input type="text" id="tpl-name" required>
+                </div>
+                <div class="form-group">
+                    <label>Playbook</label>
+                    <input type="text" id="tpl-playbook" placeholder="playbook.yml" required>
+                </div>
+            </form>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="UI.hideModal()">Отмена</button>
+                <button class="btn btn-primary" onclick="App.submitAddTemplate()">Создать</button>
+            </div>
+        `;
+        UI.showModal('Новый шаблон', content);
+    },
+
+    async submitAddTemplate() {
+        const name = document.getElementById('tpl-name').value;
+        const playbook = document.getElementById('tpl-playbook').value;
+        if (!name || !playbook) return;
+        try {
+            await API.post(`/projects/${Pages.currentProjectId}/templates`, { name, playbook });
+            UI.hideModal();
+            Pages.loadProjectResources(Pages.currentProjectId);
+        } catch (error) {
+            alert('Ошибка: ' + error.message);
+        }
+    },
+
+    showAddKeyModal() {
+        if (!Pages.currentProjectId) {
+            alert('Сначала выберите проект');
+            return;
+        }
+        const content = `
+            <form id="add-key-form">
+                <div class="form-group">
+                    <label>Название</label>
+                    <input type="text" id="key-name" required>
+                </div>
+                <div class="form-group">
+                    <label>Тип</label>
+                    <select id="key-type">
+                        <option value="ssh">SSH</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Ключ (приватный)</label>
+                    <textarea id="key-data" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"></textarea>
+                </div>
+            </form>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="UI.hideModal()">Отмена</button>
+                <button class="btn btn-primary" onclick="App.submitAddKey()">Создать</button>
+            </div>
+        `;
+        UI.showModal('Новый ключ доступа', content);
+    },
+
+    async submitAddKey() {
+        const name = document.getElementById('key-name').value;
+        const type = document.getElementById('key-type').value;
+        const key = document.getElementById('key-data').value;
+        if (!name || !key) return;
+        try {
+            await API.post(`/projects/${Pages.currentProjectId}/keys`, { name, type, key });
+            UI.hideModal();
+            Pages.loadProjectResources(Pages.currentProjectId);
         } catch (error) {
             alert('Ошибка: ' + error.message);
         }

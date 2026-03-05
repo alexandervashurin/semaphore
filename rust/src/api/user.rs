@@ -8,6 +8,7 @@ use axum::{
     Json,
 };
 use chrono::Utc;
+use base64::Engine;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -73,7 +74,7 @@ impl UserController {
         // Генерируем случайный ID токена
         let mut token_bytes = vec![0u8; 32];
         rand::thread_rng().fill_bytes(&mut token_bytes);
-        let token_id = base64::encode(&token_bytes);
+        let token_id = base64::engine::general_purpose::STANDARD.encode(&token_bytes);
 
         let token = state.store.create_api_token(APIToken {
             id: token_id.to_lowercase(),

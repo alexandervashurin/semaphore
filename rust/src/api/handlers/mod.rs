@@ -3,6 +3,8 @@
 //! Разбит на подмодули для лучшей организации кода
 
 pub mod auth;
+#[cfg(test)]
+mod tests;
 pub mod users;
 pub mod projects;
 pub mod templates;
