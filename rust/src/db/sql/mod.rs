@@ -2729,6 +2729,7 @@ impl AccessKeyManager for SqlStore {
                     secret_storage_id: row.get("secret_storage_id"),
                     owner: row.get("owner"),
                     environment_id: row.get("environment_id"),
+                    created: row.get("created"),
                 })
             }
             SqlDialect::PostgreSQL => {
@@ -2758,6 +2759,7 @@ impl AccessKeyManager for SqlStore {
                     secret_storage_id: row.get("secret_storage_id"),
                     owner: row.get("owner"),
                     environment_id: row.get("environment_id"),
+                    created: row.get("created"),
                 })
             }
             SqlDialect::MySQL => {
@@ -2787,6 +2789,7 @@ impl AccessKeyManager for SqlStore {
                     secret_storage_id: row.get("secret_storage_id"),
                     owner: row.get("owner"),
                     environment_id: row.get("environment_id"),
+                    created: row.get("created"),
                 })
             }
         }
