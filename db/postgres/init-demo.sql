@@ -83,12 +83,16 @@ CREATE TABLE IF NOT EXISTS inventory (
     id SERIAL PRIMARY KEY,
     project_id INTEGER NOT NULL REFERENCES project(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
-    description TEXT,
-    inventory TEXT NOT NULL,
-    inventory_format VARCHAR(50) NOT NULL DEFAULT 'yaml',
+    inventory_type VARCHAR(50) NOT NULL DEFAULT 'static',
+    inventory_data TEXT NOT NULL,
+    key_id INTEGER,
+    secret_storage_id INTEGER,
+    ssh_login VARCHAR(255) DEFAULT 'root',
+    ssh_port INTEGER DEFAULT 22,
+    extra_vars TEXT,
     ssh_key_id INTEGER,
     become_key_id INTEGER,
-    type VARCHAR(50) NOT NULL DEFAULT 'static',
+    vaults TEXT,
     created TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -97,11 +101,11 @@ CREATE TABLE IF NOT EXISTS repository (
     id SERIAL PRIMARY KEY,
     project_id INTEGER NOT NULL REFERENCES project(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
-    description TEXT,
     git_url VARCHAR(510) NOT NULL,
-    git_branch VARCHAR(255) NOT NULL DEFAULT 'master',
-    ssh_key_id INTEGER,
-    access_key_id INTEGER,
+    git_type VARCHAR(50) NOT NULL DEFAULT 'git',
+    git_branch VARCHAR(255),
+    key_id INTEGER NOT NULL DEFAULT 0,
+    git_path VARCHAR(255),
     created TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -118,14 +122,18 @@ CREATE TABLE IF NOT EXISTS environment (
 -- Таблица ключей доступа (access_key)
 CREATE TABLE IF NOT EXISTS access_key (
     id SERIAL PRIMARY KEY,
-    project_id INTEGER NOT NULL REFERENCES project(id) ON DELETE CASCADE,
+    project_id INTEGER REFERENCES project(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
-    description TEXT,
     type VARCHAR(50) NOT NULL,
-    secret TEXT,
-    authorization_header TEXT,
-    login_password TEXT,
     user_id INTEGER,
+    login_password_login VARCHAR(255),
+    login_password_password TEXT,
+    ssh_key TEXT,
+    ssh_passphrase TEXT,
+    access_key_access_key TEXT,
+    access_key_secret_key TEXT,
+    secret_storage_id INTEGER,
+    environment_id INTEGER,
     created TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -272,28 +280,28 @@ INSERT INTO project_user (project_id, user_id, role, created) VALUES
 (4, 4, 'task_runner', NOW());
 
 -- Ключи доступа (Access Keys)
-INSERT INTO access_key (id, project_id, name, description, type, secret, login_password, created) VALUES
-(1, 1, 'Demo SSH Key', 'Основной SSH ключ для доступа к серверам', 'ssh', '-----BEGIN OPENSSH PRIVATE KEY-----
+INSERT INTO access_key (id, project_id, name, type, ssh_key, login_password_login, login_password_password, created) VALUES
+(1, 1, 'Demo SSH Key', 'ssh', '-----BEGIN OPENSSH PRIVATE KEY-----
 b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAlwAAAAdzc2gtcn
 NhAAAAAwEAAQAAAIEA0Z3VS5+X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X
 5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X
------END OPENSSH PRIVATE KEY-----', NULL, NOW()),
-(2, 1, 'Demo Login/Password', 'Ключ для доступа по логину/паролю', 'login_password', NULL, '{"login":"ansible","password":"demo123"}', NOW()),
-(3, 2, 'Web App SSH Key', 'SSH ключ для веб-приложений', 'ssh', '-----BEGIN OPENSSH PRIVATE KEY-----
+-----END OPENSSH PRIVATE KEY-----', NULL, NULL, NOW()),
+(2, 1, 'Demo Login/Password', 'login_password', NULL, 'ansible', 'demo123', NOW()),
+(3, 2, 'Web App SSH Key', 'ssh', '-----BEGIN OPENSSH PRIVATE KEY-----
 b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAlwAAAAdzc2gtcn
 NhAAAAAwEAAQAAAIEA1Z3VS5+X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X
 5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X
------END OPENSSH PRIVATE KEY-----', NULL, NOW()),
-(4, 3, 'DB Admin Key', 'Ключ для доступа к базам данных', 'login_password', NULL, '{"login":"dbadmin","password":"dbpass123"}', NOW()),
-(5, 4, 'Security Audit Key', 'Ключ для аудита безопасности', 'ssh', '-----BEGIN OPENSSH PRIVATE KEY-----
+-----END OPENSSH PRIVATE KEY-----', NULL, NULL, NOW()),
+(4, 3, 'DB Admin Key', 'login_password', NULL, 'dbadmin', 'dbpass123', NOW()),
+(5, 4, 'Security Audit Key', 'ssh', '-----BEGIN OPENSSH PRIVATE KEY-----
 b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAlwAAAAdzc2gtcn
 NhAAAAAwEAAQAAAIEA2Z3VS5+X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X
 5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X
------END OPENSSH PRIVATE KEY-----', NULL, NOW());
+-----END OPENSSH PRIVATE KEY-----', NULL, NULL, NOW());
 
 -- Инвентари
-INSERT INTO inventory (id, project_id, name, description, inventory, inventory_format, type, created) VALUES
-(1, 1, 'Production Servers', 'Продакшен серверы',
+INSERT INTO inventory (id, project_id, name, inventory_type, inventory_data, ssh_key_id, ssh_login, ssh_port, created) VALUES
+(1, 1, 'Production Servers', 'static',
 'all:
   children:
     webservers:
@@ -317,8 +325,8 @@ INSERT INTO inventory (id, project_id, name, description, inventory, inventory_f
         monitor1.example.com:
           ansible_user: ansible
           ansible_port: 22',
-'yaml', 'static', NOW()),
-(2, 1, 'Staging Environment', 'Staging окружение',
+1, 'root', 22, NOW()),
+(2, 1, 'Staging Environment', 'static',
 '[staging]
 staging-web1 ansible_host=192.168.1.100 ansible_user=ubuntu
 staging-app1 ansible_host=192.168.1.101 ansible_user=ubuntu
@@ -326,8 +334,8 @@ staging-app1 ansible_host=192.168.1.101 ansible_user=ubuntu
 [staging:vars]
 ansible_port=22
 ansible_ssh_private_key_file=~/.ssh/staging_key',
-'ini', 'static', NOW()),
-(3, 2, 'Web App Cluster', 'Кластер веб-приложений',
+1, 'ubuntu', 22, NOW()),
+(3, 2, 'Web App Cluster', 'static',
 'all:
   children:
     frontend:
@@ -346,8 +354,8 @@ ansible_ssh_private_key_file=~/.ssh/staging_key',
       hosts:
         lb1:
           ansible_host: 10.0.0.10',
-'yaml', 'static', NOW()),
-(4, 3, 'Database Cluster', 'Кластер баз данных',
+3, 'root', 22, NOW()),
+(4, 3, 'Database Cluster', 'static',
 '[postgres_primary]
 pg-primary ansible_host=192.168.10.10
 
@@ -358,8 +366,8 @@ pg-replica2 ansible_host=192.168.10.12
 [mysql_cluster]
 mysql1 ansible_host=192.168.10.20
 mysql2 ansible_host=192.168.10.21',
-'ini', 'static', NOW()),
-(5, 4, 'Security Scan Targets', 'Цели для сканирования безопасности',
+4, 'postgres', 22, NOW()),
+(5, 4, 'Security Scan Targets', 'static',
 'security_targets:
   hosts:
     target1:
@@ -368,15 +376,15 @@ mysql2 ansible_host=192.168.10.21',
       ansible_host: 192.168.100.2
     target3:
       ansible_host: 192.168.100.3',
-'yaml', 'static', NOW());
+5, 'root', 22, NOW());
 
 -- Репозитории
-INSERT INTO repository (id, project_id, name, description, git_url, git_branch, created) VALUES
-(1, 1, 'Infrastructure Playbooks', 'Основные плейбуки для инфраструктуры', 'https://github.com/semaphore-demo/infrastructure-playbooks.git', 'main', NOW()),
-(2, 2, 'Web App Deployment', 'Плейбуки для деплоя веб-приложений', 'https://github.com/semaphore-demo/webapp-deploy.git', 'master', NOW()),
-(3, 3, 'Database Playbooks', 'Плейбуки для управления БД', 'https://github.com/semaphore-demo/db-playbooks.git', 'main', NOW()),
-(4, 4, 'Security Scripts', 'Скрипты безопасности', 'https://github.com/semaphore-demo/security-scripts.git', 'master', NOW()),
-(5, 1, 'Common Roles', 'Общие роли', 'https://github.com/semaphore-demo/common-roles.git', 'develop', NOW());
+INSERT INTO repository (id, project_id, name, git_url, git_type, git_branch, key_id, created) VALUES
+(1, 1, 'Infrastructure Playbooks', 'https://github.com/semaphore-demo/infrastructure-playbooks.git', 'git', 'main', 1, NOW()),
+(2, 2, 'Web App Deployment', 'https://github.com/semaphore-demo/webapp-deploy.git', 'git', 'master', 3, NOW()),
+(3, 3, 'Database Playbooks', 'https://github.com/semaphore-demo/db-playbooks.git', 'git', 'main', 4, NOW()),
+(4, 4, 'Security Scripts', 'https://github.com/semaphore-demo/security-scripts.git', 'git', 'master', 5, NOW()),
+(5, 1, 'Common Roles', 'https://github.com/semaphore-demo/common-roles.git', 'git', 'develop', 1, NOW());
 
 -- Окружения (Environment)
 INSERT INTO environment (id, project_id, name, description, json, created) VALUES
