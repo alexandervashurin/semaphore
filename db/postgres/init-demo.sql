@@ -239,11 +239,12 @@ CREATE INDEX IF NOT EXISTS idx_project_name ON project(name);
 
 -- Пользователи
 -- Пароль для всех пользователей: 'demo123' (хеш bcrypt)
+-- Хеш сгенерирован командой: python3 -c "import bcrypt; print(bcrypt.hashpw(b'demo123', bcrypt.gensalt(rounds=10)).decode())"
 INSERT INTO "user" (id, username, name, email, password, admin, alert) VALUES
-(1, 'admin', 'Administrator', 'admin@semaphore.local', '$2a$10$9d3Hq9kN5z6J8xK5L5n5p.vqQ5X5z5J5K5L5n5p.vqQ5X5z5J5K5L', TRUE, TRUE),
-(2, 'john.doe', 'John Doe', 'john.doe@semaphore.local', '$2a$10$9d3Hq9kN5z6J8xK5L5n5p.vqQ5X5z5J5K5L5n5p.vqQ5X5z5J5K5L', FALSE, FALSE),
-(3, 'jane.smith', 'Jane Smith', 'jane.smith@semaphore.local', '$2a$10$9d3Hq9kN5z6J8xK5L5n5p.vqQ5X5z5J5K5L5n5p.vqQ5X5z5J5K5L', FALSE, TRUE),
-(4, 'devops', 'DevOps Engineer', 'devops@semaphore.local', '$2a$10$9d3Hq9kN5z6J8xK5L5n5p.vqQ5X5z5J5K5L5n5p.vqQ5X5z5J5K5L', FALSE, FALSE);
+(1, 'admin', 'Administrator', 'admin@semaphore.local', '$2b$10$0anHX0Pp7RcBDzt.3IWPhevop4sw/s5KvuZwygk2F8ULH/zaHlFoi', TRUE, TRUE),
+(2, 'john.doe', 'John Doe', 'john.doe@semaphore.local', '$2b$10$0anHX0Pp7RcBDzt.3IWPhevop4sw/s5KvuZwygk2F8ULH/zaHlFoi', FALSE, FALSE),
+(3, 'jane.smith', 'Jane Smith', 'jane.smith@semaphore.local', '$2b$10$0anHX0Pp7RcBDzt.3IWPhevop4sw/s5KvuZwygk2F8ULH/zaHlFoi', FALSE, TRUE),
+(4, 'devops', 'DevOps Engineer', 'devops@semaphore.local', '$2b$10$0anHX0Pp7RcBDzt.3IWPhevop4sw/s5KvuZwygk2F8ULH/zaHlFoi', FALSE, FALSE);
 
 -- Проекты
 INSERT INTO project (id, name, alert, max_parallel_tasks, type) VALUES
