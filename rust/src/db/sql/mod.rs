@@ -3978,6 +3978,8 @@ impl TokenManager for SqlStore {
                 Ok(APIToken {
                     id: row.get("id"),
                     user_id: row.get("user_id"),
+                    name: row.get("name"),
+                    token: row.get("token"),
                     created: row.get("created"),
                     expired: row.get("expired"),
                 })
@@ -3991,6 +3993,8 @@ impl TokenManager for SqlStore {
                 Ok(APIToken {
                     id: row.get("id"),
                     user_id: row.get("user_id"),
+                    name: row.get("name"),
+                    token: row.get("token"),
                     created: row.get("created"),
                     expired: row.get("expired"),
                 })
@@ -4004,6 +4008,8 @@ impl TokenManager for SqlStore {
                 Ok(APIToken {
                     id: row.get("id"),
                     user_id: row.get("user_id"),
+                    name: row.get("name"),
+                    token: row.get("token"),
                     created: row.get("created"),
                     expired: row.get("expired"),
                 })

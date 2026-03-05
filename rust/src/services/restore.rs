@@ -121,6 +121,7 @@ impl RestoreEntryAsync for BackupEnvironment {
             json: self.json.clone(),
             secret_storage_id: None,
             secrets: None,
+            created: None,
         };
 
         let new_env = store.create_environment(env).await?;
@@ -238,6 +239,7 @@ impl RestoreEntryAsync for BackupAccessKey {
             access_key_secret_key: None,
             secret_storage_id: None,
             environment_id: None,
+            created: None,
         };
 
         let new_key = store.create_access_key(key).await?;
@@ -276,6 +278,7 @@ impl RestoreEntryAsync for BackupInventory {
             ssh_key_id: None,
             become_key_id: None,
             vaults: None,
+            created: None,
         };
 
         // Находим SSH ключ по имени
@@ -324,6 +327,7 @@ impl RestoreEntryAsync for BackupRepository {
             git_branch: self.git_branch.clone().into(),
             key_id: 0,
             git_path: None,
+            created: None,
         };
 
         let new_repo = store.create_repository(repo).await?;
