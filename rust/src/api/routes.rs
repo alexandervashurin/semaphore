@@ -18,6 +18,8 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         // Аутентификация
         .route("/api/auth/login", post(handlers::login))
         .route("/api/auth/logout", post(handlers::logout))
+        .route("/api/auth/verify", post(handlers::verify_session))
+        .route("/api/auth/recovery", post(handlers::recovery_session))
 
         // Текущий пользователь
         .route("/api/user", get(handlers::get_current_user))
