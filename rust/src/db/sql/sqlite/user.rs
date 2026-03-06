@@ -1,0 +1,193 @@
+//! SQLite User CRUD operations
+
+use crate::error::{Error, Result};
+use crate::models::*;
+use chrono::{DateTime, Utc};
+use sqlx::{Row, Sqlite, Pool};
+
+/// Временная структура для загрузки пользователя из БД
+#[derive(Debug, sqlx::FromRow)]
+struct UserRow {
+    pub id: i32,
+    pub created: DateTime<Utc>,
+    pub username: String,
+    pub name: String,
+    pub email: String,
+    pub password: String,
+    pub admin: bool,
+    pub external: bool,
+    pub alert: bool,
+    pub pro: bool,
+}
+
+impl From<UserRow> for User {
+    fn from(row: UserRow) -> Self {
+        User {
+            id: row.id,
+            created: row.created,
+            username: row.username,
+            name: row.name,
+            email: row.email,
+            password: row.password,
+            admin: row.admin,
+            external: row.external,
+            alert: row.alert,
+            pro: row.pro,
+            totp: None,
+            email_otp: None,
+        }
+    }
+}
+
+/// Получает всех пользователей SQLite
+pub async fn get_users(pool: &Pool<Sqlite>, params: &RetrieveQueryParams) -> Result<Vec<User>> {
+    let mut query = String::from("SELECT * FROM user");
+
+    // Добавляем фильтр если указан
+    if let Some(ref filter) = params.filter {
+        if !filter.is_empty() {
+            query.push_str(" WHERE username LIKE ? OR name LIKE ? OR email LIKE ?");
+        }
+    }
+
+    // Добавляем лимит и оффсет
+    if let Some(count) = params.count {
+        query.push_str(&format!(" LIMIT {} OFFSET {}", count, params.offset));
+    }
+
+    let users = if params.filter.as_ref().map_or(false, |f| !f.is_empty()) {
+        let filter_pattern = format!("%{}%", params.filter.as_ref().unwrap());
+        sqlx::query_as::<_, UserRow>(&query)
+            .bind(&filter_pattern)
+            .bind(&filter_pattern)
+            .bind(&filter_pattern)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| Error::Database(e))?
+            .into_iter()
+            .map(|r| r.into())
+            .collect()
+    } else {
+        sqlx::query_as::<_, UserRow>(&query)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| Error::Database(e))?
+            .into_iter()
+            .map(|r| r.into())
+            .collect()
+    };
+
+    Ok(users)
+}
+
+/// Получает пользователя по ID SQLite
+pub async fn get_user(pool: &Pool<Sqlite>, user_id: i32) -> Result<User> {
+    let row = sqlx::query_as::<_, UserRow>("SELECT * FROM user WHERE id = ?")
+        .bind(user_id)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => Error::NotFound("User not found".to_string()),
+            _ => Error::Database(e),
+        })?;
+
+    Ok(row.into())
+}
+
+/// Создаёт пользователя SQLite
+pub async fn create_user(pool: &Pool<Sqlite>, user: User) -> Result<User> {
+    let query = "INSERT INTO user (username, name, email, password, admin, external, alert, pro, created) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    
+    let result = sqlx::query(query)
+        .bind(&user.username)
+        .bind(&user.name)
+        .bind(&user.email)
+        .bind(&user.password)
+        .bind(user.admin)
+        .bind(user.external)
+        .bind(user.alert)
+        .bind(user.pro)
+        .bind(user.created)
+        .execute(pool)
+        .await
+        .map_err(|e| Error::Database(e))?;
+
+    let mut new_user = user;
+    new_user.id = result.last_insert_rowid() as i32;
+    
+    Ok(new_user)
+}
+
+/// Обновляет пользователя SQLite
+pub async fn update_user(pool: &Pool<Sqlite>, user: User) -> Result<()> {
+    let query = "UPDATE user SET username = ?, name = ?, email = ?, password = ?, admin = ?, external = ?, alert = ?, pro = ? WHERE id = ?";
+    
+    sqlx::query(query)
+        .bind(&user.username)
+        .bind(&user.name)
+        .bind(&user.email)
+        .bind(&user.password)
+        .bind(user.admin)
+        .bind(user.external)
+        .bind(user.alert)
+        .bind(user.pro)
+        .bind(user.id)
+        .execute(pool)
+        .await
+        .map_err(|e| Error::Database(e))?;
+
+    Ok(())
+}
+
+/// Удаляет пользователя SQLite
+pub async fn delete_user(pool: &Pool<Sqlite>, user_id: i32) -> Result<()> {
+    sqlx::query("DELETE FROM user WHERE id = ?")
+        .bind(user_id)
+        .execute(pool)
+        .await
+        .map_err(|e| Error::Database(e))?;
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::sql::test_helpers::create_test_pool;
+
+    #[tokio::test]
+    async fn test_sqlite_user_crud() {
+        let pool = create_test_pool().await.unwrap();
+        
+        // Create
+        let user = User {
+            id: 0,
+            created: Utc::now(),
+            username: "testuser".to_string(),
+            name: "Test User".to_string(),
+            email: "test@example.com".to_string(),
+            password: "hashed_password".to_string(),
+            admin: false,
+            external: false,
+            alert: false,
+            pro: false,
+            totp: None,
+            email_otp: None,
+        };
+        
+        let created = create_user(&pool, user).await.unwrap();
+        assert!(created.id > 0);
+        
+        // Read
+        let retrieved = get_user(&pool, created.id).await.unwrap();
+        assert_eq!(retrieved.username, "testuser");
+        
+        // Update
+        let mut updated = retrieved;
+        updated.name = "Updated Name".to_string();
+        update_user(&pool, updated).await.unwrap();
+        
+        // Delete
+        delete_user(&pool, created.id).await.unwrap();
+    }
+}

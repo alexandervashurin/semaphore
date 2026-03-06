@@ -145,7 +145,7 @@ mod tests {
         template.name = "Test Shell".to_string();
         template.project_id = 1;
         template.playbook = "test.sh".to_string();
-        template.r#type = TemplateType::Shell);
+        template.r#type = TemplateType::Shell;
 
         let environment = crate::models::Environment {
             id: 1,

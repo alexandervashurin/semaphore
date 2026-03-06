@@ -110,7 +110,7 @@ mod tests {
         template.name = "Test Template".to_string();
         template.project_id = 1;
         template.playbook = "test.yml".to_string();
-        template.r#type = TemplateType::Task);
+        template.r#type = TemplateType::Task;
         template.arguments = Some(r#"["--template-arg"]"#.to_string());
 
         LocalJob::new(
