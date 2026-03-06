@@ -212,6 +212,7 @@ pub trait ViewManager: Send + Sync {
     async fn create_view(&self, view: View) -> Result<View>;
     async fn update_view(&self, view: View) -> Result<()>;
     async fn delete_view(&self, project_id: i32, view_id: i32) -> Result<()>;
+    async fn set_view_positions(&self, project_id: i32, positions: Vec<(i32, i32)>) -> Result<()>;
 }
 
 /// Менеджер интеграций

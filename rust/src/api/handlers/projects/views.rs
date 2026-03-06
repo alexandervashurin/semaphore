@@ -8,6 +8,7 @@ use axum::{
     Json,
 };
 use std::sync::Arc;
+use serde::{Deserialize, Serialize};
 use crate::api::state::AppState;
 use crate::models::View;
 use crate::error::{Error, Result};
@@ -102,6 +103,47 @@ pub async fn delete_view(
         ))?;
 
     Ok(StatusCode::NO_CONTENT)
+}
+
+/// Устанавливает позиции представлений
+///
+/// POST /api/projects/{project_id}/views/positions
+pub async fn set_view_positions(
+    State(state): State<Arc<AppState>>,
+    Path(project_id): Path<i32>,
+    Json(payload): Json<SetViewPositionsPayload>,
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+    // Конвертируем в Vec<(view_id, position)>
+    let positions: Vec<(i32, i32)> = payload.positions
+        .into_iter()
+        .map(|p| (p.view_id, p.position))
+        .collect();
+
+    state.store.set_view_positions(project_id, positions)
+        .await
+        .map_err(|e| (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(e.to_string()))
+        ))?;
+
+    Ok(StatusCode::OK)
+}
+
+// ============================================================================
+// Types
+// ============================================================================
+
+/// Payload для установки позиций представлений
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SetViewPositionsPayload {
+    pub positions: Vec<ViewPosition>,
+}
+
+/// Позиция представления
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ViewPosition {
+    pub view_id: i32,
+    pub position: i32,
 }
 
 // ============================================================================

@@ -422,6 +422,10 @@ impl ViewManager for StoreWrapper {
     async fn delete_view(&self, project_id: i32, view_id: i32) -> Result<()> {
         self.inner.as_ref().as_ref().delete_view(project_id, view_id).await
     }
+    
+    async fn set_view_positions(&self, project_id: i32, positions: Vec<(i32, i32)>) -> Result<()> {
+        self.inner.as_ref().as_ref().set_view_positions(project_id, positions).await
+    }
 }
 
 #[async_trait]

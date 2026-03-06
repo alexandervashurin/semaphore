@@ -439,6 +439,10 @@ impl ViewManager for MockStore {
     async fn delete_view(&self, _project_id: i32, _view_id: i32) -> Result<()> {
         Ok(())
     }
+    
+    async fn set_view_positions(&self, _project_id: i32, _positions: Vec<(i32, i32)>) -> Result<()> {
+        Ok(())
+    }
 }
 
 #[async_trait]

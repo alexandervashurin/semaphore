@@ -92,6 +92,7 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/api/projects/{project_id}/views/{id}", get(views::get_view))
         .route("/api/projects/{project_id}/views/{id}", put(views::update_view))
         .route("/api/projects/{project_id}/views/{id}", delete(views::delete_view))
+        .route("/api/projects/{project_id}/views/positions", post(views::set_view_positions))
 
         // Интеграции (Integrations)
         .route("/api/projects/{project_id}/integrations", get(project_integration::get_integrations))
