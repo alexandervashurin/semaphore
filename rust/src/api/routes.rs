@@ -118,6 +118,7 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/api/projects/{project_id}/tasks/{id}/stop", post(tasks::stop_task))
         .route("/api/projects/{project_id}/tasks/{id}/confirm", post(tasks::confirm_task))
         .route("/api/projects/{project_id}/tasks/{id}/reject", post(tasks::reject_task))
+        .route("/api/projects/{project_id}/tasks/{id}/output", get(tasks::get_task_output))
 
         // Роль пользователя в проекте
         .route("/api/projects/{project_id}/role", get(handlers::get_user_role))

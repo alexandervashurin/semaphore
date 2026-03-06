@@ -10,7 +10,7 @@ use axum::{
 use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use crate::api::state::AppState;
-use crate::models::{Task, TaskWithTpl};
+use crate::models::{Task, TaskWithTpl, TaskOutput};
 use crate::error::{Error, Result};
 use crate::api::middleware::ErrorResponse;
 use crate::db::store::{RetrieveQueryParams, TaskManager};
@@ -187,6 +187,24 @@ pub async fn delete_task(
         ))?;
 
     Ok(StatusCode::NO_CONTENT)
+}
+
+/// Получает вывод задачи (логи)
+///
+/// GET /api/projects/{project_id}/tasks/{task_id}/output
+pub async fn get_task_output(
+    State(state): State<Arc<AppState>>,
+    Path((project_id, task_id)): Path<(i32, i32)>,
+) -> std::result::Result<Json<Vec<TaskOutput>>, (StatusCode, Json<ErrorResponse>)> {
+    // Получаем вывод задачи
+    let outputs = state.store.get_task_outputs(task_id)
+        .await
+        .map_err(|e| (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(e.to_string()))
+        ))?;
+
+    Ok(Json(outputs))
 }
 
 /// Payload для создания задачи
