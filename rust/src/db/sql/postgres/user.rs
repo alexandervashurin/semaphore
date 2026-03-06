@@ -96,6 +96,23 @@ pub async fn get_user(pool: &Pool<Postgres>, user_id: i32) -> Result<User> {
     Ok(row.into())
 }
 
+/// Получает пользователя по login или email PostgreSQL
+pub async fn get_user_by_login_or_email(pool: &Pool<Postgres>, login: &str, email: &str) -> Result<User> {
+    let query = "SELECT * FROM \"user\" WHERE username = $1 OR email = $2";
+    
+    let row = sqlx::query_as::<_, UserRow>(query)
+        .bind(login)
+        .bind(email)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => Error::NotFound("User not found".to_string()),
+            _ => Error::Database(e),
+        })?;
+
+    Ok(row.into())
+}
+
 /// Создаёт пользователя PostgreSQL
 pub async fn create_user(pool: &Pool<Postgres>, user: User) -> Result<User> {
     let query = "INSERT INTO \"user\" (username, name, email, password, admin, external, alert, pro, created) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id";
