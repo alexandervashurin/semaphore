@@ -5,7 +5,7 @@ use std::sync::Arc;
 use crate::api::state::AppState;
 use crate::api::handlers;
 use crate::api::websocket::websocket_handler;
-use crate::api::handlers::projects::{schedules, views, integration as project_integration, secret_storages, users as project_users, tasks};
+use crate::api::handlers::projects::{schedules, views, integration as project_integration, secret_storages, users as project_users, tasks, notifications};
 use crate::api::{events, apps, options, runners, cache, system_info, user};
 use tower_http::services::{ServeDir, ServeFile};
 
@@ -124,6 +124,9 @@ pub fn api_routes() -> Router<Arc<AppState>> {
 
         // Роль пользователя в проекте
         .route("/api/projects/{project_id}/role", get(handlers::get_user_role))
+
+        // Уведомления (Notifications)
+        .route("/api/projects/{project_id}/notifications/test", post(notifications::send_test_notification))
 
         // WebSocket
         .route("/api/ws", get(websocket_handler))
