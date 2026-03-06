@@ -1306,14 +1306,7 @@ impl TemplateManager for SqlStore {
                     git_branch: row.try_get("git_branch").ok().flatten(),
                     created: row.get("created"),
                     arguments: row.get("arguments"),
-                    template_type: row.get("template_type"),
-                    start_version: row.get("start_version"),
-                    build_version: row.get("build_version"),
-                    survey_vars: row.get("survey_vars"),
-                    vaults: row.get("vaults"),
-                    tasks: row.get("tasks"),
                     vault_key_id: row.get("vault_key_id"),
-                    become_key_id: row.get("become_key_id"),
                 }).collect())
             }
             SqlDialect::PostgreSQL => {
@@ -1338,14 +1331,7 @@ impl TemplateManager for SqlStore {
                     git_branch: row.try_get("git_branch").ok().flatten(),
                     created: row.get("created"),
                     arguments: row.get("arguments"),
-                    template_type: row.get("template_type"),
-                    start_version: row.get("start_version"),
-                    build_version: row.get("build_version"),
-                    survey_vars: row.get("survey_vars"),
-                    vaults: row.get("vaults"),
-                    tasks: row.get("tasks"),
                     vault_key_id: row.get("vault_key_id"),
-                    become_key_id: row.get("become_key_id"),
                 }).collect())
             }
             SqlDialect::MySQL => {
@@ -1370,14 +1356,7 @@ impl TemplateManager for SqlStore {
                     git_branch: row.try_get("git_branch").ok().flatten(),
                     created: row.get("created"),
                     arguments: row.get("arguments"),
-                    template_type: row.get("template_type"),
-                    start_version: row.get("start_version"),
-                    build_version: row.get("build_version"),
-                    survey_vars: row.get("survey_vars"),
-                    vaults: row.get("vaults"),
-                    tasks: row.get("tasks"),
                     vault_key_id: row.get("vault_key_id"),
-                    become_key_id: row.get("become_key_id"),
                 }).collect())
             }
         }

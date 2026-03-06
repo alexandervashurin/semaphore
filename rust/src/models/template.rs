@@ -280,14 +280,7 @@ impl Template {
             git_branch: None,
             created: Utc::now(),
             arguments: None,
-            template_type: None,
-            start_version: None,
-            build_version: None,
-            survey_vars: None,
-            vaults: None,
-            tasks: None,
             vault_key_id: None,
-            become_key_id: None,
         }
     }
 }

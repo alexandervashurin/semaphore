@@ -8,6 +8,7 @@ use axum::{
     Json,
 };
 use std::sync::Arc;
+use serde::Deserialize;
 use crate::api::state::AppState;
 use crate::api::extractors::AuthUser;
 use crate::models::Project;
