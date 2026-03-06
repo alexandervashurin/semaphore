@@ -6,6 +6,13 @@ pub mod init;
 pub mod migrations;
 pub mod queries;
 pub mod utils;
+
+// Decomposed modules by dialect
+pub mod sqlite;
+pub mod postgres;
+pub mod mysql;
+
+// Legacy modules (to be removed)
 pub mod template_crud;
 pub mod template_vault;
 pub mod template_roles;
