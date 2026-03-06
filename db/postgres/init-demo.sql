@@ -504,6 +504,22 @@ INSERT INTO "option" (key, value) VALUES
 -- ============================================================================
 
 -- ============================================================================
+-- Сброс последовательностей для предотвращения конфликтов ID
+-- ============================================================================
+-- После вставки демо-данных с явными ID необходимо обновить последовательности
+-- чтобы новые записи начинались со следующих доступных ID
+
+SELECT setval('project_id_seq', (SELECT COALESCE(MAX(id), 0) FROM project) + 1, false);
+SELECT setval('"user_id_seq"', (SELECT COALESCE(MAX(id), 0) FROM "user") + 1, false);
+SELECT setval('template_id_seq', (SELECT COALESCE(MAX(id), 0) FROM template) + 1, false);
+SELECT setval('inventory_id_seq', (SELECT COALESCE(MAX(id), 0) FROM inventory) + 1, false);
+SELECT setval('repository_id_seq', (SELECT COALESCE(MAX(id), 0) FROM repository) + 1, false);
+SELECT setval('environment_id_seq', (SELECT COALESCE(MAX(id), 0) FROM environment) + 1, false);
+SELECT setval('access_key_id_seq', (SELECT COALESCE(MAX(id), 0) FROM access_key) + 1, false);
+SELECT setval('task_id_seq', (SELECT COALESCE(MAX(id), 0) FROM task) + 1, false);
+SELECT setval('schedule_id_seq', (SELECT COALESCE(MAX(id), 0) FROM schedule) + 1, false);
+
+-- ============================================================================
 -- ДЕМО ДАННЫЕ УСПЕШНО ЗАГРУЖЕНЫ!
 -- ============================================================================
 --

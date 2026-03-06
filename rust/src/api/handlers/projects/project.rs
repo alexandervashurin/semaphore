@@ -96,14 +96,62 @@ pub struct CreateProjectPayload {
     pub default_secret_storage_id: Option<i32>,
 }
 
+/// Payload для обновления проекта
+#[derive(Debug, Deserialize)]
+pub struct UpdateProjectPayload {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub alert: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub alert_chat: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_parallel_tasks: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub r#type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default_secret_storage_id: Option<i32>,
+}
+
 /// Обновляет проект
 pub async fn update_project(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
-    Json(payload): Json<Project>,
+    Json(payload): Json<UpdateProjectPayload>,
 ) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    let mut project = payload;
-    project.id = project_id;
+    // Получаем текущий проект
+    let mut project = state.store.get_project(project_id)
+        .await
+        .map_err(|e| match e {
+            Error::NotFound(_) => (
+                StatusCode::NOT_FOUND,
+                Json(ErrorResponse::new("Project not found".to_string()))
+            ),
+            _ => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string()))
+            )
+        })?;
+
+    // Обновляем только указанные поля
+    if let Some(name) = payload.name {
+        project.name = name;
+    }
+    if let Some(alert) = payload.alert {
+        project.alert = alert;
+    }
+    if let Some(alert_chat) = payload.alert_chat {
+        project.alert_chat = Some(alert_chat);
+    }
+    if let Some(max_parallel_tasks) = payload.max_parallel_tasks {
+        project.max_parallel_tasks = max_parallel_tasks;
+    }
+    if let Some(r#type) = payload.r#type {
+        project.r#type = r#type;
+    }
+    if let Some(default_secret_storage_id) = payload.default_secret_storage_id {
+        project.default_secret_storage_id = Some(default_secret_storage_id);
+    }
 
     state.store.update_project(project)
         .await

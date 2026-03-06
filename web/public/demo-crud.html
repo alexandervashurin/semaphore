@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Semaphore UI - CRUD Демо</title>
+    <link rel="stylesheet" href="demo-styles.css">
+    <link rel="icon" href="favicon.svg">
+</head>
+<body>
+    <div id="app">
+        <!-- Login View -->
+        <div id="login-view" class="view active">
+            <div class="login-container">
+                <div class="logo">
+                    <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+                        <rect width="64" height="64" rx="12" fill="#4F46E5"/>
+                        <path d="M20 20L32 32L44 20" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M20 36L32 48L44 36" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <h1>Semaphore UI</h1>
+                <p class="subtitle">Интерактивное CRUD Демо</p>
+                
+                <form id="login-form">
+                    <div class="form-group">
+                        <label for="username">Имя пользователя</label>
+                        <input type="text" id="username" name="username" value="admin" required autocomplete="username">
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Пароль</label>
+                        <input type="password" id="password" name="password" value="demo123" required autocomplete="current-password">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">
+                        <span class="btn-text">Войти</span>
+                        <span class="btn-loader hidden">⏳</span>
+                    </button>
+                </form>
+                
+                <div id="login-error" class="error-message hidden"></div>
+                
+                <div class="demo-credentials">
+                    <h4>📋 Демо-пользователи</h4>
+                    <div class="credentials-grid">
+                        <div class="credential-item">
+                            <strong>admin</strong> / demo123
+                            <span class="badge badge-admin">Администратор</span>
+                        </div>
+                        <div class="credential-item">
+                            <strong>john.doe</strong> / demo123
+                            <span class="badge badge-manager">Менеджер</span>
+                        </div>
+                        <div class="credential-item">
+                            <strong>jane.smith</strong> / demo123
+                            <span class="badge badge-manager">Менеджер</span>
+                        </div>
+                        <div class="credential-item">
+                            <strong>devops</strong> / demo123
+                            <span class="badge badge-runner">Исполнитель</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard View -->
+        <div id="dashboard-view" class="view hidden">
+            <header class="header">
+                <div class="header-left">
+                    <div class="logo-small">
+                        <svg width="32" height="32" viewBox="0 0 64 64" fill="none">
+                            <rect width="64" height="64" rx="12" fill="#4F46E5"/>
+                            <path d="M20 20L32 32L44 20" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M20 36L32 48L44 36" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <h1>Semaphore UI <span class="demo-badge">CRUD ДЕМО</span></h1>
+                </div>
+                <div class="header-right">
+                    <span id="user-info" class="user-info"></span>
+                    <button id="logout-btn" class="btn btn-secondary">Выйти</button>
+                </div>
+            </header>
+
+            <div class="dashboard-layout">
+                <!-- Sidebar -->
+                <nav class="sidebar">
+                    <ul class="nav-menu">
+                        <li>
+                            <a href="#" data-page="dashboard" class="nav-link active">
+                                <span class="nav-icon">📊</span>
+                                <span class="nav-text">Обзор</span>
+                            </a>
+                        </li>
+                        <li class="nav-section">Проекты</li>
+                        <li>
+                            <a href="#" data-page="projects" class="nav-link">
+                                <span class="nav-icon">📁</span>
+                                <span class="nav-text">Проекты</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" data-page="templates" class="nav-link">
+                                <span class="nav-icon">📋</span>
+                                <span class="nav-text">Шаблоны</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" data-page="tasks" class="nav-link">
+                                <span class="nav-icon">⚡</span>
+                                <span class="nav-text">Задачи</span>
+                            </a>
+                        </li>
+                        <li class="nav-section">Ресурсы</li>
+                        <li>
+                            <a href="#" data-page="inventory" class="nav-link">
+                                <span class="nav-icon">🖥️</span>
+                                <span class="nav-text">Инвентарь</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" data-page="repositories" class="nav-link">
+                                <span class="nav-icon">📦</span>
+                                <span class="nav-text">Репозитории</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" data-page="environments" class="nav-link">
+                                <span class="nav-icon">⚙️</span>
+                                <span class="nav-text">Окружения</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" data-page="keys" class="nav-link">
+                                <span class="nav-icon">🔑</span>
+                                <span class="nav-text">Ключи доступа</span>
+                            </a>
+                        </li>
+                        <li class="nav-section">Система</li>
+                        <li>
+                            <a href="#" data-page="schedules" class="nav-link">
+                                <span class="nav-icon">🕐</span>
+                                <span class="nav-text">Расписания</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" data-page="events" class="nav-link">
+                                <span class="nav-icon">📝</span>
+                                <span class="nav-text">События</span>
+                            </a>
+                        </li>
+                    </ul>
+                    
+                    <div class="sidebar-footer">
+                        <div class="api-status">
+                            <span class="status-indicator online"></span>
+                            <span class="status-text">API: <span id="api-status">Подключено</span></span>
+                        </div>
+                    </div>
+                </nav>
+
+                <!-- Main Content -->
+                <main class="main-content">
+                    <!-- Dashboard Page -->
+                    <div id="dashboard-page" class="page active">
+                        <div class="page-header">
+                            <h2>📊 Обзор системы</h2>
+                        </div>
+                        
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-icon">📁</div>
+                                <div class="stat-info">
+                                    <div class="stat-value" id="stat-projects">0</div>
+                                    <div class="stat-label">Проектов</div>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">📋</div>
+                                <div class="stat-info">
+                                    <div class="stat-value" id="stat-templates">0</div>
+                                    <div class="stat-label">Шаблонов</div>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">⚡</div>
+                                <div class="stat-info">
+                                    <div class="stat-value" id="stat-tasks">0</div>
+                                    <div class="stat-label">Задач</div>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">🖥️</div>
+                                <div class="stat-info">
+                                    <div class="stat-value" id="stat-inventory">0</div>
+                                    <div class="stat-label">Инвентарей</div>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">📦</div>
+                                <div class="stat-info">
+                                    <div class="stat-value" id="stat-repositories">0</div>
+                                    <div class="stat-label">Репозиториев</div>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">⚙️</div>
+                                <div class="stat-info">
+                                    <div class="stat-value" id="stat-environments">0</div>
+                                    <div class="stat-label">Окружений</div>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">🔑</div>
+                                <div class="stat-info">
+                                    <div class="stat-value" id="stat-keys">0</div>
+                                    <div class="stat-label">Ключей</div>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">🕐</div>
+                                <div class="stat-info">
+                                    <div class="stat-value" id="stat-schedules">0</div>
+                                    <div class="stat-label">Расписаний</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="demo-info-section">
+                            <h3>🎯 Добро пожаловать в CRUD Демо!</h3>
+                            <p>Это интерактивная демонстрация полной функциональности CRUD (Create, Read, Update, Delete) для всех сущностей Semaphore UI.</p>
+                            
+                            <div class="features-grid">
+                                <div class="feature-item">
+                                    <div class="feature-icon">✅</div>
+                                    <h4>Полный CRUD</h4>
+                                    <p>Создание, чтение, обновление и удаление для всех сущностей</p>
+                                </div>
+                                <div class="feature-item">
+                                    <div class="feature-icon">🔒</div>
+                                    <h4>Безопасность</h4>
+                                    <p>JWT аутентификация и ролевая модель доступа</p>
+                                </div>
+                                <div class="feature-item">
+                                    <div class="feature-icon">⚡</div>
+                                    <h4>Real-time</h4>
+                                    <p>Мгновенное обновление данных после операций</p>
+                                </div>
+                                <div class="feature-item">
+                                    <div class="feature-icon">📱</div>
+                                    <h4>Адаптивность</h4>
+                                    <p>Работает на любых устройствах и экранах</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="quick-actions">
+                            <h3>🚀 Быстрые действия</h3>
+                            <div class="actions-grid">
+                                <button class="action-btn" data-action="create-project">
+                                    <span class="action-icon">➕</span>
+                                    <span>Создать проект</span>
+                                </button>
+                                <button class="action-btn" data-action="create-template">
+                                    <span class="action-icon">📋</span>
+                                    <span>Создать шаблон</span>
+                                </button>
+                                <button class="action-btn" data-action="create-task">
+                                    <span class="action-icon">⚡</span>
+                                    <span>Запустить задачу</span>
+                                </button>
+                                <button class="action-btn" data-action="view-api">
+                                    <span class="action-icon">📖</span>
+                                    <span>API Документация</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Projects Page -->
+                    <div id="projects-page" class="page hidden">
+                        <div class="page-header">
+                            <div class="header-title">
+                                <h2>📁 Проекты</h2>
+                                <span class="count-badge" id="projects-count">0</span>
+                            </div>
+                            <button id="add-project-btn" class="btn btn-primary">
+                                <span class="btn-icon">➕</span>
+                                <span>Добавить проект</span>
+                            </button>
+                        </div>
+                        <div id="projects-list" class="grid-container"></div>
+                    </div>
+
+                    <!-- Templates Page -->
+                    <div id="templates-page" class="page hidden">
+                        <div class="page-header">
+                            <div class="header-title">
+                                <h2>📋 Шаблоны</h2>
+                                <span class="count-badge" id="templates-count">0</span>
+                            </div>
+                            <div class="header-actions">
+                                <select id="template-project-filter" class="form-select">
+                                    <option value="">Все проекты</option>
+                                </select>
+                                <button id="add-template-btn" class="btn btn-primary">
+                                    <span class="btn-icon">➕</span>
+                                    <span>Добавить шаблон</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="templates-list" class="list-container"></div>
+                    </div>
+
+                    <!-- Tasks Page -->
+                    <div id="tasks-page" class="page hidden">
+                        <div class="page-header">
+                            <div class="header-title">
+                                <h2>⚡ Задачи</h2>
+                                <span class="count-badge" id="tasks-count">0</span>
+                            </div>
+                            <div class="header-actions">
+                                <select id="task-project-filter" class="form-select">
+                                    <option value="">Все проекты</option>
+                                </select>
+                                <select id="task-status-filter" class="form-select">
+                                    <option value="">Все статусы</option>
+                                    <option value="waiting">Ожидание</option>
+                                    <option value="running">Выполняется</option>
+                                    <option value="success">Успешно</option>
+                                    <option value="failed">Ошибка</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="tasks-list" class="list-container"></div>
+                    </div>
+
+                    <!-- Inventory Page -->
+                    <div id="inventory-page" class="page hidden">
+                        <div class="page-header">
+                            <div class="header-title">
+                                <h2>🖥️ Инвентарь</h2>
+                                <span class="count-badge" id="inventory-count">0</span>
+                            </div>
+                            <div class="header-actions">
+                                <select id="inventory-project-filter" class="form-select">
+                                    <option value="">Все проекты</option>
+                                </select>
+                                <button id="add-inventory-btn" class="btn btn-primary">
+                                    <span class="btn-icon">➕</span>
+                                    <span>Добавить инвентарь</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="inventory-list" class="list-container"></div>
+                    </div>
+
+                    <!-- Repositories Page -->
+                    <div id="repositories-page" class="page hidden">
+                        <div class="page-header">
+                            <div class="header-title">
+                                <h2>📦 Репозитории</h2>
+                                <span class="count-badge" id="repositories-count">0</span>
+                            </div>
+                            <div class="header-actions">
+                                <select id="repository-project-filter" class="form-select">
+                                    <option value="">Все проекты</option>
+                                </select>
+                                <button id="add-repository-btn" class="btn btn-primary">
+                                    <span class="btn-icon">➕</span>
+                                    <span>Добавить репозиторий</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="repositories-list" class="list-container"></div>
+                    </div>
+
+                    <!-- Environments Page -->
+                    <div id="environments-page" class="page hidden">
+                        <div class="page-header">
+                            <div class="header-title">
+                                <h2>⚙️ Окружения</h2>
+                                <span class="count-badge" id="environments-count">0</span>
+                            </div>
+                            <div class="header-actions">
+                                <select id="environment-project-filter" class="form-select">
+                                    <option value="">Все проекты</option>
+                                </select>
+                                <button id="add-environment-btn" class="btn btn-primary">
+                                    <span class="btn-icon">➕</span>
+                                    <span>Добавить окружение</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="environments-list" class="list-container"></div>
+                    </div>
+
+                    <!-- Keys Page -->
+                    <div id="keys-page" class="page hidden">
+                        <div class="page-header">
+                            <div class="header-title">
+                                <h2>🔑 Ключи доступа</h2>
+                                <span class="count-badge" id="keys-count">0</span>
+                            </div>
+                            <div class="header-actions">
+                                <select id="key-project-filter" class="form-select">
+                                    <option value="">Все проекты</option>
+                                </select>
+                                <button id="add-key-btn" class="btn btn-primary">
+                                    <span class="btn-icon">➕</span>
+                                    <span>Добавить ключ</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="keys-list" class="list-container"></div>
+                    </div>
+
+                    <!-- Schedules Page -->
+                    <div id="schedules-page" class="page hidden">
+                        <div class="page-header">
+                            <div class="header-title">
+                                <h2>🕐 Расписания</h2>
+                                <span class="count-badge" id="schedules-count">0</span>
+                            </div>
+                            <button id="add-schedule-btn" class="btn btn-primary">
+                                <span class="btn-icon">➕</span>
+                                <span>Добавить расписание</span>
+                            </button>
+                        </div>
+                        <div id="schedules-list" class="list-container"></div>
+                    </div>
+
+                    <!-- Events Page -->
+                    <div id="events-page" class="page hidden">
+                        <div class="page-header">
+                            <div class="header-title">
+                                <h2>📝 События</h2>
+                                <span class="count-badge" id="events-count">0</span>
+                            </div>
+                            <div class="header-actions">
+                                <select id="event-project-filter" class="form-select">
+                                    <option value="">Все проекты</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="events-list" class="list-container"></div>
+                    </div>
+                </main>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title"></h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div id="modal-body" class="modal-body"></div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="demo-crud.js"></script>
+</body>
+</html>

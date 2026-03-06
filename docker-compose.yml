@@ -8,6 +8,10 @@ version: '3.8'
 #   docker-compose up -d              # Запуск
 #   docker-compose down               # Остановка
 #   docker-compose logs -f            # Просмотр логов
+#
+# Быстрый старт:
+#   ./start.sh                        # Запуск frontend и БД
+#   ./start.sh --backend              # Запуск backend в отдельном терминале
 
 services:
   # PostgreSQL с демо-данными
