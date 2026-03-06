@@ -1,6 +1,8 @@
 //! Template CRUD - операции с шаблонами
 //!
 //! Аналог db/sql/template.go из Go версии (часть 1: CRUD)
+//! 
+//! DEPRECATED: Используйте модули sqlite::template, postgres::template, mysql::template
 
 use crate::db::sql::types::SqlDb;
 use crate::error::{Error, Result};
@@ -12,69 +14,53 @@ impl SqlDb {
     pub async fn get_templates(&self, project_id: i32) -> Result<Vec<Template>> {
         match self.get_dialect() {
             crate::db::sql::types::SqlDialect::SQLite => {
-                let templates = sqlx::query_as::<_, Template>(
-                    "SELECT * FROM template WHERE project_id = ?"
-                )
-                .bind(project_id)
-                .fetch_all(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-                .await
-                .map_err(|e| Error::Database(e))?;
-                
-                Ok(templates)
+                let pool = self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?;
+                crate::db::sql::sqlite::template::get_templates(pool, project_id).await
             }
-            _ => Err(Error::Other("Only SQLite supported for now".to_string()))
+            crate::db::sql::types::SqlDialect::PostgreSQL => {
+                let pool = self.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?;
+                crate::db::sql::postgres::template::get_templates(pool, project_id).await
+            }
+            crate::db::sql::types::SqlDialect::MySQL => {
+                let pool = self.get_mysql_pool().ok_or(Error::Other("MySQL pool not found".to_string()))?;
+                crate::db::sql::mysql::template::get_templates(pool, project_id).await
+            }
         }
     }
-    
+
     /// Получает шаблон по ID
     pub async fn get_template(&self, project_id: i32, template_id: i32) -> Result<Template> {
         match self.get_dialect() {
             crate::db::sql::types::SqlDialect::SQLite => {
-                let template = sqlx::query_as::<_, Template>(
-                    "SELECT * FROM template WHERE project_id = ? AND id = ?"
-                )
-                .bind(project_id)
-                .bind(template_id)
-                .fetch_one(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-                .await
-                .map_err(|e| Error::Database(e))?;
-                
-                Ok(template)
+                let pool = self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?;
+                crate::db::sql::sqlite::template::get_template(pool, project_id, template_id).await
             }
-            _ => Err(Error::Other("Only SQLite supported for now".to_string()))
+            crate::db::sql::types::SqlDialect::PostgreSQL => {
+                let pool = self.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?;
+                crate::db::sql::postgres::template::get_template(pool, project_id, template_id).await
+            }
+            crate::db::sql::types::SqlDialect::MySQL => {
+                let pool = self.get_mysql_pool().ok_or(Error::Other("MySQL pool not found".to_string()))?;
+                crate::db::sql::mysql::template::get_template(pool, project_id, template_id).await
+            }
         }
     }
-    
+
     /// Создаёт новый шаблон
     pub async fn create_template(&self, mut template: Template) -> Result<Template> {
         match self.get_dialect() {
             crate::db::sql::types::SqlDialect::SQLite => {
-                let result = sqlx::query(
-                    "INSERT INTO template (
-                        project_id, name, playbook, arguments, type,
-                        inventory_id, repository_id, environment_id,
-                        description, created, vault_key_id
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-                )
-                .bind(template.project_id)
-                .bind(&template.name)
-                .bind(&template.playbook)
-                .bind(&template.arguments)
-                .bind(&template.r#type)
-                .bind(template.inventory_id)
-                .bind(template.repository_id)
-                .bind(template.environment_id)
-                .bind(&template.description)
-                .bind(template.created)
-                .bind(template.vault_key_id)
-                .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-                .await
-                .map_err(|e| Error::Database(e))?;
-
-                template.id = result.last_insert_rowid() as i32;
-                Ok(template)
+                let pool = self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?;
+                crate::db::sql::sqlite::template::create_template(pool, template).await
             }
-            _ => Err(Error::Other("Only SQLite supported for now".to_string()))
+            crate::db::sql::types::SqlDialect::PostgreSQL => {
+                let pool = self.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?;
+                crate::db::sql::postgres::template::create_template(pool, template).await
+            }
+            crate::db::sql::types::SqlDialect::MySQL => {
+                let pool = self.get_mysql_pool().ok_or(Error::Other("MySQL pool not found".to_string()))?;
+                crate::db::sql::mysql::template::create_template(pool, template).await
+            }
         }
     }
 
@@ -82,51 +68,40 @@ impl SqlDb {
     pub async fn update_template(&self, template: Template) -> Result<()> {
         match self.get_dialect() {
             crate::db::sql::types::SqlDialect::SQLite => {
-                sqlx::query(
-                    "UPDATE template SET
-                        name = ?, playbook = ?, arguments = ?, type = ?,
-                        inventory_id = ?, repository_id = ?, environment_id = ?,
-                        description = ?, vault_key_id = ?
-                    WHERE id = ? AND project_id = ?"
-                )
-                .bind(&template.name)
-                .bind(&template.playbook)
-                .bind(&template.arguments)
-                .bind(&template.r#type)
-                .bind(template.inventory_id)
-                .bind(template.repository_id)
-                .bind(template.environment_id)
-                .bind(&template.description)
-                .bind(&template.vault_key_id)
-                .bind(template.id)
-                .bind(template.project_id)
-                .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-                .await
-                .map_err(|e| Error::Database(e))?;
-
-                Ok(())
+                let pool = self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?;
+                crate::db::sql::sqlite::template::update_template(pool, template).await
             }
-            _ => Err(Error::Other("Only SQLite supported for now".to_string()))
+            crate::db::sql::types::SqlDialect::PostgreSQL => {
+                let pool = self.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?;
+                crate::db::sql::postgres::template::update_template(pool, template).await
+            }
+            crate::db::sql::types::SqlDialect::MySQL => {
+                let pool = self.get_mysql_pool().ok_or(Error::Other("MySQL pool not found".to_string()))?;
+                crate::db::sql::mysql::template::update_template(pool, template).await
+            }
         }
     }
-    
+
     /// Удаляет шаблон
     pub async fn delete_template(&self, project_id: i32, template_id: i32) -> Result<()> {
         match self.get_dialect() {
             crate::db::sql::types::SqlDialect::SQLite => {
-                sqlx::query("DELETE FROM template WHERE id = ? AND project_id = ?")
-                    .bind(template_id)
-                    .bind(project_id)
-                    .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-                    .await
-                    .map_err(|e| Error::Database(e))?;
-                
-                Ok(())
+                let pool = self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?;
+                crate::db::sql::sqlite::template::delete_template(pool, project_id, template_id).await
             }
-            _ => Err(Error::Other("Only SQLite supported for now".to_string()))
+            crate::db::sql::types::SqlDialect::PostgreSQL => {
+                let pool = self.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?;
+                crate::db::sql::postgres::template::delete_template(pool, project_id, template_id).await
+            }
+            crate::db::sql::types::SqlDialect::MySQL => {
+                let pool = self.get_mysql_pool().ok_or(Error::Other("MySQL pool not found".to_string()))?;
+                crate::db::sql::mysql::template::delete_template(pool, project_id, template_id).await
+            }
         }
     }
 }
+
+// Legacy code removed - now uses decomposed modules
 
 #[cfg(test)]
 mod tests {
