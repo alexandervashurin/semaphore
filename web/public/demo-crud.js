@@ -1250,8 +1250,70 @@ function formatDate(dateString) {
 // ============================================================================
 
 // Эти функции будут реализованы аналогично create, но с загрузкой текущих данных
-window.editProject = function(id) {
-    showToast('Функция редактирования в разработке', 'info');
+window.editProject = async function(id) {
+    try {
+        // Загружаем текущие данные проекта
+        const project = await apiRequest(`/projects/${id}`);
+        
+        // Показываем модальное окно
+        document.getElementById('modal-title').textContent = 'Редактировать проект';
+        document.getElementById('modal-body').innerHTML = `
+            <form id="edit-project-form">
+                <input type="hidden" id="edit-project-id" value="${project.id}">
+                <div class="form-group">
+                    <label for="edit-project-name">Название</label>
+                    <input type="text" id="edit-project-name" value="${escapeHtml(project.name)}" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-project-alert">Включить уведомления</label>
+                    <input type="checkbox" id="edit-project-alert" ${project.alert ? 'checked' : ''}>
+                </div>
+                <div class="form-group">
+                    <label for="edit-project-max-parallel">Макс. параллельных задач</label>
+                    <input type="number" id="edit-project-max-parallel" value="${project.max_parallel_tasks}" min="0">
+                </div>
+                <div class="form-group">
+                    <label for="edit-project-type">Тип</label>
+                    <select id="edit-project-type">
+                        <option value="default" ${project.type === 'default' ? 'selected' : ''}>Default</option>
+                        <option value="terraform" ${project.type === 'terraform' ? 'selected' : ''}>Terraform</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary modal-close">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                </div>
+            </form>
+        `;
+        
+        // Показываем модальное окно
+        document.getElementById('modal').classList.remove('hidden');
+        
+        // Обработчик сохранения
+        document.getElementById('edit-project-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const updatedData = {
+                name: document.getElementById('edit-project-name').value,
+                alert: document.getElementById('edit-project-alert').checked,
+                max_parallel_tasks: parseInt(document.getElementById('edit-project-max-parallel').value),
+                type: document.getElementById('edit-project-type').value,
+                alert_chat: null,
+                default_secret_storage_id: null
+            };
+            
+            await updateProject(id, updatedData);
+            document.getElementById('modal').classList.add('hidden');
+            await loadProjects();
+        });
+        
+        // Закрытие модального окна
+        document.querySelector('.modal-close').addEventListener('click', () => {
+            document.getElementById('modal').classList.add('hidden');
+        });
+        
+    } catch (error) {
+        showToast('Ошибка загрузки проекта: ' + error.message, 'error');
+    }
 };
 
 window.editTemplate = function(id) {
