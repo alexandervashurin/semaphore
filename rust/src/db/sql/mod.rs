@@ -2918,9 +2918,9 @@ impl TaskManager for SqlStore {
         match self.get_dialect() {
             SqlDialect::SQLite => {
                 let query = if template_id.is_some() {
-                    "SELECT t.*, tpl.playbook as tpl_playbook, tpl.alias as tpl_alias, tpl.type as tpl_type, tpl.app as tpl_app, u.name as user_name FROM task t LEFT JOIN template tpl ON t.template_id = tpl.id LEFT JOIN \"user\" u ON t.user_id = u.id WHERE t.project_id = ? AND t.template_id = ? ORDER BY t.created DESC"
+                    "SELECT t.*, tpl.playbook as tpl_playbook, tpl.type as tpl_type, tpl.app as tpl_app, u.name as user_name FROM task t LEFT JOIN template tpl ON t.template_id = tpl.id LEFT JOIN \"user\" u ON t.user_id = u.id WHERE t.project_id = ? AND t.template_id = ? ORDER BY t.created DESC"
                 } else {
-                    "SELECT t.*, tpl.playbook as tpl_playbook, tpl.alias as tpl_alias, tpl.type as tpl_type, tpl.app as tpl_app, u.name as user_name FROM task t LEFT JOIN template tpl ON t.template_id = tpl.id LEFT JOIN \"user\" u ON t.user_id = u.id WHERE t.project_id = ? ORDER BY t.created DESC"
+                    "SELECT t.*, tpl.playbook as tpl_playbook, tpl.type as tpl_type, tpl.app as tpl_app, u.name as user_name FROM task t LEFT JOIN template tpl ON t.template_id = tpl.id LEFT JOIN \"user\" u ON t.user_id = u.id WHERE t.project_id = ? ORDER BY t.created DESC"
                 };
                 let mut q = sqlx::query(query).bind(project_id);
                 if let Some(tid) = template_id {
@@ -2955,7 +2955,6 @@ impl TaskManager for SqlStore {
                         params: None,
                     },
                     tpl_playbook: row.get("tpl_playbook"),
-                    tpl_alias: row.get("tpl_alias"),
                     tpl_type: row.try_get("tpl_type").ok(),
                     tpl_app: row.try_get("tpl_app").ok(),
                     user_name: row.try_get("user_name").ok(),
@@ -2964,9 +2963,9 @@ impl TaskManager for SqlStore {
             }
             SqlDialect::PostgreSQL => {
                 let query = if template_id.is_some() {
-                    "SELECT t.*, tpl.playbook as tpl_playbook, tpl.alias as tpl_alias, tpl.type as tpl_type, tpl.app as tpl_app, u.name as user_name FROM task t LEFT JOIN template tpl ON t.template_id = tpl.id LEFT JOIN \"user\" u ON t.user_id = u.id WHERE t.project_id = $1 AND t.template_id = $2 ORDER BY t.created DESC"
+                    "SELECT t.*, tpl.playbook as tpl_playbook, tpl.type as tpl_type, tpl.app as tpl_app, u.name as user_name FROM task t LEFT JOIN template tpl ON t.template_id = tpl.id LEFT JOIN \"user\" u ON t.user_id = u.id WHERE t.project_id = $1 AND t.template_id = $2 ORDER BY t.created DESC"
                 } else {
-                    "SELECT t.*, tpl.playbook as tpl_playbook, tpl.alias as tpl_alias, tpl.type as tpl_type, tpl.app as tpl_app, u.name as user_name FROM task t LEFT JOIN template tpl ON t.template_id = tpl.id LEFT JOIN \"user\" u ON t.user_id = u.id WHERE t.project_id = $1 ORDER BY t.created DESC"
+                    "SELECT t.*, tpl.playbook as tpl_playbook, tpl.type as tpl_type, tpl.app as tpl_app, u.name as user_name FROM task t LEFT JOIN template tpl ON t.template_id = tpl.id LEFT JOIN \"user\" u ON t.user_id = u.id WHERE t.project_id = $1 ORDER BY t.created DESC"
                 };
                 let mut q = sqlx::query(query).bind(project_id);
                 if let Some(tid) = template_id {
@@ -3001,7 +3000,6 @@ impl TaskManager for SqlStore {
                         params: None,
                     },
                     tpl_playbook: row.get("tpl_playbook"),
-                    tpl_alias: row.get("tpl_alias"),
                     tpl_type: row.try_get("tpl_type").ok(),
                     tpl_app: row.try_get("tpl_app").ok(),
                     user_name: row.try_get("user_name").ok(),
@@ -3010,9 +3008,9 @@ impl TaskManager for SqlStore {
             }
             SqlDialect::MySQL => {
                 let query = if template_id.is_some() {
-                    "SELECT t.*, tpl.playbook as tpl_playbook, tpl.alias as tpl_alias, tpl.type as tpl_type, tpl.app as tpl_app, u.name as user_name FROM task t LEFT JOIN `template` tpl ON t.template_id = tpl.id LEFT JOIN `user` u ON t.user_id = u.id WHERE t.project_id = ? AND t.template_id = ? ORDER BY t.created DESC"
+                    "SELECT t.*, tpl.playbook as tpl_playbook, tpl.type as tpl_type, tpl.app as tpl_app, u.name as user_name FROM task t LEFT JOIN `template` tpl ON t.template_id = tpl.id LEFT JOIN `user` u ON t.user_id = u.id WHERE t.project_id = ? AND t.template_id = ? ORDER BY t.created DESC"
                 } else {
-                    "SELECT t.*, tpl.playbook as tpl_playbook, tpl.alias as tpl_alias, tpl.type as tpl_type, tpl.app as tpl_app, u.name as user_name FROM task t LEFT JOIN `template` tpl ON t.template_id = tpl.id LEFT JOIN `user` u ON t.user_id = u.id WHERE t.project_id = ? ORDER BY t.created DESC"
+                    "SELECT t.*, tpl.playbook as tpl_playbook, tpl.type as tpl_type, tpl.app as tpl_app, u.name as user_name FROM task t LEFT JOIN `template` tpl ON t.template_id = tpl.id LEFT JOIN `user` u ON t.user_id = u.id WHERE t.project_id = ? ORDER BY t.created DESC"
                 };
                 let mut q = sqlx::query(query).bind(project_id);
                 if let Some(tid) = template_id {
@@ -3046,8 +3044,7 @@ impl TaskManager for SqlStore {
                         environment_id: row.try_get("environment_id").ok(),
                         params: None,
                     },
-                    tpl_playbook: row.get("tpl_playbook"),
-                    tpl_alias: row.get("tpl_alias"),
+                    tpl_playbook: row.try_get("tpl_playbook").ok().flatten(),
                     tpl_type: row.try_get("tpl_type").ok(),
                     tpl_app: row.try_get("tpl_app").ok(),
                     user_name: row.try_get("user_name").ok(),

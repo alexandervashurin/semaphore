@@ -23,6 +23,6 @@ pub struct Schedule {
 pub struct ScheduleWithTpl {
     #[serde(flatten)]
     pub schedule: Schedule,
-    pub tpl_playbook: String,
-    pub tpl_alias: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tpl_playbook: Option<String>,
 }

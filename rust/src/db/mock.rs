@@ -284,8 +284,7 @@ impl TaskManager for MockStore {
             .filter(|t| template_id.map_or(true, |tid| t.template_id == tid))
             .map(|t| TaskWithTpl {
                 task: t,
-                tpl_playbook: String::new(),
-                tpl_alias: String::new(),
+                tpl_playbook: None,
                 tpl_type: None,
                 tpl_app: None,
                 user_name: None,

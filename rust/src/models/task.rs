@@ -147,10 +147,8 @@ pub struct TaskWithTpl {
     pub task: Task,
 
     /// Playbook шаблона
-    pub tpl_playbook: String,
-
-    /// Псевдоним шаблона
-    pub tpl_alias: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tpl_playbook: Option<String>,
 
     /// Тип шаблона
     #[serde(skip_serializing_if = "Option::is_none")]

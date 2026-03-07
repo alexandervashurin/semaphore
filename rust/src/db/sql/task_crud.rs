@@ -14,7 +14,7 @@ impl SqlDb {
         match self.get_dialect() {
             crate::db::sql::types::SqlDialect::SQLite => {
                 let mut query = String::from(
-                    "SELECT t.*, tpl.playbook as tpl_playbook, tpl.name as tpl_alias
+                    "SELECT t.*, tpl.playbook as tpl_playbook
                      FROM task t
                      LEFT JOIN template tpl ON t.template_id = tpl.id AND tpl.project_id = t.project_id
                      WHERE t.project_id = ?"
@@ -33,13 +33,11 @@ impl SqlDb {
                     let mut tasks = Vec::new();
                     for row in rows {
                         let task = Self::row_to_task(&row)?;
-                        let tpl_playbook: String = row.try_get("tpl_playbook").unwrap_or_default();
-                        let tpl_alias: String = row.try_get("tpl_alias").unwrap_or_default();
-                        
+                        let tpl_playbook: Option<String> = row.try_get("tpl_playbook").ok();
+
                         tasks.push(TaskWithTpl {
                             task,
                             tpl_playbook,
-                            tpl_alias,
                             tpl_type: None,
                             tpl_app: None,
                             user_name: None,
@@ -58,13 +56,11 @@ impl SqlDb {
                     let mut tasks = Vec::new();
                     for row in rows {
                         let task = Self::row_to_task(&row)?;
-                        let tpl_playbook: String = row.try_get("tpl_playbook").unwrap_or_default();
-                        let tpl_alias: String = row.try_get("tpl_alias").unwrap_or_default();
-                        
+                        let tpl_playbook: Option<String> = row.try_get("tpl_playbook").ok();
+
                         tasks.push(TaskWithTpl {
                             task,
                             tpl_playbook,
-                            tpl_alias,
                             tpl_type: None,
                             tpl_app: None,
                             user_name: None,
