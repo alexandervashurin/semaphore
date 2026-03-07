@@ -82,6 +82,8 @@ impl SqlStore {
         .map_err(|e| Error::Database(e))?;
 
         if project_exists.is_some() {
+            // Миграция: добавить колонку created в project__user, если её нет
+            Self::migrate_project_user_created(pool).await?;
             return Ok(());
         }
 
@@ -163,6 +165,7 @@ impl SqlStore {
                 project_id INTEGER NOT NULL REFERENCES project(id) ON DELETE CASCADE,
                 user_id INTEGER NOT NULL REFERENCES user(id) ON DELETE CASCADE,
                 role TEXT NOT NULL,
+                created DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE(project_id, user_id)
             )",
         )
@@ -203,6 +206,38 @@ impl SqlStore {
         .map_err(|e| Error::Database(e))?;
 
         tracing::info!("Схема БД инициализирована");
+        Ok(())
+    }
+
+    /// Миграция: добавить колонку created в project__user, если её нет
+    async fn migrate_project_user_created(pool: &SqlitePool) -> Result<()> {
+        let table_exists: Option<String> = sqlx::query_scalar(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='project__user'",
+        )
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| Error::Database(e))?;
+
+        if table_exists.is_none() {
+            return Ok(());
+        }
+
+        let has_created: Option<i64> = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM pragma_table_info('project__user') WHERE name='created'",
+        )
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| Error::Database(e))?;
+
+        if has_created.unwrap_or(0) == 0 {
+            sqlx::query(
+                "ALTER TABLE project__user ADD COLUMN created DATETIME NOT NULL DEFAULT '2020-01-01 00:00:00'",
+            )
+            .execute(pool)
+            .await
+            .map_err(|e| Error::Database(e))?;
+            tracing::info!("Миграция: добавлена колонка created в project__user");
+        }
         Ok(())
     }
 
@@ -534,7 +569,7 @@ impl UserManager for SqlStore {
 
                 Ok(rows.into_iter().map(|row| User {
                     id: row.get("id"),
-                    created: row.get("created"),
+                    created: row.try_get("created").unwrap_or_else(|_| Utc::now()),
                     username: row.get("username"),
                     name: row.get("name"),
                     email: row.get("email"),
@@ -556,7 +591,7 @@ impl UserManager for SqlStore {
 
                 Ok(rows.into_iter().map(|row| User {
                     id: row.get("id"),
-                    created: row.get("created"),
+                    created: row.try_get("created").unwrap_or_else(|_| Utc::now()),
                     username: row.get("username"),
                     name: row.get("name"),
                     email: row.get("email"),
@@ -578,7 +613,7 @@ impl UserManager for SqlStore {
 
                 Ok(rows.into_iter().map(|row| User {
                     id: row.get("id"),
-                    created: row.get("created"),
+                    created: row.try_get("created").unwrap_or_else(|_| Utc::now()),
                     username: row.get("username"),
                     name: row.get("name"),
                     email: row.get("email"),
@@ -609,7 +644,7 @@ impl UserManager for SqlStore {
 
                 Ok(User {
                     id: row.get("id"),
-                    created: row.get("created"),
+                    created: row.try_get("created").unwrap_or_else(|_| Utc::now()),
                     username: row.get("username"),
                     name: row.get("name"),
                     email: row.get("email"),
@@ -635,7 +670,7 @@ impl UserManager for SqlStore {
 
                 Ok(User {
                     id: row.get("id"),
-                    created: row.get("created"),
+                    created: row.try_get("created").unwrap_or_else(|_| Utc::now()),
                     username: row.get("username"),
                     name: row.get("name"),
                     email: row.get("email"),
@@ -661,7 +696,7 @@ impl UserManager for SqlStore {
 
                 Ok(User {
                     id: row.get("id"),
-                    created: row.get("created"),
+                    created: row.try_get("created").unwrap_or_else(|_| Utc::now()),
                     username: row.get("username"),
                     name: row.get("name"),
                     email: row.get("email"),
@@ -693,7 +728,7 @@ impl UserManager for SqlStore {
 
                 Ok(User {
                     id: row.get("id"),
-                    created: row.get("created"),
+                    created: row.try_get("created").unwrap_or_else(|_| Utc::now()),
                     username: row.get("username"),
                     name: row.get("name"),
                     email: row.get("email"),
@@ -768,7 +803,7 @@ impl UserManager for SqlStore {
 
                 Ok(User {
                     id: row.get("id"),
-                    created: row.get("created"),
+                    created: row.try_get("created").unwrap_or_else(|_| Utc::now()),
                     username: row.get("username"),
                     name: row.get("name"),
                     email: row.get("email"),
@@ -964,7 +999,7 @@ impl UserManager for SqlStore {
 
                 Ok(rows.into_iter().map(|row| User {
                     id: row.get("id"),
-                    created: row.get("created"),
+                    created: row.try_get("created").unwrap_or_else(|_| Utc::now()),
                     username: row.get("username"),
                     name: row.get("name"),
                     email: row.get("email"),
@@ -987,7 +1022,7 @@ impl UserManager for SqlStore {
 
                 Ok(rows.into_iter().map(|row| User {
                     id: row.get("id"),
-                    created: row.get("created"),
+                    created: row.try_get("created").unwrap_or_else(|_| Utc::now()),
                     username: row.get("username"),
                     name: row.get("name"),
                     email: row.get("email"),
@@ -1009,7 +1044,7 @@ impl UserManager for SqlStore {
 
                 Ok(rows.into_iter().map(|row| User {
                     id: row.get("id"),
-                    created: row.get("created"),
+                    created: row.try_get("created").unwrap_or_else(|_| Utc::now()),
                     username: row.get("username"),
                     name: row.get("name"),
                     email: row.get("email"),
@@ -1073,7 +1108,7 @@ impl UserManager for SqlStore {
                     project_id: row.get("project_id"),
                     user_id: row.get("user_id"),
                     role: row.get("role"),
-                    created: row.get("created"),
+                    created: row.try_get("created").unwrap_or_else(|_| Utc::now()),
                     username: row.get("username"),
                     name: row.get("name"),
                 }).collect())
@@ -1095,7 +1130,7 @@ impl UserManager for SqlStore {
                     project_id: row.get("project_id"),
                     user_id: row.get("user_id"),
                     role: row.get("role"),
-                    created: row.get("created"),
+                    created: row.try_get("created").unwrap_or_else(|_| Utc::now()),
                     username: row.get("username"),
                     name: row.get("name"),
                 }).collect())
@@ -1117,7 +1152,7 @@ impl UserManager for SqlStore {
                     project_id: row.get("project_id"),
                     user_id: row.get("user_id"),
                     role: row.get("role"),
-                    created: row.get("created"),
+                    created: row.try_get("created").unwrap_or_else(|_| Utc::now()),
                     username: row.get("username"),
                     name: row.get("name"),
                 }).collect())
@@ -1432,28 +1467,31 @@ impl ProjectStore for SqlStore {
         let role_str = project_user.role.to_string();
         match self.get_dialect() {
             SqlDialect::SQLite => {
-                sqlx::query("INSERT INTO project__user (project_id, user_id, role) VALUES (?, ?, ?)")
+                sqlx::query("INSERT INTO project__user (project_id, user_id, role, created) VALUES (?, ?, ?, ?)")
                     .bind(project_user.project_id)
                     .bind(project_user.user_id)
                     .bind(&role_str)
+                    .bind(project_user.created)
                     .execute(self.get_sqlite_pool()?)
                     .await
                     .map_err(|e| Error::Database(e))?;
             }
             SqlDialect::PostgreSQL => {
-                sqlx::query("INSERT INTO project__user (project_id, user_id, role) VALUES ($1, $2, $3)")
+                sqlx::query("INSERT INTO project__user (project_id, user_id, role, created) VALUES ($1, $2, $3, $4)")
                     .bind(project_user.project_id)
                     .bind(project_user.user_id)
                     .bind(&role_str)
+                    .bind(project_user.created)
                     .execute(self.get_postgres_pool()?)
                     .await
                     .map_err(|e| Error::Database(e))?;
             }
             SqlDialect::MySQL => {
-                sqlx::query("INSERT INTO project__user (project_id, user_id, `role`) VALUES (?, ?, ?)")
+                sqlx::query("INSERT INTO project__user (project_id, user_id, `role`, created) VALUES (?, ?, ?, ?)")
                     .bind(project_user.project_id)
                     .bind(project_user.user_id)
                     .bind(&role_str)
+                    .bind(project_user.created)
                     .execute(self.get_mysql_pool()?)
                     .await
                     .map_err(|e| Error::Database(e))?;
