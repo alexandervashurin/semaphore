@@ -1,7 +1,13 @@
+const path = require('path');
 const webpack = require('webpack');
 
 module.exports = {
   configureWebpack: {
+    output: {
+      clean: false,
+      filename: '[name].js',
+      chunkFilename: 'js/[name].js',
+    },
     plugins: [
       new webpack.DefinePlugin({
         'process.env.VUE_APP_BUILD_TYPE': JSON.stringify(process.env.VUE_APP_BUILD_TYPE),
@@ -15,9 +21,11 @@ module.exports = {
         },
       },
     },
-    output: {
-      filename: 'app.js',
-      chunkFilename: 'js/[name].js'
+  },
+  css: {
+    extract: {
+      filename: '[name].css',
+      chunkFilename: 'css/[name].css',
     },
   },
   chainWebpack: (config) => {
@@ -31,17 +39,9 @@ module.exports = {
   transpileDependencies: [
     'vuetify',
   ],
-  // Публичный путь - используем относительные пути для локальной работы
   publicPath: './',
-  // Собираем в web/public для локальной раздачи через Rust-сервер
-  outputDir: '../web/public',
-  // Имя файла HTML
+  // path.resolve избегает бага html-webpack-plugin на Windows (pub lic → public)
+  outputDir: path.resolve(__dirname, 'public'),
   indexPath: 'index.html',
-  // Отключаем хеширование для предсказуемых имен файлов
   filenameHashing: false,
-  css: {
-    extract: {
-      filename: 'app.css'
-    }
-  },
 };

@@ -39,6 +39,7 @@ convert.ansi_colors = [
 ];
 
 axios.defaults.baseURL = document.baseURI;
+axios.defaults.withCredentials = true; // Отправлять cookie (semaphore JWT) с каждым запросом
 Vue.config.productionTip = false;
 
 //
