@@ -1,43 +1,23 @@
-# Скомпилированные бинарники
-/target/
-**/target/
+```
+# Build artifacts
+dist/
+build/
+*.js.map
 
-# Файлы окружения
-.env
-.env.local
-.env.*.local
+# Dependencies
+node_modules/
 
-# Lock-файлы (разрешаем только корневой Cargo.lock)
-Cargo.lock
+# Editors
+.vscode/
 
-# Временные файлы
-*.swp
-*.swo
-*~
-.DS_Store
-
-# Логи
+# Logs
 *.log
 
-# Базы данных (для тестов)
-*.db
-*.sqlite
-*.bolt
+# Temp files
+*.tmp
 
-# Тестовые артефакты
-coverage/
-*.profraw
-*.profdata
-test_output*.txt
-test_errors.txt
-
-# IDE
-.idea/
-.vscode/
-*.iml
-
-# Таргеты кросс-компиляции
-**/target-*/
-
-# Файлы отладки
-*.dSYM/
+# Environment
+.env
+.env.local
+*.env.*
+```

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Semaphore UI</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="favicon.png">
+</head>
+<body>
+    <div id="app">
+        <!-- Login Form -->
+        <div id="login-view" class="view">
+            <div class="login-container">
+                <h1>Semaphore UI</h1>
+                <form id="login-form">
+                    <div class="form-group">
+                        <label for="username">Имя пользователя</label>
+                        <input type="text" id="username" name="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Пароль</label>
+                        <input type="password" id="password" name="password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Войти</button>
+                </form>
+                <div id="login-error" class="error-message"></div>
+            </div>
+        </div>
+
+        <!-- Dashboard -->
+        <div id="dashboard-view" class="view hidden">
+            <header class="header">
+                <div class="header-left">
+                    <h1>Semaphore UI</h1>
+                </div>
+                <div class="header-right">
+                    <span id="user-info"></span>
+                    <button id="logout-btn" class="btn btn-secondary">Выйти</button>
+                </div>
+            </header>
+            
+            <main class="main-content">
+                <nav class="sidebar">
+                    <ul class="nav-menu">
+                        <li><a href="#" data-page="projects" class="nav-link active">Проекты</a></li>
+                        <li><a href="#" data-page="tasks" class="nav-link">Задачи</a></li>
+                        <li><a href="#" data-page="templates" class="nav-link">Шаблоны</a></li>
+                        <li><a href="#" data-page="inventory" class="nav-link">Инвентарь</a></li>
+                        <li><a href="#" data-page="repositories" class="nav-link">Репозитории</a></li>
+                        <li><a href="#" data-page="environments" class="nav-link">Окружения</a></li>
+                        <li><a href="#" data-page="keys" class="nav-link">Ключи доступа</a></li>
+                    </ul>
+                </nav>
+                
+                <div class="content-area">
+                    <div id="projects-page" class="page active">
+                        <div class="page-header">
+                            <h2>Проекты</h2>
+                            <button id="add-project-btn" class="btn btn-primary">Добавить проект</button>
+                        </div>
+                        <div id="projects-list" class="list-container"></div>
+                    </div>
+                    
+                    <div id="tasks-page" class="page hidden">
+                        <div class="page-header">
+                            <h2>Задачи</h2>
+                        </div>
+                        <div id="tasks-list" class="list-container"></div>
+                    </div>
+                    
+                    <div id="templates-page" class="page hidden">
+                        <div class="page-header">
+                            <h2>Шаблоны</h2>
+                            <button id="add-template-btn" class="btn btn-primary">Добавить</button>
+                        </div>
+                        <div id="templates-list" class="list-container"></div>
+                    </div>
+                    
+                    <div id="inventory-page" class="page hidden">
+                        <div class="page-header">
+                            <h2>Инвентарь</h2>
+                            <button id="add-inventory-btn" class="btn btn-primary">Добавить</button>
+                        </div>
+                        <div id="inventory-list" class="list-container"></div>
+                    </div>
+                    
+                    <div id="repositories-page" class="page hidden">
+                        <div class="page-header">
+                            <h2>Репозитории</h2>
+                            <button id="add-repository-btn" class="btn btn-primary">Добавить</button>
+                        </div>
+                        <div id="repositories-list" class="list-container"></div>
+                    </div>
+                    
+                    <div id="environments-page" class="page hidden">
+                        <div class="page-header">
+                            <h2>Окружения</h2>
+                            <button id="add-environment-btn" class="btn btn-primary">Добавить</button>
+                        </div>
+                        <div id="environments-list" class="list-container"></div>
+                    </div>
+                    
+                    <div id="keys-page" class="page hidden">
+                        <div class="page-header">
+                            <h2>Ключи доступа</h2>
+                            <button id="add-key-btn" class="btn btn-primary">Добавить</button>
+                        </div>
+                        <div id="keys-list" class="list-container"></div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+    
+    <!-- Modal -->
+    <div id="modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title"></h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div id="modal-body" class="modal-body"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
