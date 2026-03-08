@@ -6,29 +6,22 @@ use serde_json::json;
 use chrono::Utc;
 use crate::services::task_runner::TaskRunner;
 use crate::services::task_logger::TaskStatus;
+use crate::api::websocket::{WebSocketManager, WsMessage};
 
 impl TaskRunner {
     /// send_websocket_update отправляет обновление статуса через WebSocket
     pub async fn send_websocket_update(&self) {
-        let message = json!({
-            "type": "update",
-            "status": self.task.status.to_string(),
-            "task_id": self.task.id,
-            "template_id": self.task.template_id,
-            "project_id": self.task.project_id,
-        });
-
-        // Отправка всем пользователям
-        for &user_id in &self.users {
-            // TODO: Интеграция с WebSocketManager
-            // self.pool.ws_manager.send(user_id, message.clone()).await;
-        }
+        self.pool.ws_manager.send_status(
+            self.task.id,
+            self.task.status.to_string(),
+            Utc::now(),
+        );
     }
 
     /// notify_status_change уведомляет об изменении статуса
     pub async fn notify_status_change(&self, status: TaskStatus) {
         self.send_websocket_update().await;
-        
+
         // Уведомление слушателей статусов
         for listener in &self.status_listeners {
             listener(status);
@@ -37,6 +30,9 @@ impl TaskRunner {
 
     /// notify_log уведомляет о новом логе
     pub fn notify_log(&self, time: chrono::DateTime<Utc>, msg: &str) {
+        // Отправка лога через WebSocketManager
+        self.pool.ws_manager.send_log(self.task.id, msg.to_string(), time);
+
         for listener in &self.log_listeners {
             listener(time, msg.to_string());
         }
@@ -44,16 +40,8 @@ impl TaskRunner {
 
     /// broadcast_update отправляет обновление всем подключенным клиентам
     pub async fn broadcast_update(&self, event_type: &str, data: serde_json::Value) {
-        let message = json!({
-            "type": event_type,
-            "task_id": self.task.id,
-            "data": data,
-        });
-
-        for &user_id in &self.users {
-            // TODO: Интеграция с WebSocketManager
-            // self.pool.ws_manager.send(user_id, message.clone()).await;
-        }
+        let status = format!("{}: {}", event_type, data);
+        self.pool.ws_manager.send_status(self.task.id, status, Utc::now());
     }
 
     /// send_task_started уведомляет о старте задачи

@@ -13,6 +13,7 @@ use crate::error::{Error, Result};
 use crate::models::{Task, Project};
 use crate::services::task_logger::TaskStatus;
 use crate::db::store::Store;
+use crate::api::websocket::WebSocketManager;
 
 /// Событие пула задач
 #[derive(Debug, Clone)]
@@ -91,6 +92,8 @@ pub struct TaskPool {
     running: Arc<RwLock<bool>>,
     /// Максимум задач на проект
     max_tasks_per_project: usize,
+    /// WebSocket менеджер для real-time уведомлений
+    pub ws_manager: Arc<WebSocketManager>,
 }
 
 impl TaskPool {
@@ -99,14 +102,16 @@ impl TaskPool {
         let (register_tx, mut register_rx) = mpsc::channel::<Task>(100);
         let (logger_tx, mut logger_rx) = mpsc::channel::<TaskLogRecord>(1000);
         let (events_tx, mut events_rx) = mpsc::channel::<TaskPoolEvent>(100);
-        
+
         let state = Arc::new(RwLock::new(TaskPoolState::new()));
         let running = Arc::new(RwLock::new(false));
+        let ws_manager = Arc::new(WebSocketManager::new());
 
         // Запускаем обработчик регистрации задач
         let state_clone = state.clone();
         let store_clone = store.clone();
         let events_tx_clone = events_tx.clone();
+        let ws_manager_clone = ws_manager.clone();
         
         tokio::spawn(async move {
             while let Some(task) = register_rx.recv().await {
@@ -169,6 +174,7 @@ impl TaskPool {
             store,
             running,
             max_tasks_per_project,
+            ws_manager,
         }
     }
 
