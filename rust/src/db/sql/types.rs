@@ -147,7 +147,6 @@ impl DbConnectionConfig {
 }
 
 /// Транзакция SQL
-/// TODO: Реализовать поддержку транзакций для SQLite
 pub struct SqlTransaction {
     /// Диалект
     pub dialect: SqlDialect,
@@ -155,11 +154,11 @@ pub struct SqlTransaction {
     /// SQLite транзакция
     pub sqlite_txn: Option<sqlx::Transaction<'static, sqlx::Sqlite>>,
 
-    // TODO: Добавить MySQL транзакцию
-    // pub mysql_txn: Option<sqlx::Transaction<'static, sqlx::MySql>>,
+    /// MySQL транзакция
+    pub mysql_txn: Option<sqlx::Transaction<'static, sqlx::MySql>>,
 
-    // TODO: Добавить PostgreSQL транзакцию
-    // pub postgres_txn: Option<sqlx::Transaction<'static, sqlx::Postgres>>,
+    /// PostgreSQL транзакция
+    pub postgres_txn: Option<sqlx::Transaction<'static, sqlx::Postgres>>,
 }
 
 impl SqlTransaction {
@@ -168,7 +167,85 @@ impl SqlTransaction {
         Self {
             dialect,
             sqlite_txn: None,
+            mysql_txn: None,
+            postgres_txn: None,
         }
+    }
+
+    /// Начинает транзакцию
+    pub async fn begin(&mut self, db: &SqlDb) -> Result<(), crate::error::Error> {
+        match self.dialect {
+            SqlDialect::SQLite => {
+                let pool = db.get_sqlite_pool()
+                    .ok_or_else(|| crate::error::Error::Other("SQLite pool not found".to_string()))?;
+                // В SQLx транзакции начинаются автоматически при первом запросе
+                self.sqlite_txn = Some(pool.begin().await
+                    .map_err(|e| crate::error::Error::Database(e.into()))?);
+            }
+            SqlDialect::MySQL => {
+                let pool = db.get_mysql_pool()
+                    .ok_or_else(|| crate::error::Error::Other("MySQL pool not found".to_string()))?;
+                self.mysql_txn = Some(pool.begin().await
+                    .map_err(|e| crate::error::Error::Database(e.into()))?);
+            }
+            SqlDialect::PostgreSQL => {
+                let pool = db.get_postgres_pool()
+                    .ok_or_else(|| crate::error::Error::Other("PostgreSQL pool not found".to_string()))?;
+                self.postgres_txn = Some(pool.begin().await
+                    .map_err(|e| crate::error::Error::Database(e.into()))?);
+            }
+        }
+        Ok(())
+    }
+
+    /// Фиксирует транзакцию
+    pub async fn commit(&mut self) -> Result<(), crate::error::Error> {
+        match self.dialect {
+            SqlDialect::SQLite => {
+                if let Some(txn) = self.sqlite_txn.take() {
+                    txn.commit().await
+                        .map_err(|e| crate::error::Error::Database(e.into()))?;
+                }
+            }
+            SqlDialect::MySQL => {
+                if let Some(txn) = self.mysql_txn.take() {
+                    txn.commit().await
+                        .map_err(|e| crate::error::Error::Database(e.into()))?;
+                }
+            }
+            SqlDialect::PostgreSQL => {
+                if let Some(txn) = self.postgres_txn.take() {
+                    txn.commit().await
+                        .map_err(|e| crate::error::Error::Database(e.into()))?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Откатывает транзакцию
+    pub async fn rollback(&mut self) -> Result<(), crate::error::Error> {
+        match self.dialect {
+            SqlDialect::SQLite => {
+                if let Some(txn) = self.sqlite_txn.take() {
+                    txn.rollback().await
+                        .map_err(|e| crate::error::Error::Database(e.into()))?;
+                }
+            }
+            SqlDialect::MySQL => {
+                if let Some(txn) = self.mysql_txn.take() {
+                    txn.rollback().await
+                        .map_err(|e| crate::error::Error::Database(e.into()))?;
+                }
+            }
+            SqlDialect::PostgreSQL => {
+                if let Some(txn) = self.postgres_txn.take() {
+                    txn.rollback().await
+                        .map_err(|e| crate::error::Error::Database(e.into()))?;
+                }
+            }
+        }
+        Ok(())
     }
 }
 
