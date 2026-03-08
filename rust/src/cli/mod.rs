@@ -396,9 +396,7 @@ fn cmd_server(args: ServerArgs, config: Config) -> anyhow::Result<()> {
 #[allow(unused_variables)]
 fn cmd_runner(args: RunnerArgs, config: Config) -> anyhow::Result<()> {
     tracing::info!("Запуск раннера Semaphore...");
-
-    // TODO: Реализовать запуск раннера
-
+    tracing::warn!("Запуск раннера через CLI пока не поддерживается. Используйте 'semaphore server' вместо этого.");
     Ok(())
 }
 
@@ -406,7 +404,7 @@ fn cmd_runner(args: RunnerArgs, config: Config) -> anyhow::Result<()> {
 fn cmd_migrate(args: MigrateArgs, config: Config) -> anyhow::Result<()> {
     tracing::info!("Применение миграций...");
 
-    let _store = create_store(&config)?;
+    let database_url = config.database_url().map_err(|e| anyhow::anyhow!("{}", e))?;
 
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -414,12 +412,17 @@ fn cmd_migrate(args: MigrateArgs, config: Config) -> anyhow::Result<()> {
         .block_on(async {
             if args.upgrade {
                 tracing::info!("Применение миграций...");
-                // TODO: Применить миграции
+                // Создаём SqlStore и применяем миграции
+                let store = crate::db::sql::SqlStore::new(&database_url).await
+                    .map_err(|e| anyhow::anyhow!("Ошибка подключения к БД: {}", e))?;
+                
+                // Миграции применяются автоматически при создании SqlStore
+                tracing::info!("Миграции успешно применены");
             }
 
             if args.downgrade {
                 tracing::info!("Откат миграций...");
-                // TODO: Откатить миграции
+                tracing::warn!("Откат миграций пока не поддерживается");
             }
 
             Ok::<_, anyhow::Error>(())
@@ -514,11 +517,24 @@ fn cmd_project(args: ProjectArgs, config: Config) -> anyhow::Result<()> {
 }
 
 /// Команда: настройка
-#[allow(unused_variables)]
-fn cmd_setup(args: SetupArgs, config: Config) -> anyhow::Result<()> {
+fn cmd_setup(_args: SetupArgs, _config: Config) -> anyhow::Result<()> {
     tracing::info!("Мастер настройки Semaphore...");
-
-    // TODO: Реализовать интерактивный мастер настройки
+    
+    println!("\n=== Мастер настройки Semaphore ===\n");
+    println!("Создайте файл конфигурации вручную или используйте переменные окружения:");
+    println!();
+    println!("  SEMAPHORE_DB_DIALECT=sqlite    # или postgres, mysql");
+    println!("  SEMAPHORE_DB_PATH=/path/to/db  # для SQLite");
+    println!("  SEMAPHORE_DB_HOST=localhost    # для PostgreSQL/MySQL");
+    println!("  SEMAPHORE_DB_PORT=5432         # для PostgreSQL");
+    println!("  SEMAPHORE_DB_USER=semaphore");
+    println!("  SEMAPHORE_DB_PASS=secret");
+    println!("  SEMAPHORE_DB_NAME=semaphore");
+    println!();
+    println!("Затем выполните:");
+    println!("  semaphore migrate --upgrade");
+    println!("  semaphore user add --username admin --name Admin --email admin@example.com --password admin123 --admin");
+    println!();
 
     Ok(())
 }
