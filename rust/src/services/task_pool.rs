@@ -178,6 +178,11 @@ impl TaskPool {
         }
     }
 
+    /// Получает доступ к хранилищу
+    pub fn store(&self) -> Arc<dyn Store> {
+        self.store.clone()
+    }
+
     /// Запускает пул задач
     pub async fn start(&self) -> Result<()> {
         let mut running = self.running.write().await;

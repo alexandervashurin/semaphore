@@ -4,41 +4,124 @@
 
 use crate::error::Result;
 use crate::services::task_runner::TaskRunner;
+use crate::models::{Hook, HookType};
 
 impl TaskRunner {
     /// run_hooks запускает hooks для задачи
     pub async fn run_hooks(&self, event_type: &str) -> Result<()> {
-        // TODO: hooks поле удалено из Template
-        // Получение hooks из шаблона
-        // let hooks_list = &self.template.hooks;
+        // Получение hooks из хранилища по template_id
+        let hooks = self.pool.store().get_hooks_by_template(self.task.template_id)
+            .await
+            .unwrap_or_default();
 
-        // if hooks_list.is_empty() {
-        //     return Ok(());
-        // }
+        if hooks.is_empty() {
+            return Ok(());
+        }
 
         // Запуск hooks для указанного события
-        // for hook in hooks_list {
-        //     if hook.event == event_type {
-        //         if let Err(e) = self.execute_hook(hook).await {
-        //             self.log(&format!("Hook failed: {}", e));
-        //             // Продолжаем выполнение даже если hook не удался
-        //         }
-        //     }
-        // }
+        for hook in hooks {
+            // Проверяем, подходит ли hook для этого события
+            if self.hook_matches_event(&hook, event_type) {
+                if let Err(e) = self.execute_hook(&hook).await {
+                    self.log(&format!("Hook '{}' failed: {}", hook.name, e));
+                    // Продолжаем выполнение даже если hook не удался
+                }
+            }
+        }
 
         Ok(())
     }
 
+    /// Проверяет, соответствует ли hook событию
+    fn hook_matches_event(&self, hook: &Hook, event_type: &str) -> bool {
+        // В простой реализации все hooks выполняются для всех событий
+        // В полной версии можно добавить поле event в Hook
+        hook.name.contains(event_type) || event_type == "all"
+    }
+
     /// execute_hook выполняет один hook
-    async fn execute_hook(&self, hook: &crate::models::Hook) -> Result<()> {
-        // TODO: Интеграция с PRO hook executor
-        // В зависимости от типа hook:
-        // - HTTP запрос
-        // - Выполнение скрипта
-        // - Отправка уведомления
-        
-        self.log(&format!("Executing hook: {}", hook.name));
-        
+    async fn execute_hook(&self, hook: &Hook) -> Result<()> {
+        self.log(&format!("Executing hook: {} (type: {:?})", hook.name, hook.r#type));
+
+        match hook.r#type {
+            HookType::Http => {
+                // HTTP запрос
+                if let Some(url) = &hook.url {
+                    let client = reqwest::Client::new();
+                    let method = hook.http_method.as_deref().unwrap_or("GET");
+                    
+                    let request = match method.to_uppercase().as_str() {
+                        "GET" => client.get(url),
+                        "POST" => client.post(url),
+                        "PUT" => client.put(url),
+                        "DELETE" => client.delete(url),
+                        _ => client.get(url),
+                    };
+
+                    // Добавляем тело запроса если есть
+                    let request = if let Some(body) = &hook.http_body {
+                        request.body(body.clone())
+                    } else {
+                        request
+                    };
+
+                    // Устанавливаем таймаут если указан
+                    let request = if let Some(timeout) = hook.timeout_secs {
+                        request.timeout(std::time::Duration::from_secs(timeout as u64))
+                    } else {
+                        request
+                    };
+
+                    let response = request.send().await;
+                    match response {
+                        Ok(resp) => {
+                            self.log(&format!("Hook '{}' completed with status: {}", hook.name, resp.status()));
+                        }
+                        Err(e) => {
+                            return Err(crate::error::Error::Other(format!("HTTP hook failed: {}", e)));
+                        }
+                    }
+                }
+            }
+            HookType::Bash | HookType::Python => {
+                // Выполнение скрипта
+                if let Some(script) = &hook.script {
+                    let (shell, arg) = match hook.r#type {
+                        HookType::Bash => ("bash", "-c"),
+                        HookType::Python => ("python3", "-c"),
+                        _ => ("bash", "-c"),
+                    };
+
+                    let output = tokio::process::Command::new(shell)
+                        .arg(arg)
+                        .arg(script)
+                        .output()
+                        .await;
+
+                    match output {
+                        Ok(out) => {
+                            let stdout = String::from_utf8_lossy(&out.stdout);
+                            let stderr = String::from_utf8_lossy(&out.stderr);
+                            
+                            if !stdout.is_empty() {
+                                self.log(&format!("Hook '{}' stdout: {}", hook.name, stdout));
+                            }
+                            if !stderr.is_empty() {
+                                self.log(&format!("Hook '{}' stderr: {}", hook.name, stderr));
+                            }
+                            
+                            if !out.status.success() {
+                                return Err(crate::error::Error::Other(format!("Script hook failed with exit code: {:?}", out.status.code())));
+                            }
+                        }
+                        Err(e) => {
+                            return Err(crate::error::Error::Other(format!("Script hook failed: {}", e)));
+                        }
+                    }
+                }
+            }
+        }
+
         Ok(())
     }
 

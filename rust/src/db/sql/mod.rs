@@ -41,7 +41,7 @@ pub mod session;
 pub mod view;
 
 use crate::db::store::*;
-use crate::models::{User, UserTotp, Project, Task, TaskWithTpl, TaskOutput, TaskStage, Template, Inventory, Repository, Environment, AccessKey, Integration, Schedule, Session, APIToken, Event, Runner, View, Role, ProjectInvite, ProjectInviteWithUser, ProjectUser, RetrieveQueryParams, TerraformInventoryAlias, TerraformInventoryState, SecretStorage, SessionVerificationMethod};
+use crate::models::{User, UserTotp, Hook, Project, Task, TaskWithTpl, TaskOutput, TaskStage, Template, Inventory, Repository, Environment, AccessKey, Integration, Schedule, Session, APIToken, Event, Runner, View, Role, ProjectInvite, ProjectInviteWithUser, ProjectUser, RetrieveQueryParams, TerraformInventoryAlias, TerraformInventoryState, SecretStorage, SessionVerificationMethod};
 use crate::error::{Error, Result};
 use crate::services::task_logger::TaskStatus;
 use crate::db::sql::types::{SqlDb, SqlDialect};
@@ -1232,6 +1232,14 @@ impl UserManager for SqlStore {
             }
         }
         Ok(())
+    }
+}
+
+#[async_trait]
+impl HookManager for SqlStore {
+    async fn get_hooks_by_template(&self, template_id: i32) -> Result<Vec<Hook>> {
+        // Заглушка - возвращаем пустой список
+        Ok(Vec::new())
     }
 }
 

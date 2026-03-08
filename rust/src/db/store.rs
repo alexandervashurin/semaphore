@@ -3,6 +3,7 @@
 //! Агрегирует все специализированные трейты для работы с данными
 
 use crate::models::*;
+use crate::models::Hook;
 use crate::error::Result;
 use crate::services::task_logger::TaskStatus;
 use async_trait::async_trait;
@@ -107,6 +108,12 @@ pub trait TemplateManager: Send + Sync {
     async fn create_template(&self, template: Template) -> Result<Template>;
     async fn update_template(&self, template: Template) -> Result<()>;
     async fn delete_template(&self, project_id: i32, template_id: i32) -> Result<()>;
+}
+
+/// Менеджер хуков
+#[async_trait]
+pub trait HookManager: Send + Sync {
+    async fn get_hooks_by_template(&self, template_id: i32) -> Result<Vec<Hook>>;
 }
 
 /// Менеджер инвентарей
@@ -293,5 +300,6 @@ pub trait Store:
     + ProjectInviteManager
     + TerraformInventoryManager
     + SecretStorageManager
+    + HookManager
 {
 }

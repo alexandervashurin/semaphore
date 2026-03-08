@@ -153,6 +153,19 @@ impl UserManager for MockStore {
         }
         Ok(())
     }
+
+    async fn get_hooks_by_template(&self, _template_id: i32) -> Result<Vec<Hook>> {
+        // Mock - возвращаем пустой список
+        Ok(Vec::new())
+    }
+}
+
+#[async_trait]
+impl HookManager for MockStore {
+    async fn get_hooks_by_template(&self, _template_id: i32) -> Result<Vec<Hook>> {
+        // Mock - возвращаем пустой список
+        Ok(Vec::new())
+    }
 }
 
 #[async_trait]

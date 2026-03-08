@@ -185,6 +185,13 @@ impl TemplateManager for StoreWrapper {
 }
 
 #[async_trait]
+impl HookManager for StoreWrapper {
+    async fn get_hooks_by_template(&self, template_id: i32) -> Result<Vec<Hook>> {
+        self.inner.as_ref().as_ref().get_hooks_by_template(template_id).await
+    }
+}
+
+#[async_trait]
 impl InventoryManager for StoreWrapper {
     async fn get_inventories(&self, project_id: i32) -> Result<Vec<Inventory>> {
         self.inner.as_ref().as_ref().get_inventories(project_id).await
