@@ -2,6 +2,7 @@
 
 use crate::db::store::*;
 use crate::models::*;
+use crate::models::audit_log::{AuditAction, AuditObjectType, AuditLevel, AuditLog, AuditLogFilter, AuditLogResult};
 use crate::error::Result;
 use crate::services::task_logger::TaskStatus;
 use async_trait::async_trait;
@@ -573,6 +574,68 @@ impl SecretStorageManager for StoreWrapper {
 
     async fn delete_secret_storage(&self, project_id: i32, storage_id: i32) -> Result<()> {
         self.inner.as_ref().as_ref().delete_secret_storage(project_id, storage_id).await
+    }
+}
+
+#[async_trait]
+impl AuditLogManager for StoreWrapper {
+    async fn create_audit_log(
+        &self,
+        project_id: Option<i64>,
+        user_id: Option<i64>,
+        username: Option<String>,
+        action: &AuditAction,
+        object_type: &AuditObjectType,
+        object_id: Option<i64>,
+        object_name: Option<String>,
+        description: String,
+        level: &AuditLevel,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
+        details: Option<serde_json::Value>,
+    ) -> Result<AuditLog> {
+        self.inner.as_ref().as_ref().create_audit_log(
+            project_id,
+            user_id,
+            username,
+            action,
+            object_type,
+            object_id,
+            object_name,
+            description,
+            level,
+            ip_address,
+            user_agent,
+            details,
+        ).await
+    }
+
+    async fn get_audit_log(&self, id: i64) -> Result<AuditLog> {
+        self.inner.as_ref().as_ref().get_audit_log(id).await
+    }
+
+    async fn search_audit_logs(&self, filter: &AuditLogFilter) -> Result<AuditLogResult> {
+        self.inner.as_ref().as_ref().search_audit_logs(filter).await
+    }
+
+    async fn get_audit_logs_by_project(&self, project_id: i64, limit: i64, offset: i64) -> Result<Vec<AuditLog>> {
+        self.inner.as_ref().as_ref().get_audit_logs_by_project(project_id, limit, offset).await
+    }
+
+    async fn get_audit_logs_by_user(&self, user_id: i64, limit: i64, offset: i64) -> Result<Vec<AuditLog>> {
+        self.inner.as_ref().as_ref().get_audit_logs_by_user(user_id, limit, offset).await
+    }
+
+    async fn get_audit_logs_by_action(&self, action: &AuditAction, limit: i64, offset: i64) -> Result<Vec<AuditLog>> {
+        self.inner.as_ref().as_ref().get_audit_logs_by_action(action, limit, offset).await
+    }
+
+    async fn delete_audit_logs_before(&self, before: DateTime<Utc>) -> Result<u64> {
+        self.inner.as_ref().as_ref().delete_audit_logs_before(before).await
+    }
+
+    async fn clear_audit_log(&self) -> Result<u64> {
+        self.inner.as_ref().as_ref().clear_audit_log().await
     }
 }
 

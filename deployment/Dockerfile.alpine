@@ -1,0 +1,140 @@
+# =============================================================================
+# Semaphore UI - Оптимизированный Docker образ (Alpine/musl)
+# =============================================================================
+# Этот Dockerfile создаёт минимальный образ с использованием:
+# - Rust musl для статической линковки
+# - Alpine Linux для минимального размера
+# - Multi-stage сборки для удаления всех зависимостей сборки
+#
+# Ожидаемый размер: ~50-80 MB (vs ~450 MB стандартного)
+#
+# Использование:
+#   docker build -f deployment/Dockerfile.alpine -t semaphore:alpine .
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Этап 1: Установка musl-cross для статической сборки
+# -----------------------------------------------------------------------------
+FROM rust:1.88-alpine AS musl-builder
+
+# Установка зависимостей для сборки
+RUN apk add --no-cache \
+    musl-dev \
+    musl-tools \
+    clang \
+    llvm \
+    pkgconfig \
+    openssl-dev \
+    openssl-libs-static \
+    libssh2-dev \
+    git
+
+# Установка cargo-zigbuild для кросс-компиляции (опционально)
+RUN cargo install cargo-zigbuild || true
+
+WORKDIR /app
+
+# Копирование Cargo файлов для кэширования зависимостей
+COPY rust/Cargo.toml rust/Cargo.lock ./
+
+# Создание пустого проекта для кэширования зависимостей
+RUN mkdir -p src && echo "pub fn dummy() {}" > src/lib.rs && \
+    cargo build --release --target x86_64-unknown-linux-musl && \
+    rm -rf src target
+
+# Копирование исходного кода Rust
+COPY rust/src ./src
+
+# Сборка проекта со статической линковкой
+ENV RUSTFLAGS="-C target-feature=+crt-static -C link-arg=-s"
+ENV OPENSSL_STATIC=1
+ENV OPENSSL_LIB_DIR=/usr/lib
+ENV OPENSSL_INCLUDE_DIR=/usr/include
+
+RUN cargo build --release --target x86_64-unknown-linux-musl && \
+    # Strip бинарника для уменьшения размера
+    llvm-strip target/x86_64-unknown-linux-musl/release/semaphore
+
+# -----------------------------------------------------------------------------
+# Этап 2: Сборка frontend (Vue.js)
+# -----------------------------------------------------------------------------
+FROM node:18-alpine AS frontend-builder
+
+WORKDIR /web
+
+# Копирование package файлов для кэширования зависимостей
+COPY web/package.json web/package-lock.json ./
+
+# Установка зависимостей
+RUN npm ci --only=production
+
+# Копирование исходного кода и сборка
+COPY web/ ./
+RUN npm run build
+
+# Копирование собранного frontend
+RUN cp -r /web/dist /web/public-final
+
+# -----------------------------------------------------------------------------
+# Этап 3: Финальный минимальный образ
+# -----------------------------------------------------------------------------
+FROM alpine:3.19
+
+# Метки образа
+LABEL maintainer="Alexander Vashurin <alexandervashurin@yandex.ru>"
+LABEL description="Semaphore UI - минимальный Alpine образ"
+LABEL version="0.1.0-alpine"
+
+# Установка минимальных runtime зависимостей
+RUN apk add --no-cache \
+    ca-certificates \
+    libgcc \
+    libstdc++ \
+    openssl-libs \
+    libssh2 \
+    tzdata \
+    && rm -rf /var/cache/apk/* \
+    && rm -rf /var/www/html/*
+
+# Создание пользователя для запуска от непривилегированного аккаунта
+RUN addgroup -g 1000 semaphore && \
+    adduser -D -u 1000 -G semaphore semaphore
+
+# Копирование бинарного файла из builder
+COPY --from=musl-builder /app/target/x86_64-unknown-linux-musl/release/semaphore /usr/local/bin/semaphore
+
+# Копирование frontend из builder
+COPY --from=frontend-builder /web/public-final /var/www/html
+
+# Копирование конфигурации Nginx (если используется)
+# COPY deployment/single/nginx.conf /etc/nginx/nginx.conf
+
+# Создание директорий для данных
+RUN mkdir -p /app/data /app/config /app/logs && \
+    chown -R semaphore:semaphore /app /var/www/html && \
+    chmod -R 755 /app /var/www/html
+
+# Переключение на пользователя semaphore
+USER semaphore
+
+# Рабочая директория
+WORKDIR /app
+
+# Порты
+EXPOSE 3000
+
+# Переменные окружения
+ENV SEMAPHORE_DB_URL="sqlite://data/semaphore.db"
+ENV SEMAPHORE_WEB_PATH="/var/www/html"
+ENV SEMAPHORE_HOST="0.0.0.0"
+ENV SEMAPHORE_PORT="3000"
+ENV RUST_LOG="info"
+# Для musl совместимости
+ENV LD_LIBRARY_PATH="/usr/lib:/lib"
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+
+# Запуск приложения
+CMD ["semaphore", "server", "--host", "${SEMAPHORE_HOST}", "--port", "${SEMAPHORE_PORT}"]

@@ -1,0 +1,109 @@
+# =============================================================================
+# Semaphore UI - Оптимизированный Docker образ (Slim, production)
+# =============================================================================
+# Баланс между размером и функциональностью:
+# - Debian slim base (меньше чем full, больше чем alpine)
+# - Оптимизированная сборка Rust
+# - Полная совместимость с glibc
+#
+# Ожидаемый размер: ~150-200 MB
+#
+# Использование:
+#   docker build -f deployment/Dockerfile.slim -t semaphore:slim .
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Этап 1: Сборка backend (Rust) с оптимизациями
+# -----------------------------------------------------------------------------
+FROM rust:1.88-slim AS backend-builder
+
+# Установка зависимостей
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    libssh2-1-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Копирование Cargo файлов
+COPY rust/Cargo.toml rust/Cargo.lock ./
+
+# Кэширование зависимостей
+RUN mkdir -p src && echo "pub fn dummy() {}" > src/lib.rs && \
+    cargo build --release && \
+    rm -rf src target
+
+# Копирование исходного кода
+COPY rust/src ./src
+
+# Сборка с оптимизациями размера
+# LTO=true и codegen-units=1 уже указаны в Cargo.toml
+ENV RUSTFLAGS="-C link-arg=-s"
+
+RUN cargo build --release && \
+    strip --strip-all target/release/semaphore
+
+# -----------------------------------------------------------------------------
+# Этап 2: Сборка frontend (Vue.js)
+# -----------------------------------------------------------------------------
+FROM node:18-alpine AS frontend-builder
+
+WORKDIR /web
+
+COPY web/package.json web/package-lock.json ./
+RUN npm ci --only=production
+COPY web/ ./
+RUN npm run build
+
+# -----------------------------------------------------------------------------
+# Этап 3: Финальный образ
+# -----------------------------------------------------------------------------
+FROM debian:bookworm-slim
+
+# Метки
+LABEL maintainer="Alexander Vashurin <alexandervashurin@yandex.ru>"
+LABEL description="Semaphore UI - Slim образ"
+LABEL version="0.1.0-slim"
+
+# Установка минимальных runtime зависимостей
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libssl3 \
+    libssh2-1 \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /var/www/html/*
+
+# Создание пользователя
+RUN useradd -m -u 1000 semaphore
+
+# Копирование бинарного файла
+COPY --from=backend-builder /app/target/release/semaphore /usr/local/bin/semaphore
+
+# Копирование frontend
+COPY --from=frontend-builder /web/dist /var/www/html
+
+# Создание директорий
+RUN mkdir -p /app/data /app/config /app/logs && \
+    chown -R semaphore:semaphore /app /var/www/html && \
+    chmod -R 755 /app /var/www/html
+
+# Переключение на пользователя
+USER semaphore
+
+WORKDIR /app
+
+EXPOSE 3000
+
+ENV SEMAPHORE_DB_URL="sqlite://data/semaphore.db"
+ENV SEMAPHORE_WEB_PATH="/var/www/html"
+ENV SEMAPHORE_HOST="0.0.0.0"
+ENV SEMAPHORE_PORT="3000"
+ENV RUST_LOG="info"
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:3000/health || exit 1
+
+CMD ["semaphore", "server", "--host", "${SEMAPHORE_HOST}", "--port", "${SEMAPHORE_PORT}"]

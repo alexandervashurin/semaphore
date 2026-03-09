@@ -153,6 +153,24 @@ tempfile = "3"
 lto = true
 codegen-units = 1
 strip = true
+opt-level = "z"  # Оптимизация размера
+panic = "abort"   # Меньше бинарник
+
+# Профиль для минимального размера (используется в Docker alpine/distroless)
+[profile.release-small]
+inherits = "release"
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
+
+# Профиль для максимальной производительности
+[profile.release-fast]
+inherits = "release"
+opt-level = 3
+lto = "fat"
+codegen-units = 1
 
 [profile.dev]
 debug = true

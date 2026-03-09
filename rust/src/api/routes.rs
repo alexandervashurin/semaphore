@@ -261,6 +261,13 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         // Системная информация (System Info)
         .route("/api/info", get(system_info::get_system_info))
 
+        // Audit Log - admin only
+        .route("/api/audit-log", get(handlers::audit_log::get_audit_logs))
+        .route("/api/audit-log/clear", delete(handlers::audit_log::clear_audit_log))
+        .route("/api/audit-log/expiry", delete(handlers::audit_log::delete_old_audit_logs))
+        .route("/api/audit-log/{id}", get(handlers::audit_log::get_audit_log))
+        .route("/api/project/{project_id}/audit-log", get(handlers::audit_log::get_project_audit_logs))
+
         // Пользовательские API токены (User Tokens)
         .route("/api/user/tokens", get(user::get_api_tokens))
         .route("/api/user/tokens", post(user::create_api_token))

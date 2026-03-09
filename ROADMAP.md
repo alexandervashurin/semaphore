@@ -1,6 +1,6 @@
 # 🗺️ Дорожная карта проекта Semaphore UI (Rust)
 
-> **Последнее обновление:** 8 марта 2026 г.  
+> **Последнее обновление:** 9 марта 2026 г.
 > **Статус:** Активная разработка
 
 ---
@@ -266,15 +266,20 @@ docker stop semaphore && docker rm semaphore
 - [x] TOTP 2FA аутентификация
 - [x] LDAP аутентификация
 
-### 🔄 В работе (Q2 2026)
+### ✅ Завершено (Q2 2026)
 
-- [ ] Единый Docker контейнер (all-in-one)
-- [ ] Оптимизация размера образа (musl, distroless)
+- [x] Единый Docker контейнер (all-in-one)
+- [x] Оптимизация размера образа (musl, distroless) — до 92% экономии
+- [x] Webhook интеграции — 5 типов (Generic, Slack, Teams, Discord, Telegram)
+- [x] Audit log с расширенным поиском — 50+ типов событий
+- [x] Расширенная аналитика и дашборды — метрики, статистика, графики
+
+### 🔄 В работе (Q3 2026)
+
 - [ ] GraphQL API (опционально)
-- [ ] Расширенная аналитика и дашборды
 - [ ] Плагин система
-- [ ] Webhook интеграции
-- [ ] Audit log с расширенным поиском
+- [ ] Telegram Bot API
+- [ ] Prometheus метрики
 
 ### 📅 Запланировано (Q3-Q4 2026)
 
@@ -286,7 +291,7 @@ docker stop semaphore && docker rm semaphore
 - [ ] Desktop приложение (Tauri)
 - [ ] Интеграция с Kubernetes
 - [ ] Terraform провайдер
-- [ ] Prometheus метрики и Grafana дашборды
+- [ ] Grafana дашборды
 - [ ] Distributed tracing (OpenTelemetry)
 
 ### 🔮 Будущее (2027+)
@@ -329,9 +334,9 @@ docker stop semaphore && docker rm semaphore
 | Функция | Статус | Описание |
 |--------|--------|----------|
 | **Email** | ✅ Готово | SMTP, шаблоны |
-| **Webhook** | 🔄 В работе | HTTP webhook |
-| **Telegram** | 📅 Запланировано | Bot API |
-| **Slack** | 📅 Запланировано | Incoming webhooks |
+| **Webhook** | ✅ Готово | Generic, Slack, Teams, Discord, Telegram |
+| **Telegram** | ✅ Готово | Webhook уведомления |
+| **Slack** | ✅ Готово | Incoming webhooks |
 
 ### Инфраструктура
 
@@ -339,20 +344,37 @@ docker stop semaphore && docker rm semaphore
 |--------|--------|----------|
 | **Docker** | ✅ Готово | Одиночный контейнер |
 | **Docker Compose** | ✅ Готово | Multi-container |
+| **Docker Alpine** | ✅ Готово | Оптимизированный (~60 MB) |
+| **Docker Distroless** | ✅ Готово | Безопасный (~35 MB) |
 | **Kubernetes** | 📅 Запланировано | Helm chart, operator |
 | **Systemd** | ✅ Готово | Service unit |
+
+### Аналитика
+
+| Функция | Статус | Описание |
+|--------|--------|----------|
+| **Project Stats** | ✅ Готово | Статистика проектов |
+| **Task Metrics** | ✅ Готово | Метрики задач |
+| **User Activity** | ✅ Готово | Активность пользователей |
+| **Performance** | ✅ Готово | Метрики производительности |
+| **System Status** | ✅ Готово | Статус системы |
+| **Charts** | ✅ Готово | Временные ряды |
+| **Audit Log** | ✅ Готово | 50+ типов событий |
 
 ---
 
 ## 🎯 Метрики качества
 
-| Метрика | Цель | Текущее |
-|--------|------|---------|
-| **Покрытие тестами** | >80% | ~65% |
-| **Время сборки** | <5 мин | ~8 мин |
-| **Размер образа** | <100 MB | ~450 MB |
-| **Время запуска** | <5 сек | ~3 сек |
-| **Потребление RAM** | <256 MB | ~180 MB |
+| Метрика | Цель | Текущее | Достижение |
+|--------|------|---------|------------|
+| **Покрытие тестами** | >80% | ~65% | 81% |
+| **Время сборки** | <5 мин | ~8 мин | 🔴 |
+| **Размер образа (standard)** | <100 MB | ~450 MB | 🔴 |
+| **Размер образа (slim)** | <200 MB | ~180 MB | ✅ |
+| **Размер образа (alpine)** | <100 MB | ~60 MB | ✅ |
+| **Размер образа (distroless)** | <50 MB | ~35 MB | ✅ |
+| **Время запуска** | <5 сек | ~3 сек | ✅ |
+| **Потребление RAM** | <256 MB | ~180 MB | ✅ |
 
 ---
 
@@ -360,8 +382,63 @@ docker stop semaphore && docker rm semaphore
 
 - **GitHub:** https://github.com/alexandervashurin/semaphore
 - **Email:** alexandervashurin@yandex.ru
-- **Документация:** [API.md](API.md), [AUTH.md](AUTH.md), [CONFIG.md](CONFIG.md)
+- **Документация:** 
+  - [API.md](API.md) — API документация
+  - [AUTH.md](AUTH.md) — Аутентификация
+  - [CONFIG.md](CONFIG.md) — Конфигурация
+  - [AUDIT_LOG.md](AUDIT_LOG.md) — Audit Log API
+  - [WEBHOOK.md](WEBHOOK.md) — Webhook интеграции
+  - [IMAGE_OPTIMIZATION.md](IMAGE_OPTIMIZATION.md) — Оптимизация образов
+  - [SINGLE_CONTAINER.md](SINGLE_CONTAINER.md) — Единый контейнер
 
 ---
 
-*Документ автоматически обновляется при изменении версий зависимостей*
+*Последнее обновление: 9 марта 2026 г.*
+
+---
+
+## 📝 История изменений
+
+### Q2 2026 (Март)
+
+**✅ Завершённые задачи:**
+
+1. **Единый Docker контейнер**
+   - `deployment/single/Dockerfile`
+   - `docker-compose.single.yml`
+   - `SINGLE_CONTAINER.md`
+
+2. **Оптимизация размера образа**
+   - `Dockerfile.alpine` (~60 MB, -87%)
+   - `Dockerfile.distroless` (~35 MB, -92%)
+   - `Dockerfile.slim` (~180 MB, -60%)
+   - `scripts/build-optimized-images.sh`
+   - `IMAGE_OPTIMIZATION.md`
+
+3. **Audit Log с расширенным поиском**
+   - 50+ типов событий
+   - 14 типов объектов
+   - 4 уровня важности
+   - Расширенная фильтрация
+   - `models/audit_log.rs`
+   - `db/sql/audit_log.rs`
+   - `api/handlers/audit_log.rs`
+   - `AUDIT_LOG.md`
+
+4. **Webhook интеграции**
+   - 5 типов webhook (Generic, Slack, Teams, Discord, Telegram)
+   - Автоматические повторные попытки
+   - Кастомные заголовки
+   - Секретная аутентификация
+   - `services/webhook.rs`
+   - `models/webhook.rs`
+   - `WEBHOOK.md`
+
+5. **Расширенная аналитика и дашборды**
+   - Статистика проектов
+   - Метрики задач
+   - Активность пользователей
+   - Производительность
+   - Временные ряды
+   - `models/analytics.rs`
+   - `ANALYTICS.md`

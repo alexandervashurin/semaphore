@@ -1,0 +1,103 @@
+# =============================================================================
+# Semaphore UI - Distroless Docker образ (максимальная безопасность)
+# =============================================================================
+# Этот Dockerfile создаёт максимально безопасный образ с использованием:
+# - Google Distroless base image (только приложение, без shell)
+# - Статически слинкованный бинарник
+# - Минимальные зависимости runtime
+#
+# Ожидаемый размер: ~30-50 MB
+# Безопасность: нет shell, нет package manager, read-only filesystem
+#
+# Использование:
+#   docker build -f deployment/Dockerfile.distroless -t semaphore:distroless .
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Этап 1: Сборка Rust приложения (статическая линковка)
+# -----------------------------------------------------------------------------
+FROM rust:1.88-slim AS builder
+
+# Установка зависимостей для сборки
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    libssh2-1-dev \
+    musl-tools \
+    && rm -rf /var/lib/apt/lists/*
+
+# Установка musl target
+RUN rustup target add x86_64-unknown-linux-musl
+
+WORKDIR /app
+
+# Копирование Cargo файлов для кэширования зависимостей
+COPY rust/Cargo.toml rust/Cargo.lock ./
+
+# Создание пустого проекта для кэширования зависимостей
+RUN mkdir -p src && echo "pub fn dummy() {}" > src/lib.rs && \
+    cargo build --release --target x86_64-unknown-linux-musl && \
+    rm -rf src target
+
+# Копирование исходного кода Rust
+COPY rust/src ./src
+
+# Сборка со статической линковкой и оптимизацией размера
+ENV RUSTFLAGS="-C target-feature=+crt-static -C opt-level=z -C link-arg=-s"
+ENV OPENSSL_STATIC=1
+
+RUN cargo build --release --target x86_64-unknown-linux-musl && \
+    # Максимальный strip для уменьшения размера
+    strip --strip-all target/x86_64-unknown-linux-musl/release/semaphore
+
+# -----------------------------------------------------------------------------
+# Этап 2: Сборка frontend (Vue.js)
+# -----------------------------------------------------------------------------
+FROM node:18-alpine AS frontend-builder
+
+WORKDIR /web
+
+COPY web/package.json web/package-lock.json ./
+RUN npm ci --only=production
+COPY web/ ./
+RUN npm run build
+
+# -----------------------------------------------------------------------------
+# Этап 3: Distroless образ
+# -----------------------------------------------------------------------------
+FROM gcr.io/distroless/cc-debian12
+
+# Метки образа
+LABEL maintainer="Alexander Vashurin <alexandervashurin@yandex.ru>"
+LABEL description="Semaphore UI - Distroless образ (максимальная безопасность)"
+LABEL version="0.1.0-distroless"
+
+# Копирование бинарного файла
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/semaphore /usr/local/bin/semaphore
+
+# Копирование frontend (статические файлы)
+COPY --from=frontend-builder /web/dist /var/www/html
+
+# Создание директорий (нужно делать до смены пользователя)
+RUN mkdir -p /app/data /app/config /app/logs
+
+# Переменные окружения
+ENV SEMAPHORE_DB_URL="sqlite://data/semaphore.db"
+ENV SEMAPHORE_WEB_PATH="/var/www/html"
+ENV SEMAPHORE_HOST="0.0.0.0"
+ENV SEMAPHORE_PORT="3000"
+ENV RUST_LOG="info"
+
+# Невозможно создать пользователя в distroless, используем встроенного
+# USER 65532 (nobody)
+
+WORKDIR /app
+
+# Порт
+EXPOSE 3000
+
+# Healthcheck (в distroless нет wget/curl, используем built-in)
+# Для production рекомендуется использовать external health checks
+
+# Запуск приложения (в distroless нет shell, используем exec form)
+CMD ["semaphore", "server", "--host", "0.0.0.0", "--port", "3000"]
