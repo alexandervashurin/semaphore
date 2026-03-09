@@ -2,6 +2,7 @@
 
 use crate::db::Store;
 use crate::config::Config;
+use crate::services::metrics::MetricsManager;
 use std::sync::Arc;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -21,6 +22,7 @@ pub struct AppState {
     pub config: Config,
     pub ws_manager: Arc<WebSocketManager>,
     pub oidc_state: Arc<Mutex<HashMap<String, OidcState>>>,
+    pub metrics: MetricsManager,
 }
 
 impl AppState {
@@ -31,6 +33,7 @@ impl AppState {
             config,
             ws_manager: Arc::new(WebSocketManager::new()),
             oidc_state: Arc::new(Mutex::new(HashMap::new())),
+            metrics: MetricsManager::new(),
         }
     }
 }

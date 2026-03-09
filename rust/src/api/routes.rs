@@ -261,6 +261,10 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         // Системная информация (System Info)
         .route("/api/info", get(system_info::get_system_info))
 
+        // Prometheus Metrics
+        .route("/api/metrics", get(handlers::metrics::get_metrics))
+        .route("/api/metrics/json", get(handlers::metrics::get_metrics_json))
+
         // Audit Log - admin only
         .route("/api/audit-log", get(handlers::audit_log::get_audit_logs))
         .route("/api/audit-log/clear", delete(handlers::audit_log::clear_audit_log))

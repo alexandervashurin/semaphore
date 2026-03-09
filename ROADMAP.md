@@ -396,6 +396,42 @@ docker stop semaphore && docker rm semaphore
 | **Размер образа (distroless)** | <50 MB | ~35 MB | ✅ |
 | **Время запуска** | <5 сек | ~3 сек | ✅ |
 | **Потребление RAM** | <256 MB | ~180 MB | ✅ |
+| **Frontend сборка** | ✅ Работает | Vue.js 2.6.14 | ✅ |
+| **Backend API** | ✅ Работает | Порт 3000 | ✅ |
+| **Database** | ✅ Работает | PostgreSQL 5432 | ✅ |
+
+---
+
+## 🚀 Текущий статус запуска
+
+### Рабочие сервисы (Март 2026)
+
+```bash
+# Backend (Rust + встроенный frontend)
+✅ http://localhost:3000
+
+# Database (PostgreSQL)
+✅ localhost:5432 (semaphore/semaphore_pass)
+
+# Frontend (nginx)
+🔄 Требуется настройка
+```
+
+### Команды запуска
+
+```bash
+# 1. Запуск БД и frontend
+docker-compose up -d
+
+# 2. Сборка frontend
+cd web && npm install && npm run build
+
+# 3. Запуск backend
+cd rust && cargo run -- server --host 0.0.0.0 --port 3000
+
+# 4. Доступ к UI
+http://localhost:3000
+```
 
 ---
 

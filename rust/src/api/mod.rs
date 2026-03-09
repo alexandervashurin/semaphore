@@ -28,6 +28,9 @@ use tower_http::trace::TraceLayer;
 use std::sync::Arc;
 
 use state::AppState;
+
+// Ре-экспорт middleware
+pub use middleware::{rate_limiter, security_headers};
 use websocket::WebSocketManager;
 
 /// Создаёт приложение Axum

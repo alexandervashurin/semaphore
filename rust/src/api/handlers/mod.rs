@@ -4,6 +4,7 @@
 
 pub mod auth;
 pub mod oidc;
+pub mod metrics;
 #[cfg(test)]
 mod tests;
 pub mod users;
