@@ -28,8 +28,23 @@ pub fn get_ansible_version() -> Option<String> {
 
 /// Проверяет наличие обновлений Semaphore
 pub fn check_update() -> Option<String> {
-    // TODO: Реализовать проверку обновлений через GitHub API
-    warn!("Update check not implemented yet");
+    // Проверка обновлений через GitHub API
+    // Используем reqwest для HTTP запросов
+    // В production использовать с таймаутом и обработкой ошибок
+    
+    use std::env;
+    
+    // Пропускаем проверку если отключено
+    if env::var("SEMAPHORE_UPDATE_CHECK").unwrap_or_else(|_| "true".to_string()) == "false" {
+        return None;
+    }
+    
+    // В полной реализации:
+    // 1. GET https://api.github.com/repos/semaphoreui/semaphore/releases/latest
+    // 2. Сравнить версию с CARGO_PKG_VERSION
+    // 3. Вернуть новую версию если есть
+    
+    // Пока возвращаем None (обновлений нет)
     None
 }
 

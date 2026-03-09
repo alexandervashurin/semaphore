@@ -35,6 +35,9 @@ pub mod migration;
 pub mod project_stats;
 pub mod project_user;
 pub mod task_params;
+pub mod audit_log;
+pub mod webhook;
+pub mod analytics;
 
 #[cfg(test)]
 mod tests;
@@ -73,6 +76,9 @@ pub use migration::Migration;
 pub use project_stats::ProjectStats;
 pub use project_user::ProjectUser;
 pub use task_params::{AnsibleTaskParams as AnsibleTaskParamsStruct, TerraformTaskParams as TerraformTaskParamsStruct, DefaultTaskParams as DefaultTaskParamsStruct};
+pub use audit_log::{AuditLog, AuditAction, AuditObjectType, AuditLevel, AuditDetails, AuditLogFilter, AuditLogResult};
+pub use webhook::{Webhook, WebhookType, CreateWebhook, UpdateWebhook, TestWebhook, WebhookLog};
+pub use analytics::{TaskStats, UserActivity, PerformanceMetrics, ResourceUsage, ChartData, TimeSeries, SystemStatus, TopItem, TopSlowTask, TopUser, AnalyticsQueryParams, ProjectAnalytics, RunnerMetrics, SystemMetrics};
 
 // Ре-экспорт RetrieveQueryParams из db::store
 pub use crate::db::store::RetrieveQueryParams;

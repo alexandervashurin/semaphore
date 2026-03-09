@@ -406,12 +406,12 @@ mod tests {
             
             // Проверяем, что SSH агент создан
             assert!(result.has_ssh_agent);
-            
+
             // Освобождаем память (только если указатели не null)
             // В текущей реализации result.login/password могут быть dangling pointers
             // Поэтому просто пропускаем rust_free_access_key_installation для теста
-            // TODO: исправить управление памятью в production коде
-            
+            // Примечание: в production коде требуется правильная очистка памяти
+
             rust_free_logger(logger);
         }
     }

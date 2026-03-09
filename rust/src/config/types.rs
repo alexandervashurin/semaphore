@@ -378,6 +378,38 @@ pub struct Config {
 
     #[serde(rename = "mailerFrom", default = "default_mailer_from")]
     pub mailer_from: String,
+
+    /// Конфигурация алертов
+    #[serde(rename = "alert", default)]
+    pub alert: AlertConfig,
+
+    /// Отправитель email по умолчанию
+    #[serde(rename = "emailSender", default = "default_email_sender")]
+    pub email_sender: String,
+}
+
+/// Конфигурация алертов
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct AlertConfig {
+    /// Включены ли алерты
+    #[serde(default = "default_alert_enabled")]
+    pub enabled: bool,
+
+    /// Email для алертов по умолчанию
+    #[serde(default)]
+    pub email: Option<String>,
+
+    /// Включить алерты для всех проектов
+    #[serde(default)]
+    pub all_projects: bool,
+}
+
+fn default_alert_enabled() -> bool {
+    false
+}
+
+fn default_email_sender() -> String {
+    "semaphore@localhost".to_string()
 }
 
 fn default_mailer_port() -> String {
@@ -415,6 +447,12 @@ impl Default for Config {
             mailer_use_tls: false,
             mailer_secure: false,
             mailer_from: default_mailer_from(),
+            alert: AlertConfig {
+                enabled: false,
+                email: None,
+                all_projects: false,
+            },
+            email_sender: default_email_sender(),
         }
     }
 }

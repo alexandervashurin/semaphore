@@ -14,6 +14,7 @@
 //! - **models** - Модели данных
 //! - **config** - Конфигурация приложения
 //! - **ffi** - FFI модуль для вызова из Go (cgo)
+//! - **plugins** - Система плагинов
 
 pub mod api;
 pub mod cli;
@@ -25,6 +26,7 @@ pub mod models;
 pub mod pro;
 pub mod services;
 pub mod utils;
+pub mod plugins;
 
 mod error;
 mod logging;

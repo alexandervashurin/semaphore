@@ -2,7 +2,7 @@
 //!
 //! Аналог util/config.go из Go версии (часть 4: значения по умолчанию)
 
-use crate::config::types::{Config, DbConfig, LdapMappings, AuthConfig, TotpConfig, HAConfig, HARedisConfig};
+use crate::config::types::{Config, DbConfig, LdapMappings, AuthConfig, TotpConfig, HAConfig, HARedisConfig, AlertConfig};
 
 /// Загружает значения по умолчанию для конфигурации
 pub fn load_defaults(config: &mut Config) {
@@ -119,6 +119,12 @@ pub fn create_default_config() -> Config {
         mailer_use_tls: false,
         mailer_secure: false,
         mailer_from: "noreply@localhost".to_string(),
+        alert: AlertConfig {
+            enabled: false,
+            email: None,
+            all_projects: false,
+        },
+        email_sender: "semaphore@localhost".to_string(),
     }
 }
 

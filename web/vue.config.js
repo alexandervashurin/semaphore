@@ -28,20 +28,12 @@ module.exports = {
       chunkFilename: 'css/[name].css',
     },
   },
-  chainWebpack: (config) => {
-    config.plugin('html')
-      .tap((args) => {
-        // eslint-disable-next-line no-param-reassign
-        args[0].minify = false;
-        return args;
-      });
-  },
   transpileDependencies: [
     'vuetify',
   ],
   publicPath: './',
-  // path.resolve избегает бага html-webpack-plugin на Windows (pub lic → public)
-  outputDir: path.resolve(__dirname, 'public'),
+  // Используем стандартную сборку без pages
+  outputDir: path.resolve(__dirname, 'dist'),
   indexPath: 'index.html',
   filenameHashing: false,
 };

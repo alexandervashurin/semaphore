@@ -3,6 +3,7 @@
 //! Агрегирует все специализированные трейты для работы с данными
 
 use crate::models::*;
+use crate::models::audit_log::{AuditAction, AuditObjectType, AuditLevel, AuditLog, AuditLogFilter, AuditLogResult};
 use crate::models::Hook;
 use crate::error::Result;
 use crate::services::task_logger::TaskStatus;
@@ -276,6 +277,48 @@ pub trait SecretStorageManager: Send + Sync {
     async fn delete_secret_storage(&self, project_id: i32, storage_id: i32) -> Result<()>;
 }
 
+/// Менеджер audit log
+#[async_trait]
+pub trait AuditLogManager: Send + Sync {
+    /// Создаёт новую запись audit log
+    async fn create_audit_log(
+        &self,
+        project_id: Option<i64>,
+        user_id: Option<i64>,
+        username: Option<String>,
+        action: &AuditAction,
+        object_type: &AuditObjectType,
+        object_id: Option<i64>,
+        object_name: Option<String>,
+        description: String,
+        level: &AuditLevel,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
+        details: Option<serde_json::Value>,
+    ) -> Result<AuditLog>;
+
+    /// Получает запись audit log по ID
+    async fn get_audit_log(&self, id: i64) -> Result<AuditLog>;
+
+    /// Поиск записей audit log с фильтрацией и пагинацией
+    async fn search_audit_logs(&self, filter: &AuditLogFilter) -> Result<AuditLogResult>;
+
+    /// Получает записи audit log по project_id с пагинацией
+    async fn get_audit_logs_by_project(&self, project_id: i64, limit: i64, offset: i64) -> Result<Vec<AuditLog>>;
+
+    /// Получает записи audit log по user_id с пагинацией
+    async fn get_audit_logs_by_user(&self, user_id: i64, limit: i64, offset: i64) -> Result<Vec<AuditLog>>;
+
+    /// Получает записи audit log по action с пагинацией
+    async fn get_audit_logs_by_action(&self, action: &AuditAction, limit: i64, offset: i64) -> Result<Vec<AuditLog>>;
+
+    /// Удаляет старые записи audit log (до указанной даты)
+    async fn delete_audit_logs_before(&self, before: DateTime<Utc>) -> Result<u64>;
+
+    /// Очищает весь audit log
+    async fn clear_audit_log(&self) -> Result<u64>;
+}
+
 /// Основной трейт хранилища - агрегирует все менеджеры
 #[async_trait]
 pub trait Store:
@@ -301,5 +344,6 @@ pub trait Store:
     + TerraformInventoryManager
     + SecretStorageManager
     + HookManager
+    + AuditLogManager
 {
 }

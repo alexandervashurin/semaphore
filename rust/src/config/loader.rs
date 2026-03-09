@@ -6,7 +6,7 @@ use std::fs;
 use std::collections::HashMap;
 use std::env;
 use serde::{Deserialize, Serialize};
-use crate::config::types::{Config, DbConfig, LdapConfig, AuthConfig, TotpConfig, HAConfig, HARedisConfig};
+use crate::config::types::{Config, DbConfig, LdapConfig, AuthConfig, TotpConfig, HAConfig, HARedisConfig, AlertConfig};
 use crate::error::{Error, Result};
 
 /// Загружает конфигурацию из файла
@@ -115,6 +115,12 @@ pub fn merge_configs(first: Config, second: Config) -> Config {
         mailer_use_tls: second.mailer_use_tls || first.mailer_use_tls,
         mailer_secure: second.mailer_secure || first.mailer_secure,
         mailer_from: if !second.mailer_from.is_empty() { second.mailer_from } else { first.mailer_from },
+        alert: AlertConfig {
+            enabled: second.alert.enabled || first.alert.enabled,
+            email: second.alert.email.or(first.alert.email),
+            all_projects: second.alert.all_projects || first.alert.all_projects,
+        },
+        email_sender: if !second.email_sender.is_empty() { second.email_sender } else { first.email_sender },
     }
 }
 

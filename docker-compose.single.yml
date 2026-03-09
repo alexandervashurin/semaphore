@@ -1,0 +1,100 @@
+# =============================================================================
+# Semaphore UI - Docker Compose (Единый контейнер)
+# =============================================================================
+# Запуск Semaphore UI в одном контейнере с SQLite
+# Не требует отдельных контейнеров для БД и frontend
+#
+# Использование:
+#   docker-compose -f docker-compose.single.yml up -d
+#   docker-compose -f docker-compose.single.yml logs -f
+#   docker-compose -f docker-compose.single.yml down
+# =============================================================================
+
+version: '3.8'
+
+services:
+  semaphore:
+    image: semaphore:latest
+    # Для сборки из исходников раскомментируйте:
+    # build:
+    #   context: .
+    #   dockerfile: deployment/single/Dockerfile
+    container_name: semaphore
+    restart: unless-stopped
+    
+    # Порты
+    ports:
+      - "80:80"   # Web интерфейс
+      - "3000:3000" # API (опционально)
+    
+    # Тома для сохранения данных
+    volumes:
+      - semaphore_data:/app/data          # База данных SQLite
+      - semaphore_config:/app/config      # Конфигурация
+      - semaphore_logs:/app/logs          # Логи
+    
+    # Переменные окружения
+    environment:
+      # База данных (SQLite)
+      - SEMAPHORE_DB_URL=sqlite://data/semaphore.db
+      
+      # Web интерфейс
+      - SEMAPHORE_WEB_PATH=/var/www/html
+      
+      # Сервер
+      - SEMAPHORE_HOST=0.0.0.0
+      - SEMAPHORE_PORT=3000
+      
+      # Логирование
+      - RUST_LOG=info
+      
+      # Опционально: Email
+      # - SEMAPHORE_EMAIL_HOST=smtp.example.com
+      # - SEMAPHORE_EMAIL_PORT=587
+      # - SEMAPHORE_EMAIL_USER=user@example.com
+      # - SEMAPHORE_EMAIL_PASSWORD=password
+      
+      # Опционально: LDAP
+      # - SEMAPHORE_LDAP_URL=ldap://ldap.example.com
+      # - SEMAPHORE_LDAP_BIND_DN=cn=admin,dc=example,dc=com
+      # - SEMAPHORE_LDAP_BIND_PASSWORD=password
+    
+    # Healthcheck
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    # Сеть
+    networks:
+      - semaphore-network
+    
+    # Ресурсы (опционально)
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 128M
+
+# Сети
+networks:
+  semaphore-network:
+    driver: bridge
+    name: semaphore-network
+
+# Тома
+volumes:
+  semaphore_data:
+    driver: local
+    name: semaphore_data
+  semaphore_config:
+    driver: local
+    name: semaphore_config
+  semaphore_logs:
+    driver: local
+    name: semaphore_logs

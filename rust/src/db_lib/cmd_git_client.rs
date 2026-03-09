@@ -344,14 +344,17 @@ impl CmdGitClient {
 #[async_trait::async_trait]
 impl GitClient for CmdGitClient {
     async fn clone(&self, repo: &GitRepository) -> Result<()> {
-        // TODO: Интеграция с logger
-        println!("Cloning repository {}", repo.repository.git_url);
+        // Логирование клонирования репозитория
+        tracing::info!("Cloning repository {}", repo.repository.git_url);
 
         let dir_name = repo.tmp_dir_name.clone()
             .unwrap_or_else(|| repo.repository.get_dir_name(repo.template_id));
 
-        // Временная заглушка - будет интегрирована с AccessKeyInstaller
-        let installation = AccessKeyInstallation::new();
+        // Установка SSH ключа если указан
+        let installation = match repo.repository.ssh_key_id {
+            Some(key_id) => AccessKeyInstallation::new_with_key_id(key_id),
+            None => AccessKeyInstallation::new(),
+        };
 
         let mut cmd = self.make_async_cmd(
             repo,

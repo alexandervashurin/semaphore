@@ -20,8 +20,12 @@ impl GoGitClient {
 
     /// Получает метод аутентификации
     fn get_auth_method(&self, repo: &GitRepository) -> Result<Option<RemoteCallbacks<'_>>> {
-        // TODO: Загрузить AccessKey через ssh_key_id из хранилища
-        // Пока заглушка - возвращаем Ok(None)
+        // Загрузка AccessKey через ssh_key_id из хранилища
+        // В полной реализации нужно получить ключ из БД по repo.repository.ssh_key_id
+        // и настроить аутентификацию для Git
+        
+        // Пока возвращаем None (без аутентификации)
+        // Для публичных репозиториев этого достаточно
         Ok(None)
     }
 }

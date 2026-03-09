@@ -27,13 +27,18 @@ pub use config_dirs::{clear_dir, ensure_dir_exists, get_project_tmp_dir, clear_p
 pub use config_helpers::{find_semaphore, get_ansible_version, check_update, lookup_default_apps, get_public_host, generate_recovery_code, verify_recovery_code, get_public_alias_url};
 
 /// Проверяет, включены ли email уведомления
-/// TODO: Реализовать через Config.alert
 pub fn email_alert_enabled() -> bool {
-    false // Заглушка до реализации конфигурации алертов
+    // В полной реализации нужно загружать конфиг и проверять alert.enabled
+    // Пока используем переменную окружения
+    std::env::var("SEMAPHORE_ALERT_ENABLED")
+        .map(|v| v == "true" || v == "1")
+        .unwrap_or(false)
 }
 
 /// Получает отправителя email
-/// TODO: Реализовать через Config.email_sender
 pub fn get_email_sender() -> String {
-    String::from("semaphore@localhost") // Заглушка
+    // В полной реализации нужно загружать конфиг и возвращать config.email_sender
+    // Пока используем переменную окружения или дефолтное значение
+    std::env::var("SEMAPHORE_EMAIL_SENDER")
+        .unwrap_or_else(|_| String::from("semaphore@localhost"))
 }

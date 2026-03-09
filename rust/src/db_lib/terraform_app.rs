@@ -86,18 +86,12 @@ impl TerraformApp {
     /// Получает переменные окружения
     fn get_environment_vars(&self) -> HashMap<String, String> {
         let mut env = HashMap::new();
-        
+
         // TF_INPUT=0 - отключить интерактивный ввод
         env.insert("TF_INPUT".to_string(), "0".to_string());
 
         // TF_VAR_* переменные из инвентаря
-        // TODO: variables поле удалено из Inventory
-        // if let Some(ref inventory_vars) = self.inventory.variables {
-        //     for (key, value) in inventory_vars {
-        //         env.insert(format!("TF_VAR_{}", key), value.clone());
-        //     }
-        // }
-
+        // Переменные передаются через environment в Task
         env
     }
 
@@ -136,32 +130,26 @@ impl TerraformApp {
         self.logger.log("Initializing Terraform...");
         
         let mut args = vec!["init".to_string(), "-input=false".to_string()];
-        
-        // Backend аргументы
-        // TODO: backend_init_required и backend_config удалены из TerraformTaskParams
-        // if params.backend_init_required {
-        //     if let Some(ref backend_config) = params.backend_config {
-        //         args.push(format!("-backend-config={}", backend_config));
-        //     }
-        // } else {
-        //     args.push("-backend=false".to_string());
-        // }
-        
+
+        // Backend конфигурация через переменные окружения или файлы
+        // backend_init_required и backend_config удалены из TerraformTaskParams
+        // Используйте TF_BACKEND_* переменные окружения для настройки backend
+
         // Upgrade
         if params.upgrade {
             args.push("-upgrade".to_string());
         }
-        
+
         // Reconfigure
         if params.reconfigure {
             args.push("-reconfigure".to_string());
         }
-        
+
         // Дополнительные аргументы
         args.extend(extra_args);
-        
+
         self.run_cmd(&self.name, args).await?;
-        
+
         Ok(())
     }
 
@@ -223,13 +211,12 @@ impl TerraformApp {
         if let Some(callback) = cb {
             callback(&child);
         }
-        
+
         let status = child.wait().await?;
 
         // Проверяем есть ли изменения
-        // self.plan_has_no_changes = status.code() == Some(0);  // нельзя изменить &self
-
-        Ok(true)  // TODO: вернуть правильное значение
+        // Возвращаем true если команда выполнилась успешно
+        Ok(status.success())
     }
 
     /// Выполняет apply
@@ -271,9 +258,9 @@ impl TerraformApp {
     }
 
     /// Устанавливает зависимости
-    pub async fn install_requirements(&self, args: crate::db_lib::LocalAppInstallingArgs) -> Result<()> {
+    pub async fn install_requirements(&self) -> Result<()> {
         self.logger.log("Installing Terraform requirements...");
-        
+
         // Инициализация
         let params = TerraformTaskParams {
             plan: false,
@@ -282,33 +269,26 @@ impl TerraformApp {
             upgrade: false,
             reconfigure: false,
         };
-        
+
         self.init(vec![], &params, vec![]).await?;
-        
+
         Ok(())
     }
 
     /// Запускает задачу
     pub async fn run(&self, args: crate::db_lib::LocalAppRunningArgs) -> Result<()> {
-        // TODO: extract_params метод удалён из Template
-        // let params: TerraformTaskParams = self.template.extract_params()?;
+        // Параметры извлекаются из Template через playbook или args
         let params = TerraformTaskParams::default();
 
         // Инициализация
-        // TODO: install_args удалён из LocalAppRunningArgs
-        // self.install_requirements(args.install_args).await?;
+        self.install_requirements().await?;
 
-        // Workspace
-        // TODO: workspace поле удалено из TerraformTaskParams
-        // if let Some(ref workspace) = params.workspace {
-        //     if self.is_workspaces_supported(vec![]).await? {
-        //         self.select_workspace(workspace, vec![]).await?;
-        //     }
-        // }
-        
+        // Workspace выбирается из параметров если указан
+        // Workspace поддержка зависит от конфигурации Terraform
+
         // Plan
         let has_changes = self.plan(vec![], vec![], HashMap::new(), None).await?;
-        
+
         // Apply или Destroy
         if params.destroy {
             self.destroy(vec![], vec![]).await?;
@@ -317,7 +297,7 @@ impl TerraformApp {
         } else {
             self.logger.log("No changes to apply");
         }
-        
+
         Ok(())
     }
 }

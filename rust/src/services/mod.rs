@@ -20,6 +20,7 @@ pub mod task_pool_status;
 pub mod task_pool_types;
 pub mod task_runner;
 pub mod totp;
+pub mod webhook;
 
 pub use access_key_installation_service::{
     AccessKeyEncryptionService, AccessKeyInstallationServiceTrait,
@@ -34,3 +35,4 @@ pub use exporter::{ExporterChain, TypeKeyMapper, ValueMap, ProgressBar, init_pro
 pub use task_pool_types::{TaskPool, RunningTask};
 pub use task_pool_status::TaskStatusMessage;
 pub use task_runner::TaskRunner;
+pub use webhook::{WebhookService, WebhookConfig, WebhookEvent, WebhookResult, WebhookType, WebhookMetadata};
