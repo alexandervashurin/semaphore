@@ -9,6 +9,7 @@ pub use security_headers::*;
 // Ре-экспорт ErrorResponse для обратной совместимости
 use axum::{http::StatusCode, response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
+use crate::error::Error as CrateError;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ErrorResponse {
@@ -36,6 +37,48 @@ impl ErrorResponse {
     pub fn with_details(mut self, details: serde_json::Value) -> Self {
         self.details = Some(details);
         self
+    }
+    
+    /// Создаёт ErrorResponse из crate::Error
+    pub fn from_crate_error(e: &CrateError) -> (StatusCode, Self) {
+        match e {
+            CrateError::NotFound(_) => (
+                StatusCode::NOT_FOUND,
+                Self::new(e.to_string()),
+            ),
+            CrateError::Unauthorized(_) => (
+                StatusCode::UNAUTHORIZED,
+                Self::new(e.to_string()),
+            ),
+            CrateError::Forbidden(_) => (
+                StatusCode::FORBIDDEN,
+                Self::new(e.to_string()),
+            ),
+            CrateError::Validation(_) => (
+                StatusCode::BAD_REQUEST,
+                Self::new(e.to_string()),
+            ),
+            CrateError::Auth(_) => (
+                StatusCode::UNAUTHORIZED,
+                Self::new(e.to_string()),
+            ),
+            CrateError::Database(_) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Self::new(e.to_string()),
+            ),
+            CrateError::Config(_) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Self::new(e.to_string()),
+            ),
+            CrateError::Git(_) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Self::new(e.to_string()),
+            ),
+            _ => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Self::new(e.to_string()),
+            ),
+        }
     }
 }
 
