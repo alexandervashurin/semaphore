@@ -1,7 +1,7 @@
 # 🗺️ Semaphore UI Roadmap 2026-2027
 
 > **Полная декомпозиция проекта и план развития**
-> **Последнее обновление:** 10 марта 2026 г. (Q4 2026, P2-2 завершено)
+> **Последнее обновление:** 10 марта 2026 г. (Q4 2026, P2-3 завершено)
 
 ---
 
@@ -12,7 +12,7 @@
 | Метрика | Значение |
 |---------|----------|
 | **Rust файлы** | 306 |
-| **Строк кода (оценка)** | ~56,000+ |
+| **Строк кода (оценка)** | ~57,000+ |
 | **Модули** | 12 основных |
 | **API endpoints** | 100+ |
 | **Моделей данных** | 40+ |
@@ -22,6 +22,8 @@
 | **Типов событий audit** | 50+ |
 | **Типов webhook** | 5 |
 | **gRPC сервисов** | 3 |
+| **Тестов** | 530+ |
+| **Покрытие тестами** | ~67% |
 
 ### Структура проекта
 
@@ -324,7 +326,7 @@ Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.33s
 |----|--------|-----------|--------|--------|
 | P2-1 | Redis кэширование | Средний | 3 дня | ✅ Завершено |
 | P2-2 | gRPC API для внутренних сервисов | Низкий | 5 дней | ✅ Завершено |
-| P2-3 | Улучшение тестового покрытия | Средний | 5 дней | 🔄 В работе |
+| P2-3 | Улучшение тестового покрытия | Средний | 5 дней | ✅ Завершено |
 | P2-4 | Оптимизация производительности | Средний | 3 дня | 🔄 В работе |
 
 #### P3 — Улучшения
@@ -477,6 +479,7 @@ Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.33s
 | `PLUGINS_WASM.md` | ✅ Готово | WASM плагины ⭐ NEW |
 | `REDIS_CACHE.md` | ✅ Готово | Redis кэширование ⭐ NEW |
 | `GRPC_API.md` | ✅ Готово | gRPC API ⭐ NEW |
+| `TESTING.md` | ✅ Готово | Тестирование ⭐ NEW |
 | `SINGLE_CONTAINER.md` | ✅ Готово | Единый контейнер |
 | `GRAPHQL_API.md` | ✅ Готово | GraphQL API ⭐ NEW |
 | `TELEGRAM_BOT.md` | ✅ Готово | Telegram Bot ⭐ NEW |
@@ -496,7 +499,7 @@ Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.33s
 | 0.1.0 | Q1 2026 | Базовая функциональность |
 | 0.2.0 | Q2 2026 | Audit Log, Webhooks, Analytics |
 | 0.3.0 | Q3 2026 | Plugin System, WASM загрузчик |
-| 0.4.0 | Q4 2026 | GraphQL, Telegram Bot, Prometheus, Redis, gRPC |
+| 0.4.0 | Q4 2026 | GraphQL, Telegram Bot, Prometheus, Redis, gRPC, Тесты |
 | 1.0.0 | Q1 2027 | Production ready |
 
 ---
@@ -506,7 +509,8 @@ Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.33s
 - **GitHub:** https://github.com/alexandervashurin/semaphore
 - **Email:** alexandervashurin@yandex.ru
 - **Документация:**
-  - [GRPC_API.md](GRPC_API.md) — gRPC API ⭐ NEW
+  - [TESTING.md](TESTING.md) — Тестирование ⭐ NEW
+  - [GRPC_API.md](GRPC_API.md) — gRPC API
   - [REDIS_CACHE.md](REDIS_CACHE.md) — Redis кэширование
   - [PLUGINS_WASM.md](PLUGINS_WASM.md) — WASM плагины
   - [GRAPHQL_API.md](GRAPHQL_API.md) — GraphQL API
