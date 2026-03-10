@@ -173,10 +173,20 @@ features = ["user", "fs"]
 tokio-test = "0.4"
 fake = { version = "4", features = ["derive", "chrono"] }
 tempfile = "3"
+criterion = { version = "0.6", features = ["html_reports"] }
 
 # Build dependencies для gRPC
 [build-dependencies]
 tonic-build = "0.13"
+
+# Профилирование и бенчмарки
+[[bench]]
+name = "cache_bench"
+harness = false
+
+[[bench]]
+name = "db_bench"
+harness = false
 
 # Профилирование
 [profile.release]
