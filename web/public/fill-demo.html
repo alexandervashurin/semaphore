@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Заполнение демо-данных</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        h1 { color: #333; }
+        button { padding: 12px 24px; background: #6366f1; color: white; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; margin: 5px; }
+        button:hover { background: #4f46e5; }
+        button:disabled { background: #ccc; }
+        #log { margin-top: 20px; padding: 15px; background: #1e1e1e; color: #0f0; border-radius: 6px; font-family: monospace; white-space: pre-wrap; word-break: break-all; max-height: 400px; overflow-y: auto; }
+        .success { color: #0f0; }
+        .error { color: #f55; }
+        .info { color: #88f; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Заполнение тестовыми данными</h1>
+        <p>Этот скрипт создаст проекты, шаблоны и задачи через API</p>
+        <button onclick="fillData()" id="startBtn">▶️ Начать заполнение</button>
+        <button onclick="clearData()" id="clearBtn">🗑️ Очистить данные</button>
+        <div id="log"></div>
+    </div>
+    <script>
+        const API_BASE = '/api';
+        let token = localStorage.getItem('semaphore_token');
+        
+        function log(msg, type = 'info') {
+            const el = document.getElementById('log');
+            const color = type === 'error' ? '#f55' : type === 'success' ? '#0f0' : '#88f';
+            el.innerHTML += `<span style="color:${color}">${msg}</span>\n`;
+            el.scrollTop = el.scrollHeight;
+        }
+        
+        async function api(endpoint, method = 'GET', body = null) {
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            const options = { method, headers };
+            if (body) options.body = JSON.stringify(body);
+            const response = await fetch(`${API_BASE}${endpoint}`, options);
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || data.message || 'Failed');
+            return data;
+        }
+        
+        async function fillData() {
+            const btn = document.getElementById('startBtn');
+            btn.disabled = true;
+            document.getElementById('log').innerHTML = '';
+            
+            try {
+                // Проверка авторизации
+                if (!token) {
+                    log('🔐 Вход в систему...', 'info');
+                    const auth = await api('/auth/login', 'POST', { username: 'admin', password: 'demo123', expire: true });
+                    token = auth.token;
+                    localStorage.setItem('semaphore_token', token);
+                    log('✅ Авторизация успешна', 'success');
+                }
+                
+                // Создание проектов
+                const projects = [
+                    { name: 'Web Application', description: 'Основной веб-проект' },
+                    { name: 'Database Migration', description: 'Миграция БД на PostgreSQL' },
+                    { name: 'Infrastructure', description: 'Инфраструктурные скрипты' },
+                    { name: 'CI/CD Pipeline', description: 'Пайплайны непрерывной интеграции' },
+                    { name: 'Monitoring Setup', description: 'Настройка мониторинга' }
+                ];
+                
+                log('📁 Создание проектов...', 'info');
+                const projectIds = [];
+                for (const proj of projects) {
+                    try {
+                        const result = await api('/projects', 'POST', proj);
+                        const id = result.id || result.ID;
+                        projectIds.push(id);
+                        log(`  ✅ Проект "${proj.name}" (ID: ${id})`, 'success');
+                    } catch (e) {
+                        log(`  ⚠️ Проект "${proj.name}" уже существует`, 'info');
+                    }
+                }
+                
+                // Получение существующих проектов
+                const allProjects = await api('/projects');
+                log(`📊 Всего проектов: ${allProjects.length}`, 'info');
+                
+                // Создание шаблонов
+                log('📋 Создание шаблонов...', 'info');
+                const templates = [
+                    { name: 'Deploy to Production', playbook: 'deploy.yml', project_id: 1 },
+                    { name: 'Run Tests', playbook: 'test.yml', project_id: 1 },
+                    { name: 'Backup Database', playbook: 'backup.yml', project_id: 2 },
+                    { name: 'Migrate Schema', playbook: 'migrate.yml', project_id: 2 },
+                    { name: 'Setup Server', playbook: 'setup.yml', project_id: 3 },
+                    { name: 'Deploy App', playbook: 'deploy-app.yml', project_id: 4 },
+                    { name: 'Run Lint', playbook: 'lint.yml', project_id: 4 },
+                    { name: 'Setup Prometheus', playbook: 'prometheus.yml', project_id: 5 }
+                ];
+                
+                for (const tpl of templates) {
+                    try {
+                        const result = await api('/templates', 'POST', { ...tpl, type: 'playbook' });
+                        log(`  ✅ Шаблон "${tpl.name}" создан`, 'success');
+                    } catch (e) {
+                        log(`  ⚠️ Шаблон "${tpl.name}" уже существует`, 'info');
+                    }
+                }
+                
+                // Создание задач
+                log('✅ Создание тестовых задач...', 'info');
+                const allTemplates = await api('/templates');
+                log(`📊 Всего шаблонов: ${allTemplates.length}`, 'info');
+                
+                for (const tpl of allTemplates.slice(0, 3)) {
+                    try {
+                        await api('/tasks', 'POST', { template_id: tpl.id || tpl.ID });
+                        log(`  ✅ Задача для шаблона ${tpl.name} создана`, 'success');
+                    } catch (e) {
+                        log(`  ⚠️ Ошибка создания задачи: ${e.message}`, 'error');
+                    }
+                }
+                
+                log('\n🎉 Заполнение завершено!', 'success');
+                log('📍 Перейдите на главную страницу: /', 'info');
+                
+            } catch (error) {
+                log(`❌ Ошибка: ${error.message}`, 'error');
+            }
+            
+            btn.disabled = false;
+        }
+        
+        async function clearData() {
+            if (!confirm('Вы уверены? Все данные будут удалены!')) return;
+            
+            const btn = document.getElementById('clearBtn');
+            btn.disabled = true;
+            document.getElementById('log').innerHTML = '';
+            
+            try {
+                if (!token) {
+                    const auth = await api('/auth/login', 'POST', { username: 'admin', password: 'demo123', expire: true });
+                    token = auth.token;
+                }
+                
+                // Удаление задач
+                log('🗑️ Удаление задач...', 'info');
+                const tasks = await api('/tasks');
+                for (const task of tasks || []) {
+                    try {
+                        await api(`/tasks/${task.id || task.ID}`, 'DELETE');
+                    } catch (e) {}
+                }
+                
+                // Удаление шаблонов
+                log('🗑️ Удаление шаблонов...', 'info');
+                const templates = await api('/templates');
+                for (const tpl of templates || []) {
+                    try {
+                        await api(`/templates/${tpl.id || tpl.ID}`, 'DELETE');
+                    } catch (e) {}
+                }
+                
+                // Удаление проектов
+                log('🗑️ Удаление проектов...', 'info');
+                const projects = await api('/projects');
+                for (const proj of projects || []) {
+                    try {
+                        await api(`/projects/${proj.id || proj.ID}`, 'DELETE');
+                    } catch (e) {}
+                }
+                
+                log('\n✅ Все данные удалены!', 'success');
+                
+            } catch (error) {
+                log(`❌ Ошибка: ${error.message}`, 'error');
+            }
+            
+            btn.disabled = false;
+        }
+    </script>
+</body>
+</html>

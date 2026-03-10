@@ -64,3 +64,6 @@ web/dist/
 # Upstream reference (не коммитить)
 semaphore-upstream/
 rust/semaphore-upstream/
+
+# Rust temp files
+rust/tmp/.tmp*
