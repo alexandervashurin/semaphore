@@ -312,6 +312,10 @@ pub struct PluginManager {
     plugins: HashMap<String, Arc<RwLock<dyn Plugin>>>,
     hooks: HashMap<String, Vec<String>>, // hook_name -> plugin_ids
     config: PluginManagerConfig,
+    /// WASM загрузчик плагинов
+    wasm_loader: Option<crate::plugins::wasm_loader::WasmPluginLoader>,
+    /// WASM runtime для выполнения плагинов
+    wasm_runtime: Option<crate::plugins::wasm_runtime::WasmRuntime>,
 }
 
 /// Конфигурация менеджера плагинов
@@ -321,16 +325,125 @@ pub struct PluginManagerConfig {
     pub enabled_plugins: Vec<String>,
     pub disabled_plugins: Vec<String>,
     pub auto_load: bool,
+    /// Конфигурация WASM плагинов
+    pub wasm_enabled: bool,
+    pub wasm_plugins_dir: Option<String>,
+    pub wasm_max_memory_mb: u32,
+    pub wasm_max_execution_secs: u64,
+    pub wasm_allow_network: bool,
+    pub wasm_allow_filesystem: bool,
 }
 
 impl PluginManager {
     /// Создаёт новый менеджер плагинов
     pub fn new(config: PluginManagerConfig) -> Self {
+        // Инициализируем WASM загрузчик если включено
+        let (wasm_loader, wasm_runtime) = if config.wasm_enabled {
+            let wasm_config = crate::plugins::wasm_loader::WasmLoaderConfig {
+                plugins_dir: config.wasm_plugins_dir.clone().map(std::path::PathBuf::from)
+                    .unwrap_or_else(|| std::path::PathBuf::from("./plugins")),
+                max_memory_pages: config.wasm_max_memory_mb * 16, // MB -> страницы (64KB)
+                max_execution_time_secs: config.wasm_max_execution_secs,
+                allow_network: config.wasm_allow_network,
+                allow_filesystem: config.wasm_allow_filesystem,
+                allow_env: false,
+                allowed_host_calls: vec![
+                    "semaphore:log".to_string(),
+                    "semaphore:get_config".to_string(),
+                    "semaphore:set_config".to_string(),
+                    "semaphore:call_hook".to_string(),
+                ],
+            };
+            
+            match crate::plugins::wasm_loader::WasmPluginLoader::new(wasm_config) {
+                Ok(loader) => {
+                    tracing::info!("WASM plugin loader initialized");
+                    (Some(loader), None) // wasm_runtime создаётся позже
+                }
+                Err(e) => {
+                    tracing::error!("Failed to initialize WASM plugin loader: {}", e);
+                    (None, None)
+                }
+            }
+        } else {
+            (None, None)
+        };
+        
         Self {
             plugins: HashMap::new(),
             hooks: HashMap::new(),
             config,
+            wasm_loader,
+            wasm_runtime,
         }
+    }
+
+    /// Инициализирует WASM runtime
+    pub async fn initialize_wasm_runtime(&mut self) -> Result<()> {
+        if let Some(loader) = &self.wasm_loader {
+            match crate::plugins::wasm_runtime::WasmRuntime::new(loader) {
+                Ok(runtime) => {
+                    self.wasm_runtime = Some(runtime);
+                    tracing::info!("WASM runtime initialized");
+                    Ok(())
+                }
+                Err(e) => {
+                    tracing::error!("Failed to initialize WASM runtime: {}", e);
+                    Err(e)
+                }
+            }
+        } else {
+            Ok(()) // WASM не включён
+        }
+    }
+
+    /// Загружает все WASM плагины
+    pub async fn load_wasm_plugins(&mut self) -> Result<Vec<crate::plugins::wasm_loader::WasmPluginMetadata>> {
+        if let Some(loader) = &mut self.wasm_loader {
+            match loader.load_all_plugins().await {
+                Ok(plugins) => {
+                    tracing::info!("Loaded {} WASM plugin(s)", plugins.len());
+                    Ok(plugins)
+                }
+                Err(e) => {
+                    tracing::error!("Failed to load WASM plugins: {}", e);
+                    Err(e)
+                }
+            }
+        } else {
+            Ok(Vec::new()) // WASM не включён
+        }
+    }
+
+    /// Выгружает WASM плагин
+    pub fn unload_wasm_plugin(&mut self, plugin_id: &str) -> Result<()> {
+        if let Some(loader) = &mut self.wasm_loader {
+            loader.unload_plugin(plugin_id)
+        } else {
+            Err(Error::NotFound("WASM loader not initialized".to_string()))
+        }
+    }
+
+    /// Получает список загруженных WASM плагинов
+    pub fn list_wasm_plugins(&self) -> Vec<&crate::plugins::wasm_loader::WasmPluginMetadata> {
+        if let Some(loader) = &self.wasm_loader {
+            loader.list_loaded_plugins()
+        } else {
+            Vec::new()
+        }
+    }
+
+    /// Вызывает хук в WASM плагинах
+    pub async fn trigger_wasm_hooks(
+        &self,
+        hook_type: crate::plugins::hooks::HookType,
+        data: serde_json::Value,
+        context: crate::plugins::base::PluginContext,
+    ) -> Result<Vec<crate::plugins::base::HookResult>> {
+        // В полной реализации здесь будет вызов WASM плагинов
+        // Для пока возвращаем пустой результат
+        tracing::debug!("WASM hook triggered: {:?}", hook_type);
+        Ok(Vec::new())
     }
     
     /// Регистрирует плагин
@@ -392,13 +505,23 @@ impl PluginManager {
         self.plugins.get(plugin_id).cloned()
     }
     
-    /// Получает список всех плагинов
+    /// Получает список всех плагинов (включая WASM)
     pub async fn list_plugins(&self) -> Vec<PluginInfo> {
         let mut infos = Vec::new();
+        
+        // Добавляем нативные плагины
         for plugin in self.plugins.values() {
             let plugin_guard = plugin.read().await;
             infos.push(plugin_guard.info());
         }
+        
+        // Добавляем WASM плагины
+        if let Some(loader) = &self.wasm_loader {
+            for wasm_plugin in loader.list_loaded_plugins() {
+                infos.push(wasm_plugin.info.clone());
+            }
+        }
+        
         infos
     }
     

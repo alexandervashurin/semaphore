@@ -1,0 +1,28 @@
+# Пример WASM плагина - Hook Logger
+# Этот плагин логирует все события хуков
+
+[package]
+name = "hook_logger"
+version = "0.1.0"
+edition = "2021"
+authors = ["Semaphore Team"]
+description = "WASM плагин для логирования событий хуков"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[dependencies]
+# WASI для системных вызовов
+wasi = "0.11"
+
+# Сериализация
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
