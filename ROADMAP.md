@@ -305,8 +305,8 @@ docker stop semaphore && docker rm semaphore
 - [ ] Distributed tracing (OpenTelemetry)
 - [x] Frontend: Audit Log UI ✅
 - [x] Frontend: Webhooks UI ✅
-- [ ] Frontend: Analytics дашборды
-- [ ] OpenAPI спецификация (Swagger)
+- [x] Frontend: Analytics дашборды ✅
+- [x] OpenAPI спецификация (Swagger) ✅
 - [x] Backup strategy — автоматические бэкапы ✅
 
 ### 🔮 Будущее (2027+)
