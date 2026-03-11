@@ -88,12 +88,12 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         // Playbooks endpoint (из upstream)
         .route("/api/projects/{project_id}/inventories/playbooks", get(handlers::get_playbooks))
         
-        // Playbooks - новые endpoints для CRUD
-        .route("/api/project/{project_id}/playbooks", get(handlers::playbooks::get_playbooks))
-        .route("/api/project/{project_id}/playbooks", post(handlers::playbooks::create_playbook))
-        .route("/api/project/{project_id}/playbooks/{id}", get(handlers::playbooks::get_playbook))
-        .route("/api/project/{project_id}/playbooks/{id}", put(handlers::playbooks::update_playbook))
-        .route("/api/project/{project_id}/playbooks/{id}", delete(handlers::playbooks::delete_playbook))
+        // Playbooks - новые endpoints (временно отключено до исправления компиляции)
+        // .route("/api/project/{project_id}/playbooks", get(handlers::playbooks::get_playbooks))
+        // .route("/api/project/{project_id}/playbooks", post(handlers::playbooks::create_playbook))
+        // .route("/api/project/{project_id}/playbooks/{id}", get(handlers::playbooks::get_playbook))
+        // .route("/api/project/{project_id}/playbooks/{id}", put(handlers::playbooks::update_playbook))
+        // .route("/api/project/{project_id}/playbooks/{id}", delete(handlers::playbooks::delete_playbook))
 
         // Репозитории
         .route("/api/projects/{project_id}/repositories", get(handlers::get_repositories))

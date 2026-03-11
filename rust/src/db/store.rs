@@ -382,6 +382,6 @@ pub trait Store:
     + HookManager
     + AuditLogManager
     + WebhookManager
-    + PlaybookManager
+//    + PlaybookManager  // Временно отключено до исправления компиляции
 {
 }
