@@ -922,3 +922,118 @@ document.addEventListener('DOMContentLoaded', () => app.init());
 };
 
 document.addEventListener('DOMContentLoaded', () => app.init());
+
+    // === Environments CRUD ===
+    async loadEnvironments() {
+        try {
+            if (!state.currentProjectId) { this.renderEmptyTable('environments-table', 4); return; }
+            const envs = await api.get(`/projects/${state.currentProjectId}/environments`).catch(() => []);
+            state.environments = Array.isArray(envs) ? envs : [];
+            this.renderEnvironmentsTable(state.environments);
+        } catch (error) { this.renderEmptyTable('environments-table', 4); }
+    },
+    async createEnvironment() {
+        const name = prompt('Название переменной:'); if (!name) return;
+        const json = prompt('JSON значение (например, {"key": "value"}):', '{}'); if (!json) return;
+        try {
+            await api.post(`/projects/${state.currentProjectId}/environments`, { name, json });
+            await this.loadEnvironments();
+            alert('✅ Переменная создана!');
+        } catch (error) { alert('❌ Ошибка: ' + error.message); }
+    },
+    async editEnvironment(id) {
+        const env = state.environments.find(e => e.id === id); if (!env) return;
+        const name = prompt('Название:', env.name); if (!name) return;
+        const json = prompt('JSON значение:', env.json); if (!json) return;
+        try {
+            await api.put(`/projects/${state.currentProjectId}/environments/${id}`, { name, json });
+            await this.loadEnvironments();
+            alert('✅ Переменная обновлена!');
+        } catch (error) { alert('❌ Ошибка: ' + error.message); }
+    },
+    async deleteEnvironment(id) { if (!confirm('Удалить переменную?')) return; try { await api.delete(`/projects/${state.currentProjectId}/environments/${id}`); await this.loadEnvironments(); alert('✅ Переменная удалена!'); } catch (error) { alert('❌ Ошибка: ' + error.message); } },
+    renderEnvironmentsTable(envs) {
+        const tbody = document.getElementById('environments-table');
+        if (!tbody) return;
+        if (!envs || envs.length === 0) { tbody.innerHTML = '<tr><td colspan="4" class="empty-state"><p>Нет переменных</p></td></tr>'; return; }
+        tbody.innerHTML = envs.map(env => `<tr><td>${env.id}</td><td><strong>${env.name}</strong></td><td>${env.project_id}</td><td><div class="actions"><button class="btn btn-sm btn-edit" onclick="app.editEnvironment(${env.id})">✏️</button><button class="btn btn-sm btn-delete" onclick="app.deleteEnvironment(${env.id})">🗑️</button></div></td></tr>`).join('');
+    },
+
+    // === Schedules CRUD ===
+    async loadSchedules() {
+        try {
+            if (!state.currentProjectId) { this.renderEmptyTable('schedules-table', 5); return; }
+            const schedules = await api.get(`/projects/${state.currentProjectId}/schedules`).catch(() => []);
+            state.schedules = Array.isArray(schedules) ? schedules : [];
+            this.renderSchedulesTable(state.schedules);
+        } catch (error) { this.renderEmptyTable('schedules-table', 5); }
+    },
+    async createSchedule() {
+        const name = prompt('Название расписания:'); if (!name) return;
+        const cron = prompt('Cron выражение (например, 0 2 * * *):'); if (!cron) return;
+        const templateId = prompt('ID шаблона:'); if (!templateId) return;
+        try {
+            await api.post(`/projects/${state.currentProjectId}/schedules`, { name, cron, template_id: parseInt(templateId), active: true });
+            await this.loadSchedules();
+            alert('✅ Расписание создано!');
+        } catch (error) { alert('❌ Ошибка: ' + error.message); }
+    },
+    async editSchedule(id) {
+        const sch = state.schedules.find(s => s.id === id); if (!sch) return;
+        const name = prompt('Название:', sch.name); if (!name) return;
+        const cron = prompt('Cron выражение:', sch.cron); if (!cron) return;
+        const active = confirm('Активно? (OK=да, Cancel=нет)');
+        try {
+            await api.put(`/projects/${state.currentProjectId}/schedules/${id}`, { name, cron, active });
+            await this.loadSchedules();
+            alert('✅ Расписание обновлено!');
+        } catch (error) { alert('❌ Ошибка: ' + error.message); }
+    },
+    async deleteSchedule(id) { if (!confirm('Удалить расписание?')) return; try { await api.delete(`/projects/${state.currentProjectId}/schedules/${id}`); await this.loadSchedules(); alert('✅ Расписание удалено!'); } catch (error) { alert('❌ Ошибка: ' + error.message); } },
+    renderSchedulesTable(schedules) {
+        const tbody = document.getElementById('schedules-table');
+        if (!tbody) return;
+        if (!schedules || schedules.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><p>Нет расписаний</p></td></tr>'; return; }
+        tbody.innerHTML = schedules.map(sch => `<tr><td>${sch.id}</td><td><strong>${sch.name}</strong></td><td><code>${sch.cron}</code></td><td>${sch.active ? '✅' : '❌'}</td><td><div class="actions"><button class="btn btn-sm btn-edit" onclick="app.editSchedule(${sch.id})">✏️</button><button class="btn btn-sm btn-delete" onclick="app.deleteSchedule(${sch.id})">🗑️</button></div></td></tr>`).join('');
+    },
+
+    // === Users CRUD ===
+    async loadUsers() {
+        try {
+            const users = await api.get('/users').catch(() => []);
+            state.users = Array.isArray(users) ? users : [];
+            this.renderUsersTable(state.users);
+        } catch (error) { this.renderEmptyTable('users-table', 5); }
+    },
+    async createUser() {
+        const username = prompt('Логин:'); if (!username) return;
+        const name = prompt('Имя:'); if (!name) return;
+        const email = prompt('Email:'); if (!email) return;
+        const password = prompt('Пароль:'); if (!password) return;
+        const admin = confirm('Администратор? (OK=да, Cancel=нет)');
+        try {
+            await api.post('/users', { username, name, email, password, admin });
+            await this.loadUsers();
+            alert('✅ Пользователь создан!');
+        } catch (error) { alert('❌ Ошибка: ' + error.message); }
+    },
+    async editUser(id) {
+        const user = state.users.find(u => u.id === id); if (!user) return;
+        const name = prompt('Имя:', user.name); if (!name) return;
+        const email = prompt('Email:', user.email); if (!email) return;
+        try {
+            await api.put(`/users/${id}`, { name, email });
+            await this.loadUsers();
+            alert('✅ Пользователь обновлён!');
+        } catch (error) { alert('❌ Ошибка: ' + error.message); }
+    },
+    async deleteUser(id) { if (!confirm('Удалить пользователя?')) return; try { await api.delete(`/users/${id}`); await this.loadUsers(); alert('✅ Пользователь удалён!'); } catch (error) { alert('❌ Ошибка: ' + error.message); } },
+    renderUsersTable(users) {
+        const tbody = document.getElementById('users-table');
+        if (!tbody) return;
+        if (!users || users.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><p>Нет пользователей</p></td></tr>'; return; }
+        tbody.innerHTML = users.map(user => `<tr><td>${user.id}</td><td><strong>${user.username}</strong></td><td>${user.name}</td><td>${user.email}</td><td>${user.admin ? '<span class="badge badge-info">Admin</span>' : 'User'}</td></tr>`).join('');
+    }
+};
+
+document.addEventListener('DOMContentLoaded', () => app.init());
