@@ -671,28 +671,7 @@ impl crate::db::store::WebhookManager for StoreWrapper {
     }
 }
 
-#[async_trait]
-impl crate::db::store::PlaybookManager for StoreWrapper {
-    async fn get_playbooks(&self, project_id: i32) -> Result<Vec<crate::models::Playbook>> {
-        self.store.store.get_playbooks(project_id).await
-    }
 
-    async fn get_playbook(&self, id: i32, project_id: i32) -> Result<crate::models::Playbook> {
-        self.store.store.get_playbook(id, project_id).await
-    }
-
-    async fn create_playbook(&self, project_id: i32, playbook: crate::models::PlaybookCreate) -> Result<crate::models::Playbook> {
-        self.store.store.create_playbook(project_id, playbook).await
-    }
-
-    async fn update_playbook(&self, id: i32, project_id: i32, playbook: crate::models::PlaybookUpdate) -> Result<crate::models::Playbook> {
-        self.store.store.update_playbook(id, project_id, playbook).await
-    }
-
-    async fn delete_playbook(&self, id: i32, project_id: i32) -> Result<()> {
-        self.store.store.delete_playbook(id, project_id).await
-    }
-}
-
+// PlaybookManager временно удалён
 #[async_trait]
 impl Store for StoreWrapper {}
