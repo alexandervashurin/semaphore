@@ -4902,9 +4902,9 @@ impl PlaybookManager for SqlStore {
         let query = "SELECT * FROM playbook WHERE project_id = $1 ORDER BY name";
         let playbooks = sqlx::query_as::<_, Playbook>(query)
             .bind(project_id)
-            .fetch_all(&self.pool.db)
+            .fetch_all(&self.db)
             .await
-            .map_err(|e| Error::Database(format!("Failed to get playbooks: {}", e)))?;
+            .map_err(|e| Error::Database(sqlx::Error::Protocol(format!("Failed to get playbooks: {}", e))))?;
         Ok(playbooks)
     }
 
@@ -4913,9 +4913,9 @@ impl PlaybookManager for SqlStore {
         let playbook = sqlx::query_as::<_, Playbook>(query)
             .bind(id)
             .bind(project_id)
-            .fetch_one(&self.pool.db)
+            .fetch_one(&self.db)
             .await
-            .map_err(|e| Error::Database(format!("Playbook not found: {}", e)))?;
+            .map_err(|e| Error::Database(sqlx::Error::Protocol(format!("Playbook not found: {}", e))))?;
         Ok(playbook)
     }
 
@@ -4929,9 +4929,9 @@ impl PlaybookManager for SqlStore {
             .bind(&playbook.description)
             .bind(&playbook.playbook_type)
             .bind(&playbook.repository_id)
-            .fetch_one(&self.pool.db)
+            .fetch_one(&self.db)
             .await
-            .map_err(|e| Error::Database(format!("Failed to create playbook: {}", e)))?;
+            .map_err(|e| Error::Database(sqlx::Error::Protocol(format!("Failed to create playbook: {}", e))))?;
         Ok(created)
     }
 
@@ -4945,9 +4945,9 @@ impl PlaybookManager for SqlStore {
             .bind(&playbook.playbook_type)
             .bind(id)
             .bind(project_id)
-            .fetch_one(&self.pool.db)
+            .fetch_one(&self.db)
             .await
-            .map_err(|e| Error::Database(format!("Failed to update playbook: {}", e)))?;
+            .map_err(|e| Error::Database(sqlx::Error::Protocol(format!("Failed to update playbook: {}", e))))?;
         Ok(updated)
     }
 
@@ -4956,9 +4956,9 @@ impl PlaybookManager for SqlStore {
         sqlx::query(query)
             .bind(id)
             .bind(project_id)
-            .execute(&self.pool.db)
+            .execute(&self.db)
             .await
-            .map_err(|e| Error::Database(format!("Failed to delete playbook: {}", e)))?;
+            .map_err(|e| Error::Database(sqlx::Error::Protocol(format!("Failed to delete playbook: {}", e))))?;
         Ok(())
     }
 }
