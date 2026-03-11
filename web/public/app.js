@@ -176,6 +176,8 @@ const ui = {
             tasks: '✅ Задачи', 
             inventory: '📦 Инвентарь',
             playbooks: '📜 Playbooks',
+            environments: '⚙️ Переменные',
+            schedules: '⏰ Расписания',
             keys: '🔐 Ключи', 
             repositories: '🗂️ Репозитории', 
             users: '👥 Пользователи'
@@ -214,6 +216,8 @@ const ui = {
             tasks: `<div class="card"><div class="card-header"><h3 class="card-title">✅ Задачи</h3><button class="btn btn-primary btn-sm" onclick="app.createTask()">+ Новая задача</button></div><div class="card-body"><div class="table-responsive"><table class="table"><thead><tr><th>ID</th><th>Playbook</th><th>Статус</th><th>Время</th><th>Действия</th></tr></thead><tbody id="tasks-table"></tbody></table></div></div></div>`,
             inventory: `<div class="card"><div class="card-header"><h3 class="card-title">📦 Инвентарь</h3><button class="btn btn-primary btn-sm" onclick="app.createInventory()">+ Новый инвентарь</button></div><div class="card-body"><div class="table-responsive"><table class="table"><thead><tr><th>ID</th><th>Название</th><th>Тип</th><th>Действия</th></tr></thead><tbody id="inventory-table"></tbody></table></div></div></div>`,
             playbooks: `<div class="card"><div class="card-header"><h3 class="card-title">📜 Playbooks</h3><button class="btn btn-primary btn-sm" onclick="app.createPlaybook()">+ Новый playbook</button></div><div class="card-body"><div class="table-responsive"><table class="table"><thead><tr><th>ID</th><th>Название</th><th>Тип</th><th>Действия</th></tr></thead><tbody id="playbooks-table"></tbody></table></div></div></div>`,
+            environments: `<div class="card"><div class="card-header"><h3 class="card-title">⚙️ Переменные</h3><button class="btn btn-primary btn-sm" onclick="app.createEnvironment()">+ Новая переменная</button></div><div class="card-body"><div class="table-responsive"><table class="table"><thead><tr><th>ID</th><th>Название</th><th>Проект</th><th>Действия</th></tr></thead><tbody id="environments-table"></tbody></table></div></div></div>`,
+            schedules: `<div class="card"><div class="card-header"><h3 class="card-title">⏰ Расписания</h3><button class="btn btn-primary btn-sm" onclick="app.createSchedule()">+ Новое расписание</button></div><div class="card-body"><div class="table-responsive"><table class="table"><thead><tr><th>ID</th><th>Название</th><th>Cron</th><th>Активно</th><th>Действия</th></tr></thead><tbody id="schedules-table"></tbody></table></div></div></div>`,
             keys: `<div class="card"><div class="card-header"><h3 class="card-title">🔐 Ключи доступа</h3><button class="btn btn-primary btn-sm" onclick="app.createKey()">+ Новый ключ</button></div><div class="card-body"><div class="table-responsive"><table class="table"><thead><tr><th>ID</th><th>Название</th><th>Тип</th><th>Действия</th></tr></thead><tbody id="keys-table"></tbody></table></div></div></div>`,
             repositories: `<div class="card"><div class="card-header"><h3 class="card-title">🗂️ Репозитории</h3><button class="btn btn-primary btn-sm" onclick="app.createRepository()">+ Новый репозиторий</button></div><div class="card-body"><div class="table-responsive"><table class="table"><thead><tr><th>ID</th><th>Название</th><th>URL</th><th>Действия</th></tr></thead><tbody id="repositories-table"></tbody></table></div></div></div>`
         };
@@ -227,8 +231,11 @@ const ui = {
             else if (page === 'tasks') await this.loadTasks();
             else if (page === 'inventory') await this.loadInventory();
             else if (page === 'playbooks') await this.loadPlaybooks();
+            else if (page === 'environments') await this.loadEnvironments();
+            else if (page === 'schedules') await this.loadSchedules();
             else if (page === 'keys') await this.loadKeys();
             else if (page === 'repositories') await this.loadRepositories();
+            else if (page === 'users') await this.loadUsers();
         } catch (error) { console.error(`Error loading ${page}:`, error); }
     },
     async loadDashboard() {
@@ -800,3 +807,118 @@ document.addEventListener('DOMContentLoaded', () => app.init());
             alert('✅ Playbook обновлён!');
         } catch (error) { alert('❌ Ошибка: ' + error.message); }
     }
+
+    // === Environments CRUD ===
+    async loadEnvironments() {
+        try {
+            if (!state.currentProjectId) { this.renderEmptyTable('environments-table', 4); return; }
+            const envs = await api.get(`/project/${state.currentProjectId}/environments`).catch(() => []);
+            state.environments = Array.isArray(envs) ? envs : [];
+            this.renderEnvironmentsTable(state.environments);
+        } catch (error) { this.renderEmptyTable('environments-table', 4); }
+    },
+    async createEnvironment() {
+        const name = prompt('Название переменной:'); if (!name) return;
+        const json = prompt('JSON значение (например, {"key": "value"}):', '{}'); if (!json) return;
+        try {
+            await api.post(`/project/${state.currentProjectId}/environments`, { name, json });
+            await this.loadEnvironments();
+            alert('✅ Переменная создана!');
+        } catch (error) { alert('❌ Ошибка: ' + error.message); }
+    },
+    async editEnvironment(id) {
+        const env = state.environments.find(e => e.id === id); if (!env) return;
+        const name = prompt('Название:', env.name); if (!name) return;
+        const json = prompt('JSON значение:', env.json); if (!json) return;
+        try {
+            await api.put(`/project/${state.currentProjectId}/environments/${id}`, { name, json });
+            await this.loadEnvironments();
+            alert('✅ Переменная обновлена!');
+        } catch (error) { alert('❌ Ошибка: ' + error.message); }
+    },
+    async deleteEnvironment(id) { if (!confirm('Удалить переменную?')) return; try { await api.delete(`/project/${state.currentProjectId}/environments/${id}`); await this.loadEnvironments(); alert('✅ Переменная удалена!'); } catch (error) { alert('❌ Ошибка: ' + error.message); } },
+    renderEnvironmentsTable(envs) {
+        const tbody = document.getElementById('environments-table');
+        if (!tbody) return;
+        if (!envs || envs.length === 0) { tbody.innerHTML = '<tr><td colspan="4" class="empty-state"><p>Нет переменных</p></td></tr>'; return; }
+        tbody.innerHTML = envs.map(env => `<tr><td>${env.id}</td><td><strong>${env.name}</strong></td><td>${env.project_id}</td><td><div class="actions"><button class="btn btn-sm btn-edit" onclick="app.editEnvironment(${env.id})">✏️</button><button class="btn btn-sm btn-delete" onclick="app.deleteEnvironment(${env.id})">🗑️</button></div></td></tr>`).join('');
+    },
+
+    // === Schedules CRUD ===
+    async loadSchedules() {
+        try {
+            if (!state.currentProjectId) { this.renderEmptyTable('schedules-table', 5); return; }
+            const schedules = await api.get(`/project/${state.currentProjectId}/schedules`).catch(() => []);
+            state.schedules = Array.isArray(schedules) ? schedules : [];
+            this.renderSchedulesTable(state.schedules);
+        } catch (error) { this.renderEmptyTable('schedules-table', 5); }
+    },
+    async createSchedule() {
+        const name = prompt('Название расписания:'); if (!name) return;
+        const cron = prompt('Cron выражение (например, 0 2 * * *):'); if (!cron) return;
+        const templateId = prompt('ID шаблона:'); if (!templateId) return;
+        try {
+            await api.post(`/project/${state.currentProjectId}/schedules`, { name, cron, template_id: parseInt(templateId), active: true });
+            await this.loadSchedules();
+            alert('✅ Расписание создано!');
+        } catch (error) { alert('❌ Ошибка: ' + error.message); }
+    },
+    async editSchedule(id) {
+        const sch = state.schedules.find(s => s.id === id); if (!sch) return;
+        const name = prompt('Название:', sch.name); if (!name) return;
+        const cron = prompt('Cron выражение:', sch.cron); if (!cron) return;
+        const active = confirm('Активно? (OK=да, Cancel=нет)');
+        try {
+            await api.put(`/project/${state.currentProjectId}/schedules/${id}`, { name, cron, active });
+            await this.loadSchedules();
+            alert('✅ Расписание обновлено!');
+        } catch (error) { alert('❌ Ошибка: ' + error.message); }
+    },
+    async deleteSchedule(id) { if (!confirm('Удалить расписание?')) return; try { await api.delete(`/project/${state.currentProjectId}/schedules/${id}`); await this.loadSchedules(); alert('✅ Расписание удалено!'); } catch (error) { alert('❌ Ошибка: ' + error.message); } },
+    renderSchedulesTable(schedules) {
+        const tbody = document.getElementById('schedules-table');
+        if (!tbody) return;
+        if (!schedules || schedules.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><p>Нет расписаний</p></td></tr>'; return; }
+        tbody.innerHTML = schedules.map(sch => `<tr><td>${sch.id}</td><td><strong>${sch.name}</strong></td><td><code>${sch.cron}</code></td><td>${sch.active ? '✅' : '❌'}</td><td><div class="actions"><button class="btn btn-sm btn-edit" onclick="app.editSchedule(${sch.id})">✏️</button><button class="btn btn-sm btn-delete" onclick="app.deleteSchedule(${sch.id})">🗑️</button></div></td></tr>`).join('');
+    },
+
+    // === Users CRUD ===
+    async loadUsers() {
+        try {
+            const users = await api.get('/users').catch(() => []);
+            state.users = Array.isArray(users) ? users : [];
+            this.renderUsersTable(state.users);
+        } catch (error) { this.renderEmptyTable('users-table', 5); }
+    },
+    async createUser() {
+        const username = prompt('Логин:'); if (!username) return;
+        const name = prompt('Имя:'); if (!name) return;
+        const email = prompt('Email:'); if (!email) return;
+        const password = prompt('Пароль:'); if (!password) return;
+        const admin = confirm('Администратор? (OK=да, Cancel=нет)');
+        try {
+            await api.post('/users', { username, name, email, password, admin });
+            await this.loadUsers();
+            alert('✅ Пользователь создан!');
+        } catch (error) { alert('❌ Ошибка: ' + error.message); }
+    },
+    async editUser(id) {
+        const user = state.users.find(u => u.id === id); if (!user) return;
+        const name = prompt('Имя:', user.name); if (!name) return;
+        const email = prompt('Email:', user.email); if (!email) return;
+        try {
+            await api.put(`/users/${id}`, { name, email });
+            await this.loadUsers();
+            alert('✅ Пользователь обновлён!');
+        } catch (error) { alert('❌ Ошибка: ' + error.message); }
+    },
+    async deleteUser(id) { if (!confirm('Удалить пользователя?')) return; try { await api.delete(`/users/${id}`); await this.loadUsers(); alert('✅ Пользователь удалён!'); } catch (error) { alert('❌ Ошибка: ' + error.message); } },
+    renderUsersTable(users) {
+        const tbody = document.getElementById('users-table');
+        if (!tbody) return;
+        if (!users || users.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><p>Нет пользователей</p></td></tr>'; return; }
+        tbody.innerHTML = users.map(user => `<tr><td>${user.id}</td><td><strong>${user.username}</strong></td><td>${user.name}</td><td>${user.email}</td><td>${user.admin ? '<span class="badge badge-info">Admin</span>' : 'User'}</td></tr>`).join('');
+    }
+};
+
+document.addEventListener('DOMContentLoaded', () => app.init());
