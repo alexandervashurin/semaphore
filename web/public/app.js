@@ -4,13 +4,19 @@
 const API_BASE = '/api';
 const STORAGE_KEY = 'semaphore_token';
 const USER_KEY = 'semaphore_user';
+const PROJECT_KEY = 'semaphore_project_id';
 
 const state = {
     token: localStorage.getItem(STORAGE_KEY),
     user: JSON.parse(localStorage.getItem(USER_KEY) || 'null'),
+    currentProjectId: parseInt(localStorage.getItem(PROJECT_KEY) || '1'),
     projects: [],
     templates: [],
-    tasks: []
+    tasks: [],
+    inventories: [],
+    repositories: [],
+    environments: [],
+    keys: []
 };
 
 const api = {
@@ -34,7 +40,6 @@ const auth = {
         try {
             const data = await api.post('/auth/login', { username, password, expire: true });
             state.token = data.token;
-            // Создаём объект user из username, если нет данных
             state.user = data.user || { username: username, name: username, role: 'user', admin: true };
             localStorage.setItem(STORAGE_KEY, state.token);
             localStorage.setItem(USER_KEY, JSON.stringify(state.user));
@@ -68,7 +73,8 @@ const ui = {
             logoutBtn: document.getElementById('logout-btn'),
             userName: document.getElementById('user-name'),
             userRole: document.getElementById('user-role'),
-            userAvatar: document.getElementById('user-avatar')
+            userAvatar: document.getElementById('user-avatar'),
+            projectSelector: document.getElementById('project-selector')
         };
         this.bindEvents();
         auth.isAuthenticated() ? this.showDashboard() : this.showView('login');
@@ -88,6 +94,11 @@ const ui = {
             this.elements.sidebar?.classList.toggle('collapsed');
         });
         this.elements.logoutBtn?.addEventListener('click', () => auth.logout());
+        this.elements.projectSelector?.addEventListener('change', (e) => {
+            state.currentProjectId = parseInt(e.target.value);
+            localStorage.setItem(PROJECT_KEY, state.currentProjectId.toString());
+            this.loadDashboard();
+        });
     },
     async handleLogin() {
         const username = document.getElementById('username')?.value;
@@ -123,7 +134,19 @@ const ui = {
     },
     navigate(page) {
         this.elements.navItems.forEach(item => item.classList.toggle('active', item.dataset.page === page));
-        const titles = { dashboard: 'Дашборд', projects: 'Проекты', templates: 'Шаблоны', tasks: 'Задачи', inventory: 'Инвентарь', environment: 'Переменные', keys: 'Ключи', repositories: 'Репозитории', integrations: 'Интеграции', users: 'Пользователи', settings: 'Настройки' };
+        const titles = { 
+            dashboard: 'Дашборд', 
+            projects: 'Проекты', 
+            templates: 'Шаблоны', 
+            tasks: 'Задачи', 
+            inventory: 'Инвентарь', 
+            environment: 'Переменные', 
+            keys: 'Ключи', 
+            repositories: 'Репозитории', 
+            integrations: 'Интеграции', 
+            users: 'Пользователи', 
+            settings: 'Настройки' 
+        };
         if (this.elements.pageTitle) this.elements.pageTitle.textContent = titles[page] || 'Страница';
         this.showPage(page);
     },
@@ -151,11 +174,14 @@ const ui = {
                 <div class="stat-card"><div class="stat-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">✅</div><div class="stat-details"><span class="stat-value" id="stat-tasks">0</span><span class="stat-label">Задач</span></div></div>
                 <div class="stat-card"><div class="stat-icon" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">👥</div><div class="stat-details"><span class="stat-value" id="stat-users">0</span><span class="stat-label">Пользователей</span></div></div>
             </div>
-            <div class="card"><div class="card-header"><h3 class="card-title">📊 Последние задачи</h3><button class="btn btn-primary btn-sm" onclick="app.showCreateTaskModal()">+ Новая задача</button></div>
+            <div class="card"><div class="card-header"><h3 class="card-title">📊 Последние задачи</h3></div>
             <div class="card-body"><div class="table-responsive"><table class="table"><thead><tr><th>ID</th><th>Проект</th><th>Шаблон</th><th>Статус</th><th>Время</th><th>Действия</th></tr></thead><tbody id="recent-tasks"></tbody></table></div></div></div>`,
-            projects: `<div class="card"><div class="card-header"><h3 class="card-title">📁 Проекты</h3><button class="btn btn-primary btn-sm" onclick="app.showCreateProjectModal()">+ Новый проект</button></div><div class="card-body"><div class="table-responsive"><table class="table"><thead><tr><th>ID</th><th>Название</th><th>Описание</th><th>Создан</th><th>Действия</th></tr></thead><tbody id="projects-table"></tbody></table></div></div></div>`,
-            templates: `<div class="card"><div class="card-header"><h3 class="card-title">📋 Шаблоны</h3><button class="btn btn-primary btn-sm" onclick="app.showCreateTemplateModal()">+ Новый шаблон</button></div><div class="card-body"><div class="table-responsive"><table class="table"><thead><tr><th>ID</th><th>Название</th><th>Проект</th><th>Тип</th><th>Действия</th></tr></thead><tbody id="templates-table"></tbody></table></div></div></div>`,
-            tasks: `<div class="card"><div class="card-header"><h3 class="card-title">✅ Задачи</h3><button class="btn btn-primary btn-sm" onclick="app.showCreateTaskModal()">+ Новая задача</button></div><div class="card-body"><div class="table-responsive"><table class="table"><thead><tr><th>ID</th><th>Проект</th><th>Шаблон</th><th>Статус</th><th>Время</th><th>Действия</th></tr></thead><tbody id="tasks-table"></tbody></table></div></div></div>`
+            projects: `<div class="card"><div class="card-header"><h3 class="card-title">📁 Проекты</h3></div><div class="card-body"><div class="table-responsive"><table class="table"><thead><tr><th>ID</th><th>Название</th><th>Описание</th><th>Создан</th><th>Действия</th></tr></thead><tbody id="projects-table"></tbody></table></div></div></div>`,
+            templates: `<div class="card"><div class="card-header"><h3 class="card-title">📋 Шаблоны</h3></div><div class="card-body"><div class="table-responsive"><table class="table"><thead><tr><th>ID</th><th>Название</th><th>Playbook</th><th>Тип</th><th>Действия</th></tr></thead><tbody id="templates-table"></tbody></table></div></div></div>`,
+            tasks: `<div class="card"><div class="card-header"><h3 class="card-title">✅ Задачи</h3></div><div class="card-body"><div class="table-responsive"><table class="table"><thead><tr><th>ID</th><th>Шаблон</th><th>Статус</th><th>Время</th><th>Действия</th></tr></thead><tbody id="tasks-table"></tbody></table></div></div></div>`,
+            inventory: `<div class="card"><div class="card-header"><h3 class="card-title">📦 Инвентарь</h3></div><div class="card-body"><div class="table-responsive"><table class="table"><thead><tr><th>ID</th><th>Название</th><th>Тип</th><th>Действия</th></tr></thead><tbody id="inventory-table"></tbody></table></div></div></div>`,
+            keys: `<div class="card"><div class="card-header"><h3 class="card-title">🔐 Ключи доступа</h3></div><div class="card-body"><div class="table-responsive"><table class="table"><thead><tr><th>ID</th><th>Название</th><th>Тип</th><th>Действия</th></tr></thead><tbody id="keys-table"></tbody></table></div></div></div>`,
+            repositories: `<div class="card"><div class="card-header"><h3 class="card-title">🗂️ Репозитории</h3></div><div class="card-body"><div class="table-responsive"><table class="table"><thead><tr><th>ID</th><th>Название</th><th>URL</th><th>Действия</th></tr></thead><tbody id="repositories-table"></tbody></table></div></div></div>`
         };
         return contents[page] || `<h2>${page}</h2>`;
     },
@@ -165,24 +191,38 @@ const ui = {
             else if (page === 'projects') await this.loadProjects();
             else if (page === 'templates') await this.loadTemplates();
             else if (page === 'tasks') await this.loadTasks();
+            else if (page === 'inventory') await this.loadInventory();
+            else if (page === 'keys') await this.loadKeys();
+            else if (page === 'repositories') await this.loadRepositories();
         } catch (error) { console.error(`Error loading ${page}:`, error); }
     },
     async loadDashboard() {
         try {
             const [projects, templates, tasks] = await Promise.all([
                 api.get('/projects').catch(() => []),
-                api.get('/templates').catch(() => []),
-                api.get('/tasks').catch(() => [])
+                state.currentProjectId ? api.get(`/project/${state.currentProjectId}/templates`).catch(() => []) : [],
+                state.currentProjectId ? api.get(`/project/${state.currentProjectId}/tasks`).catch(() => []) : []
             ]);
             state.projects = Array.isArray(projects) ? projects : [];
             state.templates = Array.isArray(templates) ? templates : [];
             state.tasks = Array.isArray(tasks) ? tasks : [];
+            
+            // Обновляем селектор проектов
+            this.updateProjectSelector();
+            
             this.updateStat('stat-projects', state.projects.length);
             this.updateStat('stat-templates', state.templates.length);
             this.updateStat('stat-tasks', state.tasks.length);
             this.updateStat('stat-users', 1);
             this.renderRecentTasks(state.tasks.slice(0, 5));
         } catch (error) { console.error('Error loading dashboard:', error); }
+    },
+    updateProjectSelector() {
+        const selector = this.elements.projectSelector;
+        if (!selector) return;
+        selector.innerHTML = state.projects.map(p => 
+            `<option value="${p.id}" ${p.id === state.currentProjectId ? 'selected' : ''}>${p.name}</option>`
+        ).join('');
     },
     async loadProjects() {
         try {
@@ -193,80 +233,123 @@ const ui = {
     },
     async loadTemplates() {
         try {
-            const templates = await api.get('/templates');
+            if (!state.currentProjectId) {
+                this.renderEmptyTable('templates-table', 5);
+                return;
+            }
+            const templates = await api.get(`/project/${state.currentProjectId}/templates`);
             state.templates = Array.isArray(templates) ? templates : [];
             this.renderTemplatesTable(state.templates);
         } catch (error) { this.renderEmptyTable('templates-table', 5); }
     },
     async loadTasks() {
         try {
-            const tasks = await api.get('/tasks');
+            if (!state.currentProjectId) {
+                this.renderEmptyTable('tasks-table', 5);
+                return;
+            }
+            const tasks = await api.get(`/project/${state.currentProjectId}/tasks`);
             state.tasks = Array.isArray(tasks) ? tasks : [];
             this.renderTasksTable(state.tasks);
         } catch (error) { this.renderEmptyTable('tasks-table', 5); }
+    },
+    async loadInventory() {
+        try {
+            if (!state.currentProjectId) {
+                this.renderEmptyTable('inventory-table', 4);
+                return;
+            }
+            const inventory = await api.get(`/project/${state.currentProjectId}/inventory`);
+            state.inventories = Array.isArray(inventory) ? inventory : [];
+            this.renderInventoryTable(state.inventories);
+        } catch (error) { this.renderEmptyTable('inventory-table', 4); }
+    },
+    async loadKeys() {
+        try {
+            if (!state.currentProjectId) {
+                this.renderEmptyTable('keys-table', 4);
+                return;
+            }
+            const keys = await api.get(`/project/${state.currentProjectId}/keys`);
+            state.keys = Array.isArray(keys) ? keys : [];
+            this.renderKeysTable(state.keys);
+        } catch (error) { this.renderEmptyTable('keys-table', 4); }
+    },
+    async loadRepositories() {
+        try {
+            if (!state.currentProjectId) {
+                this.renderEmptyTable('repositories-table', 4);
+                return;
+            }
+            const repos = await api.get(`/project/${state.currentProjectId}/repositories`);
+            state.repositories = Array.isArray(repos) ? repos : [];
+            this.renderRepositoriesTable(state.repositories);
+        } catch (error) { this.renderEmptyTable('repositories-table', 4); }
     },
     updateStat(elementId, value) { const el = document.getElementById(elementId); if (el) el.textContent = value; },
     renderRecentTasks(tasks) {
         const tbody = document.getElementById('recent-tasks');
         if (!tbody) return;
         if (!tasks || tasks.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><p>Нет недавних задач</p></td></tr>'; return; }
-        tbody.innerHTML = tasks.map(task => `<tr><td>#${task.id || task.ID || '-'}</td><td>${task.project_name || task.project_id || '-'}</td><td>${task.template_name || task.template_id || '-'}</td><td>${this.renderStatus(task.status)}</td><td>${this.formatDate(task.created)}</td><td><div class="actions"><button class="btn btn-sm btn-edit" onclick="app.viewTask(${task.id || task.ID})">👁️</button></div></td></tr>`).join('');
+        tbody.innerHTML = tasks.map(task => `<tr><td>#${task.id || task.ID || '-'}</td><td>${task.project_name || task.project_id || '-'}</td><td>${task.template_name || task.tpl_playbook || '-'}</td><td>${this.renderStatus(task.status)}</td><td>${this.formatDate(task.created)}</td><td><div class="actions"><button class="btn btn-sm btn-edit" onclick="app.viewTask(${task.id || task.ID})">👁️</button></div></td></tr>`).join('');
     },
     renderProjectsTable(projects) {
         const tbody = document.getElementById('projects-table');
         if (!tbody) return;
         if (!projects || projects.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><p>Нет проектов</p></td></tr>'; return; }
-        tbody.innerHTML = projects.map(project => `<tr><td>${project.id || project.ID || '-'}</td><td><strong>${project.name || project.Name || '-'}</strong></td><td>${project.description || project.Description || '-'}</td><td>${this.formatDate(project.created)}</td><td><div class="actions"><button class="btn btn-sm btn-edit" onclick="app.editProject(${project.id || project.ID})">✏️</button><button class="btn btn-sm btn-delete" onclick="app.deleteProject(${project.id || project.ID})">🗑️</button></div></td></tr>`).join('');
+        tbody.innerHTML = projects.map(project => `<tr><td>${project.id || project.ID || '-'}</td><td><strong>${project.name || project.Name || '-'}</strong></td><td>${project.description || project.Description || '-'}</td><td>${this.formatDate(project.created)}</td><td><div class="actions"></div></td></tr>`).join('');
     },
     renderTemplatesTable(templates) {
         const tbody = document.getElementById('templates-table');
         if (!tbody) return;
         if (!templates || templates.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><p>Нет шаблонов</p></td></tr>'; return; }
-        tbody.innerHTML = templates.map(template => `<tr><td>${template.id || template.ID || '-'}</td><td><strong>${template.name || template.Name || '-'}</strong></td><td>${template.project_id || '-'}</td><td>${template.type || 'playbook'}</td><td><div class="actions"><button class="btn btn-sm btn-edit" onclick="app.editTemplate(${template.id || template.ID})">✏️</button><button class="btn btn-sm btn-delete" onclick="app.deleteTemplate(${template.id || template.ID})">🗑️</button></div></td></tr>`).join('');
+        tbody.innerHTML = templates.map(template => `<tr><td>${template.id || template.ID || '-'}</td><td><strong>${template.name || template.Name || '-'}</strong></td><td>${template.playbook || '-'}</td><td>${template.type || template.tpl_type || 'ansible'}</td><td><div class="actions"></div></td></tr>`).join('');
     },
     renderTasksTable(tasks) {
         const tbody = document.getElementById('tasks-table');
         if (!tbody) return;
-        if (!tasks || tasks.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><p>Нет задач</p></td></tr>'; return; }
-        tbody.innerHTML = tasks.map(task => `<tr><td>#${task.id || task.ID || '-'}</td><td>${task.project_id || '-'}</td><td>${task.template_id || '-'}</td><td>${this.renderStatus(task.status)}</td><td>${this.formatDate(task.created)}</td><td><div class="actions"><button class="btn btn-sm btn-edit" onclick="app.viewTask(${task.id || task.ID})">👁️</button></div></td></tr>`).join('');
+        if (!tasks || tasks.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><p>Нет задач</p></td></tr>'; return; }
+        tbody.innerHTML = tasks.map(task => `<tr><td>#${task.id || task.ID || '-'}</td><td>${task.tpl_playbook || task.template_id || '-'}</td><td>${this.renderStatus(task.status)}</td><td>${this.formatDate(task.created)}</td><td><div class="actions"><button class="btn btn-sm btn-edit" onclick="app.viewTask(${task.id || task.ID})">👁️</button></div></td></tr>`).join('');
+    },
+    renderInventoryTable(inventory) {
+        const tbody = document.getElementById('inventory-table');
+        if (!tbody) return;
+        if (!inventory || inventory.length === 0) { tbody.innerHTML = '<tr><td colspan="4" class="empty-state"><p>Нет инвентарей</p></td></tr>'; return; }
+        tbody.innerHTML = inventory.map(item => `<tr><td>${item.id || '-'}</td><td><strong>${item.name || '-'}</strong></td><td>${item.inventory_type || 'static'}</td><td><div class="actions"></div></td></tr>`).join('');
+    },
+    renderKeysTable(keys) {
+        const tbody = document.getElementById('keys-table');
+        if (!tbody) return;
+        if (!keys || keys.length === 0) { tbody.innerHTML = '<tr><td colspan="4" class="empty-state"><p>Нет ключей</p></td></tr>'; return; }
+        tbody.innerHTML = keys.map(key => `<tr><td>${key.id || '-'}</td><td><strong>${key.name || '-'}</strong></td><td>${key.type || '-'}</td><td><div class="actions"></div></td></tr>`).join('');
+    },
+    renderRepositoriesTable(repos) {
+        const tbody = document.getElementById('repositories-table');
+        if (!tbody) return;
+        if (!repos || repos.length === 0) { tbody.innerHTML = '<tr><td colspan="4" class="empty-state"><p>Нет репозиториев</p></td></tr>'; return; }
+        tbody.innerHTML = repos.map(repo => `<tr><td>${repo.id || '-'}</td><td><strong>${repo.name || '-'}</strong></td><td>${repo.git_url || '-'}</td><td><div class="actions"></div></td></tr>`).join('');
     },
     renderStatus(status) {
-        const statusMap = { 'success': { class: 'status-success', icon: '✅', label: 'Успех' }, 'failed': { class: 'status-danger', icon: '❌', label: 'Ошибка' }, 'running': { class: 'status-info', icon: '⏳', label: 'Выполняется' }, 'waiting': { class: 'status-warning', icon: '⏸️', label: 'Ожидание' }, 'pending': { class: 'status-warning', icon: '⏸️', label: 'Ожидание' } };
+        const statusMap = { 
+            'success': { class: 'status-success', icon: '✅', label: 'Успех' }, 
+            'failed': { class: 'status-danger', icon: '❌', label: 'Ошибка' }, 
+            'running': { class: 'status-info', icon: '⏳', label: 'Выполняется' }, 
+            'waiting': { class: 'status-warning', icon: '⏸️', label: 'Ожидание' }, 
+            'pending': { class: 'status-warning', icon: '⏸️', label: 'Ожидание' } 
+        };
         const s = statusMap[status] || { class: 'status-info', icon: 'ℹ️', label: status || 'Unknown' };
         return `<span class="status ${s.class}">${s.icon} ${s.label}</span>`;
     },
     formatDate(dateString) { if (!dateString) return '-'; try { const date = new Date(dateString); return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }); } catch { return dateString; } },
-    showError(element, message) { if (element) { element.textContent = message; element.style.display = 'block'; setTimeout(() => { element.style.display = 'none'; }, 5000); } }
+    showError(element, message) { if (element) { element.textContent = message; element.style.display = 'block'; setTimeout(() => { element.style.display = 'none'; }, 5000); } },
+    renderEmptyTable(tableId, cols) {
+        const tbody = document.getElementById(tableId);
+        if (tbody) tbody.innerHTML = `<tr><td colspan="${cols}" class="empty-state"><p>Нет данных</p></td></tr>`;
+    }
 };
 
 const app = {
     init() { ui.init(); },
-    async showCreateProjectModal() {
-        const name = prompt('Название проекта:'); if (!name) return;
-        const description = prompt('Описание:') || '';
-        try { await api.post('/projects', { name, description }); await ui.loadProjects(); await ui.loadDashboard(); alert('Проект создан!'); } catch (error) { alert('Ошибка: ' + error.message); }
-    },
-    async editProject(id) {
-        const project = state.projects.find(p => (p.id || p.ID) === id); if (!project) return;
-        const name = prompt('Название:', project.name || project.Name); if (!name) return;
-        const description = prompt('Описание:', project.description || project.Description || '') || '';
-        try { await api.put(`/projects/${id}`, { name, description }); await ui.loadProjects(); alert('Проект обновлён!'); } catch (error) { alert('Ошибка: ' + error.message); }
-    },
-    async deleteProject(id) { if (!confirm('Удалить проект?')) return; try { await api.delete(`/projects/${id}`); await ui.loadProjects(); alert('Проект удалён!'); } catch (error) { alert('Ошибка: ' + error.message); } },
-    async showCreateTemplateModal() {
-        const name = prompt('Название шаблона:'); if (!name) return;
-        const projectId = prompt('ID проекта:'); if (!projectId) return;
-        try { await api.post('/templates', { name, project_id: parseInt(projectId), playbook: 'playbook.yml', type: 'playbook' }); await ui.loadTemplates(); alert('Шаблон создан!'); } catch (error) { alert('Ошибка: ' + error.message); }
-    },
-    async editTemplate(id) {
-        const template = state.templates.find(t => (t.id || t.ID) === id); if (!template) return;
-        const name = prompt('Название:', template.name || template.Name); if (!name) return;
-        try { await api.put(`/templates/${id}`, { name }); await ui.loadTemplates(); alert('Шаблон обновлён!'); } catch (error) { alert('Ошибка: ' + error.message); }
-    },
-    async deleteTemplate(id) { if (!confirm('Удалить шаблон?')) return; try { await api.delete(`/templates/${id}`); await ui.loadTemplates(); alert('Шаблон удалён!'); } catch (error) { alert('Ошибка: ' + error.message); } },
-    async showCreateTaskModal() {
-        const templateId = prompt('ID шаблона:'); if (!templateId) return;
-        try { await api.post('/tasks', { template_id: parseInt(templateId) }); await ui.loadTasks(); alert('Задача создана!'); } catch (error) { alert('Ошибка: ' + error.message); } },
     async viewTask(id) { alert(`Задача #${id}`); }
 };
 
