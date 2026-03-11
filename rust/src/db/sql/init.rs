@@ -115,12 +115,21 @@ impl SqlDb {
     pub async fn create_database_if_not_exists(database_path: &str) -> Result<()> {
         use std::path::Path;
         use tokio::fs;
+
+        tracing::info!("Creating database if not exists: {}", database_path);
         
-        // Извлекаем путь к файлу: sqlite:///C:/path -> C:/path, path/to/db.db -> path/to/db.db
-        let path_str = database_path
-            .trim_start_matches("sqlite:")
-            .trim_start_matches('/')
-            .trim_start_matches('/');
+        // Извлекаем путь к файлу: sqlite:///C:/path -> C:/path, sqlite:///path -> /path, path/to/db.db -> path/to/db.db
+        let path_str = if database_path.starts_with("sqlite:") {
+            // sqlite:///absolute/path -> /absolute/path
+            // sqlite:/relative/path -> relative/path
+            database_path
+                .trim_start_matches("sqlite:")
+                .trim_start_matches('/')
+        } else {
+            // /absolute/path или relative/path
+            database_path
+        };
+        tracing::info!("Resolved database path: {}", path_str);
         let path = Path::new(path_str);
         
         if let Some(parent) = path.parent() {
@@ -146,16 +155,25 @@ impl SqlDb {
 
 /// Создаёт подключение к БД на основе строки подключения
 pub async fn create_database_connection(database_url: &str) -> Result<SqlDb> {
+    tracing::info!("Creating database connection: {}", database_url);
     // Определяем тип БД по префиксу
     if database_url.starts_with("sqlite:") || database_url.ends_with(".db") || database_url.ends_with(".sqlite") {
         let path = database_url.trim_start_matches("sqlite:");
+        tracing::info!("SQLite path: {}", path);
         if !path.starts_with(":memory") {
             SqlDb::create_database_if_not_exists(path).await?;
         }
         let url = if database_url.starts_with("sqlite:") {
             database_url.to_string()
         } else {
-            format!("sqlite:///{}", path.replace('\\', "/"))
+            // Для абсолютных путей используем sqlite:///absolute/path
+            // Для относительных sqlite:relative/path
+            let normalized_path = path.replace('\\', "/");
+            if normalized_path.starts_with('/') {
+                format!("sqlite:///{}", normalized_path)
+            } else {
+                format!("sqlite://{}", normalized_path)
+            }
         };
         SqlDb::connect_sqlite(&url).await
     } else if database_url.starts_with("mysql:") {
