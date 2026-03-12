@@ -11,6 +11,7 @@ pub mod executor;
 pub mod git_repository;
 pub mod local_job;
 pub mod metrics;
+pub mod playbook_run_service;
 pub mod playbook_sync_service;
 pub mod restore;
 pub mod scheduler;

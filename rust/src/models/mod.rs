@@ -39,6 +39,7 @@ pub mod audit_log;
 pub mod webhook;
 pub mod analytics;
 pub mod playbook;
+pub mod playbook_run;
 
 #[cfg(test)]
 mod tests;
@@ -50,6 +51,7 @@ pub use task::{Task, TaskWithTpl, TaskOutput, TaskStage, TaskStageType, TaskStag
 pub use template::{Template, TemplateWithPerms, TemplateRolePerm, TemplateType, TemplateApp, TemplateFilter};
 pub use template_vault::TemplateVault;
 pub use playbook::{Playbook, PlaybookCreate, PlaybookUpdate};
+pub use playbook_run::{PlaybookRunRequest, PlaybookRunResult, AnsiblePlaybookParams};
 pub use totp_verification::TotpVerification;
 pub use inventory::{Inventory, InventoryType};
 pub use repository::{Repository, RepositoryType};
