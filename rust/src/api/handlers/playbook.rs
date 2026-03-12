@@ -11,6 +11,7 @@ use crate::api::middleware::ErrorResponse;
 use crate::db::store::PlaybookManager;
 use crate::models::playbook::{Playbook, PlaybookCreate, PlaybookUpdate};
 use crate::validators::PlaybookValidator;
+use crate::services::playbook_sync_service::PlaybookSyncService;
 
 /// GET /api/project/{project_id}/playbooks
 pub async fn get_project_playbooks(
@@ -105,4 +106,40 @@ pub async fn delete_playbook(
     })?;
 
     Ok(StatusCode::NO_CONTENT)
+}
+
+/// POST /api/project/{project_id}/playbooks/{id}/sync
+/// Синхронизировать playbook из Git репозитория
+pub async fn sync_playbook(
+    State(state): State<Arc<AppState>>,
+    Path((project_id, id)): Path<(i32, i32)>,
+) -> Result<Json<Playbook>, (StatusCode, Json<ErrorResponse>)> {
+    let playbook = PlaybookSyncService::sync_from_repository(id, project_id, &state.store)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string()))
+            )
+        })?;
+
+    Ok(Json(playbook))
+}
+
+/// GET /api/project/{project_id}/playbooks/{id}/preview
+/// Предварительный просмотр содержимого playbook из Git
+pub async fn preview_playbook(
+    State(state): State<Arc<AppState>>,
+    Path((project_id, id)): Path<(i32, i32)>,
+) -> Result<Json<String>, (StatusCode, Json<ErrorResponse>)> {
+    let content = PlaybookSyncService::preview_from_repository(id, project_id, &state.store)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string()))
+            )
+        })?;
+
+    Ok(Json(content))
 }

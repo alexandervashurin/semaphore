@@ -174,11 +174,13 @@ version = "4"
 version = "0.29"
 features = ["user", "fs"]
 
+[dependencies.tempfile]
+version = "3"
+
 # Тестирование
 [dev-dependencies]
 tokio-test = "0.4"
 fake = { version = "4", features = ["derive", "chrono"] }
-tempfile = "3"
 criterion = { version = "0.6", features = ["html_reports"] }
 
 # Build dependencies для gRPC

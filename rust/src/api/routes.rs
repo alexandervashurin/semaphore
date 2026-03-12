@@ -88,17 +88,14 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         // Playbooks endpoint (из upstream)
         .route("/api/projects/{project_id}/inventories/playbooks", get(handlers::get_playbooks))
         
-        // Playbooks - новые endpoints (временно отключено до исправления компиляции)
+        // Playbooks - новые endpoints
         .route("/api/project/{project_id}/playbooks", get(handlers::playbook::get_project_playbooks))
         .route("/api/project/{project_id}/playbooks", post(handlers::playbook::create_playbook))
         .route("/api/project/{project_id}/playbooks/{id}", get(handlers::playbook::get_playbook))
         .route("/api/project/{project_id}/playbooks/{id}", put(handlers::playbook::update_playbook))
         .route("/api/project/{project_id}/playbooks/{id}", delete(handlers::playbook::delete_playbook))
-        
-        
-        
-        
-
+        .route("/api/project/{project_id}/playbooks/{id}/sync", post(handlers::playbook::sync_playbook))
+        .route("/api/project/{project_id}/playbooks/{id}/preview", get(handlers::playbook::preview_playbook))
         // Репозитории
         .route("/api/projects/{project_id}/repositories", get(handlers::get_repositories))
         .route("/api/projects/{project_id}/repositories", post(handlers::create_repository))
