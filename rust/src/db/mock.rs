@@ -703,3 +703,36 @@ impl PlaybookManager for MockStore {
         Ok(())
     }
 }
+
+#[async_trait]
+impl PlaybookRunManager for MockStore {
+    async fn get_playbook_runs(&self, _filter: PlaybookRunFilter) -> Result<Vec<PlaybookRun>> {
+        Ok(Vec::new())
+    }
+
+    async fn get_playbook_run(&self, _id: i32, _project_id: i32) -> Result<PlaybookRun> {
+        Err(Error::NotFound("PlaybookRun not found".to_string()))
+    }
+
+    async fn create_playbook_run(&self, _run: PlaybookRunCreate) -> Result<PlaybookRun> {
+        Err(Error::Database(sqlx::Error::Protocol("Not implemented in mock".to_string())))
+    }
+
+    async fn update_playbook_run(&self, _id: i32, _project_id: i32, _update: PlaybookRunUpdate) -> Result<PlaybookRun> {
+        Err(Error::Database(sqlx::Error::Protocol("Not implemented in mock".to_string())))
+    }
+
+    async fn delete_playbook_run(&self, _id: i32, _project_id: i32) -> Result<()> {
+        Ok(())
+    }
+
+    async fn get_playbook_run_stats(&self, _playbook_id: i32) -> Result<PlaybookRunStats> {
+        Ok(PlaybookRunStats {
+            total_runs: 0,
+            success_runs: 0,
+            failed_runs: 0,
+            avg_duration_seconds: None,
+            last_run: None,
+        })
+    }
+}

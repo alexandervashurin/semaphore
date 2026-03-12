@@ -97,6 +97,12 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/api/project/{project_id}/playbooks/{id}/sync", post(handlers::playbook::sync_playbook))
         .route("/api/project/{project_id}/playbooks/{id}/preview", get(handlers::playbook::preview_playbook))
         .route("/api/project/{project_id}/playbooks/{id}/run", post(handlers::playbook::run_playbook))
+        
+        // Playbook Runs - история запусков
+        .route("/api/project/{project_id}/playbook-runs", get(handlers::playbook_runs::get_playbook_runs))
+        .route("/api/project/{project_id}/playbook-runs/{id}", get(handlers::playbook_runs::get_playbook_run))
+        .route("/api/project/{project_id}/playbooks/{playbook_id}/runs/stats", get(handlers::playbook_runs::get_playbook_run_stats))
+        
         // Репозитории
         .route("/api/projects/{project_id}/repositories", get(handlers::get_repositories))
         .route("/api/projects/{project_id}/repositories", post(handlers::create_repository))

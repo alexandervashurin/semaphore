@@ -19,6 +19,7 @@ pub mod totp;
 pub mod mailer;
 pub mod audit_log;
 pub mod playbook;
+pub mod playbook_runs;
 
 // Ре-экспорт всех handlers для удобства
 pub use auth::*;
