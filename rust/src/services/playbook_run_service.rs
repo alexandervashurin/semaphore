@@ -6,6 +6,7 @@
 use crate::db::store::*;
 use crate::error::{Error, Result};
 use crate::models::playbook_run::{PlaybookRunRequest, PlaybookRunResult};
+use crate::models::playbook_run_history::{PlaybookRun, PlaybookRunCreate, PlaybookRunStatus};
 use crate::models::task::{Task, TaskStage, TaskStageType};
 use crate::models::template::TemplateType;
 use crate::services::task_logger::TaskStatus;
@@ -33,7 +34,7 @@ impl PlaybookRunService {
         store: &S,
     ) -> Result<PlaybookRunResult>
     where
-        S: PlaybookManager + TemplateManager + InventoryManager + EnvironmentManager + TaskManager + UserManager,
+        S: PlaybookManager + TemplateManager + InventoryManager + EnvironmentManager + TaskManager + UserManager + PlaybookRunManager,
     {
         // 1. Валидация запроса
         request.validate().map_err(|e| Error::Validation(e))?;
@@ -94,13 +95,31 @@ impl PlaybookRunService {
         // 8. Сохраняем задачу
         let created_task = store.create_task(task).await?;
 
+        // 9. Создаем запись истории запуска
+        let playbook_run_create = PlaybookRunCreate {
+            project_id,
+            playbook_id,
+            task_id: Some(created_task.id),
+            template_id: Some(template.id),
+            inventory_id: request.inventory_id,
+            environment_id: request.environment_id,
+            extra_vars: request.extra_vars.map(|v| v.to_string()),
+            limit_hosts: request.limit,
+            tags: request.tags.map(|t| t.join(",")),
+            skip_tags: request.skip_tags.map(|t| t.join(",")),
+            user_id: Some(user_id),
+        };
+
+        let _playbook_run = store.create_playbook_run(playbook_run_create).await?;
+
         info!(
-            "Задача {} создана для playbook {}",
+            "Задача {} создана для playbook {}, запись истории {}",
             created_task.id,
-            playbook.name
+            playbook.name,
+            _playbook_run.id
         );
 
-        // 9. Возвращаем результат
+        // 10. Возвращаем результат
         Ok(PlaybookRunResult {
             task_id: created_task.id,
             template_id: template.id,
