@@ -40,6 +40,7 @@ pub mod webhook;
 pub mod analytics;
 pub mod playbook;
 pub mod playbook_run;
+pub mod playbook_run_history;
 
 #[cfg(test)]
 mod tests;
@@ -52,6 +53,7 @@ pub use template::{Template, TemplateWithPerms, TemplateRolePerm, TemplateType, 
 pub use template_vault::TemplateVault;
 pub use playbook::{Playbook, PlaybookCreate, PlaybookUpdate};
 pub use playbook_run::{PlaybookRunRequest, PlaybookRunResult, AnsiblePlaybookParams};
+pub use playbook_run_history::{PlaybookRun, PlaybookRunCreate, PlaybookRunUpdate, PlaybookRunStatus, PlaybookRunStats, PlaybookRunFilter};
 pub use totp_verification::TotpVerification;
 pub use inventory::{Inventory, InventoryType};
 pub use repository::{Repository, RepositoryType};

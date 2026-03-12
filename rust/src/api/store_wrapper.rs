@@ -4,6 +4,7 @@ use crate::db::store::*;
 use crate::models::*;
 use crate::models::audit_log::{AuditAction, AuditObjectType, AuditLevel, AuditLog, AuditLogFilter, AuditLogResult};
 use crate::models::webhook::{Webhook, UpdateWebhook, WebhookLog};
+use crate::models::playbook_run_history::{PlaybookRun, PlaybookRunCreate, PlaybookRunUpdate, PlaybookRunStatus, PlaybookRunStats, PlaybookRunFilter};
 use crate::error::Result;
 use crate::services::task_logger::TaskStatus;
 use async_trait::async_trait;
@@ -692,6 +693,33 @@ impl crate::db::store::PlaybookManager for StoreWrapper {
 
     async fn delete_playbook(&self, id: i32, project_id: i32) -> Result<()> {
         self.inner.as_ref().as_ref().delete_playbook(id, project_id).await
+    }
+}
+
+#[async_trait]
+impl crate::db::store::PlaybookRunManager for StoreWrapper {
+    async fn get_playbook_runs(&self, filter: PlaybookRunFilter) -> Result<Vec<PlaybookRun>> {
+        self.inner.as_ref().as_ref().get_playbook_runs(filter).await
+    }
+
+    async fn get_playbook_run(&self, id: i32, project_id: i32) -> Result<PlaybookRun> {
+        self.inner.as_ref().as_ref().get_playbook_run(id, project_id).await
+    }
+
+    async fn create_playbook_run(&self, run: PlaybookRunCreate) -> Result<PlaybookRun> {
+        self.inner.as_ref().as_ref().create_playbook_run(run).await
+    }
+
+    async fn update_playbook_run(&self, id: i32, project_id: i32, update: PlaybookRunUpdate) -> Result<PlaybookRun> {
+        self.inner.as_ref().as_ref().update_playbook_run(id, project_id, update).await
+    }
+
+    async fn delete_playbook_run(&self, id: i32, project_id: i32) -> Result<()> {
+        self.inner.as_ref().as_ref().delete_playbook_run(id, project_id).await
+    }
+
+    async fn get_playbook_run_stats(&self, playbook_id: i32) -> Result<PlaybookRunStats> {
+        self.inner.as_ref().as_ref().get_playbook_run_stats(playbook_id).await
     }
 }
 

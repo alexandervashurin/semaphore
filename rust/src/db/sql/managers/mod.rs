@@ -57,6 +57,7 @@ pub mod project_invite;
 pub mod terraform;
 pub mod webhook;
 pub mod playbook;
+pub mod playbook_run;
 
 // Ре-экспорт трейтов для удобства
 pub use connection::*;
