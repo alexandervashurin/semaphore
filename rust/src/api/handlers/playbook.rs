@@ -10,8 +10,10 @@ use crate::api::state::AppState;
 use crate::api::middleware::ErrorResponse;
 use crate::db::store::PlaybookManager;
 use crate::models::playbook::{Playbook, PlaybookCreate, PlaybookUpdate};
+use crate::models::playbook_run::PlaybookRunRequest;
 use crate::validators::PlaybookValidator;
 use crate::services::playbook_sync_service::PlaybookSyncService;
+use crate::services::playbook_run_service::PlaybookRunService;
 
 /// GET /api/project/{project_id}/playbooks
 pub async fn get_project_playbooks(
@@ -142,4 +144,23 @@ pub async fn preview_playbook(
         })?;
 
     Ok(Json(content))
+}
+
+/// POST /api/project/{project_id}/playbooks/{id}/run
+/// Запустить playbook
+pub async fn run_playbook(
+    State(state): State<Arc<AppState>>,
+    Path((project_id, id)): Path<(i32, i32)>,
+    Json(payload): Json<PlaybookRunRequest>,
+) -> Result<(StatusCode, Json<crate::models::playbook_run::PlaybookRunResult>), (StatusCode, Json<ErrorResponse>)> {
+    let result = PlaybookRunService::run_playbook(id, project_id, payload, &state.store)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string()))
+            )
+        })?;
+
+    Ok((StatusCode::ACCEPTED, Json(result)))
 }

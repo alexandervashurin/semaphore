@@ -96,6 +96,7 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/api/project/{project_id}/playbooks/{id}", delete(handlers::playbook::delete_playbook))
         .route("/api/project/{project_id}/playbooks/{id}/sync", post(handlers::playbook::sync_playbook))
         .route("/api/project/{project_id}/playbooks/{id}/preview", get(handlers::playbook::preview_playbook))
+        .route("/api/project/{project_id}/playbooks/{id}/run", post(handlers::playbook::run_playbook))
         // Репозитории
         .route("/api/projects/{project_id}/repositories", get(handlers::get_repositories))
         .route("/api/projects/{project_id}/repositories", post(handlers::create_repository))
