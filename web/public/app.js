@@ -186,6 +186,48 @@ const api = {
     // Keys
     getKeys(projectId) {
         return this.get('/project/' + projectId + '/keys');
+    },
+
+    // Inventory
+    getInventories(projectId) {
+        return this.get('/project/' + projectId + '/inventory');
+    },
+
+    getInventory(projectId, id) {
+        return this.get('/project/' + projectId + '/inventory/' + id);
+    },
+
+    createInventory(projectId, data) {
+        return this.post('/project/' + projectId + '/inventory', data);
+    },
+
+    updateInventory(projectId, id, data) {
+        return this.put('/project/' + projectId + '/inventory/' + id, data);
+    },
+
+    deleteInventory(projectId, id) {
+        return this.delete('/project/' + projectId + '/inventory/' + id);
+    },
+
+    // Environment
+    getEnvironments(projectId) {
+        return this.get('/project/' + projectId + '/environment');
+    },
+
+    getEnvironment(projectId, id) {
+        return this.get('/project/' + projectId + '/environment/' + id);
+    },
+
+    createEnvironment(projectId, data) {
+        return this.post('/project/' + projectId + '/environment', data);
+    },
+
+    updateEnvironment(projectId, id, data) {
+        return this.put('/project/' + projectId + '/environment/' + id, data);
+    },
+
+    deleteEnvironment(projectId, id) {
+        return this.delete('/project/' + projectId + '/environment/' + id);
     }
 };
 
