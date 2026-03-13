@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Playbooks - Semaphore UI</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <h2>🚀 Semaphore</h2>
+            </div>
+            <ul class="sidebar-nav">
+                <li><a href="index.html">📊 Dashboard</a></li>
+                <li><a href="project.html" class="active">📁 Проект</a></li>
+                <li><a href="playbooks.html" class="active">📜 Playbooks</a></li>
+                <li><a href="templates.html">📋 Шаблоны</a></li>
+                <li><a href="inventory.html">📦 Инвентарь</a></li>
+                <li><a href="environments.html">⚙️ Переменные</a></li>
+                <li><a href="repositories.html">🗂️ Репозитории</a></li>
+                <li><a href="keys.html">🔐 Ключи</a></li>
+                <li><a href="schedules.html">⏰ Расписания</a></li>
+            </ul>
+        </aside>
+
+        <div class="main-content">
+            <div class="main-header">
+                <h2 id="project-title">Playbooks</h2>
+                <button class="btn btn-logout" onclick="api.logout()">Выйти</button>
+            </div>
+
+            <div class="main-body">
+                <div class="page-header">
+                    <h1>📜 Playbooks</h1>
+                    <button class="btn btn-primary" onclick="openPlaybookModal()">+ Новый Playbook</button>
+                </div>
+
+                <div id="playbooks-content">
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        <p>Загрузка playbook'ов...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        checkAuth();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = urlParams.get('id');
+
+        if (!projectId) {
+            window.location.href = 'index.html';
+        }
+
+        // Загрузка проекта
+        api.getProject(projectId)
+            .then(project => {
+                $('#project-title').textContent = project.name + ' → Playbooks';
+                document.title = 'Playbooks - ' + project.name;
+            })
+            .catch(console.error);
+
+        // Загрузка playbook'ов
+        loadPlaybooks();
+
+        function loadPlaybooks() {
+            const container = $('#playbooks-content');
+            
+            api.getPlaybooks(projectId)
+                .then(playbooks => {
+                    if (playbooks.length === 0) {
+                        ui.showEmpty(container, '📜', 'Нет playbook\'ов', 'Создайте первый playbook чтобы начать работу');
+                    } else {
+                        container.innerHTML = `
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Название</th>
+                                        <th>Тип</th>
+                                        <th>Описание</th>
+                                        <th>Репозиторий</th>
+                                        <th>Обновлено</th>
+                                        <th style="width: 200px;">Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${playbooks.map(pb => `
+                                        <tr>
+                                            <td><strong>${escapeHtml(pb.name)}</strong></td>
+                                            <td><span class="badge badge-${pb.playbook_type || 'ansible'}">${pb.playbook_type || 'ansible'}</span></td>
+                                            <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(pb.description || '—')}</td>
+                                            <td>${pb.repository_id ? '📁 ID: ' + pb.repository_id : '—'}</td>
+                                            <td>${formatDate(pb.updated)}</td>
+                                            <td>
+                                                <button class="btn btn-success btn-sm" onclick="alert('Запуск будет реализован')">▶</button>
+                                                <button class="btn btn-sm" onclick="editPlaybook(${pb.id})">✏️</button>
+                                                <button class="btn btn-sm" onclick="syncPlaybook(${pb.id})" title="Синхронизировать из Git">🔄</button>
+                                                <button class="btn btn-danger btn-sm" onclick="deletePlaybook(${pb.id})">🗑️</button>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    ui.showError(container, error.message);
+                });
+        }
+
+        // Редактирование playbook
+        function editPlaybook(id) {
+            api.getPlaybook(projectId, id)
+                .then(playbook => {
+                    openPlaybookModal(playbook);
+                })
+                .catch(error => {
+                    ui.showAlert('Ошибка: ' + error.message, 'danger');
+                });
+        }
+
+        // Синхронизация playbook
+        function syncPlaybook(id) {
+            if (!confirm('Синхронизировать playbook из Git репозитория?')) return;
+
+            api.syncPlaybook(projectId, id)
+                .then(() => {
+                    ui.showAlert('Playbook синхронизирован', 'success');
+                    loadPlaybooks();
+                })
+                .catch(error => {
+                    ui.showAlert('Ошибка: ' + error.message, 'danger');
+                });
+        }
+
+        // Удаление playbook
+        function deletePlaybook(id) {
+            if (!confirm('Вы уверены что хотите удалить этот playbook? Это действие нельзя отменить.')) return;
+
+            api.deletePlaybook(projectId, id)
+                .then(() => {
+                    ui.showAlert('Playbook удалён', 'success');
+                    loadPlaybooks();
+                })
+                .catch(error => {
+                    ui.showAlert('Ошибка: ' + error.message, 'danger');
+                });
+        }
+
+        // Модальное окно создания/редактирования
+        function openPlaybookModal(playbook = null) {
+            const isEdit = !!playbook;
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.id = 'playbook-modal';
+            modal.innerHTML = `
+                <div class="modal" style="max-width: 700px;">
+                    <div class="modal-header">
+                        <h2>${isEdit ? '✏️ Редактирование' : '➕ Новый'} Playbook</h2>
+                    </div>
+                    <form id="playbook-form">
+                        <div class="form-group">
+                            <label for="name">Название *</label>
+                            <input type="text" id="name" class="form-control" required value="${escapeHtml(playbook?.name || '')}" placeholder="My Playbook">
+                        </div>
+                        <div class="form-group">
+                            <label for="playbook_type">Тип *</label>
+                            <select id="playbook_type" class="form-control" required>
+                                <option value="ansible" ${playbook?.playbook_type === 'ansible' ? 'selected' : ''}>Ansible</option>
+                                <option value="terraform" ${playbook?.playbook_type === 'terraform' ? 'selected' : ''}>Terraform</option>
+                                <option value="shell" ${playbook?.playbook_type === 'shell' ? 'selected' : ''}>Shell</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="content">Содержимое (YAML) *</label>
+                            <textarea id="content" class="form-control" rows="15" required placeholder="---\n- name: My Playbook\n  hosts: all\n  tasks:\n    - name: Task 1\n      debug:\n        msg: Hello" style="font-family: monospace; font-size: 13px;">${escapeHtml(playbook?.content || '')}</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="description">Описание</label>
+                            <textarea id="description" class="form-control" rows="3" placeholder="Краткое описание playbook">${escapeHtml(playbook?.description || '')}</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="repository_id">Репозиторий (опционально)</label>
+                            <select id="repository_id" class="form-control">
+                                <option value="">Не выбрано</option>
+                            </select>
+                            <small style="color: var(--text-light);">Если выбран репозиторий, playbook можно синхронизировать из Git</small>
+                        </div>
+                        <div class="modal-footer" style="margin-top: 20px;">
+                            <button type="button" class="btn" onclick="closePlaybookModal()">Отмена</button>
+                            <button type="submit" class="btn btn-primary">${isEdit ? 'Сохранить' : 'Создать'}</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            // Загрузка репозиториев
+            api.getRepositories(projectId)
+                .then(repos => {
+                    const select = $('#repository_id');
+                    select.innerHTML = '<option value="">Не выбрано</option>' + 
+                        repos.map(r => `<option value="${r.id}" ${playbook?.repository_id === r.id ? 'selected' : ''}>${escapeHtml(r.name)}</option>`).join('');
+                })
+                .catch(console.error);
+
+            // Обработчик формы
+            $('#playbook-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                savePlaybook(playbook?.id);
+            });
+
+            // Закрытие по клику вне модального окна
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closePlaybookModal();
+            });
+        }
+
+        function closePlaybookModal() {
+            const modal = $('#playbook-modal');
+            if (modal) modal.remove();
+        }
+
+        function savePlaybook(id) {
+            const data = {
+                name: $('#name').value.trim(),
+                playbook_type: $('#playbook_type').value,
+                content: $('#content').value.trim(),
+                description: $('#description').value.trim() || null,
+                repository_id: $('#repository_id').value ? parseInt($('#repository_id').value) : null
+            };
+
+            // Валидация
+            if (!data.name) {
+                ui.showAlert('Введите название', 'warning');
+                return;
+            }
+            if (!data.content) {
+                ui.showAlert('Введите содержимое playbook', 'warning');
+                return;
+            }
+            if (!data.content.startsWith('---') && !data.content.startsWith('-')) {
+                ui.showAlert('Неверный формат YAML. Должен начинаться с "---" или "-"', 'warning');
+                return;
+            }
+
+            const btn = $('#playbook-form button[type="submit"]');
+            btn.disabled = true;
+            btn.textContent = 'Сохранение...';
+
+            const promise = id 
+                ? api.updatePlaybook(projectId, id, data)
+                : api.createPlaybook(projectId, data);
+
+            promise
+                .then(() => {
+                    ui.showAlert(id ? 'Playbook обновлён' : 'Playbook создан', 'success');
+                    closePlaybookModal();
+                    loadPlaybooks();
+                })
+                .catch(error => {
+                    ui.showAlert('Ошибка: ' + error.message, 'danger');
+                })
+                .finally(() => {
+                    btn.disabled = false;
+                    btn.textContent = id ? 'Сохранить' : 'Создать';
+                });
+        }
+
+        // Глобальная функция для доступа из таблицы
+        window.editPlaybook = editPlaybook;
+        window.syncPlaybook = syncPlaybook;
+        window.deletePlaybook = deletePlaybook;
+    </script>
+</body>
+</html>
