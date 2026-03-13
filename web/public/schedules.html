@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Расписания - Semaphore UI</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <h2>🚀 Semaphore</h2>
+            </div>
+            <ul class="sidebar-nav">
+                <li><a href="index.html">📊 Dashboard</a></li>
+                <li><a href="project.html">📁 Проект</a></li>
+                <li><a href="playbooks.html">📜 Playbooks</a></li>
+                <li><a href="templates.html">📋 Шаблоны</a></li>
+                <li><a href="inventory.html">📦 Инвентарь</a></li>
+                <li><a href="environments.html">⚙️ Переменные</a></li>
+                <li><a href="repositories.html">🗂️ Репозитории</a></li>
+                <li><a href="keys.html">🔐 Ключи</a></li>
+                <li><a href="schedules.html" class="active">⏰ Расписания</a></li>
+            </ul>
+        </aside>
+
+        <div class="main-content">
+            <div class="main-header">
+                <h2 id="project-title">Расписания</h2>
+                <button class="btn btn-logout" onclick="api.logout()">Выйти</button>
+            </div>
+
+            <div class="main-body">
+                <div class="page-header">
+                    <h1>⏰ Расписания</h1>
+                    <button class="btn btn-primary" onclick="openScheduleModal()">+ Новое Расписание</button>
+                </div>
+
+                <div id="schedules-content">
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        <p>Загрузка расписаний...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        checkAuth();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = urlParams.get('id');
+
+        if (!projectId) {
+            window.location.href = 'index.html';
+        }
+
+        api.getProject(projectId)
+            .then(project => {
+                $('#project-title').textContent = project.name + ' → Расписания';
+                document.title = 'Расписания - ' + project.name;
+            })
+            .catch(console.error);
+
+        loadSchedules();
+
+        function loadSchedules() {
+            const container = $('#schedules-content');
+            
+            api.get('/project/' + projectId + '/schedules')
+                .then(schedules => {
+                    if (schedules.length === 0) {
+                        ui.showEmpty(container, '⏰', 'Нет расписаний', 'Создайте первое расписание для автоматического запуска');
+                    } else {
+                        container.innerHTML = `
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Название</th>
+                                        <th>Шаблон</th>
+                                        <th>Cron</th>
+                                        <th>Активно</th>
+                                        <th>Создано</th>
+                                        <th>Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${schedules.map(sched => `
+                                        <tr>
+                                            <td><strong>${escapeHtml(sched.name)}</strong></td>
+                                            <td>📋 ID: ${sched.template_id}</td>
+                                            <td><code style="font-size: 12px;">${escapeHtml(sched.cron)}</code></td>
+                                            <td>
+                                                <span class="badge badge-${sched.active ? 'success' : 'danger'}">
+                                                    ${sched.active ? '✓ Активно' : '✗ Отключено'}
+                                                </span>
+                                            </td>
+                                            <td>${formatDate(sched.created)}</td>
+                                            <td>
+                                                <button class="btn btn-sm" onclick="editSchedule(${sched.id})" title="Редактировать">✏️</button>
+                                                <button class="btn btn-sm" onclick="toggleSchedule(${sched.id}, ${!sched.active})" title="${sched.active ? 'Отключить' : 'Включить'}">
+                                                    ${sched.active ? '⏸️' : '▶️'}
+                                                </button>
+                                                <button class="btn btn-danger btn-sm" onclick="deleteSchedule(${sched.id})" title="Удалить">🗑️</button>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    ui.showError(container, error.message);
+                });
+        }
+
+        function editSchedule(id) {
+            Promise.all([
+                api.get('/project/' + projectId + '/schedules/' + id),
+                api.getTemplates(projectId).catch(() => [])
+            ])
+            .then(([schedule, templates]) => {
+                openScheduleModal(schedule, templates);
+            })
+            .catch(error => {
+                ui.showAlert('Ошибка: ' + error.message, 'danger');
+            });
+        }
+
+        function toggleSchedule(id, active) {
+            const action = active ? 'включить' : 'отключить';
+            if (!confirm(`Вы уверены что хотите ${action} это расписание?`)) return;
+
+            api.get('/project/' + projectId + '/schedules/' + id)
+                .then(schedule => {
+                    return api.put('/project/' + projectId + '/schedules/' + id, {
+                        ...schedule,
+                        active: active
+                    });
+                })
+                .then(() => {
+                    ui.showAlert('Расписание ' + (active ? 'включено' : 'отключено'), 'success');
+                    loadSchedules();
+                })
+                .catch(error => {
+                    ui.showAlert('Ошибка: ' + error.message, 'danger');
+                });
+        }
+
+        function deleteSchedule(id) {
+            if (!confirm('Вы уверены что хотите удалить это расписание?')) return;
+
+            api.delete('/project/' + projectId + '/schedules/' + id)
+                .then(() => {
+                    ui.showAlert('Расписание удалено', 'success');
+                    loadSchedules();
+                })
+                .catch(error => {
+                    ui.showAlert('Ошибка: ' + error.message, 'danger');
+                });
+        }
+
+        function openScheduleModal(schedule = null, templates = null) {
+            const isEdit = !!schedule;
+            
+            // Если шаблоны не переданы, загружаем их
+            if (!templates) {
+                api.getTemplates(projectId)
+                    .then(tps => {
+                        renderModal(schedule, tps);
+                    })
+                    .catch(console.error);
+            } else {
+                renderModal(schedule, templates);
+            }
+
+            function renderModal(sched, tps) {
+                const modal = document.createElement('div');
+                modal.className = 'modal-overlay';
+                modal.id = 'schedule-modal';
+                modal.innerHTML = `
+                    <div class="modal" style="max-width: 650px;">
+                        <div class="modal-header">
+                            <h2>${isEdit ? '✏️ Редактирование' : '➕ Новое'} Расписание</h2>
+                        </div>
+                        <form id="schedule-form">
+                            <div class="form-group">
+                                <label for="name">Название *</label>
+                                <input type="text" id="name" class="form-control" required value="${escapeHtml(sched?.name || '')}" placeholder="Ежедневный бэкап">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="template_id">Шаблон *</label>
+                                <select id="template_id" class="form-control" required>
+                                    <option value="">Выберите шаблон</option>
+                                    ${tps.map(tpl => `<option value="${tpl.id}" ${sched?.template_id === tpl.id ? 'selected' : ''}>${escapeHtml(tpl.name)}</option>`).join('')}
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="cron">Cron выражение *</label>
+                                <input type="text" id="cron" class="form-control" required value="${escapeHtml(sched?.cron || '')}" placeholder="0 2 * * *">
+                                <small style="color: var(--text-light);">
+                                    <strong>Формат:</strong> минута час день месяц день_недели<br>
+                                    <strong>Примеры:</strong><br>
+                                    <code>0 2 * * *</code> - каждый день в 02:00<br>
+                                    <code>0 0 * * 0</code> - каждое воскресенье в 00:00<br>
+                                    <code>0 */6 * * *</code> - каждые 6 часов<br>
+                                    <code>0 0 1 * *</code> - 1-го числа каждого месяца в 00:00
+                                </small>
+                            </div>
+
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" id="active" ${sched?.active !== false ? 'checked' : ''}>
+                                    Активно (расписание включено)
+                                </label>
+                            </div>
+
+                            <div class="modal-footer" style="margin-top: 20px;">
+                                <button type="button" class="btn" onclick="closeScheduleModal()">Отмена</button>
+                                <button type="submit" class="btn btn-primary">${isEdit ? 'Сохранить' : 'Создать'}</button>
+                            </div>
+                        </form>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+
+                $('#schedule-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    saveSchedule(sched?.id);
+                });
+
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) closeScheduleModal();
+                });
+            }
+        }
+
+        function closeScheduleModal() {
+            const modal = $('#schedule-modal');
+            if (modal) modal.remove();
+        }
+
+        function saveSchedule(id) {
+            const data = {
+                name: $('#name').value.trim(),
+                template_id: $('#template_id').value ? parseInt($('#template_id').value) : null,
+                cron: $('#cron').value.trim(),
+                active: $('#active').checked,
+                project_id: parseInt(projectId)
+            };
+
+            if (!data.name) {
+                ui.showAlert('Введите название', 'warning');
+                return;
+            }
+            if (!data.template_id) {
+                ui.showAlert('Выберите шаблон', 'warning');
+                return;
+            }
+            if (!data.cron) {
+                ui.showAlert('Введите Cron выражение', 'warning');
+                return;
+            }
+
+            // Простая валидация cron (5 полей)
+            const cronParts = data.cron.trim().split(/\s+/);
+            if (cronParts.length !== 5) {
+                ui.showAlert('Cron выражение должно содержать 5 полей (минута час день месяц день_недели)', 'warning');
+                return;
+            }
+
+            const btn = $('#schedule-form button[type="submit"]');
+            btn.disabled = true;
+            btn.textContent = 'Сохранение...';
+
+            const promise = id 
+                ? api.put('/project/' + projectId + '/schedules/' + id, data)
+                : api.post('/project/' + projectId + '/schedules', data);
+
+            promise
+                .then(() => {
+                    ui.showAlert(id ? 'Расписание обновлено' : 'Расписание создано', 'success');
+                    closeScheduleModal();
+                    loadSchedules();
+                })
+                .catch(error => {
+                    ui.showAlert('Ошибка: ' + error.message, 'danger');
+                })
+                .finally(() => {
+                    btn.disabled = false;
+                    btn.textContent = id ? 'Сохранить' : 'Создать';
+                });
+        }
+
+        window.editSchedule = editSchedule;
+        window.toggleSchedule = toggleSchedule;
+        window.deleteSchedule = deleteSchedule;
+    </script>
+</body>
+</html>
