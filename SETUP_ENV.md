@@ -1,32 +1,28 @@
-
-# 🔧 Настройка .env файла
+# 🔧 Настройка окружения
 
 ## Автоматическая настройка
 
 ### Быстрый старт
 
 ```bash
-# Запустить интерактивный скрипт настройки
-./setup-env.sh
+# Инициализация и настройка (выберите режим)
+./semaphore.sh init native    # SQLite
+./semaphore.sh init hybrid    # PostgreSQL в Docker
 ```
 
-Скрипт автоматически:
-1. ✅ Проверит существующий `.env` файл
-2. ✅ Предложит выбор типа БД (SQLite/PostgreSQL/Демо)
-3. ✅ Сгенерирует JWT secret
-4. ✅ Настроит все необходимые переменные
-5. ✅ Создаст резервную копию (если файл уже существует)
+Команда `init` автоматически:
+1. ✅ Создаст `.env` файл с нужными переменными
+2. ✅ Применит миграции БД
+3. ✅ Создаст пользователя admin
+4. ✅ Настроит все необходимые параметры
 
 ### Примеры использования
 
 #### 1. Настройка SQLite (для тестирования)
 
 ```bash
-./setup-env.sh
-
-# Выберите тип базы данных: 1 (SQLite)
-# Порт: 3000 (по умолчанию)
-# Уровень логирования: 3 (info)
+./semaphore.sh init native
+./semaphore.sh start native
 ```
 
 **Результат:**
@@ -35,25 +31,20 @@ cat .env
 
 SEMAPHORE_DB_DIALECT=sqlite
 SEMAPHORE_DB_PATH=/tmp/semaphore.db
-SEMAPHORE_DB_URL=sqlite:///tmp/semaphore.db
-SEMAPHORE_JWT_SECRET=随机生成的 64 位随机字符串
-SEMAPHORE_TCP_ADDRESS=0.0.0.0:3000
-RUST_LOG=info
 SEMAPHORE_WEB_PATH=./web/public
 SEMAPHORE_TMP_PATH=/tmp/semaphore
+SEMAPHORE_TCP_ADDRESS=0.0.0.0:3000
+RUST_LOG=info
 ```
+
+**Учётные данные:**
+- `admin` / `admin123`
 
 #### 2. Настройка PostgreSQL (для продакшена)
 
 ```bash
-./setup-env.sh
-
-# Выберите тип базы данных: 2 (PostgreSQL)
-# Хост: localhost
-# Порт: 5432
-# Пользователь: semaphore
-# Пароль: semaphore_pass
-# База данных: semaphore
+./semaphore.sh init hybrid
+./semaphore.sh start hybrid
 ```
 
 **Результат:**
@@ -62,31 +53,27 @@ cat .env
 
 SEMAPHORE_DB_DIALECT=postgres
 SEMAPHORE_DB_URL=postgres://semaphore:semaphore_pass@localhost:5432/semaphore
-SEMAPHORE_JWT_SECRET=随机生成的 64 位随机字符串
+SEMAPHORE_WEB_PATH=./web/public
+SEMAPHORE_TMP_PATH=/tmp/semaphore
 SEMAPHORE_TCP_ADDRESS=0.0.0.0:3000
 RUST_LOG=info
 ```
 
+**Учётные данные:**
+- `admin` / `admin123`
+
 #### 3. Настройка PostgreSQL с демо-данными
 
 ```bash
-./setup-env.sh
+# Запуск PostgreSQL с демо-данными
+docker-compose -f docker-compose.postgres.yml up -d
 
-# Выберите тип базы данных: 3 (PostgreSQL с демо-данными)
+# Инициализация
+./semaphore.sh init hybrid
+./semaphore.sh start hybrid
 ```
 
-**Результат:**
-```bash
-cat .env
-
-SEMAPHORE_DB_DIALECT=postgres
-SEMAPHORE_DB_URL=postgres://semaphore:semaphore_pass@localhost:5432/semaphore
-SEMAPHORE_JWT_SECRET=随机生成的 64 位随机字符串
-SEMAPHORE_DEMO_MODE=true
-SEMAPHORE_TCP_ADDRESS=0.0.0.0:3000
-```
-
-**Учетные данные для входа:**
+**Учётные данные (демо):**
 - `admin` / `demo123`
 - `john.doe` / `demo123`
 - `jane.smith` / `demo123`

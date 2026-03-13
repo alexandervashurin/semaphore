@@ -62,7 +62,8 @@ docker exec semaphore-db psql -U semaphore -d semaphore -c "SELECT COUNT(*) FROM
 **2. Если БД пуста, пересоздайте контейнеры**
 
 ```bash
-./start.sh --clean
+./semaphore.sh clean
+./semaphore.sh init hybrid
 ```
 
 Или вручную:
@@ -199,14 +200,15 @@ docker exec semaphore-db psql -U semaphore -d semaphore -c "SELECT id, username,
 
 1. Пересоздайте контейнеры:
    ```bash
-   ./cleanup.sh --all
-   ./start.sh
+   ./semaphore.sh clean
+   ./semaphore.sh init hybrid
+   ./semaphore.sh start hybrid
    ```
 
 2. Проверьте логи:
    ```bash
+   ./semaphore.sh logs
    docker logs semaphore-db --tail 50
-   docker logs semaphore-frontend --tail 50
    ```
 
 3. Проверьте backend:
@@ -215,4 +217,9 @@ docker exec semaphore-db psql -U semaphore -d semaphore -c "SELECT id, username,
    curl http://localhost:3000/api/health
    ```
 
-4. Откройте issue на GitHub с логами.
+4. Проверьте статус:
+   ```bash
+   ./semaphore.sh status
+   ```
+
+5. Откройте issue на GitHub с логами.

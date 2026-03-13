@@ -16,8 +16,8 @@
 
 ```bash
 # Быстрый старт демо-режима
-./scripts/start-demo-mode.sh
-./start.sh hybrid
+./semaphore.sh init hybrid
+./semaphore.sh start hybrid
 
 # Откройте в браузере
 http://localhost:3000
@@ -53,10 +53,10 @@ SQLite + Backend + Frontend на хосте. Минимальные зависи
 
 ```bash
 # Первый запуск с инициализацией
-./start.sh native --init
+./semaphore.sh init native
 
 # Запуск сервера
-./start.sh native
+./semaphore.sh start native
 ```
 
 **Доступ:** http://localhost:3000
@@ -66,10 +66,10 @@ SQLite + Backend + Frontend на хосте. Минимальные зависи
 
 **Полезные команды:**
 ```bash
-./start.sh native --stop   # Остановить backend
-./start.sh native --logs   # Просмотр логов
-./start.sh native --clean  # Удалить БД
-./start.sh native --init   # Инициализировать БД
+./semaphore.sh stop              # Остановить backend
+./semaphore.sh logs              # Просмотр логов
+./semaphore.sh clean             # Удалить БД
+./semaphore.sh status            # Показать статус
 ```
 
 ---
@@ -80,10 +80,10 @@ PostgreSQL в Docker, Backend и Frontend на хосте.
 
 ```bash
 # Первый запуск с инициализацией
-./start.sh hybrid --init
+./semaphore.sh init hybrid
 
 # Запуск сервера
-./start.sh hybrid
+./semaphore.sh start hybrid
 ```
 
 **Доступ:** http://localhost:3000
@@ -93,10 +93,10 @@ PostgreSQL в Docker, Backend и Frontend на хосте.
 
 **Полезные команды:**
 ```bash
-./start.sh hybrid --stop   # Остановить сервисы
-./start.sh hybrid --logs   # Просмотр логов
-./start.sh hybrid --clean  # Очистить данные БД
-./start.sh hybrid --init   # Инициализировать БД
+./semaphore.sh stop              # Остановить сервисы
+./semaphore.sh logs              # Просмотр логов
+./semaphore.sh clean             # Очистить данные БД
+./semaphore.sh status            # Показать статус
 ```
 
 ---
@@ -107,7 +107,7 @@ Frontend + PostgreSQL + Backend в Docker контейнерах.
 
 ```bash
 # Запуск всех сервисов
-./start.sh docker
+./semaphore.sh start docker
 ```
 
 **Доступ:** http://localhost
@@ -117,9 +117,10 @@ Frontend + PostgreSQL + Backend в Docker контейнерах.
 
 **Полезные команды:**
 ```bash
-./start.sh docker --stop   # Остановить сервисы
-./start.sh docker --logs   # Просмотр логов
-./start.sh docker --clean  # Очистить volumes
+./semaphore.sh stop              # Остановить сервисы
+./semaphore.sh logs              # Просмотр логов
+./semaphore.sh clean             # Очистить volumes
+./semaphore.sh status            # Показать статус
 ```
 
 ---
