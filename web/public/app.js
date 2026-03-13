@@ -270,6 +270,27 @@ const api = {
 
     deleteKey(projectId, id) {
         return this.delete('/project/' + projectId + '/keys/' + id);
+    },
+
+    // Templates
+    getTemplates(projectId) {
+        return this.get('/project/' + projectId + '/templates');
+    },
+
+    getTemplate(projectId, id) {
+        return this.get('/project/' + projectId + '/templates/' + id);
+    },
+
+    createTemplate(projectId, data) {
+        return this.post('/project/' + projectId + '/templates', data);
+    },
+
+    updateTemplate(projectId, id, data) {
+        return this.put('/project/' + projectId + '/templates/' + id, data);
+    },
+
+    deleteTemplate(projectId, id) {
+        return this.delete('/project/' + projectId + '/templates/' + id);
     }
 };
 
