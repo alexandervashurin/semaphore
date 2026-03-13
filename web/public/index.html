@@ -3,78 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Semaphore UI - DevOps Automation</title>
-    <link rel="stylesheet" href="styles.css?v=4">
-    <link rel="icon" href="favicon.png">
+    <title>Dashboard - Semaphore UI</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <!-- Login View -->
-    <div id="login-view" class="view active">
-        <div class="login-container">
-            <div class="login-card">
-                <div class="logo">
-                    <div class="logo-icon">🚀</div>
-                    <h1>Semaphore UI</h1>
-                    <p class="subtitle">DevOps Automation Platform</p>
-                </div>
-                <form id="login-form" class="login-form">
-                    <div class="form-group">
-                        <label for="username"><span class="icon">👤</span>Имя пользователя</label>
-                        <input type="text" id="username" name="username" placeholder="admin" required autocomplete="username">
-                    </div>
-                    <div class="form-group">
-                        <label for="password"><span class="icon">🔒</span>Пароль</label>
-                        <input type="password" id="password" name="password" placeholder="••••••••" required autocomplete="current-password">
-                    </div>
-                    <button type="submit" class="btn btn-primary btn-block"><span class="btn-text">Войти</span><span class="btn-icon">→</span></button>
-                    <div id="login-error" class="error-message" style="display: none;"></div>
-                </form>
-                <div class="login-hint"><p>💡 Демо доступ:</p><code>admin / demo123</code></div>
+    <div class="header">
+        <h1>🚀 Semaphore UI</h1>
+        <div class="user-menu">
+            <span id="user-name">Admin</span>
+            <button class="btn-logout" onclick="api.logout()">Выйти</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card mb-4">
+            <h2>Добро пожаловать!</h2>
+            <p style="color: var(--text-light);">Управление проектами автоматизации</p>
+        </div>
+
+        <div class="page-header">
+            <h1>Проекты</h1>
+        </div>
+
+        <div id="projects-grid" class="grid">
+            <div class="loading">
+                <div class="loading-spinner"></div>
+                <p>Загрузка проектов...</p>
             </div>
         </div>
     </div>
 
-    <!-- Dashboard View -->
-    <div id="dashboard-view" class="view">
-        <aside class="sidebar">
-            <div class="sidebar-header"><div class="logo-small">🚀</div><span class="logo-text">Semaphore</span></div>
-            <nav class="sidebar-nav">
-                <a href="#" class="nav-item active" data-page="dashboard"><span class="nav-icon">📊</span><span class="nav-text">Дашборд</span></a>
-                <a href="#" class="nav-item" data-page="projects"><span class="nav-icon">📁</span><span class="nav-text">Проекты</span></a>
-                <a href="#" class="nav-item" data-page="templates"><span class="nav-icon">📋</span><span class="nav-text">Шаблоны</span></a>
-                <a href="#" class="nav-item" data-page="tasks"><span class="nav-icon">✅</span><span class="nav-text">Задачи</span></a>
-                <a href="#" class="nav-item" data-page="inventory"><span class="nav-icon">📦</span><span class="nav-text">Инвентарь</span></a>
-                <a href="#" class="nav-item" data-page="playbooks"><span class="nav-icon">📜</span><span class="nav-text">Playbooks</span></a>
-                <a href="#" class="nav-item" data-page="environments"><span class="nav-icon">⚙️</span><span class="nav-text">Переменные</span></a>
-                <a href="#" class="nav-item" data-page="schedules"><span class="nav-icon">⏰</span><span class="nav-text">Расписания</span></a>
-                <a href="#" class="nav-item" data-page="keys"><span class="nav-icon">🔐</span><span class="nav-text">Ключи</span></a>
-                <a href="#" class="nav-item" data-page="repositories"><span class="nav-icon">📚</span><span class="nav-text">Репозитории</span></a>
-                <a href="#" class="nav-item" data-page="events"><span class="nav-icon">📊</span><span class="nav-text">События</span></a>
-                <a href="#" class="nav-item" data-page="users"><span class="nav-icon">👥</span><span class="nav-text">Пользователи</span></a>
-            </nav>
-            <div class="sidebar-footer">
-                <div class="user-info">
-                    <div class="user-avatar" id="user-avatar">A</div>
-                    <div class="user-details"><span class="user-name" id="user-name">Admin</span><span class="user-role" id="user-role">Администратор</span></div>
-                </div>
-                <button class="btn btn-icon btn-logout" id="logout-btn" title="Выйти">🚪</button>
-            </div>
-        </aside>
-        <main class="main-content">
-            <header class="top-header">
-                <div class="header-left"><button class="btn btn-icon btn-menu" id="menu-toggle">☰</button><h2 id="page-title">Дашборд</h2></div>
-                <div class="header-right">
-                    <select id="project-selector" class="project-selector">
-                        <option value="1">Demo Infrastructure</option>
-                        <option value="2">Web Application</option>
-                        <option value="3">Database Management</option>
-                        <option value="4">Security & Compliance</option>
-                    </select>
-                </div>
-            </header>
-            <div class="page-content" id="page-content"></div>
-        </main>
-    </div>
-    <script src="app.js?v=8"></script>
+    <script src="app.js"></script>
+    <script>
+        checkAuth();
+
+        // Загрузка проектов
+        api.getProjects()
+            .then(projects => {
+                const grid = $('#projects-grid');
+                if (projects.length === 0) {
+                    ui.showEmpty(grid, '📁', 'Нет проектов', 'Создайте первый проект чтобы начать работу');
+                } else {
+                    grid.innerHTML = projects.map(p => `
+                        <div class="card" onclick="location.href='/project.html?id=${p.id}'" style="cursor: pointer;">
+                            <h3 style="color: var(--primary); margin-bottom: 10px;">${escapeHtml(p.name)}</h3>
+                            <p style="color: var(--text-light);">${escapeHtml(p.description || 'Нет описания')}</p>
+                        </div>
+                    `).join('');
+                }
+            })
+            .catch(error => {
+                ui.showError($('#projects-grid'), error.message);
+            });
+    </script>
 </body>
 </html>

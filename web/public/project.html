@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Проект - Semaphore UI</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <h2>🚀 Semaphore</h2>
+            </div>
+            <ul class="sidebar-nav">
+                <li><a href="index.html">📊 Dashboard</a></li>
+                <li><a href="project.html" class="active">📁 Проект</a></li>
+                <li><a href="playbooks.html">📜 Playbooks</a></li>
+                <li><a href="templates.html">📋 Шаблоны</a></li>
+                <li><a href="inventory.html">📦 Инвентарь</a></li>
+                <li><a href="environments.html">⚙️ Переменные</a></li>
+                <li><a href="repositories.html">🗂️ Репозитории</a></li>
+                <li><a href="keys.html">🔐 Ключи</a></li>
+                <li><a href="schedules.html">⏰ Расписания</a></li>
+            </ul>
+        </aside>
+
+        <div class="main-content">
+            <div class="main-header">
+                <h2 id="project-title">Загрузка...</h2>
+                <button class="btn btn-logout" onclick="api.logout()">Выйти</button>
+            </div>
+
+            <div class="main-body">
+                <div class="tabs">
+                    <button class="tab active" onclick="showTab('playbooks')">📜 Playbooks</button>
+                    <button class="tab" onclick="showTab('templates')">📋 Шаблоны</button>
+                    <button class="tab" onclick="showTab('inventory')">📦 Инвентарь</button>
+                    <button class="tab" onclick="showTab('environments')">⚙️ Переменные</button>
+                </div>
+
+                <div id="tab-content">
+                    <!-- Контент загружается динамически -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        checkAuth();
+
+        // Получить ID проекта из URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = urlParams.get('id');
+
+        if (!projectId) {
+            window.location.href = 'index.html';
+        }
+
+        // Загрузка проекта
+        api.getProject(projectId)
+            .then(project => {
+                $('#project-title').textContent = project.name;
+                document.title = project.name + ' - Semaphore UI';
+            })
+            .catch(console.error);
+
+        // Показать вкладку Playbooks по умолчанию
+        showTab('playbooks');
+
+        function showTab(tabName) {
+            // Обновить активные табы
+            $$('.tab').forEach(t => t.classList.remove('active'));
+            event?.target?.classList?.add('active');
+
+            // Загрузить контент
+            const content = $('#tab-content');
+            ui.showLoading(content);
+
+            switch(tabName) {
+                case 'playbooks':
+                    loadPlaybooks(content);
+                    break;
+                case 'templates':
+                    loadTemplates(content);
+                    break;
+                case 'inventory':
+                    loadInventory(content);
+                    break;
+                case 'environments':
+                    loadEnvironments(content);
+                    break;
+            }
+        }
+
+        function loadPlaybooks(container) {
+            api.getPlaybooks(projectId)
+                .then(playbooks => {
+                    if (playbooks.length === 0) {
+                        ui.showEmpty(container, '📜', 'Нет playbook\'ов', 'Создайте первый playbook');
+                    } else {
+                        container.innerHTML = `
+                            <div class="page-header">
+                                <h2>Playbooks</h2>
+                                <button class="btn btn-primary" onclick="alert('Будет реализовано')">+ Новый Playbook</button>
+                            </div>
+                            <div class="grid">
+                                ${playbooks.map(pb => `
+                                    <div class="card">
+                                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                                            <span style="font-size: 24px;">📜</span>
+                                            <h3 style="flex: 1;">${escapeHtml(pb.name)}</h3>
+                                            <span class="badge badge-${pb.playbook_type || 'ansible'}">${pb.playbook_type || 'ansible'}</span>
+                                        </div>
+                                        <p style="color: var(--text-light); margin-bottom: 15px;">${escapeHtml(pb.description || 'Нет описания')}</p>
+                                        <div style="display: flex; gap: 8px;">
+                                            <button class="btn btn-primary btn-sm" onclick="alert('Запуск будет реализован')">▶ Запуск</button>
+                                            <button class="btn btn-sm" onclick="alert('Редактирование будет реализовано')">✏️ Изменить</button>
+                                        </div>
+                                        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border); font-size: 13px; color: var(--text-light);">
+                                            Обновлено: ${formatDate(pb.updated)}
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    ui.showError(container, error.message);
+                });
+        }
+
+        function loadTemplates(container) {
+            api.getTemplates(projectId)
+                .then(templates => {
+                    if (templates.length === 0) {
+                        ui.showEmpty(container, '📋', 'Нет шаблонов', 'Создайте первый шаблон');
+                    } else {
+                        container.innerHTML = `
+                            <div class="page-header">
+                                <h2>Шаблоны</h2>
+                                <button class="btn btn-primary btn-sm" onclick="alert('Будет реализовано')">+ Новый шаблон</button>
+                            </div>
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Название</th>
+                                        <th>Playbook</th>
+                                        <th>Инвентарь</th>
+                                        <th>Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${templates.map(t => `
+                                        <tr>
+                                            <td>${escapeHtml(t.name)}</td>
+                                            <td><code>${escapeHtml(t.playbook)}</code></td>
+                                            <td>${t.inventory_id ? 'ID: ' + t.inventory_id : '—'}</td>
+                                            <td>
+                                                <button class="btn btn-success btn-sm">▶ Запуск</button>
+                                                <button class="btn btn-sm">✏️</button>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    ui.showError(container, error.message);
+                });
+        }
+
+        function loadInventory(container) {
+            api.getInventories(projectId)
+                .then(inventories => {
+                    if (inventories.length === 0) {
+                        ui.showEmpty(container, '📦', 'Нет инвентарей', 'Создайте первый инвентарь');
+                    } else {
+                        container.innerHTML = `
+                            <div class="page-header">
+                                <h2>Инвентари</h2>
+                                <button class="btn btn-primary btn-sm" onclick="alert('Будет реализовано')">+ Новый</button>
+                            </div>
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Название</th>
+                                        <th>Тип</th>
+                                        <th>Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${inventories.map(i => `
+                                        <tr>
+                                            <td>${escapeHtml(i.name)}</td>
+                                            <td><span class="badge">${i.inventory_type || 'static'}</span></td>
+                                            <td><button class="btn btn-sm">✏️</button></td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    ui.showError(container, error.message);
+                });
+        }
+
+        function loadEnvironments(container) {
+            api.getEnvironments(projectId)
+                .then(envs => {
+                    if (envs.length === 0) {
+                        ui.showEmpty(container, '⚙️', 'Нет переменных', 'Создайте первое окружение');
+                    } else {
+                        container.innerHTML = `
+                            <div class="page-header">
+                                <h2>Окружения</h2>
+                                <button class="btn btn-primary btn-sm" onclick="alert('Будет реализовано')">+ Новое</button>
+                            </div>
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Название</th>
+                                        <th>Переменные</th>
+                                        <th>Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${envs.map(e => `
+                                        <tr>
+                                            <td>${escapeHtml(e.name)}</td>
+                                            <td><code>${Object.keys(JSON.parse(e.json || '{}')).length} переменных</code></td>
+                                            <td><button class="btn btn-sm">✏️</button></td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    ui.showError(container, error.message);
+                });
+        }
+    </script>
+</body>
+</html>
