@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ключи доступа - Semaphore UI</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <h2>🚀 Semaphore</h2>
+            </div>
+            <ul class="sidebar-nav">
+                <li><a href="index.html">📊 Dashboard</a></li>
+                <li><a href="project.html">📁 Проект</a></li>
+                <li><a href="playbooks.html">📜 Playbooks</a></li>
+                <li><a href="templates.html">📋 Шаблоны</a></li>
+                <li><a href="inventory.html">📦 Инвентарь</a></li>
+                <li><a href="environments.html">⚙️ Переменные</a></li>
+                <li><a href="repositories.html">🗂️ Репозитории</a></li>
+                <li><a href="keys.html" class="active">🔐 Ключи</a></li>
+                <li><a href="schedules.html">⏰ Расписания</a></li>
+            </ul>
+        </aside>
+
+        <div class="main-content">
+            <div class="main-header">
+                <h2 id="project-title">Ключи доступа</h2>
+                <button class="btn btn-logout" onclick="api.logout()">Выйти</button>
+            </div>
+
+            <div class="main-body">
+                <div class="page-header">
+                    <h1>🔐 Ключи доступа</h1>
+                    <button class="btn btn-primary" onclick="openKeyModal()">+ Новый Ключ</button>
+                </div>
+
+                <div id="keys-content">
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        <p>Загрузка ключей...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        checkAuth();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = urlParams.get('id');
+
+        if (!projectId) {
+            window.location.href = 'index.html';
+        }
+
+        api.getProject(projectId)
+            .then(project => {
+                $('#project-title').textContent = project.name + ' → Ключи доступа';
+                document.title = 'Ключи - ' + project.name;
+            })
+            .catch(console.error);
+
+        loadKeys();
+
+        function loadKeys() {
+            const container = $('#keys-content');
+            
+            api.getKeys(projectId)
+                .then(keys => {
+                    if (keys.length === 0) {
+                        ui.showEmpty(container, '🔐', 'Нет ключей', 'Создайте первый ключ доступа');
+                    } else {
+                        container.innerHTML = `
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Название</th>
+                                        <th>Тип</th>
+                                        <th>Логин</th>
+                                        <th>Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${keys.map(key => `
+                                        <tr>
+                                            <td><strong>${escapeHtml(key.name)}</strong></td>
+                                            <td><span class="badge badge-${key.type === 'ssh' ? 'success' : 'warning'}">${key.type === 'ssh' ? 'SSH Key' : 'Login/Password'}</span></td>
+                                            <td>${key.login_password_login || key.ssh_key?.substring(0, 20) + '...' || '—'}</td>
+                                            <td>
+                                                <button class="btn btn-sm" onclick="editKey(${key.id})">✏️</button>
+                                                <button class="btn btn-danger btn-sm" onclick="deleteKey(${key.id})">🗑️</button>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    ui.showError(container, error.message);
+                });
+        }
+
+        function editKey(id) {
+            api.getKey(projectId, id)
+                .then(key => {
+                    openKeyModal(key);
+                })
+                .catch(error => {
+                    ui.showAlert('Ошибка: ' + error.message, 'danger');
+                });
+        }
+
+        function deleteKey(id) {
+            if (!confirm('Вы уверены что хотите удалить этот ключ?')) return;
+
+            api.deleteKey(projectId, id)
+                .then(() => {
+                    ui.showAlert('Ключ удалён', 'success');
+                    loadKeys();
+                })
+                .catch(error => {
+                    ui.showAlert('Ошибка: ' + error.message, 'danger');
+                });
+        }
+
+        function openKeyModal(key = null) {
+            const isEdit = !!key;
+            const isSSH = key?.type === 'ssh' || !key;
+            
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.id = 'key-modal';
+            modal.innerHTML = `
+                <div class="modal" style="max-width: 600px;">
+                    <div class="modal-header">
+                        <h2>${isEdit ? '✏️ Редактирование' : '➕ Новый'} Ключ</h2>
+                    </div>
+                    <form id="key-form">
+                        <div class="form-group">
+                            <label for="name">Название *</label>
+                            <input type="text" id="name" class="form-control" required value="${escapeHtml(key?.name || '')}" placeholder="Production SSH Key">
+                        </div>
+                        <div class="form-group">
+                            <label for="type">Тип ключа *</label>
+                            <select id="type" class="form-control" required onchange="toggleKeyFields()">
+                                <option value="ssh" ${isSSH ? 'selected' : ''}>SSH Key</option>
+                                <option value="login_password" ${!isSSH ? 'selected' : ''}>Login/Password</option>
+                            </select>
+                        </div>
+                        <div id="ssh-fields" style="display: ${isSSH ? 'block' : 'none'}">
+                            <div class="form-group">
+                                <label for="ssh_key">SSH приватный ключ *</label>
+                                <textarea id="ssh_key" class="form-control" rows="10" placeholder="-----BEGIN RSA PRIVATE KEY-----&#10;...&#10;-----END RSA PRIVATE KEY-----" style="font-family: monospace; font-size: 13px;">${escapeHtml(key?.ssh_key || '')}</textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="ssh_passphrase">Passphrase (опционально)</label>
+                                <input type="password" id="ssh_passphrase" class="form-control" value="${escapeHtml(key?.ssh_passphrase || '')}" placeholder="Passphrase для ключа">
+                            </div>
+                        </div>
+                        <div id="login-password-fields" style="display: ${!isSSH ? 'block' : 'none'}">
+                            <div class="form-group">
+                                <label for="login_password_login">Логин *</label>
+                                <input type="text" id="login_password_login" class="form-control" required value="${escapeHtml(key?.login_password_login || '')}" placeholder="root">
+                            </div>
+                            <div class="form-group">
+                                <label for="login_password_password">Пароль *</label>
+                                <input type="password" id="login_password_password" class="form-control" required value="${escapeHtml(key?.login_password_password || '')}" placeholder="password">
+                            </div>
+                        </div>
+                        <div class="modal-footer" style="margin-top: 20px;">
+                            <button type="button" class="btn" onclick="closeKeyModal()">Отмена</button>
+                            <button type="submit" class="btn btn-primary">${isEdit ? 'Сохранить' : 'Создать'}</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            $('#key-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                saveKey(key?.id);
+            });
+
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeKeyModal();
+            });
+        }
+
+        function toggleKeyFields() {
+            const type = $('#type').value;
+            $('#ssh-fields').style.display = type === 'ssh' ? 'block' : 'none';
+            $('#login-password-fields').style.display = type === 'ssh' ? 'none' : 'block';
+        }
+
+        function closeKeyModal() {
+            const modal = $('#key-modal');
+            if (modal) modal.remove();
+        }
+
+        function saveKey(id) {
+            const type = $('#type').value;
+            const data = {
+                name: $('#name').value.trim(),
+                type: type,
+                project_id: parseInt(projectId)
+            };
+
+            if (!data.name) {
+                ui.showAlert('Введите название', 'warning');
+                return;
+            }
+
+            if (type === 'ssh') {
+                data.ssh_key = $('#ssh_key').value.trim();
+                data.ssh_passphrase = $('#ssh_passphrase').value;
+                if (!data.ssh_key) {
+                    ui.showAlert('Введите SSH ключ', 'warning');
+                    return;
+                }
+                if (!data.ssh_key.includes('-----BEGIN') || !data.ssh_key.includes('-----END')) {
+                    ui.showAlert('Неверный формат SSH ключа', 'warning');
+                    return;
+                }
+            } else {
+                data.login_password_login = $('#login_password_login').value.trim();
+                data.login_password_password = $('#login_password_password').value;
+                if (!data.login_password_login) {
+                    ui.showAlert('Введите логин', 'warning');
+                    return;
+                }
+                if (!data.login_password_password) {
+                    ui.showAlert('Введите пароль', 'warning');
+                    return;
+                }
+            }
+
+            const btn = $('#key-form button[type="submit"]');
+            btn.disabled = true;
+            btn.textContent = 'Сохранение...';
+
+            const promise = id 
+                ? api.updateKey(projectId, id, data)
+                : api.createKey(projectId, data);
+
+            promise
+                .then(() => {
+                    ui.showAlert(id ? 'Ключ обновлён' : 'Ключ создан', 'success');
+                    closeKeyModal();
+                    loadKeys();
+                })
+                .catch(error => {
+                    ui.showAlert('Ошибка: ' + error.message, 'danger');
+                })
+                .finally(() => {
+                    btn.disabled = false;
+                    btn.textContent = id ? 'Сохранить' : 'Создать';
+                });
+        }
+
+        window.editKey = editKey;
+        window.deleteKey = deleteKey;
+    </script>
+</body>
+</html>

@@ -228,6 +228,48 @@ const api = {
 
     deleteEnvironment(projectId, id) {
         return this.delete('/project/' + projectId + '/environment/' + id);
+    },
+
+    // Repositories
+    getRepositories(projectId) {
+        return this.get('/project/' + projectId + '/repositories');
+    },
+
+    getRepository(projectId, id) {
+        return this.get('/project/' + projectId + '/repositories/' + id);
+    },
+
+    createRepository(projectId, data) {
+        return this.post('/project/' + projectId + '/repositories', data);
+    },
+
+    updateRepository(projectId, id, data) {
+        return this.put('/project/' + projectId + '/repositories/' + id, data);
+    },
+
+    deleteRepository(projectId, id) {
+        return this.delete('/project/' + projectId + '/repositories/' + id);
+    },
+
+    // Keys
+    getKeys(projectId) {
+        return this.get('/project/' + projectId + '/keys');
+    },
+
+    getKey(projectId, id) {
+        return this.get('/project/' + projectId + '/keys/' + id);
+    },
+
+    createKey(projectId, data) {
+        return this.post('/project/' + projectId + '/keys', data);
+    },
+
+    updateKey(projectId, id, data) {
+        return this.put('/project/' + projectId + '/keys/' + id, data);
+    },
+
+    deleteKey(projectId, id) {
+        return this.delete('/project/' + projectId + '/keys/' + id);
     }
 };
 
