@@ -24,6 +24,8 @@
 | **gRPC сервисов** | 3 |
 | **Тестов** | 530+ |
 | **Покрытие тестами** | ~67% |
+| **Vanilla JS файлы** | 27 ⭐ NEW |
+| **Vanilla JS строки** | ~8,500 ⭐ NEW |
 
 ### Структура проекта
 
@@ -313,10 +315,12 @@ Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.33s
    - Кастомный роутер на History API
    - Store с реактивностью через Proxy
    - UI компоненты в стиле Vuetify
-   - Размер bundle ~50KB (vs ~500KB Vue)
+   - CRUD формы для всех сущностей
+   - Размер bundle ~70KB (vs ~500KB Vue)
    - web/vanilla/
    - web/MIGRATION_TO_VANILLA.md
    - web/VANILLA_JS_STATUS.md
+   - **100% миграция завершена** ✅
 
 ---
 
@@ -539,4 +543,4 @@ Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.33s
 
 ---
 
-*Последнее обновление: 13 марта 2026 г.*
+*Последнее обновление: 13 марта 2026 г. (Vanilla JS 100% ✅)
