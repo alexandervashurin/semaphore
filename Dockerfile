@@ -38,7 +38,7 @@ COPY rust/ ./
 RUN touch src/main.rs
 
 # profile.release уже содержит: strip=true, lto=true, opt-level="z", panic=abort
-RUN cargo build --release
+RUN cargo build --release && mkdir -p /app/data
 
 # ── Финальный образ (~20 MB base + stripped binary) ───────────────────────
 # gcr.io/distroless/cc-debian12:nonroot содержит glibc + libssl + ca-certs,
@@ -49,19 +49,24 @@ FROM gcr.io/distroless/cc-debian12:nonroot
 # Бинарь (уже stripped благодаря profile.release)
 COPY --from=builder /app/target/release/semaphore /usr/local/bin/semaphore
 
-# Vanilla JS фронтенд (если собран: npm run vanilla:build)
+# Vanilla JS фронтенд
 COPY --chown=65532:65532 web/public /app/web/public
+
+# Директория для SQLite БД (создаётся через пустую папку из builder)
+COPY --from=builder --chown=65532:65532 /app/data /app/data
 
 WORKDIR /app
 
 EXPOSE 3000
 
-ENV SEMAPHORE_DB_URL="postgres://semaphore:semaphore_pass@db:5432/semaphore"
+# SQLite по умолчанию — не нужна отдельная БД для запуска
+ENV SEMAPHORE_DB_DIALECT=sqlite
+ENV SEMAPHORE_DB_PATH=/app/data/semaphore.db
 ENV SEMAPHORE_WEB_PATH=/app/web/public
+# Демо-учётные данные — сид при первом запуске
 ENV SEMAPHORE_ADMIN=admin
-ENV SEMAPHORE_ADMIN_PASSWORD=demo123
+ENV SEMAPHORE_ADMIN_PASSWORD=admin123
 ENV SEMAPHORE_ADMIN_NAME=Administrator
 ENV SEMAPHORE_ADMIN_EMAIL=admin@semaphore.local
-ENV SEMAPHORE_DEMO_MODE=true
 
 CMD ["/usr/local/bin/semaphore", "server", "--host", "0.0.0.0", "--port", "3000"]
