@@ -5,7 +5,7 @@
 >
 > **Репозиторий:** https://github.com/tnl-o/rust_semaphore
 > **Upstream (Go оригинал):** https://github.com/semaphoreui/semaphore
-> **Последнее обновление:** 2026-03-15 (обновление 10 — B-FE-10 закрыт: настройки/удаление проекта)
+> **Последнее обновление:** 2026-03-15 (обновление 11 — 31 integration tests green; views CRUD fix; template soft-delete schema fix)
 
 ---
 
@@ -717,7 +717,7 @@ web/vanilla/
 #### 8.4 Тесты
 - [x] 524 unit-теста — `cargo test` green
 - [x] 25 integration-тестов — `cargo test --test api_integration` green (2026-03-14)
-- [x] Integration тесты с реальной SQLite БД — `rust/tests/api_integration.rs` (25 тестов: auth, projects, CRUD, delete, update, schedules, templates, 2026-03-14)
+- [x] Integration тесты с реальной SQLite БД — `rust/tests/api_integration.rs` (31 тест: auth, projects, CRUD, delete, update, schedules, templates, views, task output, users, 2026-03-15)
 - [ ] E2E тесты через `reqwest` (расширение api_integration)
 - [ ] Покрытие ≥ 60% критических путей
 
