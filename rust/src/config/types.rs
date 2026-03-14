@@ -559,6 +559,46 @@ impl Config {
         self.database.dialect.clone().unwrap_or(DbDialect::SQLite)
     }
 
+    /// Возвращает LDAP конфигурацию.
+    /// Приоритет: переменные окружения > YAML конфиг.
+    pub fn ldap_config(&self) -> crate::config::LdapConfigFull {
+        use crate::config::{LdapConfigFull, config_ldap::load_ldap_from_env};
+        use crate::config::types::LdapMappings;
+
+        // Начинаем со значений из YAML конфига
+        let mut result = if let Some(ref lc) = self.ldap {
+            LdapConfigFull {
+                enable: lc.enable,
+                server: lc.server.clone(),
+                bind_dn: lc.bind_dn.clone(),
+                bind_password: lc.bind_password.clone(),
+                search_dn: lc.search_dn.clone(),
+                search_filter: lc.search_filter.clone(),
+                need_tls: lc.need_tls,
+                mappings: LdapMappings {
+                    dn: lc.mappings.dn.clone(),
+                    mail: lc.mappings.mail.clone(),
+                    uid: lc.mappings.uid.clone(),
+                    cn: lc.mappings.cn.clone(),
+                },
+            }
+        } else {
+            LdapConfigFull::default()
+        };
+
+        // Переменные окружения перезаписывают значения из YAML
+        let env_cfg = load_ldap_from_env();
+        if env_cfg.enable { result.enable = true; }
+        if !env_cfg.server.is_empty() { result.server = env_cfg.server; }
+        if !env_cfg.bind_dn.is_empty() { result.bind_dn = env_cfg.bind_dn; }
+        if !env_cfg.bind_password.is_empty() { result.bind_password = env_cfg.bind_password; }
+        if !env_cfg.search_dn.is_empty() { result.search_dn = env_cfg.search_dn; }
+        if !env_cfg.search_filter.is_empty() { result.search_filter = env_cfg.search_filter; }
+        if env_cfg.need_tls { result.need_tls = true; }
+
+        result
+    }
+
     /// Проверяет может ли пользователь создавать проекты
     pub fn non_admin_can_create_project(&self) -> bool {
         self.database.dialect.clone().unwrap_or(DbDialect::SQLite) == DbDialect::SQLite

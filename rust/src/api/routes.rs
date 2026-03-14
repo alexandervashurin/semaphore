@@ -19,6 +19,7 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/api/auth/login", post(handlers::login))
         .route("/api/auth/login", get(handlers::get_login_metadata))
         .route("/api/auth/logout", post(handlers::logout))
+        .route("/api/auth/refresh", post(handlers::refresh_token))
         .route("/api/auth/verify", post(handlers::verify_session))
         .route("/api/auth/recovery", post(handlers::recovery_session))
         

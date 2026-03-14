@@ -5,7 +5,7 @@
 >
 > **Репозиторий:** https://github.com/tnl-o/rust_semaphore
 > **Upstream (Go оригинал):** https://github.com/semaphoreui/semaphore
-> **Последнее обновление:** 2026-03-14 (auto-updated by AI audit)
+> **Последнее обновление:** 2026-03-14 (обновление 2 — sync после upstream merge + реализация B-06b, B-09, B-12)
 
 ---
 
@@ -63,7 +63,7 @@
 
 ### Бэкенд (Rust / Axum / SQLx)
 
-> ⚠️ **Таблица обновлена AI-аудитом 2026-03-14.** Многие компоненты реализованы значительно глубже, чем документировалось ранее.
+> ⚠️ **Таблица обновлена AI-аудитом 2026-03-14 (обновление 2).**
 
 | Компонент | Статус | Файлы | Примечания |
 |---|---|---|---|
@@ -78,8 +78,8 @@
 | Auth — middleware (rate limiting + security headers) | ✅ Готово | `rust/src/api/middleware/` | |
 | Auth — TOTP (2FA) | ✅ Готово | `rust/src/services/totp.rs` | |
 | Auth — OIDC / OAuth2 | ✅ Готово | `rust/src/api/handlers/oidc.rs` | Multi-provider |
-| Auth — LDAP | ⚠️ Частично | `rust/src/config/config_ldap.rs` | Конфиг есть, хандлер НЕ подключён |
-| Auth — refresh token | ⬜ Не реализован | | JWT single-use, нет endpoint |
+| Auth — LDAP | ✅ Готово | `rust/src/api/handlers/auth.rs`, `config/config_ldap.rs` | Конфиг + handler подключён (2026-03-14) |
+| Auth — refresh token | ✅ Готово | `rust/src/api/handlers/auth.rs` | POST /api/auth/refresh (2026-03-14) |
 | Auth — logout | ✅ Готово | `rust/src/api/handlers/auth.rs` | Cookie clear |
 | Users CRUD | ✅ Готово | `rust/src/api/handlers/users.rs` | |
 | Users CLI (`user add`, `token`, `vault`) | ✅ Готово | `rust/src/cli/` | |
@@ -99,34 +99,36 @@
 | Local Job Runner (ansible/terraform/bash) | ✅ Готово | `rust/src/services/local_job/` | SSH keys, env, git clone |
 | Git Integration | ✅ Готово | `rust/src/services/git_repository.rs` | |
 | Webhooks (Integrations) | ✅ Готово | `rust/src/api/handlers/projects/integration*.rs` | Входящие + матчеры |
+| Webhooks (исходящие) | ✅ Готово | `rust/src/api/handlers/webhooks.rs`, `services/webhook.rs` | Добавлено из upstream |
 | Audit Log | ✅ Готово | `rust/src/services/` | Полная схема |
 | Хранилище секретов (шифрование) | ✅ Готово | `rust/src/utils/encryption.rs` | AES-256 |
 | Secret Storages | ✅ Готово | `rust/src/api/handlers/projects/secret_storages.rs` | |
 | Terraform State API | ✅ Готово | `rust/src/models/terraform_inventory.rs` | |
 | Уведомления (email / SMTP) | ✅ Готово | `rust/src/utils/mailer.rs`, `services/alert.rs` | lettre + TLS |
-| Уведомления (Slack/Telegram) | ⬜ Не начато | | |
+| Уведомления (Slack/Telegram) | ✅ Готово | `rust/src/services/alert.rs` | Встроено в AlertService |
 | Prometheus Metrics | ✅ Готово | `rust/src/services/metrics.rs` | |
 | Backup / Restore | ✅ Готово | `rust/src/services/backup.rs`, `restore.rs` | |
 | TOTP (2FA) | ✅ Готово | | |
+| **Playbooks CRUD** | ✅ Готово | `rust/src/api/handlers/playbook.rs`, `models/playbook.rs` | Из upstream |
+| **Playbook Runs** | ✅ Готово | `rust/src/api/handlers/playbook_runs.rs` | Из upstream |
+| **Analytics API** | ✅ Готово | `rust/src/api/handlers/analytics.rs` | Из upstream |
+| **GraphQL API** | ✅ Готово | `rust/src/api/graphql/` | Schema, Query, Mutation, Subscription |
 | HA (High Availability) | ⚠️ Частично | `rust/src/pro/services/ha.rs` | Pro-фича |
-| Cargo build — 0 warnings | ✅ Готово | | Исправлено 2026-03-14 |
-| cargo test — 524 passed, 0 failed | ✅ Готово | | Исправлено 2026-03-14 |
-| CI/CD (GitHub Actions) | ✅ Готово | `.github/workflows/` | dev, release, beta, pro |
+| Cargo build — 0 warnings | ✅ Готово | | |
+| cargo test — green | ✅ Готово | | |
+| CI/CD (GitHub Actions) — Rust | ✅ Готово | `.github/workflows/rust.yml` | build + test + clippy (2026-03-14) |
+| CI/CD (GitHub Actions) — Go legacy | ✅ Готово | `.github/workflows/dev.yml` | Из upstream (Go оригинал) |
 
-### Фронтенд (Vue)
+### Фронтенд
+
+> ⚠️ **Изменение стратегии:** Фронтенд мигрирует на **Vanilla JS** (не Vue 3, как планировалось ранее). Детали в `MIGRATION_TO_VANILLA.md` и `VANILLA_JS_STATUS.md`.
 
 | Компонент | Статус | Примечания |
 |---|---|---|
-| Vue 2 фронтенд (портирован из upstream) | ✅ Работает | EOL декабрь 2023, требует апгрейда |
-| Vue 3 миграция | ⬜ Не начата | **Главная задача** — фаза 6 |
-| Vite (замена webpack) | ⬜ Не начато | |
-| Pinia (замена Vuex) | ⬜ Не начато | |
-| Vue Router 4 | ⬜ Не начато | |
-| TypeScript | ⬜ Не начато | |
-| Страница логина | ✅ Работает (Vue 2) | |
-| Dashboard / Projects | ✅ Работает (Vue 2) | |
-| Templates UI | ✅ Работает (Vue 2) | |
-| Task Run UI + лог в реальном времени | ⚠️ Частично | Бэкенд WS готов, фронтенд не подключён |
+| Vue 2 фронтенд (из upstream) | ✅ Работает | Базис, EOL декабрь 2023 |
+| Миграция на Vanilla JS | 🔄 В работе | Активная разработка — см. VANILLA_JS_STATUS.md |
+| Vue 3 миграция | ❌ Отменена | Заменена стратегией Vanilla JS |
+| Task Run UI + WebSocket лог | ⚠️ Частично | Бэкенд WS готов, фронтенд в процессе |
 | Mobile-адаптивность | ⚠️ Частично | |
 
 ---
@@ -775,18 +777,19 @@ events        ← audit log
 
 | # | Проблема | Приоритет | Статус |
 |---|---|---|---|
-| B-01 | Task Runner не реализован | 🔴 Критично | ✅ Закрыт — реализован в `services/task_runner/` |
-| B-02 | WebSocket не реализован | 🔴 Критично | ✅ Закрыт — реализован в `api/websocket.rs` |
-| B-03 | Vue 2 EOL, нет security patches | 🟠 Высокий | ❌ Открыт — главный текущий блокер |
-| B-04 | MySQL миграции отсутствуют | 🟡 Средний | ✅ Закрыт — MySQL CRUD реализован |
-| B-05 | Шифрование ключей — неясна схема | 🟡 Средний | ✅ Закрыт — AES-256 в `utils/encryption.rs` |
-| B-06 | Auth logout не реализован | 🟠 Высокий | ✅ Закрыт — logout через cookie clear |
-| B-06b | Auth refresh token endpoint | 🟡 Средний | ❌ Открыт — нет `/api/auth/refresh` |
-| B-07 | Cron-runner (фоновый scheduler) | 🟠 Высокий | ✅ Закрыт — реализован в `services/scheduler.rs` |
-| B-08 | Нет тестов | 🟡 Средний | ✅ Частично — 524 unit-теста, нет E2E |
-| B-09 | LDAP auth не подключён к auth flow | 🟡 Средний | ❌ Открыт — конфиг есть, хандлер нет |
-| B-10 | Фронтенд Vue 2 не использует WS для логов | 🟠 Высокий | ❌ Открыт |
-| B-11 | Slack/Telegram уведомления | 🟡 Средний | ❌ Открыт |
+| B-01 | Task Runner не реализован | 🔴 Критично | ✅ Закрыт |
+| B-02 | WebSocket не реализован | 🔴 Критично | ✅ Закрыт |
+| B-03 | Vue 2 EOL | 🟠 Высокий | 🔄 В работе — Vanilla JS миграция |
+| B-04 | MySQL миграции отсутствуют | 🟡 Средний | ✅ Закрыт |
+| B-05 | Шифрование ключей | 🟡 Средний | ✅ Закрыт — AES-256 |
+| B-06 | Auth logout не реализован | 🟠 Высокий | ✅ Закрыт |
+| B-06b | Auth refresh token endpoint | 🟡 Средний | ✅ Закрыт — реализован 2026-03-14 |
+| B-07 | Cron-runner | 🟠 Высокий | ✅ Закрыт |
+| B-08 | Нет тестов | 🟡 Средний | ✅ Частично — unit-тесты есть, E2E нет |
+| B-09 | LDAP auth не подключён к auth flow | 🟡 Средний | ✅ Закрыт — подключён 2026-03-14 |
+| B-10 | Фронтенд не использует WS для логов | 🟠 Высокий | 🔄 В работе — Vanilla JS миграция |
+| B-11 | Slack/Telegram уведомления | 🟡 Средний | ✅ Закрыт — встроено в `services/alert.rs` |
+| B-12 | Нет Rust clippy в CI | 🟡 Средний | ✅ Закрыт — `.github/workflows/rust.yml` 2026-03-14 |
 
 ---
 
