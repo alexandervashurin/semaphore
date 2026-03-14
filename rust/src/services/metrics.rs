@@ -14,7 +14,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-/// Глобальный реестр метрик
+// Глобальный реестр метрик
 lazy_static! {
     pub static ref REGISTRY: Registry = Registry::new();
     
@@ -169,6 +169,25 @@ pub struct UserTaskCounters {
 impl MetricsManager {
     /// Создаёт новый MetricsManager
     pub fn new() -> Self {
+        // Force lazy_static initialization so all metrics are registered in the global registry
+        lazy_static::initialize(&TASK_TOTAL);
+        lazy_static::initialize(&TASK_SUCCESS);
+        lazy_static::initialize(&TASK_FAILED);
+        lazy_static::initialize(&TASK_STOPPED);
+        lazy_static::initialize(&TASK_DURATION);
+        lazy_static::initialize(&TASK_QUEUE_TIME);
+        lazy_static::initialize(&TASKS_RUNNING);
+        lazy_static::initialize(&TASKS_QUEUED);
+        lazy_static::initialize(&RUNNERS_ACTIVE);
+        lazy_static::initialize(&PROJECTS_TOTAL);
+        lazy_static::initialize(&USERS_TOTAL);
+        lazy_static::initialize(&TEMPLATES_TOTAL);
+        lazy_static::initialize(&INVENTORIES_TOTAL);
+        lazy_static::initialize(&REPOSITORIES_TOTAL);
+        lazy_static::initialize(&CPU_USAGE);
+        lazy_static::initialize(&MEMORY_USAGE);
+        lazy_static::initialize(&UPTIME);
+        lazy_static::initialize(&SYSTEM_HEALTHY);
         Self {
             start_time: std::time::Instant::now(),
             task_counters: Arc::new(RwLock::new(TaskCounters::default())),
@@ -183,7 +202,7 @@ impl MetricsManager {
     /// Форматирует метрики в Prometheus формат
     pub fn encode_metrics(&self) -> Result<String, prometheus::Error> {
         let encoder = TextEncoder::new();
-        let metric_families = REGISTRY.gather();
+        let metric_families = prometheus::gather();
         let mut buffer = Vec::new();
         encoder.encode(&metric_families, &mut buffer)?;
         Ok(String::from_utf8(buffer).unwrap())

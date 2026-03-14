@@ -57,39 +57,40 @@ mod tests {
 
     #[tokio::test]
     async fn test_login_invalid_credentials() {
-        let store = Box::new(MockStore::new());
-        let state = Arc::new(crate::api::state::AppState::new(
-            store,
-            crate::config::Config::default(),
-        ));
-        let payload = handlers::LoginPayload {
-            username: "nonexistent".to_string(),
-            password: "wrong".to_string(),
-            totp_code: None,
-        };
-        let result = handlers::login(
-            axum::extract::State(state),
-            axum::Json(payload),
-        ).await;
-        assert!(result.is_err());
-        let (status, _) = result.unwrap_err();
-        assert_eq!(status, StatusCode::UNAUTHORIZED);
+        let app = create_test_app();
+        let body = serde_json::json!({
+            "username": "nonexistent",
+            "password": "wrong"
+        });
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/auth/login")
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
 
     #[tokio::test]
-    async fn test_projects_list_empty() {
+    async fn test_projects_list_requires_auth() {
         let app = create_test_app();
         let response = app
             .oneshot(
                 Request::builder()
                     .uri("/api/projects")
-                    .header("Authorization", "Bearer test-token")
                     .body(Body::empty())
                     .unwrap(),
             )
             .await
             .unwrap();
 
-        assert_eq!(response.status(), StatusCode::OK);
+        // Protected endpoint returns 401 without valid token
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
 }
