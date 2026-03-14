@@ -5,7 +5,7 @@
 >
 > **Репозиторий:** https://github.com/tnl-o/rust_semaphore
 > **Upstream (Go оригинал):** https://github.com/semaphoreui/semaphore
-> **Последнее обновление:** 2026-03-14 (обновление 6 — cargo clippy -D warnings 0 errors)
+> **Последнее обновление:** 2026-03-14 (обновление 7 — 20 tests, charts, Docker distroless)
 
 ---
 
@@ -569,7 +569,7 @@ web/src/
 - [x] `Dockerfile` — существует
 - [x] `docker-compose.yml` — существует (postgres + backend)
 - [x] `docker-compose.single.yml` — single-container режим
-- [ ] Multi-stage минимальный образ < 50MB — не проверено
+- [x] Multi-stage минимальный образ — distroless/cc-debian12:nonroot (2026-03-14)
 - [ ] `docker-compose.dev.yml` с hot-reload — нет
 
 #### 8.2 CI/CD (GitHub Actions)
