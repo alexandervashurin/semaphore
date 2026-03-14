@@ -1,2 +1,33 @@
+# Rust build artifacts (biggest offender — can be several GB)
+rust/target/
+
+# Node / frontend build artifacts
 web/node_modules/
+web/vanilla/node_modules/
 vendor/
+
+# Git and IDE
+.git/
+.github/
+.claude/
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Docs and plans (not needed in image)
+*.md
+ROADMAP.md
+MASTER_PLAN.md
+API.md
+CONFIG.md
+CONTRIBUTING.md
+
+# Test data
+*.db
+*.db-shm
+*.db-wal
+
+# OS artifacts
+.DS_Store
+Thumbs.db

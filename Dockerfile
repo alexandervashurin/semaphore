@@ -7,7 +7,7 @@
 # ============================================================================
 
 # ── Зависимости (кэшируются отдельно от исходников) ──────────────────────
-FROM rust:1.80-slim AS deps
+FROM rust:slim AS deps
 
 RUN apt-get update && apt-get install -y \
     pkg-config \
@@ -20,9 +20,14 @@ WORKDIR /app
 COPY rust/Cargo.toml rust/Cargo.lock ./
 
 # «Пустая» сборка для прогрева кэша зависимостей
-RUN mkdir -p src && echo "fn main() {}" > src/main.rs \
+# Создаём заглушки для всех бинарей и бенчей указанных в Cargo.toml
+RUN mkdir -p src benches \
+    && echo "fn main() {}" > src/main.rs \
+    && echo "" > src/lib.rs \
+    && echo "fn main() {}" > benches/cache_bench.rs \
+    && echo "fn main() {}" > benches/db_bench.rs \
     && cargo build --release \
-    && rm -rf src
+    && rm -rf src benches
 
 # ── Основная сборка ───────────────────────────────────────────────────────
 FROM deps AS builder
