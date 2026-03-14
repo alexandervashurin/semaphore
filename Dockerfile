@@ -1,7 +1,21 @@
+# ============================================================================
 # Dockerfile для Semaphore UI (Rust backend)
-# Использование: docker build -f Dockerfile -t semaphore-backend .
+# ============================================================================
+# Использование:
+#   docker build -f Dockerfile -t semaphore-backend .
+#   docker run -p 3000:3000 semaphore-backend
+#
+# Демо-режим с тестовыми данными:
+#   docker-compose -f docker-compose.postgres.yml up -d
+# ============================================================================
 
-FROM rust:1.75-slim AS builder
+FROM rust:1.80-slim AS builder
+
+# Установка зависимостей для сборки
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Установка рабочей директории
 WORKDIR /app
@@ -20,7 +34,9 @@ COPY rust/ ./
 # Сборка проекта
 RUN cargo build --release
 
+# ============================================================================
 # Финальный образ
+# ============================================================================
 FROM debian:bookworm-slim
 
 # Установка зависимостей для запуска
@@ -50,6 +66,11 @@ EXPOSE 3000
 # Переменные окружения по умолчанию
 ENV SEMAPHORE_DB_URL="postgres://semaphore:semaphore_pass@db:5432/semaphore"
 ENV SEMAPHORE_WEB_PATH=/app/web/public
+ENV SEMAPHORE_ADMIN=admin
+ENV SEMAPHORE_ADMIN_PASSWORD=demo123
+ENV SEMAPHORE_ADMIN_NAME=Administrator
+ENV SEMAPHORE_ADMIN_EMAIL=admin@semaphore.local
+ENV SEMAPHORE_DEMO_MODE=true
 
 # Запуск приложения
 CMD ["semaphore", "server", "--host", "0.0.0.0", "--port", "3000"]

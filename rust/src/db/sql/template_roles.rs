@@ -96,11 +96,16 @@ impl SqlDb {
 mod tests {
     use super::*;
 
-    async fn create_test_db() -> SqlDb {
-        let (db_path, _temp) = crate::db::sql::init::test_sqlite_url();
-        
+    struct TestDb {
+        db: SqlDb,
+        _temp: tempfile::NamedTempFile,
+    }
+
+    async fn create_test_db() -> TestDb {
+        let (db_path, temp) = crate::db::sql::init::test_sqlite_url();
+
         let db = SqlDb::connect_sqlite(&db_path).await.unwrap();
-        
+
         // Создаём таблицу template_role
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS template_role (
@@ -114,13 +119,13 @@ mod tests {
         .execute(db.get_sqlite_pool().unwrap())
         .await
         .unwrap();
-        
-        db
+
+        TestDb { db, _temp: temp }
     }
 
     #[tokio::test]
     async fn test_create_and_get_template_role() {
-        let db = create_test_db().await;
+        let TestDb { db, _temp } = create_test_db().await;
         
         let role = TemplateRolePerm {
             id: 0,
@@ -143,7 +148,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_update_template_role() {
-        let db = create_test_db().await;
+        let TestDb { db, _temp } = create_test_db().await;
         
         let role = TemplateRolePerm {
             id: 0,
@@ -169,7 +174,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_template_role() {
-        let db = create_test_db().await;
+        let TestDb { db, _temp } = create_test_db().await;
         
         let role = TemplateRolePerm {
             id: 0,

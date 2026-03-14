@@ -386,6 +386,47 @@ pub struct Config {
     /// Отправитель email по умолчанию
     #[serde(rename = "emailSender", default = "default_email_sender")]
     pub email_sender: String,
+
+    /// Telegram Bot Token
+    #[serde(rename = "telegramBotToken", default)]
+    pub telegram_bot_token: Option<String>,
+
+    /// Redis конфигурация для кэширования
+    #[serde(rename = "redis", default)]
+    pub redis: Option<RedisConfig>,
+}
+
+/// Redis конфигурация
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct RedisConfig {
+    /// URL подключения к Redis
+    #[serde(default = "default_redis_url")]
+    pub url: String,
+    /// Префикс для ключей
+    #[serde(default = "default_redis_prefix")]
+    pub prefix: String,
+    /// TTL по умолчанию (секунды)
+    #[serde(default = "default_redis_ttl")]
+    pub default_ttl: u64,
+    /// Включить кэширование
+    #[serde(default = "default_redis_enabled")]
+    pub enabled: bool,
+}
+
+fn default_redis_url() -> String {
+    "redis://localhost:6379".to_string()
+}
+
+fn default_redis_prefix() -> String {
+    "semaphore:".to_string()
+}
+
+fn default_redis_ttl() -> u64 {
+    300
+}
+
+fn default_redis_enabled() -> bool {
+    false
 }
 
 /// Конфигурация алертов
@@ -453,6 +494,8 @@ impl Default for Config {
                 all_projects: false,
             },
             email_sender: default_email_sender(),
+            telegram_bot_token: None,
+            redis: None,
         }
     }
 }

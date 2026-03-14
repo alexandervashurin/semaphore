@@ -25,7 +25,7 @@ cargo run -- server --host 0.0.0.0 --port 3000
 
 - **Frontend**: http://localhost
 - **Логин**: `admin`
-- **Пароль**: `admin123`
+- **Пароль**: `demo123`
 
 ---
 
@@ -376,7 +376,7 @@ rm -rf public/app.js public/app.css public/js
 1. ✅ Запустите `./start.sh`
 2. ✅ Запустите backend: `./start.sh --backend`
 3. ✅ Откройте http://localhost
-4. ✅ Войдите как `admin` / `admin123`
+4. ✅ Войдите как `admin` / `demo123`
 5. ✅ Изучите демонстрационные проекты
 6. ✅ Создайте свой первый шаблон
 7. ✅ Запустите задачу!

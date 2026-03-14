@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Задача - Semaphore UI</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .log-container {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .log-line {
+            margin-bottom: 5px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .log-info { color: #4ec9b0; }
+        .log-success { color: #4ec9b0; }
+        .log-warning { color: #ce9178; }
+        .log-error { color: #f48771; }
+        .log-debug { color: #808080; }
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .status-waiting { background: #f0f0f0; color: #666; }
+        .status-running { background: #e3f2fd; color: #1976d2; }
+        .status-success { background: #c6f6d5; color: #276749; }
+        .status-failed { background: #fed7d7; color: #c53030; }
+        .status-cancelled { background: #e0e0e0; color: #424242; }
+        .progress-bar {
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <h2>🚀 Semaphore</h2>
+            </div>
+            <ul class="sidebar-nav">
+                <li><a href="index.html">📊 Dashboard</a></li>
+                <li><a href="project.html">📁 Проект</a></li>
+                <li><a href="playbooks.html">📜 Playbooks</a></li>
+                <li><a href="templates.html">📋 Шаблоны</a></li>
+                <li><a href="inventory.html">📦 Инвентарь</a></li>
+                <li><a href="environments.html">⚙️ Переменные</a></li>
+                <li><a href="repositories.html">🗂️ Репозитории</a></li>
+                <li><a href="keys.html">🔐 Ключи</a></li>
+                <li><a href="schedules.html">⏰ Расписания</a></li>
+            </ul>
+        </aside>
+
+        <div class="main-content">
+            <div class="main-header">
+                <h2>Задача #<span id="task-id">...</span></h2>
+                <button class="btn btn-logout" onclick="api.logout()">Выйти</button>
+            </div>
+
+            <div class="main-body">
+                <div id="task-content">
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        <p>Загрузка задачи...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        checkAuth();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = urlParams.get('id');
+        const taskId = urlParams.get('task');
+
+        if (!projectId || !taskId) {
+            window.location.href = 'index.html';
+        }
+
+        let task = null;
+        let isRunning = false;
+
+        // Загрузка задачи
+        loadTask();
+        
+        // Автообновление если задача выполняется
+        setInterval(() => {
+            if (isRunning) {
+                loadTask();
+            }
+        }, 5000);
+
+        function loadTask() {
+            api.request('/project/' + projectId + '/tasks/' + taskId)
+                .then(t => {
+                    task = t;
+                    $('#task-id').textContent = t.id;
+                    document.title = 'Задача #' + t.id + ' - Semaphore UI';
+                    showTask(t);
+                    
+                    isRunning = (t.status === 'running' || t.status === 'waiting' || t.status === 'starting');
+                })
+                .catch(error => {
+                    ui.showError($('#task-content'), 'Ошибка загрузки: ' + error.message);
+                });
+        }
+
+        function showTask(task) {
+            const content = $('#task-content');
+            
+            const statusClass = 'status-' + task.status.toLowerCase();
+            const statusText = {
+                'waiting': 'Ожидание',
+                'starting': 'Запуск',
+                'running': 'Выполняется',
+                'success': 'Успешно',
+                'failed': 'Ошибка',
+                'cancelled': 'Отменено'
+            }[task.status] || task.status;
+
+            content.innerHTML = `
+                <div style="max-width: 1000px; margin: 0 auto;">
+                    <div class="card mb-4">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2>Задача #${task.id}</h2>
+                            <span class="status-badge ${statusClass}">${statusText}</span>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px;">
+                            <div>
+                                <div style="color: var(--text-light); font-size: 13px; margin-bottom: 5px;">Playbook</div>
+                                <div style="font-weight: 600;">${escapeHtml(task.playbook || '—')}</div>
+                            </div>
+                            <div>
+                                <div style="color: var(--text-light); font-size: 13px; margin-bottom: 5px;">Статус</div>
+                                <div><span class="status-badge ${statusClass}">${statusText}</span></div>
+                            </div>
+                            <div>
+                                <div style="color: var(--text-light); font-size: 13px; margin-bottom: 5px;">Создана</div>
+                                <div>${formatDate(task.created)}</div>
+                            </div>
+                            ${task.start_time ? `
+                            <div>
+                                <div style="color: var(--text-light); font-size: 13px; margin-bottom: 5px;">Начало</div>
+                                <div>${formatDate(task.start_time)}</div>
+                            </div>
+                            ` : ''}
+                            ${task.end_time ? `
+                            <div>
+                                <div style="color: var(--text-light); font-size: 13px; margin-bottom: 5px;">Завершение</div>
+                                <div>${formatDate(task.end_time)}</div>
+                            </div>
+                            ` : ''}
+                        </div>
+
+                        ${task.message ? `
+                        <div style="background: #f7fafc; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                            <div style="color: var(--text-light); font-size: 13px; margin-bottom: 5px;">Сообщение</div>
+                            <div>${escapeHtml(task.message)}</div>
+                        </div>
+                        ` : ''}
+
+                        ${task.status === 'running' || task.status === 'starting' ? `
+                        <div class="progress-bar">
+                            <div class="progress-bar-fill" style="width: 100%; animation: pulse 2s infinite;"></div>
+                        </div>
+                        <p style="text-align: center; color: var(--text-light);">Задача выполняется...</p>
+                        ` : ''}
+                    </div>
+
+                    <div class="card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3>Лог выполнения</h3>
+                            <button class="btn btn-sm" onclick="downloadLog()">📥 Скачать</button>
+                        </div>
+                        <div id="task-log" class="log-container">
+                            <div class="loading">
+                                <div class="loading-spinner" style="border-color: #666; border-top-color: white;"></div>
+                                <p style="color: #888;">Загрузка лога...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <style>
+                    @keyframes pulse {
+                        0%, 100% { opacity: 1; }
+                        50% { opacity: 0.5; }
+                    }
+                </style>
+            `;
+
+            // Загрузка лога
+            loadLog();
+        }
+
+        function loadLog() {
+            api.request('/project/' + projectId + '/tasks/' + taskId + '/output')
+                .then(output => {
+                    const logContainer = $('#task-log');
+                    if (!output || output.length === 0) {
+                        logContainer.innerHTML = '<div style="color: #666; text-align: center; padding: 40px;">Лог пуст</div>';
+                        return;
+                    }
+
+                    logContainer.innerHTML = output.map(line => {
+                        const className = getLogClass(line);
+                        return `<div class="log-line ${className}">${escapeHtml(line)}</div>`;
+                    }).join('');
+
+                    // Прокрутка вниз
+                    logContainer.scrollTop = logContainer.scrollHeight;
+                })
+                .catch(error => {
+                    $('#task-log').innerHTML = '<div style="color: #f48771;">Ошибка загрузки лога: ' + error.message + '</div>';
+                });
+        }
+
+        function getLogClass(line) {
+            const lower = line.toLowerCase();
+            if (lower.includes('ok=') || lower.includes('changed=')) return 'log-success';
+            if (lower.includes('failed=') || lower.includes('error') || lower.includes('fatal')) return 'log-error';
+            if (lower.includes('warning') || lower.includes('warn')) return 'log-warning';
+            if (lower.includes('debug')) return 'log-debug';
+            return 'log-info';
+        }
+
+        function downloadLog() {
+            api.request('/project/' + projectId + '/tasks/' + taskId + '/output')
+                .then(output => {
+                    const blob = new Blob([output.join('\n')], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'task-' + taskId + '.log';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                })
+                .catch(error => {
+                    ui.showAlert('Ошибка скачивания лога: ' + error.message, 'danger');
+                });
+        }
+    </script>
+</body>
+</html>

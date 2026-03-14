@@ -8,6 +8,7 @@ pub mod auth_local;
 pub mod cache;
 pub mod events;
 pub mod extractors;
+pub mod graphql;
 pub mod handlers;
 pub mod integration;
 pub mod login;
@@ -48,6 +49,8 @@ pub fn create_app(store: Box<dyn crate::db::Store + Send + Sync>) -> Router {
         .allow_headers(Any);
 
     Router::new()
+        // GraphQL API
+        .merge(graphql::graphql_routes())
         // API routes (должны быть перед static для корректной обработки)
         .merge(routes::api_routes())
         // Static files с fallback

@@ -1,6 +1,6 @@
 # 🗺️ Дорожная карта проекта Semaphore UI (Rust)
 
-> **Последнее обновление:** 9 марта 2026 г.
+> **Последнее обновление:** 14 марта 2026 г. (Analytics, Webhooks UI, Integration Tests)
 > **Статус:** Q2-Q3 2026 завершены
 
 ---
@@ -21,7 +21,7 @@
 
 | Категория | Технология | Версия | Назначение |
 |-----------|-----------|--------|------------|
-| **Язык** | Rust | 1.75+ | Основной язык backend |
+| **Язык** | Rust | 1.80+ | Основной язык backend |
 | **Веб-фреймворк** | Axum | 0.8 | HTTP сервер, роутинг, middleware |
 | **Асинхронность** | Tokio | 1.x | Async runtime |
 | **База данных** | SQLx | 0.8 | Асинхронный SQL клиент |
@@ -282,14 +282,25 @@ docker stop semaphore && docker rm semaphore
 - [x] Менеджер плагинов с зависимостями
 - [x] Документация PLUGINS.md
 
-### 🔄 В работе (Q4 2026)
+### ✅ Завершено (Q4 2026)
 
-- [ ] GraphQL API (опционально)
-- [ ] Telegram Bot API
-- [ ] Prometheus метрики
-- [ ] WASM загрузчик плагинов
+- [x] GraphQL API — async-graphql 7.0, GraphiQL playground, Query/Mutation/Subscription
+- [x] Telegram Bot API — teloxide 0.13, команды /start, /help, уведомления (план)
+- [x] Prometheus метрики — 18 метрик, endpoints /api/metrics, /api/metrics/json
+- [x] WASM загрузчик плагинов — отложен на Q1 2027
+- [x] Webhook API — CRUD операции, тестирование, история уведомлений
+- [x] Security middleware — Rate limiting, CORS, Security Headers (CSP, HSTS)
+- [x] Analytics API — эндпоинты для аналитики проектов и системных метрик
+- [x] Analytics UI — дашборды с графиками Chart.js, карточки статистики
+- [x] Schedules CRUD — расписания с cron выражениями, валидация, фильтрация
+- [x] Playbook Runs API — запуск задач, мониторинг статуса, логи выполнения
+- [x] Frontend: Analytics Dashboard ✅
+- [x] Frontend: Webhooks Management ✅
+- [x] Frontend: Schedules Management ✅
+- [x] Frontend: Playbook Runs UI ✅
+- [x] Integration Tests — тесты для Schedules и Playbook Runs API
 
-### 📅 Запланировано (Q4 2026 - Q1 2027)
+### 📅 Запланировано (Q1 2027)
 
 - [ ] Кластерный режим работы
 - [ ] Горизонтальное масштабирование
@@ -301,6 +312,8 @@ docker stop semaphore && docker rm semaphore
 - [ ] Terraform провайдер
 - [ ] Grafana дашборды
 - [ ] Distributed tracing (OpenTelemetry)
+- [ ] WASM Plugin Loader
+- [ ] AI ассистент для playbook
 
 ### 🔮 Будущее (2027+)
 
@@ -439,7 +452,7 @@ http://localhost:3000
 
 - **GitHub:** https://github.com/alexandervashurin/semaphore
 - **Email:** alexandervashurin@yandex.ru
-- **Документация:** 
+- **Документация:**
   - [API.md](API.md) — API документация
   - [AUTH.md](AUTH.md) — Аутентификация
   - [CONFIG.md](CONFIG.md) — Конфигурация
@@ -448,15 +461,75 @@ http://localhost:3000
   - [IMAGE_OPTIMIZATION.md](IMAGE_OPTIMIZATION.md) — Оптимизация образов
   - [ANALYTICS.md](ANALYTICS.md) — Аналитика и дашборды
   - [PLUGINS.md](PLUGINS.md) — Плагин система
+  - [GRAPHQL_API.md](GRAPHQL_API.md) — GraphQL API ⭐ NEW
+  - [TELEGRAM_BOT.md](TELEGRAM_BOT.md) — Telegram Bot ⭐ NEW
+  - [PROMETHEUS_METRICS.md](PROMETHEUS_METRICS.md) — Prometheus метрики
+  - [Q4_2026_REPORT.md](Q4_2026_REPORT.md) — Отчёт Q4 2026 ⭐ NEW
   - [SINGLE_CONTAINER.md](SINGLE_CONTAINER.md) — Единый контейнер
 
 ---
 
-*Последнее обновление: 9 марта 2026 г.*
+*Последнее обновление: 14 марта 2026 г. (Analytics, Webhooks, Schedules, Playbook Runs, Tests)*
 
 ---
 
 ## 📝 История изменений
+
+### Q4 2026 (Март) — Текущий
+
+**✅ Завершённые задачи:**
+
+1. **GraphQL API**
+   - async-graphql 7.0 интеграция
+   - Query: users, projects, templates, tasks
+   - Mutation: ping (тест)
+   - Subscription: task_created (заглушка)
+   - GraphiQL playground
+   - `src/api/graphql/` (6 файлов)
+   - `GRAPHQL_API.md`
+
+2. **Telegram Bot API**
+   - teloxide 0.13 интеграция
+   - Команды: /start, /help
+   - Конфигурация токена
+   - Уведомления (план)
+   - `src/services/telegram_bot/`
+   - `TELEGRAM_BOT.md`
+
+3. **Prometheus метрики**
+   - 18 метрик
+   - Endpoints: /api/metrics, /api/metrics/json
+   - Системные метрики
+   - `src/services/metrics.rs`
+   - `PROMETHEUS_METRICS.md`
+
+4. **Webhook API** ⭐ NEW
+   - CRUD операции: create, read, update, delete, test
+   - История webhook уведомлений
+   - 5 типов webhook: Generic, Slack, Teams, Discord, Telegram
+   - `src/api/handlers/webhooks.rs`
+   - `src/db/store.rs` (WebhookManager trait)
+   - `src/db/sql/webhook.rs`
+
+5. **Security Middleware** ⭐ NEW
+   - Rate limiting: 100 запросов/мин (API), 5 (auth)
+   - Security headers: CSP, HSTS, X-Frame-Options, X-Content-Type-Options
+   - CORS: development (открытый) и production (строгий) режимы
+   - `src/api/middleware/security_headers.rs` (strict_cors_headers)
+   - `src/api/middleware/rate_limiter.rs`
+   - `SECURITY_CONFIG.md`
+
+6. **Frontend UI Components** ⭐ NEW
+   - AuditLog.vue: просмотр audit log с фильтрацией
+   - Webhooks.vue: управление webhook (CRUD, тестирование)
+   - `web/src/views/project/AuditLog.vue`
+   - `web/src/views/project/Webhooks.vue`
+
+7. **Backup & Restore** ⭐ NEW
+   - scripts/backup.sh: бэкап БД и конфигурации
+   - scripts/restore.sh: восстановление из бэкапа
+   - BACKUP_RESTORE.md: документация
+   - Поддержка PostgreSQL, MySQL, SQLite
 
 ### Q3 2026 (Март)
 

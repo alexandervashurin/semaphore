@@ -17,11 +17,11 @@
 ### Вариант 1: Docker (Рекомендуется)
 
 ```bash
-# 1. Запуск PostgreSQL и Frontend
-./start.sh
+# 1. Запуск PostgreSQL и инициализация
+./semaphore.sh init hybrid
 
-# 2. Запуск Backend (в отдельном терминале)
-./start.sh --backend
+# 2. Запуск сервера
+./semaphore.sh start hybrid
 
 # 3. Откройте браузерер
 http://localhost/demo-crud.html

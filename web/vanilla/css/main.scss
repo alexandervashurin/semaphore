@@ -1,0 +1,239 @@
+// Semaphore Vanilla CSS
+// Главный SCSS файл
+
+// Utilities
+@import 'utils/variables';
+@import 'utils/mixins';
+
+// Reset & Base
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: var(--v-font-size-root);
+}
+
+body {
+  font-family: var(--v-font-family);
+  font-size: 1rem;
+  line-height: 1.5;
+  color: rgba(0, 0, 0, 0.87);
+  background-color: var(--v-theme-background);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+// Typography
+.text-h1 { @include text-h1; }
+.text-h2 { @include text-h2; }
+.text-h3 { @include text-h3; }
+.text-h4 { @include text-h4; }
+.text-h5 { @include text-h5; }
+.text-h6 { @include text-h6; }
+.text-subtitle-1 { @include text-subtitle-1; }
+.text-subtitle-2 { @include text-subtitle-2; }
+.text-body-1 { @include text-body-1; }
+.text-body-2 { @include text-body-2; }
+.text-button { @include text-button; }
+.text-caption { @include text-caption; }
+.text-overline { @include text-overline; }
+
+// Layout
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: var(--v-primary-base);
+  color: var(--v-white-base);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  z-index: var(--v-z-index-app-bar);
+  box-shadow: 
+    0 2px 4px -1px var(--v-shadow-key-umbra-opacity),
+    0 4px 5px 0 var(--v-shadow-key-penumbra-opacity),
+    0 1px 10px 0 var(--v-shadow-key-ambient-opacity);
+  
+  .app-bar__title {
+    font-size: 1.25rem;
+    font-weight: 500;
+  }
+  
+  .v-btn {
+    color: var(--v-white-base);
+  }
+}
+
+.navigation-drawer {
+  position: fixed;
+  top: 64px;
+  left: 0;
+  bottom: 0;
+  width: 256px;
+  background: var(--v-theme-surface);
+  box-shadow: 
+    0 2px 4px -1px var(--v-shadow-key-umbra-opacity),
+    0 4px 5px 0 var(--v-shadow-key-penumbra-opacity),
+    0 1px 10px 0 var(--v-shadow-key-ambient-opacity);
+  overflow-y: auto;
+  z-index: calc(var(--v-z-index-app-bar) - 1);
+  
+  .v-list {
+    padding: 8px 0;
+    
+    .v-list-item {
+      display: flex;
+      align-items: center;
+      padding: 8px 16px;
+      min-height: 48px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      
+      &:hover {
+        background-color: rgba(0, 0, 0, 0.04);
+      }
+      
+      &.v-list-item--active {
+        background-color: rgba(63, 81, 181, 0.08);
+        color: var(--v-primary-base);
+      }
+      
+      &.v-list-item--disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      
+      .v-icon {
+        margin-right: 16px;
+      }
+      
+      .v-list-item__content {
+        flex: 1;
+      }
+    }
+    
+    .v-subheader {
+      display: flex;
+      align-items: center;
+      padding: 8px 16px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      line-height: 2rem;
+      letter-spacing: 0.16667em;
+      text-transform: uppercase;
+      color: rgba(0, 0, 0, 0.6);
+    }
+    
+    .v-divider {
+      margin: 8px 0;
+    }
+  }
+}
+
+.main-content {
+  margin-left: 256px;
+  margin-top: 64px;
+  padding: 24px;
+  min-height: calc(100vh - 64px);
+}
+
+.main-content--no-drawer {
+  margin-left: 0;
+}
+
+// Container
+.v-container {
+  width: 100%;
+  max-width: 1264px;
+  margin: 0 auto;
+  padding: 0 16px;
+  
+  &.v-container--fluid {
+    max-width: 100%;
+  }
+}
+
+// Grid
+.v-row {
+  display: flex;
+  flex-wrap: wrap;
+  margin: -8px;
+}
+
+.v-col {
+  flex: 1;
+  padding: 8px;
+}
+
+@for $i from 1 through 12 {
+  .v-col-#{$i} {
+    flex: 0 0 calc(#{$i} / 12 * 100%);
+    max-width: calc(#{$i} / 12 * 100%);
+    padding: 8px;
+  }
+}
+
+// Spacing
+@include spacing(margin, '');
+@include spacing(margin, '-t');
+@include spacing(margin, '-r');
+@include spacing(margin, '-b');
+@include spacing(margin, '-l');
+@include spacing(margin, '-x');
+@include spacing(margin, '-y');
+
+@include spacing(padding, '');
+@include spacing(padding, '-t');
+@include spacing(padding, '-r');
+@include spacing(padding, '-b');
+@include spacing(padding, '-l');
+@include spacing(padding, '-x');
+@include spacing(padding, '-y');
+
+// Flex utilities
+@include flex-utils;
+
+// Utils
+.text-truncate { @include text-truncate; }
+
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+
+.hidden { display: none !important; }
+.invisible { visibility: hidden; }
+
+// Card
+.v-card {
+  background: var(--v-theme-surface);
+  border-radius: var(--v-border-radius);
+  box-shadow: 
+    0 2px 1px -1px var(--v-shadow-key-umbra-opacity),
+    0 1px 1px 0 var(--v-shadow-key-penumbra-opacity),
+    0 1px 3px 0 var(--v-shadow-key-ambient-opacity);
+  overflow: hidden;
+}
+
+// Divider
+.v-divider {
+  border: 0;
+  height: 1px;
+  background-color: rgba(0, 0, 0, 0.12);
+}
+
+// Import components
+@import 'components/buttons';
+@import 'components/inputs';
+@import 'components/dialogs';
+@import 'components/tables';

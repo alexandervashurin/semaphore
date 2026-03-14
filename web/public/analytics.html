@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics - Semaphore UI</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <h2>🚀 Semaphore</h2>
+            </div>
+            <ul class="sidebar-nav">
+                <li><a href="index.html">📊 Dashboard</a></li>
+                <li><a href="project.html" class="active">📁 Проект</a></li>
+                <li><a href="playbooks.html">📜 Playbooks</a></li>
+                <li><a href="templates.html">📋 Шаблоны</a></li>
+                <li><a href="inventory.html">📦 Инвентарь</a></li>
+                <li><a href="environments.html">⚙️ Переменные</a></li>
+                <li><a href="repositories.html">🗂️ Репозитории</a></li>
+                <li><a href="keys.html">🔐 Ключи</a></li>
+                <li><a href="schedules.html">⏰ Расписания</a></li>
+                <li><a href="analytics.html">📈 Аналитика</a></li>
+                <li><a href="webhooks.html">🔗 Webhooks</a></li>
+            </ul>
+        </aside>
+
+        <div class="main-content">
+            <div class="main-header">
+                <h2 id="project-title">Аналитика</h2>
+                <div class="header-actions">
+                    <select id="period-select" class="form-control" style="width: auto; margin-right: 10px;">
+                        <option value="day">День</option>
+                        <option value="week" selected>Неделя</option>
+                        <option value="month">Месяц</option>
+                    </select>
+                    <button class="btn btn-logout" onclick="api.logout()">Выйти</button>
+                </div>
+            </div>
+
+            <div class="main-body">
+                <div id="analytics-content">
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        <p>Загрузка аналитики...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        checkAuth();
+
+        // Получить ID проекта из URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = urlParams.get('id');
+
+        if (!projectId) {
+            window.location.href = 'index.html';
+        }
+
+        let tasksChart = null;
+        let statusChart = null;
+
+        // Загрузка аналитики
+        function loadAnalytics() {
+            const period = document.getElementById('period-select').value;
+            
+            Promise.all([
+                api.getProject(projectId),
+                api.get(`${API_BASE}/project/${projectId}/analytics?period=${period}`).catch(() => null),
+                api.get(`${API_BASE}/project/${projectId}/analytics/tasks-chart`).catch(() => []),
+                api.get(`${API_BASE}/project/${projectId}/analytics/status-distribution`).catch(() => [])
+            ])
+            .then(([project, analytics, tasksChart, statusDistribution]) => {
+                document.getElementById('project-title').textContent = `Аналитика: ${project.name}`;
+                showAnalyticsDashboard(analytics, tasksChart, statusDistribution);
+            })
+            .catch(error => {
+                ui.showError($('#analytics-content'), error.message);
+            });
+        }
+
+        // Обработчик изменения периода
+        document.getElementById('period-select').addEventListener('change', loadAnalytics);
+
+        function showAnalyticsDashboard(analytics, tasksChartData, statusDistribution) {
+            const content = $('#analytics-content');
+            
+            if (!analytics) {
+                content.innerHTML = `
+                    <div class="card">
+                        <h3>⚠️ Аналитика недоступна</h3>
+                        <p style="color: var(--text-light);">Данные аналитики временно недоступны</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const stats = analytics.stats;
+            const successRate = stats.success_rate.toFixed(1);
+            const avgDuration = formatDuration(stats.avg_task_duration_secs);
+
+            content.innerHTML = `
+                <!-- Summary Cards -->
+                <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;">
+                    <div class="card text-center" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                        <div style="font-size: 32px; margin-bottom: 10px;">📊</div>
+                        <div style="font-size: 36px; font-weight: bold;">${stats.total_tasks}</div>
+                        <div style="opacity: 0.9;">Всего задач</div>
+                    </div>
+                    <div class="card text-center" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
+                        <div style="font-size: 32px; margin-bottom: 10px;">✅</div>
+                        <div style="font-size: 36px; font-weight: bold;">${successRate}%</div>
+                        <div style="opacity: 0.9;">Успешных</div>
+                    </div>
+                    <div class="card text-center" style="background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); color: white;">
+                        <div style="font-size: 32px; margin-bottom: 10px;">❌</div>
+                        <div style="font-size: 36px; font-weight: bold;">${stats.failed_tasks}</div>
+                        <div style="opacity: 0.9;">Ошибок</div>
+                    </div>
+                    <div class="card text-center" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+                        <div style="font-size: 32px; margin-bottom: 10px;">⏱️</div>
+                        <div style="font-size: 36px; font-weight: bold;">${avgDuration}</div>
+                        <div style="opacity: 0.9;">Ср. время</div>
+                    </div>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-bottom: 30px;">
+                    <div class="card">
+                        <h3 style="margin-bottom: 15px;">Задачи по времени</h3>
+                        <canvas id="tasks-chart"></canvas>
+                    </div>
+                    <div class="card">
+                        <h3 style="margin-bottom: 15px;">Распределение по статусам</h3>
+                        <canvas id="status-chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Detailed Stats -->
+                <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                    <div class="card">
+                        <h3 style="margin-bottom: 15px;">📋 Статистика проекта</h3>
+                        <div style="display: grid; gap: 10px;">
+                            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                <span>📜 Шаблоны</span>
+                                <strong>${stats.total_templates}</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                <span>📦 Инвентари</span>
+                                <strong>${stats.total_inventories}</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                <span>🗂️ Репозитории</span>
+                                <strong>${stats.total_repositories}</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                <span>⚙️ Окружения</span>
+                                <strong>${stats.total_environments}</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                <span>🔐 Ключи</span>
+                                <strong>${stats.total_keys}</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                <span>⏰ Расписания</span>
+                                <strong>${stats.total_schedules}</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+                                <span>👥 Пользователи</span>
+                                <strong>${stats.total_users}</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3 style="margin-bottom: 15px;">📊 Детали задач</h3>
+                        <div style="display: grid; gap: 10px;">
+                            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                <span style="color: #38ef7d;">● Успешные</span>
+                                <strong>${stats.successful_tasks}</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                <span style="color: #f45c43;">● Ошибки</span>
+                                <strong>${stats.failed_tasks}</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                <span style="color: #ffa726;">● Остановлены</span>
+                                <strong>${stats.stopped_tasks}</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                <span style="color: #42a5f5;">● Ожидают</span>
+                                <strong>${stats.pending_tasks}</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+                                <span style="color: #66bb6a;">● Выполняются</span>
+                                <strong>${stats.running_tasks}</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Создаём графики
+            setTimeout(() => {
+                createTasksChart(tasksChartData);
+                createStatusChart(statusDistribution);
+            }, 100);
+        }
+
+        function createTasksChart(data) {
+            const ctx = document.getElementById('tasks-chart');
+            if (!ctx) return;
+
+            if (tasksChart) {
+                tasksChart.destroy();
+            }
+
+            const labels = data.map(d => d.label);
+            const values = data.map(d => d.value);
+
+            tasksChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Задачи',
+                        data: values,
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createStatusChart(data) {
+            const ctx = document.getElementById('status-chart');
+            if (!ctx) return;
+
+            if (statusChart) {
+                statusChart.destroy();
+            }
+
+            const labels = data.map(d => d.label);
+            const values = data.map(d => d.value);
+
+            const colors = {
+                'Success': '#38ef7d',
+                'Error': '#f45c43',
+                'Stopped': '#ffa726',
+                'Waiting': '#42a5f5',
+                'Running': '#66bb6a',
+                'Starting': '#ab47bc'
+            };
+
+            statusChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: labels.map(l => colors[l] || '#999'),
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function formatDuration(secs) {
+            if (secs === 0) return '0с';
+            if (secs < 60) return `${Math.round(secs)}с`;
+            const mins = Math.floor(secs / 60);
+            const remainingSecs = Math.round(secs % 60);
+            return `${mins}м ${remainingSecs}с`;
+        }
+
+        // Initial load
+        loadAnalytics();
+    </script>
+</body>
+</html>

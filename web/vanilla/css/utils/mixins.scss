@@ -1,0 +1,187 @@
+// SCSS миксины
+
+// Typography
+@mixin text-h1 {
+  font-size: 6rem;
+  font-weight: 300;
+  line-height: 6rem;
+  letter-spacing: -0.01562em;
+}
+
+@mixin text-h2 {
+  font-size: 3.75rem;
+  font-weight: 300;
+  line-height: 3.75rem;
+  letter-spacing: -0.00833em;
+}
+
+@mixin text-h3 {
+  font-size: 3rem;
+  font-weight: 400;
+  line-height: 3.125rem;
+  letter-spacing: normal;
+}
+
+@mixin text-h4 {
+  font-size: 2.125rem;
+  font-weight: 400;
+  line-height: 2.5rem;
+  letter-spacing: 0.00735em;
+}
+
+@mixin text-h5 {
+  font-size: 1.5rem;
+  font-weight: 400;
+  line-height: 2rem;
+  letter-spacing: normal;
+}
+
+@mixin text-h6 {
+  font-size: 1.25rem;
+  font-weight: 500;
+  line-height: 2rem;
+  letter-spacing: 0.0125em;
+}
+
+@mixin text-subtitle-1 {
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.75rem;
+  letter-spacing: 0.00938em;
+}
+
+@mixin text-subtitle-2 {
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.375rem;
+  letter-spacing: 0.00714em;
+}
+
+@mixin text-body-1 {
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.5rem;
+  letter-spacing: 0.03125em;
+}
+
+@mixin text-body-2 {
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.25rem;
+  letter-spacing: 0.01786em;
+}
+
+@mixin text-button {
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 2.25rem;
+  letter-spacing: 0.0892857143em;
+  text-transform: uppercase;
+}
+
+@mixin text-caption {
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.25rem;
+  letter-spacing: 0.0333333333em;
+}
+
+@mixin text-overline {
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 2rem;
+  letter-spacing: 0.1666666667em;
+  text-transform: uppercase;
+}
+
+// Elevation shadows
+@mixin elevation($z) {
+  $umbra: 0px * $z * 0.2;
+  $penumbra: 0px * $z * 0.14;
+  $ambient: 0px * $z * 0.12;
+  
+  box-shadow: 
+    #{$umbra} #{1px * $z} #{3px * $z} var(--v-shadow-key-umbra-opacity),
+    #{$penumbra} #{2px * $z} #{6px * $z} var(--v-shadow-key-penumbra-opacity),
+    #{$ambient} #{1px * $z} #{10px * $z} var(--v-shadow-key-ambient-opacity);
+}
+
+// Spacing helpers
+@mixin spacing($property, $direction: '') {
+  @for $i from 0 through 16 {
+    $value: $i * 8px;
+    &-#{$direction}#{$i} {
+      #{$property}#{$direction}: $value;
+    }
+  }
+}
+
+// Flex utilities
+@mixin flex-utils {
+  .d-flex {
+    display: flex !important;
+  }
+  
+  .d-inline-flex {
+    display: inline-flex !important;
+  }
+  
+  .flex-row {
+    flex-direction: row !important;
+  }
+  
+  .flex-column {
+    flex-direction: column !important;
+  }
+  
+  .flex-wrap {
+    flex-wrap: wrap !important;
+  }
+  
+  .justify-start {
+    justify-content: flex-start !important;
+  }
+  
+  .justify-end {
+    justify-content: flex-end !important;
+  }
+  
+  .justify-center {
+    justify-content: center !important;
+  }
+  
+  .justify-space-between {
+    justify-content: space-between !important;
+  }
+  
+  .align-start {
+    align-items: flex-start !important;
+  }
+  
+  .align-end {
+    align-items: flex-end !important;
+  }
+  
+  .align-center {
+    align-items: center !important;
+  }
+  
+  .align-stretch {
+    align-items: stretch !important;
+  }
+  
+  .flex-grow-0 {
+    flex-grow: 0 !important;
+  }
+  
+  .flex-grow-1 {
+    flex-grow: 1 !important;
+  }
+}
+
+// Truncate text
+@mixin text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

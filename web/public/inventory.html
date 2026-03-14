@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Инвентари - Semaphore UI</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <h2>🚀 Semaphore</h2>
+            </div>
+            <ul class="sidebar-nav">
+                <li><a href="index.html">📊 Dashboard</a></li>
+                <li><a href="project.html">📁 Проект</a></li>
+                <li><a href="playbooks.html">📜 Playbooks</a></li>
+                <li><a href="templates.html">📋 Шаблоны</a></li>
+                <li><a href="inventory.html" class="active">📦 Инвентарь</a></li>
+                <li><a href="environments.html">⚙️ Переменные</a></li>
+                <li><a href="repositories.html">🗂️ Репозитории</a></li>
+                <li><a href="keys.html">🔐 Ключи</a></li>
+                <li><a href="schedules.html">⏰ Расписания</a></li>
+                <li><a href="analytics.html">📈 Аналитика</a></li>
+                <li><a href="webhooks.html">🔗 Webhooks</a></li>
+            </ul>
+        </aside>
+
+        <div class="main-content">
+            <div class="main-header">
+                <h2 id="project-title">Инвентари</h2>
+                <button class="btn btn-logout" onclick="api.logout()">Выйти</button>
+            </div>
+
+            <div class="main-body">
+                <div class="page-header">
+                    <h1>📦 Инвентари</h1>
+                    <button class="btn btn-primary" onclick="openInventoryModal()">+ Новый Инвентарь</button>
+                </div>
+
+                <div id="inventory-content">
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        <p>Загрузка инвентарей...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        checkAuth();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = urlParams.get('id');
+
+        if (!projectId) {
+            window.location.href = 'index.html';
+        }
+
+        api.getProject(projectId)
+            .then(project => {
+                $('#project-title').textContent = project.name + ' → Инвентари';
+                document.title = 'Инвентари - ' + project.name;
+            })
+            .catch(console.error);
+
+        loadInventory();
+
+        function loadInventory() {
+            const container = $('#inventory-content');
+            
+            api.getInventories(projectId)
+                .then(inventories => {
+                    if (inventories.length === 0) {
+                        ui.showEmpty(container, '📦', 'Нет инвентарей', 'Создайте первый инвентарь');
+                    } else {
+                        container.innerHTML = `
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Название</th>
+                                        <th>Тип</th>
+                                        <th>SSH ключ</th>
+                                        <th>Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${inventories.map(inv => `
+                                        <tr>
+                                            <td><strong>${escapeHtml(inv.name)}</strong></td>
+                                            <td><span class="badge">${inv.inventory_type || 'static'}</span></td>
+                                            <td>${inv.ssh_key_id ? '🔐 ID: ' + inv.ssh_key_id : '—'}</td>
+                                            <td>
+                                                <button class="btn btn-sm" onclick="editInventory(${inv.id})">✏️</button>
+                                                <button class="btn btn-danger btn-sm" onclick="deleteInventory(${inv.id})">🗑️</button>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    ui.showError(container, error.message);
+                });
+        }
+
+        function editInventory(id) {
+            api.getInventory(projectId, id)
+                .then(inv => {
+                    openInventoryModal(inv);
+                })
+                .catch(error => {
+                    ui.showAlert('Ошибка: ' + error.message, 'danger');
+                });
+        }
+
+        function deleteInventory(id) {
+            if (!confirm('Вы уверены что хотите удалить этот инвентарь?')) return;
+
+            api.deleteInventory(projectId, id)
+                .then(() => {
+                    ui.showAlert('Инвентарь удалён', 'success');
+                    loadInventory();
+                })
+                .catch(error => {
+                    ui.showAlert('Ошибка: ' + error.message, 'danger');
+                });
+        }
+
+        function openInventoryModal(inv = null) {
+            const isEdit = !!inv;
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.id = 'inventory-modal';
+            modal.innerHTML = `
+                <div class="modal" style="max-width: 600px;">
+                    <div class="modal-header">
+                        <h2>${isEdit ? '✏️ Редактирование' : '➕ Новый'} Инвентарь</h2>
+                    </div>
+                    <form id="inventory-form">
+                        <div class="form-group">
+                            <label for="name">Название *</label>
+                            <input type="text" id="name" class="form-control" required value="${escapeHtml(inv?.name || '')}" placeholder="Production Servers">
+                        </div>
+                        <div class="form-group">
+                            <label for="inventory_type">Тип *</label>
+                            <select id="inventory_type" class="form-control" required onchange="toggleInventoryField()">
+                                <option value="static" ${inv?.inventory_type === 'static' ? 'selected' : ''}>Статический (вручную)</option>
+                                <option value="file" ${inv?.inventory_type === 'file' ? 'selected' : ''}>Файл</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="inventory-data-group">
+                            <label for="inventory">Инвентарь (INI формат) *</label>
+                            <textarea id="inventory" class="form-control" rows="10" required placeholder="[webservers]\nweb1.example.com\nweb2.example.com\n\n[dbserververs]\ndb1.example.com" style="font-family: monospace; font-size: 13px;">${escapeHtml(inv?.inventory || '')}</textarea>
+                            <small style="color: var(--text-light);">Формат INI: [group]\nhost1\nhost2</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="ssh_key_id">SSH ключ</label>
+                            <select id="ssh_key_id" class="form-control">
+                                <option value="">Не выбрано</option>
+                            </select>
+                        </div>
+                        <div class="modal-footer" style="margin-top: 20px;">
+                            <button type="button" class="btn" onclick="closeInventoryModal()">Отмена</button>
+                            <button type="submit" class="btn btn-primary">${isEdit ? 'Сохранить' : 'Создать'}</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            // Загрузка ключей
+            api.getKeys(projectId)
+                .then(keys => {
+                    const select = $('#ssh_key_id');
+                    select.innerHTML = '<option value="">Не выбрано</option>' + 
+                        keys.filter(k => k.type === 'ssh').map(k => `<option value="${k.id}" ${inv?.ssh_key_id === k.id ? 'selected' : ''}>${escapeHtml(k.name)}</option>`).join('');
+                })
+                .catch(console.error);
+
+            $('#inventory-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                saveInventory(inv?.id);
+            });
+
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeInventoryModal();
+            });
+
+            // Инициализация видимости поля
+            toggleInventoryField();
+        }
+
+        function toggleInventoryField() {
+            const type = $('#inventory_type').value;
+            const label = $('#inventory-data-group label');
+            label.textContent = type === 'file' ? 'Путь к файлу *' : 'Инвентарь (INI формат) *';
+        }
+
+        function closeInventoryModal() {
+            const modal = $('#inventory-modal');
+            if (modal) modal.remove();
+        }
+
+        function saveInventory(id) {
+            const data = {
+                name: $('#name').value.trim(),
+                inventory_type: $('#inventory_type').value,
+                inventory: $('#inventory').value.trim(),
+                ssh_key_id: $('#ssh_key_id').value ? parseInt($('#ssh_key_id').value) : null
+            };
+
+            if (!data.name) {
+                ui.showAlert('Введите название', 'warning');
+                return;
+            }
+            if (!data.inventory) {
+                ui.showAlert('Введите инвентарь', 'warning');
+                return;
+            }
+
+            const btn = $('#inventory-form button[type="submit"]');
+            btn.disabled = true;
+            btn.textContent = 'Сохранение...';
+
+            const promise = id 
+                ? api.updateInventory(projectId, id, data)
+                : api.createInventory(projectId, data);
+
+            promise
+                .then(() => {
+                    ui.showAlert(id ? 'Инвентарь обновлён' : 'Инвентарь создан', 'success');
+                    closeInventoryModal();
+                    loadInventory();
+                })
+                .catch(error => {
+                    ui.showAlert('Ошибка: ' + error.message, 'danger');
+                })
+                .finally(() => {
+                    btn.disabled = false;
+                    btn.textContent = id ? 'Сохранить' : 'Создать';
+                });
+        }
+
+        window.editInventory = editInventory;
+        window.deleteInventory = deleteInventory;
+    </script>
+</body>
+</html>

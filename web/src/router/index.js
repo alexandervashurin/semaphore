@@ -30,6 +30,7 @@ import Stats from '../views/project/Stats.vue';
 import Tokens from '../views/Tokens.vue';
 import AcceptInvite from '../views/AcceptInvite.vue';
 import SecretStorage from '../views/project/SecretStorages.vue';
+import Playbooks from '../views/project/Playbooks.vue';
 
 Vue.use(VueRouter);
 
@@ -49,6 +50,10 @@ const routes = [
   {
     path: '/project/:projectId/secret_storages',
     component: SecretStorage,
+  },
+  {
+    path: '/project/:projectId/playbooks',
+    component: Playbooks,
   },
   {
     path: '/project/:projectId/history',

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Semaphore UI</title>
+  <link rel="stylesheet" href="/css/main.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7/css/materialdesignicons.min.css">
+</head>
+<body>
+  <div id="app" class="app">
+    <!-- App Bar -->
+    <header class="app-bar">
+      <button class="v-btn v-btn--icon v-btn--text" id="menu-toggle" style="color: white; margin-right: 16px;">
+        <i class="v-icon mdi mdi-menu"></i>
+      </button>
+      <span class="app-bar__title">Semaphore UI</span>
+      <div style="flex: 1;"></div>
+      <button class="v-btn v-btn--text" id="user-menu" style="color: white;">
+        <i class="v-icon mdi mdi-account" style="margin-right: 8px;"></i>
+        <span id="username-display">Пользователь</span>
+      </button>
+    </header>
+
+    <!-- Navigation Drawer -->
+    <aside class="navigation-drawer" id="nav-drawer">
+      <nav class="v-list">
+        <!-- Проект меню -->
+        <div id="project-menu">
+          <div class="v-subheader">Проект</div>
+          <a href="/project/history" class="v-list-item" data-route="/project/:projectId/history">
+            <i class="v-icon mdi mdi-history"></i>
+            <span class="v-list-item__content">История</span>
+          </a>
+          <a href="/project/templates" class="v-list-item" data-route="/project/:projectId/templates">
+            <i class="v-icon mdi mdi-format-list-bulleted"></i>
+            <span class="v-list-item__content">Шаблоны</span>
+          </a>
+          <a href="/project/inventory" class="v-list-item" data-route="/project/:projectId/inventory">
+            <i class="v-icon mdi mdi-server"></i>
+            <span class="v-list-item__content">Инвентари</span>
+          </a>
+          <a href="/project/repositories" class="v-list-item" data-route="/project/:projectId/repositories">
+            <i class="v-icon mdi mdi-git"></i>
+            <span class="v-list-item__content">Репозитории</span>
+          </a>
+          <a href="/project/environment" class="v-list-item" data-route="/project/:projectId/environment">
+            <i class="v-icon mdi mdi-code-braces"></i>
+            <span class="v-list-item__content">Окружения</span>
+          </a>
+          <a href="/project/keys" class="v-list-item" data-route="/project/:projectId/keys">
+            <i class="v-icon mdi mdi-key"></i>
+            <span class="v-list-item__content">Ключи</span>
+          </a>
+          <a href="/project/team" class="v-list-item" data-route="/project/:projectId/team">
+            <i class="v-icon mdi mdi-account-multiple"></i>
+            <span class="v-list-item__content">Команда</span>
+          </a>
+          <a href="/project/schedule" class="v-list-item" data-route="/project/:projectId/schedule">
+            <i class="v-icon mdi mdi-clock-outline"></i>
+            <span class="v-list-item__content">Расписание</span>
+          </a>
+          <a href="/project/integrations" class="v-list-item" data-route="/project/:projectId/integrations">
+            <i class="v-icon mdi mdi-webhook"></i>
+            <span class="v-list-item__content">Интеграции</span>
+          </a>
+          <a href="/project/audit-log" class="v-list-item" data-route="/project/:projectId/audit-log">
+            <i class="v-icon mdi mdi-shield-check"></i>
+            <span class="v-list-item__content">Audit Log</span>
+          </a>
+          <a href="/project/analytics" class="v-list-item" data-route="/project/:projectId/analytics">
+            <i class="v-icon mdi mdi-chart-bar"></i>
+            <span class="v-list-item__content">Аналитика</span>
+          </a>
+          <a href="/project/settings" class="v-list-item" data-route="/project/:projectId/settings">
+            <i class="v-icon mdi mdi-cog"></i>
+            <span class="v-list-item__content">Настройки</span>
+          </a>
+        </div>
+
+        <div class="v-divider"></div>
+
+        <!-- Глобальное меню -->
+        <div class="v-subheader">Меню</div>
+        <a href="/projects" class="v-list-item" data-route="/projects">
+          <i class="v-icon mdi mdi-folder-multiple"></i>
+          <span class="v-list-item__content">Проекты</span>
+        </a>
+        <a href="/tasks" class="v-list-item" data-route="/tasks">
+          <i class="v-icon mdi mdi-check-circle"></i>
+          <span class="v-list-item__content">Задачи</span>
+        </a>
+        <a href="/users" class="v-list-item" data-route="/users">
+          <i class="v-icon mdi mdi-account-multiple-outline"></i>
+          <span class="v-list-item__content">Пользователи</span>
+        </a>
+        <a href="/runners" class="v-list-item" data-route="/runners">
+          <i class="v-icon mdi mdi-cogs"></i>
+          <span class="v-list-item__content">Раннеры</span>
+        </a>
+        <a href="/apps" class="v-list-item" data-route="/apps">
+          <i class="v-icon mdi mdi-apps"></i>
+          <span class="v-list-item__content">Приложения</span>
+        </a>
+        <a href="/tokens" class="v-list-item" data-route="/tokens">
+          <i class="v-icon mdi mdi-key-chain"></i>
+          <span class="v-list-item__content">Токены</span>
+        </a>
+
+        <div class="v-divider"></div>
+
+        <a href="#" class="v-list-item" id="logout-btn">
+          <i class="v-icon mdi mdi-logout"></i>
+          <span class="v-list-item__content">Выход</span>
+        </a>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content" id="main-content">
+      <div class="v-container">
+        <div id="page-content">
+          <!-- Динамический контент страницы -->
+        </div>
+      </div>
+    </main>
+
+    <!-- Snackbar -->
+    <div class="v-snackbar" id="snackbar" style="display: none;">
+      <span id="snackbar-text"></span>
+      <button class="v-btn v-btn--text" id="snackbar-action">OK</button>
+    </div>
+  </div>
+
+  <script type="module" src="../js/app.js"></script>
+</body>
+</html>

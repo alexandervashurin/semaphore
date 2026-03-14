@@ -164,11 +164,16 @@ pub async fn foreign_keys_enabled(db: &SqlDb) -> Result<bool> {
 mod tests {
     use super::*;
 
-    async fn create_test_db() -> SqlDb {
-        let (db_path, _temp) = crate::db::sql::init::test_sqlite_url();
-        
+    struct TestDb {
+        db: SqlDb,
+        _temp: tempfile::NamedTempFile,
+    }
+
+    async fn create_test_db() -> TestDb {
+        let (db_path, temp) = crate::db::sql::init::test_sqlite_url();
+
         let db = SqlDb::connect_sqlite(&db_path).await.unwrap();
-        
+
         // Создаём тестовую таблицу
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS test_table (
@@ -179,13 +184,13 @@ mod tests {
         .execute(db.get_sqlite_pool().unwrap())
         .await
         .unwrap();
-        
-        db
+
+        TestDb { db, _temp: temp }
     }
 
     #[tokio::test]
     async fn test_table_exists() {
-        let db = create_test_db().await;
+        let TestDb { db, _temp } = create_test_db().await;
         
         let exists = table_exists(&db, "test_table").await.unwrap();
         assert!(exists);
@@ -199,7 +204,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_all_tables() {
-        let db = create_test_db().await;
+        let TestDb { db, _temp } = create_test_db().await;
         
         let tables = get_all_tables(&db).await.unwrap();
         assert!(tables.contains(&"test_table".to_string()));
@@ -210,7 +215,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_truncate_table() {
-        let db = create_test_db().await;
+        let TestDb { db, _temp } = create_test_db().await;
         
         // Вставляем данные
         sqlx::query("INSERT INTO test_table (name) VALUES (?)")
@@ -236,7 +241,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_enable_foreign_keys() {
-        let db = create_test_db().await;
+        let TestDb { db, _temp } = create_test_db().await;
         
         enable_foreign_keys(&db).await.unwrap();
         

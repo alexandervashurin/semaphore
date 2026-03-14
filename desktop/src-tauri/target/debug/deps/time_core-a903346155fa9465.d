@@ -1,0 +1,10 @@
+/home/a.vashurin@PSO.LOCAL/programms/github_my/semaphore/desktop/src-tauri/target/debug/deps/time_core-a903346155fa9465.d: /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/time-core-0.1.8/src/lib.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/time-core-0.1.8/src/convert.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/time-core-0.1.8/src/hint.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/time-core-0.1.8/src/util.rs
+
+/home/a.vashurin@PSO.LOCAL/programms/github_my/semaphore/desktop/src-tauri/target/debug/deps/libtime_core-a903346155fa9465.rlib: /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/time-core-0.1.8/src/lib.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/time-core-0.1.8/src/convert.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/time-core-0.1.8/src/hint.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/time-core-0.1.8/src/util.rs
+
+/home/a.vashurin@PSO.LOCAL/programms/github_my/semaphore/desktop/src-tauri/target/debug/deps/libtime_core-a903346155fa9465.rmeta: /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/time-core-0.1.8/src/lib.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/time-core-0.1.8/src/convert.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/time-core-0.1.8/src/hint.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/time-core-0.1.8/src/util.rs
+
+/home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/time-core-0.1.8/src/lib.rs:
+/home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/time-core-0.1.8/src/convert.rs:
+/home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/time-core-0.1.8/src/hint.rs:
+/home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/time-core-0.1.8/src/util.rs:

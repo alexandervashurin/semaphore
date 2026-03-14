@@ -128,6 +128,9 @@ curl -H "Authorization: Bearer eyJ..." \
 - [Репозитории](#репозитории)
 - [Окружения](#окружения)
 - [Ключи доступа](#ключи-доступа)
+- [Playbooks](#playbooks)
+- [Playbook Runs](#playbook-runs)
+- [Analytics](#analytics)
 
 ---
 
@@ -719,5 +722,359 @@ Authorization: Bearer <token>
 ```json
 {
   "error": "Описание ошибки"
+}
+```
+
+---
+
+## 📚 Playbook API
+
+API для управления Playbook (Ansible, Terraform, Shell).
+
+### Базовый URL
+
+```
+GET    /api/project/{project_id}/playbooks      # Получить список playbooks проекта
+POST   /api/project/{project_id}/playbooks      # Создать playbook
+GET    /api/project/{project_id}/playbooks/{id} # Получить playbook по ID
+PUT    /api/project/{project_id}/playbooks/{id} # Обновить playbook
+DELETE /api/project/{project_id}/playbooks/{id} # Удалить playbook
+```
+
+### Модель Playbook
+
+```json
+{
+  "id": 1,                    // Уникальный идентификатор (auto)
+  "project_id": 1,            // ID проекта
+  "name": "Deploy App",       // Название плейбука
+  "content": "- hosts: all\n  tasks:\n    - name: Deploy\n      debug:\n        msg: \"Deploying...\"",
+  "description": "Deployment playbook",  // Описание (опционально)
+  "playbook_type": "ansible", // Тип: ansible, terraform, shell
+  "repository_id": null,      // ID репозитория Git (опционально)
+  "created": "2026-03-11T10:00:00Z",
+  "updated": "2026-03-11T10:00:00Z"
+}
+```
+
+### Получить список Playbooks
+
+**Запрос:**
+
+```bash
+GET /api/project/{project_id}/playbooks
+Authorization: Bearer {token}
+```
+
+**Ответ:**
+
+```json
+[
+  {
+    "id": 1,
+    "project_id": 1,
+    "name": "Deploy App",
+    "content": "- hosts: all...",
+    "description": "Deployment playbook",
+    "playbook_type": "ansible",
+    "repository_id": null,
+    "created": "2026-03-11T10:00:00Z",
+    "updated": "2026-03-11T10:00:00Z"
+  }
+]
+```
+
+### Создать Playbook
+
+**Запрос:**
+
+```bash
+POST /api/project/{project_id}/playbooks
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "name": "Deploy App",
+  "content": "- hosts: all\n  tasks:\n    - name: Deploy\n      debug:\n        msg: \"Deploying...\"",
+  "description": "Deployment playbook",
+  "playbook_type": "ansible",
+  "repository_id": null
+}
+```
+
+**Ответ:**
+
+```json
+{
+  "id": 1,
+  "project_id": 1,
+  "name": "Deploy App",
+  "content": "- hosts: all...",
+  "description": "Deployment playbook",
+  "playbook_type": "ansible",
+  "repository_id": null,
+  "created": "2026-03-11T10:00:00Z",
+  "updated": "2026-03-11T10:00:00Z"
+}
+```
+
+### Получить Playbook по ID
+
+**Запрос:**
+
+```bash
+GET /api/project/{project_id}/playbooks/{id}
+Authorization: Bearer {token}
+```
+
+**Ответ:**
+
+```json
+{
+  "id": 1,
+  "project_id": 1,
+  "name": "Deploy App",
+  "content": "- hosts: all...",
+  "description": "Deployment playbook",
+  "playbook_type": "ansible",
+  "repository_id": null,
+  "created": "2026-03-11T10:00:00Z",
+  "updated": "2026-03-11T10:00:00Z"
+}
+```
+
+### Обновить Playbook
+
+**Запрос:**
+
+```bash
+PUT /api/project/{project_id}/playbooks/{id}
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "name": "Deploy App Updated",
+  "content": "- hosts: all\n  tasks:\n    - name: Updated Deploy\n      debug:\n        msg: \"Updated!\"",
+  "description": "Updated deployment playbook",
+  "playbook_type": "ansible"
+}
+```
+
+**Ответ:**
+
+```json
+{
+  "id": 1,
+  "project_id": 1,
+  "name": "Deploy App Updated",
+  "content": "- hosts: all...",
+  "description": "Updated deployment playbook",
+  "playbook_type": "ansible",
+  "repository_id": null,
+  "created": "2026-03-11T10:00:00Z",
+  "updated": "2026-03-11T11:00:00Z"
+}
+```
+
+### Удалить Playbook
+
+**Запрос:**
+
+```bash
+DELETE /api/project/{project_id}/playbooks/{id}
+Authorization: Bearer {token}
+```
+
+**Ответ:**
+
+```
+204 No Content
+```
+
+---
+
+### Тестирование Playbook API
+
+Для тестирования используйте скрипт `test-playbook-api.sh`:
+
+```bash
+# Настроить переменные окружения
+export BASE_URL=http://localhost:3000/api
+export PROJECT_ID=1
+export TOKEN=your_token_here
+
+# Запустить тесты
+./test-playbook-api.sh
+```
+
+Или через curl вручную:
+
+```bash
+# Получить токен
+TOKEN=$(curl -s -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"login":"admin","password":"admin123"}' \
+  | jq -r '.token')
+
+# Создать playbook
+curl -X POST http://localhost:3000/api/project/1/playbooks \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Test Playbook",
+    "content": "- hosts: localhost\n  tasks:\n    - debug:\n        msg: Hello",
+    "playbook_type": "ansible"
+  }'
+```
+
+---
+
+## Playbook Runs
+
+API для просмотра истории запусков Playbook.
+
+### Получить список запусков Playbook
+
+Возвращает список всех запусков Playbook в проекте.
+
+**Запрос:**
+
+```bash
+GET /api/project/{project_id}/playbook-runs
+Authorization: Bearer {token}
+```
+
+**Параметры:**
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `project_id` | path | ID проекта |
+| `playbook_id` | query | Фильтр по ID playbook (опционально) |
+| `status` | query | Фильтр по статусу (опционально) |
+
+**Ответ:**
+
+```json
+[
+  {
+    "id": 1,
+    "project_id": 1,
+    "playbook_id": 5,
+    "status": "success",
+    "started_at": "2026-03-14T10:00:00Z",
+    "completed_at": "2026-03-14T10:05:00Z",
+    "duration_ms": 300000
+  }
+]
+```
+
+### Получить запуск Playbook по ID
+
+**Запрос:**
+
+```bash
+GET /api/project/{project_id}/playbook-runs/{id}
+Authorization: Bearer {token}
+```
+
+**Ответ:**
+
+```json
+{
+  "id": 1,
+  "project_id": 1,
+  "playbook_id": 5,
+  "status": "success",
+  "started_at": "2026-03-14T10:00:00Z",
+  "completed_at": "2026-03-14T10:05:00Z",
+  "duration_ms": 300000,
+  "output": "Task completed successfully..."
+}
+```
+
+### Получить статистику запусков Playbook
+
+Возвращает агрегированную статистику по запускам конкретного Playbook.
+
+**Запрос:**
+
+```bash
+GET /api/project/{project_id}/playbooks/{playbook_id}/runs/stats
+Authorization: Bearer {token}
+```
+
+**Ответ:**
+
+```json
+{
+  "total_runs": 50,
+  "success_count": 45,
+  "failed_count": 5,
+  "avg_duration_ms": 280000,
+  "last_run_at": "2026-03-14T10:00:00Z",
+  "success_rate": 0.9
+}
+```
+
+---
+
+## Analytics
+
+API для получения аналитики и метрик проекта.
+
+### Получить статистику проекта
+
+**Запрос:**
+
+```bash
+GET /api/projects/{project_id}/analytics/stats
+Authorization: Bearer {token}
+```
+
+**Ответ:**
+
+```json
+{
+  "total_tasks": 150,
+  "total_templates": 12,
+  "total_playbooks": 8,
+  "active_users": 5,
+  "success_rate": 0.92
+}
+```
+
+### Получить метрики задач
+
+**Запрос:**
+
+```bash
+GET /api/projects/{project_id}/analytics/tasks
+Authorization: Bearer {token}
+```
+
+**Параметры:**
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `project_id` | path | ID проекта |
+| `from` | query | Начальная дата (ISO 8601) |
+| `to` | query | Конечная дата (ISO 8601) |
+
+**Ответ:**
+
+```json
+{
+  "tasks_by_status": {
+    "waiting": 5,
+    "running": 2,
+    "success": 120,
+    "failed": 23
+  },
+  "tasks_by_day": [
+    {"date": "2026-03-01", "count": 10},
+    {"date": "2026-03-02", "count": 15}
+  ],
+  "avg_duration_ms": 180000,
+  "top_slow_tasks": [
+    {"id": 42, "name": "Deploy Production", "duration_ms": 600000}
+  ]
 }
 ```

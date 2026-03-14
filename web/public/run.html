@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Запуск Playbook - Semaphore UI</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <h2>🚀 Semaphore</h2>
+            </div>
+            <ul class="sidebar-nav">
+                <li><a href="index.html">📊 Dashboard</a></li>
+                <li><a href="project.html">📁 Проект</a></li>
+                <li><a href="playbooks.html" class="active">📜 Playbooks</a></li>
+                <li><a href="templates.html">📋 Шаблоны</a></li>
+                <li><a href="inventory.html">📦 Инвентарь</a></li>
+                <li><a href="environments.html">⚙️ Переменные</a></li>
+                <li><a href="repositories.html">🗂️ Репозитории</a></li>
+                <li><a href="keys.html">🔐 Ключи</a></li>
+                <li><a href="schedules.html">⏰ Расписания</a></li>
+            </ul>
+        </aside>
+
+        <div class="main-content">
+            <div class="main-header">
+                <h2>Запуск Playbook</h2>
+                <button class="btn btn-logout" onclick="api.logout()">Выйти</button>
+            </div>
+
+            <div class="main-body">
+                <div id="run-content">
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        <p>Загрузка данных playbook...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        checkAuth();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = urlParams.get('id');
+        const playbookId = urlParams.get('playbook');
+
+        if (!projectId || !playbookId) {
+            window.location.href = 'playbooks.html?id=' + projectId;
+        }
+
+        let playbook = null;
+        let inventories = [];
+        let environments = [];
+
+        // Загрузка данных
+        Promise.all([
+            api.getPlaybook(projectId, playbookId),
+            api.getInventories(projectId).catch(() => []),
+            api.getEnvironments(projectId).catch(() => [])
+        ])
+        .then(([pb, invs, envs]) => {
+            playbook = pb;
+            inventories = invs;
+            environments = envs;
+            document.title = 'Запуск - ' + pb.name;
+            showRunForm();
+        })
+        .catch(error => {
+            ui.showError($('#run-content'), 'Ошибка загрузки: ' + error.message);
+        });
+
+        function showRunForm() {
+            const content = $('#run-content');
+            content.innerHTML = `
+                <div style="max-width: 800px; margin: 0 auto;">
+                    <div class="page-header">
+                        <h1>▶ Запуск Playbook</h1>
+                    </div>
+
+                    <div class="card mb-4">
+                        <h3 style="margin-bottom: 15px;">${escapeHtml(playbook.name)}</h3>
+                        <p style="color: var(--text-light); margin-bottom: 10px;">${escapeHtml(playbook.description || 'Нет описания')}</p>
+                        <div style="display: flex; gap: 10px;">
+                            <span class="badge badge-${playbook.playbook_type || 'ansible'}">${playbook.playbook_type || 'ansible'}</span>
+                            ${playbook.repository_id ? '<span class="badge">🗂️ Репозиторий: ID ' + playbook.repository_id + '</span>' : ''}
+                        </div>
+                    </div>
+
+                    <form id="run-form">
+                        <div class="card mb-4">
+                            <h3 style="margin-bottom: 20px;">Параметры запуска</h3>
+                            
+                            <div class="form-group">
+                                <label for="inventory_id">Инвентарь *</label>
+                                <select id="inventory_id" class="form-control" required>
+                                    <option value="">Выберите инвентарь</option>
+                                    ${inventories.map(inv => `<option value="${inv.id}">${escapeHtml(inv.name)}</option>`).join('')}
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="environment_id">Окружение</label>
+                                <select id="environment_id" class="form-control">
+                                    <option value="">Не выбрано</option>
+                                    ${environments.map(env => `<option value="${env.id}">${escapeHtml(env.name)}</option>`).join('')}
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="extra_vars">Дополнительные переменные (JSON)</label>
+                                <textarea id="extra_vars" class="form-control" rows="5" placeholder='{"app_env": "production", "version": "1.0.0"}' style="font-family: monospace; font-size: 13px;"></textarea>
+                                <small style="color: var(--text-light);">Переменные которые будут переданы в playbook</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="limit">Ограничить хосты</label>
+                                <input type="text" id="limit" class="form-control" placeholder="host1,host2 или group1:group2">
+                                <small style="color: var(--text-light);">Запустить только на указанных хостах (ansible --limit)</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="tags">Теги</label>
+                                <input type="text" id="tags" class="form-control" placeholder="tag1,tag2">
+                                <small style="color: var(--text-light);">Запустить только задачи с указанными тегами (ansible --tags)</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="skip_tags">Пропустить теги</label>
+                                <input type="text" id="skip_tags" class="form-control" placeholder="tag1,tag2">
+                                <small style="color: var(--text-light);">Пропустить задачи с указанными тегами (ansible --skip-tags)</small>
+                            </div>
+                        </div>
+
+                        <div class="card mb-4">
+                            <h3 style="margin-bottom: 15px;">Опции</h3>
+                            
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" id="debug">
+                                    <span>Debug режим</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" id="dry_run">
+                                    <span>Dry run (тест)</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" id="diff">
+                                    <span>Показывать diff</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                            <a href="playbooks.html?id=${projectId}" class="btn">Отмена</a>
+                            <button type="submit" class="btn btn-success" id="run-btn">
+                                <span>▶ Запустить Playbook</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            `;
+
+            $('#run-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                runPlaybook();
+            });
+        }
+
+        function runPlaybook() {
+            const btn = $('#run-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading-spinner" style="width: 16px; height: 16px; border: 2px solid white; border-top-color: transparent; display: inline-block; animation: spin 1s linear infinite;"></span> Запуск...';
+
+            // Собираем данные
+            const extraVarsText = $('#extra_vars').value.trim();
+            let extraVars = null;
+            
+            if (extraVarsText) {
+                try {
+                    extraVars = JSON.parse(extraVarsText);
+                } catch (e) {
+                    ui.showAlert('Неверный формат JSON в дополнительных переменных', 'warning');
+                    btn.disabled = false;
+                    btn.innerHTML = '<span>▶ Запустить Playbook</span>';
+                    return;
+                }
+            }
+
+            const data = {
+                inventory_id: $('#inventory_id').value ? parseInt($('#inventory_id').value) : null,
+                environment_id: $('#environment_id').value ? parseInt($('#environment_id').value) : null,
+                extra_vars: extraVars,
+                limit: $('#limit').value.trim() || null,
+                tags: $('#tags').value.trim() ? $('#tags').value.trim().split(',').map(t => t.trim()) : null,
+                skip_tags: $('#skip_tags').value.trim() ? $('#skip_tags').value.trim().split(',').map(t => t.trim()) : null,
+                debug: $('#debug').checked,
+                dry_run: $('#dry_run').checked,
+                diff: $('#diff').checked
+            };
+
+            // Валидация
+            if (!data.inventory_id) {
+                ui.showAlert('Выберите инвентарь', 'warning');
+                btn.disabled = false;
+                btn.innerHTML = '<span>▶ Запустить Playbook</span>';
+                return;
+            }
+
+            // Создаём задачу на запуск
+            // Сначала создаём временный шаблон для запуска
+            const templateData = {
+                name: 'Temp: ' + playbook.name + ' ' + new Date().toLocaleTimeString(),
+                playbook: playbook.name,
+                inventory_id: data.inventory_id,
+                environment_id: data.environment_id,
+                repository_id: playbook.repository_id,
+                type: playbook.playbook_type || 'ansible',
+                app: playbook.playbook_type || 'ansible'
+            };
+
+            api.createTemplate(projectId, templateData)
+                .then(template => {
+                    // Теперь создаём задачу
+                    const taskData = {
+                        template_id: template.id,
+                        playbook: playbook.name,
+                        inventory_id: data.inventory_id,
+                        environment_id: data.environment_id,
+                        extra_vars: data.extra_vars ? JSON.stringify(data.extra_vars) : null,
+                        task_limit: data.limit,
+                        debug: data.debug,
+                        dry_run: data.dry_run,
+                        diff: data.diff
+                    };
+
+                    return api.post('/project/' + projectId + '/tasks', taskData);
+                })
+                .then(task => {
+                    ui.showAlert('Playbook запущен! Задача #' + task.id, 'success');
+                    
+                    // Перенаправляем на страницу задачи через 2 секунды
+                    setTimeout(() => {
+                        window.location.href = 'task.html?id=' + projectId + '&task=' + task.id;
+                    }, 2000);
+                })
+                .catch(error => {
+                    ui.showAlert('Ошибка запуска: ' + error.message, 'danger');
+                    btn.disabled = false;
+                    btn.innerHTML = '<span>▶ Запустить Playbook</span>';
+                });
+        }
+    </script>
+</body>
+</html>

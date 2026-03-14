@@ -1,0 +1,252 @@
+// Semaphore gRPC API
+// Протокол для внутреннего взаимодействия между сервисами
+
+syntax = "proto3";
+
+package semaphore;
+
+// ============================================================================
+// Common Types
+// ============================================================================
+
+// Статус задачи
+enum TaskStatus {
+    TASK_STATUS_UNSPECIFIED = 0;
+    TASK_STATUS_PENDING = 1;
+    TASK_STATUS_RUNNING = 2;
+    TASK_STATUS_SUCCESS = 3;
+    TASK_STATUS_FAILED = 4;
+    TASK_STATUS_STOPPED = 5;
+}
+
+// Пустое сообщение для запросов без параметров
+message Empty {}
+
+// ============================================================================
+// Task Service
+// ============================================================================
+
+// Сервис для управления задачами
+service TaskService {
+    // Запустить задачу
+    rpc RunTask(RunTaskRequest) returns (RunTaskResponse);
+    
+    // Остановить задачу
+    rpc StopTask(StopTaskRequest) returns (StopTaskResponse);
+    
+    // Получить статус задачи
+    rpc GetTaskStatus(GetTaskStatusRequest) returns (TaskInfo);
+    
+    // Получить список задач проекта
+    rpc ListProjectTasks(ListProjectTasksRequest) returns (ListProjectTasksResponse);
+    
+    // Stream статуса выполнения задачи
+    rpc StreamTaskStatus(StreamTaskStatusRequest) returns (stream TaskStatusUpdate);
+}
+
+// Запрос на запуск задачи
+message RunTaskRequest {
+    int64 template_id = 1;
+    int64 project_id = 2;
+    optional string commit_hash = 3;
+    repeated TaskArgument arguments = 4;
+}
+
+// Аргумент задачи
+message TaskArgument {
+    string name = 1;
+    string value = 2;
+}
+
+// Ответ на запуск задачи
+message RunTaskResponse {
+    int64 task_id = 1;
+    TaskStatus status = 2;
+    string message = 3;
+}
+
+// Запрос на остановку задачи
+message StopTaskRequest {
+    int64 task_id = 1;
+    string reason = 2;
+}
+
+// Ответ на остановку задачи
+message StopTaskResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+// Запрос статуса задачи
+message GetTaskStatusRequest {
+    int64 task_id = 1;
+}
+
+// Информация о задаче
+message TaskInfo {
+    int64 id = 1;
+    int64 template_id = 2;
+    int64 project_id = 3;
+    TaskStatus status = 4;
+    string output = 5;
+    int32 exit_code = 6;
+    optional string commit_hash = 7;
+    int64 created_at = 8;
+    optional int64 started_at = 9;
+    optional int64 ended_at = 10;
+}
+
+// Запрос списка задач
+message ListProjectTasksRequest {
+    int64 project_id = 1;
+    optional TaskStatus status_filter = 2;
+    int32 limit = 3;
+    int32 offset = 4;
+}
+
+// Ответ списка задач
+message ListProjectTasksResponse {
+    repeated TaskInfo tasks = 1;
+    int32 total = 2;
+}
+
+// Запрос stream статуса
+message StreamTaskStatusRequest {
+    int64 task_id = 1;
+}
+
+// Обновление статуса задачи
+message TaskStatusUpdate {
+    int64 task_id = 1;
+    TaskStatus status = 2;
+    string output = 3;
+    int64 timestamp = 4;
+}
+
+// ============================================================================
+// Project Service
+// ============================================================================
+
+// Сервис для управления проектами
+service ProjectService {
+    // Получить проект
+    rpc GetProject(GetProjectRequest) returns (ProjectInfo);
+    
+    // Получить список проектов
+    rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse);
+    
+    // Обновить кэш проекта
+    rpc InvalidateProjectCache(InvalidateProjectCacheRequest) returns (Empty);
+    
+    // Получить статистику проекта
+    rpc GetProjectStatistics(GetProjectStatisticsRequest) returns (ProjectStatistics);
+}
+
+// Запрос проекта
+message GetProjectRequest {
+    int64 project_id = 1;
+}
+
+// Информация о проекте
+message ProjectInfo {
+    int64 id = 1;
+    string name = 2;
+    string description = 3;
+    string repository_url = 4;
+    string branch = 5;
+    int32 tasks_count = 6;
+    int64 created_at = 7;
+}
+
+// Запрос списка проектов
+message ListProjectsRequest {
+    int32 limit = 1;
+    int32 offset = 2;
+}
+
+// Ответ списка проектов
+message ListProjectsResponse {
+    repeated ProjectInfo projects = 1;
+    int32 total = 2;
+}
+
+// Запрос инвалидации кэша
+message InvalidateProjectCacheRequest {
+    int64 project_id = 1;
+    bool invalidate_tasks = 2;
+}
+
+// Запрос статистики
+message GetProjectStatisticsRequest {
+    int64 project_id = 1;
+}
+
+// Статистика проекта
+message ProjectStatistics {
+    int64 project_id = 1;
+    int32 total_tasks = 2;
+    int32 success_tasks = 3;
+    int32 failed_tasks = 4;
+    int32 running_tasks = 5;
+    double avg_duration_seconds = 6;
+    int64 last_task_at = 7;
+}
+
+// ============================================================================
+// Runner Service
+// ============================================================================
+
+// Сервис для управления раннерами
+service RunnerService {
+    // Зарегистрировать раннер
+    rpc RegisterRunner(RegisterRunnerRequest) returns (RegisterRunnerResponse);
+    
+    // Отправить heartbeat
+    rpc SendHeartbeat(SendHeartbeatRequest) returns (Empty);
+    
+    // Получить задачи для выполнения
+    rpc GetPendingTasks(GetPendingTasksRequest) returns (GetPendingTasksResponse);
+    
+    // Отчёт о выполнении задачи
+    rpc ReportTaskResult(ReportTaskResultRequest) returns (Empty);
+}
+
+// Запрос регистрации раннера
+message RegisterRunnerRequest {
+    string runner_token = 1;
+    string hostname = 2;
+    repeated string labels = 3;
+}
+
+// Ответ регистрации раннера
+message RegisterRunnerResponse {
+    string runner_id = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+// Запрос heartbeat
+message SendHeartbeatRequest {
+    string runner_id = 1;
+}
+
+// Запрос pending задач
+message GetPendingTasksRequest {
+    string runner_id = 1;
+    repeated string labels = 2;
+    int32 max_tasks = 3;
+}
+
+// Ответ pending задач
+message GetPendingTasksResponse {
+    repeated TaskInfo tasks = 1;
+}
+
+// Запрос результата задачи
+message ReportTaskResultRequest {
+    int64 task_id = 1;
+    TaskStatus status = 2;
+    string output = 3;
+    int32 exit_code = 4;
+    int64 duration_seconds = 5;
+}

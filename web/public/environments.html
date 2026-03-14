@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Окружения - Semaphore UI</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <h2>🚀 Semaphore</h2>
+            </div>
+            <ul class="sidebar-nav">
+                <li><a href="index.html">📊 Dashboard</a></li>
+                <li><a href="project.html">📁 Проект</a></li>
+                <li><a href="playbooks.html">📜 Playbooks</a></li>
+                <li><a href="templates.html">📋 Шаблоны</a></li>
+                <li><a href="inventory.html">📦 Инвентарь</a></li>
+                <li><a href="environments.html" class="active">⚙️ Переменные</a></li>
+                <li><a href="repositories.html">🗂️ Репозитории</a></li>
+                <li><a href="keys.html">🔐 Ключи</a></li>
+                <li><a href="schedules.html">⏰ Расписания</a></li>
+                <li><a href="analytics.html">📈 Аналитика</a></li>
+                <li><a href="webhooks.html">🔗 Webhooks</a></li>
+            </ul>
+        </aside>
+
+        <div class="main-content">
+            <div class="main-header">
+                <h2 id="project-title">Окружения</h2>
+                <button class="btn btn-logout" onclick="api.logout()">Выйти</button>
+            </div>
+
+            <div class="main-body">
+                <div class="page-header">
+                    <h1>⚙️ Окружения</h1>
+                    <button class="btn btn-primary" onclick="openEnvironmentModal()">+ Новое Окружение</button>
+                </div>
+
+                <div id="environments-content">
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        <p>Загрузка окружений...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        checkAuth();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = urlParams.get('id');
+
+        if (!projectId) {
+            window.location.href = 'index.html';
+        }
+
+        api.getProject(projectId)
+            .then(project => {
+                $('#project-title').textContent = project.name + ' → Окружения';
+                document.title = 'Окружения - ' + project.name;
+            })
+            .catch(console.error);
+
+        loadEnvironments();
+
+        function loadEnvironments() {
+            const container = $('#environments-content');
+            
+            api.getEnvironments(projectId)
+                .then(envs => {
+                    if (envs.length === 0) {
+                        ui.showEmpty(container, '⚙️', 'Нет окружений', 'Создайте первое окружение с переменными');
+                    } else {
+                        container.innerHTML = `
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Название</th>
+                                        <th>Переменные</th>
+                                        <th>Описание</th>
+                                        <th>Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${envs.map(env => {
+                                        const vars = JSON.parse(env.json || '{}');
+                                        const varCount = Object.keys(vars).length;
+                                        return `
+                                            <tr>
+                                                <td><strong>${escapeHtml(env.name)}</strong></td>
+                                                <td><span class="badge">${varCount} переменных</span></td>
+                                                <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(env.description || '—')}</td>
+                                                <td>
+                                                    <button class="btn btn-sm" onclick="editEnvironment(${env.id})">✏️</button>
+                                                    <button class="btn btn-danger btn-sm" onclick="deleteEnvironment(${env.id})">🗑️</button>
+                                                </td>
+                                            </tr>
+                                        `;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    ui.showError(container, error.message);
+                });
+        }
+
+        function editEnvironment(id) {
+            api.getEnvironment(projectId, id)
+                .then(env => {
+                    openEnvironmentModal(env);
+                })
+                .catch(error => {
+                    ui.showAlert('Ошибка: ' + error.message, 'danger');
+                });
+        }
+
+        function deleteEnvironment(id) {
+            if (!confirm('Вы уверены что хотите удалить это окружение?')) return;
+
+            api.deleteEnvironment(projectId, id)
+                .then(() => {
+                    ui.showAlert('Окружение удалено', 'success');
+                    loadEnvironments();
+                })
+                .catch(error => {
+                    ui.showAlert('Ошибка: ' + error.message, 'danger');
+                });
+        }
+
+        function openEnvironmentModal(env = null) {
+            const isEdit = !!env;
+            const vars = env ? JSON.parse(env.json || '{}') : {};
+            const varsText = Object.entries(vars).map(([k, v]) => `${k}=${v}`).join('\n');
+            
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.id = 'environment-modal';
+            modal.innerHTML = `
+                <div class="modal" style="max-width: 600px;">
+                    <div class="modal-header">
+                        <h2>${isEdit ? '✏️ Редактирование' : '➕ Новое'} Окружение</h2>
+                    </div>
+                    <form id="environment-form">
+                        <div class="form-group">
+                            <label for="name">Название *</label>
+                            <input type="text" id="name" class="form-control" required value="${escapeHtml(env?.name || '')}" placeholder="Production">
+                        </div>
+                        <div class="form-group">
+                            <label for="description">Описание</label>
+                            <textarea id="description" class="form-control" rows="2" placeholder="Описание окружения">${escapeHtml(env?.description || '')}</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="json">Переменные (JSON) *</label>
+                            <textarea id="json" class="form-control" rows="10" required placeholder='{"app_env": "production", "db_host": "localhost"}' style="font-family: monospace; font-size: 13px;">${escapeHtml(varsText)}</textarea>
+                            <small style="color: var(--text-light);">Формат: key=value (каждая переменная с новой строки)</small>
+                        </div>
+                        <div class="modal-footer" style="margin-top: 20px;">
+                            <button type="button" class="btn" onclick="closeEnvironmentModal()">Отмена</button>
+                            <button type="submit" class="btn btn-primary">${isEdit ? 'Сохранить' : 'Создать'}</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            $('#environment-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                saveEnvironment(env?.id);
+            });
+
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeEnvironmentModal();
+            });
+        }
+
+        function closeEnvironmentModal() {
+            const modal = $('#environment-modal');
+            if (modal) modal.remove();
+        }
+
+        function saveEnvironment(id) {
+            const name = $('#name').value.trim();
+            const description = $('#description').value.trim();
+            const jsonText = $('#json').value.trim();
+
+            if (!name) {
+                ui.showAlert('Введите название', 'warning');
+                return;
+            }
+
+            // Парсим переменные из формата key=value
+            const vars = {};
+            const lines = jsonText.split('\n');
+            for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed || trimmed.startsWith('#')) continue;
+                
+                const eqIndex = trimmed.indexOf('=');
+                if (eqIndex > 0) {
+                    const key = trimmed.substring(0, eqIndex).trim();
+                    const value = trimmed.substring(eqIndex + 1).trim();
+                    if (key) {
+                        vars[key] = value;
+                    }
+                } else {
+                    // Если нет =, считаем что это JSON
+                    try {
+                        const parsed = JSON.parse(trimmed);
+                        Object.assign(vars, parsed);
+                    } catch (e) {
+                        // Игнорируем невалидные строки
+                    }
+                }
+            }
+
+            const data = {
+                name: name,
+                description: description || null,
+                json: JSON.stringify(vars)
+            };
+
+            const btn = $('#environment-form button[type="submit"]');
+            btn.disabled = true;
+            btn.textContent = 'Сохранение...';
+
+            const promise = id 
+                ? api.updateEnvironment(projectId, id, data)
+                : api.createEnvironment(projectId, data);
+
+            promise
+                .then(() => {
+                    ui.showAlert(id ? 'Окружение обновлено' : 'Окружение создано', 'success');
+                    closeEnvironmentModal();
+                    loadEnvironments();
+                })
+                .catch(error => {
+                    ui.showAlert('Ошибка: ' + error.message, 'danger');
+                })
+                .finally(() => {
+                    btn.disabled = false;
+                    btn.textContent = id ? 'Сохранить' : 'Создать';
+                });
+        }
+
+        window.editEnvironment = editEnvironment;
+        window.deleteEnvironment = deleteEnvironment;
+    </script>
+</body>
+</html>

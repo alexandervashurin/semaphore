@@ -1,8 +1,8 @@
 # 🦀 Semaphore UI на Rust
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Rust](https://img.shields.io/badge/Rust-1.75+-blue.svg)](https://www.rust-lang.org)
-[![Tests](https://img.shields.io/badge/tests-475%20passed-brightgreen.svg)]()
+[![Rust](https://img.shields.io/badge/Rust-1.80+-blue.svg)](https://www.rust-lang.org)
+[![Tests](https://img.shields.io/badge/tests-655%20passed-brightgreen.svg)]()
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
 [![Migration](https://img.shields.io/badge/migration-100%25-brightgreen.svg)]()
 [![Frontend](https://img.shields.io/badge/frontend-Vue%202-brightgreen.svg)]()
@@ -10,25 +10,28 @@
 
 **Полная миграция Semaphore UI на Rust** - высокопроизводительная, безопасная и надёжная система автоматизации для Ansible, Terraform, OpenTofu, Terragrunt, PowerShell и других DevOps-инструментов.
 
-## 🎯 CRUD Демо
+## 🎯 Демо-режим
 
-> **Попробуйте прямо сейчас!** Интерактивное демо с полным CRUD для всех сущностей.
+> **Попробуйте прямо сейчас!** Полноценное демо-окружение с готовыми данными.
 
 ```bash
-# Быстрый старт
-./demo-start.sh
+# Быстрый старт демо-режима
+./semaphore.sh init hybrid
+./semaphore.sh start hybrid
 
 # Откройте в браузере
-http://localhost/demo-crud.html
+http://localhost:3000
 ```
 
-**Учётные данные:**
+**Учётные данные (пароль для всех: demo123):**
 - `admin` / `demo123` (администратор)
 - `john.doe` / `demo123` (менеджер)
 - `jane.smith` / `demo123` (менеджер)
 - `devops` / `demo123` (исполнитель)
 
-📖 **Подробная документация**: [CRUD_DEMO.md](CRUD_DEMO.md)
+**Демо-данные:** 4 проекта, 12 шаблонов, 4 расписания, 6 задач
+
+📖 **Подробная документация**: [db/postgres/DEMO_MODE.md](db/postgres/DEMO_MODE.md)
 
 ---
 
@@ -36,68 +39,124 @@ http://localhost/demo-crud.html
 
 ### Требования
 
-- Rust 1.75 или новее
+- Rust 1.80 или новее
 - Cargo
-- Docker (опционально, для PostgreSQL)
+- Docker (опционально, для Docker-режимов)
 
 ---
 
-### Вариант 1: Docker (Frontend + PostgreSQL + демо-данные)
+### 📋 Режимы запуска
+
+#### Режим 1: Native (чистый запуск на хосте) ⭐ Для разработки
+
+SQLite + Backend + Frontend на хосте. Минимальные зависимости.
 
 ```bash
-# 1. Запуск frontend и БД
-./start.sh
-
-# 2. Запуск backend (в отдельном терминале)
-./start.sh --backend
-```
-
-**Доступ:** http://localhost
-
-**Учётные данные:**
-- `admin` / `demo123`
-- `john.doe` / `demo123`
-- `jane.smith` / `demo123`
-- `devops` / `demo123`
-
----
-
-### Вариант 2: SQLite (для тестирования)
-
-```bash
-# Сборка frontend
-./web/build.sh
+# Первый запуск с инициализацией
+./semaphore.sh init native
 
 # Запуск сервера
-cd rust
-export SEMAPHORE_DB_PATH=/tmp/semaphore.db
-cargo run -- server --host 0.0.0.0 --port 3000
+./semaphore.sh start native
 ```
 
 **Доступ:** http://localhost:3000
 
-**Создание администратора:**
+**Учётные данные:**
+- `admin` / `admin123`
+
+**Полезные команды:**
 ```bash
-cargo run -- user add --username admin --name "Admin" --email admin@localhost --password admin123 --admin
+./semaphore.sh stop              # Остановить backend
+./semaphore.sh logs              # Просмотр логов
+./semaphore.sh clean             # Удалить БД
+./semaphore.sh status            # Показать статус
 ```
 
 ---
 
-### Вариант 3: PostgreSQL (продакшен)
+#### Режим 2: Hybrid (PostgreSQL в Docker, остальное на хосте) ⭐ Рекомендуется для продакшена
+
+PostgreSQL в Docker, Backend и Frontend на хосте.
 
 ```bash
-# 1. Запуск PostgreSQL
-docker run -d --name semaphore-postgres \
-  -e POSTGRES_USER=semaphore \
-  -e POSTGRES_PASSWORD=semaphore_pass \
-  -e POSTGRES_DB=semaphore \
-  -p 5432:5432 \
-  postgres:16-alpine
+# Первый запуск с инициализацией
+./semaphore.sh init hybrid
 
-# 2. Сборка frontend
+# Запуск сервера
+./semaphore.sh start hybrid
+```
+
+**Доступ:** http://localhost:3000
+
+**Учётные данные (демо):**
+- `admin` / `demo123`
+
+**Полезные команды:**
+```bash
+./semaphore.sh stop              # Остановить сервисы
+./semaphore.sh logs              # Просмотр логов
+./semaphore.sh clean             # Очистить данные БД
+./semaphore.sh status            # Показать статус
+```
+
+---
+
+#### Режим 3: Docker (всё в Docker)
+
+Frontend + PostgreSQL + Backend в Docker контейнерах.
+
+```bash
+# Запуск всех сервисов
+./semaphore.sh start docker
+```
+
+**Доступ:** http://localhost
+
+**Учётные данные (демо):**
+- `admin` / `demo123`
+
+**Полезные команды:**
+```bash
+./semaphore.sh stop              # Остановить сервисы
+./semaphore.sh logs              # Просмотр логов
+./semaphore.sh clean             # Очистить volumes
+./semaphore.sh status            # Показать статус
+```
+
+---
+
+### 🔧 Ручной запуск (для разработки)
+
+#### Сборка frontend
+```bash
 ./web/build.sh
+```
 
-# 3. Запуск backend
+#### Запуск backend напрямую
+```bash
+cd rust
+
+# С SQLite
+export SEMAPHORE_DB_DIALECT=sqlite
+export SEMAPHORE_DB_PATH=/tmp/semaphore.db
+cargo run -- server --host 0.0.0.0 --port 3000
+
+# С PostgreSQL
+export SEMAPHORE_DB_DIALECT=postgres
+export SEMAPHORE_DB_URL=postgres://semaphore:semaphore_pass@localhost:5432/semaphore
+cargo run -- server --host 0.0.0.0 --port 3000
+```
+
+#### Создание администратора
+```bash
+cd rust
+cargo run -- user add \
+  --username admin \
+  --name "Administrator" \
+  --email admin@localhost \
+  --password admin123 \
+  --admin
+```
 cd rust
 export SEMAPHORE_DB_URL="postgres://semaphore:semaphore_pass@localhost:5432/semaphore"
 cargo run -- server --host 0.0.0.0 --port 3000
@@ -134,6 +193,7 @@ cargo test
 | [API.md](API.md) | REST API документация |
 | [AUTH.md](AUTH.md) | Аутентификация и авторизация |
 | [DOCKER_DEMO.md](DOCKER_DEMO.md) | Docker демонстрация |
+| [PLAYBOOK_API.md](PLAYBOOK_API.md) | 📚 Playbook API (Ansible/Terraform) |
 | [scripts/README.md](scripts/README.md) | Скрипты запуска |
 
 ---
@@ -144,6 +204,19 @@ cargo test
 - **Frontend:** Vue 2
 - **Базы данных:** SQLite, PostgreSQL, MySQL
 - **Аутентификация:** JWT + bcrypt
+- **Автоматизация:** Ansible, Terraform, OpenTofu, Terragrunt, PowerShell
+
+## ✨ Возможности
+
+- ✅ **Управление проектами** - мультипроектная архитектура с ролевой моделью
+- ✅ **Шаблоны задач** - настройка параметров запуска для Ansible/Terraform
+- ✅ **Инвентари** - динамические и статические инвентари Ansible
+- ✅ **Расписания** - автоматический запуск задач по cron
+- ✅ **Playbook API** - CRUD для Playbook (Ansible, Terraform, Shell) 🆕
+- ✅ **Аудит логирование** - полный аудит всех действий
+- ✅ **Webhooks** - интеграция с внешними системами
+- ✅ **Terraform State** - управление состоянием Terraform
+- ✅ **Хранилище секретов** - безопасное хранение чувствительных данных
 
 ---
 

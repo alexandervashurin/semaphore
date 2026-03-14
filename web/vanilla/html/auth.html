@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Semaphore</title>
+  <link rel="stylesheet" href="/css/main.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7/css/materialdesignicons.min.css">
+  <style>
+    .auth-page {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #3f51b5 0%, #5c6bc0 100%);
+    }
+    
+    .auth-card {
+      width: 100%;
+      max-width: 400px;
+      padding: 24px;
+    }
+    
+    .auth-card .v-card__title {
+      justify-content: center;
+      padding-top: 0;
+    }
+    
+    .auth-card .v-card__text {
+      padding-top: 16px;
+    }
+    
+    .auth-logo {
+      width: 64px;
+      height: 64px;
+      margin-bottom: 16px;
+    }
+    
+    .auth-error {
+      color: #f44336;
+      font-size: 0.875rem;
+      margin-top: 8px;
+      display: none;
+    }
+    
+    .auth-error.visible {
+      display: block;
+    }
+    
+    .loading .v-btn__content {
+      opacity: 0;
+    }
+    
+    .loading .v-progress-circular {
+      position: absolute;
+    }
+  </style>
+</head>
+<body>
+  <div class="auth-page">
+    <div class="v-card auth-card">
+      <div class="v-card__title">
+        <div style="text-align: center;">
+          <svg class="auth-logo" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="50" cy="50" r="45" fill="#3f51b5"/>
+            <path d="M35 35L50 50L65 35" stroke="white" stroke-width="6" stroke-linecap="round"/>
+            <path d="M50 50V75" stroke="white" stroke-width="6" stroke-linecap="round"/>
+          </svg>
+          <h1 class="text-h5">Вход в Semaphore</h1>
+        </div>
+      </div>
+      
+      <div class="v-card__text">
+        <form id="login-form">
+          <div class="v-text-field">
+            <input 
+              type="text" 
+              id="username" 
+              name="username" 
+              required 
+              placeholder=" "
+              autocomplete="username"
+            >
+            <label for="username">Имя пользователя</label>
+          </div>
+          
+          <div class="v-text-field">
+            <input 
+              type="password" 
+              id="password" 
+              name="password" 
+              required 
+              placeholder=" "
+              autocomplete="current-password"
+            >
+            <label for="password">Пароль</label>
+          </div>
+          
+          <div class="auth-error" id="error-message"></div>
+          
+          <button 
+            type="submit" 
+            class="v-btn v-btn--contained v-btn--primary v-btn--block"
+            style="margin-top: 16px;"
+          >
+            <span class="v-btn__content">Войти</span>
+          </button>
+        </form>
+        
+        <div style="text-align: center; margin-top: 16px;">
+          <a href="#" id="forgot-password" class="text-caption" style="color: rgba(0,0,0,0.6);">
+            Забыли пароль?
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script type="module">
+    import api from '../js/api.js';
+    import { $ } from '../js/utils/dom.js';
+    
+    const form = $('#login-form');
+    const errorEl = $('#error-message');
+    const submitBtn = form.querySelector('button[type="submit"]');
+    
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const username = $('#username').value.trim();
+      const password = $('#password').value;
+      
+      // Сброс ошибки
+      errorEl.classList.remove('visible');
+      errorEl.textContent = '';
+      
+      // Блокировка кнопки
+      submitBtn.disabled = true;
+      submitBtn.classList.add('loading');
+      
+      try {
+        // Попытка входа
+        const response = await api.login(username, password);
+        
+        if (response.token) {
+          // Успешный вход - редирект
+          window.location.href = '/';
+        } else {
+          throw new Error('Неверное имя пользователя или пароль');
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        
+        // Показ ошибки
+        errorEl.textContent = error.response?.data?.message || 
+                             error.message || 
+                             'Ошибка подключения к серверу';
+        errorEl.classList.add('visible');
+        
+        // Разблокировка кнопки
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('loading');
+      }
+    });
+    
+    // Обработчик "Забыли пароль"
+    $('#forgot-password').addEventListener('click', (e) => {
+      e.preventDefault();
+      alert('Обратитесь к администратору для сброса пароля');
+    });
+    
+    // Проверка, есть ли уже токен (автоматический вход)
+    if (localStorage.getItem('semaphore_token')) {
+      try {
+        const user = await api.getCurrentUser();
+        if (user) {
+          window.location.href = '/';
+        }
+      } catch (error) {
+        localStorage.removeItem('semaphore_token');
+      }
+    }
+  </script>
+</body>
+</html>

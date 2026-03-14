@@ -1,0 +1,58 @@
+// Vuetify-inspired CSS переменные для сохранения дизайна
+
+:root {
+  // Colors - Primary
+  --v-primary-base: #3f51b5;
+  --v-primary-lighten-5: #e8eaf6;
+  --v-primary-lighten-4: #c5cae9;
+  --v-primary-lighten-3: #9fa8da;
+  --v-primary-lighten-2: #7986cb;
+  --v-primary-lighten-1: #5c6bc0;
+  --v-primary-darken-1: #3949ab;
+  --v-primary-darken-2: #303f9f;
+  --v-primary-darken-3: #283593;
+  --v-primary-darken-4: #1a237e;
+
+  // Colors - Secondary
+  --v-secondary-base: #ff4081;
+  
+  // Colors - Semantic
+  --v-success-base: #4caf50;
+  --v-info-base: #2196f3;
+  --v-warning-base: #ff9800;
+  --v-error-base: #f44336;
+
+  // Colors - Neutral
+  --v-white-base: #ffffff;
+  --v-black-base: #000000;
+  
+  // Theme
+  --v-theme-background: #fafafa;
+  --v-theme-surface: #ffffff;
+  --v-theme-on-surface: #000000;
+  
+  // Elevation shadows
+  --v-shadow-key-umbra-opacity: rgba(0, 0, 0, 0.2);
+  --v-shadow-key-penumbra-opacity: rgba(0, 0, 0, 0.14);
+  --v-shadow-key-ambient-opacity: rgba(0, 0, 0, 0.12);
+
+  // Typography
+  --v-font-family: 'Roboto', sans-serif;
+  --v-font-size-root: 16px;
+  
+  // Spacing
+  --v-spacing-base: 8px;
+  
+  // Border radius
+  --v-border-radius: 4px;
+  --v-border-radius-lg: 8px;
+  --v-border-radius-xl: 16px;
+  
+  // Transitions
+  --v-transition-duration: 0.3s;
+  
+  // Z-index
+  --v-z-index-app-bar: 100;
+  --v-z-index-dialog: 200;
+  --v-z-index-snackbar: 300;
+}

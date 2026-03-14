@@ -3,6 +3,8 @@
 use crate::db::store::*;
 use crate::models::*;
 use crate::models::audit_log::{AuditAction, AuditObjectType, AuditLevel, AuditLog, AuditLogFilter, AuditLogResult};
+use crate::models::webhook::{Webhook, UpdateWebhook, WebhookLog};
+use crate::models::playbook_run_history::{PlaybookRun, PlaybookRunCreate, PlaybookRunUpdate, PlaybookRunStatus, PlaybookRunStats, PlaybookRunFilter};
 use crate::error::Result;
 use crate::services::task_logger::TaskStatus;
 use async_trait::async_trait;
@@ -636,6 +638,88 @@ impl AuditLogManager for StoreWrapper {
 
     async fn clear_audit_log(&self) -> Result<u64> {
         self.inner.as_ref().as_ref().clear_audit_log().await
+    }
+}
+
+#[async_trait]
+impl crate::db::store::WebhookManager for StoreWrapper {
+    async fn get_webhook(&self, webhook_id: i64) -> Result<Webhook> {
+        self.inner.as_ref().as_ref().get_webhook(webhook_id).await
+    }
+
+    async fn get_webhooks_by_project(&self, project_id: i64) -> Result<Vec<Webhook>> {
+        self.inner.as_ref().as_ref().get_webhooks_by_project(project_id).await
+    }
+
+    async fn create_webhook(&self, webhook: Webhook) -> Result<Webhook> {
+        self.inner.as_ref().as_ref().create_webhook(webhook).await
+    }
+
+    async fn update_webhook(&self, webhook_id: i64, webhook: UpdateWebhook) -> Result<Webhook> {
+        self.inner.as_ref().as_ref().update_webhook(webhook_id, webhook).await
+    }
+
+    async fn delete_webhook(&self, webhook_id: i64) -> Result<()> {
+        self.inner.as_ref().as_ref().delete_webhook(webhook_id).await
+    }
+
+    async fn get_webhook_logs(&self, webhook_id: i64) -> Result<Vec<WebhookLog>> {
+        self.inner.as_ref().as_ref().get_webhook_logs(webhook_id).await
+    }
+
+    async fn create_webhook_log(&self, log: WebhookLog) -> Result<WebhookLog> {
+        self.inner.as_ref().as_ref().create_webhook_log(log).await
+    }
+}
+
+
+#[async_trait]
+impl crate::db::store::PlaybookManager for StoreWrapper {
+    async fn get_playbooks(&self, project_id: i32) -> Result<Vec<crate::models::Playbook>> {
+        self.inner.as_ref().as_ref().get_playbooks(project_id).await
+    }
+
+    async fn get_playbook(&self, id: i32, project_id: i32) -> Result<crate::models::Playbook> {
+        self.inner.as_ref().as_ref().get_playbook(id, project_id).await
+    }
+
+    async fn create_playbook(&self, project_id: i32, playbook: crate::models::PlaybookCreate) -> Result<crate::models::Playbook> {
+        self.inner.as_ref().as_ref().create_playbook(project_id, playbook).await
+    }
+
+    async fn update_playbook(&self, id: i32, project_id: i32, playbook: crate::models::PlaybookUpdate) -> Result<crate::models::Playbook> {
+        self.inner.as_ref().as_ref().update_playbook(id, project_id, playbook).await
+    }
+
+    async fn delete_playbook(&self, id: i32, project_id: i32) -> Result<()> {
+        self.inner.as_ref().as_ref().delete_playbook(id, project_id).await
+    }
+}
+
+#[async_trait]
+impl crate::db::store::PlaybookRunManager for StoreWrapper {
+    async fn get_playbook_runs(&self, filter: PlaybookRunFilter) -> Result<Vec<PlaybookRun>> {
+        self.inner.as_ref().as_ref().get_playbook_runs(filter).await
+    }
+
+    async fn get_playbook_run(&self, id: i32, project_id: i32) -> Result<PlaybookRun> {
+        self.inner.as_ref().as_ref().get_playbook_run(id, project_id).await
+    }
+
+    async fn create_playbook_run(&self, run: PlaybookRunCreate) -> Result<PlaybookRun> {
+        self.inner.as_ref().as_ref().create_playbook_run(run).await
+    }
+
+    async fn update_playbook_run(&self, id: i32, project_id: i32, update: PlaybookRunUpdate) -> Result<PlaybookRun> {
+        self.inner.as_ref().as_ref().update_playbook_run(id, project_id, update).await
+    }
+
+    async fn delete_playbook_run(&self, id: i32, project_id: i32) -> Result<()> {
+        self.inner.as_ref().as_ref().delete_playbook_run(id, project_id).await
+    }
+
+    async fn get_playbook_run_stats(&self, playbook_id: i32) -> Result<PlaybookRunStats> {
+        self.inner.as_ref().as_ref().get_playbook_run_stats(playbook_id).await
     }
 }
 

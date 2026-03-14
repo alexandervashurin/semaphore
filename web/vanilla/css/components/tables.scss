@@ -1,0 +1,303 @@
+// Vuetify-style таблицы
+
+.v-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--v-theme-surface);
+  border-radius: var(--v-border-radius);
+  overflow: hidden;
+  
+  thead {
+    th {
+      padding: 12px 16px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      line-height: 2rem;
+      letter-spacing: 0.16667em;
+      text-transform: uppercase;
+      color: rgba(0, 0, 0, 0.6);
+      text-align: left;
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+      
+      &.v-data-table__sorted {
+        color: rgba(0, 0, 0, 0.87);
+        
+        .v-data-table__sort-icon {
+          opacity: 1;
+        }
+      }
+      
+      .v-data-table__sort-icon {
+        display: inline-flex;
+        margin-left: 4px;
+        opacity: 0;
+        transition: opacity 0.2s;
+      }
+    }
+  }
+  
+  tbody {
+    tr {
+      transition: background-color 0.2s;
+      
+      &:hover {
+        background-color: rgba(0, 0, 0, 0.02);
+      }
+      
+      &:last-child td {
+        border-bottom: none;
+      }
+      
+      &.v-data-table__selected {
+        background-color: rgba(63, 81, 181, 0.08);
+      }
+      
+      td {
+        padding: 12px 16px;
+        font-size: 0.875rem;
+        color: rgba(0, 0, 0, 0.87);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+        
+        &.v-data-table__numeric {
+          text-align: right;
+        }
+        
+        &.v-data-table__centered {
+          text-align: center;
+        }
+      }
+    }
+  }
+  
+  tfoot {
+    td {
+      padding: 12px 16px;
+      font-size: 0.875rem;
+      color: rgba(0, 0, 0, 0.6);
+    }
+  }
+  
+  // Dense variant
+  &.v-data-table--dense {
+    thead th,
+    tbody td,
+    tfoot td {
+      padding: 8px 12px;
+    }
+  }
+  
+  // Loading state
+  &.v-data-table--loading {
+    tbody {
+      position: relative;
+      
+      &::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    }
+  }
+}
+
+// Pagination
+.v-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px 0;
+  
+  .v-pagination__item {
+    min-width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    
+    &.v-pagination__item--active {
+      background-color: var(--v-primary-base);
+      color: var(--v-white-base);
+    }
+    
+    &:hover:not(.v-pagination__item--active) {
+      background-color: rgba(0, 0, 0, 0.04);
+    }
+    
+    &.v-pagination__item--disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+  
+  .v-pagination__navigation {
+    .v-btn--icon {
+      background: transparent;
+    }
+  }
+}
+
+// Table actions
+.v-data-table__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  
+  .v-select {
+    margin: 0;
+    min-width: 100px;
+    
+    .v-select__selection {
+      padding: 4px 8px;
+      font-size: 0.875rem;
+    }
+  }
+}
+
+// Chip в таблицах
+.v-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  height: 32px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 16px;
+  background-color: rgba(0, 0, 0, 0.06);
+  
+  &.v-chip--small {
+    height: 24px;
+    padding: 0 8px;
+    font-size: 0.75rem;
+  }
+  
+  &.v-chip--primary {
+    background-color: rgba(63, 81, 181, 0.12);
+    color: var(--v-primary-base);
+  }
+  
+  &.v-chip--success {
+    background-color: rgba(76, 175, 80, 0.12);
+    color: var(--v-success-base);
+  }
+  
+  &.v-chip--error {
+    background-color: rgba(244, 67, 54, 0.12);
+    color: var(--v-error-base);
+  }
+  
+  &.v-chip--warning {
+    background-color: rgba(255, 152, 0, 0.12);
+    color: var(--v-warning-base);
+  }
+  
+  &.v-chip--info {
+    background-color: rgba(33, 150, 243, 0.12);
+    color: var(--v-info-base);
+  }
+  
+  .v-chip__content {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  
+  .v-chip__close {
+    margin-left: 4px;
+    cursor: pointer;
+    opacity: 0.7;
+    
+    &:hover {
+      opacity: 1;
+    }
+  }
+}
+
+// Progress linear
+.v-progress-linear {
+  position: relative;
+  width: 100%;
+  height: 4px;
+  background-color: rgba(63, 81, 181, 0.2);
+  border-radius: 2px;
+  overflow: hidden;
+  
+  .v-progress-linear__bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background-color: var(--v-primary-base);
+    transition: width 0.3s;
+  }
+  
+  &.v-progress-linear--indeterminate {
+    .v-progress-linear__bar {
+      animation: indeterminate 2s infinite;
+    }
+  }
+}
+
+@keyframes indeterminate {
+  0% {
+    left: -100%;
+    width: 50%;
+  }
+  50% {
+    left: 50%;
+    width: 50%;
+  }
+  100% {
+    left: 100%;
+    width: 50%;
+  }
+}
+
+// Progress circular
+.v-progress-circular {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+  
+  svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+  
+  circle {
+    fill: none;
+    
+    &.v-progress-circular__underlay {
+      stroke: rgba(63, 81, 181, 0.2);
+    }
+    
+    &.v-progress-circular__overlay {
+      stroke: var(--v-primary-base);
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.3s;
+    }
+  }
+  
+  .v-progress-circular__info {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 0.875rem;
+  }
+}

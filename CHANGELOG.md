@@ -5,6 +5,242 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 этот проект придерживается [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-03-14
+
+### 🎉 Major Release - Analytics, Webhooks, Schedules, Playbook Runs
+
+#### ✨ Добавлено
+
+##### Analytics API & UI
+- ✅ Analytics API endpoints:
+  - `GET /api/project/{id}/analytics` - основная аналитика проекта
+  - `GET /api/project/{id}/analytics/tasks-chart` - данные для графика задач
+  - `GET /api/project/{id}/analytics/status-distribution` - распределение по статусам
+  - `GET /api/analytics/system` - системная аналитика
+- ✅ Analytics Dashboard UI (analytics.html):
+  - Карточки статистики: всего задач, успешных %, ошибок, среднее время
+  - Графики: задачи по времени, распределение по статусам (Chart.js)
+  - Детальная статистика по ресурсам проекта
+  - Фильтрация по периоду (день, неделя, месяц)
+  - Градиентные карточки с иконками
+- ✅ Backend handlers/analytics.rs - подсчёт статистики задач
+
+##### Webhooks Management UI
+- ✅ Webhooks CRUD страница (webhooks.html):
+  - Список webhooks в виде таблицы
+  - Создание/редактирование/удаление
+  - Тестирование webhook (отправка тестового запроса)
+  - Фильтрация по типу (Generic, Slack, Teams, Discord, Telegram)
+  - Фильтрация по статусу (активен/неактивен)
+  - Поиск по названию
+- ✅ Поля webhook: название, тип, URL, secret, статус, события, заголовки
+- ✅ Модальное окно с валидацией формы
+- ✅ Toast уведомления об операциях
+
+##### Schedules Management
+- ✅ Schedules CRUD полностью реализован:
+  - Страница schedules.html - управление расписаниями
+  - Создание, редактирование, удаление расписаний
+  - Валидация cron выражений
+  - Фильтрация по статусу
+  - Включение/отключение расписания (toggle)
+- ✅ Cron примеры: 0 2 * * *, 0 */6 * * *, 0 0 1 * *
+
+##### Playbook Runs UI
+- ✅ Run форма (run.html):
+  - Запуск playbook с параметрами
+  - Выбор инвентаря, окружения
+  - Дополнительные переменные (JSON)
+  - Опции: --limit, --tags, --skip-tags
+  - Debug режим, Dry run, Diff режим
+- ✅ Task просмотр (task.html):
+  - Информация о задаче
+  - Статус в реальном времени (автообновление 5с)
+  - Лог выполнения с ANSI подсветкой
+  - Скачивание лога
+
+##### Integration Tests
+- ✅ test-schedules-api.sh - CRUD тесты для расписаний:
+  - Создание, чтение, обновление, удаление
+  - Валидация cron выражений
+  - Фильтрация по статусу
+  - Статистика
+- ✅ test-playbook-runs-api.sh - тесты запуска задач:
+  - Запуск задачи с параметрами
+  - Мониторинг статуса с ожиданием
+  - Получение лога выполнения
+  - Статистика задач по статусам
+
+##### Навигация
+- ✅ Добавлена ссылка на Analytics во все страницы проекта
+- ✅ Добавлена ссылка на Webhooks во все страницы проекта
+
+#### 🔧 Изменено
+
+##### ROADMAP.md
+- ✅ Отмечены завершённые задачи Q4 2026
+- ✅ Обновлена дата: 14 марта 2026 г.
+- ✅ Перемещён WASM Plugin Loader в Q1 2027
+
+#### 📊 Статистика изменений
+
+- **15+ файлов** изменено
+- **1000+ строк** добавлено
+- **5 коммитов** создано
+
+#### 🚀 Как использовать
+
+```bash
+# Запуск Analytics UI
+http://localhost:3000/analytics.html?id=1
+
+# Запуск Webhooks UI
+http://localhost:3000/webhooks.html?id=1
+
+# Запуск Schedules UI
+http://localhost:3000/schedules.html?id=1
+
+# Тестирование Schedules API
+./test-schedules-api.sh
+
+# Тестирование Playbook Runs API
+./test-playbook-runs-api.sh
+```
+
+---
+
+## [0.4.1] - 2026-03-12
+
+### 🎉 Playbook API Release
+
+#### ✨ Добавлено
+
+##### Playbook API
+- ✅ Полный CRUD API для Playbook (Ansible, Terraform, Shell)
+- ✅ Endpoints:
+  - `GET /api/project/{id}/playbooks` - список playbooks
+  - `POST /api/project/{id}/playbooks` - создать playbook
+  - `GET /api/project/{id}/playbooks/{id}` - получить playbook
+  - `PUT /api/project/{id}/playbooks/{id}` - обновить playbook
+  - `DELETE /api/project/{id}/playbooks/{id}` - удалить playbook
+- ✅ Поддержка всех СУБД: SQLite, PostgreSQL, MySQL
+- ✅ Интеграция с StoreWrapper
+- ✅ Валидация и обработка ошибок
+
+##### Документация
+- ✅ PLAYBOOK_API.md - полное руководство по Playbook API
+- ✅ API.md - добавлена секция Playbook API
+- ✅ test-playbook-api.sh - скрипт автоматического тестирования
+- ✅ README.md - обновлена секция возможностей
+
+#### 🔧 Исправлено
+
+##### Компиляция
+- ✅ Исправлены все ошибки компиляции (800+ → 0)
+- ✅ Добавлены импорты моделей во все менеджеры БД
+- ✅ Исправлены импорты `sqlx::Row` для методов `row.get()`/`row.try_get()`
+- ✅ Изменены методы `get_*_pool()` на возврат `Option<&Pool>`
+- ✅ Исправлены типы ошибок в handlers (ErrorResponse)
+
+##### Менеджеры БД
+- ✅ rust/src/db/sql/managers/*.rs - добавлены импорты моделей
+- ✅ rust/src/db/sql/managers/playbook.rs - полная реализация
+- ✅ rust/src/db/sql/mod.rs - исправлены методы pool
+- ✅ rust/src/api/handlers/playbook.rs - исправлены типы ошибок
+
+#### 📊 Статистика изменений
+
+- **29 файлов** изменено
+- **1106 строк** добавлено
+- **418 строк** удалено
+- **1 коммит** создан
+
+#### 🚀 Как использовать
+
+```bash
+# Получить токен
+export TOKEN=$(curl -s -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"login":"admin","password":"admin123"}' | jq -r '.token')
+
+# Создать playbook
+curl -X POST http://localhost:3000/api/project/1/playbooks \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Deploy App",
+    "content": "- hosts: all\n  tasks:\n    - debug:\n        msg: Hello",
+    "playbook_type": "ansible"
+  }'
+
+# Запустить тесты
+./test-playbook-api.sh
+```
+
+---
+
+## [0.4.0] - 2026-03-10
+
+### 🎉 Q4 2026 Release
+
+#### ✨ Добавлено
+
+##### GraphQL API
+- ✅ Интеграция async-graphql 7.0
+- ✅ Endpoint `/graphql` с GraphiQL playground
+- ✅ Query: users, projects, templates, tasks, ping
+- ✅ Mutation: ping (тест)
+- ✅ Subscription: task_created (заглушка)
+- ✅ Документация: GRAPHQL_API.md
+- ✅ Файлы: `src/api/graphql/*` (6 файлов)
+
+##### Telegram Bot API
+- ✅ Интеграция teloxide 0.13
+- ✅ Конфигурация: `telegram_bot_token`
+- ✅ Команды: /start, /help
+- ✅ Документация: TELEGRAM_BOT.md
+- ✅ Файлы: `src/services/telegram_bot/*`
+
+##### Prometheus метрики
+- ✅ 18 метрик для мониторинга
+- ✅ Endpoints: /api/metrics, /api/metrics/json
+- ✅ Системные метрики (CPU, memory, uptime)
+- ✅ Документация: PROMETHEUS_METRICS.md
+
+#### 📦 Зависимости
+
+##### Добавлено
+- `async-graphql = "7.0"` + `async-graphql-axum`
+- `teloxide = "0.13"` + macros
+
+#### 📚 Документация
+
+##### Создано
+- ✅ GRAPHQL_API.md — GraphQL API руководство
+- ✅ TELEGRAM_BOT.md — Telegram Bot руководство
+- ✅ Q4_2026_REPORT.md — Отчёт о выполнении Q4 2026
+
+##### Обновлено
+- ✅ ROADMAP.md — добавлены завершённые задачи Q4 2026
+- ✅ ROADMAP_DETAILED.md — обновлена дорожная карта
+- ✅ CHANGELOG.md — этот файл
+
+#### 🔧 Изменения
+
+##### Конфигурация
+- ✅ Добавлено: `telegram_bot_token` в Config
+
+#### 📊 Метрики
+
+| Метрика | Значение |
+|---------|----------|
+| **Новых файлов** | 10 |
+| **Строк кода** | +2,000 |
+| **Зависимостей** | +3 |
+| **Документов** | +3 |
+
+---
+
 ## [2.0.1] - 2026-03-05
 
 ### 🎯 Исправление авторизации

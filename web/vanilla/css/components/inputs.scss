@@ -1,0 +1,307 @@
+// Vuetify-style поля ввода
+
+.v-text-field {
+  position: relative;
+  margin-bottom: 16px;
+  
+  label {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    font-size: 1rem;
+    color: rgba(0, 0, 0, 0.6);
+    transition: all 0.2s;
+    pointer-events: none;
+    background-color: transparent;
+    padding: 0 4px;
+  }
+  
+  input,
+  textarea {
+    width: 100%;
+    padding: 12px;
+    font-size: 1rem;
+    font-family: var(--v-font-family);
+    border: 1px solid rgba(0, 0, 0, 0.38);
+    border-radius: var(--v-border-radius);
+    background-color: transparent;
+    transition: all 0.2s;
+    outline: none;
+    
+    &:focus {
+      border-color: var(--v-primary-base);
+      border-width: 2px;
+      padding: 11px; // Компенсация увеличенной границы
+      
+      + label {
+        top: -8px;
+        left: 8px;
+        font-size: 0.75rem;
+        color: var(--v-primary-base);
+        background-color: var(--v-theme-surface);
+      }
+    }
+    
+    &:not(:placeholder-shown) + label {
+      top: -8px;
+      left: 8px;
+      font-size: 0.75rem;
+      color: rgba(0, 0, 0, 0.6);
+      background-color: var(--v-theme-surface);
+    }
+    
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    &::placeholder {
+      opacity: 0;
+    }
+  }
+  
+  textarea {
+    min-height: 80px;
+    resize: vertical;
+  }
+  
+  // Error state
+  &.v-text-field--error {
+    input {
+      border-color: var(--v-error-base);
+    }
+    
+    .v-text-field__error-messages {
+      display: block;
+    }
+  }
+  
+  .v-text-field__error-messages {
+    display: none;
+    position: absolute;
+    bottom: -18px;
+    left: 12px;
+    font-size: 0.75rem;
+    color: var(--v-error-base);
+  }
+  
+  .v-text-field__suffix {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgba(0, 0, 0, 0.6);
+  }
+  
+  .v-text-field__prepend-inner,
+  .v-text-field__append-inner {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    
+    .v-icon {
+      cursor: pointer;
+    }
+  }
+  
+  .v-text-field__prepend-inner {
+    left: 12px;
+  }
+  
+  .v-text-field__append-inner {
+    right: 12px;
+  }
+}
+
+// Select
+.v-select {
+  position: relative;
+  margin-bottom: 16px;
+  
+  .v-select__selection {
+    width: 100%;
+    padding: 12px;
+    font-size: 1rem;
+    border: 1px solid rgba(0, 0, 0, 0.38);
+    border-radius: var(--v-border-radius);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.2s;
+    
+    &:hover {
+      border-color: rgba(0, 0, 0, 0.6);
+    }
+    
+    &:focus {
+      border-color: var(--v-primary-base);
+      border-width: 2px;
+      padding: 11px;
+    }
+  }
+  
+  .v-select__menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 272px;
+    overflow-y: auto;
+    background: var(--v-theme-surface);
+    border-radius: var(--v-border-radius);
+    box-shadow: 
+      0 5px 5px -3px var(--v-shadow-key-umbra-opacity),
+      0 8px 10px 1px var(--v-shadow-key-penumbra-opacity),
+      0 3px 14px 2px var(--v-shadow-key-ambient-opacity);
+    z-index: var(--v-z-index-dialog);
+    display: none;
+    
+    &.v-select__menu--active {
+      display: block;
+    }
+    
+    .v-list-item {
+      padding: 8px 16px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      
+      &:hover {
+        background-color: rgba(0, 0, 0, 0.04);
+      }
+      
+      &.v-list-item--active {
+        background-color: rgba(63, 81, 181, 0.12);
+        color: var(--v-primary-base);
+      }
+    }
+  }
+}
+
+// Checkbox
+.v-checkbox {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  
+  input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+    
+    &:checked ~ .v-checkbox__ripple {
+      background-color: rgba(63, 81, 181, 0.2);
+    }
+    
+    &:checked ~ .v-checkbox__ripple::after {
+      background-color: var(--v-primary-base);
+      border-color: var(--v-primary-base);
+    }
+    
+    &:checked ~ .v-checkbox__ripple::after::before {
+      display: block;
+    }
+  }
+  
+  .v-checkbox__ripple {
+    position: relative;
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    margin-right: 8px;
+    border-radius: 2px;
+    transition: background-color 0.2s;
+    
+    &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: 2px solid rgba(0, 0, 0, 0.54);
+      border-radius: 2px;
+      box-sizing: border-box;
+      transition: all 0.2s;
+      
+      &::before {
+        content: '';
+        position: absolute;
+        top: 2px;
+        left: 5px;
+        width: 4px;
+        height: 8px;
+        border: solid white;
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg);
+        display: none;
+      }
+    }
+  }
+  
+  .v-label {
+    font-size: 1rem;
+    color: rgba(0, 0, 0, 0.87);
+  }
+}
+
+// Switch
+.v-switch {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  
+  input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+    
+    &:checked ~ .v-switch__track {
+      background-color: rgba(63, 81, 181, 0.5);
+      
+      .v-switch__thumb {
+        transform: translateX(14px);
+        background-color: var(--v-primary-base);
+      }
+    }
+  }
+  
+  .v-switch__track {
+    position: relative;
+    display: inline-block;
+    width: 34px;
+    height: 14px;
+    margin-right: 8px;
+    background-color: rgba(0, 0, 0, 0.38);
+    border-radius: 7px;
+    transition: background-color 0.2s;
+    
+    .v-switch__thumb {
+      position: absolute;
+      top: -3px;
+      left: 0;
+      width: 20px;
+      height: 20px;
+      background-color: var(--v-white-base);
+      border-radius: 50%;
+      box-shadow: 
+        0 2px 1px -1px var(--v-shadow-key-umbra-opacity),
+        0 1px 1px 0 var(--v-shadow-key-penumbra-opacity),
+        0 1px 3px 0 var(--v-shadow-key-ambient-opacity);
+      transition: all 0.2s;
+    }
+  }
+  
+  .v-label {
+    font-size: 1rem;
+    color: rgba(0, 0, 0, 0.87);
+  }
+}

@@ -1,1 +1,60 @@
-<!doctype html><html lang=""><head><meta charset="utf-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Semaphore UI</title><script defer="defer" src="chunk-vendors.js"></script><script defer="defer" src="app.js"></script><link href="chunk-vendors.css" rel="stylesheet"><link href="app.css" rel="stylesheet"></head><body><div id="app"></div></body></html>
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Semaphore UI</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 Semaphore UI</h1>
+        <div class="user-menu">
+            <span id="user-name">Admin</span>
+            <button class="btn-logout" onclick="api.logout()">Выйти</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card mb-4">
+            <h2>Добро пожаловать!</h2>
+            <p style="color: var(--text-light);">Управление проектами автоматизации</p>
+        </div>
+
+        <div class="page-header">
+            <h1>Проекты</h1>
+        </div>
+
+        <div id="projects-grid" class="grid">
+            <div class="loading">
+                <div class="loading-spinner"></div>
+                <p>Загрузка проектов...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        checkAuth();
+
+        // Загрузка проектов
+        api.getProjects()
+            .then(projects => {
+                const grid = $('#projects-grid');
+                if (projects.length === 0) {
+                    ui.showEmpty(grid, '📁', 'Нет проектов', 'Создайте первый проект чтобы начать работу');
+                } else {
+                    grid.innerHTML = projects.map(p => `
+                        <div class="card" onclick="location.href='/project.html?id=${p.id}'" style="cursor: pointer;">
+                            <h3 style="color: var(--primary); margin-bottom: 10px;">${escapeHtml(p.name)}</h3>
+                            <p style="color: var(--text-light);">${escapeHtml(p.description || 'Нет описания')}</p>
+                        </div>
+                    `).join('');
+                }
+            })
+            .catch(error => {
+                ui.showError($('#projects-grid'), error.message);
+            });
+    </script>
+</body>
+</html>

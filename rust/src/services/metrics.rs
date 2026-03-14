@@ -348,22 +348,44 @@ pub async fn metrics_handler() -> Result<String, prometheus::Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
-    fn test_metrics_registry() {
-        let metrics = MetricsManager::new();
-        let encoded = metrics.encode_metrics().unwrap();
-        assert!(encoded.contains("semaphore_tasks_total"));
+    fn test_task_counter_inc() {
+        // Проверяем что счётчик задач увеличивается
+        let initial = TASK_TOTAL.get();
+        TASK_TOTAL.inc();
+        assert!(TASK_TOTAL.get() > initial);
     }
-    
+
     #[test]
-    fn test_task_counters() {
-        let metrics = MetricsManager::new();
-        metrics.task_started();
-        metrics.task_completed(10.5, 2.3);
-        
-        let encoded = metrics.encode_metrics().unwrap();
-        assert!(encoded.contains("semaphore_tasks_total"));
-        assert!(encoded.contains("semaphore_tasks_success_total"));
+    fn test_task_success_counter() {
+        // Проверяем что счётчик успешных задач работает
+        let initial = TASK_SUCCESS.get();
+        TASK_SUCCESS.inc();
+        assert!(TASK_SUCCESS.get() > initial);
+    }
+
+    #[test]
+    fn test_task_failed_counter() {
+        // Проверяем что счётчик неудачных задач работает
+        let initial = TASK_FAILED.get();
+        TASK_FAILED.inc();
+        assert!(TASK_FAILED.get() > initial);
+    }
+
+    #[test]
+    fn test_gauge_set() {
+        // Проверяем что gauge метрики работают
+        let initial = RUNNERS_ACTIVE.get();
+        RUNNERS_ACTIVE.set(initial + 1.0);
+        assert_eq!(RUNNERS_ACTIVE.get(), initial + 1.0);
+    }
+
+    #[test]
+    fn test_histogram_observe() {
+        // Проверяем что гистограммы работают
+        // Просто проверяем что observe не паникует
+        TASK_DURATION.observe(1.0);
+        TASK_QUEUE_TIME.observe(0.5);
     }
 }

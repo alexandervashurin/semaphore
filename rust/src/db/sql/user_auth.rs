@@ -56,11 +56,16 @@ mod tests {
     use super::*;
     use chrono::Utc;
 
-    async fn create_test_db() -> SqlDb {
-        let (db_path, _temp) = crate::db::sql::init::test_sqlite_url();
-        
+    struct TestDb {
+        db: SqlDb,
+        _temp: tempfile::NamedTempFile,
+    }
+
+    async fn create_test_db() -> TestDb {
+        let (db_path, temp) = crate::db::sql::init::test_sqlite_url();
+
         let db = SqlDb::connect_sqlite(&db_path).await.unwrap();
-        
+
         // Создаём таблицу user
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS user (
@@ -81,15 +86,15 @@ mod tests {
         .execute(db.get_sqlite_pool().unwrap())
         .await
         .unwrap();
-        
-        db
+
+        TestDb { db, _temp: temp }
     }
 
     #[test]
     fn test_hash_password() {
         let password = "test_password123";
         let hashed = hash_password(password).unwrap();
-        
+
         assert_ne!(password, hashed);
         assert!(hashed.starts_with("$2"));
     }
@@ -98,7 +103,7 @@ mod tests {
     fn test_verify_password_valid() {
         let password = "test_password123";
         let hashed = hash_password(password).unwrap();
-        
+
         let is_valid = verify_password(password, &hashed).unwrap();
         assert!(is_valid);
     }
@@ -107,14 +112,14 @@ mod tests {
     fn test_verify_password_invalid() {
         let password = "test_password123";
         let hashed = hash_password(password).unwrap();
-        
+
         let is_valid = verify_password("wrong_password", &hashed).unwrap();
         assert!(!is_valid);
     }
 
     #[tokio::test]
     async fn test_set_user_password() {
-        let db = create_test_db().await;
+        let TestDb { db, _temp } = create_test_db().await;
         
         let user = User {
             id: 0,
@@ -149,7 +154,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_verify_user_password() {
-        let db = create_test_db().await;
+        let TestDb { db, _temp } = create_test_db().await;
         
         let user = User {
             id: 0,

@@ -1,0 +1,12 @@
+/home/a.vashurin@PSO.LOCAL/programms/github_my/semaphore/desktop/src-tauri/target/debug/deps/serde-21220f69890305bf.d: /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /home/a.vashurin@PSO.LOCAL/programms/github_my/semaphore/desktop/src-tauri/target/debug/build/serde-c650bb47b9923af4/out/private.rs
+
+/home/a.vashurin@PSO.LOCAL/programms/github_my/semaphore/desktop/src-tauri/target/debug/deps/libserde-21220f69890305bf.rmeta: /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /home/a.vashurin@PSO.LOCAL/programms/github_my/semaphore/desktop/src-tauri/target/debug/build/serde-c650bb47b9923af4/out/private.rs
+
+/home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs:
+/home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs:
+/home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs:
+/home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs:
+/home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs:
+/home/a.vashurin@PSO.LOCAL/programms/github_my/semaphore/desktop/src-tauri/target/debug/build/serde-c650bb47b9923af4/out/private.rs:
+
+# env-dep:OUT_DIR=/home/a.vashurin@PSO.LOCAL/programms/github_my/semaphore/desktop/src-tauri/target/debug/build/serde-c650bb47b9923af4/out

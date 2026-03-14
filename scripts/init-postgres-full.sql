@@ -156,6 +156,65 @@ CREATE TABLE IF NOT EXISTS schedule (
     created TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- ============================================================================
+-- Playbook таблицы (добавлено в Q1 2026)
+-- ============================================================================
+
+-- Таблица для хранения playbook файлов
+CREATE TABLE IF NOT EXISTS playbook (
+    id SERIAL PRIMARY KEY,
+    project_id INTEGER NOT NULL REFERENCES project(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    description TEXT,
+    playbook_type VARCHAR(50) NOT NULL DEFAULT 'ansible',
+    repository_id INTEGER REFERENCES repository(id) ON DELETE SET NULL,
+    created TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Таблица для хранения истории запусков playbook
+CREATE TABLE IF NOT EXISTS playbook_run (
+    id SERIAL PRIMARY KEY,
+    project_id INTEGER NOT NULL REFERENCES project(id) ON DELETE CASCADE,
+    playbook_id INTEGER NOT NULL REFERENCES playbook(id) ON DELETE CASCADE,
+    task_id INTEGER REFERENCES task(id) ON DELETE SET NULL,
+    template_id INTEGER REFERENCES template(id) ON DELETE SET NULL,
+
+    -- Статус выполнения
+    status VARCHAR(50) NOT NULL DEFAULT 'waiting',
+
+    -- Параметры запуска
+    inventory_id INTEGER REFERENCES inventory(id) ON DELETE SET NULL,
+    environment_id INTEGER REFERENCES environment(id) ON DELETE SET NULL,
+    extra_vars TEXT,
+    limit_hosts VARCHAR(500),
+    tags TEXT,
+    skip_tags TEXT,
+
+    -- Результаты
+    start_time TIMESTAMP WITH TIME ZONE,
+    end_time TIMESTAMP WITH TIME ZONE,
+    duration_seconds INTEGER,
+
+    -- Статистика
+    hosts_total INTEGER DEFAULT 0,
+    hosts_changed INTEGER DEFAULT 0,
+    hosts_unreachable INTEGER DEFAULT 0,
+    hosts_failed INTEGER DEFAULT 0,
+
+    -- Вывод
+    output TEXT,
+    error_message TEXT,
+
+    -- Пользователь
+    user_id INTEGER REFERENCES "user"(id) ON DELETE SET NULL,
+
+    -- Метаданные
+    created TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Сессии
 CREATE TABLE IF NOT EXISTS session (
     id SERIAL PRIMARY KEY,
@@ -214,3 +273,14 @@ CREATE INDEX IF NOT EXISTS idx_schedule_project ON schedule(project_id);
 CREATE INDEX IF NOT EXISTS idx_event_project ON event(project_id);
 CREATE INDEX IF NOT EXISTS idx_event_created ON event(created);
 CREATE INDEX IF NOT EXISTS idx_task_output_task ON task_output(task_id);
+
+-- Индексы для playbook таблиц
+CREATE INDEX IF NOT EXISTS idx_playbook_project ON playbook(project_id);
+CREATE INDEX IF NOT EXISTS idx_playbook_name ON playbook(name);
+CREATE INDEX IF NOT EXISTS idx_playbook_type ON playbook(playbook_type);
+CREATE INDEX IF NOT EXISTS idx_playbook_run_project ON playbook_run(project_id);
+CREATE INDEX IF NOT EXISTS idx_playbook_run_playbook ON playbook_run(playbook_id);
+CREATE INDEX IF NOT EXISTS idx_playbook_run_task ON playbook_run(task_id);
+CREATE INDEX IF NOT EXISTS idx_playbook_run_status ON playbook_run(status);
+CREATE INDEX IF NOT EXISTS idx_playbook_run_created ON playbook_run(created);
+CREATE INDEX IF NOT EXISTS idx_playbook_run_user ON playbook_run(user_id);

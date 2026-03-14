@@ -456,3 +456,180 @@ pub fn create_project_event(
         },
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Utc;
+
+    #[test]
+    fn test_webhook_type_serialization() {
+        // Проверяем сериализацию типов webhook
+        let types = vec![
+            WebhookType::Generic,
+            WebhookType::Slack,
+            WebhookType::Teams,
+            WebhookType::Discord,
+            WebhookType::Telegram,
+            WebhookType::Custom,
+        ];
+
+        for webhook_type in types {
+            let serialized = serde_json::to_string(&webhook_type).unwrap();
+            let deserialized: WebhookType = serde_json::from_str(&serialized).unwrap();
+            assert_eq!(webhook_type, deserialized);
+        }
+    }
+
+    #[test]
+    fn test_webhook_config_creation() {
+        let config = WebhookConfig {
+            id: 1,
+            name: "Test Webhook".to_string(),
+            r#type: WebhookType::Generic,
+            url: "https://example.com/webhook".to_string(),
+            secret: Some("secret".to_string()),
+            headers: None,
+            active: true,
+            events: vec!["task.completed".to_string()],
+            retry_count: 3,
+            timeout_secs: 30,
+        };
+
+        assert_eq!(config.id, 1);
+        assert_eq!(config.name, "Test Webhook");
+        assert!(config.active);
+        assert_eq!(config.retry_count, 3);
+    }
+
+    #[test]
+    fn test_webhook_event_creation() {
+        let event = WebhookEvent {
+            event_type: "task.completed".to_string(),
+            timestamp: Utc::now(),
+            data: json!({"task_id": 123}),
+            metadata: WebhookMetadata {
+                source: "test".to_string(),
+                version: "1.0.0".to_string(),
+                project_id: Some(1),
+                user_id: Some(2),
+            },
+        };
+
+        assert_eq!(event.event_type, "task.completed");
+        assert_eq!(event.metadata.project_id, Some(1));
+        assert_eq!(event.metadata.user_id, Some(2));
+    }
+
+    #[test]
+    fn test_webhook_service_new() {
+        let service = WebhookService::new();
+        assert!(true);
+    }
+
+    #[test]
+    fn test_webhook_service_with_timeout() {
+        let service = WebhookService::with_timeout(60);
+        assert!(true);
+    }
+
+    #[tokio::test]
+    async fn test_send_webhook_inactive() {
+        let service = WebhookService::new();
+        let config = WebhookConfig {
+            id: 1,
+            name: "Inactive Webhook".to_string(),
+            r#type: WebhookType::Generic,
+            url: "https://example.com/webhook".to_string(),
+            secret: None,
+            headers: None,
+            active: false,
+            events: vec![],
+            retry_count: 0,
+            timeout_secs: 30,
+        };
+
+        let event = create_task_event("task.completed", 1, "Test Task", None, None, Some("completed"));
+        let result = service.send_webhook(&config, &event).await.unwrap();
+
+        assert!(!result.success);
+        assert_eq!(result.error, Some("Webhook не активен".to_string()));
+        assert_eq!(result.attempts, 0);
+    }
+
+    #[test]
+    fn test_build_generic_payload() {
+        let service = WebhookService::new();
+        let config = WebhookConfig {
+            id: 1,
+            name: "Test".to_string(),
+            r#type: WebhookType::Generic,
+            url: "https://example.com".to_string(),
+            secret: None,
+            headers: None,
+            active: true,
+            events: vec![],
+            retry_count: 0,
+            timeout_secs: 30,
+        };
+
+        let event = WebhookEvent {
+            event_type: "test.event".to_string(),
+            timestamp: Utc::now(),
+            data: json!({"key": "value"}),
+            metadata: WebhookMetadata {
+                source: "test".to_string(),
+                version: "1.0".to_string(),
+                project_id: None,
+                user_id: None,
+            },
+        };
+
+        let payload = service.build_payload(&config, &event);
+        
+        assert_eq!(payload["event"], "test.event");
+        assert!(payload["data"].is_object());
+        assert!(payload["metadata"].is_object());
+    }
+
+    #[test]
+    fn test_build_slack_payload() {
+        let service = WebhookService::new();
+        let config = WebhookConfig {
+            id: 1,
+            name: "Test".to_string(),
+            r#type: WebhookType::Slack,
+            url: "https://hooks.slack.com".to_string(),
+            secret: None,
+            headers: None,
+            active: true,
+            events: vec![],
+            retry_count: 0,
+            timeout_secs: 30,
+        };
+
+        let event = create_task_event("task.completed", 1, "Test Task", None, None, Some("completed"));
+        let payload = service.build_payload(&config, &event);
+
+        assert!(payload["attachments"].is_array());
+    }
+
+    #[test]
+    fn test_create_task_event() {
+        let event = create_task_event("task.started", 42, "My Task", None, Some(10), Some("running"));
+
+        assert_eq!(event.event_type, "task.started");
+        assert_eq!(event.metadata.user_id, Some(10));
+        assert!(event.data["title"].as_str().unwrap().contains("My Task"));
+    }
+
+    #[test]
+    fn test_create_project_event() {
+        let event = create_project_event("project.created", 5, "My Project", Some(20));
+
+        assert_eq!(event.event_type, "project.created");
+        assert_eq!(event.metadata.project_id, Some(5));
+        assert_eq!(event.metadata.user_id, Some(20));
+        assert!(event.data["project_name"].as_str().unwrap().contains("My Project"));
+    }
+}

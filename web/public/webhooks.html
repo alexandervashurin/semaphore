@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webhooks - Semaphore UI</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <h2>🚀 Semaphore</h2>
+            </div>
+            <ul class="sidebar-nav">
+                <li><a href="index.html">📊 Dashboard</a></li>
+                <li><a href="project.html">📁 Проект</a></li>
+                <li><a href="playbooks.html">📜 Playbooks</a></li>
+                <li><a href="templates.html">📋 Шаблоны</a></li>
+                <li><a href="inventory.html">📦 Инвентарь</a></li>
+                <li><a href="environments.html">⚙️ Переменные</a></li>
+                <li><a href="repositories.html">🗂️ Репозитории</a></li>
+                <li><a href="keys.html">🔐 Ключи</a></li>
+                <li><a href="schedules.html">⏰ Расписания</a></li>
+                <li><a href="analytics.html">📈 Аналитика</a></li>
+                <li><a href="webhooks.html" class="active">🔗 Webhooks</a></li>
+            </ul>
+        </aside>
+
+        <div class="main-content">
+            <div class="main-header">
+                <h2 id="project-title">Webhooks</h2>
+                <button class="btn btn-primary" onclick="showCreateDialog()">+ Добавить webhook</button>
+            </div>
+
+            <div class="main-body">
+                <!-- Filters -->
+                <div class="card mb-4">
+                    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                        <input type="text" id="search-input" class="form-control" placeholder="Поиск webhooks..." style="flex: 1; min-width: 200px;">
+                        <select id="type-filter" class="form-control" style="width: auto;">
+                            <option value="">Все типы</option>
+                            <option value="generic">Generic</option>
+                            <option value="slack">Slack</option>
+                            <option value="teams">Teams</option>
+                            <option value="discord">Discord</option>
+                            <option value="telegram">Telegram</option>
+                        </select>
+                        <select id="status-filter" class="form-control" style="width: auto;">
+                            <option value="">Все статусы</option>
+                            <option value="true">Активные</option>
+                            <option value="false">Неактивные</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Webhooks Table -->
+                <div id="webhooks-content">
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        <p>Загрузка webhooks...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create/Edit Modal -->
+    <div id="webhook-modal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3 id="modal-title">Создать webhook</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="webhook-form">
+                    <input type="hidden" id="webhook-id">
+                    
+                    <div class="form-group">
+                        <label for="webhook-name">Название *</label>
+                        <input type="text" id="webhook-name" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="webhook-type">Тип *</label>
+                        <select id="webhook-type" class="form-control" required>
+                            <option value="generic">Generic</option>
+                            <option value="slack">Slack</option>
+                            <option value="teams">Teams</option>
+                            <option value="discord">Discord</option>
+                            <option value="telegram">Telegram</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="webhook-url">URL *</label>
+                        <input type="url" id="webhook-url" class="form-control" placeholder="https://..." required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="webhook-secret">Secret (для подписи)</label>
+                        <input type="text" id="webhook-secret" class="form-control" placeholder="my-secret-key">
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="webhook-active" checked>
+                            Активен
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="webhook-events">События (через запятую)</label>
+                        <input type="text" id="webhook-events" class="form-control" placeholder="task.success, task.failed" value="task.success, task.failed">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="webhook-headers">Дополнительные заголовки (JSON)</label>
+                        <textarea id="webhook-headers" class="form-control" rows="3" placeholder='{"Authorization": "Bearer token"}'></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Отмена</button>
+                <button class="btn btn-primary" onclick="saveWebhook()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        checkAuth();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = urlParams.get('id');
+
+        if (!projectId) {
+            window.location.href = 'index.html';
+        }
+
+        let webhooks = [];
+
+        // Загрузка webhooks
+        function loadWebhooks() {
+            const search = document.getElementById('search-input').value;
+            const type = document.getElementById('type-filter').value;
+            const status = document.getElementById('status-filter').value;
+
+            let url = `${API_BASE}/project/${projectId}/webhooks?`;
+            if (type) url += `type=${type}&`;
+            if (status !== '') url += `active=${status}&`;
+
+            api.get(url)
+                .then(data => {
+                    webhooks = data;
+                    if (search) {
+                        webhooks = webhooks.filter(w => w.name.toLowerCase().includes(search.toLowerCase()));
+                    }
+                    showWebhooksTable(webhooks);
+                })
+                .catch(error => {
+                    ui.showError($('#webhooks-content'), error.message);
+                });
+        }
+
+        // Отображение таблицы
+        function showWebhooksTable(data) {
+            const content = $('#webhooks-content');
+            
+            if (data.length === 0) {
+                content.innerHTML = `
+                    <div class="card text-center">
+                        <div style="font-size: 48px; margin-bottom: 15px;">🔗</div>
+                        <h3>Нет webhooks</h3>
+                        <p style="color: var(--text-light);">Создайте первый webhook для интеграции с внешними сервисами</p>
+                        <button class="btn btn-primary mt-3" onclick="showCreateDialog()">Создать webhook</button>
+                    </div>
+                `;
+                return;
+            }
+
+            content.innerHTML = `
+                <div class="card">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Название</th>
+                                <th>Тип</th>
+                                <th>URL</th>
+                                <th>События</th>
+                                <th>Статус</th>
+                                <th style="width: 150px;">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.map(w => `
+                                <tr>
+                                    <td><strong>${escapeHtml(w.name)}</strong></td>
+                                    <td>${getTypeBadge(w.type)}</td>
+                                    <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(w.url)}</td>
+                                    <td>${w.events ? w.events.map(e => `<span class="badge badge-info">${escapeHtml(e)}</span>`).join('') : '—'}</td>
+                                    <td>${w.active ? '<span class="badge badge-success">Активен</span>' : '<span class="badge badge-secondary">Неактивен</span>'}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-primary" onclick="testWebhook(${w.id})" title="Тестировать">▶</button>
+                                        <button class="btn btn-sm btn-secondary" onclick="editWebhook(${w.id})" title="Редактировать">✎</button>
+                                        <button class="btn btn-sm btn-danger" onclick="deleteWebhook(${w.id})" title="Удалить">🗑</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function getTypeBadge(type) {
+            const colors = {
+                'generic': 'badge-secondary',
+                'slack': 'badge-success',
+                'teams': 'badge-primary',
+                'discord': 'badge-info',
+                'telegram': 'badge-warning'
+            };
+            const icons = {
+                'generic': '🔗',
+                'slack': '#slack',
+                'teams': '💬',
+                'discord': '🎮',
+                'telegram': '✈️'
+            };
+            return `<span class="badge ${colors[type] || 'badge-secondary'}">${icons[type] || '🔗'} ${type}</span>`;
+        }
+
+        // Показать диалог создания
+        function showCreateDialog() {
+            document.getElementById('modal-title').textContent = 'Создать webhook';
+            document.getElementById('webhook-form').reset();
+            document.getElementById('webhook-id').value = '';
+            document.getElementById('webhook-active').checked = true;
+            document.getElementById('webhook-modal').style.display = 'block';
+        }
+
+        // Редактирование webhook
+        function editWebhook(id) {
+            const webhook = webhooks.find(w => w.id === id);
+            if (!webhook) return;
+
+            document.getElementById('modal-title').textContent = 'Редактировать webhook';
+            document.getElementById('webhook-id').value = webhook.id;
+            document.getElementById('webhook-name').value = webhook.name;
+            document.getElementById('webhook-type').value = webhook.type;
+            document.getElementById('webhook-url').value = webhook.url;
+            document.getElementById('webhook-secret').value = webhook.secret || '';
+            document.getElementById('webhook-active').checked = webhook.active;
+            document.getElementById('webhook-events').value = webhook.events ? webhook.events.join(', ') : '';
+            document.getElementById('webhook-headers').value = webhook.headers ? JSON.stringify(webhook.headers, null, 2) : '';
+            document.getElementById('webhook-modal').style.display = 'block';
+        }
+
+        // Закрытие модального окна
+        function closeModal() {
+            document.getElementById('webhook-modal').style.display = 'none';
+        }
+
+        // Сохранение webhook
+        function saveWebhook() {
+            const id = document.getElementById('webhook-id').value;
+            const name = document.getElementById('webhook-name').value.trim();
+            const type = document.getElementById('webhook-type').value;
+            const url = document.getElementById('webhook-url').value.trim();
+            const secret = document.getElementById('webhook-secret').value.trim();
+            const active = document.getElementById('webhook-active').checked;
+            const eventsStr = document.getElementById('webhook-events').value.trim();
+            const headersStr = document.getElementById('webhook-headers').value.trim();
+
+            if (!name || !type || !url) {
+                alert('Заполните обязательные поля');
+                return;
+            }
+
+            const events = eventsStr ? eventsStr.split(',').map(s => s.trim()).filter(s => s) : [];
+            let headers = {};
+            if (headersStr) {
+                try {
+                    headers = JSON.parse(headersStr);
+                } catch (e) {
+                    alert('Неверный формат JSON для заголовков');
+                    return;
+                }
+            }
+
+            const data = {
+                project_id: parseInt(projectId),
+                name,
+                type,
+                url,
+                secret: secret || null,
+                active,
+                events,
+                headers
+            };
+
+            const method = id ? 'PUT' : 'POST';
+            const endpoint = id ? `${API_BASE}/project/${projectId}/webhooks/${id}` : `${API_BASE}/project/${projectId}/webhooks`;
+
+            api.request(method, endpoint, data)
+                .then(() => {
+                    closeModal();
+                    loadWebhooks();
+                    showNotification(`Webhook ${id ? 'обновлён' : 'создан'}`, 'success');
+                })
+                .catch(error => {
+                    alert('Ошибка: ' + error.message);
+                });
+        }
+
+        // Тестирование webhook
+        function testWebhook(id) {
+            if (!confirm('Протестировать webhook? Будет отправлен тестовый запрос.')) return;
+
+            api.request('POST', `${API_BASE}/project/${projectId}/webhooks/${id}/test`, {})
+                .then(() => {
+                    showNotification('Тестовый запрос отправлен', 'success');
+                })
+                .catch(error => {
+                    alert('Ошибка при тестировании: ' + error.message);
+                });
+        }
+
+        // Удаление webhook
+        function deleteWebhook(id) {
+            if (!confirm('Удалить этот webhook? Это действие нельзя отменить.')) return;
+
+            api.request('DELETE', `${API_BASE}/project/${projectId}/webhooks/${id}`)
+                .then(() => {
+                    loadWebhooks();
+                    showNotification('Webhook удалён', 'success');
+                })
+                .catch(error => {
+                    alert('Ошибка: ' + error.message);
+                });
+        }
+
+        // Уведомления
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `alert alert-${type}`;
+            notification.textContent = message;
+            notification.style.position = 'fixed';
+            notification.style.top = '20px';
+            notification.style.right = '20px';
+            notification.style.zIndex = '10000';
+            notification.style.minWidth = '300px';
+            document.body.appendChild(notification);
+            setTimeout(() => notification.remove(), 3000);
+        }
+
+        // Закрытие модального окна по клику вне
+        window.onclick = function(event) {
+            const modal = document.getElementById('webhook-modal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+
+        // Фильтры
+        document.getElementById('search-input').addEventListener('input', loadWebhooks);
+        document.getElementById('type-filter').addEventListener('change', loadWebhooks);
+        document.getElementById('status-filter').addEventListener('change', loadWebhooks);
+
+        // Загрузка при старте
+        loadWebhooks();
+    </script>
+</body>
+</html>

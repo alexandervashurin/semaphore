@@ -7,7 +7,10 @@
     "build": "vue-cli-service build",
     "build:clean": "rm -rf ../web/public/*.js ../web/public/*.css ../web/public/js && npm run build",
     "test:unit": "vue-cli-service test:unit",
-    "lint": "vue-cli-service lint"
+    "lint": "vue-cli-service lint",
+    "vanilla:dev": "gulp",
+    "vanilla:build": "gulp build",
+    "vanilla:serve": "http-server public -p 8080"
   },
   "dependencies": {
     "@mdi/font": "^7.0.0",
@@ -39,7 +42,7 @@
     "dotenv": "^17.0.0",
     "eslint": "^7.32.0",
     "eslint-config-prettier": "^10.0.0",
-    "eslint-import-resolver-alias": "^1.1.2",
+    "eslint-import-resolver-alias": "^1.1.1.2",
     "eslint-plugin-import": "^2.31.0",
     "eslint-plugin-vue": "^9.1.1",
     "eslint-plugin-vuejs-accessibility": "^1.2.0",
@@ -57,6 +60,11 @@
     "through2": "^4.0.2",
     "vue-cli-plugin-vuetify": "~2.5.0",
     "vue-template-compiler": "^2.6.14",
-    "vuetify-loader": "^1.8.0"
+    "vuetify-loader": "^1.8.0",
+    "gulp-sass": "^5.0.0",
+    "gulp-terser": "^2.1.0",
+    "gulp-concat": "^2.6.1",
+    "gulp-clean-css": "^4.3.0",
+    "http-server": "^14.1.1"
   }
 }

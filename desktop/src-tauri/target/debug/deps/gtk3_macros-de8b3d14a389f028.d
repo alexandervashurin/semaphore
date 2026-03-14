@@ -1,0 +1,8 @@
+/home/a.vashurin@PSO.LOCAL/programms/github_my/semaphore/desktop/src-tauri/target/debug/deps/gtk3_macros-de8b3d14a389f028.d: /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gtk3-macros-0.18.2/src/lib.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gtk3-macros-0.18.2/src/attribute_parser.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gtk3-macros-0.18.2/src/composite_template_derive.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gtk3-macros-0.18.2/src/util.rs
+
+/home/a.vashurin@PSO.LOCAL/programms/github_my/semaphore/desktop/src-tauri/target/debug/deps/libgtk3_macros-de8b3d14a389f028.so: /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gtk3-macros-0.18.2/src/lib.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gtk3-macros-0.18.2/src/attribute_parser.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gtk3-macros-0.18.2/src/composite_template_derive.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gtk3-macros-0.18.2/src/util.rs
+
+/home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gtk3-macros-0.18.2/src/lib.rs:
+/home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gtk3-macros-0.18.2/src/attribute_parser.rs:
+/home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gtk3-macros-0.18.2/src/composite_template_derive.rs:
+/home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gtk3-macros-0.18.2/src/util.rs:

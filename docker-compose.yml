@@ -1,20 +1,17 @@
 version: '3.8'
 
-# Docker Compose для демонстрационного окружения Semaphore UI
-# Только frontend (статика) + PostgreSQL с демо-данными
-# Backend запускается отдельно через cargo
-#
+# ============================================================================
+# Docker Compose для гибридного режима Semaphore UI
+# Только PostgreSQL - Backend и Frontend запускаются на хосте
+# ============================================================================
 # Использование:
-#   docker-compose up -d              # Запуск
-#   docker-compose down               # Остановка
-#   docker-compose logs -f            # Просмотр логов
-#
-# Быстрый старт:
-#   ./start.sh                        # Запуск frontend и БД
-#   ./start.sh --backend              # Запуск backend в отдельном терминале
+#   docker compose up -d    # Запуск PostgreSQL
+#   docker compose down     # Остановка
+#   docker compose logs -f  # Логи
+# ============================================================================
 
 services:
-  # PostgreSQL с демо-данными
+  # PostgreSQL - база данных
   db:
     image: postgres:15-alpine
     container_name: semaphore-db
@@ -26,39 +23,15 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      # Инициализация БД демонстрационными данными
+      - semaphore_postgres_data:/var/lib/postgresql/data
       - ./db/postgres/init-demo.sql:/docker-entrypoint-initdb.d/init-demo.sql:ro
-      # Настройка pg_hba.conf для подключений с хоста
       - ./db/postgres/init-pghba.sh:/docker-entrypoint-initdb.d/init-pghba.sh:ro
-    networks:
-      - semaphore-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U semaphore -d semaphore"]
       interval: 5s
       timeout: 5s
       retries: 5
 
-  # Frontend (Nginx для раздачи статики)
-  frontend:
-    image: nginx:alpine
-    container_name: semaphore-frontend
-    restart: unless-stopped
-    network_mode: "host"
-    volumes:
-      - ./web/public:/usr/share/nginx/html:ro
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
-    # Добавляем host.docker.internal для доступа к backend на хосте
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    depends_on:
-      db:
-        condition: service_healthy
-
-networks:
-  semaphore-network:
-    driver: bridge
-
 volumes:
-  postgres_data:
+  semaphore_postgres_data:
     driver: local

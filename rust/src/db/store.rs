@@ -3,7 +3,9 @@
 //! Агрегирует все специализированные трейты для работы с данными
 
 use crate::models::*;
-use crate::models::audit_log::{AuditAction, AuditObjectType, AuditLevel, AuditLog, AuditLogFilter, AuditLogResult};
+use crate::models::audit_log::{AuditAction, AuditObjectType, AuditLevel, AuditLog, AuditLogResult};
+use crate::models::playbook::{Playbook, PlaybookCreate, PlaybookUpdate};
+use crate::models::playbook_run_history::{PlaybookRun, PlaybookRunCreate, PlaybookRunUpdate, PlaybookRunStatus, PlaybookRunStats, PlaybookRunFilter};
 use crate::models::Hook;
 use crate::error::Result;
 use crate::services::task_logger::TaskStatus;
@@ -319,8 +321,53 @@ pub trait AuditLogManager: Send + Sync {
     async fn clear_audit_log(&self) -> Result<u64>;
 }
 
-/// Основной трейт хранилища - агрегирует все менеджеры
+/// Менеджер Playbook
 #[async_trait]
+pub trait PlaybookManager: Send + Sync {
+    async fn get_playbooks(&self, project_id: i32) -> Result<Vec<Playbook>>;
+    async fn get_playbook(&self, id: i32, project_id: i32) -> Result<Playbook>;
+    async fn create_playbook(&self, project_id: i32, playbook: PlaybookCreate) -> Result<Playbook>;
+    async fn update_playbook(&self, id: i32, project_id: i32, playbook: PlaybookUpdate) -> Result<Playbook>;
+    async fn delete_playbook(&self, id: i32, project_id: i32) -> Result<()>;
+}
+
+/// Менеджер истории запусков Playbook
+#[async_trait]
+pub trait PlaybookRunManager: Send + Sync {
+    async fn get_playbook_runs(&self, filter: PlaybookRunFilter) -> Result<Vec<PlaybookRun>>;
+    async fn get_playbook_run(&self, id: i32, project_id: i32) -> Result<PlaybookRun>;
+    async fn create_playbook_run(&self, run: PlaybookRunCreate) -> Result<PlaybookRun>;
+    async fn update_playbook_run(&self, id: i32, project_id: i32, update: PlaybookRunUpdate) -> Result<PlaybookRun>;
+    async fn delete_playbook_run(&self, id: i32, project_id: i32) -> Result<()>;
+    async fn get_playbook_run_stats(&self, playbook_id: i32) -> Result<PlaybookRunStats>;
+}
+
+/// Менеджер webhook
+#[async_trait]
+pub trait WebhookManager: Send + Sync {
+    /// Получает webhook по ID
+    async fn get_webhook(&self, webhook_id: i64) -> Result<crate::models::webhook::Webhook>;
+
+    /// Получает webhook проекта
+    async fn get_webhooks_by_project(&self, project_id: i64) -> Result<Vec<crate::models::webhook::Webhook>>;
+
+    /// Создаёт webhook
+    async fn create_webhook(&self, webhook: crate::models::webhook::Webhook) -> Result<crate::models::webhook::Webhook>;
+
+    /// Обновляет webhook
+    async fn update_webhook(&self, webhook_id: i64, webhook: crate::models::webhook::UpdateWebhook) -> Result<crate::models::webhook::Webhook>;
+
+    /// Удаляет webhook
+    async fn delete_webhook(&self, webhook_id: i64) -> Result<()>;
+
+    /// Получает логи webhook
+    async fn get_webhook_logs(&self, webhook_id: i64) -> Result<Vec<crate::models::webhook::WebhookLog>>;
+
+    /// Создаёт лог webhook
+    async fn create_webhook_log(&self, log: crate::models::webhook::WebhookLog) -> Result<crate::models::webhook::WebhookLog>;
+}
+
+/// Менеджер Playbook
 pub trait Store:
     ConnectionManager
     + MigrationManager
@@ -345,5 +392,8 @@ pub trait Store:
     + SecretStorageManager
     + HookManager
     + AuditLogManager
+    + WebhookManager
+    + PlaybookManager
+    + PlaybookRunManager
 {
 }

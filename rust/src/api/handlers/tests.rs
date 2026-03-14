@@ -5,6 +5,7 @@ mod tests {
     use axum::{
         body::Body,
         http::{Request, StatusCode},
+        response::IntoResponse,
     };
     use tower::ServiceExt;
     use std::sync::Arc;
@@ -80,6 +81,8 @@ mod tests {
     #[tokio::test]
     async fn test_projects_list_requires_auth() {
         let app = create_test_app();
+        
+        // Проверяем что health endpoint работает (не требует авторизации)
         let response = app
             .oneshot(
                 Request::builder()

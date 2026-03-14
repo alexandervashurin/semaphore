@@ -102,11 +102,16 @@ mod tests {
     use super::*;
     use chrono::Utc;
 
-    async fn create_test_db() -> SqlDb {
-        let (db_path, _temp) = crate::db::sql::init::test_sqlite_url();
-        
+    struct TestDb {
+        db: SqlDb,
+        _temp: tempfile::NamedTempFile,
+    }
+
+    async fn create_test_db() -> TestDb {
+        let (db_path, temp) = crate::db::sql::init::test_sqlite_url();
+
         let db = SqlDb::connect_sqlite(&db_path).await.unwrap();
-        
+
         // Создаём таблицу user
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS user (
@@ -127,14 +132,14 @@ mod tests {
         .execute(db.get_sqlite_pool().unwrap())
         .await
         .unwrap();
-        
-        db
+
+        TestDb { db, _temp: temp }
     }
 
     #[tokio::test]
     async fn test_set_and_get_user_totp() {
-        let db = create_test_db().await;
-        
+        let TestDb { db, _temp } = create_test_db().await;
+
         let user = User {
             id: 0,
             created: Utc::now(),
@@ -172,8 +177,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_user_totp() {
-        let db = create_test_db().await;
-        
+        let TestDb { db, _temp } = create_test_db().await;
+
         let user = User {
             id: 0,
             created: Utc::now(),
@@ -188,25 +193,25 @@ mod tests {
             totp: None,
             email_otp: None,
         };
-        
+
         let created = db.create_user(user).await.unwrap();
-        
+
         // Создаём TOTP
         let totp = TotpVerification {
             secret: "test_secret".to_string(),
             recovery_hash: "test_hash".to_string(),
             recovery_codes: None,
         };
-        
+
         db.set_user_totp(created.id, &totp).await.unwrap();
-        
+
         // Удаляем TOTP
         db.delete_user_totp(created.id).await.unwrap();
-        
+
         // Проверяем что TOTP удалён
         let retrieved = db.get_user_totp(created.id).await.unwrap();
         assert!(retrieved.is_none());
-        
+
         // Cleanup
         let _ = db.close().await;
     }

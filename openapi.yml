@@ -1,0 +1,702 @@
+openapi: 3.0.3
+info:
+  title: Semaphore UI API
+  description: |
+    REST API для управления Semaphore UI - системой автоматизации DevOps процессов.
+    
+    ## Аутентификация
+    Все запросы к API требуют аутентификации через JWT токен.
+    Токен передаётся в заголовке `Authorization: Bearer <token>`.
+    
+    ## Базовый URL
+    - Development: `http://localhost:3000/api`
+    - Production: `https://your-domain.com/api`
+  version: 1.0.0
+  contact:
+    name: Semaphore UI
+    url: https://github.com/alexandervashurin/semaphore
+    email: alexandervashurin@yandex.ru
+
+servers:
+  - url: http://localhost:3000/api
+    description: Development server
+  - url: https://localhost:3000/api
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: Аутентификация и авторизация
+  - name: Users
+    description: Управление пользователями
+  - name: Projects
+    description: Управление проектами
+  - name: Templates
+    description: Шаблоны задач
+  - name: Tasks
+    description: Задачи и их выполнение
+  - name: Inventory
+    description: Инвентари хостов
+  - name: Repositories
+    description: Git репозитории
+  - name: Environments
+    description: Окружения и переменные
+  - name: Keys
+    description: Ключи доступа (SSH, Login/Password)
+  - name: Schedules
+    description: Расписания задач
+  - name: Webhooks
+    description: Webhook уведомления
+  - name: Audit Log
+    description: Журнал аудита
+  - name: Analytics
+    description: Аналитика и метрики
+
+paths:
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: Вход в систему
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Успешный вход
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Неверный логин или пароль
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      summary: Выход из системы
+      operationId: logout
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Успешный выход
+
+  /auth/verify:
+    post:
+      tags: [Authentication]
+      summary: Проверка сессии
+      operationId: verifySession
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Сессия действительна
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /users:
+    get:
+      tags: [Users]
+      summary: Получить список пользователей
+      operationId: getUsers
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Список пользователей
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+
+  /projects:
+    get:
+      tags: [Projects]
+      summary: Получить список проектов
+      operationId: getProjects
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Список проектов
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Project'
+    post:
+      tags: [Projects]
+      summary: Создать проект
+      operationId: createProject
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProject'
+      responses:
+        '201':
+          description: Проект создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+
+  /projects/{project_id}/templates:
+    get:
+      tags: [Templates]
+      summary: Получить шаблоны проекта
+      operationId: getTemplates
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Список шаблонов
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Template'
+    post:
+      tags: [Templates]
+      summary: Создать шаблон
+      operationId: createTemplate
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTemplate'
+      responses:
+        '201':
+          description: Шаблон создан
+
+  /projects/{project_id}/tasks:
+    get:
+      tags: [Tasks]
+      summary: Получить задачи проекта
+      operationId: getTasks
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: template_id
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [waiting, running, success, failed]
+      responses:
+        '200':
+          description: Список задач
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
+    post:
+      tags: [Tasks]
+      summary: Создать задачу
+      operationId: createTask
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTask'
+      responses:
+        '201':
+          description: Задача создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+
+  /projects/{project_id}/webhooks:
+    get:
+      tags: [Webhooks]
+      summary: Получить webhook проекта
+      operationId: getWebhooks
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: active
+          in: query
+          schema:
+            type: boolean
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [generic, slack, teams, discord, telegram, custom]
+      responses:
+        '200':
+          description: Список webhook
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Webhook'
+    post:
+      tags: [Webhooks]
+      summary: Создать webhook
+      operationId: createWebhook
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWebhook'
+      responses:
+        '201':
+          description: Webhook создан
+
+  /projects/{project_id}/webhooks/{webhook_id}/test:
+    post:
+      tags: [Webhooks]
+      summary: Тестировать webhook
+      operationId: testWebhook
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: webhook_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Результат теста
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestWebhookResponse'
+
+  /audit-log:
+    get:
+      tags: [Audit Log]
+      summary: Получить записи audit log
+      operationId: getAuditLogs
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: query
+          schema:
+            type: integer
+        - name: user_id
+          in: query
+          schema:
+            type: integer
+        - name: action
+          in: query
+          schema:
+            type: string
+        - name: level
+          in: query
+          schema:
+            type: string
+            enum: [info, warning, error, critical]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Записи audit log
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditLogResponse'
+
+  /analytics/stats:
+    get:
+      tags: [Analytics]
+      summary: Получить статистику проекта
+      operationId: getAnalyticsStats
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [last_week, last_month, last_quarter, last_year]
+      responses:
+        '200':
+          description: Статистика проекта
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsStats'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          example: admin
+        password:
+          type: string
+          format: password
+          example: secret123
+        totp:
+          type: string
+          description: TOTP код (если включён 2FA)
+          example: "123456"
+
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        admin:
+          type: boolean
+        created:
+          type: string
+          format: date-time
+
+    Project:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        created:
+          type: string
+          format: date-time
+
+    CreateProject:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+
+    Template:
+      type: object
+      properties:
+        id:
+          type: integer
+        project_id:
+          type: integer
+        name:
+          type: string
+        playbook:
+          type: string
+        environment_id:
+          type: integer
+        inventory_id:
+          type: integer
+        repository_id:
+          type: integer
+
+    CreateTemplate:
+      type: object
+      required: [name, playbook]
+      properties:
+        name:
+          type: string
+        playbook:
+          type: string
+        environment_id:
+          type: integer
+        inventory_id:
+          type: integer
+        repository_id:
+          type: integer
+
+    Task:
+      type: object
+      properties:
+        id:
+          type: integer
+        project_id:
+          type: integer
+        template_id:
+          type: integer
+        status:
+          type: string
+          enum: [waiting, running, success, failed]
+        created:
+          type: string
+          format: date-time
+        start:
+          type: string
+          format: date-time
+        end:
+          type: string
+          format: date-time
+
+    CreateTask:
+      type: object
+      required: [template_id]
+      properties:
+        template_id:
+          type: integer
+        debug:
+          type: boolean
+          default: false
+        dry_run:
+          type: boolean
+          default: false
+
+    Webhook:
+      type: object
+      properties:
+        id:
+          type: integer
+        project_id:
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+          enum: [generic, slack, teams, discord, telegram, custom]
+        url:
+          type: string
+        active:
+          type: boolean
+        events:
+          type: array
+          items:
+            type: string
+        created:
+          type: string
+          format: date-time
+
+    CreateWebhook:
+      type: object
+      required: [name, type, url]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [generic, slack, teams, discord, telegram, custom]
+        url:
+          type: string
+        secret:
+          type: string
+        active:
+          type: boolean
+          default: true
+        events:
+          type: array
+          items:
+            type: string
+        retry_count:
+          type: integer
+          default: 3
+        timeout_secs:
+          type: integer
+          default: 30
+
+    TestWebhookResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        error:
+          type: string
+
+    AuditLogResponse:
+      type: object
+      properties:
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditLog'
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    AuditLog:
+      type: object
+      properties:
+        id:
+          type: integer
+        project_id:
+          type: integer
+        user_id:
+          type: integer
+        username:
+          type: string
+        action:
+          type: string
+        object_type:
+          type: string
+        object_id:
+          type: integer
+        description:
+          type: string
+        level:
+          type: string
+        ip_address:
+          type: string
+        created:
+          type: string
+          format: date-time
+
+    AnalyticsStats:
+      type: object
+      properties:
+        total_tasks:
+          type: integer
+        success_tasks:
+          type: integer
+        failed_tasks:
+          type: integer
+        avg_duration:
+          type: number
+        templates_count:
+          type: integer
+        users_count:
+          type: integer
+        templates_by_type:
+          type: object
+          additionalProperties:
+            type: integer
+        top_users:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+              tasks_count:
+                type: integer
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+        details:
+          type: object

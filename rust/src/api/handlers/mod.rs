@@ -5,6 +5,7 @@
 pub mod auth;
 pub mod oidc;
 pub mod metrics;
+pub mod analytics;
 #[cfg(test)]
 mod tests;
 pub mod users;
@@ -18,6 +19,8 @@ pub mod access_key;
 pub mod totp;
 pub mod mailer;
 pub mod audit_log;
+pub mod playbook;
+pub mod playbook_runs;
 
 // Ре-экспорт всех handlers для удобства
 pub use auth::*;
@@ -33,3 +36,5 @@ pub use access_key::*;
 pub use totp::*;
 pub use mailer::*;
 pub use audit_log::*;
+pub use playbook::*;
+pub use analytics::*;

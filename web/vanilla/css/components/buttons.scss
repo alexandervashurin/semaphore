@@ -1,0 +1,186 @@
+// Vuetify-style кнопки
+
+.v-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  min-width: 64px;
+  height: 36px;
+  font-family: var(--v-font-family);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 2.25rem;
+  letter-spacing: 0.089em;
+  text-transform: uppercase;
+  text-decoration: none;
+  border: none;
+  border-radius: var(--v-border-radius);
+  cursor: pointer;
+  transition: all var(--v-transition-duration);
+  outline: none;
+  user-select: none;
+  white-space: nowrap;
+  
+  &:hover {
+    opacity: 0.9;
+  }
+  
+  &:active {
+    transform: scale(0.98);
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  .v-icon {
+    margin-right: 8px;
+  }
+}
+
+// Contained button
+.v-btn--contained {
+  box-shadow: 
+    0 3px 1px -2px var(--v-shadow-key-umbra-opacity),
+    0 2px 2px 0 var(--v-shadow-key-penumbra-opacity),
+    0 1px 5px 0 var(--v-shadow-key-ambient-opacity);
+  
+  &:hover {
+    box-shadow: 
+      0 2px 4px -1px var(--v-shadow-key-umbra-opacity),
+      0 4px 5px 0 var(--v-shadow-key-penumbra-opacity),
+      0 1px 10px 0 var(--v-shadow-key-ambient-opacity);
+  }
+}
+
+// Primary button
+.v-btn--primary {
+  background-color: var(--v-primary-base);
+  color: var(--v-white-base);
+}
+
+// Secondary button
+.v-btn--secondary {
+  background-color: var(--v-secondary-base);
+  color: var(--v-white-base);
+}
+
+// Text button
+.v-btn--text {
+  background: transparent;
+  color: var(--v-primary-base);
+  box-shadow: none;
+  
+  &:hover {
+    background-color: rgba(63, 81, 181, 0.04);
+  }
+}
+
+// Outlined button
+.v-btn--outlined {
+  background: transparent;
+  border: 1px solid currentColor;
+  color: var(--v-primary-base);
+  box-shadow: none;
+}
+
+// Icon button
+.v-btn--icon {
+  min-width: 40px;
+  width: 40px;
+  height: 40px;
+  padding: 8px;
+  border-radius: 50%;
+  
+  .v-icon {
+    margin-right: 0;
+  }
+}
+
+// Small button
+.v-btn--small {
+  height: 28px;
+  min-width: 48px;
+  padding: 0 12px;
+  font-size: 0.75rem;
+}
+
+// Large button
+.v-btn--large {
+  height: 48px;
+  min-width: 96px;
+  padding: 0 24px;
+  font-size: 1rem;
+}
+
+// Block button
+.v-btn--block {
+  display: flex;
+  width: 100%;
+}
+
+// Loading state
+.v-btn--loading {
+  pointer-events: none;
+  
+  .v-btn__content {
+    opacity: 0;
+  }
+  
+  .v-progress-circular {
+    position: absolute;
+  }
+}
+
+// Button group
+.v-btn-group {
+  display: inline-flex;
+  box-shadow: 
+    0 3px 1px -2px var(--v-shadow-key-umbra-opacity),
+    0 2px 2px 0 var(--v-shadow-key-penumbra-opacity),
+    0 1px 5px 0 var(--v-shadow-key-ambient-opacity);
+  
+  .v-btn {
+    border-radius: 0;
+    box-shadow: none;
+    
+    &:first-child {
+      border-top-left-radius: var(--v-border-radius);
+      border-bottom-left-radius: var(--v-border-radius);
+    }
+    
+    &:last-child {
+      border-top-right-radius: var(--v-border-radius);
+      border-bottom-right-radius: var(--v-border-radius);
+    }
+    
+    &:not(:last-child) {
+      border-right: 1px solid rgba(0, 0, 0, 0.12);
+    }
+  }
+}
+
+// Icon
+.v-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  vertical-align: middle;
+  
+  &.mdi::before {
+    font-family: 'Material Design Icons';
+    font-weight: normal;
+    font-style: normal;
+    display: inline-block;
+    line-height: 1;
+    text-transform: none;
+    letter-spacing: normal;
+    word-wrap: normal;
+    white-space: nowrap;
+    direction: ltr;
+  }
+}

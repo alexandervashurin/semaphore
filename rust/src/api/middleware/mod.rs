@@ -1,8 +1,16 @@
 //! Middleware модули
+//!
+//! Предоставляет middleware для:
+//! - Rate limiting (ограничение запросов)
+//! - Security headers (CSP, HSTS, X-Frame-Options)
+//! - CORS (Cross-Origin Resource Sharing)
+//! - Кэширование
 
+pub mod cache;
 pub mod rate_limiter;
 pub mod security_headers;
 
+pub use cache::CacheMiddleware;
 pub use rate_limiter::*;
 pub use security_headers::*;
 

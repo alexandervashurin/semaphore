@@ -153,7 +153,6 @@ impl UserManager for MockStore {
         }
         Ok(())
     }
-
 }
 
 #[async_trait]
@@ -600,33 +599,44 @@ impl AuditLogManager for MockStore {
         _project_id: Option<i64>,
         _user_id: Option<i64>,
         _username: Option<String>,
-        _action: &crate::models::audit_log::AuditAction,
-        _object_type: &crate::models::audit_log::AuditObjectType,
+        _action: &AuditAction,
+        _object_type: &AuditObjectType,
         _object_id: Option<i64>,
         _object_name: Option<String>,
         _description: String,
-        _level: &crate::models::audit_log::AuditLevel,
+        _level: &AuditLevel,
         _ip_address: Option<String>,
         _user_agent: Option<String>,
         _details: Option<serde_json::Value>,
-    ) -> Result<crate::models::audit_log::AuditLog> {
-        Err(crate::error::Error::NotFound("mock".to_string()))
+    ) -> Result<AuditLog> {
+        Err(Error::NotFound("AuditLog not found".to_string()))
     }
-    async fn get_audit_log(&self, id: i64) -> Result<crate::models::audit_log::AuditLog> {
-        Err(crate::error::Error::NotFound(format!("AuditLog {} not found", id)))
+
+    async fn get_audit_log(&self, _id: i64) -> Result<AuditLog> {
+        Err(Error::NotFound("AuditLog not found".to_string()))
     }
-    async fn search_audit_logs(&self, _filter: &crate::models::audit_log::AuditLogFilter) -> Result<crate::models::audit_log::AuditLogResult> {
-        Ok(crate::models::audit_log::AuditLogResult { records: vec![], total: 0, limit: 0, offset: 0 })
+
+    async fn search_audit_logs(&self, _filter: &AuditLogFilter) -> Result<AuditLogResult> {
+        Ok(AuditLogResult {
+            records: vec![],
+            total: 0,
+            limit: 0,
+            offset: 0,
+        })
     }
-    async fn get_audit_logs_by_project(&self, _project_id: i64, _limit: i64, _offset: i64) -> Result<Vec<crate::models::audit_log::AuditLog>> {
+
+    async fn get_audit_logs_by_project(&self, _project_id: i64, _limit: i64, _offset: i64) -> Result<Vec<AuditLog>> {
         Ok(vec![])
     }
-    async fn get_audit_logs_by_user(&self, _user_id: i64, _limit: i64, _offset: i64) -> Result<Vec<crate::models::audit_log::AuditLog>> {
+
+    async fn get_audit_logs_by_user(&self, _user_id: i64, _limit: i64, _offset: i64) -> Result<Vec<AuditLog>> {
         Ok(vec![])
     }
-    async fn get_audit_logs_by_action(&self, _action: &crate::models::audit_log::AuditAction, _limit: i64, _offset: i64) -> Result<Vec<crate::models::audit_log::AuditLog>> {
+
+    async fn get_audit_logs_by_action(&self, _action: &AuditAction, _limit: i64, _offset: i64) -> Result<Vec<AuditLog>> {
         Ok(vec![])
     }
+
     async fn delete_audit_logs_before(&self, _before: chrono::DateTime<chrono::Utc>) -> Result<u64> {
         Ok(0)
     }
@@ -637,3 +647,90 @@ impl AuditLogManager for MockStore {
 
 #[async_trait]
 impl Store for MockStore {}
+
+#[async_trait]
+impl WebhookManager for MockStore {
+    async fn get_webhook(&self, _webhook_id: i64) -> Result<crate::models::webhook::Webhook> {
+        Err(Error::NotFound("Webhook not found".to_string()))
+    }
+
+    async fn get_webhooks_by_project(&self, _project_id: i64) -> Result<Vec<crate::models::webhook::Webhook>> {
+        Ok(Vec::new())
+    }
+
+    async fn create_webhook(&self, _webhook: crate::models::webhook::Webhook) -> Result<crate::models::webhook::Webhook> {
+        Err(Error::Database(sqlx::Error::Protocol("Not implemented in mock".to_string())))
+    }
+
+    async fn update_webhook(&self, _webhook_id: i64, _webhook: crate::models::webhook::UpdateWebhook) -> Result<crate::models::webhook::Webhook> {
+        Err(Error::Database(sqlx::Error::Protocol("Not implemented in mock".to_string())))
+    }
+
+    async fn delete_webhook(&self, _webhook_id: i64) -> Result<()> {
+        Ok(())
+    }
+
+    async fn get_webhook_logs(&self, _webhook_id: i64) -> Result<Vec<crate::models::webhook::WebhookLog>> {
+        Ok(Vec::new())
+    }
+
+    async fn create_webhook_log(&self, _log: crate::models::webhook::WebhookLog) -> Result<crate::models::webhook::WebhookLog> {
+        Err(Error::Database(sqlx::Error::Protocol("Not implemented in mock".to_string())))
+    }
+}
+
+#[async_trait]
+impl PlaybookManager for MockStore {
+    async fn get_playbooks(&self, _project_id: i32) -> Result<Vec<crate::models::Playbook>> {
+        Ok(Vec::new())
+    }
+
+    async fn get_playbook(&self, _id: i32, _project_id: i32) -> Result<crate::models::Playbook> {
+        Err(Error::NotFound("Playbook not found".to_string()))
+    }
+
+    async fn create_playbook(&self, _project_id: i32, _playbook: crate::models::PlaybookCreate) -> Result<crate::models::Playbook> {
+        Err(Error::Database(sqlx::Error::Protocol("Not implemented in mock".to_string())))
+    }
+
+    async fn update_playbook(&self, _id: i32, _project_id: i32, _playbook: crate::models::PlaybookUpdate) -> Result<crate::models::Playbook> {
+        Err(Error::Database(sqlx::Error::Protocol("Not implemented in mock".to_string())))
+    }
+
+    async fn delete_playbook(&self, _id: i32, _project_id: i32) -> Result<()> {
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl PlaybookRunManager for MockStore {
+    async fn get_playbook_runs(&self, _filter: PlaybookRunFilter) -> Result<Vec<PlaybookRun>> {
+        Ok(Vec::new())
+    }
+
+    async fn get_playbook_run(&self, _id: i32, _project_id: i32) -> Result<PlaybookRun> {
+        Err(Error::NotFound("PlaybookRun not found".to_string()))
+    }
+
+    async fn create_playbook_run(&self, _run: PlaybookRunCreate) -> Result<PlaybookRun> {
+        Err(Error::Database(sqlx::Error::Protocol("Not implemented in mock".to_string())))
+    }
+
+    async fn update_playbook_run(&self, _id: i32, _project_id: i32, _update: PlaybookRunUpdate) -> Result<PlaybookRun> {
+        Err(Error::Database(sqlx::Error::Protocol("Not implemented in mock".to_string())))
+    }
+
+    async fn delete_playbook_run(&self, _id: i32, _project_id: i32) -> Result<()> {
+        Ok(())
+    }
+
+    async fn get_playbook_run_stats(&self, _playbook_id: i32) -> Result<PlaybookRunStats> {
+        Ok(PlaybookRunStats {
+            total_runs: 0,
+            success_runs: 0,
+            failed_runs: 0,
+            avg_duration_seconds: None,
+            last_run: None,
+        })
+    }
+}

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Проект - Semaphore UI</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <h2>🚀 Semaphore</h2>
+            </div>
+            <ul class="sidebar-nav">
+                <li><a href="index.html">📊 Dashboard</a></li>
+                <li><a href="project.html" class="active">📁 Проект</a></li>
+                <li><a href="playbooks.html">📜 Playbooks</a></li>
+                <li><a href="templates.html">📋 Шаблоны</a></li>
+                <li><a href="inventory.html">📦 Инвентарь</a></li>
+                <li><a href="environments.html">⚙️ Переменные</a></li>
+                <li><a href="repositories.html">🗂️ Репозитории</a></li>
+                <li><a href="keys.html">🔐 Ключи</a></li>
+                <li><a href="schedules.html">⏰ Расписания</a></li>
+                <li><a href="analytics.html">📈 Аналитика</a></li>
+                <li><a href="webhooks.html">🔗 Webhooks</a></li>
+            </ul>
+        </aside>
+
+        <div class="main-content">
+            <div class="main-header">
+                <h2 id="project-title">Загрузка...</h2>
+                <button class="btn btn-logout" onclick="api.logout()">Выйти</button>
+            </div>
+
+            <div class="main-body">
+                <div id="project-content">
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        <p>Загрузка проекта...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        checkAuth();
+
+        // Получить ID проекта из URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = urlParams.get('id');
+
+        if (!projectId) {
+            window.location.href = 'index.html';
+        }
+
+        // Загрузка проекта и статистики
+        Promise.all([
+            api.getProject(projectId),
+            api.getPlaybooks(projectId).catch(() => []),
+            api.getTemplates(projectId).catch(() => []),
+            api.getInventories(projectId).catch(() => []),
+            api.getEnvironments(projectId).catch(() => [])
+        ])
+        .then(([project, playbooks, templates, inventories, environments]) => {
+            $('#project-title').textContent = project.name;
+            document.title = project.name + ' - Semaphore UI';
+            showProjectDashboard(project, { playbooks, templates, inventories, environments });
+        })
+        .catch(error => {
+            ui.showError($('#project-content'), error.message);
+        });
+
+        function showProjectDashboard(project, stats) {
+            const content = $('#project-content');
+            content.innerHTML = `
+                <div class="grid" style="margin-bottom: 30px;">
+                    <div class="card text-center">
+                        <div style="font-size: 32px; margin-bottom: 10px;">📜</div>
+                        <div style="font-size: 24px; font-weight: bold; color: var(--primary);">${stats.playbooks.length}</div>
+                        <div style="color: var(--text-light);">Playbooks</div>
+                        <a href="playbooks.html?id=${projectId}" class="btn btn-primary btn-sm mt-2">Открыть</a>
+                    </div>
+                    <div class="card text-center">
+                        <div style="font-size: 32px; margin-bottom: 10px;">📋</div>
+                        <div style="font-size: 24px; font-weight: bold; color: var(--primary);">${stats.templates.length}</div>
+                        <div style="color: var(--text-light);">Шаблоны</div>
+                        <a href="templates.html?id=${projectId}" class="btn btn-primary btn-sm mt-2">Открыть</a>
+                    </div>
+                    <div class="card text-center">
+                        <div style="font-size: 32px; margin-bottom: 10px;">📦</div>
+                        <div style="font-size: 24px; font-weight: bold; color: var(--primary);">${stats.inventories.length}</div>
+                        <div style="color: var(--text-light);">Инвентари</div>
+                        <a href="inventory.html?id=${projectId}" class="btn btn-primary btn-sm mt-2">Открыть</a>
+                    </div>
+                    <div class="card text-center">
+                        <div style="font-size: 32px; margin-bottom: 10px;">⚙️</div>
+                        <div style="font-size: 24px; font-weight: bold; color: var(--primary);">${stats.environments.length}</div>
+                        <div style="color: var(--text-light);">Окружения</div>
+                        <a href="environments.html?id=${projectId}" class="btn btn-primary btn-sm mt-2">Открыть</a>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin-bottom: 15px;">О проекте</h3>
+                    <p style="color: var(--text-light); line-height: 1.8;">
+                        ${escapeHtml(project.description || 'Нет описания')}
+                    </p>
+                    <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border);">
+                        <div style="display: flex; gap: 30px; color: var(--text-light); font-size: 14px;">
+                            <div><strong>ID:</strong> ${project.id}</div>
+                            <div><strong>Создан:</strong> ${formatDate(project.created)}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mt-4">
+                    <h3 style="margin-bottom: 15px;">Быстрый доступ</h3>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <a href="playbooks.html?id=${projectId}" class="btn btn-primary">📜 Playbooks</a>
+                        <a href="templates.html?id=${projectId}" class="btn btn-primary">📋 Шаблоны</a>
+                        <a href="inventory.html?id=${projectId}" class="btn btn-primary">📦 Инвентарь</a>
+                        <a href="environments.html?id=${projectId}" class="btn btn-primary">⚙️ Окружения</a>
+                        <a href="repositories.html?id=${projectId}" class="btn btn-primary">🗂️ Репозитории</a>
+                        <a href="keys.html?id=${projectId}" class="btn btn-primary">🔐 Ключи</a>
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

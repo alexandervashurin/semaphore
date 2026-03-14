@@ -206,7 +206,7 @@ pub struct Notification {
 }
 
 /// Уровень уведомления
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum NotificationLevel {
     Info,
@@ -312,6 +312,10 @@ pub struct PluginManager {
     plugins: HashMap<String, Arc<RwLock<dyn Plugin>>>,
     hooks: HashMap<String, Vec<String>>, // hook_name -> plugin_ids
     config: PluginManagerConfig,
+    /// WASM загрузчик плагинов
+    wasm_loader: Option<crate::plugins::wasm_loader::WasmPluginLoader>,
+    /// WASM runtime для выполнения плагинов
+    wasm_runtime: Option<crate::plugins::wasm_runtime::WasmRuntime>,
 }
 
 /// Конфигурация менеджера плагинов
@@ -321,16 +325,125 @@ pub struct PluginManagerConfig {
     pub enabled_plugins: Vec<String>,
     pub disabled_plugins: Vec<String>,
     pub auto_load: bool,
+    /// Конфигурация WASM плагинов
+    pub wasm_enabled: bool,
+    pub wasm_plugins_dir: Option<String>,
+    pub wasm_max_memory_mb: u32,
+    pub wasm_max_execution_secs: u64,
+    pub wasm_allow_network: bool,
+    pub wasm_allow_filesystem: bool,
 }
 
 impl PluginManager {
     /// Создаёт новый менеджер плагинов
     pub fn new(config: PluginManagerConfig) -> Self {
+        // Инициализируем WASM загрузчик если включено
+        let (wasm_loader, wasm_runtime) = if config.wasm_enabled {
+            let wasm_config = crate::plugins::wasm_loader::WasmLoaderConfig {
+                plugins_dir: config.wasm_plugins_dir.clone().map(std::path::PathBuf::from)
+                    .unwrap_or_else(|| std::path::PathBuf::from("./plugins")),
+                max_memory_pages: config.wasm_max_memory_mb * 16, // MB -> страницы (64KB)
+                max_execution_time_secs: config.wasm_max_execution_secs,
+                allow_network: config.wasm_allow_network,
+                allow_filesystem: config.wasm_allow_filesystem,
+                allow_env: false,
+                allowed_host_calls: vec![
+                    "semaphore:log".to_string(),
+                    "semaphore:get_config".to_string(),
+                    "semaphore:set_config".to_string(),
+                    "semaphore:call_hook".to_string(),
+                ],
+            };
+            
+            match crate::plugins::wasm_loader::WasmPluginLoader::new(wasm_config) {
+                Ok(loader) => {
+                    tracing::info!("WASM plugin loader initialized");
+                    (Some(loader), None) // wasm_runtime создаётся позже
+                }
+                Err(e) => {
+                    tracing::error!("Failed to initialize WASM plugin loader: {}", e);
+                    (None, None)
+                }
+            }
+        } else {
+            (None, None)
+        };
+        
         Self {
             plugins: HashMap::new(),
             hooks: HashMap::new(),
             config,
+            wasm_loader,
+            wasm_runtime,
         }
+    }
+
+    /// Инициализирует WASM runtime
+    pub async fn initialize_wasm_runtime(&mut self) -> Result<()> {
+        if let Some(loader) = &self.wasm_loader {
+            match crate::plugins::wasm_runtime::WasmRuntime::new(loader) {
+                Ok(runtime) => {
+                    self.wasm_runtime = Some(runtime);
+                    tracing::info!("WASM runtime initialized");
+                    Ok(())
+                }
+                Err(e) => {
+                    tracing::error!("Failed to initialize WASM runtime: {}", e);
+                    Err(e)
+                }
+            }
+        } else {
+            Ok(()) // WASM не включён
+        }
+    }
+
+    /// Загружает все WASM плагины
+    pub async fn load_wasm_plugins(&mut self) -> Result<Vec<crate::plugins::wasm_loader::WasmPluginMetadata>> {
+        if let Some(loader) = &mut self.wasm_loader {
+            match loader.load_all_plugins().await {
+                Ok(plugins) => {
+                    tracing::info!("Loaded {} WASM plugin(s)", plugins.len());
+                    Ok(plugins)
+                }
+                Err(e) => {
+                    tracing::error!("Failed to load WASM plugins: {}", e);
+                    Err(e)
+                }
+            }
+        } else {
+            Ok(Vec::new()) // WASM не включён
+        }
+    }
+
+    /// Выгружает WASM плагин
+    pub fn unload_wasm_plugin(&mut self, plugin_id: &str) -> Result<()> {
+        if let Some(loader) = &mut self.wasm_loader {
+            loader.unload_plugin(plugin_id)
+        } else {
+            Err(Error::NotFound("WASM loader not initialized".to_string()))
+        }
+    }
+
+    /// Получает список загруженных WASM плагинов
+    pub fn list_wasm_plugins(&self) -> Vec<&crate::plugins::wasm_loader::WasmPluginMetadata> {
+        if let Some(loader) = &self.wasm_loader {
+            loader.list_loaded_plugins()
+        } else {
+            Vec::new()
+        }
+    }
+
+    /// Вызывает хук в WASM плагинах
+    pub async fn trigger_wasm_hooks(
+        &self,
+        hook_type: crate::plugins::hooks::HookType,
+        data: serde_json::Value,
+        context: crate::plugins::base::PluginContext,
+    ) -> Result<Vec<crate::plugins::base::HookResult>> {
+        // В полной реализации здесь будет вызов WASM плагинов
+        // Для пока возвращаем пустой результат
+        tracing::debug!("WASM hook triggered: {:?}", hook_type);
+        Ok(Vec::new())
     }
     
     /// Регистрирует плагин
@@ -392,13 +505,23 @@ impl PluginManager {
         self.plugins.get(plugin_id).cloned()
     }
     
-    /// Получает список всех плагинов
+    /// Получает список всех плагинов (включая WASM)
     pub async fn list_plugins(&self) -> Vec<PluginInfo> {
         let mut infos = Vec::new();
+        
+        // Добавляем нативные плагины
         for plugin in self.plugins.values() {
             let plugin_guard = plugin.read().await;
             infos.push(plugin_guard.info());
         }
+        
+        // Добавляем WASM плагины
+        if let Some(loader) = &self.wasm_loader {
+            for wasm_plugin in loader.list_loaded_plugins() {
+                infos.push(wasm_plugin.info.clone());
+            }
+        }
+        
         infos
     }
     
@@ -494,4 +617,501 @@ macro_rules! declare_plugin {
             }
         }
     };
+}
+
+// ============================================================================
+// Тесты
+// ============================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    // ========================================================================
+    // Тесты для PluginType
+    // ========================================================================
+
+    #[test]
+    fn test_plugin_type_serialization() {
+        let types = vec![
+            PluginType::TaskExecutor,
+            PluginType::NotificationProvider,
+            PluginType::StorageProvider,
+            PluginType::AuthProvider,
+            PluginType::ApiExtension,
+            PluginType::Hook,
+            PluginType::Custom,
+        ];
+
+        for plugin_type in types {
+            let json = serde_json::to_string(&plugin_type).unwrap();
+            assert!(!json.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_plugin_type_display() {
+        assert_eq!(
+            serde_json::to_string(&PluginType::TaskExecutor).unwrap(),
+            "\"task_executor\""
+        );
+        assert_eq!(
+            serde_json::to_string(&PluginType::NotificationProvider).unwrap(),
+            "\"notification_provider\""
+        );
+        assert_eq!(
+            serde_json::to_string(&PluginType::StorageProvider).unwrap(),
+            "\"storage_provider\""
+        );
+    }
+
+    // ========================================================================
+    // Тесты для PluginStatus
+    // ========================================================================
+
+    #[test]
+    fn test_plugin_status_display() {
+        let status_loaded = PluginStatus::Loaded;
+        let status_unloaded = PluginStatus::Unloaded;
+        let status_disabled = PluginStatus::Disabled;
+        let status_error = PluginStatus::Error("Test error".to_string());
+
+        // Просто проверяем, что статусы создаются корректно
+        assert!(format!("{:?}", status_loaded).contains("Loaded"));
+        assert!(format!("{:?}", status_unloaded).contains("Unloaded"));
+        assert!(format!("{:?}", status_disabled).contains("Disabled"));
+        assert!(format!("{:?}", status_error).contains("Test error"));
+    }
+
+    // ========================================================================
+    // Тесты для PluginConfig
+    // ========================================================================
+
+    #[test]
+    fn test_plugin_config_default() {
+        let config = PluginConfig::default();
+        // derive(Default) устанавливает false для bool
+        assert!(!config.enabled);
+        assert!(config.settings.is_empty());
+        assert!(config.secrets.is_empty());
+    }
+
+    #[test]
+    fn test_plugin_config_with_settings() {
+        let mut settings = HashMap::new();
+        settings.insert("key".to_string(), json!("value"));
+
+        let mut secrets = HashMap::new();
+        secrets.insert("secret_key".to_string(), "secret_value".to_string());
+
+        let config = PluginConfig {
+            enabled: false,
+            settings: settings.clone(),
+            secrets: secrets.clone(),
+        };
+
+        assert!(!config.enabled);
+        assert_eq!(config.settings.len(), 1);
+        assert_eq!(config.secrets.len(), 1);
+    }
+
+    // ========================================================================
+    // Тесты для PluginInfo
+    // ========================================================================
+
+    #[test]
+    fn test_plugin_info_creation() {
+        let info = PluginInfo {
+            id: "test_plugin".to_string(),
+            name: "Test Plugin".to_string(),
+            version: "1.0.0".to_string(),
+            description: "A test plugin".to_string(),
+            author: "Test Author".to_string(),
+            r#type: PluginType::TaskExecutor,
+            enabled: true,
+            dependencies: vec!["dep1".to_string(), "dep2".to_string()],
+            config_schema: None,
+        };
+
+        assert_eq!(info.id, "test_plugin");
+        assert_eq!(info.name, "Test Plugin");
+        assert_eq!(info.version, "1.0.0");
+        assert!(info.enabled);
+        assert_eq!(info.dependencies.len(), 2);
+    }
+
+    #[test]
+    fn test_plugin_info_serialization() {
+        let info = PluginInfo {
+            id: "my_plugin".to_string(),
+            name: "My Plugin".to_string(),
+            version: "2.0.0".to_string(),
+            description: "Description".to_string(),
+            author: "Author".to_string(),
+            r#type: PluginType::Hook,
+            enabled: false,
+            dependencies: vec![],
+            config_schema: None,
+        };
+
+        let json = serde_json::to_string(&info).unwrap();
+        assert!(json.contains("\"id\":\"my_plugin\""));
+        assert!(json.contains("\"enabled\":false"));
+        assert!(json.contains("\"type\":\"hook\""));
+    }
+
+    // ========================================================================
+    // Тесты для PluginManifest
+    // ========================================================================
+
+    #[test]
+    fn test_plugin_manifest_creation() {
+        let manifest = PluginManifest {
+            id: "manifest_plugin".to_string(),
+            name: "Manifest Plugin".to_string(),
+            version: "1.0.0".to_string(),
+            description: "Plugin with manifest".to_string(),
+            author: "Author".to_string(),
+            homepage: Some("https://example.com".to_string()),
+            repository: Some("https://github.com/example/plugin".to_string()),
+            license: Some("MIT".to_string()),
+            r#type: PluginType::NotificationProvider,
+            min_semaphore_version: Some("2.0.0".to_string()),
+            dependencies: vec![],
+            config: None,
+        };
+
+        assert_eq!(manifest.id, "manifest_plugin");
+        assert!(manifest.homepage.is_some());
+        assert!(manifest.repository.is_some());
+        assert_eq!(manifest.license, Some("MIT".to_string()));
+    }
+
+    // ========================================================================
+    // Тесты для PluginDependency
+    // ========================================================================
+
+    #[test]
+    fn test_plugin_dependency() {
+        let dep = PluginDependency {
+            id: "dependency_plugin".to_string(),
+            version: "1.0.0".to_string(),
+            required: true,
+        };
+
+        assert_eq!(dep.id, "dependency_plugin");
+        assert!(dep.required);
+    }
+
+    // ========================================================================
+    // Тесты для PluginContext
+    // ========================================================================
+
+    #[test]
+    fn test_plugin_context_creation() {
+        let mut metadata = HashMap::new();
+        metadata.insert("key".to_string(), json!("value"));
+
+        let context = PluginContext {
+            plugin_id: "test_plugin".to_string(),
+            project_id: Some(1),
+            user_id: Some(42),
+            task_id: Some(100),
+            metadata: metadata.clone(),
+        };
+
+        assert_eq!(context.plugin_id, "test_plugin");
+        assert_eq!(context.project_id, Some(1));
+        assert_eq!(context.user_id, Some(42));
+        assert_eq!(context.task_id, Some(100));
+    }
+
+    // ========================================================================
+    // Тесты для HookEvent
+    // ========================================================================
+
+    #[test]
+    fn test_hook_event_creation() {
+        let context = PluginContext {
+            plugin_id: "test".to_string(),
+            project_id: None,
+            user_id: None,
+            task_id: None,
+            metadata: HashMap::new(),
+        };
+
+        let event = HookEvent {
+            name: "test_hook".to_string(),
+            timestamp: Utc::now(),
+            data: json!({"key": "value"}),
+            context: context.clone(),
+        };
+
+        assert_eq!(event.name, "test_hook");
+        assert_eq!(event.context.plugin_id, "test");
+    }
+
+    // ========================================================================
+    // Тесты для HookResult
+    // ========================================================================
+
+    #[test]
+    fn test_hook_result_success() {
+        let result = HookResult {
+            success: true,
+            data: Some(json!({"result": "ok"})),
+            error: None,
+        };
+
+        assert!(result.success);
+        assert!(result.data.is_some());
+        assert!(result.error.is_none());
+    }
+
+    #[test]
+    fn test_hook_result_error() {
+        let result = HookResult {
+            success: false,
+            data: None,
+            error: Some("Test error".to_string()),
+        };
+
+        assert!(!result.success);
+        assert!(result.error.is_some());
+    }
+
+    // ========================================================================
+    // Тесты для TaskResult
+    // ========================================================================
+
+    #[test]
+    fn test_task_result() {
+        let mut metadata = HashMap::new();
+        metadata.insert("exit_status".to_string(), json!("success"));
+
+        let result = TaskResult {
+            success: true,
+            output: "Task output".to_string(),
+            exit_code: 0,
+            duration_secs: 1.5,
+            metadata: metadata.clone(),
+        };
+
+        assert!(result.success);
+        assert_eq!(result.exit_code, 0);
+        assert_eq!(result.duration_secs, 1.5);
+    }
+
+    // ========================================================================
+    // Тесты для Notification
+    // ========================================================================
+
+    #[test]
+    fn test_notification() {
+        let notification = Notification {
+            title: "Test Notification".to_string(),
+            message: "Test message".to_string(),
+            level: NotificationLevel::Info,
+            channels: vec!["email".to_string()],
+            data: json!({}),
+        };
+
+        assert_eq!(notification.title, "Test Notification");
+        assert_eq!(notification.level, NotificationLevel::Info);
+        assert_eq!(notification.channels.len(), 1);
+    }
+
+    #[test]
+    fn test_notification_level_serialization() {
+        assert_eq!(
+            serde_json::to_string(&NotificationLevel::Info).unwrap(),
+            "\"info\""
+        );
+        assert_eq!(
+            serde_json::to_string(&NotificationLevel::Warning).unwrap(),
+            "\"warning\""
+        );
+        assert_eq!(
+            serde_json::to_string(&NotificationLevel::Error).unwrap(),
+            "\"error\""
+        );
+        assert_eq!(
+            serde_json::to_string(&NotificationLevel::Critical).unwrap(),
+            "\"critical\""
+        );
+    }
+
+    // ========================================================================
+    // Тесты для NotificationChannel
+    // ========================================================================
+
+    #[test]
+    fn test_notification_channel() {
+        let channel = NotificationChannel {
+            id: "email_channel".to_string(),
+            name: "Email".to_string(),
+            description: "Email notifications".to_string(),
+            config_schema: None,
+        };
+
+        assert_eq!(channel.id, "email_channel");
+        assert_eq!(channel.name, "Email");
+    }
+
+    // ========================================================================
+    // Тесты для AuthCredentials
+    // ========================================================================
+
+    #[test]
+    fn test_auth_credentials() {
+        let mut metadata = HashMap::new();
+        metadata.insert("provider_key".to_string(), "value".to_string());
+
+        let credentials = AuthCredentials {
+            username: "user".to_string(),
+            password: Some("pass".to_string()),
+            token: None,
+            provider: "test_provider".to_string(),
+            metadata: metadata.clone(),
+        };
+
+        assert_eq!(credentials.username, "user");
+        assert_eq!(credentials.password, Some("pass".to_string()));
+        assert!(credentials.token.is_none());
+    }
+
+    // ========================================================================
+    // Тесты для AuthResult
+    // ========================================================================
+
+    #[test]
+    fn test_auth_result_success() {
+        let mut metadata = HashMap::new();
+        metadata.insert("auth_key".to_string(), json!("value"));
+
+        let result = AuthResult {
+            success: true,
+            user_id: Some(1),
+            username: Some("user".to_string()),
+            email: Some("user@example.com".to_string()),
+            metadata: metadata.clone(),
+            error: None,
+        };
+
+        assert!(result.success);
+        assert_eq!(result.user_id, Some(1));
+        assert_eq!(result.username, Some("user".to_string()));
+    }
+
+    #[test]
+    fn test_auth_result_error() {
+        let result = AuthResult {
+            success: false,
+            user_id: None,
+            username: None,
+            email: None,
+            metadata: HashMap::new(),
+            error: Some("Invalid credentials".to_string()),
+        };
+
+        assert!(!result.success);
+        assert!(result.error.is_some());
+    }
+
+    // ========================================================================
+    // Тесты для ApiRoute
+    // ========================================================================
+
+    #[test]
+    fn test_api_route() {
+        let route = ApiRoute {
+            method: "GET".to_string(),
+            path: "/api/v1/test".to_string(),
+            handler: "test_handler".to_string(),
+            description: "Test API route".to_string(),
+            requires_auth: true,
+            requires_admin: false,
+        };
+
+        assert_eq!(route.method, "GET");
+        assert_eq!(route.path, "/api/v1/test");
+        assert!(route.requires_auth);
+        assert!(!route.requires_admin);
+    }
+
+    // ========================================================================
+    // Тесты для PluginManagerConfig
+    // ========================================================================
+
+    #[test]
+    fn test_plugin_manager_config_default() {
+        let config = PluginManagerConfig::default();
+        assert!(config.plugins_dir.is_empty());
+        assert!(config.enabled_plugins.is_empty());
+        assert!(config.disabled_plugins.is_empty());
+        assert!(!config.auto_load);
+        assert!(!config.wasm_enabled);
+    }
+
+    #[test]
+    fn test_plugin_manager_config_custom() {
+        let config = PluginManagerConfig {
+            plugins_dir: "/plugins".to_string(),
+            enabled_plugins: vec!["plugin1".to_string()],
+            disabled_plugins: vec!["plugin2".to_string()],
+            auto_load: true,
+            wasm_enabled: true,
+            wasm_plugins_dir: Some("/wasm_plugins".to_string()),
+            wasm_max_memory_mb: 64,
+            wasm_max_execution_secs: 30,
+            wasm_allow_network: false,
+            wasm_allow_filesystem: true,
+        };
+
+        assert_eq!(config.plugins_dir, "/plugins");
+        assert!(config.auto_load);
+        assert!(config.wasm_enabled);
+        assert_eq!(config.wasm_max_memory_mb, 64);
+    }
+
+    // ========================================================================
+    // Тесты для PluginManager
+    // ========================================================================
+
+    #[test]
+    fn test_plugin_manager_creation() {
+        let config = PluginManagerConfig::default();
+        let manager = PluginManager::new(config);
+        
+        // Проверяем, что менеджер создан
+        assert!(manager.plugins.is_empty());
+        assert!(manager.hooks.is_empty());
+    }
+
+    #[test]
+    fn test_plugin_manager_enable_disable_plugin() {
+        let mut config = PluginManagerConfig::default();
+        config.enabled_plugins = vec!["test_plugin".to_string()];
+        
+        let mut manager = PluginManager::new(config);
+        
+        // Добавим тестовый плагин вручную для проверки
+        manager.config.enabled_plugins.push("plugin_to_disable".to_string());
+        
+        // Отключаем плагин
+        let result = manager.disable_plugin("plugin_to_disable");
+        assert!(result.is_ok());
+        assert!(manager.config.disabled_plugins.contains(&"plugin_to_disable".to_string()));
+    }
+
+    #[test]
+    fn test_plugin_manager_enable_not_found() {
+        let config = PluginManagerConfig::default();
+        let mut manager = PluginManager::new(config);
+        
+        // Пытаемся включить несуществующий плагин
+        let result = manager.enable_plugin("nonexistent_plugin");
+        assert!(result.is_err());
+    }
 }

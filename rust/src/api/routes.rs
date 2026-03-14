@@ -6,7 +6,7 @@ use crate::api::state::AppState;
 use crate::api::handlers;
 use crate::api::websocket::websocket_handler;
 use crate::api::handlers::projects::{schedules, views, integration as project_integration, integration_alias, secret_storages, users as project_users, tasks, notifications, backup_restore, refs, invites};
-use crate::api::{events, apps, options, runners, cache, system_info, user};
+use crate::api::{events, apps, options, runners, cache, system_info, user, graphql};
 use tower_http::services::{ServeDir, ServeFile};
 
 /// Создаёт маршруты API
@@ -87,7 +87,22 @@ pub fn api_routes() -> Router<Arc<AppState>> {
 
         // Playbooks endpoint (из upstream)
         .route("/api/projects/{project_id}/inventories/playbooks", get(handlers::get_playbooks))
-
+        
+        // Playbooks - новые endpoints
+        .route("/api/project/{project_id}/playbooks", get(handlers::playbook::get_project_playbooks))
+        .route("/api/project/{project_id}/playbooks", post(handlers::playbook::create_playbook))
+        .route("/api/project/{project_id}/playbooks/{id}", get(handlers::playbook::get_playbook))
+        .route("/api/project/{project_id}/playbooks/{id}", put(handlers::playbook::update_playbook))
+        .route("/api/project/{project_id}/playbooks/{id}", delete(handlers::playbook::delete_playbook))
+        .route("/api/project/{project_id}/playbooks/{id}/sync", post(handlers::playbook::sync_playbook))
+        .route("/api/project/{project_id}/playbooks/{id}/preview", get(handlers::playbook::preview_playbook))
+        .route("/api/project/{project_id}/playbooks/{id}/run", post(handlers::playbook::run_playbook))
+        
+        // Playbook Runs - история запусков
+        .route("/api/project/{project_id}/playbook-runs", get(handlers::playbook_runs::get_playbook_runs))
+        .route("/api/project/{project_id}/playbook-runs/{id}", get(handlers::playbook_runs::get_playbook_run))
+        .route("/api/project/{project_id}/playbooks/{playbook_id}/runs/stats", get(handlers::playbook_runs::get_playbook_run_stats))
+        
         // Репозитории
         .route("/api/projects/{project_id}/repositories", get(handlers::get_repositories))
         .route("/api/projects/{project_id}/repositories", post(handlers::create_repository))
@@ -138,6 +153,12 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/api/project/{project_id}/schedules/{id}", put(schedules::update_schedule))
         .route("/api/project/{project_id}/schedules/{id}", delete(schedules::delete_schedule))
         .route("/api/project/{project_id}/schedules/validate", post(schedules::validate_schedule_cron_format))
+
+        // Analytics
+        .route("/api/project/{project_id}/analytics", get(handlers::analytics::get_project_analytics))
+        .route("/api/project/{project_id}/analytics/tasks-chart", get(handlers::analytics::get_tasks_chart))
+        .route("/api/project/{project_id}/analytics/status-distribution", get(handlers::analytics::get_status_distribution))
+        .route("/api/analytics/system", get(handlers::analytics::get_system_analytics))
 
         // Представления (Views)
         .route("/api/projects/{project_id}/views", get(views::get_views))

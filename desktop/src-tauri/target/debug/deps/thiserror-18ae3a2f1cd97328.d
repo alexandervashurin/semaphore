@@ -1,0 +1,12 @@
+/home/a.vashurin@PSO.LOCAL/programms/github_my/semaphore/desktop/src-tauri/target/debug/deps/thiserror-18ae3a2f1cd97328.d: /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/lib.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/aserror.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/display.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/var.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/private.rs /home/a.vashurin@PSO.LOCAL/programms/github_my/semaphore/desktop/src-tauri/target/debug/build/thiserror-c729ee368bdfcf2e/out/private.rs
+
+/home/a.vashurin@PSO.LOCAL/programms/github_my/semaphore/desktop/src-tauri/target/debug/deps/libthiserror-18ae3a2f1cd97328.rmeta: /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/lib.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/aserror.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/display.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/var.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/private.rs /home/a.vashurin@PSO.LOCAL/programms/github_my/semaphore/desktop/src-tauri/target/debug/build/thiserror-c729ee368bdfcf2e/out/private.rs
+
+/home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/lib.rs:
+/home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/aserror.rs:
+/home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/display.rs:
+/home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/var.rs:
+/home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/private.rs:
+/home/a.vashurin@PSO.LOCAL/programms/github_my/semaphore/desktop/src-tauri/target/debug/build/thiserror-c729ee368bdfcf2e/out/private.rs:
+
+# env-dep:OUT_DIR=/home/a.vashurin@PSO.LOCAL/programms/github_my/semaphore/desktop/src-tauri/target/debug/build/thiserror-c729ee368bdfcf2e/out

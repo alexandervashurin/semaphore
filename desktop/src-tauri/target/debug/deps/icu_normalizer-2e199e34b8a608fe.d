@@ -1,0 +1,8 @@
+/home/a.vashurin@PSO.LOCAL/programms/github_my/semaphore/desktop/src-tauri/target/debug/deps/icu_normalizer-2e199e34b8a608fe.d: /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_normalizer-2.1.1/src/lib.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_normalizer-2.1.1/src/properties.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_normalizer-2.1.1/src/provider.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_normalizer-2.1.1/src/uts46.rs
+
+/home/a.vashurin@PSO.LOCAL/programms/github_my/semaphore/desktop/src-tauri/target/debug/deps/libicu_normalizer-2e199e34b8a608fe.rmeta: /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_normalizer-2.1.1/src/lib.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_normalizer-2.1.1/src/properties.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_normalizer-2.1.1/src/provider.rs /home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_normalizer-2.1.1/src/uts46.rs
+
+/home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_normalizer-2.1.1/src/lib.rs:
+/home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_normalizer-2.1.1/src/properties.rs:
+/home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_normalizer-2.1.1/src/provider.rs:
+/home/a.vashurin@PSO.LOCAL/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_normalizer-2.1.1/src/uts46.rs:

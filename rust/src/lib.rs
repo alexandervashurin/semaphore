@@ -27,6 +27,10 @@ pub mod pro;
 pub mod services;
 pub mod utils;
 pub mod plugins;
+pub mod cache;
+pub mod grpc;
+pub mod kubernetes;
+pub mod validators;
 
 mod error;
 mod logging;

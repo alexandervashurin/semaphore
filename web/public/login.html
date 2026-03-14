@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход - Semaphore UI</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="login-wrapper">
+        <div class="login-card">
+            <div class="login-logo">
+                <div class="login-logo-icon">🚀</div>
+                <h1>Semaphore UI</h1>
+                <p class="subtitle">DevOps Automation Platform</p>
+            </div>
+
+            <div id="error-alert"></div>
+
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="username">Имя пользователя</label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        class="form-control" 
+                        placeholder="admin"
+                        value="admin"
+                        required 
+                        autocomplete="username"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Пароль</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        class="form-control" 
+                        placeholder="••••••••"
+                        value="admin123"
+                        required 
+                        autocomplete="current-password"
+                    >
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">
+                    Войти
+                </button>
+            </form>
+
+            <div class="alert alert-warning mt-4" style="font-size: 13px;">
+                <strong>🔐 Учётные данные:</strong><br>
+                Логин: <code>admin</code><br>
+                Пароль: <code>admin123</code>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        // Если уже авторизован - на dashboard
+        if (localStorage.getItem(STORAGE_KEY)) {
+            window.location.href = '/';
+        }
+
+        $('#login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            const originalText = btn.textContent;
+            btn.textContent = 'Вход...';
+            btn.disabled = true;
+
+            try {
+                await api.login($('#username').value, $('#password').value);
+                window.location.href = '/';
+            } catch (error) {
+                $('#error-alert').innerHTML = `
+                    <div class="alert alert-danger">
+                        ${escapeHtml(error.message)}
+                    </div>
+                `;
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
