@@ -25,7 +25,7 @@ impl TaskManager for SqlStore {
                 if let Some(tid) = template_id {
                     q = q.bind(tid);
                 }
-                let rows = q.fetch_all(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                let rows = q.fetch_all(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?).await.map_err(Error::Database)?;
                 Ok(rows.into_iter().map(|row| TaskWithTpl {
                     task: Task {
                         id: row.get("id"),
@@ -70,7 +70,7 @@ impl TaskManager for SqlStore {
                 if let Some(tid) = template_id {
                     q = q.bind(tid);
                 }
-                let rows = q.fetch_all(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                let rows = q.fetch_all(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?).await.map_err(Error::Database)?;
                 Ok(rows.into_iter().map(|row| TaskWithTpl {
                     task: Task {
                         id: row.get("id"),
@@ -115,7 +115,7 @@ impl TaskManager for SqlStore {
                 if let Some(tid) = template_id {
                     q = q.bind(tid);
                 }
-                let rows = q.fetch_all(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                let rows = q.fetch_all(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?).await.map_err(Error::Database)?;
                 Ok(rows.into_iter().map(|row| TaskWithTpl {
                     task: Task {
                         id: row.get("id"),
@@ -264,26 +264,26 @@ impl TaskManager for SqlStore {
                 let id: i32 = sqlx::query_scalar(query)
                     .bind(task.template_id)
                     .bind(task.project_id)
-                    .bind(&task.status.to_string())
+                    .bind(task.status.to_string())
                     .bind(&task.playbook)
                     .bind(&task.environment)
                     .bind(&task.arguments)
                     .bind(&task.git_branch)
-                    .bind(&task.user_id)
-                    .bind(&task.integration_id)
-                    .bind(&task.schedule_id)
+                    .bind(task.user_id)
+                    .bind(task.integration_id)
+                    .bind(task.schedule_id)
                     .bind(task.created)
-                    .bind(&task.start)
-                    .bind(&task.end)
+                    .bind(task.start)
+                    .bind(task.end)
                     .bind(&task.message)
                     .bind(&task.commit_hash)
                     .bind(&task.commit_message)
-                    .bind(&task.build_task_id)
+                    .bind(task.build_task_id)
                     .bind(&task.version)
-                    .bind(&task.inventory_id)
-                    .bind(&task.repository_id)
-                    .bind(&task.environment_id)
-                    .fetch_one(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                    .bind(task.inventory_id)
+                    .bind(task.repository_id)
+                    .bind(task.environment_id)
+                    .fetch_one(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?).await.map_err(Error::Database)?;
                 task.id = id;
                 Ok(task)
             }
@@ -292,26 +292,26 @@ impl TaskManager for SqlStore {
                 let id: i32 = sqlx::query_scalar(query)
                     .bind(task.template_id)
                     .bind(task.project_id)
-                    .bind(&task.status.to_string())
+                    .bind(task.status.to_string())
                     .bind(&task.playbook)
                     .bind(&task.environment)
                     .bind(&task.arguments)
                     .bind(&task.git_branch)
-                    .bind(&task.user_id)
-                    .bind(&task.integration_id)
-                    .bind(&task.schedule_id)
+                    .bind(task.user_id)
+                    .bind(task.integration_id)
+                    .bind(task.schedule_id)
                     .bind(task.created)
-                    .bind(&task.start)
-                    .bind(&task.end)
+                    .bind(task.start)
+                    .bind(task.end)
                     .bind(&task.message)
                     .bind(&task.commit_hash)
                     .bind(&task.commit_message)
-                    .bind(&task.build_task_id)
+                    .bind(task.build_task_id)
                     .bind(&task.version)
-                    .bind(&task.inventory_id)
-                    .bind(&task.repository_id)
-                    .bind(&task.environment_id)
-                    .fetch_one(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                    .bind(task.inventory_id)
+                    .bind(task.repository_id)
+                    .bind(task.environment_id)
+                    .fetch_one(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?).await.map_err(Error::Database)?;
                 task.id = id;
                 Ok(task)
             }
@@ -320,26 +320,26 @@ impl TaskManager for SqlStore {
                 let result = sqlx::query(query)
                     .bind(task.template_id)
                     .bind(task.project_id)
-                    .bind(&task.status.to_string())
+                    .bind(task.status.to_string())
                     .bind(&task.playbook)
                     .bind(&task.environment)
                     .bind(&task.arguments)
                     .bind(&task.git_branch)
-                    .bind(&task.user_id)
-                    .bind(&task.integration_id)
-                    .bind(&task.schedule_id)
+                    .bind(task.user_id)
+                    .bind(task.integration_id)
+                    .bind(task.schedule_id)
                     .bind(task.created)
-                    .bind(&task.start)
-                    .bind(&task.end)
+                    .bind(task.start)
+                    .bind(task.end)
                     .bind(&task.message)
                     .bind(&task.commit_hash)
                     .bind(&task.commit_message)
-                    .bind(&task.build_task_id)
+                    .bind(task.build_task_id)
                     .bind(&task.version)
-                    .bind(&task.inventory_id)
-                    .bind(&task.repository_id)
-                    .bind(&task.environment_id)
-                    .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                    .bind(task.inventory_id)
+                    .bind(task.repository_id)
+                    .bind(task.environment_id)
+                    .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?).await.map_err(Error::Database)?;
                 task.id = result.last_insert_id() as i32;
                 Ok(task)
             }
@@ -351,74 +351,74 @@ impl TaskManager for SqlStore {
             SqlDialect::SQLite => {
                 let query = "UPDATE task SET status = ?, playbook = ?, environment = ?, arguments = ?, git_branch = ?, user_id = ?, integration_id = ?, schedule_id = ?, start_time = ?, end_time = ?, message = ?, commit_hash = ?, commit_message = ?, build_task_id = ?, version = ?, inventory_id = ?, repository_id = ?, environment_id = ? WHERE id = ?";
                 sqlx::query(query)
-                    .bind(&task.status.to_string())
+                    .bind(task.status.to_string())
                     .bind(&task.playbook)
                     .bind(&task.environment)
                     .bind(&task.arguments)
                     .bind(&task.git_branch)
-                    .bind(&task.user_id)
-                    .bind(&task.integration_id)
-                    .bind(&task.schedule_id)
-                    .bind(&task.start)
-                    .bind(&task.end)
+                    .bind(task.user_id)
+                    .bind(task.integration_id)
+                    .bind(task.schedule_id)
+                    .bind(task.start)
+                    .bind(task.end)
                     .bind(&task.message)
                     .bind(&task.commit_hash)
                     .bind(&task.commit_message)
-                    .bind(&task.build_task_id)
+                    .bind(task.build_task_id)
                     .bind(&task.version)
-                    .bind(&task.inventory_id)
-                    .bind(&task.repository_id)
-                    .bind(&task.environment_id)
+                    .bind(task.inventory_id)
+                    .bind(task.repository_id)
+                    .bind(task.environment_id)
                     .bind(task.id)
-                    .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                    .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?).await.map_err(Error::Database)?;
             }
             SqlDialect::PostgreSQL => {
                 let query = "UPDATE task SET status = $1, playbook = $2, environment = $3, arguments = $4, git_branch = $5, user_id = $6, integration_id = $7, schedule_id = $8, start_time = $9, end_time = $10, message = $11, commit_hash = $12, commit_message = $13, build_task_id = $14, version = $15, inventory_id = $16, repository_id = $17, environment_id = $18 WHERE id = $19";
                 sqlx::query(query)
-                    .bind(&task.status.to_string())
+                    .bind(task.status.to_string())
                     .bind(&task.playbook)
                     .bind(&task.environment)
                     .bind(&task.arguments)
                     .bind(&task.git_branch)
-                    .bind(&task.user_id)
-                    .bind(&task.integration_id)
-                    .bind(&task.schedule_id)
-                    .bind(&task.start)
-                    .bind(&task.end)
+                    .bind(task.user_id)
+                    .bind(task.integration_id)
+                    .bind(task.schedule_id)
+                    .bind(task.start)
+                    .bind(task.end)
                     .bind(&task.message)
                     .bind(&task.commit_hash)
                     .bind(&task.commit_message)
-                    .bind(&task.build_task_id)
+                    .bind(task.build_task_id)
                     .bind(&task.version)
-                    .bind(&task.inventory_id)
-                    .bind(&task.repository_id)
-                    .bind(&task.environment_id)
+                    .bind(task.inventory_id)
+                    .bind(task.repository_id)
+                    .bind(task.environment_id)
                     .bind(task.id)
-                    .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                    .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?).await.map_err(Error::Database)?;
             }
             SqlDialect::MySQL => {
                 let query = "UPDATE `task` SET status = ?, playbook = ?, environment = ?, arguments = ?, git_branch = ?, user_id = ?, integration_id = ?, schedule_id = ?, start_time = ?, end_time = ?, message = ?, commit_hash = ?, commit_message = ?, build_task_id = ?, version = ?, inventory_id = ?, repository_id = ?, environment_id = ? WHERE id = ?";
                 sqlx::query(query)
-                    .bind(&task.status.to_string())
+                    .bind(task.status.to_string())
                     .bind(&task.playbook)
                     .bind(&task.environment)
                     .bind(&task.arguments)
                     .bind(&task.git_branch)
-                    .bind(&task.user_id)
-                    .bind(&task.integration_id)
-                    .bind(&task.schedule_id)
-                    .bind(&task.start)
-                    .bind(&task.end)
+                    .bind(task.user_id)
+                    .bind(task.integration_id)
+                    .bind(task.schedule_id)
+                    .bind(task.start)
+                    .bind(task.end)
                     .bind(&task.message)
                     .bind(&task.commit_hash)
                     .bind(&task.commit_message)
-                    .bind(&task.build_task_id)
+                    .bind(task.build_task_id)
                     .bind(&task.version)
-                    .bind(&task.inventory_id)
-                    .bind(&task.repository_id)
-                    .bind(&task.environment_id)
+                    .bind(task.inventory_id)
+                    .bind(task.repository_id)
+                    .bind(task.environment_id)
                     .bind(task.id)
-                    .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                    .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?).await.map_err(Error::Database)?;
             }
         }
         Ok(())
@@ -428,15 +428,15 @@ impl TaskManager for SqlStore {
         match self.get_dialect() {
             SqlDialect::SQLite => {
                 let query = "DELETE FROM task WHERE id = ?";
-                sqlx::query(query).bind(task_id).execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                sqlx::query(query).bind(task_id).execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?).await.map_err(Error::Database)?;
             }
             SqlDialect::PostgreSQL => {
                 let query = "DELETE FROM task WHERE id = $1";
-                sqlx::query(query).bind(task_id).execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                sqlx::query(query).bind(task_id).execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?).await.map_err(Error::Database)?;
             }
             SqlDialect::MySQL => {
                 let query = "DELETE FROM `task` WHERE id = ?";
-                sqlx::query(query).bind(task_id).execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                sqlx::query(query).bind(task_id).execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?).await.map_err(Error::Database)?;
             }
         }
         Ok(())
@@ -446,7 +446,7 @@ impl TaskManager for SqlStore {
         match self.get_dialect() {
             SqlDialect::SQLite => {
                 let query = "SELECT * FROM task_output WHERE task_id = ? ORDER BY time";
-                let rows = sqlx::query(query).bind(task_id).fetch_all(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                let rows = sqlx::query(query).bind(task_id).fetch_all(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?).await.map_err(Error::Database)?;
                 Ok(rows.into_iter().map(|row| TaskOutput {
                     id: row.get("id"),
                     task_id: row.get("task_id"),
@@ -458,7 +458,7 @@ impl TaskManager for SqlStore {
             }
             SqlDialect::PostgreSQL => {
                 let query = "SELECT * FROM task_output WHERE task_id = $1 ORDER BY time";
-                let rows = sqlx::query(query).bind(task_id).fetch_all(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                let rows = sqlx::query(query).bind(task_id).fetch_all(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?).await.map_err(Error::Database)?;
                 Ok(rows.into_iter().map(|row| TaskOutput {
                     id: row.get("id"),
                     task_id: row.get("task_id"),
@@ -470,7 +470,7 @@ impl TaskManager for SqlStore {
             }
             SqlDialect::MySQL => {
                 let query = "SELECT * FROM `task_output` WHERE task_id = ? ORDER BY time";
-                let rows = sqlx::query(query).bind(task_id).fetch_all(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                let rows = sqlx::query(query).bind(task_id).fetch_all(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?).await.map_err(Error::Database)?;
                 Ok(rows.into_iter().map(|row| TaskOutput {
                     id: row.get("id"),
                     task_id: row.get("task_id"),
@@ -492,7 +492,7 @@ impl TaskManager for SqlStore {
                     .bind(output.project_id)
                     .bind(output.time)
                     .bind(&output.output)
-                    .fetch_one(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                    .fetch_one(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?).await.map_err(Error::Database)?;
                 output.id = id;
                 Ok(output)
             }
@@ -503,7 +503,7 @@ impl TaskManager for SqlStore {
                     .bind(output.project_id)
                     .bind(output.time)
                     .bind(&output.output)
-                    .fetch_one(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                    .fetch_one(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?).await.map_err(Error::Database)?;
                 output.id = id;
                 Ok(output)
             }
@@ -514,7 +514,7 @@ impl TaskManager for SqlStore {
                     .bind(output.project_id)
                     .bind(output.time)
                     .bind(&output.output)
-                    .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                    .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?).await.map_err(Error::Database)?;
                 output.id = result.last_insert_id() as i32;
                 Ok(output)
             }
@@ -525,15 +525,15 @@ impl TaskManager for SqlStore {
         match self.get_dialect() {
             SqlDialect::SQLite => {
                 let query = "UPDATE task SET status = ? WHERE id = ?";
-                sqlx::query(query).bind(&status.to_string()).bind(task_id).execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                sqlx::query(query).bind(status.to_string()).bind(task_id).execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?).await.map_err(Error::Database)?;
             }
             SqlDialect::PostgreSQL => {
                 let query = "UPDATE task SET status = $1 WHERE id = $2";
-                sqlx::query(query).bind(&status.to_string()).bind(task_id).execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                sqlx::query(query).bind(status.to_string()).bind(task_id).execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?).await.map_err(Error::Database)?;
             }
             SqlDialect::MySQL => {
                 let query = "UPDATE `task` SET status = ? WHERE id = ?";
-                sqlx::query(query).bind(&status.to_string()).bind(task_id).execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                sqlx::query(query).bind(status.to_string()).bind(task_id).execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?).await.map_err(Error::Database)?;
             }
         }
         Ok(())

@@ -81,6 +81,12 @@ pub struct TypeKeyMapper {
     key_maps: HashMap<String, HashMap<EntityKey, EntityKey>>,
 }
 
+impl Default for TypeKeyMapper {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TypeKeyMapper {
     pub fn new() -> Self {
         Self {
@@ -90,7 +96,7 @@ impl TypeKeyMapper {
 
     fn get_key_map(&mut self, name: &str, scope: &str) -> &mut HashMap<EntityKey, EntityKey> {
         let key = format!("{}.{}", name, scope);
-        self.key_maps.entry(key).or_insert_with(HashMap::new)
+        self.key_maps.entry(key).or_default()
     }
 }
 
@@ -144,6 +150,12 @@ pub struct ValueMap<T> {
     errors: Vec<String>,
 }
 
+impl<T: Clone> Default for ValueMap<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T: Clone> ValueMap<T> {
     pub fn new() -> Self {
         Self {
@@ -166,7 +178,7 @@ impl<T: Clone> ValueMap<T> {
 
     pub fn append_values(&mut self, values: Vec<T>, scope: &str) -> Result<(), String> {
         let key = scope.to_string();
-        self.values.entry(key).or_insert_with(Vec::new).extend(values);
+        self.values.entry(key).or_default().extend(values);
         Ok(())
     }
 
@@ -278,7 +290,7 @@ impl KeyMapper for ExporterChain {
         // Сохраняем маппинг
         self.key_mapping
             .entry(name.to_string())
-            .or_insert_with(HashMap::new)
+            .or_default()
             .insert(old_key.clone(), new_key.clone());
         Ok(())
     }
@@ -287,7 +299,7 @@ impl KeyMapper for ExporterChain {
         // Сохраняем маппинг integer ключей
         self.int_key_mapping
             .entry(name.to_string())
-            .or_insert_with(HashMap::new)
+            .or_default()
             .insert(old_key, new_key);
         Ok(())
     }
@@ -315,6 +327,12 @@ impl DataExporter for ExporterChain {
     fn get_loaded_keys_int(&self, name: &str, scope: &str) -> Result<Vec<i32>, String> {
         let keys = self.get_loaded_keys(name, scope)?;
         Ok(keys.into_iter().filter_map(|k| k.parse::<i32>().ok()).collect())
+    }
+}
+
+impl Default for ExporterChain {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

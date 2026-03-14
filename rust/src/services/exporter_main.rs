@@ -232,7 +232,7 @@ impl TypeKeyMapper {
     pub fn map_keys(&mut self, name: &str, scope: &str, old_key: &str, new_key: &str) -> Result<(), String> {
         let key = format!("{}.{}", name, scope);
         
-        let map = self.key_maps.entry(key).or_insert_with(HashMap::new);
+        let map = self.key_maps.entry(key).or_default();
         map.insert(old_key.to_string(), new_key.to_string());
         
         Ok(())
@@ -265,7 +265,7 @@ impl<T> ValueMap<T> {
     
     /// Добавляет значения
     pub fn append_values(&mut self, values: Vec<T>, scope: &str) -> Result<(), String> {
-        let entry = self.values.entry(scope.to_string()).or_insert_with(Vec::new);
+        let entry = self.values.entry(scope.to_string()).or_default();
         entry.extend(values);
         Ok(())
     }

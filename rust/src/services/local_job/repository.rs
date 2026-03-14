@@ -32,8 +32,8 @@ impl LocalJob {
             // git_repo.checkout(commit_hash).await?;
 
             self.set_commit(commit_hash, &self.task.commit_message.clone().unwrap_or_default());
-        } else if self.repository.git_branch.as_ref().map_or(false, |s| !s.is_empty()) {
-            self.log(&format!("Checking out branch: {}", self.repository.git_branch.as_ref().map(|s| s.as_str()).unwrap_or("unknown")));
+        } else if self.repository.git_branch.as_ref().is_some_and(|s| !s.is_empty()) {
+            self.log(&format!("Checking out branch: {}", self.repository.git_branch.as_deref().unwrap_or("unknown")));
             // git_repo.checkout(&self.repository.git_branch).await?;
         }
 

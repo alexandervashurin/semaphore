@@ -84,7 +84,7 @@ impl SqlStore {
         )
         .fetch_optional(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
         if project_exists.is_some() {
             // Миграция: добавить колонку created в project__user, если её нет
@@ -98,7 +98,7 @@ impl SqlStore {
         )
         .fetch_optional(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
         tracing::info!("Инициализация схемы БД (создание недостающих таблиц)...");
 
@@ -108,7 +108,7 @@ impl SqlStore {
         )
         .execute(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
         if user_exists.is_none() {
             // Таблица пользователей (только при первом запуске)
@@ -130,7 +130,7 @@ impl SqlStore {
             )
             .execute(pool)
             .await
-            .map_err(|e| Error::Database(e))?;
+            .map_err(Error::Database)?;
 
             // Таблица опций
             sqlx::query(
@@ -138,12 +138,12 @@ impl SqlStore {
             )
             .execute(pool)
             .await
-            .map_err(|e| Error::Database(e))?;
+            .map_err(Error::Database)?;
 
             sqlx::query("INSERT OR IGNORE INTO migration (version, name) VALUES (1, 'initial_schema')")
                 .execute(pool)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
         }
 
         // Таблица проектов (для CRUD) — создаём если отсутствует
@@ -161,7 +161,7 @@ impl SqlStore {
         )
         .execute(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
         // project__user для связи пользователей с проектами
         sqlx::query(
@@ -176,7 +176,7 @@ impl SqlStore {
         )
         .execute(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
         // task_output для логов задач (GET /api/.../tasks/{id}/output)
         sqlx::query(
@@ -191,7 +191,7 @@ impl SqlStore {
         )
         .execute(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
         // project_invite для приглашений в проект
         sqlx::query(
@@ -208,7 +208,7 @@ impl SqlStore {
         )
         .execute(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
         // access_key — ключи доступа (SSH, login_password, none, token)
         sqlx::query(
@@ -232,7 +232,7 @@ impl SqlStore {
         )
         .execute(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
         // inventory — инвентари Ansible
         sqlx::query(
@@ -255,7 +255,7 @@ impl SqlStore {
         )
         .execute(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
         // repository — Git-репозитории
         sqlx::query(
@@ -273,7 +273,7 @@ impl SqlStore {
         )
         .execute(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
         // environment — переменные окружения (JSON)
         sqlx::query(
@@ -289,7 +289,7 @@ impl SqlStore {
         )
         .execute(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
         // template — шаблоны задач
         sqlx::query(
@@ -318,7 +318,7 @@ impl SqlStore {
         )
         .execute(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
         // task — история запусков задач
         sqlx::query(
@@ -351,7 +351,7 @@ impl SqlStore {
         )
         .execute(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
         tracing::info!("Схема БД инициализирована");
         Ok(())
@@ -364,7 +364,7 @@ impl SqlStore {
         )
         .fetch_optional(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
         if table_exists.is_none() {
             return Ok(());
@@ -375,7 +375,7 @@ impl SqlStore {
         )
         .fetch_optional(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
         if has_created.unwrap_or(0) == 0 {
             sqlx::query(
@@ -383,7 +383,7 @@ impl SqlStore {
             )
             .execute(pool)
             .await
-            .map_err(|e| Error::Database(e))?;
+            .map_err(Error::Database)?;
             tracing::info!("Миграция: добавлена колонка created в project__user");
         }
         Ok(())
@@ -445,7 +445,7 @@ impl SecretStorageManager for SqlStore {
                 .bind(project_id)
                 .fetch_all(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 Ok(storages)
             }
@@ -456,7 +456,7 @@ impl SecretStorageManager for SqlStore {
                 .bind(project_id)
                 .fetch_all(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 Ok(storages)
             }
@@ -467,7 +467,7 @@ impl SecretStorageManager for SqlStore {
                 .bind(project_id)
                 .fetch_all(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 Ok(storages)
             }
@@ -484,7 +484,7 @@ impl SecretStorageManager for SqlStore {
                 .bind(project_id)
                 .fetch_optional(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 storage.ok_or(Error::NotFound("SecretStorage not found".to_string()))
             }
@@ -496,7 +496,7 @@ impl SecretStorageManager for SqlStore {
                 .bind(project_id)
                 .fetch_optional(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 storage.ok_or(Error::NotFound("SecretStorage not found".to_string()))
             }
@@ -508,7 +508,7 @@ impl SecretStorageManager for SqlStore {
                 .bind(project_id)
                 .fetch_optional(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 storage.ok_or(Error::NotFound("SecretStorage not found".to_string()))
             }
@@ -523,12 +523,12 @@ impl SecretStorageManager for SqlStore {
                 )
                 .bind(storage.project_id)
                 .bind(&storage.name)
-                .bind(&storage.r#type.to_string())
+                .bind(storage.r#type.to_string())
                 .bind(&storage.params)
                 .bind(storage.read_only)
                 .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 storage.id = result.last_insert_rowid() as i32;
                 Ok(storage)
@@ -538,12 +538,12 @@ impl SecretStorageManager for SqlStore {
                 let id: i32 = sqlx::query_scalar(query)
                     .bind(storage.project_id)
                     .bind(&storage.name)
-                    .bind(&storage.r#type.to_string())
+                    .bind(storage.r#type.to_string())
                     .bind(&storage.params)
                     .bind(storage.read_only)
                     .fetch_one(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 storage.id = id;
                 Ok(storage)
@@ -554,12 +554,12 @@ impl SecretStorageManager for SqlStore {
                 )
                 .bind(storage.project_id)
                 .bind(&storage.name)
-                .bind(&storage.r#type.to_string())
+                .bind(storage.r#type.to_string())
                 .bind(&storage.params)
                 .bind(storage.read_only)
                 .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 storage.id = result.last_insert_id() as i32;
                 Ok(storage)
@@ -574,42 +574,42 @@ impl SecretStorageManager for SqlStore {
                     "UPDATE secret_storage SET name = ?, type = ?, params = ?, read_only = ? WHERE id = ? AND project_id = ?"
                 )
                 .bind(&storage.name)
-                .bind(&storage.r#type.to_string())
+                .bind(storage.r#type.to_string())
                 .bind(&storage.params)
                 .bind(storage.read_only)
                 .bind(storage.id)
                 .bind(storage.project_id)
                 .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
             }
             SqlDialect::PostgreSQL => {
                 sqlx::query(
                     "UPDATE secret_storage SET name = $1, type = $2, params = $3, read_only = $4 WHERE id = $5 AND project_id = $6"
                 )
                 .bind(&storage.name)
-                .bind(&storage.r#type.to_string())
+                .bind(storage.r#type.to_string())
                 .bind(&storage.params)
                 .bind(storage.read_only)
                 .bind(storage.id)
                 .bind(storage.project_id)
                 .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
             }
             SqlDialect::MySQL => {
                 sqlx::query(
                     "UPDATE secret_storage SET name = ?, type = ?, params = ?, read_only = ? WHERE id = ? AND project_id = ?"
                 )
                 .bind(&storage.name)
-                .bind(&storage.r#type.to_string())
+                .bind(storage.r#type.to_string())
                 .bind(&storage.params)
                 .bind(storage.read_only)
                 .bind(storage.id)
                 .bind(storage.project_id)
                 .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
             }
         }
 
@@ -624,7 +624,7 @@ impl SecretStorageManager for SqlStore {
                     .bind(project_id)
                     .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::PostgreSQL => {
                 sqlx::query("DELETE FROM secret_storage WHERE id = $1 AND project_id = $2")
@@ -632,7 +632,7 @@ impl SecretStorageManager for SqlStore {
                     .bind(project_id)
                     .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::MySQL => {
                 sqlx::query("DELETE FROM secret_storage WHERE id = ? AND project_id = ?")
@@ -640,7 +640,7 @@ impl SecretStorageManager for SqlStore {
                     .bind(project_id)
                     .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
         }
 

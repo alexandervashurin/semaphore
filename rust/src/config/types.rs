@@ -199,6 +199,7 @@ impl LdapMappings {
 
 /// Конфигурация LDAP
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[derive(Default)]
 pub struct LdapConfig {
     #[serde(default)]
     pub enable: bool,
@@ -225,23 +226,10 @@ pub struct LdapConfig {
     pub mappings: LdapMappings,
 }
 
-impl Default for LdapConfig {
-    fn default() -> Self {
-        Self {
-            enable: false,
-            server: String::new(),
-            bind_dn: String::new(),
-            bind_password: String::new(),
-            search_dn: String::new(),
-            search_filter: String::new(),
-            need_tls: false,
-            mappings: LdapMappings::default(),
-        }
-    }
-}
 
 /// Конфигурация TOTP
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[derive(Default)]
 pub struct TotpConfig {
     #[serde(default)]
     pub enable: bool,
@@ -250,17 +238,10 @@ pub struct TotpConfig {
     pub allow_recovery: bool,
 }
 
-impl Default for TotpConfig {
-    fn default() -> Self {
-        Self {
-            enable: false,
-            allow_recovery: false,
-        }
-    }
-}
 
 /// Конфигурация аутентификации
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[derive(Default)]
 pub struct AuthConfig {
     #[serde(default)]
     pub totp: TotpConfig,
@@ -269,17 +250,10 @@ pub struct AuthConfig {
     pub oidc_providers: Vec<crate::config::config_oidc::OidcProvider>,
 }
 
-impl Default for AuthConfig {
-    fn default() -> Self {
-        Self {
-            totp: TotpConfig::default(),
-            oidc_providers: Vec::new(),
-        }
-    }
-}
 
 /// Конфигурация HA (High Availability)
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[derive(Default)]
 pub struct HAConfig {
     #[serde(default)]
     pub enable: bool,
@@ -313,15 +287,6 @@ impl Default for HARedisConfig {
     }
 }
 
-impl Default for HAConfig {
-    fn default() -> Self {
-        Self {
-            enable: false,
-            redis: HARedisConfig::default(),
-            node_id: String::new(),
-        }
-    }
-}
 
 /// Основная структура конфигурации
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]

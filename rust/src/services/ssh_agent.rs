@@ -307,7 +307,7 @@ impl SshAgent {
         callbacks.credentials(move |_url, username_from_url, _allowed_types| {
             let user = username_from_url.unwrap_or(&username);
 
-            for key in &keys {
+            if let Some(key) = keys.first() {
                 let private_key_str = String::from_utf8_lossy(&key.private_key);
                 
                 if let Some(passphrase) = &key.passphrase {

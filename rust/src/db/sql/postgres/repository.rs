@@ -12,7 +12,7 @@ pub async fn get_repositories(pool: &Pool<Postgres>, project_id: i32) -> Result<
         .bind(project_id)
         .fetch_all(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
     Ok(repositories)
 }
@@ -48,7 +48,7 @@ pub async fn create_repository(pool: &Pool<Postgres>, mut repository: Repository
         .bind(repository.created)
         .fetch_one(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
     repository.id = id;
     Ok(repository)
@@ -68,7 +68,7 @@ pub async fn update_repository(pool: &Pool<Postgres>, repository: Repository) ->
         .bind(repository.project_id)
         .execute(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
     Ok(())
 }
@@ -80,7 +80,7 @@ pub async fn delete_repository(pool: &Pool<Postgres>, project_id: i32, repositor
         .bind(project_id)
         .execute(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
     Ok(())
 }

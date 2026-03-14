@@ -13,7 +13,7 @@ impl SqlDb {
             .max_connections(5)
             .connect(database_url)
             .await
-            .map_err(|e| Error::Database(e))?;
+            .map_err(Error::Database)?;
         
         let mut db = Self::new(SqlDialect::SQLite);
         db.sqlite_pool = Some(pool);
@@ -27,7 +27,7 @@ impl SqlDb {
             .max_connections(10)
             .connect(&config.mysql_connection_string())
             .await
-            .map_err(|e| Error::Database(e))?;
+            .map_err(Error::Database)?;
         
         let mut db = Self::new(SqlDialect::MySQL);
         db.mysql_pool = Some(pool);
@@ -41,7 +41,7 @@ impl SqlDb {
             .max_connections(10)
             .connect(&config.postgres_connection_string())
             .await
-            .map_err(|e| Error::Database(e))?;
+            .map_err(Error::Database)?;
         
         let mut db = Self::new(SqlDialect::PostgreSQL);
         db.postgres_pool = Some(pool);
@@ -67,19 +67,19 @@ impl SqlDb {
             SqlDialect::SQLite => {
                 if let Some(pool) = &self.sqlite_pool {
                     pool.acquire().await
-                        .map_err(|e| Error::Database(e))?;
+                        .map_err(Error::Database)?;
                 }
             }
             SqlDialect::MySQL => {
                 if let Some(pool) = &self.mysql_pool {
                     pool.acquire().await
-                        .map_err(|e| Error::Database(e))?;
+                        .map_err(Error::Database)?;
                 }
             }
             SqlDialect::PostgreSQL => {
                 if let Some(pool) = &self.postgres_pool {
                     pool.acquire().await
-                        .map_err(|e| Error::Database(e))?;
+                        .map_err(Error::Database)?;
                 }
             }
         }
@@ -163,6 +163,7 @@ impl SqlDb {
             fs::OpenOptions::new()
                 .write(true)
                 .create(true)
+                .truncate(false)
                 .open(path)
                 .await
                 .map_err(|e| Error::Other(format!("Failed to create database file: {}", e)))?;

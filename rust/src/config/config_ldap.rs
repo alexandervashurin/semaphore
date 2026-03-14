@@ -7,6 +7,7 @@ use crate::config::types::LdapMappings;
 
 /// LDAP конфигурация
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct LdapConfigFull {
     /// Включить LDAP аутентификацию
     #[serde(default)]
@@ -41,20 +42,6 @@ pub struct LdapConfigFull {
     pub mappings: LdapMappings,
 }
 
-impl Default for LdapConfigFull {
-    fn default() -> Self {
-        Self {
-            enable: false,
-            server: String::new(),
-            bind_dn: String::new(),
-            bind_password: String::new(),
-            search_dn: String::new(),
-            search_filter: String::new(),
-            need_tls: false,
-            mappings: LdapMappings::default(),
-        }
-    }
-}
 
 impl LdapConfigFull {
     /// Создаёт новую LDAP конфигурацию

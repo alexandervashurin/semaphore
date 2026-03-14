@@ -28,7 +28,7 @@ impl SqlDb {
                         .bind(tpl_id)
                         .fetch_all(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                         .await
-                        .map_err(|e| Error::Database(e))?;
+                        .map_err(Error::Database)?;
 
                     let mut tasks = Vec::new();
                     for row in rows {
@@ -51,7 +51,7 @@ impl SqlDb {
                         .bind(project_id)
                         .fetch_all(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                         .await
-                        .map_err(|e| Error::Database(e))?;
+                        .map_err(Error::Database)?;
 
                     let mut tasks = Vec::new();
                     for row in rows {
@@ -126,7 +126,7 @@ impl SqlDb {
                 .bind(task_id)
                 .fetch_one(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 Self::row_to_task(&row)
             }
@@ -164,7 +164,7 @@ impl SqlDb {
                 .bind(task.created)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
                 
                 task.id = result.last_insert_rowid() as i32;
                 Ok(task)
@@ -203,7 +203,7 @@ impl SqlDb {
                 .bind(task.project_id)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
                 
                 Ok(())
             }
@@ -221,7 +221,7 @@ impl SqlDb {
                     .bind(project_id)
                     .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
                 
                 Ok(())
             }
@@ -238,7 +238,7 @@ impl SqlDb {
                     .bind(project_id)
                     .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
                 
                 Ok(())
             }

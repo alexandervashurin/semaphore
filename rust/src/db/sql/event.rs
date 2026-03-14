@@ -27,7 +27,7 @@ impl SqlDb {
                 let events = query
                     .fetch_all(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(events)
             }
@@ -51,7 +51,7 @@ impl SqlDb {
                 .bind(event.created)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 event.id = result.last_insert_rowid() as i32;
                 Ok(event)

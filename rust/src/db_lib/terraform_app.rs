@@ -191,6 +191,7 @@ impl TerraformApp {
     }
 
     /// Выполняет plan
+    #[allow(clippy::type_complexity)]
     pub async fn plan(&self, args: Vec<String>, environment_vars: Vec<String>, inputs: HashMap<String, String>, cb: Option<Box<dyn Fn(&Child) + Send>>) -> Result<bool> {
         self.logger.log("Running Terraform plan...");
         
@@ -220,6 +221,7 @@ impl TerraformApp {
     }
 
     /// Выполняет apply
+    #[allow(clippy::type_complexity)]
     pub async fn apply(&self, args: Vec<String>, environment_vars: Vec<String>, inputs: HashMap<String, String>, cb: Option<Box<dyn Fn(&Child) + Send>>) -> Result<()> {
         self.logger.log("Running Terraform apply...");
         

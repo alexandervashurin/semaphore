@@ -5,6 +5,7 @@
 use crate::models::User;
 
 /// Доступные функции проекта
+#[derive(Default)]
 pub struct ProjectFeatures {
     /// Раннеры проектов
     pub project_runners: bool,
@@ -16,16 +17,6 @@ pub struct ProjectFeatures {
     pub secret_storages: bool,
 }
 
-impl Default for ProjectFeatures {
-    fn default() -> Self {
-        Self {
-            project_runners: false,
-            terraform_backend: false,
-            task_summary: false,
-            secret_storages: false,
-        }
-    }
-}
 
 /// Получает доступные функции для пользователя
 pub fn get_features(user: &User, plan: &str) -> ProjectFeatures {

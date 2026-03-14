@@ -42,7 +42,7 @@ pub fn generate_totp_secret(user: &User, issuer: &str) -> Result<TotpSecret> {
     // Генерируем код восстановления
     let mut recovery_bytes = [0u8; 16];
     rand::thread_rng().fill_bytes(&mut recovery_bytes);
-    let recovery_code = hex::encode(&recovery_bytes);
+    let recovery_code = hex::encode(recovery_bytes);
 
     // Хешируем код восстановления
     let recovery_hash = bcrypt::hash(&recovery_code, bcrypt::DEFAULT_COST)
@@ -140,7 +140,7 @@ pub fn verify_recovery_code(code: &str, hash: &str) -> bool {
 pub fn generate_recovery_code() -> Result<(String, String)> {
     let mut recovery_bytes = [0u8; 16];
     rand::thread_rng().fill_bytes(&mut recovery_bytes);
-    let recovery_code = hex::encode(&recovery_bytes);
+    let recovery_code = hex::encode(recovery_bytes);
 
     let recovery_hash = bcrypt::hash(&recovery_code, bcrypt::DEFAULT_COST)
         .map_err(|e| Error::Other(format!("Ошибка хеширования: {}", e)))?;

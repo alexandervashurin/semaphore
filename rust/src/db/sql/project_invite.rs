@@ -25,7 +25,7 @@ impl SqlDb {
                 .bind(params.offset as i64)
                 .fetch_all(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 Ok(invites)
             }
@@ -50,7 +50,7 @@ impl SqlDb {
                 .bind(invite.inviter_user_id)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 invite.id = result.last_insert_rowid() as i32;
                 Ok(invite)
@@ -70,7 +70,7 @@ impl SqlDb {
                 .bind(project_id)
                 .fetch_optional(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 invite.ok_or(Error::NotFound("Project invite not found".to_string()))
             }
@@ -88,7 +88,7 @@ impl SqlDb {
                 .bind(token)
                 .fetch_optional(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 invite.ok_or(Error::NotFound("Project invite not found or expired".to_string()))
             }
@@ -110,7 +110,7 @@ impl SqlDb {
                 .bind(invite.project_id)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 Ok(())
             }
@@ -127,7 +127,7 @@ impl SqlDb {
                     .bind(project_id)
                     .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(())
             }

@@ -11,7 +11,7 @@ pub async fn get_projects(pool: &Pool<MySql>, user_id: Option<i32>) -> Result<Ve
     let projects = sqlx::query_as::<_, Project>(query)
         .fetch_all(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
     Ok(projects)
 }
@@ -45,7 +45,7 @@ pub async fn create_project(pool: &Pool<MySql>, mut project: Project) -> Result<
         .bind(project.default_secret_storage_id)
         .execute(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
     project.id = result.last_insert_id() as i32;
     Ok(project)
@@ -64,7 +64,7 @@ pub async fn update_project(pool: &Pool<MySql>, project: Project) -> Result<()> 
         .bind(project.id)
         .execute(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
     Ok(())
 }
@@ -75,7 +75,7 @@ pub async fn delete_project(pool: &Pool<MySql>, project_id: i32) -> Result<()> {
         .bind(project_id)
         .execute(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
     Ok(())
 }

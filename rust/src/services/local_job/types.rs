@@ -56,6 +56,7 @@ pub struct LocalJob {
 
 impl LocalJob {
     /// Создаёт новую локальную задачу
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         task: Task,
         template: Template,

@@ -13,7 +13,7 @@ pub fn thread_id() -> u64 {
     // но можно использовать ID потока
     format!("{:?}", thread::current().id())
         .chars()
-        .filter(|c| c.is_digit(10))
+        .filter(|c| c.is_ascii_digit())
         .collect::<String>()
         .parse()
         .unwrap_or(0)

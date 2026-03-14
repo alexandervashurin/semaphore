@@ -108,7 +108,7 @@ impl DbAccessKey {
         if let Some(storage_type) = self.source_storage_type {
             match storage_type {
                 DbAccessKeySourceStorageType::Env | DbAccessKeySourceStorageType::File => {
-                    return self.source_storage_key.as_ref().map_or(true, |k| k.is_empty());
+                    return self.source_storage_key.as_ref().is_none_or(|k| k.is_empty());
                 }
                 DbAccessKeySourceStorageType::Vault => {
                     return self.source_storage_id.is_none();
@@ -123,10 +123,10 @@ impl DbAccessKey {
         }
 
         match self.key_type {
-            DbAccessKeyType::String => self.string_value.as_ref().map_or(true, |s| s.is_empty()),
-            DbAccessKeyType::Ssh => self.ssh_key.as_ref().map_or(true, |k| k.private_key.is_empty()),
+            DbAccessKeyType::String => self.string_value.as_ref().is_none_or(|s| s.is_empty()),
+            DbAccessKeyType::Ssh => self.ssh_key.as_ref().is_none_or(|k| k.private_key.is_empty()),
             DbAccessKeyType::LoginPassword => {
-                self.login_password.as_ref().map_or(true, |k| k.password.is_empty())
+                self.login_password.as_ref().is_none_or(|k| k.password.is_empty())
             }
             DbAccessKeyType::None => true,
         }

@@ -151,6 +151,7 @@ pub struct BackupView {
 }
 
 /// BackupDB - загрузчик backup из БД
+#[derive(Default)]
 pub struct BackupDB {
     templates: Vec<Template>,
     repositories: Vec<Repository>,
@@ -165,16 +166,7 @@ pub struct BackupDB {
 impl BackupDB {
     /// Создаёт новый BackupDB
     pub fn new() -> Self {
-        Self {
-            templates: Vec::new(),
-            repositories: Vec::new(),
-            inventories: Vec::new(),
-            environments: Vec::new(),
-            access_keys: Vec::new(),
-            schedules: Vec::new(),
-            integrations: Vec::new(),
-            views: Vec::new(),
-        }
+        Self::default()
     }
 
     /// Загружает данные из БД
@@ -368,12 +360,7 @@ pub fn find_name_by_id<T: BackupEntity>(id: i32, items: &[T]) -> Option<String> 
 
 /// Вспомогательная функция для поиска сущности по имени
 pub fn find_entity_by_name<'a, T: BackupEntity>(name: &'a str, items: &'a [T]) -> Option<&'a T> {
-    for item in items {
-        if item.get_name() == name {
-            return Some(item);
-        }
-    }
-    None
+    items.iter().find(|&item| item.get_name() == name).map(|v| v as _)
 }
 
 /// Получает расписания по проекту

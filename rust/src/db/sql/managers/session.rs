@@ -19,7 +19,7 @@ impl SessionManager for SqlStore {
                     .bind(session_id)
                     .fetch_optional(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
                 
                 let row = row.ok_or_else(|| Error::NotFound("Сессия не найдена".to_string()))?;
                 
@@ -41,7 +41,7 @@ impl SessionManager for SqlStore {
                     .bind(session_id)
                     .fetch_optional(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
                 
                 let row = row.ok_or_else(|| Error::NotFound("Сессия не найдена".to_string()))?;
                 
@@ -63,7 +63,7 @@ impl SessionManager for SqlStore {
                     .bind(session_id)
                     .fetch_optional(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
                 
                 let row = row.ok_or_else(|| Error::NotFound("Сессия не найдена".to_string()))?;
                 
@@ -95,7 +95,7 @@ impl SessionManager for SqlStore {
                     .bind(session.expired)
                     .bind(&session.verification_method)
                     .bind(session.verified)
-                    .fetch_one(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                    .fetch_one(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?).await.map_err(Error::Database)?;
                 session.id = id;
                 Ok(session)
             }
@@ -110,7 +110,7 @@ impl SessionManager for SqlStore {
                     .bind(session.expired)
                     .bind(&session.verification_method)
                     .bind(session.verified)
-                    .fetch_one(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                    .fetch_one(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?).await.map_err(Error::Database)?;
                 session.id = id;
                 Ok(session)
             }
@@ -125,7 +125,7 @@ impl SessionManager for SqlStore {
                     .bind(session.expired)
                     .bind(&session.verification_method)
                     .bind(session.verified)
-                    .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                    .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?).await.map_err(Error::Database)?;
                 session.id = result.last_insert_id() as i32;
                 Ok(session)
             }
@@ -136,15 +136,15 @@ impl SessionManager for SqlStore {
         match self.get_dialect() {
             SqlDialect::SQLite => {
                 let query = "UPDATE session SET expired = 1 WHERE id = ?";
-                sqlx::query(query).bind(session_id).execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                sqlx::query(query).bind(session_id).execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?).await.map_err(Error::Database)?;
             }
             SqlDialect::PostgreSQL => {
                 let query = "UPDATE session SET expired = TRUE WHERE id = $1";
-                sqlx::query(query).bind(session_id).execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                sqlx::query(query).bind(session_id).execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?).await.map_err(Error::Database)?;
             }
             SqlDialect::MySQL => {
                 let query = "UPDATE `session` SET expired = 1 WHERE id = ?";
-                sqlx::query(query).bind(session_id).execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                sqlx::query(query).bind(session_id).execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?).await.map_err(Error::Database)?;
             }
         }
         Ok(())
@@ -159,15 +159,15 @@ impl SessionManager for SqlStore {
         match self.get_dialect() {
             SqlDialect::SQLite => {
                 let query = "UPDATE session SET last_active = ? WHERE id = ?";
-                sqlx::query(query).bind(Utc::now()).bind(session_id).execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                sqlx::query(query).bind(Utc::now()).bind(session_id).execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?).await.map_err(Error::Database)?;
             }
             SqlDialect::PostgreSQL => {
                 let query = "UPDATE session SET last_active = $1 WHERE id = $2";
-                sqlx::query(query).bind(Utc::now()).bind(session_id).execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                sqlx::query(query).bind(Utc::now()).bind(session_id).execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?).await.map_err(Error::Database)?;
             }
             SqlDialect::MySQL => {
                 let query = "UPDATE `session` SET last_active = ? WHERE id = ?";
-                sqlx::query(query).bind(Utc::now()).bind(session_id).execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                sqlx::query(query).bind(Utc::now()).bind(session_id).execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?).await.map_err(Error::Database)?;
             }
         }
         Ok(())

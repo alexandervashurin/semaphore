@@ -16,8 +16,10 @@ use std::sync::{Arc, RwLock};
 /// Статус задачи
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum TaskStatus {
     /// Задача ожидает выполнения
+    #[default]
     Waiting,
     /// Задача запускается (инициализация)
     Starting,
@@ -80,11 +82,6 @@ impl fmt::Display for TaskStatus {
     }
 }
 
-impl Default for TaskStatus {
-    fn default() -> Self {
-        TaskStatus::Waiting
-    }
-}
 
 impl TaskStatus {
     /// Проверяет, является ли статус допустимым

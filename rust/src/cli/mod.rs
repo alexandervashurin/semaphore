@@ -493,7 +493,7 @@ fn cmd_user_list(config: Config) -> anyhow::Result<()> {
         .block_on(async {
             let users = store.get_users(RetrieveQueryParams::default()).await?;
 
-            println!("{:<6} {:<20} {:<30} {}", "ID", "Username", "Email", "Name");
+            println!("{:<6} {:<20} {:<30} Name", "ID", "Username", "Email");
             println!("{}", "-".repeat(70));
             for user in users {
                 println!("{:<6} {:<20} {:<30} {}", user.id, user.username, user.email, user.name);

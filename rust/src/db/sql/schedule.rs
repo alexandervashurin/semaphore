@@ -17,7 +17,7 @@ impl SqlDb {
                 .bind(project_id)
                 .fetch_all(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 Ok(schedules)
             }
@@ -36,7 +36,7 @@ impl SqlDb {
                 .bind(project_id)
                 .fetch_optional(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 schedule.ok_or(Error::NotFound("Schedule not found".to_string()))
             }
@@ -59,7 +59,7 @@ impl SqlDb {
                 .bind(schedule.active)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 schedule.id = result.last_insert_rowid() as i32;
                 Ok(schedule)
@@ -84,7 +84,7 @@ impl SqlDb {
                 .bind(schedule.project_id)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 Ok(())
             }
@@ -101,7 +101,7 @@ impl SqlDb {
                     .bind(project_id)
                     .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(())
             }

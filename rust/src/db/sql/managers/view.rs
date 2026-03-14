@@ -27,7 +27,7 @@ impl ViewManager for SqlStore {
                         .bind(project_id)
                         .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                         .await
-                        .map_err(|e| Error::Database(e))?;
+                        .map_err(Error::Database)?;
                 }
                 SqlDialect::PostgreSQL => {
                     let query = "UPDATE view SET position = $1 WHERE id = $2 AND project_id = $3";
@@ -37,7 +37,7 @@ impl ViewManager for SqlStore {
                         .bind(project_id)
                         .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                         .await
-                        .map_err(|e| Error::Database(e))?;
+                        .map_err(Error::Database)?;
                 }
                 SqlDialect::MySQL => {
                     let query = "UPDATE `view` SET position = ? WHERE id = ? AND project_id = ?";
@@ -47,7 +47,7 @@ impl ViewManager for SqlStore {
                         .bind(project_id)
                         .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                         .await
-                        .map_err(|e| Error::Database(e))?;
+                        .map_err(Error::Database)?;
                 }
             }
         }

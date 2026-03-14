@@ -32,6 +32,7 @@ impl LocalJob {
     }
 
     /// Получает аргументы CLI в виде карты (для Terraform стадий)
+    #[allow(clippy::type_complexity)]
     pub fn get_cli_args_map(&self) -> Result<(HashMap<String, Vec<String>>, HashMap<String, Vec<String>>)> {
         let mut template_args_map = HashMap::new();
         let mut task_args_map = HashMap::new();

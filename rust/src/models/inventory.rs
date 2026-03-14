@@ -163,8 +163,10 @@ impl Inventory {
         }
     }
 
-    /// Создаёт инвентарь по умолчанию
-    pub fn default() -> Self {
+}
+
+impl Default for Inventory {
+    fn default() -> Self {
         Self {
             id: 0,
             project_id: 0,

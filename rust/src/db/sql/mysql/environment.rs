@@ -12,7 +12,7 @@ pub async fn get_environments(pool: &Pool<MySql>, project_id: i32) -> Result<Vec
         .bind(project_id)
         .fetch_all(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
     Ok(environments)
 }
@@ -47,7 +47,7 @@ pub async fn create_environment(pool: &Pool<MySql>, mut environment: Environment
         .bind(environment.created)
         .execute(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
     environment.id = result.last_insert_id() as i32;
     Ok(environment)
@@ -66,7 +66,7 @@ pub async fn update_environment(pool: &Pool<MySql>, environment: Environment) ->
         .bind(environment.project_id)
         .execute(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
     Ok(())
 }
@@ -78,7 +78,7 @@ pub async fn delete_environment(pool: &Pool<MySql>, project_id: i32, environment
         .bind(project_id)
         .execute(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
     Ok(())
 }

@@ -271,7 +271,7 @@ impl GitRepository {
         for line in output_str.lines() {
             if line.contains("HEAD") || line.contains("refs/heads/") {
                 let parts: Vec<&str> = line.split('\t').collect();
-                if parts.len() >= 1 {
+                if !parts.is_empty() {
                     return Ok(parts[0].to_string());
                 }
             }

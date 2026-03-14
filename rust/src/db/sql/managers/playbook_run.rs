@@ -97,7 +97,7 @@ impl PlaybookRunManager for SqlStore {
                 }
                 if filter.date_to.is_some() {
                     query.push_str(&format!(" AND created <= ${}", param_idx));
-                    param_idx += 1;
+                    let _ = param_idx;
                 }
 
                 query.push_str(" ORDER BY created DESC");

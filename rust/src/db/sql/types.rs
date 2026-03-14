@@ -180,19 +180,19 @@ impl SqlTransaction {
                     .ok_or_else(|| crate::error::Error::Other("SQLite pool not found".to_string()))?;
                 // В SQLx транзакции начинаются автоматически при первом запросе
                 self.sqlite_txn = Some(pool.begin().await
-                    .map_err(|e| crate::error::Error::Database(e.into()))?);
+                    .map_err(crate::error::Error::Database)?);
             }
             SqlDialect::MySQL => {
                 let pool = db.get_mysql_pool()
                     .ok_or_else(|| crate::error::Error::Other("MySQL pool not found".to_string()))?;
                 self.mysql_txn = Some(pool.begin().await
-                    .map_err(|e| crate::error::Error::Database(e.into()))?);
+                    .map_err(crate::error::Error::Database)?);
             }
             SqlDialect::PostgreSQL => {
                 let pool = db.get_postgres_pool()
                     .ok_or_else(|| crate::error::Error::Other("PostgreSQL pool not found".to_string()))?;
                 self.postgres_txn = Some(pool.begin().await
-                    .map_err(|e| crate::error::Error::Database(e.into()))?);
+                    .map_err(crate::error::Error::Database)?);
             }
         }
         Ok(())
@@ -204,19 +204,19 @@ impl SqlTransaction {
             SqlDialect::SQLite => {
                 if let Some(txn) = self.sqlite_txn.take() {
                     txn.commit().await
-                        .map_err(|e| crate::error::Error::Database(e.into()))?;
+                        .map_err(crate::error::Error::Database)?;
                 }
             }
             SqlDialect::MySQL => {
                 if let Some(txn) = self.mysql_txn.take() {
                     txn.commit().await
-                        .map_err(|e| crate::error::Error::Database(e.into()))?;
+                        .map_err(crate::error::Error::Database)?;
                 }
             }
             SqlDialect::PostgreSQL => {
                 if let Some(txn) = self.postgres_txn.take() {
                     txn.commit().await
-                        .map_err(|e| crate::error::Error::Database(e.into()))?;
+                        .map_err(crate::error::Error::Database)?;
                 }
             }
         }
@@ -229,19 +229,19 @@ impl SqlTransaction {
             SqlDialect::SQLite => {
                 if let Some(txn) = self.sqlite_txn.take() {
                     txn.rollback().await
-                        .map_err(|e| crate::error::Error::Database(e.into()))?;
+                        .map_err(crate::error::Error::Database)?;
                 }
             }
             SqlDialect::MySQL => {
                 if let Some(txn) = self.mysql_txn.take() {
                     txn.rollback().await
-                        .map_err(|e| crate::error::Error::Database(e.into()))?;
+                        .map_err(crate::error::Error::Database)?;
                 }
             }
             SqlDialect::PostgreSQL => {
                 if let Some(txn) = self.postgres_txn.take() {
                     txn.rollback().await
-                        .map_err(|e| crate::error::Error::Database(e.into()))?;
+                        .map_err(crate::error::Error::Database)?;
                 }
             }
         }

@@ -179,7 +179,7 @@ async fn clone_repository(repository: &crate::models::Repository, path: &Path) -
     // Клонируем репозиторий
     let _repo = builder
         .clone(&repository.git_url, path)
-        .map_err(|e| Error::Git(e))?;
+        .map_err(Error::Git)?;
 
     Ok(())
 }

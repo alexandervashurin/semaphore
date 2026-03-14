@@ -125,13 +125,6 @@ impl AccessKeyInstaller {
         Self { temp_dir }
     }
 
-    /// Создаёт установщик по умолчанию
-    pub fn default() -> Self {
-        Self {
-            temp_dir: PathBuf::from("/tmp/semaphore/keys"),
-        }
-    }
-
     /// Устанавливает ключ
     pub fn install(
         &self,
@@ -234,7 +227,9 @@ impl AccessKeyInstaller {
 
 impl Default for AccessKeyInstaller {
     fn default() -> Self {
-        Self::default()
+        Self {
+            temp_dir: PathBuf::from("/tmp/semaphore/keys"),
+        }
     }
 }
 

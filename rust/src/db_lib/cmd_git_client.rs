@@ -548,11 +548,7 @@ impl GitClient for CmdGitClient {
                 }
 
                 let ref_path = parts[1];
-                if let Some(idx) = ref_path.rfind('/') {
-                    Some(ref_path[idx + 1..].to_string())
-                } else {
-                    None
-                }
+                ref_path.rfind('/').map(|idx| ref_path[idx + 1..].to_string())
             })
             .collect();
 

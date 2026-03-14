@@ -92,7 +92,7 @@ impl CacheMiddleware {
             let (parts, body) = response.into_parts();
             
             // Читаем тело ответа
-            let body_bytes = match axum::body::to_bytes(Body::from(body), usize::MAX).await {
+            let body_bytes = match axum::body::to_bytes(body, usize::MAX).await {
                 Ok(bytes) => bytes,
                 Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
             };

@@ -15,7 +15,7 @@ pub async fn execute_query(db: &SqlDb, query: &str) -> Result<u64> {
             let result = sqlx::query(query)
                 .execute(db.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
             Ok(result.rows_affected())
         }
@@ -33,7 +33,7 @@ where
             let row = sqlx::query_as::<_, T>(query)
                 .fetch_one(db.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
             
             Ok(row)
         }
@@ -51,7 +51,7 @@ where
             let rows = sqlx::query_as::<_, T>(query)
                 .fetch_all(db.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
             
             Ok(rows)
         }
@@ -69,7 +69,7 @@ pub async fn table_exists(db: &SqlDb, table_name: &str) -> Result<bool> {
             .bind(table_name)
             .fetch_one(db.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
             .await
-            .map_err(|e| Error::Database(e))?;
+            .map_err(Error::Database)?;
             
             let count: i64 = result.get(0);
             Ok(count > 0)
@@ -85,7 +85,7 @@ pub async fn get_all_tables(db: &SqlDb) -> Result<Vec<String>> {
             let result = sqlx::query("SELECT name FROM sqlite_master WHERE type='table'")
                 .fetch_all(db.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
             
             let tables = result
                 .iter()
@@ -105,7 +105,7 @@ pub async fn truncate_table(db: &SqlDb, table_name: &str) -> Result<()> {
             sqlx::query(&format!("DELETE FROM {}", table_name))
                 .execute(db.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
             
             Ok(())
         }
@@ -121,7 +121,7 @@ pub async fn reset_autoincrement(db: &SqlDb, table_name: &str) -> Result<()> {
                 .bind(table_name)
                 .execute(db.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
             Ok(())
         }
@@ -136,7 +136,7 @@ pub async fn enable_foreign_keys(db: &SqlDb) -> Result<()> {
             sqlx::query("PRAGMA foreign_keys = ON")
                 .execute(db.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
             
             Ok(())
         }
@@ -151,7 +151,7 @@ pub async fn foreign_keys_enabled(db: &SqlDb) -> Result<bool> {
             let result = sqlx::query("PRAGMA foreign_keys")
                 .fetch_one(db.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
             
             let enabled: i64 = result.get(0);
             Ok(enabled == 1)

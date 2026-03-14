@@ -37,7 +37,7 @@ impl PlaybookRunService {
         S: PlaybookManager + TemplateManager + InventoryManager + EnvironmentManager + TaskManager + UserManager + PlaybookRunManager,
     {
         // 1. Валидация запроса
-        request.validate().map_err(|e| Error::Validation(e))?;
+        request.validate().map_err(Error::Validation)?;
 
         // 2. Получаем playbook
         let playbook = store.get_playbook(playbook_id, project_id).await?;

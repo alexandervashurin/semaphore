@@ -20,7 +20,7 @@ impl TemplateManager for SqlStore {
                     .bind(project_id)
                     .fetch_all(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(rows.into_iter().map(|row| Template {
                     id: row.get("id"),
@@ -45,7 +45,7 @@ impl TemplateManager for SqlStore {
                     .bind(project_id)
                     .fetch_all(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(rows.into_iter().map(|row| Template {
                     id: row.get("id"),
@@ -70,7 +70,7 @@ impl TemplateManager for SqlStore {
                     .bind(project_id)
                     .fetch_all(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(rows.into_iter().map(|row| Template {
                     id: row.get("id"),
@@ -204,7 +204,7 @@ impl TemplateManager for SqlStore {
                     .bind(template.vault_key_id)
                     .fetch_one(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 template.id = id;
                 Ok(template)
@@ -227,7 +227,7 @@ impl TemplateManager for SqlStore {
                     .bind(template.vault_key_id)
                     .fetch_one(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 template.id = id;
                 Ok(template)
@@ -250,12 +250,12 @@ impl TemplateManager for SqlStore {
                     .bind(template.vault_key_id)
                     .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 let id: i32 = sqlx::query_scalar("SELECT LAST_INSERT_ID()")
                     .fetch_one(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 template.id = id;
                 Ok(template)
@@ -278,12 +278,12 @@ impl TemplateManager for SqlStore {
                     .bind(&template.app)
                     .bind(&template.git_branch)
                     .bind(&template.arguments)
-                    .bind(&template.vault_key_id)
+                    .bind(template.vault_key_id)
                     .bind(template.id)
                     .bind(template.project_id)
                     .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::PostgreSQL => {
                 let query = "UPDATE template SET name = $1, playbook = $2, description = $3, inventory_id = $4, repository_id = $5, environment_id = $6, type = $7, app = $8, git_branch = $9, arguments = $10, vault_key_id = $11 WHERE id = $12 AND project_id = $13";
@@ -298,12 +298,12 @@ impl TemplateManager for SqlStore {
                     .bind(&template.app)
                     .bind(&template.git_branch)
                     .bind(&template.arguments)
-                    .bind(&template.vault_key_id)
+                    .bind(template.vault_key_id)
                     .bind(template.id)
                     .bind(template.project_id)
                     .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::MySQL => {
                 let query = "UPDATE `template` SET name = ?, playbook = ?, description = ?, inventory_id = ?, repository_id = ?, environment_id = ?, type = ?, app = ?, git_branch = ?, arguments = ?, vault_key_id = ? WHERE id = ? AND project_id = ?";
@@ -318,12 +318,12 @@ impl TemplateManager for SqlStore {
                     .bind(&template.app)
                     .bind(&template.git_branch)
                     .bind(&template.arguments)
-                    .bind(&template.vault_key_id)
+                    .bind(template.vault_key_id)
                     .bind(template.id)
                     .bind(template.project_id)
                     .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
         }
         Ok(())
@@ -339,7 +339,7 @@ impl TemplateManager for SqlStore {
                     .bind(project_id)
                     .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::PostgreSQL => {
                 let query = "UPDATE template SET deleted = true WHERE id = $1 AND project_id = $2";
@@ -348,7 +348,7 @@ impl TemplateManager for SqlStore {
                     .bind(project_id)
                     .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::MySQL => {
                 let query = "UPDATE `template` SET deleted = 1 WHERE id = ? AND project_id = ?";
@@ -357,7 +357,7 @@ impl TemplateManager for SqlStore {
                     .bind(project_id)
                     .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
         }
         Ok(())

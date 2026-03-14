@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 /// HA (High Availability) конфигурация
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct HAConfigFull {
     /// Включить HA режим
     #[serde(default)]
@@ -40,15 +41,6 @@ pub struct HARedisConfigFull {
     pub db: u8,
 }
 
-impl Default for HAConfigFull {
-    fn default() -> Self {
-        Self {
-            enable: false,
-            redis: HARedisConfigFull::default(),
-            node_id: String::new(),
-        }
-    }
-}
 
 impl Default for HARedisConfigFull {
     fn default() -> Self {

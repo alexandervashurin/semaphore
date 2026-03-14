@@ -24,7 +24,7 @@ impl SqlDb {
                     .bind(project_id)
                     .fetch_all(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
                 
                 Ok(outputs)
             }
@@ -46,7 +46,7 @@ impl SqlDb {
                 .bind(output.stage_id)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
                 
                 output.id = result.last_insert_rowid() as i32;
                 Ok(output)
@@ -72,7 +72,7 @@ impl SqlDb {
                     .bind(project_id)
                     .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
                 
                 Ok(())
             }
@@ -89,7 +89,7 @@ impl SqlDb {
                     .bind(project_id)
                     .fetch_one(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
                 
                 let count: i64 = result.get(0);
                 Ok(count as usize)

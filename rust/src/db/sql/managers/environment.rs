@@ -20,7 +20,7 @@ impl EnvironmentManager for SqlStore {
                     .bind(project_id)
                     .fetch_all(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(rows.into_iter().map(|row| Environment {
                     id: row.get("id"),
@@ -38,7 +38,7 @@ impl EnvironmentManager for SqlStore {
                     .bind(project_id)
                     .fetch_all(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(rows.into_iter().map(|row| Environment {
                     id: row.get("id"),
@@ -56,7 +56,7 @@ impl EnvironmentManager for SqlStore {
                     .bind(project_id)
                     .fetch_all(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(rows.into_iter().map(|row| Environment {
                     id: row.get("id"),
@@ -150,11 +150,11 @@ impl EnvironmentManager for SqlStore {
                     .bind(environment.project_id)
                     .bind(&environment.name)
                     .bind(&environment.json)
-                    .bind(&environment.secret_storage_id)
+                    .bind(environment.secret_storage_id)
                     .bind(&environment.secrets)
                     .fetch_one(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 environment.id = id;
                 Ok(environment)
@@ -165,11 +165,11 @@ impl EnvironmentManager for SqlStore {
                     .bind(environment.project_id)
                     .bind(&environment.name)
                     .bind(&environment.json)
-                    .bind(&environment.secret_storage_id)
+                    .bind(environment.secret_storage_id)
                     .bind(&environment.secrets)
                     .fetch_one(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 environment.id = id;
                 Ok(environment)
@@ -180,16 +180,16 @@ impl EnvironmentManager for SqlStore {
                     .bind(environment.project_id)
                     .bind(&environment.name)
                     .bind(&environment.json)
-                    .bind(&environment.secret_storage_id)
+                    .bind(environment.secret_storage_id)
                     .bind(&environment.secrets)
                     .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 let id: i32 = sqlx::query_scalar("SELECT LAST_INSERT_ID()")
                     .fetch_one(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 environment.id = id;
                 Ok(environment)
@@ -204,39 +204,39 @@ impl EnvironmentManager for SqlStore {
                 sqlx::query(query)
                     .bind(&environment.name)
                     .bind(&environment.json)
-                    .bind(&environment.secret_storage_id)
+                    .bind(environment.secret_storage_id)
                     .bind(&environment.secrets)
                     .bind(environment.id)
                     .bind(environment.project_id)
                     .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::PostgreSQL => {
                 let query = "UPDATE environment SET name = $1, json = $2, secret_storage_id = $3, secrets = $4 WHERE id = $5 AND project_id = $6";
                 sqlx::query(query)
                     .bind(&environment.name)
                     .bind(&environment.json)
-                    .bind(&environment.secret_storage_id)
+                    .bind(environment.secret_storage_id)
                     .bind(&environment.secrets)
                     .bind(environment.id)
                     .bind(environment.project_id)
                     .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::MySQL => {
                 let query = "UPDATE `environment` SET name = ?, json = ?, secret_storage_id = ?, secrets = ? WHERE id = ? AND project_id = ?";
                 sqlx::query(query)
                     .bind(&environment.name)
                     .bind(&environment.json)
-                    .bind(&environment.secret_storage_id)
+                    .bind(environment.secret_storage_id)
                     .bind(&environment.secrets)
                     .bind(environment.id)
                     .bind(environment.project_id)
                     .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
         }
         Ok(())
@@ -251,7 +251,7 @@ impl EnvironmentManager for SqlStore {
                     .bind(project_id)
                     .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::PostgreSQL => {
                 let query = "DELETE FROM environment WHERE id = $1 AND project_id = $2";
@@ -260,7 +260,7 @@ impl EnvironmentManager for SqlStore {
                     .bind(project_id)
                     .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::MySQL => {
                 let query = "DELETE FROM `environment` WHERE id = ? AND project_id = ?";
@@ -269,7 +269,7 @@ impl EnvironmentManager for SqlStore {
                     .bind(project_id)
                     .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
         }
         Ok(())

@@ -50,21 +50,21 @@ impl SqlDb {
                     .bind(webhook_id)
                     .fetch_optional(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?
+                    .map_err(Error::Database)?
             }
             super::SqlDialect::PostgreSQL => {
                 sqlx::query_as::<_, WebhookRow>("SELECT * FROM webhook WHERE id = $1")
                     .bind(webhook_id)
                     .fetch_optional(self.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?
+                    .map_err(Error::Database)?
             }
             super::SqlDialect::MySQL => {
                 sqlx::query_as::<_, WebhookRow>("SELECT * FROM webhook WHERE id = ?")
                     .bind(webhook_id)
                     .fetch_optional(self.get_mysql_pool().ok_or(Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?
+                    .map_err(Error::Database)?
             }
         };
 
@@ -80,21 +80,21 @@ impl SqlDb {
                     .bind(project_id)
                     .fetch_all(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?
+                    .map_err(Error::Database)?
             }
             super::SqlDialect::PostgreSQL => {
                 sqlx::query_as::<_, WebhookRow>("SELECT * FROM webhook WHERE project_id = $1 ORDER BY created_at DESC")
                     .bind(project_id)
                     .fetch_all(self.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?
+                    .map_err(Error::Database)?
             }
             super::SqlDialect::MySQL => {
                 sqlx::query_as::<_, WebhookRow>("SELECT * FROM webhook WHERE project_id = ? ORDER BY created_at DESC")
                     .bind(project_id)
                     .fetch_all(self.get_mysql_pool().ok_or(Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?
+                    .map_err(Error::Database)?
             }
         };
 
@@ -126,7 +126,7 @@ impl SqlDb {
                 .bind(now)
                 .fetch_one(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 webhook.id = id;
                 webhook.created = now;
@@ -152,7 +152,7 @@ impl SqlDb {
                 .bind(now)
                 .fetch_one(self.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 webhook.id = id;
                 webhook.created = now;
@@ -178,7 +178,7 @@ impl SqlDb {
                 .bind(now)
                 .execute(self.get_mysql_pool().ok_or(Error::Other("MySQL pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 webhook.id = result.last_insert_id() as i64;
                 webhook.created = now;
@@ -221,7 +221,7 @@ impl SqlDb {
                 .bind(now).bind(webhook_id)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
             }
             super::SqlDialect::PostgreSQL => {
                 sqlx::query(
@@ -234,7 +234,7 @@ impl SqlDb {
                 .bind(now).bind(webhook_id)
                 .execute(self.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
             }
             super::SqlDialect::MySQL => {
                 sqlx::query(
@@ -247,7 +247,7 @@ impl SqlDb {
                 .bind(now).bind(webhook_id)
                 .execute(self.get_mysql_pool().ok_or(Error::Other("MySQL pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
             }
         }
         Ok(current)
@@ -261,21 +261,21 @@ impl SqlDb {
                     .bind(webhook_id)
                     .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             super::SqlDialect::PostgreSQL => {
                 sqlx::query("DELETE FROM webhook WHERE id = $1")
                     .bind(webhook_id)
                     .execute(self.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             super::SqlDialect::MySQL => {
                 sqlx::query("DELETE FROM webhook WHERE id = ?")
                     .bind(webhook_id)
                     .execute(self.get_mysql_pool().ok_or(Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
         }
         Ok(())
@@ -289,21 +289,21 @@ impl SqlDb {
                     .bind(webhook_id)
                     .fetch_all(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?
+                    .map_err(Error::Database)?
             }
             super::SqlDialect::PostgreSQL => {
                 sqlx::query_as::<_, WebhookLogRow>("SELECT * FROM webhook_log WHERE webhook_id = $1 ORDER BY created_at DESC")
                     .bind(webhook_id)
                     .fetch_all(self.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?
+                    .map_err(Error::Database)?
             }
             super::SqlDialect::MySQL => {
                 sqlx::query_as::<_, WebhookLogRow>("SELECT * FROM webhook_log WHERE webhook_id = ? ORDER BY created_at DESC")
                     .bind(webhook_id)
                     .fetch_all(self.get_mysql_pool().ok_or(Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?
+                    .map_err(Error::Database)?
             }
         };
 
@@ -322,7 +322,7 @@ impl SqlDb {
                 )
                 .bind(log.webhook_id)
                 .bind(&log.event_type)
-                .bind(&log.status_code)
+                .bind(log.status_code)
                 .bind(log.success)
                 .bind(&log.error)
                 .bind(log.attempts)
@@ -331,7 +331,7 @@ impl SqlDb {
                 .bind(now)
                 .fetch_one(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 log.id = id;
                 log.created = now;
@@ -344,7 +344,7 @@ impl SqlDb {
                 )
                 .bind(log.webhook_id)
                 .bind(&log.event_type)
-                .bind(&log.status_code)
+                .bind(log.status_code)
                 .bind(log.success)
                 .bind(&log.error)
                 .bind(log.attempts)
@@ -353,7 +353,7 @@ impl SqlDb {
                 .bind(now)
                 .fetch_one(self.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 log.id = id;
                 log.created = now;
@@ -366,7 +366,7 @@ impl SqlDb {
                 )
                 .bind(log.webhook_id)
                 .bind(&log.event_type)
-                .bind(&log.status_code)
+                .bind(log.status_code)
                 .bind(log.success)
                 .bind(&log.error)
                 .bind(log.attempts)
@@ -375,7 +375,7 @@ impl SqlDb {
                 .bind(now)
                 .execute(self.get_mysql_pool().ok_or(Error::Other("MySQL pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 log.id = result.last_insert_id() as i64;
                 log.created = now;
