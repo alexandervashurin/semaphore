@@ -36,6 +36,9 @@ impl ServerCommand {
             // Создаём хранилище
             let store = Self::create_store_async(&config).await?;
 
+            // Сид admin-пользователя при первом запуске
+            Self::seed_admin_if_empty(&*store).await;
+
             // Создаём приложение
             let app = api::create_app(store);
 
@@ -50,6 +53,53 @@ impl ServerCommand {
         })?;
 
         Ok(())
+    }
+
+    /// Создаёт admin-пользователя из env-переменных если БД пустая
+    async fn seed_admin_if_empty(store: &dyn crate::db::Store) {
+        use crate::db::store::RetrieveQueryParams;
+        use crate::models::User;
+        use bcrypt::hash;
+
+        let admin_login = std::env::var("SEMAPHORE_ADMIN").unwrap_or_else(|_| "admin".to_string());
+        let admin_password = std::env::var("SEMAPHORE_ADMIN_PASSWORD").unwrap_or_else(|_| "admin123".to_string());
+        let admin_email = std::env::var("SEMAPHORE_ADMIN_EMAIL").unwrap_or_else(|_| "admin@localhost".to_string());
+        let admin_name = std::env::var("SEMAPHORE_ADMIN_NAME").unwrap_or_else(|_| admin_login.clone());
+
+        let existing = store.get_users(RetrieveQueryParams { count: Some(1), offset: 0, sort_by: None, sort_inverted: false, filter: None }).await;
+        match existing {
+            Ok(users) if !users.is_empty() => return,
+            Err(e) => {
+                eprintln!("seed_admin: failed to query users: {e}");
+                return;
+            }
+            _ => {}
+        }
+
+        let password_hash = match hash(&admin_password, 12) {
+            Ok(h) => h,
+            Err(e) => { eprintln!("seed_admin: bcrypt error: {e}"); return; }
+        };
+
+        let user = User {
+            id: 0,
+            created: chrono::Utc::now(),
+            username: admin_login.clone(),
+            name: admin_name,
+            email: admin_email,
+            password: password_hash,
+            admin: true,
+            external: false,
+            alert: false,
+            pro: false,
+            totp: None,
+            email_otp: None,
+        };
+
+        match store.create_user(user, &admin_password).await {
+            Ok(u) => println!("Admin user '{}' created (first-run seed)", u.username),
+            Err(e) => eprintln!("seed_admin: failed to create user: {e}"),
+        }
     }
 
     /// Создаёт хранилище (async версия)

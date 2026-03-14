@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Пользователи - Semaphore UI</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 Semaphore UI</h1>
+        <div class="user-menu">
+            <span id="user-name">Admin</span>
+            <a href="/" class="btn btn-sm" style="margin-right: 8px;">← Dashboard</a>
+            <button class="btn-logout" onclick="api.logout()">Выйти</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="page-header">
+            <h1>👥 Пользователи</h1>
+            <button class="btn btn-primary" onclick="openUserModal()">+ Новый пользователь</button>
+        </div>
+
+        <div id="users-content">
+            <div class="loading">
+                <div class="loading-spinner"></div>
+                <p>Загрузка пользователей...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        checkAuth();
+
+        loadUsers();
+
+        function loadUsers() {
+            const container = $('#users-content');
+
+            api.getUsers()
+                .then(users => {
+                    if (users.length === 0) {
+                        ui.showEmpty(container, '👥', 'Нет пользователей', 'Создайте первого пользователя');
+                    } else {
+                        container.innerHTML = `
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Имя пользователя</th>
+                                        <th>Полное имя</th>
+                                        <th>Email</th>
+                                        <th>Роль</th>
+                                        <th>Создан</th>
+                                        <th>Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${users.map(u => `
+                                        <tr>
+                                            <td><strong>${escapeHtml(u.username)}</strong></td>
+                                            <td>${escapeHtml(u.name || '—')}</td>
+                                            <td>${escapeHtml(u.email || '—')}</td>
+                                            <td>
+                                                <span class="badge badge-${u.admin ? 'success' : 'warning'}">
+                                                    ${u.admin ? '👑 Admin' : '👤 User'}
+                                                </span>
+                                            </td>
+                                            <td>${formatDate(u.created)}</td>
+                                            <td>
+                                                <button class="btn btn-sm" onclick="editUser(${u.id})">✏️</button>
+                                                <button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id})">🗑️</button>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    ui.showError(container, error.message);
+                });
+        }
+
+        function editUser(id) {
+            api.getUser(id)
+                .then(user => openUserModal(user))
+                .catch(error => ui.showAlert('Ошибка: ' + error.message, 'danger'));
+        }
+
+        function deleteUser(id) {
+            if (!confirm('Удалить пользователя?')) return;
+            api.deleteUser(id)
+                .then(() => { ui.showAlert('Пользователь удалён', 'success'); loadUsers(); })
+                .catch(error => ui.showAlert('Ошибка: ' + error.message, 'danger'));
+        }
+
+        function openUserModal(user = null) {
+            const isEdit = !!user;
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.id = 'user-modal';
+            modal.innerHTML = `
+                <div class="modal" style="max-width: 500px;">
+                    <div class="modal-header">
+                        <h2>${isEdit ? '✏️ Редактирование' : '➕ Новый'} пользователь</h2>
+                    </div>
+                    <form id="user-form">
+                        <div class="form-group">
+                            <label for="username">Логин *</label>
+                            <input type="text" id="username" class="form-control" required value="${escapeHtml(user?.username || '')}" placeholder="admin" ${isEdit ? 'readonly' : ''}>
+                        </div>
+                        <div class="form-group">
+                            <label for="name">Полное имя</label>
+                            <input type="text" id="name" class="form-control" value="${escapeHtml(user?.name || '')}" placeholder="Иван Иванов">
+                        </div>
+                        <div class="form-group">
+                            <label for="email">Email</label>
+                            <input type="email" id="email" class="form-control" value="${escapeHtml(user?.email || '')}" placeholder="user@example.com">
+                        </div>
+                        ${!isEdit ? `
+                        <div class="form-group">
+                            <label for="password">Пароль *</label>
+                            <input type="password" id="password" class="form-control" required placeholder="Пароль пользователя">
+                        </div>
+                        ` : ''}
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="admin" ${user?.admin ? 'checked' : ''}>
+                                Права администратора
+                            </label>
+                        </div>
+                        <div class="modal-footer" style="margin-top: 20px;">
+                            <button type="button" class="btn" onclick="closeUserModal()">Отмена</button>
+                            <button type="submit" class="btn btn-primary">${isEdit ? 'Сохранить' : 'Создать'}</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            $('#user-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                saveUser(user?.id);
+            });
+
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeUserModal();
+            });
+        }
+
+        function closeUserModal() {
+            const m = $('#user-modal');
+            if (m) m.remove();
+        }
+
+        function saveUser(id) {
+            const data = {
+                username: $('#username').value.trim(),
+                name: $('#name').value.trim() || null,
+                email: $('#email').value.trim() || null,
+                admin: $('#admin').checked
+            };
+
+            if (!data.username) { ui.showAlert('Введите логин', 'warning'); return; }
+
+            if (!id) {
+                const pwd = $('#password').value;
+                if (!pwd) { ui.showAlert('Введите пароль', 'warning'); return; }
+                data.password = pwd;
+            }
+
+            const btn = $('#user-form button[type="submit"]');
+            btn.disabled = true;
+            btn.textContent = 'Сохранение...';
+
+            const promise = id ? api.updateUser(id, data) : api.createUser(data);
+
+            promise
+                .then(() => {
+                    ui.showAlert(id ? 'Пользователь обновлён' : 'Пользователь создан', 'success');
+                    closeUserModal();
+                    loadUsers();
+                })
+                .catch(error => {
+                    ui.showAlert('Ошибка: ' + error.message, 'danger');
+                    btn.disabled = false;
+                    btn.textContent = id ? 'Сохранить' : 'Создать';
+                });
+        }
+
+        window.editUser = editUser;
+        window.deleteUser = deleteUser;
+    </script>
+</body>
+</html>

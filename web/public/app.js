@@ -75,7 +75,9 @@ const api = {
             });
 
             if (response.status === 401) {
-                this.logout();
+                if (!url.includes('/auth/login')) {
+                    this.logout();
+                }
                 throw new Error('Не авторизован');
             }
 
@@ -163,29 +165,37 @@ const api = {
         return this.post('/project/' + projectId + '/playbooks/' + id + '/sync');
     },
 
-    // Templates
-    getTemplates(projectId) {
-        return this.get('/project/' + projectId + '/templates');
+    createProject(data) {
+        return this.post('/projects', data);
     },
 
-    // Inventory
-    getInventories(projectId) {
-        return this.get('/project/' + projectId + '/inventory');
+    updateProject(id, data) {
+        return this.put('/projects/' + id, data);
     },
 
-    // Environment
-    getEnvironments(projectId) {
-        return this.get('/project/' + projectId + '/environment');
+    deleteProject(id) {
+        return this.delete('/projects/' + id);
     },
 
-    // Repositories
-    getRepositories(projectId) {
-        return this.get('/project/' + projectId + '/repositories');
+    // Users
+    getUsers() {
+        return this.get('/users');
     },
 
-    // Keys
-    getKeys(projectId) {
-        return this.get('/project/' + projectId + '/keys');
+    getUser(id) {
+        return this.get('/users/' + id);
+    },
+
+    createUser(data) {
+        return this.post('/users', data);
+    },
+
+    updateUser(id, data) {
+        return this.put('/users/' + id, data);
+    },
+
+    deleteUser(id) {
+        return this.delete('/users/' + id);
     },
 
     // Inventory
@@ -403,6 +413,26 @@ function checkAuth() {
     }
     return token;
 }
+
+// ==================== Sidebar ====================
+
+function initSidebar() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const projectId = urlParams.get('id');
+    if (!projectId) return;
+
+    const sidebar = document.querySelector('.sidebar-nav');
+    if (!sidebar) return;
+
+    sidebar.querySelectorAll('a[href]').forEach(a => {
+        const href = a.getAttribute('href');
+        if (href && !href.startsWith('http') && !href.includes('index.html') && !href.includes('?')) {
+            a.setAttribute('href', href + '?id=' + projectId);
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', initSidebar);
 
 // ==================== Export ====================
 

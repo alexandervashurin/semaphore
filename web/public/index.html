@@ -23,6 +23,7 @@
 
         <div class="page-header">
             <h1>Проекты</h1>
+            <button class="btn btn-primary" onclick="openProjectModal()">+ Новый проект</button>
         </div>
 
         <div id="projects-grid" class="grid">
@@ -37,24 +38,92 @@
     <script>
         checkAuth();
 
-        // Загрузка проектов
-        api.getProjects()
-            .then(projects => {
-                const grid = $('#projects-grid');
-                if (projects.length === 0) {
-                    ui.showEmpty(grid, '📁', 'Нет проектов', 'Создайте первый проект чтобы начать работу');
-                } else {
-                    grid.innerHTML = projects.map(p => `
-                        <div class="card" onclick="location.href='/project.html?id=${p.id}'" style="cursor: pointer;">
-                            <h3 style="color: var(--primary); margin-bottom: 10px;">${escapeHtml(p.name)}</h3>
-                            <p style="color: var(--text-light);">${escapeHtml(p.description || 'Нет описания')}</p>
+        function loadProjects() {
+            api.getProjects()
+                .then(projects => {
+                    const grid = $('#projects-grid');
+                    if (projects.length === 0) {
+                        ui.showEmpty(grid, '📁', 'Нет проектов', 'Создайте первый проект чтобы начать работу');
+                    } else {
+                        grid.innerHTML = projects.map(p => `
+                            <div class="card" onclick="location.href='/project.html?id=${p.id}'" style="cursor: pointer;">
+                                <h3 style="color: var(--primary); margin-bottom: 10px;">${escapeHtml(p.name)}</h3>
+                                <p style="color: var(--text-light);">${escapeHtml(p.description || 'Нет описания')}</p>
+                            </div>
+                        `).join('');
+                    }
+                })
+                .catch(error => {
+                    ui.showError($('#projects-grid'), error.message);
+                });
+        }
+
+        loadProjects();
+
+        function openProjectModal() {
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.id = 'project-modal';
+            modal.innerHTML = `
+                <div class="modal" style="max-width: 500px;">
+                    <div class="modal-header">
+                        <h2>➕ Новый проект</h2>
+                    </div>
+                    <form id="project-form">
+                        <div class="form-group">
+                            <label for="project-name">Название *</label>
+                            <input type="text" id="project-name" class="form-control" required placeholder="Мой проект">
                         </div>
-                    `).join('');
-                }
-            })
-            .catch(error => {
-                ui.showError($('#projects-grid'), error.message);
+                        <div class="form-group">
+                            <label for="project-description">Описание</label>
+                            <textarea id="project-description" class="form-control" rows="3" placeholder="Описание проекта"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="project-parallel">Макс. параллельных задач</label>
+                            <input type="number" id="project-parallel" class="form-control" value="0" min="0" placeholder="0 = без ограничений">
+                            <small style="color: var(--text-light);">0 — без ограничений</small>
+                        </div>
+                        <div class="modal-footer" style="margin-top: 20px;">
+                            <button type="button" class="btn" onclick="closeProjectModal()">Отмена</button>
+                            <button type="submit" class="btn btn-primary">Создать</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            $('#project-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const name = $('#project-name').value.trim();
+                if (!name) { ui.showAlert('Введите название', 'warning'); return; }
+                const btn = e.target.querySelector('button[type="submit"]');
+                btn.disabled = true;
+                btn.textContent = 'Создание...';
+                api.createProject({
+                    name,
+                    description: $('#project-description').value.trim() || null,
+                    max_parallel_tasks: parseInt($('#project-parallel').value) || 0
+                })
+                .then(p => {
+                    closeProjectModal();
+                    window.location.href = '/project.html?id=' + p.id;
+                })
+                .catch(error => {
+                    ui.showAlert('Ошибка: ' + error.message, 'danger');
+                    btn.disabled = false;
+                    btn.textContent = 'Создать';
+                });
             });
+
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeProjectModal();
+            });
+        }
+
+        function closeProjectModal() {
+            const m = $('#project-modal');
+            if (m) m.remove();
+        }
     </script>
 </body>
 </html>
