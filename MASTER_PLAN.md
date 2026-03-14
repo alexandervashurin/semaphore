@@ -5,7 +5,7 @@
 >
 > **Репозиторий:** https://github.com/tnl-o/rust_semaphore
 > **Upstream (Go оригинал):** https://github.com/semaphoreui/semaphore
-> **Последнее обновление:** 2026-03-15 (обновление 11 — 31 integration tests green; views CRUD fix; template soft-delete schema fix)
+> **Последнее обновление:** 2026-03-15 (обновление 12 — Vanilla JS дизайн приведён к upstream semaphoreui/semaphore Material Design; новые задачи B-FE-11..B-FE-17 добавлены)
 
 ---
 
@@ -232,6 +232,105 @@ JavaScript берёт последнее объявление — поведен
 
 ---
 
+### 2.3б Оставшиеся задачи фронтенда (аудит 2026-03-15)
+
+> Все задачи ниже — **только фронтенд**. API бэкенда реализован полностью для каждой.
+
+---
+
+#### 🔴 B-FE-11 — CRUD формы: templates.html
+
+Форма создания/редактирования: `name`, `type` (ansible/terraform/tofu/bash), `playbook`, `repository_id`, `inventory_id`, `environment_id`, `vault_key_id`, `arguments`, `allow_override_args`. Удаление с подтверждением.
+API: `POST/PUT/DELETE /api/project/{id}/templates/{id}`
+
+---
+
+#### 🔴 B-FE-12 — CRUD формы: inventory.html
+
+Форма: `name`, `type` (static/file/static-yaml/terraform-workspace), `inventory` (textarea INI/YAML), `ssh_key_id`.
+API: `POST/PUT/DELETE /api/project/{id}/inventory/{id}`
+
+---
+
+#### 🔴 B-FE-13 — CRUD формы: keys.html
+
+Форма с динамическими полями по типу:
+- `ssh` → textarea с приватным ключом + optional passphrase
+- `login_password` → login + password
+- `token` → token string
+- `none` → только `name`
+
+Секрет передаётся только при создании; при просмотре — `***`. API: `POST/PUT/DELETE /api/project/{id}/keys/{id}`
+
+---
+
+#### 🟠 B-FE-14 — CRUD формы: repositories.html
+
+Форма: `name`, `git_url`, `git_branch`, `ssh_key_id` (выпадающий список из keys).
+API: `POST/PUT/DELETE /api/project/{id}/repositories/{id}`
+
+---
+
+#### 🟠 B-FE-15 — CRUD формы: environments.html
+
+Форма: `name` + таблица key-value пар (или JSON textarea) для переменных окружения.
+API: `POST/PUT/DELETE /api/project/{id}/environment/{id}`
+
+---
+
+#### 🟠 B-FE-16 — CRUD формы: schedules.html
+
+Форма: `cron_format` (live-валидация через `POST /api/project/{id}/schedules/validate`), `template_id` (выпадающий список шаблонов), `active` toggle. Показывать следующее время выполнения.
+API: `POST/PUT/DELETE /api/project/{id}/schedules/{id}`
+
+---
+
+#### 🟠 B-FE-17 — run.html неполная (50%)
+
+Выбор шаблона из списка, override-параметры при `allow_override_args: true`, кнопка "Запустить" → `POST /api/project/{id}/tasks` → редирект на `task.html?id=X&task=Y`.
+
+---
+
+#### 🟡 B-FE-18 — webhooks.html: формы матчеров/алиасов
+
+Форма создания интеграции (`name`, `auth_secret`), матчеры (`match_key`, `match_value`, `method`), алиасы URL.
+API: `POST/PUT/DELETE /api/project/{id}/integrations/{id}`
+
+---
+
+#### 🟡 B-FE-19 — playbooks.html неполная
+
+Кнопка Sync → `POST /api/project/{id}/playbooks/{id}/sync` + индикатор статуса.
+Кнопка Run → форма параметров → `POST /api/project/{id}/playbooks/{id}/run`.
+Preview через `GET /api/project/{id}/playbooks/{id}/preview`.
+
+---
+
+#### 🟡 B-FE-20 — Управление командой проекта
+
+Вкладка "Команда" в project.html со списком участников и ролями (owner/manager/runner).
+- Добавление: `POST /api/project/{id}/users`
+- Смена роли: `PUT /api/project/{id}/users/{uid}`
+- Удаление: `DELETE /api/project/{id}/users/{uid}`
+
+---
+
+#### 🟠 B-FE-21 — Дизайн: привести к upstream semaphoreui/semaphore
+
+**✅ Закрыт 2026-03-15.** Реализован Material Design совпадающий с upstream Vue/Vuetify:
+- Roboto font, teal sidebar `#005057`/`#003236`, primary `#1976D2`
+- `background.svg` + `logo.svg` из upstream assets
+- login.html: белая карточка на teal фоне с SVG-градиентом (как Auth.vue)
+- Material elevation shadows, Vuetify-стиль кнопок
+
+---
+
+#### 🟡 B-FE-22 — E2E тесты
+
+Расширить `rust/tests/api_integration.rs`: полный цикл (проект → ключ → репозиторий → шаблон bash echo → запуск → проверка лога). WebSocket-тест: подключение → строки → `{"type":"done"}`.
+
+---
+
 ### 2.4 Сводная таблица проблем
 
 | ID | Проблема | Приоритет | Статус |
@@ -242,10 +341,22 @@ JavaScript берёт последнее объявление — поведен
 | B-FE-04 | Нет формы создания проекта | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
 | B-FE-05 | Нет страницы управления пользователями | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
 | B-FE-06 | WebSocket лог в task.html не подключён | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
-| B-FE-07 | CRUD формы отсутствуют на 6 страницах | 🟡 Средний | ✅ Реализованы ранее |
+| B-FE-07 | CRUD формы отсутствуют на 6 страницах | 🟡 Средний | ⬜ Не реализовано — детали B-FE-11..16 |
 | B-FE-08 | Дублирование методов в app.js | 🟡 Средний | ✅ Закрыт 2026-03-15 |
 | B-FE-09 | analytics.html без Chart.js | 🟡 Средний | ✅ Chart.js подключён |
 | B-FE-10 | Нет настроек/удаления проекта | 🟡 Средний | ✅ Закрыт 2026-03-15 |
+| B-FE-11 | CRUD формы: templates.html | 🔴 Критично | ⬜ Не реализовано |
+| B-FE-12 | CRUD формы: inventory.html | 🔴 Критично | ⬜ Не реализовано |
+| B-FE-13 | CRUD формы: keys.html | 🔴 Критично | ⬜ Не реализовано |
+| B-FE-14 | CRUD формы: repositories.html | 🟠 Высокий | ⬜ Не реализовано |
+| B-FE-15 | CRUD формы: environments.html | 🟠 Высокий | ⬜ Не реализовано |
+| B-FE-16 | CRUD формы: schedules.html | 🟠 Высокий | ⬜ Не реализовано |
+| B-FE-17 | run.html — страница запуска задачи неполная (50%) | 🟠 Высокий | ⬜ Не реализовано |
+| B-FE-18 | webhooks.html — формы матчеров/алиасов отсутствуют | 🟡 Средний | ⬜ Не реализовано |
+| B-FE-19 | playbooks.html — sync/run форма неполная | 🟡 Средний | ⬜ Не реализовано |
+| B-FE-20 | Страница управления командой проекта (roles) | 🟡 Средний | ⬜ Не реализовано |
+| B-FE-21 | Дизайн: привести к upstream semaphoreui/semaphore | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
+| B-FE-22 | E2E тесты с реальным ansible-playbook | 🟡 Средний | ⬜ Не реализовано |
 
 ---
 
@@ -922,200 +1033,7 @@ events        ← audit log
 | B-11 | Slack/Telegram уведомления | 🟡 Средний | ✅ Закрыт — встроено в `services/alert.rs` |
 | B-12 | Нет Rust clippy в CI | 🟡 Средний | ✅ Закрыт — `.github/workflows/rust.yml` 2026-03-14 |
 
-## 2. Фронтенд: что необходимо для 100% работоспособности
-
-> **Аудит проведён 2026-03-15.** Этот раздел описывает все обнаруженные проблемы фронтенда
-> в порядке приоритета. Бэкенд работает корректно. Все API-маршруты доступны.
-
-### 2.1 Критические блокеры (приложение не работает без исправления)
-
----
-
-#### 🔴 B-FE-01 — Нет создания admin-пользователя при первом запуске
-
-**Симптом:** После `docker run` или `cargo run` войти невозможно — форма логина молча перезагружается.
-
-**Причина:** Переменные `SEMAPHORE_ADMIN`, `SEMAPHORE_ADMIN_PASSWORD` и т.д. объявлены в `Dockerfile`
-как `ENV`, но **не обрабатываются** в `rust/src/cli/mod.rs:cmd_server()`. Функция `cmd_server()`
-просто создаёт `SqlStore` и запускает Axum-сервер без создания пользователя. Свежая БД пустая.
-
-**Файл:** [rust/src/cli/mod.rs:363-393](rust/src/cli/mod.rs#L363)
-
-**Что нужно сделать:**
-- При запуске сервера читать `SEMAPHORE_ADMIN`, `SEMAPHORE_ADMIN_PASSWORD`, `SEMAPHORE_ADMIN_EMAIL`
-- Если пользователей в БД нет — создать admin через `store.create_user()`
-- Логировать: `"Admin user 'admin' created (first-run seed)"`
-
----
-
-#### 🔴 B-FE-02 — Баг в `api.request()`: 401 вызывает logout до показа ошибки
-
-**Симптом:** При вводе неверного пароля страница `/login.html` молча перезагружается.
-Сообщение об ошибке **никогда не отображается**.
-
-**Причина:** В `web/public/app.js:77-80`:
-```javascript
-if (response.status === 401) {
-    this.logout();            // ← redirect to /login.html СЕЙЧАС
-    throw new Error('Не авторизован');  // ← catch в login.html не успевает
-}
-```
-`this.logout()` вызывает `window.location.href = '/login.html'` немедленно.
-`catch` в `login.html:77-85` никогда не отрабатывает для ошибок логина.
-
-**Файл:** [web/public/app.js:77](web/public/app.js#L77)
-
-**Что нужно сделать:**
-- В `api.request()` не вызывать `logout()` если запрос идёт на `/auth/login`
-- Либо: передавать флаг `skipLogoutOn401: true` в `options`
-- Либо: убрать auto-logout из `request()`, делать его явно в middleware на страницах
-
----
-
-### 2.2 Высокий приоритет (после входа сломана навигация)
-
----
-
-#### 🟠 B-FE-03 — Sidebar теряет project_id при переходе между разделами
-
-**Симптом:** Пользователь на странице `/templates.html?id=5`, кликает "Инвентарь" в sidebar —
-попадает на `/inventory.html` без `?id=` → `urlParams.get('id')` = null → редирект на `index.html`.
-
-**Причина:** Все sidebar-ссылки в `project.html`, `templates.html`, `inventory.html` и других
-страницах указаны без `?id=` параметра:
-```html
-<!-- В project.html, templates.html, etc: -->
-<li><a href="templates.html">📋 Шаблоны</a></li>  <!-- нет ?id=PROJECT_ID -->
-```
-
-**Файлы:** [web/public/project.html:15-27](web/public/project.html#L15), аналогично во всех страницах с sidebar.
-
-**Что нужно сделать:**
-- В каждой странице при загрузке брать `projectId` из URL и подставлять в все sidebar-ссылки
-- Или: хранить `projectId` в `localStorage` и читать при загрузке каждой страницы
-
----
-
-#### 🟠 B-FE-04 — Нет формы создания проекта на Dashboard
-
-**Симптом:** Новый пользователь заходит на `index.html` (dashboard) — видит пустой список
-"Нет проектов" без возможности создать первый проект.
-
-**Причина:** `index.html` показывает список проектов через `api.getProjects()` но не имеет
-кнопки "Создать проект" и соответствующей формы.
-
-**Файл:** [web/public/index.html:37-57](web/public/index.html#L37)
-
-**Что нужно сделать:**
-- Добавить кнопку "+ Новый проект" в `index.html`
-- Форма: `name`, `max_parallel_tasks` → `POST /api/projects`
-- После создания — обновить список
-
----
-
-#### 🟠 B-FE-05 — Нет страницы управления пользователями
-
-**Симптом:** В sidebar нет ссылки на управление пользователями. Admin не может создавать новых пользователей через UI.
-
-**Причина:** Файл `users.html` отсутствует в `web/public/`. API-маршруты существуют
-(`GET/POST/PUT/DELETE /api/user`), фронтенд не реализован.
-
-**Что нужно сделать:**
-- Создать `web/public/users.html` — список пользователей с CRUD
-- Добавить ссылку "👥 Пользователи" в sidebar всех страниц (только для admin)
-
----
-
-#### 🟠 B-FE-06 — WebSocket лог задачи не подключён в `task.html`
-
-**Симптом:** При просмотре запущенной задачи логи не обновляются в реальном времени.
-
-**Причина:** Нужно проверить подключение WS в `task.html` к
-`ws://host/api/project/{id}/tasks/{task_id}/ws`. Бэкенд WebSocket реализован полностью.
-
-**Файл:** [web/public/task.html](web/public/task.html)
-
-**Что нужно сделать:**
-- Подключить `WebSocket` в `task.html` к `/api/project/{id}/tasks/{task_id}/ws`
-- Парсить сообщения `{"type":"output","line":"..."}` и дописывать в log-контейнер
-- Закрывать соединение при `{"type":"done"}`
-
----
-
-### 2.3 Средний приоритет (функционал неполный)
-
----
-
-#### 🟡 B-FE-07 — CRUD формы не реализованы на большинстве страниц
-
-**Симптом:** Страницы показывают списки (`GET`), но нет кнопок создания/редактирования/удаления.
-
-| Страница | Что есть | Чего нет |
-|---|---|---|
-| `templates.html` | Список, кнопка "+ Новый Шаблон" | Форма создания (функция `openTemplateModal()` не определена) |
-| `inventory.html` | Список | Форма создания, редактирование, удаление |
-| `keys.html` | Список | Форма создания (с выбором типа ssh/password/token), редактирование |
-| `repositories.html` | Список | Форма создания, редактирование |
-| `environments.html` | Список | Форма создания с JSON-редактором |
-| `schedules.html` | Список | Форма создания cron-расписания |
-
-**Что нужно сделать:**
-- Для каждой страницы добавить модальную форму создания/редактирования
-- Подключить к существующим API методам в `app.js`
-
----
-
-#### 🟡 B-FE-08 — Дублирование методов в `app.js`
-
-**Симптом:** Нет UI-эффекта, но техдолг — три метода объявлены дважды.
-
-**Файл:** [web/public/app.js](web/public/app.js) строки 173/192 (`getInventories`), 179/213 (`getEnvironments`), 184/234 (`getRepositories`).
-
-JavaScript берёт последнее объявление — поведение корректное, но код запутан.
-
-**Что нужно сделать:** Удалить первые объявления (строки 173, 179, 184).
-
----
-
-#### 🟡 B-FE-09 — `analytics.html` не использует Chart.js
-
-**Симптом:** Страница аналитики отображает данные без графиков.
-
-**Причина:** `analytics.html` в `web/public/` не подключает Chart.js. Это отдельный файл от
-`web/vanilla/` (где Chart.js реализован). `web/public/analytics.html` — простой HTML без скриптов.
-
-**Что нужно сделать:** Перенести Chart.js логику из `web/vanilla/js/app.js::handleAnalytics()` в `analytics.html`.
-
----
-
-#### 🟡 B-FE-10 — Нет страницы настроек проекта
-
-**Симптом:** Нет возможности изменить название проекта или удалить проект через UI.
-
-**Что нужно сделать:** Добавить в `project.html` секцию "Настройки" с формой редактирования
-(`PUT /api/projects/{id}`) и кнопкой удаления (`DELETE /api/projects/{id}`).
-
----
-
-### 2.4 Сводная таблица проблем
-
-| ID | Проблема | Приоритет | Статус |
-|---|---|---|---|
-| B-FE-01 | Нет создания admin при первом запуске | 🔴 Критично | ✅ Закрыт 2026-03-15 |
-| B-FE-02 | Баг 401 в api.request() → silent redirect | 🔴 Критично | ✅ Закрыт 2026-03-15 |
-| B-FE-03 | Sidebar теряет project_id при навигации | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
-| B-FE-04 | Нет формы создания проекта | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
-| B-FE-05 | Нет страницы управления пользователями | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
-| B-FE-06 | WebSocket лог в task.html не подключён | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
-| B-FE-07 | CRUD формы отсутствуют на 6 страницах | 🟡 Средний | ✅ Реализованы ранее |
-| B-FE-08 | Дублирование методов в app.js | 🟡 Средний | ✅ Закрыт 2026-03-15 |
-| B-FE-09 | analytics.html без Chart.js | 🟡 Средний | ✅ Chart.js подключён |
-| B-FE-10 | Нет настроек/удаления проекта | 🟡 Средний | ✅ Закрыт 2026-03-15 |
-
----
-
-## 2б. Текущее состояние
----
+> ℹ️ Фронтенд задачи (B-FE-01..B-FE-22) — см. **Раздел 2** в начале документа.
 
 ## 18. Как контрибьютить
 
