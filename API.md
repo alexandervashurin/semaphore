@@ -128,6 +128,9 @@ curl -H "Authorization: Bearer eyJ..." \
 - [Репозитории](#репозитории)
 - [Окружения](#окружения)
 - [Ключи доступа](#ключи-доступа)
+- [Playbooks](#playbooks)
+- [Playbook Runs](#playbook-runs)
+- [Analytics](#analytics)
 
 ---
 
@@ -922,4 +925,156 @@ curl -X POST http://localhost:3000/api/project/1/playbooks \
     "content": "- hosts: localhost\n  tasks:\n    - debug:\n        msg: Hello",
     "playbook_type": "ansible"
   }'
+```
+
+---
+
+## Playbook Runs
+
+API для просмотра истории запусков Playbook.
+
+### Получить список запусков Playbook
+
+Возвращает список всех запусков Playbook в проекте.
+
+**Запрос:**
+
+```bash
+GET /api/project/{project_id}/playbook-runs
+Authorization: Bearer {token}
+```
+
+**Параметры:**
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `project_id` | path | ID проекта |
+| `playbook_id` | query | Фильтр по ID playbook (опционально) |
+| `status` | query | Фильтр по статусу (опционально) |
+
+**Ответ:**
+
+```json
+[
+  {
+    "id": 1,
+    "project_id": 1,
+    "playbook_id": 5,
+    "status": "success",
+    "started_at": "2026-03-14T10:00:00Z",
+    "completed_at": "2026-03-14T10:05:00Z",
+    "duration_ms": 300000
+  }
+]
+```
+
+### Получить запуск Playbook по ID
+
+**Запрос:**
+
+```bash
+GET /api/project/{project_id}/playbook-runs/{id}
+Authorization: Bearer {token}
+```
+
+**Ответ:**
+
+```json
+{
+  "id": 1,
+  "project_id": 1,
+  "playbook_id": 5,
+  "status": "success",
+  "started_at": "2026-03-14T10:00:00Z",
+  "completed_at": "2026-03-14T10:05:00Z",
+  "duration_ms": 300000,
+  "output": "Task completed successfully..."
+}
+```
+
+### Получить статистику запусков Playbook
+
+Возвращает агрегированную статистику по запускам конкретного Playbook.
+
+**Запрос:**
+
+```bash
+GET /api/project/{project_id}/playbooks/{playbook_id}/runs/stats
+Authorization: Bearer {token}
+```
+
+**Ответ:**
+
+```json
+{
+  "total_runs": 50,
+  "success_count": 45,
+  "failed_count": 5,
+  "avg_duration_ms": 280000,
+  "last_run_at": "2026-03-14T10:00:00Z",
+  "success_rate": 0.9
+}
+```
+
+---
+
+## Analytics
+
+API для получения аналитики и метрик проекта.
+
+### Получить статистику проекта
+
+**Запрос:**
+
+```bash
+GET /api/projects/{project_id}/analytics/stats
+Authorization: Bearer {token}
+```
+
+**Ответ:**
+
+```json
+{
+  "total_tasks": 150,
+  "total_templates": 12,
+  "total_playbooks": 8,
+  "active_users": 5,
+  "success_rate": 0.92
+}
+```
+
+### Получить метрики задач
+
+**Запрос:**
+
+```bash
+GET /api/projects/{project_id}/analytics/tasks
+Authorization: Bearer {token}
+```
+
+**Параметры:**
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `project_id` | path | ID проекта |
+| `from` | query | Начальная дата (ISO 8601) |
+| `to` | query | Конечная дата (ISO 8601) |
+
+**Ответ:**
+
+```json
+{
+  "tasks_by_status": {
+    "waiting": 5,
+    "running": 2,
+    "success": 120,
+    "failed": 23
+  },
+  "tasks_by_day": [
+    {"date": "2026-03-01", "count": 10},
+    {"date": "2026-03-02", "count": 15}
+  ],
+  "avg_duration_ms": 180000,
+  "top_slow_tasks": [
+    {"id": 42, "name": "Deploy Production", "duration_ms": 600000}
+  ]
+}
 ```

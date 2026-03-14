@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/Rust-1.80+-blue.svg)](https://www.rust-lang.org)
-[![Tests](https://img.shields.io/badge/tests-475%20passed-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-655%20passed-brightgreen.svg)]()
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
 [![Migration](https://img.shields.io/badge/migration-100%25-brightgreen.svg)]()
 [![Frontend](https://img.shields.io/badge/frontend-Vue%202-brightgreen.svg)]()
