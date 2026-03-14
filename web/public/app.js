@@ -335,16 +335,15 @@ const ui = {
     },
 
     showAlert(message, type = 'info') {
-        const alert = document.createElement('div');
-        alert.className = `alert alert-${type}`;
-        alert.textContent = message;
-        alert.style.position = 'fixed';
-        alert.style.top = '20px';
-        alert.style.right = '20px';
-        alert.style.zIndex = '9999';
-        alert.style.minWidth = '300px';
-        document.body.appendChild(alert);
-        setTimeout(() => alert.remove(), 5000);
+        const toast = document.createElement('div');
+        toast.className = `toast alert-${type}`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.style.transition = 'opacity 0.3s ease';
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 300);
+        }, 3500);
     },
 
     confirm(title, text) {
@@ -416,23 +415,52 @@ function checkAuth() {
 
 // ==================== Sidebar ====================
 
-function initSidebar() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const projectId = urlParams.get('id');
-    if (!projectId) return;
+const SIDEBAR_ITEMS = [
+    { href: 'index.html',        icon: '◈',  label: 'Dashboard',    noId: true },
+    { href: 'project.html',      icon: '⬡',  label: 'Обзор' },
+    { href: 'templates.html',    icon: '▦',  label: 'Шаблоны' },
+    { href: 'inventory.html',    icon: '≡',  label: 'Инвентарь' },
+    { href: 'environments.html', icon: '⊕',  label: 'Окружения' },
+    { href: 'repositories.html', icon: '⌥',  label: 'Репозитории' },
+    { href: 'keys.html',         icon: '⚿',  label: 'Ключи' },
+    { href: 'schedules.html',    icon: '◷',  label: 'Расписания' },
+    { href: 'analytics.html',    icon: '◑',  label: 'Аналитика' },
+    { href: 'webhooks.html',     icon: '⇌',  label: 'Webhooks' },
+    { href: 'playbooks.html',    icon: '▶',  label: 'Playbooks' },
+];
 
-    const sidebar = document.querySelector('.sidebar-nav');
+function renderSidebar() {
+    const sidebar = document.querySelector('.sidebar');
     if (!sidebar) return;
 
-    sidebar.querySelectorAll('a[href]').forEach(a => {
-        const href = a.getAttribute('href');
-        if (href && !href.startsWith('http') && !href.includes('index.html') && !href.includes('?')) {
-            a.setAttribute('href', href + '?id=' + projectId);
-        }
-    });
+    const urlParams = new URLSearchParams(window.location.search);
+    const projectId = urlParams.get('id');
+    const currentPage = location.pathname.split('/').pop() || 'index.html';
+
+    const navItems = SIDEBAR_ITEMS.map(item => {
+        const href = (item.noId || !projectId)
+            ? item.href
+            : item.href + '?id=' + projectId;
+        const isActive = currentPage === item.href ? 'class="active"' : '';
+        return `<li><a href="${href}" ${isActive}><span class="nav-icon">${item.icon}</span>${item.label}</a></li>`;
+    }).join('');
+
+    sidebar.innerHTML = `
+        <div class="sidebar-logo">
+            <span class="sidebar-logo-dot"></span>
+            <h2>Semaphore</h2>
+        </div>
+        <div class="sidebar-section">Навигация</div>
+        <ul class="sidebar-nav">${navItems}</ul>
+        <div class="sidebar-footer">
+            <button class="btn btn-logout" onclick="api.logout()" style="width:100%;justify-content:center;">
+                Выйти
+            </button>
+        </div>
+    `;
 }
 
-document.addEventListener('DOMContentLoaded', initSidebar);
+document.addEventListener('DOMContentLoaded', renderSidebar);
 
 // ==================== Export ====================
 
