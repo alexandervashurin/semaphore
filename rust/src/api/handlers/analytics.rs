@@ -175,7 +175,7 @@ pub async fn get_project_analytics(
 pub async fn get_tasks_chart(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i64>,
-    Query(_params): Query<AnalyticsParams>,
+    Query(params): Query<AnalyticsParams>,
 ) -> Result<Json<Vec<ChartData>>, StatusCode> {
     let tasks = state.store
         .get_tasks(project_id as i32, None::<i32>)
@@ -184,14 +184,41 @@ pub async fn get_tasks_chart(
             tracing::error!("Failed to get tasks: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
-    
-    // Группируем по датам (упрощённо)
-    let chart_data: Vec<ChartData> = tasks.iter().take(7).map(|t| ChartData {
-        label: t.task.created.format("%Y-%m-%d").to_string(),
-        value: 1.0,
-        timestamp: Some(t.task.created),
+
+    // Определяем диапазон дней по периоду
+    let days: i64 = match params.period.as_deref().unwrap_or("week") {
+        "month" => 30,
+        "year"  => 365,
+        _       => 7,  // week (default)
+    };
+
+    let now = Utc::now();
+    let start = now - Duration::days(days);
+
+    // Строим карту дата → счётчик
+    use std::collections::BTreeMap;
+    let mut counts: BTreeMap<String, f64> = BTreeMap::new();
+
+    // Заполняем все дни нулями
+    for d in 0..days {
+        let day = (start + Duration::days(d + 1)).format("%Y-%m-%d").to_string();
+        counts.insert(day, 0.0);
+    }
+
+    // Считаем задачи по датам
+    for t in &tasks {
+        if t.task.created >= start {
+            let day = t.task.created.format("%Y-%m-%d").to_string();
+            *counts.entry(day).or_insert(0.0) += 1.0;
+        }
+    }
+
+    let chart_data: Vec<ChartData> = counts.into_iter().map(|(label, value)| ChartData {
+        label,
+        value,
+        timestamp: None,
     }).collect();
-    
+
     Ok(Json(chart_data))
 }
 
