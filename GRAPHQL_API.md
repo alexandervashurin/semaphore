@@ -21,6 +21,7 @@ GraphiQL предоставляет интерактивную среду для
 - Изучения схемы
 - Выполнения запросов
 - Тестирования мутаций
+- Подписки на real-time события
 
 ---
 
@@ -73,6 +74,7 @@ query {
   tasks(projectId: 1) {
     id
     templateId
+    projectId
     status
   }
 }
@@ -90,11 +92,133 @@ query {
 
 ### Mutation (Изменение данных)
 
-#### `ping` - Тестовая мутация
+#### `createUser` - Создать пользователя
 
 ```graphql
 mutation {
-  ping
+  createUser(input: {
+    username: "newuser"
+    email: "user@example.com"
+    name: "New User"
+    password: "password123"
+    admin: false
+  }) {
+    id
+    username
+    email
+    admin
+  }
+}
+```
+
+#### `createProject` - Создать проект
+
+```graphql
+mutation {
+  createProject(input: {
+    name: "My Project"
+  }) {
+    id
+    name
+  }
+}
+```
+
+#### `createTemplate` - Создать шаблон
+
+```graphql
+mutation {
+  createTemplate(input: {
+    projectId: 1
+    name: "Deploy App"
+    playbook: "deploy.yml"
+    description: "Deployment template"
+    inventoryId: 1
+    repositoryId: 1
+    environmentId: 1
+  }) {
+    id
+    projectId
+    name
+    playbook
+  }
+}
+```
+
+#### `createTask` - Запустить задачу
+
+```graphql
+mutation {
+  createTask(input: {
+    templateId: 1
+    projectId: 1
+    debug: false
+    dryRun: false
+    diff: false
+  }) {
+    id
+    templateId
+    projectId
+    status
+  }
+}
+```
+
+#### `updateTemplate` - Обновить шаблон
+
+```graphql
+mutation {
+  updateTemplate(id: 1, name: "Updated Name", playbook: "new.yml") {
+    id
+    name
+    playbook
+  }
+}
+```
+
+#### `deleteTemplate` - Удалить шаблон
+
+```graphql
+mutation {
+  deleteTemplate(id: 1)
+}
+```
+
+#### `deleteTask` - Удалить задачу
+
+```graphql
+mutation {
+  deleteTask(id: 1)
+}
+```
+
+---
+
+### Subscription (Real-time события)
+
+#### `taskCreated` - Подписка на создание задач
+
+```graphql
+subscription {
+  taskCreated {
+    id
+    templateId
+    projectId
+    status
+  }
+}
+```
+
+#### `taskStatusChanged` - Подписка на изменение статуса
+
+```graphql
+subscription {
+  taskStatusChanged {
+    id
+    templateId
+    projectId
+    status
+  }
 }
 ```
 
