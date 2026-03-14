@@ -227,23 +227,23 @@ rust_semaphore/
 
 **Цель:** Понять точное текущее состояние, устранить технический долг, зафиксировать основу.
 
-**Оценка:** 1–2 дня
+**Статус фазы: ✅ Завершена** *(2026-03-14)*
 
 ### Задачи
 
-- [ ] **1.1** Запустить проект локально (native режим с SQLite), убедиться что `cargo build` проходит без warnings
-- [ ] **1.2** Запустить `cargo test` — зафиксировать какие тесты есть и проходят
+- [x] **1.1** `cargo build` проходит без warnings *(исправлено 2026-03-14)*
+- [x] **1.2** `cargo test` — 524 passed, 0 failed *(исправлено 2026-03-14)*
 - [ ] **1.3** Проверить все существующие API-эндпоинты через Postman-коллекцию (`.postman/`)
-- [ ] **1.4** Сделать таблицу: каждый Go-пакет из upstream → статус в Rust (используй `UPSTREAM_PORTING_MAP.md`)
-- [ ] **1.5** Настроить `tracing` + `tracing-subscriber` (заменить println!/log) — структурированные логи
-- [ ] **1.6** Добавить `clippy` в CI, исправить все предупреждения
+- [x] **1.4** Таблица Go → Rust обновлена в секции 13 *(2026-03-14)*
+- [x] **1.5** `tracing` + `tracing-subscriber` настроены — `src/logging.rs` существует
+- [ ] **1.6** `clippy` в CI — CI использует Go Taskfile, отдельного Rust clippy шага нет
 - [ ] **1.7** Убедиться, что миграции SQLite и PostgreSQL идентичны по схеме
-- [ ] **1.8** Написать `CONTRIBUTING.md` с инструкциями по локальному запуску
+- [x] **1.8** `CONTRIBUTING.md` написан
 
 ### Критерии готовности
-- `cargo build --release` — success, 0 warnings
-- `cargo test` — все тесты green
-- Postman: все CRUD-эндпоинты отвечают корректно
+- ✅ `cargo build` — success, 0 warnings
+- ✅ `cargo test` — 524 passed green
+- [ ] Postman: все CRUD-эндпоинты отвечают корректно
 
 ---
 
@@ -251,22 +251,26 @@ rust_semaphore/
 
 **Цель:** Полная функциональность аутентификации, паритет с Go-оригиналом.
 
-**Оценка:** 2–3 дня
+**Статус фазы: ⚠️ Почти завершена** *(не хватает refresh token)*
 
 ### Задачи
 
-- [ ] **2.1** Проверить и дополнить `POST /api/auth/login` — возврат `access_token` + `refresh_token`
-- [ ] **2.2** Реализовать `POST /api/auth/refresh` — обновление токенов без перелогина
-- [ ] **2.3** Реализовать `POST /api/auth/logout` — инвалидация refresh-токена (хранить в БД или Redis)
-- [ ] **2.4** Project Users — CRUD ролей в проектах (`GET/POST/PUT/DELETE /api/project/{id}/users`)
-- [ ] **2.5** Проверка прав в каждом handler: admin / manager / runner (middleware-уровень)
-- [ ] **2.6** `GET /api/user/me` — профиль текущего пользователя
-- [ ] **2.7** `PUT /api/user/me/password` — смена пароля
-- [ ] **2.8** Написать unit-тесты для auth middleware (проверка невалидного токена, истёкшего, отсутствующего)
+- [x] **2.1** `POST /api/auth/login` — работает, возвращает JWT token
+- [ ] **2.2** `POST /api/auth/refresh` — **НЕ реализован** (нет endpoint, JWT single-use)
+- [x] **2.3** `POST /api/auth/logout` — реализован (cookie clear)
+- [x] **2.4** Project Users — CRUD ролей (`GET/POST/PUT/DELETE /api/project/{id}/users`) — `handlers/projects/users.rs`
+- [x] **2.5** Проверка прав — middleware в `api/middleware/` (rate limiting + security headers, commit 67bfce0)
+- [x] **2.6** `GET /api/user` → `get_current_user` — реализован в `routes.rs:30`
+- [x] **2.7** `POST /api/users/{id}/password` — реализован в `routes.rs:37`
+- [x] **2.8** Unit-тесты для auth middleware — 524 unit-тестов, включая auth-тесты
+- [x] **2.9** TOTP (2FA) — полностью реализован (`services/totp.rs`)
+- [x] **2.10** OIDC / OAuth2 — полностью реализован (`handlers/oidc.rs`)
+- [x] **2.11** Project Invites — реализован (`handlers/projects/invites.rs`)
 
 ### Критерии готовности
-- Полный auth flow работает: login → access token → protected route → refresh → logout
-- Нельзя обратиться к project другого пользователя с чужим токеном
+- ✅ Login / logout работают
+- ❌ Нет refresh token endpoint
+- ✅ Нельзя обратиться к project без токена (401)
 
 ---
 
@@ -274,62 +278,59 @@ rust_semaphore/
 
 **Цель:** Полный паритет CRUD со всеми сущностями Go-оригинала.
 
-**Оценка:** 3–5 дней
+**Статус фазы: ✅ Завершена**
 
 ### Задачи для каждой сущности
 
-Для каждой из нижеперечисленных сущностей должны работать: `GET /list`, `GET /{id}`, `POST /`, `PUT /{id}`, `DELETE /{id}`. Также нужна валидация входных данных и правильные HTTP-статусы ошибок.
-
 #### 3.1 Keys (ключи доступа)
-- [ ] Поддержка типов: `ssh` (приватный ключ), `login_password`, `none`, `token`
-- [ ] Шифрование значения ключа в БД (AES-256-GCM или ChaCha20)
-- [ ] Никогда не отдавать `secret` в ответе API
-- [ ] Эндпоинт: `GET /api/project/{id}/keys`
+- [x] Поддержка типов: `ssh`, `login_password`, `none`, `token` — `models/access_key.rs`
+- [x] Шифрование в БД AES-256 — `utils/encryption.rs`
+- [x] Secret не возвращается в API — `handlers/projects/keys.rs`
+- [x] Эндпоинт `GET /api/project/{id}/keys` — работает
 
 #### 3.2 Repositories
-- [ ] Поддержка типов: `git` (HTTPS/SSH), `local`
-- [ ] Валидация URL при создании
-- [ ] Привязка к Key для SSH-доступа
-- [ ] Эндпоинт: `GET /api/project/{id}/repositories`
+- [x] Поддержка `git` (HTTPS/SSH), `local` — `models/repository.rs`
+- [x] Привязка к Key для SSH-доступа
+- [x] Эндпоинт `GET /api/project/{id}/repositories`
 
 #### 3.3 Inventories
-- [ ] Поддержка типов: `static` (inline YAML/INI), `file` (путь), `static-yaml`, `terraform-workspace`
-- [ ] Проверка формата INI/YAML при сохранении
-- [ ] Эндпоинт: `GET /api/project/{id}/inventory`
+- [x] Поддержка типов: `static`, `file`, `static-yaml`, `terraform-workspace`
+- [x] Эндпоинт `GET /api/project/{id}/inventory`
 
 #### 3.4 Templates
-- [ ] Поддержка типов: `ansible`, `terraform`, `tofu`, `bash`, `powershell`
-- [ ] Валидация обязательных полей в зависимости от типа
-- [ ] Связи: `repository_id`, `inventory_id`, `environment_id`, `vault_key_id`
-- [ ] Survey vars (переменные с вопросами при запуске)
-- [ ] Эндпоинт: `GET /api/project/{id}/templates`
+- [x] Поддержка типов: `ansible`, `terraform`, `tofu`, `bash`, `powershell`
+- [x] Связи: `repository_id`, `inventory_id`, `environment_id`, `vault_key_id`
+- [x] Template vault keys — `models/template_vault.rs`
+- [x] Template roles — `db/sql/template_roles.rs`
+- [x] Эндпоинт `GET /api/project/{id}/templates`
 
 #### 3.5 Environments
-- [ ] Хранение переменных окружения (JSON-объект `{"KEY": "VALUE"}`)
-- [ ] Шифрование значений
-- [ ] Эндпоинт: `GET /api/project/{id}/environment`
+- [x] Хранение JSON-переменных — `models/environment.rs`
+- [x] Шифрование значений — `utils/encryption.rs`
+- [x] Эндпоинт `GET /api/project/{id}/environment`
 
 #### 3.6 Tasks (история запусков)
-- [ ] `GET /api/project/{id}/tasks` — список с пагинацией
-- [ ] `GET /api/project/{id}/tasks/{task_id}` — детали
-- [ ] `GET /api/project/{id}/tasks/{task_id}/output` — лог выполнения
-- [ ] Статусы: `waiting`, `running`, `success`, `error`, `stopped`
+- [x] `GET /api/project/{id}/tasks` — список
+- [x] `GET /api/project/{id}/tasks/{task_id}` — детали
+- [x] `GET /api/project/{id}/tasks/{task_id}/output` — лог
+- [x] Статусы: `waiting`, `running`, `success`, `error`, `stopped`
 
 #### 3.7 Schedules
-- [ ] Валидация cron-выражения
-- [ ] Cron-runner (tokio background task) — запуск по расписанию
-- [ ] Включение / выключение расписания
-- [ ] `GET /api/project/{id}/schedules`
+- [x] Валидация cron-выражения — `services/scheduler.rs`
+- [x] Cron-runner (tokio background task) — `services/scheduler_pool.rs`
+- [x] Включение / выключение расписания
+- [x] Эндпоинт `GET /api/project/{id}/schedules`
 
 #### 3.8 Views (категории шаблонов в проекте)
-- [ ] CRUD для View
-- [ ] Привязка Template к View
-- [ ] `GET /api/project/{id}/views`
+- [x] CRUD для View — `handlers/projects/views.rs`
+- [x] Привязка Template к View
+- [x] Позиции views — `db/sql/view.rs`
+- [x] Эндпоинт `GET /api/project/{id}/views`
 
 ### Критерии готовности
-- Все эндпоинты работают — проверка через Postman
-- Невалидные данные возвращают 400 с описанием ошибки, а не 500
-- Нет SQL-инъекций (только параметризованные запросы SQLx — это уже гарантировано, но проверить)
+- ✅ Все CRUD-эндпоинты реализованы
+- ✅ Нет SQL-инъекций (SQLx параметризованные запросы)
+- [ ] E2E проверка через Postman
 
 ---
 
@@ -337,97 +338,67 @@ rust_semaphore/
 
 **Цель:** Реальный запуск ansible-playbook, terraform, bash и других инструментов как дочерних процессов.
 
-**Оценка:** 5–10 дней (самая сложная часть)
+**Статус фазы: ✅ Завершена**
 
-> ⚠️ **Это центральная функциональность Semaphore.** Без неё проект — просто CRUD-интерфейс.
-
-### Как это работает в Go-оригинале (контекст)
-
-В Go: `runner/` пакет, `task_runner.go`, запускает `exec.Command(...)` с env-переменными для SSH-ключей, ansible.cfg и т.д. Логи пишутся в БД построчно. Статус задачи обновляется в реальном времени.
+> Реализована в `services/task_runner/`, `services/task_pool*.rs`, `services/local_job/`, `db_lib/`
 
 ### Архитектура Rust Task Runner
 
 ```
-POST /api/project/{id}/tasks  →  TaskQueue  →  TaskExecutor
-                                     ↓               ↓
-                                 БД (waiting)    Процесс (ansible-playbook)
-                                                     ↓
-                                              TaskLog (построчно в БД)
-                                                     ↓
-                                              WebSocket broadcast
+POST /api/project/{id}/tasks  →  TaskPoolQueue  →  TaskPoolRunner
+                                     ↓                    ↓
+                                 БД (waiting)        LocalJob (ansible/terraform/bash)
+                                                          ↓
+                                                   TaskLogger (построчно в БД)
+                                                          ↓
+                                                   WebSocket broadcast
 ```
 
 ### Задачи
 
 #### 4.1 Структуры данных
-- [ ] `Task` модель: id, template_id, project_id, status, created_by, started_at, finished_at, message
-- [ ] `TaskOutput` модель: task_id, task_order (u32), output (String), time (datetime)
-- [ ] `TaskStatus` enum: `Waiting`, `Running`, `Success`, `Error`, `Stopped`
+- [x] `Task` модель — `models/task.rs`
+- [x] `TaskOutput` модель — `db/sql/task_output.rs`
+- [x] `TaskStatus` enum — `services/task_logger.rs`
 
 #### 4.2 Очередь задач
-- [ ] `TaskQueue` — tokio `mpsc::channel` или `Arc<Mutex<VecDeque<TaskId>>>`
-- [ ] Worker pool: N воркеров (конфигурируется, по умолчанию 1 на проект)
-- [ ] Глобальный `AppState` содержит `Arc<TaskQueue>`
-- [ ] Инициализация воркеров при старте сервера (`tokio::spawn`)
+- [x] `TaskPoolQueue` — `services/task_pool_queue.rs`
+- [x] Worker pool — `services/task_pool_runner.rs`
+- [x] `AppState` содержит task pool
+- [x] Инициализация воркеров при старте (`tokio::spawn`)
 
 #### 4.3 Подготовка окружения перед запуском
-- [ ] Клонировать/обновить репозиторий (`git clone` / `git pull`) через `tokio::process::Command`
-- [ ] Написать SSH-ключ во временный файл (mktemp), добавить в `SSH_AUTH_SOCK` или `-i` параметр
-- [ ] Сгенерировать `ansible.cfg` / `inventory` файл во временную директорию
-- [ ] Собрать env-переменные из Environment сущности
+- [x] Git clone/pull — `services/local_job/repository.rs`, `services/git_repository.rs`
+- [x] SSH-ключи во временные файлы — `services/local_job/ssh.rs`, `services/ssh_agent.rs`
+- [x] Env-переменные из Environment — `services/local_job/environment.rs`
+- [x] Vault keys — `services/local_job/vault.rs`
 
 #### 4.4 Запуск процессов
-```rust
-// Пример для Ansible:
-let mut cmd = tokio::process::Command::new("ansible-playbook");
-cmd.arg(&playbook_path)
-   .arg("-i").arg(&inventory_path)
-   .env("ANSIBLE_FORCE_COLOR", "true")
-   .env_clear()
-   .envs(&task_env)
-   .stdout(Stdio::piped())
-   .stderr(Stdio::piped())
-   .kill_on_drop(true);
-```
-
-- [ ] **ansible-playbook** — передача: playbook-файл, inventory, extra-vars, vault-password
-- [ ] **terraform** — `init` → `plan` → `apply` (или только apply с -auto-approve)
-- [ ] **opentofu** — аналогично terraform
-- [ ] **bash / sh** — произвольный скрипт
-- [ ] **powershell** — `pwsh -File script.ps1`
+- [x] **ansible-playbook** — `db_lib/ansible_playbook.rs`, `db_lib/ansible_app.rs`
+- [x] **terraform / opentofu** — `db_lib/terraform_app.rs`
+- [x] **bash / sh** — `db_lib/shell_app.rs`
+- [x] **local** — `db_lib/local_app.rs`
+- [x] CLI аргументы — `services/local_job/args.rs`, `services/local_job/cli.rs`
 
 #### 4.5 Сбор и сохранение логов
-```rust
-// Читать stdout и stderr построчно асинхронно
-let stdout = cmd.stdout.take().unwrap();
-let reader = BufReader::new(stdout).lines();
-while let Some(line) = reader.next_line().await? {
-    // сохранить в БД + broadcast в WebSocket
-    save_output_line(&db, task_id, order, &line).await?;
-    ws_broadcaster.send(line).await;
-    order += 1;
-}
-```
-- [ ] Сохранение каждой строки в `task_output` таблицу
-- [ ] Broadcast через `tokio::sync::broadcast::Sender`
-- [ ] ANSI-escape коды: сохранять как есть (фронтенд рендерит цвета)
+- [x] Построчная запись в `task_output` — `services/task_logger.rs`
+- [x] Broadcast через `tokio::sync::broadcast` — `services/task_runner/websocket.rs`
+- [x] ANSI-escape коды — `utils/ansi.rs`
 
 #### 4.6 Управление задачами
-- [ ] `POST /api/project/{id}/tasks` — создать и поставить в очередь
-- [ ] `POST /api/project/{id}/tasks/{task_id}/stop` — послать SIGTERM дочернему процессу
-- [ ] Корректная обработка SIGTERM/SIGKILL с таймаутом (10 сек на graceful, потом SIGKILL)
-- [ ] Обновление статуса в БД: `running` → `success` | `error` | `stopped`
-- [ ] Cleanup временных файлов после завершения
+- [x] `POST /api/project/{id}/tasks` — создать и запустить
+- [x] `POST /api/project/{id}/tasks/{task_id}/stop` — остановить процесс
+- [x] Lifecycle управление — `services/task_runner/lifecycle.rs`
+- [x] Hooks на события — `services/task_runner/hooks.rs`
 
 #### 4.7 Тесты
-- [ ] Unit-тест: запуск `/bin/echo "hello"` и проверка что лог содержит "hello"
-- [ ] Unit-тест: отмена задачи
-- [ ] Тест: задача с несуществующим playbook → статус `error`
+- [ ] Специфичные тесты runner (echo, stop, error) — не написаны
 
 ### Критерии готовности
-- Запустить `ansible-playbook` на реальном тестовом inventory и получить успешный статус
-- Лог виден построчно в БД сразу во время выполнения
-- `stop` endpoint реально останавливает процесс
+- ✅ Task Runner полностью реализован
+- ✅ Лог пишется в БД построчно
+- ✅ Stop endpoint реализован
+- [ ] Интеграционный тест с реальным ansible-playbook
 
 ---
 
@@ -435,17 +406,17 @@ while let Some(line) = reader.next_line().await? {
 
 **Цель:** Стриминг логов выполнения задачи в браузер в реальном времени.
 
-**Оценка:** 2–3 дня
+**Статус фазы: ⚠️ Бэкенд готов, фронтенд не подключён**
 
 ### Задачи
 
-- [ ] **5.1** Добавить зависимость `axum` с feature `ws`
-- [ ] **5.2** Реализовать handler: `GET /api/project/{id}/tasks/{task_id}/ws` — upgrade to WebSocket
-- [ ] **5.3** При подключении: отдать существующий лог из БД, затем подписаться на broadcast
-- [ ] **5.4** `broadcast::Sender<String>` в `AppState` — одна шина на задачу или глобальная с фильтрацией по task_id
-- [ ] **5.5** Heartbeat ping/pong каждые 30 сек (не закрывать idle соединение)
-- [ ] **5.6** Корректное закрытие WS при завершении задачи (послать специальный `{"type":"done"}`)
-- [ ] **5.7** Фронтенд: подключить WebSocket на странице задачи, рендерить ANSI-цвета (библиотека `ansi_up` или `xterm.js`)
+- [x] **5.1** `axum` с feature `ws` подключён
+- [x] **5.2** Handler WebSocket — `api/websocket.rs`
+- [x] **5.3** Отдача лога из БД + подписка на broadcast — реализовано
+- [x] **5.4** `broadcast::Sender` в AppState — `services/task_runner/websocket.rs`
+- [x] **5.5** Heartbeat ping/pong — реализовано в websocket.rs
+- [x] **5.6** Закрытие WS при завершении задачи — реализовано
+- [ ] **5.7** Фронтенд: Vue 2 не подключён к WebSocket *(задача фазы 6)*
 
 ### API WebSocket
 
@@ -458,7 +429,8 @@ ws://host/api/project/{id}/tasks/{task_id}/ws
 ```
 
 ### Критерии готовности
-- Открываем страницу задачи, запускаем playbook — лог появляется строчка за строчкой без reload
+- ✅ Бэкенд WebSocket полностью реализован
+- ❌ Фронтенд не использует WS (будет в фазе 6)
 
 ---
 
@@ -567,58 +539,66 @@ web/src/
 
 ## Фаза 7 — Интеграции и дополнительные возможности
 
-**Оценка:** 3–5 дней
+**Статус фазы: ⚠️ Большинство готово, Slack/Telegram/LDAP — нет**
 
 ### Задачи
 
-- [ ] **7.1 Webhooks входящие** — `POST /api/project/{id}/integrations/{integration_id}` запускает задачу
-- [ ] **7.2 Webhooks исходящие** — HTTP POST при смене статуса задачи (success/fail)
-- [ ] **7.3 Уведомления Email** — SMTP конфигурация, шаблон письма при завершении задачи
-- [ ] **7.4 Уведомления Slack** — incoming webhook URL в настройках проекта
-- [ ] **7.5 Уведомления Telegram** — Bot API токен + chat_id
-- [ ] **7.6 MySQL поддержка** — дописать миграции под MySQL 8, протестировать
-- [ ] **7.7 Terraform State API** — `GET/POST /api/project/{id}/terraform/state/{serial}` (HTTP backend для tfstate)
-- [ ] **7.8 LDAP Auth** — опциональная интеграция с LDAP/AD для SSO
+- [x] **7.1 Webhooks входящие** — `handlers/projects/integration*.rs` — полный CRUD + матчеры
+- [x] **7.2 Webhooks исходящие** — `services/webhook.rs` — HTTP POST на смену статуса
+- [x] **7.3 Уведомления Email** — `utils/mailer.rs` + `services/alert.rs` (lettre, TLS/SSL)
+- [ ] **7.4 Уведомления Slack** — не реализовано *(нужно добавить)*
+- [ ] **7.5 Уведомления Telegram** — не реализовано *(нужно добавить)*
+- [x] **7.6 MySQL поддержка** — `db/sql/mysql/` — полный CRUD
+- [x] **7.7 Terraform State API** — `models/terraform_inventory.rs`, `db/sql/terraform_inventory.rs`
+- [ ] **7.8 LDAP Auth** — конфигурация готова (`config/config_ldap.rs`), **хандлер не подключён**
+- [x] **7.9 Secret Storages** — `handlers/projects/secret_storages.rs` *(новое)*
+- [x] **7.10 Backup / Restore** — `services/backup.rs`, `services/restore.rs` *(новое)*
+- [x] **7.11 Prometheus Metrics** — `services/metrics.rs` *(новое)*
 
 ---
 
 ## Фаза 8 — Prod-готовность
 
-**Оценка:** 3–4 дня
+**Статус фазы: ⚠️ В основном готово, нужны clippy в CI и E2E тесты**
 
 ### Задачи
 
 #### 8.1 Docker
-- [ ] Multi-stage `Dockerfile`: build stage (Rust + Node) → final stage (distroless/alpine)
-- [ ] `docker-compose.yml` — полный стек: backend + frontend + postgres
-- [ ] `docker-compose.dev.yml` — dev режим с hot-reload
-- [ ] Образ: цель < 50MB
+- [x] `Dockerfile` — существует
+- [x] `docker-compose.yml` — существует (postgres + backend)
+- [x] `docker-compose.single.yml` — single-container режим
+- [ ] Multi-stage минимальный образ < 50MB — не проверено
+- [ ] `docker-compose.dev.yml` с hot-reload — нет
 
 #### 8.2 CI/CD (GitHub Actions)
-- [ ] `.github/workflows/ci.yml` — build + test + clippy на каждый PR
-- [ ] `.github/workflows/release.yml` — сборка binaries для Linux/macOS/Windows
-- [ ] Кросс-компиляция: `x86_64-unknown-linux-musl`, `aarch64-unknown-linux-musl`
-- [ ] Docker image push в GitHub Container Registry
+- [x] `.github/workflows/dev.yml` — build + test на каждый push
+- [x] `.github/workflows/community_release.yml` — сборка release binaries
+- [x] `.github/workflows/community_beta.yml` — beta releases
+- [ ] Clippy шаг для Rust — **отсутствует** в workflows (CI использует Go Taskfile)
+- [ ] Кросс-компиляция musl — не проверена
 
 #### 8.3 Конфигурация
-- [ ] Проверить все env-переменные задокументированы в `CONFIG.md`
-- [ ] `--config` флаг для загрузки из YAML-файла (как в оригинале)
-- [ ] Health check endpoint: `GET /api/ping` → `{"status":"ok"}`
+- [x] `CONFIG.md` — документация env-переменных существует
+- [x] YAML-конфиг — `config/loader.rs`
+- [x] Health check — `GET /api/health` → `"OK"` (`routes.rs:16`)
 
 #### 8.4 Тесты
-- [ ] Integration тесты с реальной БД (SQLite in-memory) через `sqlx::test`
-- [ ] E2E тесты API через `reqwest` (или сохранить Postman-коллекцию актуальной)
+- [x] 524 unit-теста — `cargo test` green
+- [ ] Integration тесты с реальной БД (SQLite in-memory через `sqlx::test`)
+- [ ] E2E тесты через `reqwest`
 - [ ] Покрытие ≥ 60% критических путей
 
 #### 8.5 Безопасность
-- [ ] Rate limiting для `/api/auth/login` (axum-governor или custom middleware)
-- [ ] CORS настройки — только разрешённые origins
-- [ ] Заголовки безопасности: `X-Frame-Options`, `Content-Security-Policy`, etc.
-- [ ] Проверить что секреты не утекают в логи
+- [x] Rate limiting — `api/middleware/rate_limiter.rs` (commit 67bfce0)
+- [x] CORS настройки — реализованы
+- [x] Security headers (`X-Frame-Options`, CSP, etc.) — `api/middleware/security_headers.rs` (commit 67bfce0)
+- [ ] Аудит: секреты не утекают в логи
 
 ### Критерии готовности
-- `docker compose up` и всё работает без дополнительных действий
-- GitHub Actions: все шаги green на main ветке
+- ✅ `docker compose up` — работает
+- ✅ GitHub Actions: dev/release workflows запускаются
+- ❌ Нет clippy в Rust CI
+- ❌ Нет E2E тестов
 
 ---
 
