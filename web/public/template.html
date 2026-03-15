@@ -422,6 +422,7 @@
             content.innerHTML = `
                 <div class="toolbar">
                     <button class="btn btn-primary" onclick="openRunDialog()">▶ Запустить</button>
+                    <button class="btn btn-danger btn-sm" onclick="stopAllTasks()">⏹ Остановить все задачи</button>
                     <button class="btn btn-sm" onclick="openEditDialog()">✏️ Редактировать</button>
                     <button class="btn btn-danger btn-sm" onclick="deleteTpl()">🗑️ Удалить</button>
                     <div style="flex:1"></div>
@@ -433,13 +434,16 @@
                 <div class="tpl-tabs">
                     <div class="tpl-tab active" id="tab-tasks" onclick="switchTab('tasks')">Задачи</div>
                     <div class="tpl-tab" id="tab-details" onclick="switchTab('details')">Детали</div>
+                    <div class="tpl-tab" id="tab-perms" onclick="switchTab('perms')">Права</div>
                 </div>
 
                 <div id="tab-content-tasks"></div>
                 <div id="tab-content-details" style="display:none;"></div>
+                <div id="tab-content-perms" style="display:none;"></div>
             `;
             loadTasksTab();
             renderDetailsTab();
+            renderPermissionsTab();
         }
 
         function switchTab(name) {
@@ -532,6 +536,66 @@
                     </div>
                 </div>
             `;
+        }
+
+        function renderPermissionsTab() {
+            const container = document.getElementById('tab-content-perms');
+            if (!container) return;
+            container.innerHTML = `
+                <div class="card">
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        <p>Загрузка прав доступа...</p>
+                    </div>
+                </div>
+            `;
+
+            api.get('/project/' + projectId + '/templates/' + tplId + '/permissions')
+                .then(perms => {
+                    if (!Array.isArray(perms) || !perms.length) {
+                        container.innerHTML = `
+                            <div class="card">
+                                <p class="text-muted">Для этого шаблона ещё не настроены права доступа. Базовые роли проекта продолжают работать.</p>
+                                <p class="text-muted" style="margin-top:8px;">Функция детальных прав на шаблон зависит от backend-задач B-BE-09..11 и может быть недоступна в текущей сборке.</p>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    container.innerHTML = `
+                        <div class="card">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                                <h3 style="font-size:16px; font-weight:500;">Права доступа к шаблону</h3>
+                            </div>
+                            <div class="table-wrap">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Роль</th>
+                                            <th>Тип доступа</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${perms.map(p => `
+                                            <tr>
+                                                <td>${escapeHtml(p.role_name || p.role || '—')}</td>
+                                                <td>${escapeHtml(p.permission || p.type || '—')}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p class="text-muted" style="margin-top:12px;">Редактирование прав будет доступно после реализации соответствующих backend-эндпоинтов (B-BE-16..18).</p>
+                        </div>
+                    `;
+                })
+                .catch(() => {
+                    container.innerHTML = `
+                        <div class="card">
+                            <p class="text-muted">Права доступа к шаблону пока недоступны. Скорее всего, backend-часть для управления правами (задачи B-BE-09..11, B-BE-16..18) ещё не реализована.</p>
+                        </div>
+                    `;
+                });
         }
 
         function flag(label, val) {
@@ -747,10 +811,44 @@
         }
 
         function deleteTpl() {
-            if (!confirm('Удалить шаблон "' + tpl.name + '"? Это действие нельзя отменить.')) return;
-            api.deleteTemplate(projectId, tplId)
-                .then(() => { window.location.href = 'templates.html?id=' + projectId; })
-                .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+            api.get('/project/' + projectId + '/templates/' + tplId + '/refs')
+                .then(refs => {
+                    let message = 'Удалить шаблон "' + (tpl.name || ('#' + tpl.id)) + '"? Это действие нельзя отменить.';
+                    if (refs && (refs.schedules || refs.tasks)) {
+                        const parts = [];
+                        if (refs.schedules) parts.push('расписания: ' + refs.schedules);
+                        if (refs.tasks) parts.push('задачи: ' + refs.tasks);
+                        if (parts.length) {
+                            message += '\n\nЭтот шаблон используется в: ' + parts.join(', ') + '.';
+                        }
+                    }
+                    ui.confirm('Удаление шаблона', message)
+                        .then(confirmed => {
+                            if (!confirmed) return;
+                            api.deleteTemplate(projectId, tplId)
+                                .then(() => { window.location.href = 'templates.html?id=' + projectId; })
+                                .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+                        });
+                })
+                .catch(() => {
+                    if (!confirm('Удалить шаблон "' + (tpl.name || ('#' + tpl.id)) + '"? Это действие нельзя отменить.')) return;
+                    api.deleteTemplate(projectId, tplId)
+                        .then(() => { window.location.href = 'templates.html?id=' + projectId; })
+                        .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+                });
+        }
+
+        function stopAllTasks() {
+            ui.confirm('Остановить все задачи', 'Остановить все активные задачи, запущенные из этого шаблона?')
+                .then(confirmed => {
+                    if (!confirmed) return;
+                    api.post('/project/' + projectId + '/templates/' + tplId + '/stop_all_tasks', {})
+                        .then(() => {
+                            ui.showAlert('Команда на остановку задач отправлена.', 'success');
+                            loadTasksTab();
+                        })
+                        .catch(err => ui.showAlert('Ошибка при остановке задач: ' + err.message, 'danger'));
+                });
         }
     </script>
 </body>

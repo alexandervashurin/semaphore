@@ -224,6 +224,86 @@ body {
     border-top: 1px solid rgba(255,255,255,0.1);
 }
 
+.sidebar-project {
+    padding: 0 16px 8px;
+}
+
+.sidebar-project-select {
+    background: rgba(0,0,0,0.16);
+    border-color: rgba(255,255,255,0.4);
+    color: #fff;
+}
+
+.sidebar-project-select option {
+    color: #000;
+}
+
+.sidebar-user {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0 6px;
+    margin-bottom: 4px;
+    border-top: 1px solid rgba(255,255,255,0.15);
+}
+
+.sidebar-user-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    flex-shrink: 0;
+    color: #fff;
+}
+
+.sidebar-user-name {
+    font-size: 13px;
+    color: rgba(255,255,255,0.95);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sidebar-footer-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.sidebar-footer-links {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.sidebar-footer-btn {
+    flex: 1;
+    text-align: center;
+    font-size: 12px;
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+    border: none;
+}
+
+.sidebar-lang-select {
+    height: 32px;
+    padding: 4px 8px;
+    font-size: 12px;
+    background: rgba(0,0,0,0.16);
+    border-color: rgba(255,255,255,0.4);
+    color: #fff;
+}
+
+.sidebar-lang-select option {
+    color: #000;
+}
+
 /* ── Main content ─────────────────────────────────────────── */
 
 .main-content {
@@ -553,6 +633,19 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 
 .table tbody tr { transition: background var(--transition); }
 .table tbody tr:hover { background: rgba(143,143,143,0.04); }
+
+/* ── Dark theme overrides ───────────────────────────────────── */
+
+.theme-dark {
+    --bg: #121212;
+    --card-bg: #1E1E1E;
+    --border: rgba(255,255,255,0.12);
+    --text: rgba(255,255,255,0.92);
+    --text-secondary: rgba(255,255,255,0.7);
+    --text-muted: rgba(255,255,255,0.6);
+    --sidebar-bg: #003236;
+    --sidebar-bg-dark: #001f23;
+}
 
 /* ── Loading ──────────────────────────────────────────────── */
 

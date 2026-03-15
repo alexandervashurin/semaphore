@@ -8,6 +8,9 @@
 const API_BASE = '/api';
 const STORAGE_KEY = 'semaphore_token';
 const USER_KEY = 'semaphore_user';
+const THEME_KEY = 'semaphore_theme';
+const LANG_KEY = 'semaphore_lang';
+const PROJECT_KEY = 'semaphore_last_project';
 
 // ==================== Утилиты ====================
 
@@ -472,39 +475,70 @@ function renderSidebar() {
     if (!sidebar) return;
 
     const urlParams = new URLSearchParams(window.location.search);
-    const projectId = urlParams.get('id');
+    const urlProjectId = urlParams.get('id');
     const currentPage = location.pathname.split('/').pop() || 'index.html';
 
-    const navItems = SIDEBAR_ITEMS.map(item => {
-        const href = (item.noId || !projectId)
-            ? item.href
-            : item.href + '?id=' + projectId;
-        const isActive = currentPage === item.href ? 'class="active"' : '';
-        return `<li><a href="${href}" ${isActive}><span class="nav-icon">${item.icon}</span>${item.label}</a></li>`;
-    }).join('');
+    let currentTheme = localStorage.getItem(THEME_KEY) || 'light';
+    if (currentTheme !== 'light' && currentTheme !== 'dark') {
+        currentTheme = 'light';
+    }
+    document.body.classList.toggle('theme-dark', currentTheme === 'dark');
+
+    let currentLang = localStorage.getItem(LANG_KEY) || 'ru';
+    if (!['ru', 'en'].includes(currentLang)) {
+        currentLang = 'ru';
+    }
 
     const storedUser = (() => { try { return JSON.parse(localStorage.getItem(USER_KEY) || 'null'); } catch { return null; } })();
     const userName = storedUser?.username || storedUser?.name || '';
+
+    let storedProjectId = localStorage.getItem(PROJECT_KEY) || null;
+
+    const projectIdForLinks = urlProjectId || storedProjectId;
+
+    const navItems = SIDEBAR_ITEMS.map(item => {
+        const href = (item.noId || !projectIdForLinks)
+            ? item.href
+            : item.href + '?id=' + projectIdForLinks;
+        const isActive = currentPage === item.href ? 'class="active"' : '';
+        return `<li><a href="${href}" ${isActive}><span class="nav-icon">${item.icon}</span>${item.label}</a></li>`;
+    }).join('');
 
     sidebar.innerHTML = `
         <div class="sidebar-logo">
             <div class="sidebar-logo-dot"><img src="/logo.svg" alt=""></div>
             <h2>Semaphore</h2>
         </div>
+        <div class="sidebar-section">
+            <span>Проект</span>
+        </div>
+        <div class="sidebar-project" data-current-page="${escapeHtml(currentPage)}">
+            <select class="form-control sidebar-project-select">
+                <option value="">Загрузка проектов...</option>
+            </select>
+        </div>
         <div class="sidebar-section">Навигация</div>
         <ul class="sidebar-nav">${navItems}</ul>
         <div class="sidebar-footer">
-            ${userName ? `<div style="display:flex; align-items:center; gap:8px; padding:8px 0; margin-bottom:6px; border-top:1px solid rgba(255,255,255,.15); padding-top:10px;">
-                <div style="width:30px; height:30px; border-radius:50%; background:rgba(255,255,255,.25); display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700; flex-shrink:0;">${userName[0].toUpperCase()}</div>
-                <span style="font-size:13px; opacity:.9; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(userName)}</span>
+            ${userName ? `
+            <div class="sidebar-user">
+                <div class="sidebar-user-avatar">${userName[0].toUpperCase()}</div>
+                <div class="sidebar-user-info">
+                    <div class="sidebar-user-name">${escapeHtml(userName)}</div>
+                </div>
             </div>` : ''}
-            <div style="display:flex; gap:6px; margin-bottom:6px;">
-                <a href="tokens.html" class="btn btn-sm" style="flex:1; text-align:center; font-size:12px; background:rgba(255,255,255,.12); color:#fff; border:none;">🔑 Токены</a>
-                <a href="users.html" class="btn btn-sm" style="flex:1; text-align:center; font-size:12px; background:rgba(255,255,255,.12); color:#fff; border:none;">👤 Аккаунт</a>
+            <div class="sidebar-footer-controls">
+                <button type="button" class="btn btn-sm sidebar-theme-toggle">${currentTheme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}</button>
+                <select class="form-control sidebar-lang-select">
+                    <option value="ru"${currentLang === 'ru' ? ' selected' : ''}>RU</option>
+                    <option value="en"${currentLang === 'en' ? ' selected' : ''}>EN</option>
+                </select>
             </div>
-            <button class="btn btn-logout" onclick="api.logout()" style="width:100%;justify-content:center;">
-                Выйти
-            </button>
+            <div class="sidebar-footer-links">
+                <a href="tokens.html" class="btn btn-sm sidebar-footer-btn">Токены</a>
+                <a href="users.html" class="btn btn-sm sidebar-footer-btn">Аккаунт</a>
+            </div>
+            <button class="btn btn-logout" type="button" onclick="api.logout()">Выйти</button>
         </div>
     `;
 
@@ -526,6 +560,59 @@ function renderSidebar() {
 
         btn.addEventListener('click', openSidebar);
         overlay.addEventListener('click', closeSidebar);
+    }
+
+    const projectSelect = sidebar.querySelector('.sidebar-project-select');
+    if (projectSelect) {
+        api.getProjects()
+            .then(projects => {
+                if (!Array.isArray(projects) || projects.length === 0) {
+                    projectSelect.innerHTML = '<option value="">Нет проектов</option>';
+                    return;
+                }
+                let effectiveProjectId = urlProjectId || storedProjectId || String(projects[0].id);
+                localStorage.setItem(PROJECT_KEY, effectiveProjectId);
+
+                projectSelect.innerHTML = projects.map(p => `
+                    <option value="${p.id}"${String(p.id) === String(effectiveProjectId) ? ' selected' : ''}>
+                        ${escapeHtml(p.name || 'Проект ' + p.id)}
+                    </option>
+                `).join('');
+
+                projectSelect.addEventListener('change', () => {
+                    const selectedId = projectSelect.value || '';
+                    if (!selectedId) return;
+                    localStorage.setItem(PROJECT_KEY, selectedId);
+                    const page = projectSelect.closest('.sidebar-project')?.dataset.currentPage || 'project.html';
+                    if (page === 'index.html' || page === 'global_tasks.html' || page === 'apps.html' || page === 'runners.html') {
+                        window.location.href = `project.html?id=${encodeURIComponent(selectedId)}`;
+                    } else {
+                        window.location.href = `${page}?id=${encodeURIComponent(selectedId)}`;
+                    }
+                });
+            })
+            .catch(() => {
+                projectSelect.innerHTML = '<option value="">Ошибка загрузки проектов</option>';
+            });
+    }
+
+    const themeToggle = sidebar.querySelector('.sidebar-theme-toggle');
+    if (themeToggle) {
+        themeToggle.addEventListener('click', () => {
+            const current = localStorage.getItem(THEME_KEY) || 'light';
+            const next = current === 'dark' ? 'light' : 'dark';
+            localStorage.setItem(THEME_KEY, next);
+            document.body.classList.toggle('theme-dark', next === 'dark');
+            themeToggle.textContent = next === 'dark' ? 'Светлая тема' : 'Тёмная тема';
+        });
+    }
+
+    const langSelect = sidebar.querySelector('.sidebar-lang-select');
+    if (langSelect) {
+        langSelect.addEventListener('change', () => {
+            const value = langSelect.value;
+            localStorage.setItem(LANG_KEY, value);
+        });
     }
 }
 
