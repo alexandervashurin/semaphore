@@ -1,0 +1,19 @@
+---
+# Hello World плейбук — для быстрой проверки
+- name: Hello World
+  hosts: all
+  gather_facts: no
+  tasks:
+    - name: Say hello
+      ansible.builtin.debug:
+        msg: "Hello from Semaphore UI (Rust)! Host: {{ inventory_hostname }}"
+
+    - name: Check Python version
+      ansible.builtin.command: python3 --version
+      register: py_version
+      changed_when: false
+      ignore_errors: true
+
+    - name: Show Python version
+      ansible.builtin.debug:
+        msg: "Python: {{ py_version.stdout | default('not found') }}"
