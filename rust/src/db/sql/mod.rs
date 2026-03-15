@@ -375,6 +375,22 @@ impl SqlStore {
         .await
         .map_err(Error::Database)?;
 
+        // event — журнал событий
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS event (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id INTEGER REFERENCES project(id) ON DELETE CASCADE,
+                user_id INTEGER,
+                object_id INTEGER,
+                object_type TEXT NOT NULL DEFAULT '',
+                description TEXT NOT NULL DEFAULT '',
+                created DATETIME NOT NULL DEFAULT (datetime('now'))
+            )",
+        )
+        .execute(pool)
+        .await
+        .map_err(Error::Database)?;
+
         tracing::info!("Схема БД инициализирована");
         Ok(())
     }
