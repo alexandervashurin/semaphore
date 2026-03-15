@@ -276,6 +276,7 @@ impl RestoreEntryAsync for BackupInventory {
             become_key_id: None,
             vaults: None,
             created: Some(chrono::Utc::now()),
+            runner_tag: None,
         };
 
         // Находим SSH ключ по имени

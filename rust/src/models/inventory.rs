@@ -14,6 +14,8 @@ pub enum InventoryType {
     StaticJson,
     File,
     TerraformInventory,
+    TerraformWorkspace,
+    TofuWorkspace,
 }
 
 impl std::fmt::Display for InventoryType {
@@ -24,6 +26,8 @@ impl std::fmt::Display for InventoryType {
             InventoryType::StaticJson => write!(f, "static_json"),
             InventoryType::File => write!(f, "file"),
             InventoryType::TerraformInventory => write!(f, "terraform_inventory"),
+            InventoryType::TerraformWorkspace => write!(f, "terraform_workspace"),
+            InventoryType::TofuWorkspace => write!(f, "tofu_workspace"),
         }
     }
 }
@@ -38,6 +42,8 @@ impl std::str::FromStr for InventoryType {
             "static_json" => Ok(InventoryType::StaticJson),
             "file" => Ok(InventoryType::File),
             "terraform_inventory" => Ok(InventoryType::TerraformInventory),
+            "terraform_workspace" => Ok(InventoryType::TerraformWorkspace),
+            "tofu_workspace" => Ok(InventoryType::TofuWorkspace),
             _ => Ok(InventoryType::Static),
         }
     }
@@ -85,6 +91,8 @@ where
             InventoryType::StaticJson => "static_json",
             InventoryType::File => "file",
             InventoryType::TerraformInventory => "terraform_inventory",
+            InventoryType::TerraformWorkspace => "terraform_workspace",
+            InventoryType::TofuWorkspace => "tofu_workspace",
         }.to_string();
         <String as Encode<'q, DB>>::encode(s, buf)
     }
@@ -141,6 +149,10 @@ pub struct Inventory {
     /// Дата создания
     #[serde(skip_serializing_if = "Option::is_none")]
     pub created: Option<chrono::DateTime<Utc>>,
+
+    /// Runner tag для фильтрации раннеров
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub runner_tag: Option<String>,
 }
 
 impl Inventory {
@@ -161,6 +173,7 @@ impl Inventory {
             become_key_id: None,
             vaults: None,
             created: None,
+            runner_tag: None,
         }
     }
 
@@ -183,6 +196,7 @@ impl Default for Inventory {
             become_key_id: None,
             vaults: None,
             created: None,
+            runner_tag: None,
         }
     }
 }
