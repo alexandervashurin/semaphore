@@ -23,7 +23,7 @@ pub enum GalaxyRequirementsType {
 }
 
 impl GalaxyRequirementsType {
-    fn to_string(&self) -> &'static str {
+    fn to_str(self) -> &'static str {
         match self {
             GalaxyRequirementsType::Role => "role",
             GalaxyRequirementsType::Collection => "collection",
@@ -277,7 +277,7 @@ impl AnsibleApp {
         requirements_path: &Path,
         environment_vars: Vec<String>,
     ) -> Result<()> {
-        let hash_path = requirements_path.with_extension(format!("yml.{}.md5", requirements_type.to_string()));
+        let hash_path = requirements_path.with_extension(format!("yml.{}.md5", requirements_type.to_str()));
 
         if !requirements_path.exists() {
             self.log(&format!("No {} file found. Skip galaxy install process.", requirements_path.display()));
@@ -285,10 +285,10 @@ impl AnsibleApp {
         }
 
         if Self::has_requirements_changes(requirements_path, &hash_path) {
-            self.log(&format!("Installing {} requirements from {}", requirements_type.to_string(), requirements_path.display()));
+            self.log(&format!("Installing {} requirements from {}", requirements_type.to_str(), requirements_path.display()));
             
             let args = vec![
-                requirements_type.to_string().to_string(),
+                requirements_type.to_str().to_string(),
                 "install".to_string(),
                 "-r".to_string(),
                 requirements_path.display().to_string(),

@@ -8,32 +8,26 @@ use std::path::PathBuf;
 /// Тип формата логов
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum LogFormat {
     Json,
+    #[default]
     Text,
 }
 
-impl Default for LogFormat {
-    fn default() -> Self {
-        LogFormat::Text
-    }
-}
 
 /// Тип уровня логирования
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum LogLevel {
     Debug,
+    #[default]
     Info,
     Warn,
     Error,
 }
 
-impl Default for LogLevel {
-    fn default() -> Self {
-        LogLevel::Info
-    }
-}
 
 /// Конфигурация логирования
 #[derive(Debug, Clone, Serialize, Deserialize)]

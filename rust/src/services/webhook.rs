@@ -377,8 +377,6 @@ impl Default for WebhookService {
     }
 }
 
-/// Helper функции для создания событий
-
 /// Создаёт событие для задачи
 pub fn create_task_event(
     event_type: &str,

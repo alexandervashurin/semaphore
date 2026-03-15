@@ -114,8 +114,8 @@ hmac = "0.12"
 base32 = "0.5"
 base64 = "0.22"
 
-# LDAP (опционально, для аутентификации)
-# ldap3 = "0.11"
+# LDAP аутентификация
+ldap3 = { version = "0.11", default-features = false, features = ["tls-native"] }
 
 # OIDC (опционально, для OAuth)
 # oidc = "0.18"
@@ -181,7 +181,11 @@ version = "3"
 [dev-dependencies]
 tokio-test = "0.4"
 fake = { version = "4", features = ["derive", "chrono"] }
+tempfile = "3"
+mockall = "0.13"
+assert-json-diff = "2.0"
 criterion = { version = "0.6", features = ["html_reports"] }
+http-body-util = "0.1"
 
 # Build dependencies для gRPC
 [build-dependencies]

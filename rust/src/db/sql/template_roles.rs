@@ -19,7 +19,7 @@ impl SqlDb {
                 .bind(project_id)
                 .fetch_all(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
                 
                 Ok(roles)
             }
@@ -40,7 +40,7 @@ impl SqlDb {
                 .bind(&role.role_slug)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
                 
                 role.id = result.last_insert_rowid() as i32;
                 Ok(role)
@@ -63,7 +63,7 @@ impl SqlDb {
                 .bind(role.project_id)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
                 
                 Ok(())
             }
@@ -83,7 +83,7 @@ impl SqlDb {
                 .bind(project_id)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
                 
                 Ok(())
             }

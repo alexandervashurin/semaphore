@@ -16,7 +16,7 @@ impl SqlDb {
                     .bind(user_id)
                     .fetch_one(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
                 
                 let totp_json: Option<String> = user.get(0);
                 
@@ -49,7 +49,7 @@ impl SqlDb {
                     .bind(user_id)
                     .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
                 
                 Ok(())
             }
@@ -65,7 +65,7 @@ impl SqlDb {
                     .bind(user_id)
                     .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
                 
                 Ok(())
             }

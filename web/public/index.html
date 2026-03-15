@@ -3,32 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Semaphore UI</title>
+    <title>Dashboard — Semaphore UI</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="header">
-        <h1>🚀 Semaphore UI</h1>
+        <h1><img src="logo.svg" alt="">Semaphore UI</h1>
         <div class="user-menu">
-            <span id="user-name">Admin</span>
+            <a href="/users.html" class="btn btn-ghost btn-sm" style="border-color:rgba(255,255,255,0.12);color:var(--gray-400);">
+                Пользователи
+            </a>
             <button class="btn-logout" onclick="api.logout()">Выйти</button>
         </div>
     </div>
 
     <div class="container">
-        <div class="card mb-4">
-            <h2>Добро пожаловать!</h2>
-            <p style="color: var(--text-light);">Управление проектами автоматизации</p>
+        <div class="page-header" style="margin-top: 8px;">
+            <div>
+                <h1 style="font-size:24px;letter-spacing:-0.5px;">Проекты</h1>
+                <p class="text-muted" style="margin-top:3px;">Выберите проект или создайте новый</p>
+            </div>
+            <button class="btn btn-primary" onclick="openProjectModal()">
+                + Новый проект
+            </button>
         </div>
 
-        <div class="page-header">
-            <h1>Проекты</h1>
-        </div>
-
-        <div id="projects-grid" class="grid">
+        <div id="projects-grid" class="grid" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
             <div class="loading">
                 <div class="loading-spinner"></div>
-                <p>Загрузка проектов...</p>
+                <p>Загрузка...</p>
             </div>
         </div>
     </div>
@@ -37,24 +40,96 @@
     <script>
         checkAuth();
 
-        // Загрузка проектов
-        api.getProjects()
-            .then(projects => {
-                const grid = $('#projects-grid');
-                if (projects.length === 0) {
-                    ui.showEmpty(grid, '📁', 'Нет проектов', 'Создайте первый проект чтобы начать работу');
-                } else {
-                    grid.innerHTML = projects.map(p => `
-                        <div class="card" onclick="location.href='/project.html?id=${p.id}'" style="cursor: pointer;">
-                            <h3 style="color: var(--primary); margin-bottom: 10px;">${escapeHtml(p.name)}</h3>
-                            <p style="color: var(--text-light);">${escapeHtml(p.description || 'Нет описания')}</p>
+        function loadProjects() {
+            api.getProjects()
+                .then(projects => {
+                    const grid = $('#projects-grid');
+                    if (projects.length === 0) {
+                        ui.showEmpty(grid, '◈', 'Нет проектов', 'Создайте первый проект чтобы начать работу');
+                    } else {
+                        grid.innerHTML = projects.map(p => `
+                            <div class="card card-interactive" onclick="location.href='/project.html?id=${p.id}'">
+                                <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+                                    <div style="width:36px;height:36px;background:var(--primary-subtle);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">⬡</div>
+                                    <div style="min-width:0;">
+                                        <div style="font-weight:600;color:var(--text);font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(p.name)}</div>
+                                        <div style="font-size:12px;color:var(--text-muted);">ID: ${p.id}</div>
+                                    </div>
+                                </div>
+                                <p style="font-size:13px;color:var(--text-muted);line-height:1.5;margin-bottom:0;">${escapeHtml(p.description || 'Нет описания')}</p>
+                            </div>
+                        `).join('');
+                    }
+                })
+                .catch(error => {
+                    ui.showError($('#projects-grid'), error.message);
+                });
+        }
+
+        loadProjects();
+
+        function openProjectModal() {
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.id = 'project-modal';
+            modal.innerHTML = `
+                <div class="modal">
+                    <div class="modal-header">
+                        <h2>Новый проект</h2>
+                    </div>
+                    <form id="project-form">
+                        <div class="form-group">
+                            <label for="project-name">Название *</label>
+                            <input type="text" id="project-name" class="form-control" required placeholder="My Project" autofocus>
                         </div>
-                    `).join('');
-                }
-            })
-            .catch(error => {
-                ui.showError($('#projects-grid'), error.message);
+                        <div class="form-group">
+                            <label for="project-description">Описание</label>
+                            <textarea id="project-description" class="form-control" rows="2" placeholder="Краткое описание..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="project-parallel">Макс. параллельных задач</label>
+                            <input type="number" id="project-parallel" class="form-control" value="0" min="0">
+                            <p class="form-hint">0 — без ограничений</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-ghost" onclick="closeProjectModal()">Отмена</button>
+                            <button type="submit" class="btn btn-primary">Создать проект</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            $('#project-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const name = $('#project-name').value.trim();
+                if (!name) { ui.showAlert('Введите название', 'warning'); return; }
+                const btn = e.target.querySelector('button[type="submit"]');
+                btn.disabled = true;
+                btn.textContent = 'Создание...';
+                api.createProject({
+                    name,
+                    description: $('#project-description').value.trim() || null,
+                    max_parallel_tasks: parseInt($('#project-parallel').value) || 0
+                })
+                .then(p => {
+                    closeProjectModal();
+                    window.location.href = '/project.html?id=' + p.id;
+                })
+                .catch(error => {
+                    ui.showAlert('Ошибка: ' + error.message, 'danger');
+                    btn.disabled = false;
+                    btn.textContent = 'Создать проект';
+                });
             });
+
+            modal.addEventListener('click', (e) => { if (e.target === modal) closeProjectModal(); });
+        }
+
+        function closeProjectModal() {
+            const m = $('#project-modal');
+            if (m) m.remove();
+        }
     </script>
 </body>
 </html>

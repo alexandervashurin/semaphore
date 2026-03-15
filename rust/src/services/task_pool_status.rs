@@ -38,7 +38,7 @@ impl TaskStatusMessage {
         Self {
             message_type: "update".to_string(),
             task_id: task.id,
-            status: task.status.clone(),
+            status: task.status,
             start: task.start,
             end: task.end,
             template_id: task.template_id,

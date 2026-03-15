@@ -20,7 +20,7 @@ impl UserManager for SqlStore {
                 let rows = sqlx::query(query)
                     .fetch_all(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(rows.into_iter().map(|row| User {
                     id: row.get("id"),
@@ -42,7 +42,7 @@ impl UserManager for SqlStore {
                 let rows = sqlx::query(query)
                     .fetch_all(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(rows.into_iter().map(|row| User {
                     id: row.get("id"),
@@ -64,7 +64,7 @@ impl UserManager for SqlStore {
                 let rows = sqlx::query(query)
                     .fetch_all(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(rows.into_iter().map(|row| User {
                     id: row.get("id"),
@@ -209,25 +209,25 @@ impl UserManager for SqlStore {
                     })?;
 
                 let id: i32 = row.try_get("id")
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
                 let created: chrono::DateTime<chrono::Utc> = row.try_get("created")
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
                 let username: String = row.try_get("username")
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
                 let name: String = row.try_get("name")
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
                 let email: String = row.try_get("email")
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
                 let password: String = row.try_get("password")
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
                 let admin: bool = row.try_get("admin")
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
                 let external: bool = row.try_get("external")
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
                 let alert: bool = row.try_get("alert")
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
                 let pro: bool = row.try_get("pro")
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(User {
                     id,
@@ -295,7 +295,7 @@ impl UserManager for SqlStore {
                     .bind(user.created)
                     .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::PostgreSQL => {
                 let query = "INSERT INTO \"user\" (username, name, email, password, admin, external, alert, pro, created) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)";
@@ -311,7 +311,7 @@ impl UserManager for SqlStore {
                     .bind(user.created)
                     .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::MySQL => {
                 let query = "INSERT INTO `user` (username, name, email, password, admin, external, alert, pro, created) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
@@ -327,7 +327,7 @@ impl UserManager for SqlStore {
                     .bind(user.created)
                     .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
         }
 
@@ -349,7 +349,7 @@ impl UserManager for SqlStore {
                     .bind(user.id)
                     .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::PostgreSQL => {
                 let query = "UPDATE \"user\" SET username = $1, name = $2, email = $3, admin = $4, external = $5, alert = $6, pro = $7 WHERE id = $8";
@@ -364,7 +364,7 @@ impl UserManager for SqlStore {
                     .bind(user.id)
                     .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::MySQL => {
                 let query = "UPDATE `user` SET username = ?, name = ?, email = ?, admin = ?, external = ?, alert = ?, pro = ? WHERE id = ?";
@@ -379,7 +379,7 @@ impl UserManager for SqlStore {
                     .bind(user.id)
                     .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
         }
         Ok(())
@@ -393,7 +393,7 @@ impl UserManager for SqlStore {
                     .bind(user_id)
                     .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::PostgreSQL => {
                 let query = "DELETE FROM \"user\" WHERE id = $1";
@@ -401,7 +401,7 @@ impl UserManager for SqlStore {
                     .bind(user_id)
                     .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::MySQL => {
                 let query = "DELETE FROM `user` WHERE id = ?";
@@ -409,7 +409,7 @@ impl UserManager for SqlStore {
                     .bind(user_id)
                     .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
         }
         Ok(())
@@ -424,7 +424,7 @@ impl UserManager for SqlStore {
                     .bind(user_id)
                     .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::PostgreSQL => {
                 let query = "UPDATE \"user\" SET password = $1 WHERE id = $2";
@@ -433,7 +433,7 @@ impl UserManager for SqlStore {
                     .bind(user_id)
                     .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::MySQL => {
                 let query = "UPDATE `user` SET password = ? WHERE id = ?";
@@ -442,7 +442,7 @@ impl UserManager for SqlStore {
                     .bind(user_id)
                     .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
         }
         Ok(())
@@ -455,7 +455,7 @@ impl UserManager for SqlStore {
                 let rows = sqlx::query(query)
                     .fetch_all(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(rows.into_iter().map(|row| User {
                     id: row.get("id"),
@@ -478,7 +478,7 @@ impl UserManager for SqlStore {
                     .bind(true)
                     .fetch_all(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(rows.into_iter().map(|row| User {
                     id: row.get("id"),
@@ -500,7 +500,7 @@ impl UserManager for SqlStore {
                 let rows = sqlx::query(query)
                     .fetch_all(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(rows.into_iter().map(|row| User {
                     id: row.get("id"),
@@ -527,7 +527,7 @@ impl UserManager for SqlStore {
                 let count: i64 = sqlx::query_scalar(query)
                     .fetch_one(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
                 Ok(count as usize)
             }
             SqlDialect::PostgreSQL => {
@@ -535,7 +535,7 @@ impl UserManager for SqlStore {
                 let count: i64 = sqlx::query_scalar(query)
                     .fetch_one(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
                 Ok(count as usize)
             }
             SqlDialect::MySQL => {
@@ -543,7 +543,7 @@ impl UserManager for SqlStore {
                 let count: i64 = sqlx::query_scalar(query)
                     .fetch_one(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
                 Ok(count as usize)
             }
         }
@@ -561,7 +561,7 @@ impl UserManager for SqlStore {
                     .bind(project_id)
                     .fetch_all(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(rows.into_iter().map(|row| ProjectUser {
                     id: row.get("id"),
@@ -583,7 +583,7 @@ impl UserManager for SqlStore {
                     .bind(project_id)
                     .fetch_all(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(rows.into_iter().map(|row| ProjectUser {
                     id: row.get("id"),
@@ -605,7 +605,7 @@ impl UserManager for SqlStore {
                     .bind(project_id)
                     .fetch_all(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(rows.into_iter().map(|row| ProjectUser {
                     id: row.get("id"),
@@ -639,7 +639,7 @@ impl UserManager for SqlStore {
                     .bind(user_id)
                     .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::PostgreSQL => {
                 sqlx::query("UPDATE \"user\" SET totp = $1 WHERE id = $2")
@@ -647,7 +647,7 @@ impl UserManager for SqlStore {
                     .bind(user_id)
                     .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::MySQL => {
                 sqlx::query("UPDATE `user` SET totp = ? WHERE id = ?")
@@ -655,7 +655,7 @@ impl UserManager for SqlStore {
                     .bind(user_id)
                     .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
         }
         Ok(())
@@ -669,21 +669,21 @@ impl UserManager for SqlStore {
                     .bind(user_id)
                     .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::PostgreSQL => {
                 sqlx::query("UPDATE \"user\" SET totp = NULL WHERE id = $1")
                     .bind(user_id)
                     .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::MySQL => {
                 sqlx::query("UPDATE `user` SET totp = NULL WHERE id = ?")
                     .bind(user_id)
                     .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
         }
         Ok(())

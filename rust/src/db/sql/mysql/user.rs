@@ -53,7 +53,7 @@ pub async fn get_users(pool: &Pool<MySql>, params: &RetrieveQueryParams) -> Resu
         query.push_str(&format!(" LIMIT {} OFFSET {}", count, params.offset));
     }
 
-    let users = if params.filter.as_ref().map_or(false, |f| !f.is_empty()) {
+    let users = if params.filter.as_ref().is_some_and(|f| !f.is_empty()) {
         let filter_pattern = format!("%{}%", params.filter.as_ref().unwrap());
         sqlx::query_as::<_, UserRow>(&query)
             .bind(&filter_pattern)
@@ -61,7 +61,7 @@ pub async fn get_users(pool: &Pool<MySql>, params: &RetrieveQueryParams) -> Resu
             .bind(&filter_pattern)
             .fetch_all(pool)
             .await
-            .map_err(|e| Error::Database(e))?
+            .map_err(Error::Database)?
             .into_iter()
             .map(|r| r.into())
             .collect()
@@ -69,7 +69,7 @@ pub async fn get_users(pool: &Pool<MySql>, params: &RetrieveQueryParams) -> Resu
         sqlx::query_as::<_, UserRow>(&query)
             .fetch_all(pool)
             .await
-            .map_err(|e| Error::Database(e))?
+            .map_err(Error::Database)?
             .into_iter()
             .map(|r| r.into())
             .collect()
@@ -127,7 +127,7 @@ pub async fn create_user(pool: &Pool<MySql>, user: User) -> Result<User> {
         .bind(user.created)
         .execute(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
     let mut new_user = user;
     new_user.id = result.last_insert_id() as i32;
@@ -151,7 +151,7 @@ pub async fn update_user(pool: &Pool<MySql>, user: User) -> Result<()> {
         .bind(user.id)
         .execute(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
     Ok(())
 }
@@ -162,7 +162,7 @@ pub async fn delete_user(pool: &Pool<MySql>, user_id: i32) -> Result<()> {
         .bind(user_id)
         .execute(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
     Ok(())
 }
@@ -172,6 +172,6 @@ pub async fn get_user_count(pool: &Pool<MySql>) -> Result<usize> {
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM `user`")
         .fetch_one(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
     Ok(count as usize)
 }

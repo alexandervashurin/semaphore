@@ -18,6 +18,7 @@ import { EnvironmentForm } from './components/environment-form.js';
 import { KeyForm } from './components/key-form.js';
 import { UserForm } from './components/user-form.js';
 import { PlaybookList } from './components/playbook-list.js';
+import { TaskLogViewer } from './components/task-log-viewer.js';
 
 // ==================== Global State ====================
 
@@ -39,6 +40,7 @@ const routes = [
   { path: '/projects', handler: handleProjects },
   { path: '/project/:projectId', redirect: '/project/:projectId/history' },
   { path: '/project/:projectId/history', handler: handleHistory },
+  { path: '/project/:projectId/tasks/:taskId', handler: handleTaskDetail },
   { path: '/project/:projectId/templates', handler: handleTemplates },
   { path: '/project/:projectId/playbooks', handler: handlePlaybooks },
   { path: '/project/:projectId/inventory', handler: handleInventory },
@@ -204,6 +206,124 @@ async function handleHistory(params) {
       }
     });
   }
+}
+
+// ── Task detail + live log ────────────────────────────────────────────────
+
+let _activeLogViewer = null;
+
+async function handleTaskDetail(params) {
+  // Destroy previous log viewer if navigating between tasks
+  if (_activeLogViewer) {
+    _activeLogViewer.destroy();
+    _activeLogViewer = null;
+  }
+
+  await loadLayout(params.projectId);
+  store.state.currentProjectId = params.projectId;
+
+  const content = $('#page-content');
+  if (!content) return;
+
+  content.innerHTML = `
+    <div class="task-detail">
+      <div class="d-flex align-center mb-4" style="gap:12px">
+        <button class="v-btn v-btn--text" id="td-back-btn">
+          <i class="v-icon mdi mdi-arrow-left"></i> Назад
+        </button>
+        <h1 class="text-h4" style="flex:1">Задача #${params.taskId}</h1>
+        <button class="v-btn v-btn--outlined v-btn--error" id="td-stop-btn" style="display:none">
+          <i class="v-icon mdi mdi-stop"></i> Остановить
+        </button>
+      </div>
+
+      <div class="task-detail-meta mb-4" id="td-meta">
+        <span class="v-skeleton v-skeleton--text" style="width:200px"></span>
+      </div>
+
+      <div id="td-log-container"></div>
+    </div>
+  `;
+
+  // Back button
+  $('#td-back-btn').addEventListener('click', () => {
+    router.push(`/project/${params.projectId}/history`);
+  });
+
+  // Load task metadata
+  let task = null;
+  try {
+    task = await api.getTask(params.projectId, params.taskId);
+    _renderTaskMeta(task);
+  } catch (e) {
+    showError('Не удалось загрузить задачу');
+  }
+
+  // Show stop button for running/waiting tasks
+  const stopBtn = $('#td-stop-btn');
+  if (task && (task.status === 'running' || task.status === 'waiting')) {
+    stopBtn.style.display = '';
+    stopBtn.addEventListener('click', async () => {
+      const yes = await confirm({ title: 'Остановить задачу?', content: 'Задача будет прервана.' });
+      if (!yes) return;
+      try {
+        await api.stopTask(params.projectId, params.taskId);
+        showSuccess('Задача остановлена');
+        stopBtn.style.display = 'none';
+      } catch {
+        showError('Не удалось остановить задачу');
+      }
+    });
+  }
+
+  // Create log viewer
+  const logContainer = $('#td-log-container');
+  _activeLogViewer = new TaskLogViewer(logContainer, {
+    projectId: params.projectId,
+    taskId: params.taskId,
+    onStatusChange: (status) => {
+      if (task) {
+        task.status = status;
+        _renderTaskMeta(task);
+      }
+      if (status !== 'running' && status !== 'waiting') {
+        stopBtn.style.display = 'none';
+      }
+    },
+    onDone: () => {
+      stopBtn.style.display = 'none';
+    }
+  });
+
+  // Load existing log from REST API for completed/errored tasks
+  if (task && task.status !== 'running' && task.status !== 'waiting') {
+    try {
+      const log = await api.getTaskLog(params.projectId, params.taskId);
+      _activeLogViewer.appendHistoricLog(log || []);
+    } catch {
+      // Not critical — WS will also deliver lines for running tasks
+    }
+    _activeLogViewer.disconnect(); // no WS needed for finished tasks
+  }
+}
+
+function _renderTaskMeta(task) {
+  const meta = $('#td-meta');
+  if (!meta) return;
+  meta.innerHTML = `
+    <div class="task-meta-grid">
+      <span class="task-meta-label">Статус:</span>
+      <span>${formatTaskStatus(task.status)}</span>
+      <span class="task-meta-label">Шаблон:</span>
+      <span>${escapeHtml(task.template_name || String(task.template_id || '—'))}</span>
+      <span class="task-meta-label">Запущен:</span>
+      <span>${formatDate(task.start || task.created)}</span>
+      <span class="task-meta-label">Завершён:</span>
+      <span>${task.end ? formatDate(task.end) : '—'}</span>
+      <span class="task-meta-label">Длительность:</span>
+      <span>${formatDuration(task.start || task.created, task.end)}</span>
+    </div>
+  `;
 }
 
 async function handleTemplates(params) {
@@ -556,35 +676,173 @@ async function handleAuditLog(params) {
 
 async function handleAnalytics(params) {
   await loadLayout(params.projectId);
-  $('#page-content').innerHTML = `
-    <div class="text-h4 mb-4">Аналитика</div>
-    <div class="v-row">
-      <div class="v-col-3">
-        <div class="v-card" style="padding: 16px;">
-          <div class="text-caption">Всего задач</div>
-          <div class="text-h3">0</div>
-        </div>
+  const content = $('#page-content');
+  if (!content) return;
+
+  content.innerHTML = `
+    <div class="d-flex justify-space-between align-center mb-4">
+      <h1 class="text-h4">Аналитика</h1>
+      <div class="analytics-period-switcher">
+        <button class="v-btn v-btn--outlined analytics-period-btn active" data-period="week">Неделя</button>
+        <button class="v-btn v-btn--outlined analytics-period-btn" data-period="month">Месяц</button>
+        <button class="v-btn v-btn--outlined analytics-period-btn" data-period="year">Год</button>
       </div>
-      <div class="v-col-3">
-        <div class="v-card" style="padding: 16px;">
-          <div class="text-caption">Успешных</div>
-          <div class="text-h3" style="color: #4caf50;">0</div>
-        </div>
+    </div>
+
+    <!-- Статистика задач -->
+    <div class="analytics-stats-row mb-4" id="analytics-stats">
+      <div class="analytics-stat-card"><div class="stat-label">Всего задач</div><div class="stat-value" id="stat-total">—</div></div>
+      <div class="analytics-stat-card"><div class="stat-label">Успешных</div><div class="stat-value success" id="stat-success">—</div></div>
+      <div class="analytics-stat-card"><div class="stat-label">Проваленных</div><div class="stat-value error" id="stat-failed">—</div></div>
+      <div class="analytics-stat-card"><div class="stat-label">Процент успеха</div><div class="stat-value" id="stat-rate">—</div></div>
+    </div>
+
+    <!-- Ресурсы проекта -->
+    <div class="analytics-stats-row mb-4" id="analytics-resources">
+      <div class="analytics-stat-card small"><div class="stat-label">Шаблонов</div><div class="stat-value" id="res-templates">—</div></div>
+      <div class="analytics-stat-card small"><div class="stat-label">Инвентарей</div><div class="stat-value" id="res-inventories">—</div></div>
+      <div class="analytics-stat-card small"><div class="stat-label">Репозиториев</div><div class="stat-value" id="res-repositories">—</div></div>
+      <div class="analytics-stat-card small"><div class="stat-label">Ключей</div><div class="stat-value" id="res-keys">—</div></div>
+      <div class="analytics-stat-card small"><div class="stat-label">Расписаний</div><div class="stat-value" id="res-schedules">—</div></div>
+    </div>
+
+    <!-- Графики -->
+    <div class="analytics-charts-row">
+      <div class="v-card analytics-chart-card">
+        <div class="analytics-chart-title">Задачи по дням</div>
+        <div class="analytics-chart-wrap"><canvas id="chart-tasks-timeline"></canvas></div>
       </div>
-      <div class="v-col-3">
-        <div class="v-card" style="padding: 16px;">
-          <div class="text-caption">Проваленных</div>
-          <div class="text-h3" style="color: #f44336;">0</div>
-        </div>
-      </div>
-      <div class="v-col-3">
-        <div class="v-card" style="padding: 16px;">
-          <div class="text-caption">Процент успеха</div>
-          <div class="text-h3">0%</div>
-        </div>
+      <div class="v-card analytics-chart-card">
+        <div class="analytics-chart-title">Распределение по статусам</div>
+        <div class="analytics-chart-wrap"><canvas id="chart-status-dist"></canvas></div>
       </div>
     </div>
   `;
+
+  await _loadAnalyticsData(params.projectId, 'week');
+
+  delegate(content, '.analytics-period-btn', 'click', async (e) => {
+    $$('.analytics-period-btn').forEach(b => b.classList.remove('active'));
+    e.target.classList.add('active');
+    await _loadAnalyticsData(params.projectId, e.target.dataset.period);
+  });
+}
+
+let _analyticsCharts = {};
+
+async function _loadAnalyticsData(projectId, period) {
+  if (!window.Chart) {
+    await _loadScript('https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js');
+  }
+
+  try {
+    const [analytics, chartData, distData] = await Promise.all([
+      api.get(`/project/${projectId}/analytics?period=${period}`),
+      api.get(`/project/${projectId}/analytics/tasks-chart?period=${period}`),
+      api.get(`/project/${projectId}/analytics/status-distribution`),
+    ]);
+
+    const s = analytics.stats || {};
+    const _set = (id, val) => { const el = $(`#${id}`); if (el) el.textContent = val; };
+    _set('stat-total',   s.total_tasks ?? 0);
+    _set('stat-success', s.successful_tasks ?? 0);
+    _set('stat-failed',  s.failed_tasks ?? 0);
+    _set('stat-rate',    `${Math.round(s.success_rate ?? 0)}%`);
+    _set('res-templates',    s.total_templates ?? 0);
+    _set('res-inventories',  s.total_inventories ?? 0);
+    _set('res-repositories', s.total_repositories ?? 0);
+    _set('res-keys',         s.total_keys ?? 0);
+    _set('res-schedules',    s.total_schedules ?? 0);
+
+    _renderLineChart('chart-tasks-timeline', chartData);
+    _renderDoughnutChart('chart-status-dist', distData);
+  } catch (e) {
+    console.error('Analytics load error:', e);
+  }
+}
+
+function _renderLineChart(canvasId, data) {
+  const canvas = $(`#${canvasId}`);
+  if (!canvas) return;
+  if (_analyticsCharts[canvasId]) { _analyticsCharts[canvasId].destroy(); }
+
+  const labels = (data || []).map(d => d.label);
+  const values = (data || []).map(d => d.value);
+
+  _analyticsCharts[canvasId] = new window.Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Задачи',
+        data: values,
+        borderColor: '#1976d2',
+        backgroundColor: 'rgba(25,118,210,0.1)',
+        tension: 0.3,
+        fill: true,
+        pointBackgroundColor: '#1976d2',
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { stepSize: 1 } },
+      },
+    },
+  });
+}
+
+function _renderDoughnutChart(canvasId, data) {
+  const canvas = $(`#${canvasId}`);
+  if (!canvas) return;
+  if (_analyticsCharts[canvasId]) { _analyticsCharts[canvasId].destroy(); }
+
+  const STATUS_COLORS = {
+    Success: '#4caf50', Error: '#f44336', Stopped: '#ff9800',
+    Waiting: '#9e9e9e', Starting: '#2196f3', Running: '#00bcd4',
+  };
+
+  const labels = (data || []).map(d => d.label);
+  const values = (data || []).map(d => d.value);
+  const colors = labels.map(l => STATUS_COLORS[l] || '#78909c');
+
+  if (!labels.length) {
+    canvas.parentElement.innerHTML = '<div class="analytics-no-data">Нет данных</div>';
+    return;
+  }
+
+  _analyticsCharts[canvasId] = new window.Chart(canvas, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: colors,
+        borderWidth: 2,
+        borderColor: '#fff',
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'right' },
+      },
+    },
+  });
+}
+
+function _loadScript(src) {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
 }
 
 async function handleSettings(params) {

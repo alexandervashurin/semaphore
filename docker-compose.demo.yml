@@ -1,0 +1,42 @@
+# ============================================================================
+# Semaphore UI — Demo (одна команда, открыть http://localhost:3000)
+# ============================================================================
+# Запуск:
+#   docker compose -f docker-compose.demo.yml up --build
+#
+# Учётные данные:  admin / admin123
+# URL:             http://localhost:8088
+# ============================================================================
+
+services:
+  semaphore:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: semaphore-demo
+    restart: unless-stopped
+    ports:
+      - "8088:3000"
+    environment:
+      # SQLite — не нужна отдельная БД
+      SEMAPHORE_DB_DIALECT: sqlite
+      SEMAPHORE_DB_PATH: /app/data/semaphore.db
+      SEMAPHORE_WEB_PATH: /app/web/public
+      # Демо-аккаунт: создаётся автоматически при первом запуске
+      SEMAPHORE_ADMIN: admin
+      SEMAPHORE_ADMIN_PASSWORD: admin123
+      SEMAPHORE_ADMIN_NAME: Administrator
+      SEMAPHORE_ADMIN_EMAIL: admin@semaphore.local
+      RUST_LOG: info
+    volumes:
+      # Данные сохраняются между перезапусками
+      - semaphore_demo_data:/app/data
+    healthcheck:
+      test: ["CMD-SHELL", "echo ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  semaphore_demo_data:
+    driver: local

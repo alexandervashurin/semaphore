@@ -30,6 +30,7 @@ pub struct SqlAuditLog {
 
 impl SqlDb {
     /// Создаёт новую запись audit log
+    #[allow(clippy::too_many_arguments)]
     pub async fn create_audit_log(
         &self,
         project_id: Option<i64>,

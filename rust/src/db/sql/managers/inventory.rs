@@ -20,7 +20,7 @@ impl InventoryManager for SqlStore {
                     .bind(project_id)
                     .fetch_all(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(rows.into_iter().map(|row| Inventory {
                     id: row.get("id"),
@@ -45,7 +45,7 @@ impl InventoryManager for SqlStore {
                     .bind(project_id)
                     .fetch_all(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(rows.into_iter().map(|row| Inventory {
                     id: row.get("id"),
@@ -70,7 +70,7 @@ impl InventoryManager for SqlStore {
                     .bind(project_id)
                     .fetch_all(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(rows.into_iter().map(|row| Inventory {
                     id: row.get("id"),
@@ -194,16 +194,16 @@ impl InventoryManager for SqlStore {
                     .bind(&inventory.inventory_type)
                     .bind(&inventory.inventory_data)
                     .bind(inventory.key_id)
-                    .bind(&inventory.secret_storage_id)
+                    .bind(inventory.secret_storage_id)
                     .bind(&inventory.ssh_login)
                     .bind(inventory.ssh_port)
                     .bind(&inventory.extra_vars)
-                    .bind(&inventory.ssh_key_id)
-                    .bind(&inventory.become_key_id)
+                    .bind(inventory.ssh_key_id)
+                    .bind(inventory.become_key_id)
                     .bind(&inventory.vaults)
                     .fetch_one(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 inventory.id = id;
                 Ok(inventory)
@@ -216,16 +216,16 @@ impl InventoryManager for SqlStore {
                     .bind(&inventory.inventory_type)
                     .bind(&inventory.inventory_data)
                     .bind(inventory.key_id)
-                    .bind(&inventory.secret_storage_id)
+                    .bind(inventory.secret_storage_id)
                     .bind(&inventory.ssh_login)
                     .bind(inventory.ssh_port)
                     .bind(&inventory.extra_vars)
-                    .bind(&inventory.ssh_key_id)
-                    .bind(&inventory.become_key_id)
+                    .bind(inventory.ssh_key_id)
+                    .bind(inventory.become_key_id)
                     .bind(&inventory.vaults)
                     .fetch_one(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 inventory.id = id;
                 Ok(inventory)
@@ -238,21 +238,21 @@ impl InventoryManager for SqlStore {
                     .bind(&inventory.inventory_type)
                     .bind(&inventory.inventory_data)
                     .bind(inventory.key_id)
-                    .bind(&inventory.secret_storage_id)
+                    .bind(inventory.secret_storage_id)
                     .bind(&inventory.ssh_login)
                     .bind(inventory.ssh_port)
                     .bind(&inventory.extra_vars)
-                    .bind(&inventory.ssh_key_id)
-                    .bind(&inventory.become_key_id)
+                    .bind(inventory.ssh_key_id)
+                    .bind(inventory.become_key_id)
                     .bind(&inventory.vaults)
                     .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 let id: i32 = sqlx::query_scalar("SELECT LAST_INSERT_ID()")
                     .fetch_one(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 inventory.id = id;
                 Ok(inventory)
@@ -269,18 +269,18 @@ impl InventoryManager for SqlStore {
                     .bind(&inventory.inventory_type)
                     .bind(&inventory.inventory_data)
                     .bind(inventory.key_id)
-                    .bind(&inventory.secret_storage_id)
+                    .bind(inventory.secret_storage_id)
                     .bind(&inventory.ssh_login)
                     .bind(inventory.ssh_port)
                     .bind(&inventory.extra_vars)
-                    .bind(&inventory.ssh_key_id)
-                    .bind(&inventory.become_key_id)
+                    .bind(inventory.ssh_key_id)
+                    .bind(inventory.become_key_id)
                     .bind(&inventory.vaults)
                     .bind(inventory.id)
                     .bind(inventory.project_id)
                     .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::PostgreSQL => {
                 let query = "UPDATE inventory SET name = $1, inventory_type = $2, inventory_data = $3, key_id = $4, secret_storage_id = $5, ssh_login = $6, ssh_port = $7, extra_vars = $8, ssh_key_id = $9, become_key_id = $10, vaults = $11 WHERE id = $12 AND project_id = $13";
@@ -289,18 +289,18 @@ impl InventoryManager for SqlStore {
                     .bind(&inventory.inventory_type)
                     .bind(&inventory.inventory_data)
                     .bind(inventory.key_id)
-                    .bind(&inventory.secret_storage_id)
+                    .bind(inventory.secret_storage_id)
                     .bind(&inventory.ssh_login)
                     .bind(inventory.ssh_port)
                     .bind(&inventory.extra_vars)
-                    .bind(&inventory.ssh_key_id)
-                    .bind(&inventory.become_key_id)
+                    .bind(inventory.ssh_key_id)
+                    .bind(inventory.become_key_id)
                     .bind(&inventory.vaults)
                     .bind(inventory.id)
                     .bind(inventory.project_id)
                     .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::MySQL => {
                 let query = "UPDATE `inventory` SET name = ?, inventory_type = ?, inventory_data = ?, key_id = ?, secret_storage_id = ?, ssh_login = ?, ssh_port = ?, extra_vars = ?, ssh_key_id = ?, become_key_id = ?, vaults = ? WHERE id = ? AND project_id = ?";
@@ -309,18 +309,18 @@ impl InventoryManager for SqlStore {
                     .bind(&inventory.inventory_type)
                     .bind(&inventory.inventory_data)
                     .bind(inventory.key_id)
-                    .bind(&inventory.secret_storage_id)
+                    .bind(inventory.secret_storage_id)
                     .bind(&inventory.ssh_login)
                     .bind(inventory.ssh_port)
                     .bind(&inventory.extra_vars)
-                    .bind(&inventory.ssh_key_id)
-                    .bind(&inventory.become_key_id)
+                    .bind(inventory.ssh_key_id)
+                    .bind(inventory.become_key_id)
                     .bind(&inventory.vaults)
                     .bind(inventory.id)
                     .bind(inventory.project_id)
                     .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
         }
         Ok(())
@@ -335,7 +335,7 @@ impl InventoryManager for SqlStore {
                     .bind(project_id)
                     .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::PostgreSQL => {
                 let query = "DELETE FROM inventory WHERE id = $1 AND project_id = $2";
@@ -344,7 +344,7 @@ impl InventoryManager for SqlStore {
                     .bind(project_id)
                     .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::MySQL => {
                 let query = "DELETE FROM `inventory` WHERE id = ? AND project_id = ?";
@@ -353,7 +353,7 @@ impl InventoryManager for SqlStore {
                     .bind(project_id)
                     .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
         }
         Ok(())

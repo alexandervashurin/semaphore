@@ -38,13 +38,14 @@ pub async fn get_access_keys(
 /// POST /api/projects/:project_id/keys
 pub async fn create_access_key(
     State(state): State<Arc<AppState>>,
-    Path(_project_id): Path<i32>,
+    Path(project_id): Path<i32>,
     Json(payload): Json<AccessKeyCreatePayload>,
 ) -> Result<(StatusCode, Json<AccessKey>), (StatusCode, Json<ErrorResponse>)> {
-    let key = AccessKey::new(
+    let mut key = AccessKey::new(
         payload.name,
         payload.key_type,
     );
+    key.project_id = Some(project_id);
 
     let created = state.store.create_access_key(key)
         .await

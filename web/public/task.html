@@ -54,27 +54,11 @@
 </head>
 <body>
     <div class="layout">
-        <aside class="sidebar">
-            <div class="sidebar-logo">
-                <h2>🚀 Semaphore</h2>
-            </div>
-            <ul class="sidebar-nav">
-                <li><a href="index.html">📊 Dashboard</a></li>
-                <li><a href="project.html">📁 Проект</a></li>
-                <li><a href="playbooks.html">📜 Playbooks</a></li>
-                <li><a href="templates.html">📋 Шаблоны</a></li>
-                <li><a href="inventory.html">📦 Инвентарь</a></li>
-                <li><a href="environments.html">⚙️ Переменные</a></li>
-                <li><a href="repositories.html">🗂️ Репозитории</a></li>
-                <li><a href="keys.html">🔐 Ключи</a></li>
-                <li><a href="schedules.html">⏰ Расписания</a></li>
-            </ul>
-        </aside>
+        <aside class="sidebar"></aside>
 
         <div class="main-content">
             <div class="main-header">
                 <h2>Задача #<span id="task-id">...</span></h2>
-                <button class="btn btn-logout" onclick="api.logout()">Выйти</button>
             </div>
 
             <div class="main-body">
@@ -102,16 +86,67 @@
 
         let task = null;
         let isRunning = false;
+        let ws = null;
+        let pollTimer = null;
 
         // Загрузка задачи
         loadTask();
-        
-        // Автообновление если задача выполняется
-        setInterval(() => {
-            if (isRunning) {
-                loadTask();
-            }
-        }, 5000);
+
+        function startPolling() {
+            if (pollTimer) return;
+            pollTimer = setInterval(() => {
+                if (isRunning) loadTask();
+                else stopPolling();
+            }, 5000);
+        }
+
+        function stopPolling() {
+            if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+        }
+
+        function connectWebSocket() {
+            if (ws) return;
+            const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+            const wsUrl = `${proto}://${location.host}/api/project/${projectId}/tasks/${taskId}/ws`;
+            ws = new WebSocket(wsUrl);
+
+            ws.onmessage = (event) => {
+                try {
+                    const msg = JSON.parse(event.data);
+                    const logContainer = $('#task-log');
+                    if (!logContainer) return;
+
+                    if (msg.type === 'output' && msg.line !== undefined) {
+                        const line = document.createElement('div');
+                        line.className = 'log-line ' + getLogClass(msg.line);
+                        line.textContent = msg.line;
+                        logContainer.appendChild(line);
+                        logContainer.scrollTop = logContainer.scrollHeight;
+                    } else if (msg.type === 'done') {
+                        ws.close();
+                        ws = null;
+                        stopPolling();
+                        loadTask();
+                    }
+                } catch (e) {
+                    const logContainer = $('#task-log');
+                    if (logContainer) {
+                        const line = document.createElement('div');
+                        line.className = 'log-line log-info';
+                        line.textContent = event.data;
+                        logContainer.appendChild(line);
+                        logContainer.scrollTop = logContainer.scrollHeight;
+                    }
+                }
+            };
+
+            ws.onerror = () => {
+                ws = null;
+                startPolling();
+            };
+
+            ws.onclose = () => { ws = null; };
+        }
 
         function loadTask() {
             api.request('/project/' + projectId + '/tasks/' + taskId)
@@ -122,6 +157,12 @@
                     showTask(t);
                     
                     isRunning = (t.status === 'running' || t.status === 'waiting' || t.status === 'starting');
+                    if (isRunning) {
+                        connectWebSocket();
+                        startPolling();
+                    } else {
+                        stopPolling();
+                    }
                 })
                 .catch(error => {
                     ui.showError($('#task-content'), 'Ошибка загрузки: ' + error.message);
@@ -213,8 +254,8 @@
                 </style>
             `;
 
-            // Загрузка лога
-            loadLog();
+            // Загрузка лога (только если нет активного WS)
+            if (!ws) loadLog();
         }
 
         function loadLog() {

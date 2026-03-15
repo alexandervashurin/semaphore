@@ -12,12 +12,12 @@ impl SqlDb {
         match self.get_dialect() {
             crate::db::sql::types::SqlDialect::SQLite => {
                 let views = sqlx::query_as::<_, View>(
-                    "SELECT * FROM view WHERE project_id = ? ORDER BY position, name"
+                    "SELECT * FROM view WHERE project_id = ? ORDER BY position, title"
                 )
                 .bind(project_id)
                 .fetch_all(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 Ok(views)
             }
@@ -36,7 +36,7 @@ impl SqlDb {
                 .bind(project_id)
                 .fetch_optional(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 view.ok_or(Error::NotFound("View not found".to_string()))
             }
@@ -57,7 +57,7 @@ impl SqlDb {
                 .bind(view.position)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 view.id = result.last_insert_rowid() as i32;
                 Ok(view)
@@ -80,7 +80,7 @@ impl SqlDb {
                 .bind(view.project_id)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 Ok(())
             }
@@ -97,7 +97,7 @@ impl SqlDb {
                     .bind(project_id)
                     .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(())
             }

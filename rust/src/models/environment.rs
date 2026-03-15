@@ -65,7 +65,7 @@ pub struct EnvironmentSecret {
 }
 
 /// Окружение - переменные окружения для задач
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, Default)]
 pub struct Environment {
     /// Уникальный идентификатор
     pub id: i32,
@@ -107,21 +107,9 @@ impl Environment {
         }
     }
 
-    /// Создаёт окружение по умолчанию
-    pub fn default() -> Self {
-        Self {
-            id: 0,
-            project_id: 0,
-            name: String::new(),
-            json: String::new(),
-            secret_storage_id: None,
-            secrets: None,
-            created: None,
-        }
-    }
-
     /// Парсит JSON с переменными окружения
     pub fn parse_json(&self) -> Result<serde_json::Value, serde_json::Error> {
         serde_json::from_str(&self.json)
     }
 }
+

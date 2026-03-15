@@ -75,7 +75,9 @@ const api = {
             });
 
             if (response.status === 401) {
-                this.logout();
+                if (!url.includes('/auth/login')) {
+                    this.logout();
+                }
                 throw new Error('Не авторизован');
             }
 
@@ -163,29 +165,37 @@ const api = {
         return this.post('/project/' + projectId + '/playbooks/' + id + '/sync');
     },
 
-    // Templates
-    getTemplates(projectId) {
-        return this.get('/project/' + projectId + '/templates');
+    createProject(data) {
+        return this.post('/projects', data);
     },
 
-    // Inventory
-    getInventories(projectId) {
-        return this.get('/project/' + projectId + '/inventory');
+    updateProject(id, data) {
+        return this.put('/projects/' + id, data);
     },
 
-    // Environment
-    getEnvironments(projectId) {
-        return this.get('/project/' + projectId + '/environment');
+    deleteProject(id) {
+        return this.delete('/projects/' + id);
     },
 
-    // Repositories
-    getRepositories(projectId) {
-        return this.get('/project/' + projectId + '/repositories');
+    // Users
+    getUsers() {
+        return this.get('/users');
     },
 
-    // Keys
-    getKeys(projectId) {
-        return this.get('/project/' + projectId + '/keys');
+    getUser(id) {
+        return this.get('/users/' + id);
+    },
+
+    createUser(data) {
+        return this.post('/users', data);
+    },
+
+    updateUser(id, data) {
+        return this.put('/users/' + id, data);
+    },
+
+    deleteUser(id) {
+        return this.delete('/users/' + id);
     },
 
     // Inventory
@@ -325,16 +335,15 @@ const ui = {
     },
 
     showAlert(message, type = 'info') {
-        const alert = document.createElement('div');
-        alert.className = `alert alert-${type}`;
-        alert.textContent = message;
-        alert.style.position = 'fixed';
-        alert.style.top = '20px';
-        alert.style.right = '20px';
-        alert.style.zIndex = '9999';
-        alert.style.minWidth = '300px';
-        document.body.appendChild(alert);
-        setTimeout(() => alert.remove(), 5000);
+        const toast = document.createElement('div');
+        toast.className = `toast alert-${type}`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.style.transition = 'opacity 0.3s ease';
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 300);
+        }, 3500);
     },
 
     confirm(title, text) {
@@ -403,6 +412,55 @@ function checkAuth() {
     }
     return token;
 }
+
+// ==================== Sidebar ====================
+
+const SIDEBAR_ITEMS = [
+    { href: 'index.html',        icon: '◈',  label: 'Dashboard',    noId: true },
+    { href: 'project.html',      icon: '⬡',  label: 'Обзор' },
+    { href: 'templates.html',    icon: '▦',  label: 'Шаблоны' },
+    { href: 'inventory.html',    icon: '≡',  label: 'Инвентарь' },
+    { href: 'environments.html', icon: '⊕',  label: 'Окружения' },
+    { href: 'repositories.html', icon: '⌥',  label: 'Репозитории' },
+    { href: 'keys.html',         icon: '⚿',  label: 'Ключи' },
+    { href: 'schedules.html',    icon: '◷',  label: 'Расписания' },
+    { href: 'analytics.html',    icon: '◑',  label: 'Аналитика' },
+    { href: 'webhooks.html',     icon: '⇌',  label: 'Webhooks' },
+    { href: 'playbooks.html',    icon: '▶',  label: 'Playbooks' },
+];
+
+function renderSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    if (!sidebar) return;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const projectId = urlParams.get('id');
+    const currentPage = location.pathname.split('/').pop() || 'index.html';
+
+    const navItems = SIDEBAR_ITEMS.map(item => {
+        const href = (item.noId || !projectId)
+            ? item.href
+            : item.href + '?id=' + projectId;
+        const isActive = currentPage === item.href ? 'class="active"' : '';
+        return `<li><a href="${href}" ${isActive}><span class="nav-icon">${item.icon}</span>${item.label}</a></li>`;
+    }).join('');
+
+    sidebar.innerHTML = `
+        <div class="sidebar-logo">
+            <div class="sidebar-logo-dot"><img src="/logo.svg" alt=""></div>
+            <h2>Semaphore</h2>
+        </div>
+        <div class="sidebar-section">Навигация</div>
+        <ul class="sidebar-nav">${navItems}</ul>
+        <div class="sidebar-footer">
+            <button class="btn btn-logout" onclick="api.logout()" style="width:100%;justify-content:center;">
+                Выйти
+            </button>
+        </div>
+    `;
+}
+
+document.addEventListener('DOMContentLoaded', renderSidebar);
 
 // ==================== Export ====================
 

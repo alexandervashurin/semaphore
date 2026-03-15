@@ -13,7 +13,7 @@ pub async fn get_templates(pool: &Pool<Sqlite>, project_id: i32) -> Result<Vec<T
         .bind(project_id)
         .fetch_all(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
     Ok(templates)
 }
@@ -55,7 +55,7 @@ pub async fn create_template(pool: &Pool<Sqlite>, mut template: Template) -> Res
         .bind(template.vault_key_id)
         .fetch_one(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
     template.id = id;
     Ok(template)
@@ -76,12 +76,12 @@ pub async fn update_template(pool: &Pool<Sqlite>, template: Template) -> Result<
         .bind(&template.app)
         .bind(&template.git_branch)
         .bind(&template.arguments)
-        .bind(&template.vault_key_id)
+        .bind(template.vault_key_id)
         .bind(template.id)
         .bind(template.project_id)
         .execute(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
     Ok(())
 }
@@ -93,7 +93,7 @@ pub async fn delete_template(pool: &Pool<Sqlite>, project_id: i32, template_id: 
         .bind(project_id)
         .execute(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
     Ok(())
 }

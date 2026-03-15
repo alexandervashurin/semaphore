@@ -18,7 +18,7 @@ impl SqlDb {
                 .bind(user_id)
                 .fetch_optional(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 session.ok_or(Error::NotFound("Session not found".to_string()))
             }
@@ -40,7 +40,7 @@ impl SqlDb {
                 .bind(&session.ip)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 session.id = result.last_insert_rowid() as i32;
                 Ok(session)
@@ -58,7 +58,7 @@ impl SqlDb {
                     .bind(user_id)
                     .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(())
             }

@@ -12,7 +12,7 @@ pub async fn get_repositories(pool: &Pool<MySql>, project_id: i32) -> Result<Vec
         .bind(project_id)
         .fetch_all(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
     Ok(repositories)
 }
@@ -48,7 +48,7 @@ pub async fn create_repository(pool: &Pool<MySql>, mut repository: Repository) -
         .bind(repository.created)
         .execute(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
     repository.id = result.last_insert_id() as i32;
     Ok(repository)
@@ -68,7 +68,7 @@ pub async fn update_repository(pool: &Pool<MySql>, repository: Repository) -> Re
         .bind(repository.project_id)
         .execute(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
     Ok(())
 }
@@ -80,7 +80,7 @@ pub async fn delete_repository(pool: &Pool<MySql>, project_id: i32, repository_i
         .bind(project_id)
         .execute(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
     Ok(())
 }

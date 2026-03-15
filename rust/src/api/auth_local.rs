@@ -19,6 +19,8 @@ pub struct TokenInfo {
     pub token: String,
     pub token_type: String,
     pub expires_in: i64,
+    pub refresh_token: String,
+    pub refresh_expires_in: i64,
 }
 
 /// Claims для JWT токена
@@ -28,6 +30,16 @@ pub struct Claims {
     pub username: String,
     pub email: String,
     pub admin: bool,
+    pub exp: usize,
+    pub iat: usize,
+}
+
+/// Claims для refresh токена (долгоживущий, без admin/email для минимального размера)
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct RefreshClaims {
+    pub sub: i32,
+    /// Тип токена — всегда "refresh", чтобы нельзя было использовать как access
+    pub typ: String,
     pub exp: usize,
     pub iat: usize,
 }
@@ -56,35 +68,69 @@ impl LocalAuthService {
         Ok(user)
     }
 
-    /// Генерирует JWT токен для пользователя
+    /// Генерирует JWT access + refresh токены для пользователя
     pub fn generate_token(&self, user: &User) -> Result<TokenInfo> {
         use chrono::Utc;
         use jsonwebtoken::{encode, EncodingKey, Header};
 
-        let now = Utc::now().timestamp() as usize;
-        let exp = now + 86400; // 24 часа
+        let secret = std::env::var("SEMAPHORE_JWT_SECRET")
+            .unwrap_or_else(|_| "dev-secret-key-change-in-production".to_string());
+        let key = EncodingKey::from_secret(secret.as_bytes());
 
-        let claims = Claims {
+        let now = Utc::now().timestamp() as usize;
+
+        // Access token — 24 часа
+        const ACCESS_TTL: i64 = 86400;
+        let access_claims = Claims {
             sub: user.id,
             username: user.username.clone(),
             email: user.email.clone(),
             admin: user.admin,
-            exp,
+            exp: now + ACCESS_TTL as usize,
             iat: now,
         };
-
-        // Получаем секретный ключ из окружения или используем дефолтный
-        let secret = std::env::var("SEMAPHORE_JWT_SECRET")
-            .unwrap_or_else(|_| "dev-secret-key-change-in-production".to_string());
-
-        let token = encode(&Header::default(), &claims, &EncodingKey::from_secret(secret.as_bytes()))
+        let token = encode(&Header::default(), &access_claims, &key)
             .map_err(|e| Error::Other(format!("Token generation error: {}", e)))?;
+
+        // Refresh token — 30 дней
+        const REFRESH_TTL: i64 = 86400 * 30;
+        let refresh_claims = RefreshClaims {
+            sub: user.id,
+            typ: "refresh".to_string(),
+            exp: now + REFRESH_TTL as usize,
+            iat: now,
+        };
+        let refresh_token = encode(&Header::default(), &refresh_claims, &key)
+            .map_err(|e| Error::Other(format!("Refresh token generation error: {}", e)))?;
 
         Ok(TokenInfo {
             token,
             token_type: "Bearer".to_string(),
-            expires_in: 86400,
+            expires_in: ACCESS_TTL,
+            refresh_token,
+            refresh_expires_in: REFRESH_TTL,
         })
+    }
+
+    /// Проверяет refresh token и возвращает user_id
+    pub fn verify_refresh_token(&self, token: &str) -> Result<i32> {
+        use jsonwebtoken::{decode, Validation, DecodingKey};
+
+        let secret = std::env::var("SEMAPHORE_JWT_SECRET")
+            .unwrap_or_else(|_| "dev-secret-key-change-in-production".to_string());
+
+        let token_data = decode::<RefreshClaims>(
+            token,
+            &DecodingKey::from_secret(secret.as_bytes()),
+            &Validation::default(),
+        )
+        .map_err(|e| Error::Unauthorized(format!("Invalid refresh token: {}", e)))?;
+
+        if token_data.claims.typ != "refresh" {
+            return Err(Error::Unauthorized("Not a refresh token".to_string()));
+        }
+
+        Ok(token_data.claims.sub)
     }
 
     /// Проверяет JWT токен и возвращает claims

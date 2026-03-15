@@ -9,11 +9,11 @@ use async_trait::async_trait;
 
 #[async_trait]
 impl ViewManager for SqlStore {
-    async fn get_views(&self, _project_id: i32) -> Result<Vec<View>> { Ok(vec![]) }
-    async fn get_view(&self, _project_id: i32, _view_id: i32) -> Result<View> { Err(Error::NotFound("Представление не найдено".to_string())) }
-    async fn create_view(&self, _view: View) -> Result<View> { Err(Error::Other("Не реализовано".to_string())) }
-    async fn update_view(&self, _view: View) -> Result<()> { Err(Error::Other("Не реализовано".to_string())) }
-    async fn delete_view(&self, _project_id: i32, _view_id: i32) -> Result<()> { Err(Error::Other("Не реализовано".to_string())) }
+    async fn get_views(&self, project_id: i32) -> Result<Vec<View>> { self.db.get_views(project_id).await }
+    async fn get_view(&self, project_id: i32, view_id: i32) -> Result<View> { self.db.get_view(project_id, view_id).await }
+    async fn create_view(&self, view: View) -> Result<View> { self.db.create_view(view).await }
+    async fn update_view(&self, view: View) -> Result<()> { self.db.update_view(view).await }
+    async fn delete_view(&self, project_id: i32, view_id: i32) -> Result<()> { self.db.delete_view(project_id, view_id).await }
 
     async fn set_view_positions(&self, project_id: i32, positions: Vec<(i32, i32)>) -> Result<()> {
         // positions: Vec<(view_id, position)>
@@ -27,7 +27,7 @@ impl ViewManager for SqlStore {
                         .bind(project_id)
                         .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                         .await
-                        .map_err(|e| Error::Database(e))?;
+                        .map_err(Error::Database)?;
                 }
                 SqlDialect::PostgreSQL => {
                     let query = "UPDATE view SET position = $1 WHERE id = $2 AND project_id = $3";
@@ -37,7 +37,7 @@ impl ViewManager for SqlStore {
                         .bind(project_id)
                         .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                         .await
-                        .map_err(|e| Error::Database(e))?;
+                        .map_err(Error::Database)?;
                 }
                 SqlDialect::MySQL => {
                     let query = "UPDATE `view` SET position = ? WHERE id = ? AND project_id = ?";
@@ -47,7 +47,7 @@ impl ViewManager for SqlStore {
                         .bind(project_id)
                         .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                         .await
-                        .map_err(|e| Error::Database(e))?;
+                        .map_err(Error::Database)?;
                 }
             }
         }

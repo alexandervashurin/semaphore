@@ -1,0 +1,105 @@
+// Analytics page styles
+
+.analytics-period-switcher {
+  display: flex;
+  gap: 8px;
+
+  .analytics-period-btn {
+    font-size: 13px;
+    padding: 4px 14px;
+    min-height: 32px;
+
+    &.active {
+      background: #1976d2;
+      color: #fff;
+      border-color: #1976d2;
+    }
+  }
+}
+
+.analytics-stats-row {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(4, 1fr);
+
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.analytics-stat-card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px 24px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+
+  .stat-label {
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: rgba(0, 0, 0, 0.54);
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: rgba(0, 0, 0, 0.87);
+    line-height: 1;
+
+    &.success { color: #4caf50; }
+    &.error   { color: #f44336; }
+  }
+
+  &.small {
+    padding: 14px 18px;
+
+    .stat-value { font-size: 24px; }
+  }
+}
+
+#analytics-resources {
+  grid-template-columns: repeat(5, 1fr);
+
+  @media (max-width: 900px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.analytics-charts-row {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr 1fr;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.analytics-chart-card {
+  padding: 20px 24px;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.analytics-chart-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.7);
+  margin-bottom: 16px;
+}
+
+.analytics-chart-wrap {
+  position: relative;
+  height: 260px;
+}
+
+.analytics-no-data {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 260px;
+  color: rgba(0, 0, 0, 0.38);
+  font-size: 14px;
+}

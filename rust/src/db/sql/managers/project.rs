@@ -27,7 +27,7 @@ impl ProjectStore for SqlStore {
                 let rows = q
                     .fetch_all(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(rows.into_iter().map(|row| Project {
                     id: row.get("id"),
@@ -55,7 +55,7 @@ impl ProjectStore for SqlStore {
                 let rows = q
                     .fetch_all(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(rows.into_iter().map(|row| Project {
                     id: row.get("id"),
@@ -83,7 +83,7 @@ impl ProjectStore for SqlStore {
                 let rows = q
                     .fetch_all(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(rows.into_iter().map(|row| Project {
                     id: row.get("id"),
@@ -181,10 +181,10 @@ impl ProjectStore for SqlStore {
                     .bind(&project.alert_chat)
                     .bind(project.max_parallel_tasks)
                     .bind(&project.r#type)
-                    .bind(&project.default_secret_storage_id)
+                    .bind(project.default_secret_storage_id)
                     .fetch_one(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 project.id = id;
                 Ok(project)
@@ -198,10 +198,10 @@ impl ProjectStore for SqlStore {
                     .bind(&project.alert_chat)
                     .bind(project.max_parallel_tasks)
                     .bind(&project.r#type)
-                    .bind(&project.default_secret_storage_id)
+                    .bind(project.default_secret_storage_id)
                     .fetch_one(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 project.id = id;
                 Ok(project)
@@ -215,16 +215,16 @@ impl ProjectStore for SqlStore {
                     .bind(&project.alert_chat)
                     .bind(project.max_parallel_tasks)
                     .bind(&project.r#type)
-                    .bind(&project.default_secret_storage_id)
+                    .bind(project.default_secret_storage_id)
                     .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 // Для MySQL нужно получить последний вставленный ID отдельно
                 let last_id: i32 = sqlx::query_scalar("SELECT LAST_INSERT_ID()")
                     .fetch_one(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 project.id = last_id;
                 Ok(project)
@@ -242,11 +242,11 @@ impl ProjectStore for SqlStore {
                     .bind(&project.alert_chat)
                     .bind(project.max_parallel_tasks)
                     .bind(&project.r#type)
-                    .bind(&project.default_secret_storage_id)
+                    .bind(project.default_secret_storage_id)
                     .bind(project.id)
                     .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::PostgreSQL => {
                 let query = "UPDATE project SET name = $1, alert = $2, alert_chat = $3, max_parallel_tasks = $4, type = $5, default_secret_storage_id = $6 WHERE id = $7";
@@ -256,11 +256,11 @@ impl ProjectStore for SqlStore {
                     .bind(&project.alert_chat)
                     .bind(project.max_parallel_tasks)
                     .bind(&project.r#type)
-                    .bind(&project.default_secret_storage_id)
+                    .bind(project.default_secret_storage_id)
                     .bind(project.id)
                     .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::MySQL => {
                 let query = "UPDATE project SET name = ?, alert = ?, alert_chat = ?, max_parallel_tasks = ?, type = ?, default_secret_storage_id = ? WHERE id = ?";
@@ -270,11 +270,11 @@ impl ProjectStore for SqlStore {
                     .bind(&project.alert_chat)
                     .bind(project.max_parallel_tasks)
                     .bind(&project.r#type)
-                    .bind(&project.default_secret_storage_id)
+                    .bind(project.default_secret_storage_id)
                     .bind(project.id)
                     .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
         }
         Ok(())
@@ -288,7 +288,7 @@ impl ProjectStore for SqlStore {
                     .bind(project_id)
                     .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::PostgreSQL => {
                 let query = "DELETE FROM project WHERE id = $1";
@@ -296,7 +296,7 @@ impl ProjectStore for SqlStore {
                     .bind(project_id)
                     .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::MySQL => {
                 let query = "DELETE FROM project WHERE id = ?";
@@ -304,7 +304,7 @@ impl ProjectStore for SqlStore {
                     .bind(project_id)
                     .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
         }
         Ok(())
@@ -321,7 +321,7 @@ impl ProjectStore for SqlStore {
                     .bind(project_user.created)
                     .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::PostgreSQL => {
                 sqlx::query("INSERT INTO project__user (project_id, user_id, role, created) VALUES ($1, $2, $3, $4)")
@@ -331,7 +331,7 @@ impl ProjectStore for SqlStore {
                     .bind(project_user.created)
                     .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::MySQL => {
                 sqlx::query("INSERT INTO project__user (project_id, user_id, `role`, created) VALUES (?, ?, ?, ?)")
@@ -341,7 +341,7 @@ impl ProjectStore for SqlStore {
                     .bind(project_user.created)
                     .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
         }
         Ok(())

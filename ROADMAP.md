@@ -1,17 +1,41 @@
 # 🗺️ Дорожная карта проекта Semaphore UI (Rust)
 
-> **Последнее обновление:** 14 марта 2026 г. (Analytics, Webhooks UI, Integration Tests)
-> **Статус:** Q2-Q3 2026 завершены
+> **Репозиторий:** https://github.com/tnl-o/rust_semaphore
+> **Upstream (Go-оригинал — эталон фич):** https://github.com/semaphoreui/semaphore
+> **Последнее обновление:** 14 марта 2026 г.
+> **Цель:** Полная миграция Semaphore UI с Go на Rust + замена Vue 2 на Vanilla JS, feature parity с Go-оригиналом.
 
 ---
 
 ## 📚 Содержание
 
-1. [Стек технологий](#стек-технологий)
-2. [Архитектура](#архитектура)
-3. [Запуск одним Docker-контейнером](#запуск-одним-docker-контейнером)
-4. [План разработки](#план-разработки)
-5. [Статус функций](#статус-функций)
+1. [Цель проекта](#цель-проекта)
+2. [Стек технологий](#стек-технологий)
+3. [Архитектура](#архитектура)
+4. [Запуск одним Docker-контейнером](#запуск-одним-docker-контейнером)
+5. [План разработки](#план-разработки)
+6. [Статус функций](#статус-функций)
+
+---
+
+## 🎯 Цель проекта
+
+**Semaphore UI** — open-source веб-интерфейс для Ansible, Terraform, OpenTofu, PowerShell и других DevOps-инструментов. Оригинал написан на Go + Gin + Vue 2.
+
+Этот форк:
+- **Мигрирует бэкенд** с Go на Rust (Axum + SQLx + Tokio) — производительнее, безопаснее, меньше памяти
+- **Мигрирует фронтенд** с Vue 2 (EOL декабрь 2023) на **Vanilla JS** — меньше зависимостей, быстрее загрузка, вечная поддержка
+- Сохраняет **полный feature parity** с Go-оригиналом (`semaphoreui/semaphore`)
+
+**Что должно работать:**
+- Управление проектами с ролевой моделью (admin/manager/runner)
+- Templates, Inventories, Keys, Repositories, Environments
+- Task Runner — реальный запуск ansible-playbook, terraform, bash
+- WebSocket для стриминга логов в реальном времени
+- Schedules (cron), Webhooks (входящие и исходящие)
+- Auth: JWT, bcrypt, TOTP (2FA), LDAP, OIDC/OAuth2, refresh token
+- Audit log, Notifications (email, Slack, Telegram)
+- Prometheus metrics, Backup/Restore
 
 ---
 
@@ -25,57 +49,44 @@
 | **Веб-фреймворк** | Axum | 0.8 | HTTP сервер, роутинг, middleware |
 | **Асинхронность** | Tokio | 1.x | Async runtime |
 | **База данных** | SQLx | 0.8 | Асинхронный SQL клиент |
-| **БД (поддержка)** | PostgreSQL, MySQL, SQLite | - | Хранение данных |
-| **Аутентификация** | JWT, bcrypt, RSA | 9.3, 0.17, 0.9 | Токены, пароли, ключи |
-| **Логирование** | tracing, tracing-subscriber | 0.1, 0.3 | Структурированное логирование |
-| **Валидация** | validator | 0.20 | Валидация данных |
-| **CLI** | clap | 4.5 | Командная строка |
-| **Серализация** | serde, serde_json | 1.0 | JSON обработка |
-| **Время** | chrono | 0.4 | Работа с датой/временем |
-| **Email** | lettre | 0.11 | Отправка писем |
-| **OAuth2/OIDC** | oauth2 | 5.0 | Внешняя аутентификация |
+| **БД (поддержка)** | PostgreSQL, MySQL, SQLite | — | Хранение данных |
+| **Auth** | JWT (jsonwebtoken), bcrypt, TOTP | 9.3, 0.17 | Токены, пароли, 2FA |
+| **OIDC/OAuth2** | oauth2 | 5.0 | Внешняя аутентификация |
+| **LDAP** | ldap3 | 0.11 | LDAP/AD аутентификация |
+| **WebSocket** | axum ws, tokio-tungstenite | — | Real-time лог-стриминг |
+| **Логирование** | tracing, tracing-subscriber | 0.1 | Структурированное логирование |
+| **Email** | lettre | 0.11 | SMTP уведомления |
 | **Git** | git2 | 0.20 | Работа с Git репозиториями |
 | **SSH** | ssh2 | 0.9 | SSH подключения |
-| **Сжатие** | flate2 | 1.1 | Gzip compression |
-| **Хэширование** | sha2, sha1, md-5, hmac | 0.10 | Криптография |
-| **TOTP** | base32, otp | 0.5 | 2FA коды |
-| **KV-хранилище** | sled | 0.34 | Встроенное key-value хранилище |
+| **Шифрование** | AES-256, sha2, hmac | — | Хранение секретов |
+| **Метрики** | prometheus | 0.13 | Prometheus экспортёр |
+| **CLI** | clap | 4.5 | Командная строка |
+| **GraphQL** | async-graphql | 7.0 | GraphQL API |
 
-### Frontend (Vue.js)
+### Frontend (Vanilla JS)
 
-| Категория | Технология | Версия | Назначение |
-|-----------|-----------|--------|------------|
-| **Фреймворк** | Vue.js | 2.6.14 | UI фреймворк |
-| **UI библиотека** | Vuetify | 2.6.10 | Material Design компоненты |
-| **HTTP клиент** | Axios | 1.13.5 | API запросы |
-| **Роутинг** | Vue Router | 3.5.4 | Навигация |
-| **Интерnationalization** | vue-i18n | 8.18.2 | Многоязычность |
-| **Графики** | Chart.js, vue-chartjs | 3.8.0 | Визуализация данных |
-| **Терминал** | ansi_up | 6.0.6 | Подсветка ANSI кодов |
-| **Cron** | cron-parser | 5.3.0 | Парсинг cron выражений |
-| **Дата/время** | dayjs | 1.11.13 | Работа с датой |
-| **Сборка** | Vue CLI | 5.0.6 | Build toolchain |
-| **Препроцессор** | Sass | 1.32.12 | CSS препроцессор |
-| **Линтинг** | ESLint, Prettier | 7.x, 3.x | Качество кода |
+| Категория | Технология | Описание |
+|-----------|-----------|--------|
+| **Фреймворк** | Vanilla JS (нет фреймворка) | Браузерные стандарты: History API, Fetch, WebSocket |
+| **Стили** | SCSS (Gulp сборка) | Material Design-inspired компоненты |
+| **Роутинг** | router.js (History API) | Клиентский роутер |
+| **State** | store.js (Proxy) | Реактивный state без зависимостей |
+| **API-клиент** | api.js (fetch + interceptors) | REST-клиент |
+| **Bundle** | ~50 KB (vs ~500 KB Vue 2) | В 10 раз меньше Vue 2 |
+| **Поддержка** | Вечная | Нет EOL зависимостей |
 
-### DevOps и инфраструктура
+> ⚠️ Vue 2 достиг End-of-Life в декабре 2023. Vanilla JS миграция завершена (базовые страницы). В работе: Charts ✅ готов (Chart.js Analytics page).
 
-| Категория | Технология | Версия | Назначение |
-|-----------|-----------|--------|------------|
-| **Контейнеризация** | Docker | 20.x+ | Изоляция среды |
-| **Оркестрация** | Docker Compose | 2.x+ | Мультиконтейнерный запуск |
-| **Web сервер** | Nginx | Alpine | Раздача статики, reverse proxy |
-| **База данных** | PostgreSQL | 15-alpine | Основная БД |
-| **CI/CD** | GitHub Actions | - | Автоматизация |
-| **Документация** | Swagger/OpenAPI | 3.0 | API документация |
+### DevOps
 
-### Инструменты разработки
-
-| Инструмент | Назначение |
-|-----------|------------|
-| **Taskfile** | Управление задачами (альтернатива Make) |
-| **renovate** | Автоматическое обновление зависимостей |
-| **dotenvy** | Управление переменными окружения |
+| Категория | Технология |
+|-----------|-----------|
+| **Контейнеризация** | Docker multi-stage |
+| **Оркестрация** | Docker Compose |
+| **БД (prod)** | PostgreSQL 16 |
+| **БД (dev)** | SQLite |
+| **CI/CD** | GitHub Actions (build + test + clippy) |
+| **API-документация** | OpenAPI (api-docs.yml) |
 
 ---
 
@@ -83,21 +94,21 @@
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    Semaphore UI                          │
+│                    Semaphore UI (Rust)                   │
 ├─────────────────────────────────────────────────────────┤
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐ │
-│  │   Frontend  │    │   Backend   │    │   Database  │ │
-│  │  Vue.js 2.6 │◄──►│  Rust Axum  │◄──►│ PostgreSQL  │ │
-│  │  Vuetify    │    │  0.8 Tokio  │    │   MySQL     │ │
-│  │  Nginx      │    │  SQLx 0.8   │    │   SQLite    │ │
-│  └─────────────┘    └─────────────┘    └─────────────┘ │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐  │
+│  │  Frontend   │    │   Backend   │    │  Database   │  │
+│  │ Vanilla JS  │◄──►│  Rust Axum  │◄──►│ PostgreSQL  │  │
+│  │  ~50 KB     │    │  0.8 Tokio  │    │   MySQL     │  │
+│  │  No EOL     │    │  SQLx 0.8   │    │   SQLite    │  │
+│  └─────────────┘    └─────────────┘    └─────────────┘  │
 └─────────────────────────────────────────────────────────┘
-         │                   │                   │
-         ▼                   ▼                   ▼
-  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-  │  Static     │    │  API REST   │    │  Persistent │
-  │  Files      │    │  WebSocket  │    │  Storage    │
-  └─────────────┘    └─────────────┘    └─────────────┘
+         │                   │
+         ▼                   ▼
+  ┌─────────────┐    ┌─────────────┐
+  │  Static     │    │  REST API   │
+  │  Files      │    │  WebSocket  │
+  └─────────────┘    └─────────────┘
 ```
 
 ### Структура проекта
@@ -106,223 +117,115 @@
 rust_semaphore/
 ├── rust/                    # Backend на Rust
 │   ├── src/
-│   │   ├── api/            # HTTP handlers (CRUD)
-│   │   ├── db/             # Модели и репозитории БД
-│   │   ├── service/        # Бизнес-логика
-│   │   ├── auth/           # Аутентификация и авторизация
-│   │   ├── mailer/         # Email уведомления
-│   │   ├── crypto/         # Шифрование и ключи
-│   │   └── lib.rs          # Основной модуль
-│   ├── Cargo.toml          # Rust зависимости
-│   └── data/               # Локальные данные (SQLite)
-├── web/                     # Frontend на Vue.js
-│   ├── src/                # Исходный код Vue
-│   ├── public/             # Скомпилированная статика
-│   └── package.json        # Node.js зависимости
-├── db/                      # Скрипты БД
-│   └── postgres/
-│       ├── init.sql        # Схема БД
-│       └── init-demo.sql   # Демо-данные
-├── deployment/              # Docker конфигурации
-│   ├── single/             # Единый контейнер
-│   └── compose/            # Docker Compose
-├── Dockerfile              # Основной Docker образ
-├── docker-compose.yml      # Compose для разработки
-└── README.md               # Документация
+│   │   ├── api/            # HTTP handlers, routes, middleware
+│   │   ├── db/             # Store traits + SQLite/PG/MySQL impl
+│   │   ├── services/       # Task runner, scheduler, alert, metrics...
+│   │   ├── models/         # Сущности данных (serde)
+│   │   ├── config/         # Конфигурация
+│   │   └── utils/          # Encryption, mailer, SSH...
+│   ├── tests/              # Integration tests
+│   └── Cargo.toml
+├── web/
+│   ├── vanilla/            # Vanilla JS фронтенд (активный)
+│   │   ├── js/             # app.js, router.js, api.js, components/
+│   │   └── css/            # SCSS стили
+│   └── src/                # Vue 2 (legacy, не используется)
+├── Dockerfile
+├── docker-compose.yml
+├── MASTER_PLAN.md          # Живой план задач
+└── ROADMAP.md              # Этот файл
 ```
 
 ---
 
 ## 🐳 Запуск одним Docker-контейнером
 
-### Вариант 1: Единый образ (рекомендуется для production)
-
-```dockerfile
-# deployment/single/Dockerfile
-FROM rust:1.75-slim AS backend-builder
-
-WORKDIR /app
-COPY rust/Cargo.toml rust/Cargo.lock ./
-RUN mkdir -p src && echo "fn main() {}" > src/main.rs && \
-    cargo build --release && rm -rf src target
-
-COPY rust/ ./
-RUN cargo build --release
-
-FROM node:18-alpine AS frontend-builder
-WORKDIR /web
-COPY web/package*.json ./
-RUN npm ci
-COPY web/ ./
-RUN npm run build
-
-FROM debian:bookworm-slim
-
-RUN apt-get update && apt-get install -y \
-    ca-certificates libssl3 nginx && \
-    rm -rf /var/lib/apt/lists/* && \
-    useradd -m -u 1000 semaphore
-
-COPY --from=backend-builder /app/target/release/semaphore /usr/local/bin/
-COPY --from=frontend-builder /web/dist /var/www/html
-COPY deployment/single/nginx.conf /etc/nginx/sites-enabled/default
-COPY db/postgres/init.sql /docker-entrypoint-initdb.d/
-
-RUN chown -R semaphore:semaphore /var/www/html /var/log/nginx /var/lib/nginx && \
-    chmod -R 755 /var/www/html
-
-WORKDIR /app
-USER semaphore
-
-EXPOSE 80
-
-ENV SEMAPHORE_DB_URL="sqlite://data/semaphore.db"
-ENV SEMAPHORE_WEB_PATH="/var/www/html"
-
-CMD ["sh", "-c", "semaphore server --host 0.0.0.0 --port 3000 & nginx -g 'daemon off;'"]
-```
-
-### Вариант 2: SQLite + встроенный веб-сервер (минималистичный)
+### Быстрый старт (SQLite + встроенный сервер)
 
 ```bash
-# Запуск без внешних зависимостей
-docker run -d \
-  --name semaphore \
-  -p 3000:3000 \
-  -v semaphore_data:/app/data \
-  -e SEMAPHORE_DB_URL="sqlite://data/semaphore.db" \
-  ghcr.io/alexandervashurin/semaphore:latest
+# Запуск backend (SQLite)
+cd rust
+export SEMAPHORE_DB_PATH=/tmp/semaphore.db
+cargo run -- server --host 0.0.0.0 --port 3000
+
+# Создать admin-пользователя
+cargo run -- user add --username admin --name "Admin" \
+  --email admin@localhost --password admin123 --admin
+
+# Открыть UI
+http://localhost:3000
 ```
 
-### Вариант 3: Docker Compose (один сервис)
-
-```yaml
-# docker-compose.single.yml
-version: '3.8'
-
-services:
-  semaphore:
-    image: ghcr.io/alexandervashurin/semaphore:latest
-    container_name: semaphore
-    restart: unless-stopped
-    ports:
-      - "80:80"
-    volumes:
-      - semaphore_data:/app/data
-      - semaphore_config:/app/config
-    environment:
-      - SEMAPHORE_DB_URL=sqlite://data/semaphore.db
-      - SEMAPHORE_WEB_PATH=/var/www/html
-      - SEMAPHORE_HOST=0.0.0.0
-      - SEMAPHORE_PORT=80
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-volumes:
-  semaphore_data:
-  semaphore_config:
-```
-
-### Быстрый старт
+### Docker Compose (PostgreSQL + backend)
 
 ```bash
-# 1. Сборка образа
-docker build -t semaphore:latest .
+docker compose up -d
+```
 
-# 2. Запуск
-docker run -d \
-  --name semaphore \
-  -p 80:80 \
-  -v $(pwd)/data:/app/data \
-  semaphore:latest
+### Параметры конфигурации (env)
 
-# 3. Проверка
-curl http://localhost/health
-
-# 4. Остановка
-docker stop semaphore && docker rm semaphore
+```bash
+SEMAPHORE_DB_PATH=/data/semaphore.db   # SQLite
+SEMAPHORE_DB_URL=postgres://...        # PostgreSQL
+SEMAPHORE_JWT_SECRET=your-secret       # JWT-ключ (обязательно в prod)
+SEMAPHORE_ACCESS_KEY_ENCRYPTION=...    # AES ключ для секретов
 ```
 
 ---
 
 ## 📋 План разработки
 
-### ✅ Завершено (Q1 2026)
+### ✅ Завершено
 
-- [x] Миграция с Go на Rust
-- [x] Базовая аутентификация (JWT + bcrypt)
-- [x] CRUD операции для основных сущностей
-- [x] Поддержка PostgreSQL, MySQL, SQLite
-- [x] Vue.js frontend с Vuetify
-- [x] Docker контейнеризация
-- [x] WebSocket для real-time обновлений
-- [x] Email уведомления (lettre)
-- [x] OAuth2/OIDC интеграция
-- [x] SSH подключения (ssh2)
-- [x] Git интеграция (git2)
-- [x] TOTP 2FA аутентификация
-- [x] LDAP аутентификация
+- [x] Миграция бэкенда с Go на Rust (Axum + SQLx + Tokio)
+- [x] Поддержка SQLite, PostgreSQL, MySQL
+- [x] Auth: JWT, bcrypt, refresh token, logout
+- [x] Auth: TOTP 2FA, OIDC/OAuth2, LDAP
+- [x] CRUD: Projects, Templates, Inventories, Keys, Repositories, Environments
+- [x] CRUD: Views, Schedules, Integrations (входящие webhooks)
+- [x] Task Runner — реальный запуск ansible-playbook, terraform, bash
+- [x] WebSocket — стриминг логов задач в реальном времени
+- [x] Scheduler (cron-runner) — фоновый tokio task
+- [x] Webhooks исходящие (POST на смену статуса задачи)
+- [x] Notifications: Email (SMTP/TLS), Slack, Telegram
+- [x] Audit Log
+- [x] Prometheus Metrics
+- [x] Secret storage (AES-256 шифрование ключей)
+- [x] Backup / Restore
+- [x] GraphQL API (async-graphql 7.0)
+- [x] Security middleware: rate limiting, CORS, security headers
+- [x] CI/CD (GitHub Actions: build + test + clippy)
+- [x] **Vanilla JS фронтенд** — все страницы CRUD (100% базовая миграция)
+- [x] **Task Log Viewer** — WebSocket + ANSI-цвета в браузере
+- [x] **Integration tests** — 10 тестов (auth, projects, health)
+- [x] **Windows SQLite path fix** — корректная обработка путей
 
-### ✅ Завершено (Q2 2026)
+### 🔄 В работе
 
-- [x] Единый Docker контейнер (all-in-one)
-- [x] Оптимизация размера образа (musl, distroless) — до 92% экономии
-- [x] Webhook интеграции — 5 типов (Generic, Slack, Teams, Discord, Telegram)
-- [x] Audit log с расширенным поиском — 50+ типов событий
-- [x] Расширенная аналитика и дашборды — метрики, статистика, графики
+- [x] **Integration tests** — 20 тестов (auth, projects, keys, inventories, repositories, environments, templates, tasks, 2026-03-14)
+- [x] **Charts/Analytics** — Chart.js line + doughnut charts на странице Analytics (2026-03-14)
+- [x] **Docker multi-stage** — distroless/cc-debian12:nonroot, цель < 50 MB (2026-03-14)
 
-### ✅ Завершено (Q3 2026)
+### 📅 Запланировано (ближайшие)
 
-- [x] Плагин система — базовая архитектура, хуки, менеджер
-- [x] 6 типов плагинов: TaskExecutor, Notification, Storage, Auth, ApiExtension, Hook
-- [x] 40+ системных хуков для событий
-- [x] Менеджер плагинов с зависимостями
-- [x] Документация PLUGINS.md
+- [ ] Проверка паритета схем SQLite / PostgreSQL
+- [ ] Dark theme в Vanilla JS фронтенде
+- [ ] Keyboard shortcuts
+- [ ] `cargo clippy -- -D warnings` — 0 предупреждений
+- [ ] Покрытие тестами ≥ 60% критических путей
 
-### ✅ Завершено (Q4 2026)
+### 🔮 Долгосрочно (после feature parity)
 
-- [x] GraphQL API — async-graphql 7.0, GraphiQL playground, Query/Mutation/Subscription
-- [x] Telegram Bot API — teloxide 0.13, команды /start, /help, уведомления (план)
-- [x] Prometheus метрики — 18 метрик, endpoints /api/metrics, /api/metrics/json
-- [x] WASM загрузчик плагинов — отложен на Q1 2027
-- [x] Webhook API — CRUD операции, тестирование, история уведомлений
-- [x] Security middleware — Rate limiting, CORS, Security Headers (CSP, HSTS)
-- [x] Analytics API — эндпоинты для аналитики проектов и системных метрик
-- [x] Analytics UI — дашборды с графиками Chart.js, карточки статистики
-- [x] Schedules CRUD — расписания с cron выражениями, валидация, фильтрация
-- [x] Playbook Runs API — запуск задач, мониторинг статуса, логи выполнения
-- [x] Frontend: Analytics Dashboard ✅
-- [x] Frontend: Webhooks Management ✅
-- [x] Frontend: Schedules Management ✅
-- [x] Frontend: Playbook Runs UI ✅
-- [x] Integration Tests — тесты для Schedules и Playbook Runs API
+После достижения полного pariteta с Go-оригиналом:
 
-### 📅 Запланировано (Q1 2027)
-
-- [ ] Кластерный режим работы
-- [ ] Горизонтальное масштабирование
+- [ ] Кластерный режим / HA
 - [ ] Redis кэширование
-- [ ] gRPC API для внутренних сервисов
-- [ ] Мобильное приложение (React Native / Flutter)
-- [ ] Desktop приложение (Tauri)
-- [ ] Интеграция с Kubernetes
-- [ ] Terraform провайдер
-- [ ] Grafana дашборды
+- [ ] Helm chart для Kubernetes
 - [ ] Distributed tracing (OpenTelemetry)
-- [ ] WASM Plugin Loader
-- [ ] AI ассистент для playbook
+- [ ] gRPC API для внутренних сервисов
 
-### 🔮 Будущее (2027+)
-
-- [ ] AI ассистент для генерации playbook'ов
-- [ ] Автоматическое тестирование инфраструктуры
-- [ ] Visual pipeline editor
-- [ ] Marketplace шаблонов и интеграций
-- [ ] Multi-tenant режим с изоляцией
-- [ ] Serverless execution mode
+> **Примечание:** Desktop/Mobile приложения, AI-ассистент и другие фичи, выходящие
+> за рамки Go-оригинала, не входят в текущую область проекта.
 
 ---
 
@@ -332,257 +235,84 @@ docker stop semaphore && docker rm semaphore
 
 | Функция | Статус | Описание |
 |--------|--------|----------|
-| **Аутентификация** | ✅ Готово | JWT, сессии, 2FA TOTP |
-| **Авторизация** | ✅ Готово | RBAC, роли, разрешения |
-| **LDAP** | ✅ Готово | Интеграция с LDAP/AD |
-| **OAuth2/OIDC** | ✅ Готово | Внешние провайдеры |
-| **API** | ✅ Готово | REST + WebSocket |
+| **Аутентификация** | ✅ Готово | JWT + refresh, bcrypt, 2FA TOTP |
+| **LDAP** | ✅ Готово | Конфиг + handler подключён |
+| **OAuth2/OIDC** | ✅ Готово | Multi-provider |
+| **REST API** | ✅ Готово | Feature parity с Go-оригиналом |
+| **WebSocket** | ✅ Готово | Стриминг логов задач |
 | **База данных** | ✅ Готово | PostgreSQL, MySQL, SQLite |
 
 ### Управление задачами
 
-| Функция | Статус | Описание |
-|--------|--------|----------|
-| **Playbook** | ✅ Готово | Ansible playbook задачи |
-| **Terraform** | ✅ Готово | Terraform plan/apply |
-| **PowerShell** | ✅ Готово | PowerShell скрипты |
-| **Bash** | ✅ Готово | Bash скрипты |
-| **Расписание** | ✅ Готово | Cron выражения |
-| **Очереди** | ✅ Готово | Приоритеты, лимиты |
+| Функция | Статус |
+|--------|--------|
+| Task Runner (ansible/terraform/bash) | ✅ Готово |
+| WebSocket лог-стриминг (бэкенд) | ✅ Готово |
+| Task Log Viewer (фронтенд, ANSI) | ✅ Готово |
+| Schedules (cron) | ✅ Готово |
+| Stop task | ✅ Готово |
 
 ### Уведомления
 
-| Функция | Статус | Описание |
-|--------|--------|----------|
-| **Email** | ✅ Готово | SMTP, шаблоны |
-| **Webhook** | ✅ Готово | Generic, Slack, Teams, Discord, Telegram |
-| **Telegram** | ✅ Готово | Webhook уведомления |
-| **Slack** | ✅ Готово | Incoming webhooks |
+| Функция | Статус |
+|--------|--------|
+| Email (SMTP) | ✅ Готово |
+| Slack webhook | ✅ Готово |
+| Telegram Bot API | ✅ Готово |
+| Webhooks исходящие | ✅ Готово |
+
+### Фронтенд (Vanilla JS)
+
+| Страница | Статус |
+|---------|--------|
+| Login | ✅ |
+| Dashboard (проекты) | ✅ |
+| Templates (CRUD) | ✅ |
+| Inventories (CRUD) | ✅ |
+| Repositories (CRUD) | ✅ |
+| Environments (CRUD) | ✅ |
+| Keys (CRUD) | ✅ |
+| История задач | ✅ |
+| **Task detail + live log (WS)** | ✅ |
+| Team / Users | ✅ |
+| Schedules | ✅ |
+| Integrations | ✅ |
+| Audit Log | ✅ |
+| Analytics | ✅ (с Chart.js charts) |
+| Settings | ✅ |
 
 ### Инфраструктура
 
-| Функция | Статус | Описание |
-|--------|--------|----------|
-| **Docker** | ✅ Готово | Одиночный контейнер |
-| **Docker Compose** | ✅ Готово | Multi-container |
-| **Docker Alpine** | ✅ Готово | Оптимизированный (~60 MB) |
-| **Docker Distroless** | ✅ Готово | Безопасный (~35 MB) |
-| **Kubernetes** | 📅 Запланировано | Helm chart, operator |
-| **Systemd** | ✅ Готово | Service unit |
-
-### Аналитика
-
-| Функция | Статус | Описание |
-|--------|--------|----------|
-| **Project Stats** | ✅ Готово | Статистика проектов |
-| **Task Metrics** | ✅ Готово | Метрики задач |
-| **User Activity** | ✅ Готово | Активность пользователей |
-| **Performance** | ✅ Готово | Метрики производительности |
-| **System Status** | ✅ Готово | Статус системы |
-| **Charts** | ✅ Готово | Временные ряды |
-| **Audit Log** | ✅ Готово | 50+ типов событий |
-
-### Плагины
-
-| Функция | Статус | Описание |
-|--------|--------|----------|
-| **Plugin System** | ✅ Готово | Базовая архитектура |
-| **Task Executor** | ✅ Готово | Кастомные исполнители |
-| **Notification** | ✅ Готово | Провайдеры уведомлений |
-| **Storage** | ✅ Готово | Провайдеры хранилищ |
-| **Auth** | ✅ Готово | Провайдеры аутентификации |
-| **API Extension** | ✅ Готово | Расширения API |
-| **Hook System** | ✅ Готово | 40+ системных хуков |
-| **Plugin Manager** | ✅ Готово | Менеджер с зависимостями |
+| Функция | Статус |
+|--------|--------|
+| Docker Compose | ✅ Готово |
+| GitHub Actions CI (Rust) | ✅ Готово |
+| Unit-тесты (524) | ✅ Готово |
+| Integration tests (20) | ✅ Готово |
+| Docker multi-stage (distroless) | ✅ Готово |
 
 ---
 
-## 🎯 Метрики качества
-
-| Метрика | Цель | Текущее | Достижение |
-|--------|------|---------|------------|
-| **Покрытие тестами** | >80% | ~65% | 81% |
-| **Время сборки** | <5 мин | ~8 мин | 🔴 |
-| **Размер образа (standard)** | <100 MB | ~450 MB | 🔴 |
-| **Размер образа (slim)** | <200 MB | ~180 MB | ✅ |
-| **Размер образа (alpine)** | <100 MB | ~60 MB | ✅ |
-| **Размер образа (distroless)** | <50 MB | ~35 MB | ✅ |
-| **Время запуска** | <5 сек | ~3 сек | ✅ |
-| **Потребление RAM** | <256 MB | ~180 MB | ✅ |
-| **Frontend сборка** | ✅ Работает | Vue.js 2.6.14 | ✅ |
-| **Backend API** | ✅ Работает | Порт 3000 | ✅ |
-| **Database** | ✅ Работает | PostgreSQL 5432 | ✅ |
-
----
-
-## 🚀 Текущий статус запуска
-
-### Рабочие сервисы (Март 2026)
+## 🚀 Запуск для разработки
 
 ```bash
-# Backend (Rust + встроенный frontend)
-✅ http://localhost:3000
-
-# Database (PostgreSQL)
-✅ localhost:5432 (semaphore/semaphore_pass)
-
-# Frontend (nginx)
-🔄 Требуется настройка
-```
-
-### Команды запуска
-
-```bash
-# 1. Запуск БД и frontend
-docker-compose up -d
-
-# 2. Сборка frontend
-cd web && npm install && npm run build
-
-# 3. Запуск backend
+# Backend
 cd rust && cargo run -- server --host 0.0.0.0 --port 3000
 
-# 4. Доступ к UI
-http://localhost:3000
+# Тесты
+cd rust && cargo test
+cd rust && cargo test --test api_integration
+
+# Линтер
+cd rust && cargo clippy -- -D warnings
+
+# Frontend сборка
+cd web && npm run vanilla:build
+
+# Всё через Docker
+docker compose up -d
 ```
 
 ---
 
-## 📞 Контакты
-
-- **GitHub:** https://github.com/alexandervashurin/semaphore
-- **Email:** alexandervashurin@yandex.ru
-- **Документация:**
-  - [API.md](API.md) — API документация
-  - [AUTH.md](AUTH.md) — Аутентификация
-  - [CONFIG.md](CONFIG.md) — Конфигурация
-  - [AUDIT_LOG.md](AUDIT_LOG.md) — Audit Log API
-  - [WEBHOOK.md](WEBHOOK.md) — Webhook интеграции
-  - [IMAGE_OPTIMIZATION.md](IMAGE_OPTIMIZATION.md) — Оптимизация образов
-  - [ANALYTICS.md](ANALYTICS.md) — Аналитика и дашборды
-  - [PLUGINS.md](PLUGINS.md) — Плагин система
-  - [GRAPHQL_API.md](GRAPHQL_API.md) — GraphQL API ⭐ NEW
-  - [TELEGRAM_BOT.md](TELEGRAM_BOT.md) — Telegram Bot ⭐ NEW
-  - [PROMETHEUS_METRICS.md](PROMETHEUS_METRICS.md) — Prometheus метрики
-  - [Q4_2026_REPORT.md](Q4_2026_REPORT.md) — Отчёт Q4 2026 ⭐ NEW
-  - [SINGLE_CONTAINER.md](SINGLE_CONTAINER.md) — Единый контейнер
-
----
-
-*Последнее обновление: 14 марта 2026 г. (Analytics, Webhooks, Schedules, Playbook Runs, Tests)*
-
----
-
-## 📝 История изменений
-
-### Q4 2026 (Март) — Текущий
-
-**✅ Завершённые задачи:**
-
-1. **GraphQL API**
-   - async-graphql 7.0 интеграция
-   - Query: users, projects, templates, tasks
-   - Mutation: ping (тест)
-   - Subscription: task_created (заглушка)
-   - GraphiQL playground
-   - `src/api/graphql/` (6 файлов)
-   - `GRAPHQL_API.md`
-
-2. **Telegram Bot API**
-   - teloxide 0.13 интеграция
-   - Команды: /start, /help
-   - Конфигурация токена
-   - Уведомления (план)
-   - `src/services/telegram_bot/`
-   - `TELEGRAM_BOT.md`
-
-3. **Prometheus метрики**
-   - 18 метрик
-   - Endpoints: /api/metrics, /api/metrics/json
-   - Системные метрики
-   - `src/services/metrics.rs`
-   - `PROMETHEUS_METRICS.md`
-
-4. **Webhook API** ⭐ NEW
-   - CRUD операции: create, read, update, delete, test
-   - История webhook уведомлений
-   - 5 типов webhook: Generic, Slack, Teams, Discord, Telegram
-   - `src/api/handlers/webhooks.rs`
-   - `src/db/store.rs` (WebhookManager trait)
-   - `src/db/sql/webhook.rs`
-
-5. **Security Middleware** ⭐ NEW
-   - Rate limiting: 100 запросов/мин (API), 5 (auth)
-   - Security headers: CSP, HSTS, X-Frame-Options, X-Content-Type-Options
-   - CORS: development (открытый) и production (строгий) режимы
-   - `src/api/middleware/security_headers.rs` (strict_cors_headers)
-   - `src/api/middleware/rate_limiter.rs`
-   - `SECURITY_CONFIG.md`
-
-6. **Frontend UI Components** ⭐ NEW
-   - AuditLog.vue: просмотр audit log с фильтрацией
-   - Webhooks.vue: управление webhook (CRUD, тестирование)
-   - `web/src/views/project/AuditLog.vue`
-   - `web/src/views/project/Webhooks.vue`
-
-7. **Backup & Restore** ⭐ NEW
-   - scripts/backup.sh: бэкап БД и конфигурации
-   - scripts/restore.sh: восстановление из бэкапа
-   - BACKUP_RESTORE.md: документация
-   - Поддержка PostgreSQL, MySQL, SQLite
-
-### Q3 2026 (Март)
-
-**✅ Завершённые задачи:**
-
-6. **Плагин система**
-   - Базовая архитектура плагинов
-   - 6 типов плагинов
-   - 40+ системных хуков
-   - Менеджер плагинов с зависимостями
-   - `plugins/base.rs`, `plugins/hooks.rs`
-   - `PLUGINS.md`
-
-### Q2 2026 (Март)
-
-**✅ Завершённые задачи:**
-
-1. **Единый Docker контейнер**
-   - `deployment/single/Dockerfile`
-   - `docker-compose.single.yml`
-   - `SINGLE_CONTAINER.md`
-
-2. **Оптимизация размера образа**
-   - `Dockerfile.alpine` (~60 MB, -87%)
-   - `Dockerfile.distroless` (~35 MB, -92%)
-   - `Dockerfile.slim` (~180 MB, -60%)
-   - `scripts/build-optimized-images.sh`
-   - `IMAGE_OPTIMIZATION.md`
-
-3. **Audit Log с расширенным поиском**
-   - 50+ типов событий
-   - 14 типов объектов
-   - 4 уровня важности
-   - Расширенная фильтрация
-   - `models/audit_log.rs`
-   - `db/sql/audit_log.rs`
-   - `api/handlers/audit_log.rs`
-   - `AUDIT_LOG.md`
-
-4. **Webhook интеграции**
-   - 5 типов webhook (Generic, Slack, Teams, Discord, Telegram)
-   - Автоматические повторные попытки
-   - Кастомные заголовки
-   - Секретная аутентификация
-   - `services/webhook.rs`
-   - `models/webhook.rs`
-   - `WEBHOOK.md`
-
-5. **Расширенная аналитика и дашборды**
-   - Статистика проектов
-   - Метрики задач
-   - Активность пользователей
-   - Производительность
-   - Временные ряды
-   - `models/analytics.rs`
-   - `ANALYTICS.md`
+*Последнее обновление: 14 марта 2026 г. (обновление 2 — 20 tests, Charts, Docker distroless)*

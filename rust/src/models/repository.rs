@@ -109,8 +109,19 @@ impl Repository {
         }
     }
 
-    /// Создаёт репозиторий по умолчанию
-    pub fn default() -> Self {
+    /// Получает URL для клонирования
+    pub fn get_clone_url(&self) -> &str {
+        &self.git_url
+    }
+
+    /// Получает полный путь к репозиторию
+    pub fn get_full_path(&self) -> String {
+        self.git_path.clone().unwrap_or_else(|| self.git_url.clone())
+    }
+}
+
+impl Default for Repository {
+    fn default() -> Self {
         Self {
             id: 0,
             project_id: 0,
@@ -122,15 +133,5 @@ impl Repository {
             git_path: None,
             created: None,
         }
-    }
-
-    /// Получает URL для клонирования
-    pub fn get_clone_url(&self) -> &str {
-        &self.git_url
-    }
-
-    /// Получает полный путь к репозиторию
-    pub fn get_full_path(&self) -> String {
-        self.git_path.clone().unwrap_or_else(|| self.git_url.clone())
     }
 }

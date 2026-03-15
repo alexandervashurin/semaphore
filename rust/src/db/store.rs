@@ -283,6 +283,7 @@ pub trait SecretStorageManager: Send + Sync {
 #[async_trait]
 pub trait AuditLogManager: Send + Sync {
     /// Создаёт новую запись audit log
+    #[allow(clippy::too_many_arguments)]
     async fn create_audit_log(
         &self,
         project_id: Option<i64>,

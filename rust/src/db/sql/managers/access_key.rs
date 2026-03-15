@@ -20,7 +20,7 @@ impl AccessKeyManager for SqlStore {
                     .bind(project_id)
                     .fetch_all(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(rows.into_iter().map(|row| AccessKey {
                     id: row.get("id"),
@@ -46,7 +46,7 @@ impl AccessKeyManager for SqlStore {
                     .bind(project_id)
                     .fetch_all(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(rows.into_iter().map(|row| AccessKey {
                     id: row.get("id"),
@@ -72,7 +72,7 @@ impl AccessKeyManager for SqlStore {
                     .bind(project_id)
                     .fetch_all(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(rows.into_iter().map(|row| AccessKey {
                     id: row.get("id"),
@@ -198,19 +198,19 @@ impl AccessKeyManager for SqlStore {
                     .bind(key.project_id)
                     .bind(&key.name)
                     .bind(&key.r#type)
-                    .bind(&key.user_id)
+                    .bind(key.user_id)
                     .bind(&key.login_password_login)
                     .bind(&key.login_password_password)
                     .bind(&key.ssh_key)
                     .bind(&key.ssh_passphrase)
                     .bind(&key.access_key_access_key)
                     .bind(&key.access_key_secret_key)
-                    .bind(&key.secret_storage_id)
+                    .bind(key.secret_storage_id)
                     .bind(key.owner.as_ref().map(|o| o.to_string()))
-                    .bind(&key.environment_id)
+                    .bind(key.environment_id)
                     .fetch_one(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 key.id = id;
                 Ok(key)
@@ -221,19 +221,19 @@ impl AccessKeyManager for SqlStore {
                     .bind(key.project_id)
                     .bind(&key.name)
                     .bind(&key.r#type)
-                    .bind(&key.user_id)
+                    .bind(key.user_id)
                     .bind(&key.login_password_login)
                     .bind(&key.login_password_password)
                     .bind(&key.ssh_key)
                     .bind(&key.ssh_passphrase)
                     .bind(&key.access_key_access_key)
                     .bind(&key.access_key_secret_key)
-                    .bind(&key.secret_storage_id)
+                    .bind(key.secret_storage_id)
                     .bind(key.owner.as_ref().map(|o| o.to_string()))
-                    .bind(&key.environment_id)
+                    .bind(key.environment_id)
                     .fetch_one(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 key.id = id;
                 Ok(key)
@@ -244,24 +244,24 @@ impl AccessKeyManager for SqlStore {
                     .bind(key.project_id)
                     .bind(&key.name)
                     .bind(&key.r#type)
-                    .bind(&key.user_id)
+                    .bind(key.user_id)
                     .bind(&key.login_password_login)
                     .bind(&key.login_password_password)
                     .bind(&key.ssh_key)
                     .bind(&key.ssh_passphrase)
                     .bind(&key.access_key_access_key)
                     .bind(&key.access_key_secret_key)
-                    .bind(&key.secret_storage_id)
+                    .bind(key.secret_storage_id)
                     .bind(key.owner.as_ref().map(|o| o.to_string()))
-                    .bind(&key.environment_id)
+                    .bind(key.environment_id)
                     .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 let id: i32 = sqlx::query_scalar("SELECT LAST_INSERT_ID()")
                     .fetch_one(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 key.id = id;
                 Ok(key)
@@ -276,63 +276,63 @@ impl AccessKeyManager for SqlStore {
                 sqlx::query(query)
                     .bind(&key.name)
                     .bind(&key.r#type)
-                    .bind(&key.user_id)
+                    .bind(key.user_id)
                     .bind(&key.login_password_login)
                     .bind(&key.login_password_password)
                     .bind(&key.ssh_key)
                     .bind(&key.ssh_passphrase)
                     .bind(&key.access_key_access_key)
                     .bind(&key.access_key_secret_key)
-                    .bind(&key.secret_storage_id)
+                    .bind(key.secret_storage_id)
                     .bind(key.owner.as_ref().map(|o| o.to_string()))
-                    .bind(&key.environment_id)
+                    .bind(key.environment_id)
                     .bind(key.id)
                     .bind(key.project_id.unwrap_or(0))
                     .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::PostgreSQL => {
                 let query = "UPDATE access_key SET name = $1, type = $2, user_id = $3, login_password_login = $4, login_password_password = $5, ssh_key = $6, ssh_passphrase = $7, access_key_access_key = $8, access_key_secret_key = $9, secret_storage_id = $10, owner = $11, environment_id = $12 WHERE id = $13 AND project_id = $14";
                 sqlx::query(query)
                     .bind(&key.name)
                     .bind(&key.r#type)
-                    .bind(&key.user_id)
+                    .bind(key.user_id)
                     .bind(&key.login_password_login)
                     .bind(&key.login_password_password)
                     .bind(&key.ssh_key)
                     .bind(&key.ssh_passphrase)
                     .bind(&key.access_key_access_key)
                     .bind(&key.access_key_secret_key)
-                    .bind(&key.secret_storage_id)
+                    .bind(key.secret_storage_id)
                     .bind(key.owner.as_ref().map(|o| o.to_string()))
-                    .bind(&key.environment_id)
+                    .bind(key.environment_id)
                     .bind(key.id)
                     .bind(key.project_id.unwrap_or(0))
                     .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::MySQL => {
                 let query = "UPDATE `access_key` SET name = ?, type = ?, user_id = ?, login_password_login = ?, login_password_password = ?, ssh_key = ?, ssh_passphrase = ?, access_key_access_key = ?, access_key_secret_key = ?, secret_storage_id = ?, owner = ?, environment_id = ? WHERE id = ? AND project_id = ?";
                 sqlx::query(query)
                     .bind(&key.name)
                     .bind(&key.r#type)
-                    .bind(&key.user_id)
+                    .bind(key.user_id)
                     .bind(&key.login_password_login)
                     .bind(&key.login_password_password)
                     .bind(&key.ssh_key)
                     .bind(&key.ssh_passphrase)
                     .bind(&key.access_key_access_key)
                     .bind(&key.access_key_secret_key)
-                    .bind(&key.secret_storage_id)
+                    .bind(key.secret_storage_id)
                     .bind(key.owner.as_ref().map(|o| o.to_string()))
-                    .bind(&key.environment_id)
+                    .bind(key.environment_id)
                     .bind(key.id)
                     .bind(key.project_id.unwrap_or(0))
                     .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
         }
         Ok(())
@@ -347,7 +347,7 @@ impl AccessKeyManager for SqlStore {
                     .bind(project_id)
                     .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::PostgreSQL => {
                 let query = "DELETE FROM access_key WHERE id = $1 AND project_id = $2";
@@ -356,7 +356,7 @@ impl AccessKeyManager for SqlStore {
                     .bind(project_id)
                     .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::MySQL => {
                 let query = "DELETE FROM `access_key` WHERE id = ? AND project_id = ?";
@@ -365,7 +365,7 @@ impl AccessKeyManager for SqlStore {
                     .bind(project_id)
                     .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
         }
         Ok(())

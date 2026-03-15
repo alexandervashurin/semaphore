@@ -12,7 +12,7 @@ pub async fn get_inventories(pool: &Pool<Sqlite>, project_id: i32) -> Result<Vec
         .bind(project_id)
         .fetch_all(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
     Ok(inventories)
 }
@@ -54,7 +54,7 @@ pub async fn create_inventory(pool: &Pool<Sqlite>, mut inventory: Inventory) -> 
         .bind(inventory.created)
         .fetch_one(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
     inventory.id = id;
     Ok(inventory)
@@ -80,7 +80,7 @@ pub async fn update_inventory(pool: &Pool<Sqlite>, inventory: Inventory) -> Resu
         .bind(inventory.project_id)
         .execute(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
     Ok(())
 }
@@ -92,7 +92,7 @@ pub async fn delete_inventory(pool: &Pool<Sqlite>, project_id: i32, inventory_id
         .bind(project_id)
         .execute(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
     Ok(())
 }

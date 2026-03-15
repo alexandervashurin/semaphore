@@ -169,7 +169,7 @@ where
             AccessKeyOwner::Project => "project",
             AccessKeyOwner::Shared => "shared",
         };
-        <&str as Encode<'q, DB>>::encode(&s, buf)
+        <&str as Encode<'q, DB>>::encode(s, buf)
     }
 }
 

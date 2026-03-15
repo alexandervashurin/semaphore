@@ -13,7 +13,7 @@ impl SqlDb {
             .max_connections(5)
             .connect(database_url)
             .await
-            .map_err(|e| Error::Database(e))?;
+            .map_err(Error::Database)?;
         
         let mut db = Self::new(SqlDialect::SQLite);
         db.sqlite_pool = Some(pool);
@@ -27,7 +27,7 @@ impl SqlDb {
             .max_connections(10)
             .connect(&config.mysql_connection_string())
             .await
-            .map_err(|e| Error::Database(e))?;
+            .map_err(Error::Database)?;
         
         let mut db = Self::new(SqlDialect::MySQL);
         db.mysql_pool = Some(pool);
@@ -41,7 +41,7 @@ impl SqlDb {
             .max_connections(10)
             .connect(&config.postgres_connection_string())
             .await
-            .map_err(|e| Error::Database(e))?;
+            .map_err(Error::Database)?;
         
         let mut db = Self::new(SqlDialect::PostgreSQL);
         db.postgres_pool = Some(pool);
@@ -67,19 +67,19 @@ impl SqlDb {
             SqlDialect::SQLite => {
                 if let Some(pool) = &self.sqlite_pool {
                     pool.acquire().await
-                        .map_err(|e| Error::Database(e))?;
+                        .map_err(Error::Database)?;
                 }
             }
             SqlDialect::MySQL => {
                 if let Some(pool) = &self.mysql_pool {
                     pool.acquire().await
-                        .map_err(|e| Error::Database(e))?;
+                        .map_err(Error::Database)?;
                 }
             }
             SqlDialect::PostgreSQL => {
                 if let Some(pool) = &self.postgres_pool {
                     pool.acquire().await
-                        .map_err(|e| Error::Database(e))?;
+                        .map_err(Error::Database)?;
                 }
             }
         }
@@ -118,16 +118,35 @@ impl SqlDb {
 
         tracing::info!("Creating database if not exists: {}", database_path);
         
-        // Извлекаем путь к файлу: sqlite:///C:/path -> C:/path, sqlite:///path -> /path, path/to/db.db -> path/to/db.db
-        let path_str = if database_path.starts_with("sqlite:") {
-            // sqlite:///absolute/path -> /absolute/path
-            // sqlite:/relative/path -> relative/path
-            database_path
-                .trim_start_matches("sqlite:")
-                .trim_start_matches('/')
-        } else {
-            // /absolute/path или relative/path
-            database_path
+        // Извлекаем путь к файлу:
+        //   sqlite:///C:/path  -> C:/path   (Windows, три слэша)
+        //   sqlite:///path     -> path      (Unix абсолютный)
+        //   sqlite:/relative   -> relative
+        //   ///C:/path         -> C:/path   (уже без sqlite: префикса)
+        //   /path              -> /path
+        let path_str = {
+            // Снимаем sqlite: если есть
+            let without_scheme = database_path.strip_prefix("sqlite:").unwrap_or(database_path);
+            // Снимаем все ведущие слэши
+            let stripped = without_scheme.trim_start_matches('/');
+            // На Windows: если выглядит как C:/... — используем как есть.
+            // На Unix: если без слэша и это не "относительный путь" — восстанавливаем один /
+            #[cfg(windows)]
+            {
+                // stripped = "C:/Users/..." — корректный Windows-путь
+                stripped
+            }
+            #[cfg(not(windows))]
+            {
+                // На Unix абсолютный путь начинался с "/" — нужно вернуть его обратно
+                if without_scheme.starts_with('/') && !stripped.is_empty() {
+                    // Но мы trim_start_matches убрал его — восстановим
+                    // Достаточно использовать оригинальный without_scheme (не trimmed)
+                    without_scheme.trim_start_matches("//")
+                } else {
+                    stripped
+                }
+            }
         };
         tracing::info!("Resolved database path: {}", path_str);
         let path = Path::new(path_str);
@@ -144,6 +163,7 @@ impl SqlDb {
             fs::OpenOptions::new()
                 .write(true)
                 .create(true)
+                .truncate(false)
                 .open(path)
                 .await
                 .map_err(|e| Error::Other(format!("Failed to create database file: {}", e)))?;

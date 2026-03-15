@@ -45,3 +45,9 @@ pub use task_pool_status::TaskStatusMessage;
 pub use task_runner::TaskRunner;
 pub use webhook::{WebhookService, WebhookConfig, WebhookEvent, WebhookResult, WebhookType, WebhookMetadata};
 pub use metrics::{MetricsManager, TaskCounters, ProjectTaskCounters, TemplateTaskCounters, UserTaskCounters};
+
+#[cfg(test)]
+mod webhook_tests;
+
+#[cfg(test)]
+mod metrics_tests;

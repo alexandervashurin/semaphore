@@ -17,7 +17,7 @@ impl OptionsManager for SqlStore {
                 let rows = sqlx::query(query)
                     .fetch_all(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(rows.into_iter().map(|row| {
                     let key: String = row.get("key");
@@ -30,7 +30,7 @@ impl OptionsManager for SqlStore {
                 let rows = sqlx::query(query)
                     .fetch_all(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(rows.into_iter().map(|row| {
                     let key: String = row.get("key");
@@ -43,7 +43,7 @@ impl OptionsManager for SqlStore {
                 let rows = sqlx::query(query)
                     .fetch_all(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(rows.into_iter().map(|row| {
                     let key: String = row.get("key");
@@ -62,7 +62,7 @@ impl OptionsManager for SqlStore {
                     .bind(key)
                     .fetch_optional(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
                 Ok(result)
             }
             SqlDialect::PostgreSQL => {
@@ -71,7 +71,7 @@ impl OptionsManager for SqlStore {
                     .bind(key)
                     .fetch_optional(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
                 Ok(result)
             }
             SqlDialect::MySQL => {
@@ -80,7 +80,7 @@ impl OptionsManager for SqlStore {
                     .bind(key)
                     .fetch_optional(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
                 Ok(result)
             }
         }
@@ -95,7 +95,7 @@ impl OptionsManager for SqlStore {
                     .bind(value)
                     .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::PostgreSQL => {
                 let query = "INSERT INTO option (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value";
@@ -104,7 +104,7 @@ impl OptionsManager for SqlStore {
                     .bind(value)
                     .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::MySQL => {
                 let query = "INSERT INTO option (key, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value)";
@@ -113,7 +113,7 @@ impl OptionsManager for SqlStore {
                     .bind(value)
                     .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
         }
         Ok(())
@@ -127,7 +127,7 @@ impl OptionsManager for SqlStore {
                     .bind(key)
                     .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::PostgreSQL => {
                 let query = "DELETE FROM option WHERE key = $1";
@@ -135,7 +135,7 @@ impl OptionsManager for SqlStore {
                     .bind(key)
                     .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::MySQL => {
                 let query = "DELETE FROM option WHERE key = ?";
@@ -143,7 +143,7 @@ impl OptionsManager for SqlStore {
                     .bind(key)
                     .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
         }
         Ok(())

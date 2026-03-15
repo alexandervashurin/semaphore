@@ -104,7 +104,7 @@ impl PlaybookValidator {
         })?;
 
         // Проверка обязательного поля hosts
-        if !play_map.contains_key(&Value::String("hosts".to_string())) {
+        if !play_map.contains_key(Value::String("hosts".to_string())) {
             return Err(PlaybookValidationError::MissingField(format!(
                 "Play #{}: hosts",
                 index + 1
@@ -112,7 +112,7 @@ impl PlaybookValidator {
         }
 
         // Проверка типа поля hosts
-        let hosts_value = play_map.get(&Value::String("hosts".to_string())).unwrap();
+        let hosts_value = play_map.get(Value::String("hosts".to_string())).unwrap();
         if !hosts_value.is_string() && !hosts_value.is_sequence() {
             return Err(PlaybookValidationError::InvalidFieldType(
                 format!("Play #{}: hosts", index + 1),
@@ -121,7 +121,7 @@ impl PlaybookValidator {
         }
 
         // Проверка tasks (если есть)
-        if let Some(tasks) = play_map.get(&Value::String("tasks".to_string())) {
+        if let Some(tasks) = play_map.get(Value::String("tasks".to_string())) {
             if let Some(tasks_seq) = tasks.as_sequence() {
                 for (task_idx, task) in tasks_seq.iter().enumerate() {
                     if !task.is_mapping() {
@@ -136,7 +136,7 @@ impl PlaybookValidator {
         }
 
         // Проверка roles (если есть)
-        if let Some(roles) = play_map.get(&Value::String("roles".to_string())) {
+        if let Some(roles) = play_map.get(Value::String("roles".to_string())) {
             if !roles.is_sequence() {
                 return Err(PlaybookValidationError::InvalidFieldType(
                     format!("Play #{}: roles", index + 1),

@@ -101,7 +101,7 @@ impl PlaybookManager for SqlStore {
                 .bind(&payload.content)
                 .bind(&payload.description)
                 .bind(&payload.playbook_type)
-                .bind(&payload.repository_id)
+                .bind(payload.repository_id)
                 .fetch_one(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                 .await
                 .map_err(Error::Database)?;
@@ -118,7 +118,7 @@ impl PlaybookManager for SqlStore {
                 .bind(&payload.content)
                 .bind(&payload.description)
                 .bind(&payload.playbook_type)
-                .bind(&payload.repository_id)
+                .bind(payload.repository_id)
                 .fetch_one(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                 .await
                 .map_err(Error::Database)?;
@@ -135,7 +135,7 @@ impl PlaybookManager for SqlStore {
                 .bind(&payload.content)
                 .bind(&payload.description)
                 .bind(&payload.playbook_type)
-                .bind(&payload.repository_id)
+                .bind(payload.repository_id)
                 .fetch_one(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                 .await
                 .map_err(Error::Database)?;

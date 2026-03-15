@@ -33,48 +33,97 @@ pub async fn login(
 
     tracing::info!("Login attempt for user: {}", payload.username);
 
-    // Находим пользователя
-    let user = match state.store.get_user_by_login_or_email(&payload.username, &payload.username).await {
-        Ok(u) => u,
-        Err(e) => {
-            tracing::warn!("User not found: {}, error: {}", payload.username, e);
-            return (
-                StatusCode::UNAUTHORIZED,
-                Json(ErrorResponse::new("Неверный логин или пароль")
-                    .with_code("INVALID_CREDENTIALS")),
-            ).into_response();
+    // Пробуем локальную аутентификацию
+    let user_result = state.store
+        .get_user_by_login_or_email(&payload.username, &payload.username)
+        .await;
+
+    let user = match user_result {
+        Ok(u) => {
+            tracing::info!("User found locally: id={}, username={}", u.id, u.username);
+
+            // Проверяем пароль
+            if !verify_password(&payload.password, &u.password) {
+                tracing::warn!("Invalid local password for user: {}", u.username);
+                return (
+                    StatusCode::UNAUTHORIZED,
+                    Json(ErrorResponse::new("Неверный логин или пароль")
+                        .with_code("INVALID_CREDENTIALS")),
+                ).into_response();
+            }
+            u
+        }
+        Err(_) => {
+            // Локальный пользователь не найден — пробуем LDAP если включён
+            let ldap_cfg = state.config.ldap_config();
+            if ldap_cfg.is_enabled() {
+                tracing::info!("Trying LDAP auth for user: {}", payload.username);
+                match crate::api::auth_ldap::ldap_authenticate(
+                    &ldap_cfg,
+                    &payload.username,
+                    &payload.password,
+                ).await {
+                    Ok(ldap_user) => {
+                        // LDAP auth прошла — найти или создать пользователя локально
+                        match state.store
+                            .get_user_by_login_or_email(&ldap_user.username, &ldap_user.email)
+                            .await
+                        {
+                            Ok(existing) => existing,
+                            Err(_) => {
+                                // Создаём нового пользователя из LDAP
+                                use crate::models::User;
+                                use chrono::Utc;
+                                let new_user = User {
+                                    id: 0,
+                                    created: Utc::now(),
+                                    username: ldap_user.username.clone(),
+                                    name: ldap_user.name.clone(),
+                                    email: ldap_user.email.clone(),
+                                    password: String::new(), // LDAP пользователь без локального пароля
+                                    admin: false,
+                                    external: true,
+                                    alert: true,
+                                    pro: false,
+                                    totp: None,
+                                    email_otp: None,
+                                };
+                                match state.store.create_user(new_user, "").await {
+                                    Ok(u) => {
+                                        tracing::info!("Created LDAP user: {}", u.username);
+                                        u
+                                    }
+                                    Err(e) => {
+                                        tracing::error!("Failed to create LDAP user: {}", e);
+                                        return (
+                                            StatusCode::INTERNAL_SERVER_ERROR,
+                                            Json(ErrorResponse::new("Ошибка создания пользователя")
+                                                .with_code("USER_CREATION_ERROR")),
+                                        ).into_response();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!("LDAP auth failed for {}: {}", payload.username, e);
+                        return (
+                            StatusCode::UNAUTHORIZED,
+                            Json(ErrorResponse::new("Неверный логин или пароль")
+                                .with_code("INVALID_CREDENTIALS")),
+                        ).into_response();
+                    }
+                }
+            } else {
+                tracing::warn!("User not found: {}", payload.username);
+                return (
+                    StatusCode::UNAUTHORIZED,
+                    Json(ErrorResponse::new("Неверный логин или пароль")
+                        .with_code("INVALID_CREDENTIALS")),
+                ).into_response();
+            }
         }
     };
-
-    tracing::info!("User found: id={}, username={}", user.id, user.username);
-
-    // Проверяем пароль
-    let password_valid = verify_password(&payload.password, &user.password);
-
-    if !password_valid {
-        // Debug информация в ответе (удалить в production)
-        let debug_info = format!(
-            "Password len: {}, Hash len: {}",
-            payload.password.len(),
-            user.password.len()
-        );
-        tracing::warn!("Invalid password for user: {}. Debug: {}", user.username, debug_info);
-        
-        // Используем Response напрямую для обхода проблемы с (StatusCode, Json)
-        let error_response = serde_json::json!({
-            "error": "Неверный логин или пароль",
-            "code": "INVALID_CREDENTIALS",
-            "debug": debug_info
-        });
-        
-        return Response::builder()
-            .status(StatusCode::UNAUTHORIZED)
-            .header("Content-Type", "application/json")
-            .header("X-Correlation-Id", uuid::Uuid::new_v4().to_string())
-            .body(axum::body::Body::from(error_response.to_string()))
-            .unwrap()
-            .into_response();
-    }
 
     // Проверяем TOTP, если настроен
     if let Some(ref totp) = user.totp {
@@ -122,6 +171,8 @@ pub async fn login(
             token: token_info.token,
             token_type: token_info.token_type,
             expires_in: token_info.expires_in,
+            refresh_token: token_info.refresh_token,
+            refresh_expires_in: token_info.refresh_expires_in,
             totp_required: None,
         })
     ).into_response()
@@ -209,6 +260,8 @@ pub async fn verify_session(
         token: token_info.token,
         token_type: token_info.token_type,
         expires_in: token_info.expires_in,
+        refresh_token: token_info.refresh_token,
+        refresh_expires_in: token_info.refresh_expires_in,
         totp_required: None,
     }))
 }
@@ -271,8 +324,61 @@ pub async fn recovery_session(
         token: token_info.token,
         token_type: token_info.token_type,
         expires_in: token_info.expires_in,
+        refresh_token: token_info.refresh_token,
+        refresh_expires_in: token_info.refresh_expires_in,
         totp_required: None,
     }))
+}
+
+/// Обновление access token по refresh token
+///
+/// POST /api/auth/refresh
+pub async fn refresh_token(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<RefreshPayload>,
+) -> impl IntoResponse {
+    use crate::api::auth_local::LocalAuthService;
+
+    let auth_service = LocalAuthService::new(state.store.clone());
+
+    // Верифицируем refresh token
+    let user_id = match auth_service.verify_refresh_token(&payload.refresh_token) {
+        Ok(id) => id,
+        Err(_) => return (
+            StatusCode::UNAUTHORIZED,
+            Json(ErrorResponse::new("Недействительный refresh token")
+                .with_code("INVALID_REFRESH_TOKEN")),
+        ).into_response(),
+    };
+
+    // Загружаем пользователя (проверяем что он ещё существует и активен)
+    let user = match state.store.get_user(user_id).await {
+        Ok(u) => u,
+        Err(_) => return (
+            StatusCode::UNAUTHORIZED,
+            Json(ErrorResponse::new("Пользователь не найден")
+                .with_code("USER_NOT_FOUND")),
+        ).into_response(),
+    };
+
+    // Генерируем новую пару токенов
+    let token_info = match auth_service.generate_token(&user) {
+        Ok(info) => info,
+        Err(e) => return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(format!("Ошибка генерации токена: {}", e))
+                .with_code("TOKEN_GENERATION_ERROR")),
+        ).into_response(),
+    };
+
+    Json(LoginResponse {
+        token: token_info.token,
+        token_type: token_info.token_type,
+        expires_in: token_info.expires_in,
+        refresh_token: token_info.refresh_token,
+        refresh_expires_in: token_info.refresh_expires_in,
+        totp_required: None,
+    }).into_response()
 }
 
 /// Текущий пользователь
@@ -317,8 +423,16 @@ pub struct LoginResponse {
     pub token: String,
     pub token_type: String,
     pub expires_in: i64,
+    pub refresh_token: String,
+    pub refresh_expires_in: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub totp_required: Option<bool>,
+}
+
+/// Payload для обновления токена
+#[derive(Debug, Deserialize)]
+pub struct RefreshPayload {
+    pub refresh_token: String,
 }
 
 /// Payload для верификации сессии
@@ -390,12 +504,15 @@ mod tests {
             token: "test_token".to_string(),
             token_type: "Bearer".to_string(),
             expires_in: 86400,
+            refresh_token: "refresh_token".to_string(),
+            refresh_expires_in: 86400 * 30,
             totp_required: None,
         };
 
         let json = serde_json::to_string(&response).unwrap();
         assert!(json.contains("test_token"));
         assert!(json.contains("Bearer"));
+        assert!(json.contains("refresh_token"));
         assert!(!json.contains("totp_required")); // skip_serializing_if
     }
 }

@@ -1,0 +1,108 @@
+// Task Log Viewer — ANSI colors + layout
+
+// ── ANSI color classes ────────────────────────────────────────────────────
+.ansi-black         { color: #000; }
+.ansi-red           { color: #cd3131; }
+.ansi-green         { color: #0dbc79; }
+.ansi-yellow        { color: #e5e510; }
+.ansi-blue          { color: #2472c8; }
+.ansi-magenta       { color: #bc3fbc; }
+.ansi-cyan          { color: #11a8cd; }
+.ansi-white         { color: #e5e5e5; }
+.ansi-bright-black  { color: #666; }
+.ansi-bright-red    { color: #f14c4c; }
+.ansi-bright-green  { color: #23d18b; }
+.ansi-bright-yellow { color: #f5f543; }
+.ansi-bright-blue   { color: #3b8eea; }
+.ansi-bright-magenta{ color: #d670d6; }
+.ansi-bright-cyan   { color: #29b8db; }
+.ansi-bright-white  { color: #e5e5e5; }
+.ansi-bold          { font-weight: 700; }
+.ansi-dim           { opacity: 0.6; }
+
+// ── Task Log Viewer container ─────────────────────────────────────────────
+.task-log-viewer {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.task-log-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px;
+  background: rgba(0, 0, 0, 0.04);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+  font-size: 0.875rem;
+}
+
+.task-log-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+
+  .mdi { font-size: 1rem; }
+
+  &[data-status="running"]  { color: #e5e510; }
+  &[data-status="success"]  { color: #0dbc79; }
+  &[data-status="error"]    { color: #cd3131; }
+  &[data-status="stopped"]  { color: #666; }
+  &[data-status="waiting"]  { color: #2472c8; }
+}
+
+.task-log-autoscroll {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  user-select: none;
+
+  input[type="checkbox"] {
+    cursor: pointer;
+    width: 14px;
+    height: 14px;
+    accent-color: var(--v-theme-primary, #1976d2);
+  }
+}
+
+.task-log-output {
+  background: #1e1e1e;
+  color: #d4d4d4;
+  font-family: 'Consolas', 'Monaco', 'Lucida Console', monospace;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  padding: 12px;
+  min-height: 300px;
+  max-height: 600px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.task-log-line {
+  min-height: 1.5em;
+}
+
+// ── Task detail meta grid ─────────────────────────────────────────────────
+.task-detail-meta {
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 4px;
+  padding: 12px 16px;
+}
+
+.task-meta-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 16px;
+  align-items: center;
+  font-size: 0.875rem;
+}
+
+.task-meta-label {
+  color: rgba(0, 0, 0, 0.54);
+  font-weight: 500;
+  white-space: nowrap;
+}

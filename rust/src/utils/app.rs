@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 /// Приложение Semaphore
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct App {
     /// Активно ли приложение
     pub active: bool,
@@ -67,20 +68,6 @@ impl App {
     }
 }
 
-impl Default for App {
-    fn default() -> Self {
-        Self {
-            active: false,
-            priority: 0,
-            title: String::new(),
-            icon: String::new(),
-            color: String::new(),
-            dark_color: String::new(),
-            app_path: String::new(),
-            app_args: Vec::new(),
-        }
-    }
-}
 
 // ============================================================================
 // Tests

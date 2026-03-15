@@ -12,7 +12,7 @@ pub async fn get_projects(pool: &Pool<Sqlite>, user_id: Option<i32>) -> Result<V
     let projects = sqlx::query_as::<_, Project>(query)
         .fetch_all(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
     Ok(projects)
 }
@@ -46,7 +46,7 @@ pub async fn create_project(pool: &Pool<Sqlite>, mut project: Project) -> Result
         .bind(project.default_secret_storage_id)
         .fetch_one(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
     project.id = id;
     Ok(project)
@@ -65,7 +65,7 @@ pub async fn update_project(pool: &Pool<Sqlite>, project: Project) -> Result<()>
         .bind(project.id)
         .execute(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
     Ok(())
 }
@@ -76,7 +76,7 @@ pub async fn delete_project(pool: &Pool<Sqlite>, project_id: i32) -> Result<()> 
         .bind(project_id)
         .execute(pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
     Ok(())
 }

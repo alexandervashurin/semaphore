@@ -4,6 +4,7 @@
 
 pub mod apps;
 pub mod auth;
+pub mod auth_ldap;
 pub mod auth_local;
 pub mod cache;
 pub mod events;

@@ -8,29 +8,11 @@
 </head>
 <body>
     <div class="layout">
-        <aside class="sidebar">
-            <div class="sidebar-logo">
-                <h2>🚀 Semaphore</h2>
-            </div>
-            <ul class="sidebar-nav">
-                <li><a href="index.html">📊 Dashboard</a></li>
-                <li><a href="project.html" class="active">📁 Проект</a></li>
-                <li><a href="playbooks.html">📜 Playbooks</a></li>
-                <li><a href="templates.html">📋 Шаблоны</a></li>
-                <li><a href="inventory.html">📦 Инвентарь</a></li>
-                <li><a href="environments.html">⚙️ Переменные</a></li>
-                <li><a href="repositories.html">🗂️ Репозитории</a></li>
-                <li><a href="keys.html">🔐 Ключи</a></li>
-                <li><a href="schedules.html">⏰ Расписания</a></li>
-                <li><a href="analytics.html">📈 Аналитика</a></li>
-                <li><a href="webhooks.html">🔗 Webhooks</a></li>
-            </ul>
-        </aside>
+        <aside class="sidebar"></aside>
 
         <div class="main-content">
             <div class="main-header">
                 <h2 id="project-title">Загрузка...</h2>
-                <button class="btn btn-logout" onclick="api.logout()">Выйти</button>
             </div>
 
             <div class="main-body">
@@ -72,6 +54,31 @@
         .catch(error => {
             ui.showError($('#project-content'), error.message);
         });
+
+        async function renameProject() {
+            const input = document.getElementById('project-name-input');
+            const msg = document.getElementById('rename-msg');
+            const name = input ? input.value.trim() : '';
+            if (!name) { if (msg) msg.textContent = 'Название не может быть пустым'; return; }
+            try {
+                await api.updateProject(projectId, { name });
+                document.getElementById('project-title').textContent = name;
+                document.title = name + ' - Semaphore UI';
+                if (msg) { msg.style.color = 'var(--success, green)'; msg.textContent = '✅ Сохранено'; }
+            } catch (e) {
+                if (msg) { msg.style.color = '#e74c3c'; msg.textContent = '❌ ' + e.message; }
+            }
+        }
+
+        async function confirmDeleteProject() {
+            if (!confirm('Удалить проект? Это действие необратимо.')) return;
+            try {
+                await api.deleteProject(projectId);
+                window.location.href = 'index.html';
+            } catch (e) {
+                alert('Ошибка удаления: ' + e.message);
+            }
+        }
 
         function showProjectDashboard(project, stats) {
             const content = $('#project-content');
@@ -125,6 +132,24 @@
                         <a href="environments.html?id=${projectId}" class="btn btn-primary">⚙️ Окружения</a>
                         <a href="repositories.html?id=${projectId}" class="btn btn-primary">🗂️ Репозитории</a>
                         <a href="keys.html?id=${projectId}" class="btn btn-primary">🔐 Ключи</a>
+                    </div>
+                </div>
+
+                <div class="card mt-4">
+                    <h3 style="margin-bottom: 15px;">⚙️ Настройки проекта</h3>
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 6px; font-weight: 500;">Название проекта</label>
+                        <div style="display: flex; gap: 10px;">
+                            <input id="project-name-input" type="text" class="form-control" value="${escapeHtml(project.name)}" style="max-width: 320px;">
+                            <button class="btn btn-primary" onclick="renameProject()">Сохранить</button>
+                        </div>
+                        <div id="rename-msg" style="margin-top: 8px; font-size: 13px;"></div>
+                    </div>
+                    <hr style="border: none; border-top: 1px solid var(--border); margin: 20px 0;">
+                    <div>
+                        <h4 style="color: #e74c3c; margin-bottom: 10px;">Опасная зона</h4>
+                        <p style="color: var(--text-light); font-size: 14px; margin-bottom: 12px;">Удаление проекта необратимо. Все шаблоны, задачи и настройки будут удалены.</p>
+                        <button class="btn" style="background: #e74c3c; color: #fff;" onclick="confirmDeleteProject()">🗑️ Удалить проект</button>
                     </div>
                 </div>
             `;

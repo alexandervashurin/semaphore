@@ -66,7 +66,7 @@ impl ShellApp {
             TemplateApp::Bash => ("bash".to_string(), Vec::new()),
             TemplateApp::Python => ("python3".to_string(), Vec::new()),
             TemplateApp::PowerShell => ("powershell".to_string(), vec!["-File".to_string()]),
-            TemplateApp::Default | _ => Self::get_noop_command(),
+            _ => Self::get_noop_command(),
         }
     }
 

@@ -609,7 +609,6 @@ impl AuditLogManager for MockStore {
         _user_agent: Option<String>,
         _details: Option<serde_json::Value>,
     ) -> Result<AuditLog> {
-        // Mock implementation - return error for tests
         Err(Error::NotFound("AuditLog not found".to_string()))
     }
 
@@ -641,7 +640,6 @@ impl AuditLogManager for MockStore {
     async fn delete_audit_logs_before(&self, _before: chrono::DateTime<chrono::Utc>) -> Result<u64> {
         Ok(0)
     }
-
     async fn clear_audit_log(&self) -> Result<u64> {
         Ok(0)
     }

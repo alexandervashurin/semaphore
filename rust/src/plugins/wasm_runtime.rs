@@ -49,6 +49,7 @@ pub struct RuntimeData {
 }
 
 /// Хост-функции доступные плагинам
+#[allow(clippy::type_complexity)]
 pub struct HostFunctions {
     log_function: Arc<dyn Fn(&str, &str) + Send + Sync>,
     config_getter: Arc<dyn Fn(&str) -> Option<JsonValue> + Send + Sync>,

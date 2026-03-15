@@ -66,12 +66,7 @@ pub fn get_entry_by_name<'a, T: RestoreEntry>(name: &'a Option<String>, items: &
     }
     
     let target_name = name.as_ref().unwrap();
-    for item in items {
-        if item.get_name() == target_name {
-            return Some(item);
-        }
-    }
-    None
+    items.iter().find(|&item| item.get_name() == target_name).map(|v| v as _)
 }
 
 /// Проверяет на дубликаты

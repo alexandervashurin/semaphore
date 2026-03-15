@@ -70,23 +70,20 @@ impl SqlDb {
 
     /// Очищает кэш раннера
     pub async fn clear_runner_cache(&self, runner: &Runner) -> Result<()> {
-        if runner.project_id.is_none() {
-            sqlx::query(
-                r#"UPDATE runner SET cleaning_requested = ? WHERE id = ?"#
-            )
-            .bind(Utc::now())
-            .bind(runner.id)
-            .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-            .await?;
+        let pool = self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?;
+        if let Some(project_id) = runner.project_id {
+            sqlx::query(r#"UPDATE runner SET cleaning_requested = ? WHERE id = ? AND project_id = ?"#)
+                .bind(Utc::now())
+                .bind(runner.id)
+                .bind(project_id)
+                .execute(pool)
+                .await?;
         } else {
-            sqlx::query(
-                r#"UPDATE runner SET cleaning_requested = ? WHERE id = ? AND project_id = ?"#
-            )
-            .bind(Utc::now())
-            .bind(runner.id)
-            .bind(runner.project_id.unwrap())
-            .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-            .await?;
+            sqlx::query(r#"UPDATE runner SET cleaning_requested = ? WHERE id = ?"#)
+                .bind(Utc::now())
+                .bind(runner.id)
+                .execute(pool)
+                .await?;
         }
 
         Ok(())
@@ -94,23 +91,20 @@ impl SqlDb {
 
     /// Обновляет время активности раннера
     pub async fn touch_runner(&self, runner: &Runner) -> Result<()> {
-        if runner.project_id.is_none() {
-            sqlx::query(
-                r#"UPDATE runner SET touched = ? WHERE id = ?"#
-            )
-            .bind(Utc::now())
-            .bind(runner.id)
-            .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-            .await?;
+        let pool = self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?;
+        if let Some(project_id) = runner.project_id {
+            sqlx::query(r#"UPDATE runner SET touched = ? WHERE id = ? AND project_id = ?"#)
+                .bind(Utc::now())
+                .bind(runner.id)
+                .bind(project_id)
+                .execute(pool)
+                .await?;
         } else {
-            sqlx::query(
-                r#"UPDATE runner SET touched = ? WHERE id = ? AND project_id = ?"#
-            )
-            .bind(Utc::now())
-            .bind(runner.id)
-            .bind(runner.project_id.unwrap())
-            .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-            .await?;
+            sqlx::query(r#"UPDATE runner SET touched = ? WHERE id = ?"#)
+                .bind(Utc::now())
+                .bind(runner.id)
+                .execute(pool)
+                .await?;
         }
 
         Ok(())

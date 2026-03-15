@@ -94,6 +94,7 @@ fn get_system_info() -> Result<SystemInfo, Box<dyn std::error::Error>> {
 }
 
 /// Получает использование памяти процесса в MB
+#[allow(unreachable_code)]
 fn get_memory_usage_mb() -> Result<f64, Box<dyn std::error::Error>> {
     #[cfg(target_os = "linux")]
     {

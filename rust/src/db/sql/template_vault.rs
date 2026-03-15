@@ -19,7 +19,7 @@ impl SqlDb {
                 .bind(project_id)
                 .fetch_all(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
                 
                 Ok(vaults)
             }
@@ -42,7 +42,7 @@ impl SqlDb {
                 .bind(&vault.name)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
                 
                 vault.id = result.last_insert_rowid() as i32;
                 Ok(vault)
@@ -67,7 +67,7 @@ impl SqlDb {
                 .bind(vault.project_id)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
                 
                 Ok(())
             }
@@ -87,7 +87,7 @@ impl SqlDb {
                 .bind(project_id)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
                 
                 Ok(())
             }
@@ -105,7 +105,7 @@ impl SqlDb {
         .bind(project_id)
         .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
         
         // Создаём новые vaults
         for mut vault in vaults {

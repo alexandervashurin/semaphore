@@ -23,7 +23,7 @@ impl EventManager for SqlStore {
                 if let Some(pid) = project_id {
                     q = q.bind(pid);
                 }
-                let rows = q.bind(limit as i64).fetch_all(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                let rows = q.bind(limit as i64).fetch_all(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?).await.map_err(Error::Database)?;
                 Ok(rows.into_iter().map(|row| Event {
                     id: row.get("id"),
                     project_id: row.try_get("project_id").ok(),
@@ -44,7 +44,7 @@ impl EventManager for SqlStore {
                 if let Some(pid) = project_id {
                     q = q.bind(pid);
                 }
-                let rows = q.bind(limit as i64).fetch_all(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                let rows = q.bind(limit as i64).fetch_all(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?).await.map_err(Error::Database)?;
                 Ok(rows.into_iter().map(|row| Event {
                     id: row.get("id"),
                     project_id: row.try_get("project_id").ok(),
@@ -65,7 +65,7 @@ impl EventManager for SqlStore {
                 if let Some(pid) = project_id {
                     q = q.bind(pid);
                 }
-                let rows = q.bind(limit as i64).fetch_all(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                let rows = q.bind(limit as i64).fetch_all(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?).await.map_err(Error::Database)?;
                 Ok(rows.into_iter().map(|row| Event {
                     id: row.get("id"),
                     project_id: row.try_get("project_id").ok(),
@@ -84,39 +84,39 @@ impl EventManager for SqlStore {
             SqlDialect::SQLite => {
                 let query = "INSERT INTO event (project_id, user_id, object_id, object_type, description, created) VALUES (?, ?, ?, ?, ?, ?) RETURNING id";
                 let id: i32 = sqlx::query_scalar(query)
-                    .bind(&event.project_id)
-                    .bind(&event.user_id)
-                    .bind(&event.object_id)
+                    .bind(event.project_id)
+                    .bind(event.user_id)
+                    .bind(event.object_id)
                     .bind(&event.object_type)
                     .bind(&event.description)
                     .bind(event.created)
-                    .fetch_one(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                    .fetch_one(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?).await.map_err(Error::Database)?;
                 event.id = id;
                 Ok(event)
             }
             SqlDialect::PostgreSQL => {
                 let query = "INSERT INTO event (project_id, user_id, object_id, object_type, description, created) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id";
                 let id: i32 = sqlx::query_scalar(query)
-                    .bind(&event.project_id)
-                    .bind(&event.user_id)
-                    .bind(&event.object_id)
+                    .bind(event.project_id)
+                    .bind(event.user_id)
+                    .bind(event.object_id)
                     .bind(&event.object_type)
                     .bind(&event.description)
                     .bind(event.created)
-                    .fetch_one(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                    .fetch_one(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?).await.map_err(Error::Database)?;
                 event.id = id;
                 Ok(event)
             }
             SqlDialect::MySQL => {
                 let query = "INSERT INTO `event` (project_id, user_id, object_id, object_type, description, created) VALUES (?, ?, ?, ?, ?, ?)";
                 let result = sqlx::query(query)
-                    .bind(&event.project_id)
-                    .bind(&event.user_id)
-                    .bind(&event.object_id)
+                    .bind(event.project_id)
+                    .bind(event.user_id)
+                    .bind(event.object_id)
                     .bind(&event.object_type)
                     .bind(&event.description)
                     .bind(event.created)
-                    .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?).await.map_err(|e| Error::Database(e))?;
+                    .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?).await.map_err(Error::Database)?;
                 event.id = result.last_insert_id() as i32;
                 Ok(event)
             }

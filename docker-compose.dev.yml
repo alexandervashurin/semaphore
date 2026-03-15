@@ -1,0 +1,75 @@
+# ============================================================================
+# Docker Compose — Development (hot-reload)
+# ============================================================================
+# Использование:
+#   docker compose -f docker-compose.dev.yml up
+#
+# Что запускается:
+#   - PostgreSQL на порту 5432
+#   - cargo-watch: перекомпиляция и перезапуск backend при изменении src/
+#
+# Требования на хосте:
+#   cargo install cargo-watch
+#
+# Переменные окружения можно переопределить в .env в корне проекта.
+# ============================================================================
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: semaphore-db-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: semaphore
+      POSTGRES_USER: semaphore
+      POSTGRES_PASSWORD: semaphore_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - semaphore_dev_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U semaphore -d semaphore"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    image: rust:1.80-slim
+    container_name: semaphore-backend-dev
+    working_dir: /app/rust
+    command: >
+      bash -c "
+        apt-get update -q &&
+        apt-get install -y --no-install-recommends pkg-config libssl-dev libsqlite3-dev &&
+        cargo install cargo-watch --quiet &&
+        cargo watch -x 'run -- server --host 0.0.0.0 --port 3000'
+      "
+    environment:
+      SEMAPHORE_DB_URL: "postgres://semaphore:semaphore_pass@db:5432/semaphore"
+      SEMAPHORE_JWT_SECRET: "dev-secret-key-change-in-production"
+      SEMAPHORE_WEB_PATH: /app/web/public
+      SEMAPHORE_ADMIN: admin
+      SEMAPHORE_ADMIN_PASSWORD: admin123
+      SEMAPHORE_ADMIN_NAME: Administrator
+      SEMAPHORE_ADMIN_EMAIL: admin@semaphore.local
+      RUST_LOG: "semaphore=debug,tower_http=debug"
+      RUST_BACKTRACE: "1"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./rust:/app/rust
+      - ./web/public:/app/web/public:ro
+      - cargo_registry:/usr/local/cargo/registry
+      - cargo_target:/app/rust/target
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  semaphore_dev_postgres_data:
+    driver: local
+  cargo_registry:
+    driver: local
+  cargo_target:
+    driver: local

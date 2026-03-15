@@ -222,8 +222,6 @@ impl Default for HookRegistry {
     }
 }
 
-/// Helper функции для создания событий
-
 /// Создаёт событие для задачи
 pub fn create_task_event(
     hook_type: HookType,

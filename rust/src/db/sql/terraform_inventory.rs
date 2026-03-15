@@ -21,7 +21,7 @@ impl SqlDb {
                 .bind(&alias.alias)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 // В SQLite last_insert_rowid() для составных ключей не нужен
                 // alias.id = result.last_insert_rowid() as i32;
@@ -47,7 +47,7 @@ impl SqlDb {
                 .bind(&alias.alias)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 Ok(())
             }
@@ -65,7 +65,7 @@ impl SqlDb {
                 .bind(alias)
                 .fetch_optional(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 result.ok_or(Error::NotFound("Terraform inventory alias not found".to_string()))
             }
@@ -86,7 +86,7 @@ impl SqlDb {
                 .bind(alias_id)
                 .fetch_optional(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 result.ok_or(Error::NotFound("Terraform inventory alias not found".to_string()))
             }
@@ -107,7 +107,7 @@ impl SqlDb {
                 .bind(inventory_id)
                 .fetch_all(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 Ok(aliases)
             }
@@ -128,7 +128,7 @@ impl SqlDb {
                 .bind(alias_id)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 Ok(())
             }
@@ -155,7 +155,7 @@ impl SqlDb {
                 .bind(offset)
                 .fetch_all(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 Ok(states)
             }
@@ -178,7 +178,7 @@ impl SqlDb {
                 .bind(&state.state)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 state.id = result.last_insert_rowid() as i32;
                 Ok(state)
@@ -200,7 +200,7 @@ impl SqlDb {
                 .bind(inventory_id)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 Ok(())
             }
@@ -221,7 +221,7 @@ impl SqlDb {
                 .bind(inventory_id)
                 .fetch_optional(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
 
                 result.ok_or(Error::NotFound("Terraform inventory state not found".to_string()))
             }
@@ -236,7 +236,7 @@ impl SqlDb {
                 let result = sqlx::query_scalar::<_, i32>("SELECT COUNT(*) FROM project__terraform_inventory_state")
                     .fetch_one(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
 
                 Ok(result)
             }

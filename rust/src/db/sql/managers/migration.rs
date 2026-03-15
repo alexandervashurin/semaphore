@@ -23,7 +23,7 @@ impl MigrationManager for SqlStore {
                 let result = sqlx::query(query)
                     .fetch_optional(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
                 Ok(result.is_some())
             }
             SqlDialect::PostgreSQL => {
@@ -31,7 +31,7 @@ impl MigrationManager for SqlStore {
                 let result = sqlx::query(query)
                     .fetch_optional(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
                 Ok(result.is_some())
             }
             SqlDialect::MySQL => {
@@ -39,7 +39,7 @@ impl MigrationManager for SqlStore {
                 let result = sqlx::query(query)
                     .fetch_optional(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
                 Ok(result.is_some())
             }
         }
@@ -54,7 +54,7 @@ impl MigrationManager for SqlStore {
                     .bind(name)
                     .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::PostgreSQL => {
                 let query = "INSERT INTO migration (version, name) VALUES ($1, $2)";
@@ -63,7 +63,7 @@ impl MigrationManager for SqlStore {
                     .bind(name)
                     .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
             SqlDialect::MySQL => {
                 let query = "INSERT INTO migration (version, name) VALUES (?, ?)";
@@ -72,7 +72,7 @@ impl MigrationManager for SqlStore {
                     .bind(name)
                     .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
             }
         }
         Ok(())
@@ -86,7 +86,7 @@ impl MigrationManager for SqlStore {
                     .bind(version)
                     .fetch_one(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
                 Ok(count > 0)
             }
             SqlDialect::PostgreSQL => {
@@ -95,7 +95,7 @@ impl MigrationManager for SqlStore {
                     .bind(version)
                     .fetch_one(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
                 Ok(count > 0)
             }
             SqlDialect::MySQL => {
@@ -104,7 +104,7 @@ impl MigrationManager for SqlStore {
                     .bind(version)
                     .fetch_one(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
-                    .map_err(|e| Error::Database(e))?;
+                    .map_err(Error::Database)?;
                 Ok(count > 0)
             }
         }

@@ -29,7 +29,7 @@ impl MigrationManager {
                 )
                 .execute(db.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
             }
             crate::db::sql::types::SqlDialect::MySQL => {
                 sqlx::query(
@@ -37,7 +37,7 @@ impl MigrationManager {
                 )
                 .execute(db.get_mysql_pool().ok_or(Error::Other("MySQL pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
             }
             crate::db::sql::types::SqlDialect::PostgreSQL => {
                 sqlx::query(
@@ -45,7 +45,7 @@ impl MigrationManager {
                 )
                 .execute(db.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
             }
         }
         
@@ -62,7 +62,7 @@ impl MigrationManager {
                 .bind(version)
                 .fetch_one(db.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
                 
                 let count: i64 = result.get(0);
                 Ok(count > 0)
@@ -74,7 +74,7 @@ impl MigrationManager {
                 .bind(version)
                 .fetch_one(db.get_mysql_pool().ok_or(Error::Other("MySQL pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
                 
                 let count: i64 = result.get(0);
                 Ok(count > 0)
@@ -86,7 +86,7 @@ impl MigrationManager {
                 .bind(version)
                 .fetch_one(db.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
                 
                 let count: i64 = result.get(0);
                 Ok(count > 0)
@@ -105,7 +105,7 @@ impl MigrationManager {
                 .bind(name)
                 .execute(db.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
             }
             crate::db::sql::types::SqlDialect::MySQL => {
                 sqlx::query(
@@ -115,7 +115,7 @@ impl MigrationManager {
                 .bind(name)
                 .execute(db.get_mysql_pool().ok_or(Error::Other("MySQL pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
             }
             crate::db::sql::types::SqlDialect::PostgreSQL => {
                 sqlx::query(
@@ -125,7 +125,7 @@ impl MigrationManager {
                 .bind(name)
                 .execute(db.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
             }
         }
         
@@ -141,7 +141,7 @@ impl MigrationManager {
                 )
                 .fetch_optional(db.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
                 
                 if let Some(row) = result {
                     let version: Option<i64> = row.get(0);
@@ -156,7 +156,7 @@ impl MigrationManager {
                 )
                 .fetch_optional(db.get_mysql_pool().ok_or(Error::Other("MySQL pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
                 
                 if let Some(row) = result {
                     let version: Option<i64> = row.get(0);
@@ -171,7 +171,7 @@ impl MigrationManager {
                 )
                 .fetch_optional(db.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?)
                 .await
-                .map_err(|e| Error::Database(e))?;
+                .map_err(Error::Database)?;
                 
                 if let Some(row) = result {
                     let version: Option<i64> = row.get(0);

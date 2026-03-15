@@ -76,24 +76,22 @@ impl Validate for DbConfig {
         }
 
         // Проверка hostname для MySQL/Postgres
-        if matches!(self.dialect, Some(DbDialect::MySQL) | Some(DbDialect::Postgres)) {
-            if self.hostname.is_empty() {
+        if matches!(self.dialect, Some(DbDialect::MySQL) | Some(DbDialect::Postgres))
+            && self.hostname.is_empty() {
                 return Err(ValidationError {
                     field: "db.hostname".to_string(),
                     message: "Hostname is required for MySQL/Postgres".to_string(),
                 });
             }
-        }
 
         // Проверка db_name для SQLite
-        if matches!(self.dialect, Some(DbDialect::SQLite)) {
-            if self.db_name.is_empty() {
+        if matches!(self.dialect, Some(DbDialect::SQLite))
+            && self.db_name.is_empty() {
                 return Err(ValidationError {
                     field: "db.name".to_string(),
                     message: "Database name is required for SQLite".to_string(),
                 });
             }
-        }
 
         Ok(())
     }
