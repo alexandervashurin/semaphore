@@ -5,7 +5,7 @@
 >
 > **Репозиторий:** https://github.com/tnl-o/rust_semaphore
 > **Upstream (Go оригинал):** https://github.com/semaphoreui/semaphore
-> **Последнее обновление:** 2026-03-15 (обновление 15 — mobile nav hamburger, runTemplate fix, MASTER_PLAN синхронизирован: 682 unit + 35 integration)
+> **Последнее обновление:** 2026-03-15 (обновление 16 — аудит оригинального UI semaphoreui/semaphore, добавлены B-FE-25..35, task history page + run modal реализованы)
 
 ---
 
@@ -344,6 +344,317 @@ JavaScript берёт последнее объявление — поведен
 | B-FE-20 | Страница управления командой проекта (roles) | 🟡 Средний | ✅ Закрыт 2026-03-15 |
 | B-FE-21 | Дизайн: привести к upstream semaphoreui/semaphore | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
 | B-FE-22 | E2E тесты с реальным ansible-playbook | 🟡 Средний | ✅ Закрыт 2026-03-15 |
+| B-FE-23 | История задач (task.html) — страница списка + модалка детали + live-лог | 🔴 Критично | ✅ Закрыт 2026-03-15 |
+| B-FE-24 | Run modal в templates.html — live-лог при запуске задачи | 🔴 Критично | ✅ Закрыт 2026-03-15 |
+| B-FE-25 | Template View — страница шаблона с вкладками Tasks/Details | 🟠 Высокий | ⬜ Не начато |
+| B-FE-26 | NewTaskDialog — форма запуска с override параметров | 🟠 Высокий | ⬜ Не начато |
+| B-FE-27 | Stats страница — графики задач по времени | 🟡 Средний | ⬜ Не начато |
+| B-FE-28 | Activity страница — лог событий проекта | 🟡 Средний | ⬜ Не начато |
+| B-FE-29 | Cron-визуальный редактор в schedules.html | 🟡 Средний | ⬜ Не начато |
+| B-FE-30 | API Tokens страница для пользователей | 🟡 Средний | ⬜ Не начато |
+| B-FE-31 | Inventory: типы static-yaml и file+path | 🟠 Высокий | ⬜ Не начато |
+| B-FE-32 | Расширить Templates — expand row + last 5 tasks per template | 🟡 Средний | ⬜ Не начато |
+| B-FE-33 | Task log — timestamp + confirm/reject для waiting_confirmation | 🟡 Средний | ⬜ Не начато |
+| B-FE-34 | Project Settings — max_parallel_tasks, alerts, backup, delete | 🟠 Высокий | ⬜ Не начато |
+| B-FE-35 | Sidebar — project selector с аватарами, тёмная тема | 🟡 Средний | ⬜ Не начато |
+
+---
+
+## 2.5 Анализ оригинального UI (аудит 2026-03-15)
+
+> Детальное сравнение нашего фронтенда с оригиналом **semaphoreui/semaphore** (Vue.js).
+> Источник правды: https://github.com/semaphoreui/semaphore
+> Задача: перенести всё нижеперечисленное в наш Vanilla JS фронтенд.
+
+---
+
+### Структура навигации оригинала
+
+**Боковая панель (260px, цвет `#005057`):**
+
+| Пункт | Маршрут | Статус в нас |
+|---|---|---|
+| Dashboard (History) | `/project/:id/history` | ⬜ — у нас нет отдельной history страницы |
+| Templates | `/project/:id/templates` | ✅ `templates.html` |
+| Schedule | `/project/:id/schedule` | ⚠️ `schedules.html` (без визуал. cron) |
+| Inventory | `/project/:id/inventory` | ✅ `inventory.html` |
+| Environment | `/project/:id/environment` | ✅ `environments.html` |
+| Keys | `/project/:id/keys` | ✅ `keys.html` |
+| Repositories | `/project/:id/repositories` | ✅ `repositories.html` |
+| Integrations | `/project/:id/integrations` | ⚠️ `webhooks.html` (неполная) |
+| Team | `/project/:id/team` | ⚠️ `team.html` (нет invites/roles tabs) |
+| Stats | `/project/:id/stats` | ⬜ нет |
+| Activity | `/project/:id/activity` | ⬜ нет |
+| Settings | `/project/:id/settings` | ⚠️ только в `project.html` |
+
+**Горизонтальные вкладки под заголовком (DashboardMenu):**
+- History | Stats | Activity | Settings
+
+**В шапке (глобально):**
+- Переключатель тёмной/светлой темы
+- Выбор языка
+- Пользователь: аккаунт, Admin Tools, Logout
+
+---
+
+### B-FE-23: История задач (Dashboard/History)
+
+**Закрыт 2026-03-15** — реализована страница `task.html` со списком задач и модалкой деталей.
+
+**Что сделано:**
+- Таблица: #ID, шаблон, статус, дата создания
+- Клик по строке → модальное окно с деталями + лог
+- WebSocket для live-лога в модалке
+- Кнопка остановки, скачивание лога
+- Auto-refresh каждые 10 сек если есть активные задачи
+
+**Чего ещё нет из оригинала (B-FE-33):**
+- Колонки: User (кто запустил), Start time, Duration (end - start)
+- Колонка Version/Commit (хеш коммита)
+- Timestamp для каждой строки лога
+- Confirm/Reject кнопки для статуса `waiting_confirmation`
+
+---
+
+### B-FE-24: Run Modal (templates.html)
+
+**Закрыт 2026-03-15** — кнопка ▶ открывает модальное окно с live-логом.
+
+**Что сделано:**
+- Прогресс-бар (анимированный) пока задача выполняется
+- Live-лог через WebSocket, fallback на polling
+- Статусный бейдж с обновлением в реальном времени
+- Переключатель автопрокрутки
+- Ссылка "История задач"
+
+**Чего не хватает для полного паритета (B-FE-26):**
+- Форма параметров перед запуском (NewTaskDialog)
+
+---
+
+### B-FE-25: Template View Page
+
+**Статус: ⬜ Не начато**
+
+В оригинале каждый шаблон имеет свою страницу `/project/:id/templates/:tplId` с вкладками:
+
+| Вкладка | Содержимое |
+|---|---|
+| Tasks | Список всех задач этого шаблона |
+| Details | Конфигурация шаблона (playbook, inventory, env, repo, branch) |
+
+**Toolbar кнопки:**
+- ▶ Run — запускает задачу (открывает NewTaskDialog)
+- ■ Stop All — останавливает все активные задачи шаблона
+- ✏️ Edit — редактирование конфигурации
+- 📋 Copy — дублирование шаблона
+- 🗑️ Delete — удаление
+
+**Tasks вкладка (список задач шаблона):**
+- Колонки: ID, Status, User, Message, Commit, Start, Duration
+- Пагинация по 20 записей
+- Real-time обновление через WebSocket
+
+**Что нужно реализовать:**
+- URL: `templates.html?id=PROJECT&tpl=TEMPLATE_ID` или отдельная `template.html`
+- Переключатель вкладок Tasks/Details
+- Кнопки управления в toolbar
+
+---
+
+### B-FE-26: NewTaskDialog (форма параметров запуска)
+
+**Статус: ⬜ Не начато**
+
+В оригинале кнопка ▶ Run на шаблоне открывает **диалог с формой** перед запуском.
+
+**Поля формы (динамические, в зависимости от настроек шаблона):**
+
+| Поле | Показывается если |
+|---|---|
+| Message | Всегда (опционально) |
+| Git Branch | `allow_override_branch_in_task = true` |
+| Inventory | `allow_inventory_in_task = true` |
+| CLI Arguments | `allow_override_args_in_task = true` |
+| Ansible: Limit | `allow_override_limit = true` |
+| Ansible: Tags | `allow_override_tags = true` |
+| Ansible: Skip Tags | `allow_override_skip_tags = true` |
+| Ansible: Debug (уровень 1-6) | `allow_debug = true` |
+| Ansible: Dry Run (--check) | условно |
+| Ansible: Diff (--diff) | условно |
+
+**После подтверждения:**
+- `POST /api/project/:id/tasks` с расширенным body
+- Открывается модальное окно выполнения с live-логом
+
+**Что нужно реализовать:**
+- Модальное окно с полями (все опциональные)
+- Загрузка настроек шаблона (`allow_*` флаги) перед отображением
+- Если ни одно поле не разрешено — сразу запускать без диалога
+
+---
+
+### B-FE-27: Stats страница
+
+**Статус: ⬜ Не начато** (у нас есть `analytics.html`, но без нужных данных)
+
+**В оригинале:**
+- LineChart с тремя линиями: Success / Failed / Stopped задачи
+- Фильтр периода: Past week / Past month / Past year
+- Фильтр по пользователю: All / конкретный
+- API: `GET /api/project/:id/tasks/stats` (нужно проверить наш бэкенд)
+
+---
+
+### B-FE-28: Activity страница
+
+**Статус: ⬜ Не начато**
+
+**В оригинале:**
+- Таблица событий проекта: Time / User / Description
+- API: `GET /api/project/:id/events/last`
+- 20 событий на страницу, без real-time
+
+---
+
+### B-FE-29: Визуальный редактор Cron
+
+**Статус: ⬜ Не начато** (у нас только raw cron-строка)
+
+**В оригинале (две режима):**
+
+*Visual Mode:*
+- Timing selector: Yearly / Monthly / Weekly / Daily / Hourly
+- Yearly: чекбоксы месяцев (Jan–Dec) + день (1–31)
+- Monthly: чекбоксы дней (1–31)
+- Weekly: чекбоксы дней недели (Sun–Sat)
+- Daily/All: чекбоксы часов (0–23)
+- All: минуты (:00, :05, :10 ... :55)
+
+*Raw Cron Mode:* прямой ввод с валидацией
+
+*Run Once Type:*
+- Поле datetime (один запуск)
+- Чекбокс "Delete after run"
+- Показывает "Next run time"
+
+---
+
+### B-FE-30: API Tokens страница
+
+**Статус: ⬜ Не начато**
+
+Глобальная страница `/tokens` для управления API-токенами пользователя.
+
+**Колонки:**
+- Token (masked + eye icon + copy)
+- Created (дата)
+- Status (Active/Expired)
+- Actions (Delete)
+
+**Кнопки:**
+- New Token
+- View API Reference (ссылка на Swagger)
+
+**API:** `GET/POST/DELETE /api/user/tokens`
+
+---
+
+### B-FE-31: Расширенные типы инвентаря
+
+**Статус: ⬜ Не начато**
+
+У нас есть `static` тип. В оригинале дополнительно:
+
+| Тип | Особенности формы |
+|---|---|
+| `static-yaml` | Textarea YAML-формат вместо INI |
+| `file` | Поле "Path to inventory file" + опциональный репозиторий |
+| `terraform-workspace` | Специфично для Terraform |
+
+**Также в форме инвентаря из оригинала:**
+- **User Credentials** (SSH key) — привязка ключа для подключения к хостам
+- **Sudo Credentials** (login/password key) — ключ для sudo
+
+---
+
+### B-FE-32: Expand rows в Templates
+
+**Статус: ⬜ Не начато**
+
+В таблице шаблонов в оригинале:
+- Разворачивающаяся строка с последними 5 задачами шаблона
+- Показывает: ID, статус, кто запустил, когда
+
+**Также:**
+- Views/Filters — вкладки-фильтры над таблицей (настраиваются администратором)
+- Колонка "Last Task" с ID + username
+
+---
+
+### B-FE-33: Улучшения Task Log
+
+**Статус: ⬜ Не начато**
+
+| Фича | Описание |
+|---|---|
+| Timestamp | Каждая строка лога имеет временну́ю метку |
+| Confirm/Reject | Кнопки для задач в статусе `waiting_confirmation` |
+| Raw Log download | Скачать полный лог как plain text |
+| User в метаданных | Кто запустил задачу |
+| Duration | Длительность выполнения (end_time - start_time) |
+| Commit info | Ветка, хеш, сообщение коммита |
+
+---
+
+### B-FE-34: Project Settings страница
+
+**Статус: ⬜ Не начато** (у нас есть базовое редактирование в `project.html`)
+
+**Полный список полей из оригинала:**
+- **Project Name** (required)
+- **Max Parallel Tasks** (число ≥ 0)
+- **Telegram Chat ID** (для алертов)
+- **Allow Alerts** (чекбокс)
+
+**Дополнительные кнопки:**
+- **Test Alerts** — тестовое уведомление
+- **Backup** — скачать JSON дамп проекта (с timestamp в имени файла)
+- **Clear Cache** — с подтверждением
+- **Delete Project** — с диалогом подтверждения ("no going back")
+
+---
+
+### B-FE-35: Sidebar улучшения
+
+**Статус: ⬜ Не начато**
+
+| Фича | Описание |
+|---|---|
+| Project Selector | Цветной аватар с инициалами + dropdown смены проекта |
+| Dark Mode Toggle | Переключатель темы в нижней части sidebar |
+| Language Selector | Выбор языка (флаги) |
+| User Menu | Аккаунт, Admin Tools, Logout — в нижней части |
+| Active state | Подсветка текущего пункта с точным URL matching |
+| Sub-tabs | Keys: Keys/Storages; Team: Members/Invites/Roles |
+
+---
+
+### Сводная приоритизация новых задач
+
+| ID | Задача | Приоритет | Сложность |
+|---|---|---|---|
+| B-FE-25 | Template View page с вкладками Tasks/Details | 🔴 Высокий | Средняя |
+| B-FE-26 | NewTaskDialog — форма параметров запуска | 🔴 Высокий | Средняя |
+| B-FE-34 | Project Settings — backup, alerts, delete | 🟠 Высокий | Низкая |
+| B-FE-31 | Inventory: static-yaml + file типы | 🟠 Высокий | Низкая |
+| B-FE-33 | Task Log — timestamp + duration + confirm/reject | 🟠 Высокий | Средняя |
+| B-FE-32 | Templates — expand rows + last 5 tasks | 🟡 Средний | Средняя |
+| B-FE-27 | Stats страница с графиками | 🟡 Средний | Средняя |
+| B-FE-28 | Activity log страница | 🟡 Средний | Низкая |
+| B-FE-29 | Визуальный редактор Cron | 🟡 Средний | Высокая |
+| B-FE-30 | API Tokens страница | 🟡 Средний | Низкая |
+| B-FE-35 | Sidebar: project selector, dark mode, user menu | 🟡 Средний | Средняя |
 
 ---
 
