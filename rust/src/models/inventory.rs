@@ -5,9 +5,10 @@ use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, Type, decode::Decode, encode::Encode, database::Database};
 
 /// Тип инвентаря
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum InventoryType {
+    #[default]
     Static,
     StaticYaml,
     StaticJson,

@@ -37,8 +37,24 @@ pub fn email_alert_enabled() -> bool {
 
 /// Получает отправителя email
 pub fn get_email_sender() -> String {
-    // В полной реализации нужно загружать конфиг и возвращать config.email_sender
-    // Пока используем переменную окружения или дефолтное значение
     std::env::var("SEMAPHORE_EMAIL_SENDER")
+        .or_else(|_| std::env::var("SEMAPHORE_MAILER_FROM"))
         .unwrap_or_else(|_| String::from("semaphore@localhost"))
+}
+
+/// Собирает SmtpConfig из переменных окружения
+pub fn get_smtp_config() -> crate::utils::mailer::SmtpConfig {
+    crate::utils::mailer::SmtpConfig {
+        host: std::env::var("SEMAPHORE_MAILER_HOST").unwrap_or_else(|_| String::from("localhost")),
+        port: std::env::var("SEMAPHORE_MAILER_PORT").unwrap_or_else(|_| String::from("25")),
+        username: std::env::var("SEMAPHORE_MAILER_USERNAME").ok(),
+        password: std::env::var("SEMAPHORE_MAILER_PASSWORD").ok(),
+        use_tls: std::env::var("SEMAPHORE_MAILER_USE_TLS")
+            .map(|v| v == "true" || v == "1")
+            .unwrap_or(false),
+        secure: std::env::var("SEMAPHORE_MAILER_SECURE")
+            .map(|v| v == "true" || v == "1")
+            .unwrap_or(false),
+        from: get_email_sender(),
+    }
 }

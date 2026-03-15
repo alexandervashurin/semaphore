@@ -187,14 +187,12 @@ impl MutationRoot {
     }
 
     /// Обновить шаблон
-    async fn update_template(&self, ctx: &Context<'_>, id: i32, name: String, playbook: String) -> Result<Template> {
+    async fn update_template(&self, ctx: &Context<'_>, project_id: i32, id: i32, name: String, playbook: String) -> Result<Template> {
         let state = ctx.data::<AppState>()?;
         let store = &state.store;
 
-        // Получаем текущий шаблон
-        let templates = store.get_templates(1).await?; // TODO: получить project_id из шаблона
-        let template = templates.iter().find(|t| t.id == id)
-            .ok_or_else(|| async_graphql::Error::new("Template not found"))?;
+        let template = store.get_template(project_id, id).await
+            .map_err(|_| async_graphql::Error::new("Template not found"))?;
 
         let updated = DbTemplate {
             name,

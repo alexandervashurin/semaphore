@@ -427,6 +427,7 @@ const SIDEBAR_ITEMS = [
     { href: 'analytics.html',    icon: '◑',  label: 'Аналитика' },
     { href: 'webhooks.html',     icon: '⇌',  label: 'Webhooks' },
     { href: 'playbooks.html',    icon: '▶',  label: 'Playbooks' },
+    { href: 'team.html',         icon: '👥', label: 'Команда' },
 ];
 
 function renderSidebar() {
@@ -458,6 +459,26 @@ function renderSidebar() {
             </button>
         </div>
     `;
+
+    // Mobile: inject hamburger button into .main-header and wire up overlay
+    const header = document.querySelector('.main-header');
+    if (header && !header.querySelector('.hamburger')) {
+        const btn = document.createElement('button');
+        btn.className = 'hamburger';
+        btn.setAttribute('aria-label', 'Меню');
+        btn.innerHTML = '<span></span><span></span><span></span>';
+        header.prepend(btn);
+
+        const overlay = document.createElement('div');
+        overlay.className = 'sidebar-overlay';
+        document.body.appendChild(overlay);
+
+        const openSidebar = () => { sidebar.classList.add('open'); overlay.classList.add('open'); };
+        const closeSidebar = () => { sidebar.classList.remove('open'); overlay.classList.remove('open'); };
+
+        btn.addEventListener('click', openSidebar);
+        overlay.addEventListener('click', closeSidebar);
+    }
 }
 
 document.addEventListener('DOMContentLoaded', renderSidebar);

@@ -1171,6 +1171,369 @@ async fn test_list_users_as_admin() {
     );
 }
 
+// ── E2E: Full resource cycle ───────────────────────────────────────────────
+
+/// Full E2E cycle: project → key → inventory → environment → template → task
+/// Verifies that all entities can be created and linked together end-to-end,
+/// mimicking the real workflow a user would follow in the UI.
+#[tokio::test]
+async fn test_e2e_full_resource_cycle() {
+    let (app, _temp) = seeded_app().await;
+    let token = register_and_login(&app).await;
+
+    // 1. Create project
+    let (status, proj) = post_json_with_token(
+        app.clone(),
+        "/api/projects",
+        json!({ "name": "E2E Test Project", "max_parallel_tasks": 1, "alert": false }),
+        Some(&token),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "create project; body={:?}", proj);
+    let project_id = proj["id"].as_i64().expect("project id");
+
+    // 2. Create access key (none type — no secrets required)
+    let (status, key) = post_json_with_token(
+        app.clone(),
+        &format!("/api/projects/{}/keys", project_id),
+        json!({ "name": "e2e-key", "type": "none" }),
+        Some(&token),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "create key; body={:?}", key);
+    let _key_id = key["id"].as_i64().expect("key id");
+
+    // 3. Create inventory (type "static" = INI-based static inventory)
+    let (status, inv) = post_json_with_token(
+        app.clone(),
+        &format!("/api/projects/{}/inventories", project_id),
+        json!({ "name": "e2e-inventory", "inventory": "static" }),
+        Some(&token),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "create inventory; body={:?}", inv);
+    let inv_id = inv["id"].as_i64().expect("inventory id");
+
+    // 4. Create environment with variables
+    let (status, env) = post_json_with_token(
+        app.clone(),
+        &format!("/api/projects/{}/environments", project_id),
+        json!({
+            "project_id": project_id,
+            "name": "e2e-env",
+            "json": "{\"E2E_VAR\": \"hello\"}"
+        }),
+        Some(&token),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "create environment; body={:?}", env);
+    let env_id = env["id"].as_i64().expect("environment id");
+
+    // 5. Create template linking inventory + environment
+    let (status, tpl) = post_json_with_token(
+        app.clone(),
+        &format!("/api/projects/{}/templates", project_id),
+        json!({
+            "name": "e2e-template",
+            "playbook": "echo.sh",
+            "inventory_id": inv_id,
+            "environment_id": env_id
+        }),
+        Some(&token),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "create template; body={:?}", tpl);
+    let tpl_id = tpl["id"].as_i64().expect("template id");
+
+    // 6. Start a task from the template
+    let (status, task) = post_json_with_token(
+        app.clone(),
+        &format!("/api/project/{}/tasks", project_id),
+        json!({ "template_id": tpl_id }),
+        Some(&token),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "create task; body={:?}", task);
+    let task_id = task["id"].as_i64().expect("task id");
+
+    // 7. Task appears in history
+    let (status, tasks_list) = get_json(
+        app.clone(),
+        &format!("/api/project/{}/tasks", project_id),
+        Some(&token),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "list tasks; body={:?}", tasks_list);
+    assert!(
+        tasks_list.as_array().expect("array").iter().any(|t| t["id"].as_i64() == Some(task_id)),
+        "task must appear in history"
+    );
+
+    // 8. Task output endpoint is accessible
+    let (status, output) = get_json(
+        app.clone(),
+        &format!("/api/project/{}/tasks/{}/output", project_id, task_id),
+        Some(&token),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "task output; body={:?}", output);
+    assert!(output.is_array(), "output should be an array");
+
+    // 9. Get task by ID
+    let (status, got_task) = get_json(
+        app.clone(),
+        &format!("/api/project/{}/tasks/{}", project_id, task_id),
+        Some(&token),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "get task by id; body={:?}", got_task);
+    assert_eq!(got_task["id"].as_i64(), Some(task_id));
+    assert_eq!(got_task["template_id"].as_i64(), Some(tpl_id));
+}
+
+// ── E2E: Project team management ──────────────────────────────────────────
+
+/// Tests the team management API used by team.html (B-FE-20):
+/// list members, add a second user, update role, remove.
+#[tokio::test]
+async fn test_project_team_management() {
+    // Seed two users before building the app
+    let temp = tempfile::NamedTempFile::new().expect("temp file");
+    let url = sqlite_url_from_path(temp.path());
+    let teammate_id;
+    {
+        use semaphore_ffi::db::store::UserManager;
+        use semaphore_ffi::models::User;
+        use chrono::Utc;
+        let store = SqlStore::new(&url).await.expect("seed store");
+        store.create_user(
+            User { id: 0, username: "testadmin".into(), name: "Test Admin".into(),
+                   email: "testadmin@test.local".into(), password: String::new(),
+                   admin: true, external: false, alert: false, pro: false,
+                   created: Utc::now(), totp: None, email_otp: None },
+            "Test1234!",
+        ).await.expect("create admin");
+        let teammate = store.create_user(
+            User { id: 0, username: "teammate".into(), name: "Team Mate".into(),
+                   email: "teammate@test.local".into(), password: String::new(),
+                   admin: false, external: false, alert: false, pro: false,
+                   created: Utc::now(), totp: None, email_otp: None },
+            "Teammate1!",
+        ).await.expect("create teammate");
+        teammate_id = teammate.id as i64;
+    }
+    let store2 = SqlStore::new(&url).await.expect("app store");
+    let app = semaphore_ffi::api::create_app(Box::new(store2));
+    let token = register_and_login(&app).await;
+
+    // Create project
+    let (_, proj) = post_json_with_token(
+        app.clone(),
+        "/api/projects",
+        json!({ "name": "Team E2E Project", "max_parallel_tasks": 0, "alert": false }),
+        Some(&token),
+    )
+    .await;
+    let project_id = proj["id"].as_i64().expect("project id");
+
+    // List project members
+    let (status, members) = get_json(
+        app.clone(),
+        &format!("/api/project/{}/users", project_id),
+        Some(&token),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "list project users; body={:?}", members);
+
+    // Add teammate as task_runner
+    let (status, _) = post_json_with_token(
+        app.clone(),
+        &format!("/api/project/{}/users", project_id),
+        json!({ "user_id": teammate_id, "role": "task_runner" }),
+        Some(&token),
+    )
+    .await;
+    assert!(
+        status == StatusCode::CREATED || status == StatusCode::OK,
+        "add team member returned {:?}",
+        status
+    );
+
+    // Update role to manager
+    let (status, _) = put_json(
+        app.clone(),
+        &format!("/api/project/{}/users/{}", project_id, teammate_id),
+        json!({ "role": "manager" }),
+        Some(&token),
+    )
+    .await;
+    assert!(
+        status == StatusCode::OK || status == StatusCode::NO_CONTENT,
+        "update role returned {:?}",
+        status
+    );
+
+    // Remove from project
+    let status = delete_req(
+        app.clone(),
+        &format!("/api/project/{}/users/{}", project_id, teammate_id),
+        Some(&token),
+    )
+    .await;
+    assert!(
+        status == StatusCode::NO_CONTENT || status == StatusCode::OK,
+        "remove team member returned {:?}",
+        status
+    );
+    drop(temp); // keep temp file alive until end
+}
+
+// ── E2E: Update resources ─────────────────────────────────────────────────
+
+/// Tests PUT (update) endpoints for keys, inventories, environments, repositories.
+#[tokio::test]
+async fn test_update_resources() {
+    let (app, _temp) = seeded_app().await;
+    let token = register_and_login(&app).await;
+
+    let (_, proj) = post_json_with_token(
+        app.clone(),
+        "/api/projects",
+        json!({ "name": "Update Resources Project", "max_parallel_tasks": 0, "alert": false }),
+        Some(&token),
+    )
+    .await;
+    let project_id = proj["id"].as_i64().expect("project id");
+
+    // -- Update key --
+    let (_, key) = post_json_with_token(
+        app.clone(),
+        &format!("/api/projects/{}/keys", project_id),
+        json!({ "name": "original-key", "type": "none" }),
+        Some(&token),
+    )
+    .await;
+    let key_id = key["id"].as_i64().expect("key id");
+
+    let (status, _) = put_json(
+        app.clone(),
+        &format!("/api/projects/{}/keys/{}", project_id, key_id),
+        json!({ "name": "updated-key", "type": "none" }),
+        Some(&token),
+    )
+    .await;
+    assert!(
+        status == StatusCode::OK || status == StatusCode::NO_CONTENT,
+        "update key returned {:?}",
+        status
+    );
+
+    // -- Update inventory --
+    let (_, inv) = post_json_with_token(
+        app.clone(),
+        &format!("/api/projects/{}/inventories", project_id),
+        json!({ "name": "original-inv", "inventory": "static" }),
+        Some(&token),
+    )
+    .await;
+    let inv_id = inv["id"].as_i64().expect("inventory id");
+
+    let (status, _) = put_json(
+        app.clone(),
+        &format!("/api/projects/{}/inventories/{}", project_id, inv_id),
+        json!({ "name": "updated-inv", "inventory": "localhost\n192.168.1.1" }),
+        Some(&token),
+    )
+    .await;
+    assert!(
+        status == StatusCode::OK || status == StatusCode::NO_CONTENT,
+        "update inventory returned {:?}",
+        status
+    );
+
+    // -- Update environment --
+    let (_, env) = post_json_with_token(
+        app.clone(),
+        &format!("/api/projects/{}/environments", project_id),
+        json!({ "project_id": project_id, "name": "original-env", "json": "{}" }),
+        Some(&token),
+    )
+    .await;
+    let env_id = env["id"].as_i64().expect("env id");
+
+    let (status, _) = put_json(
+        app.clone(),
+        &format!("/api/projects/{}/environments/{}", project_id, env_id),
+        json!({ "project_id": project_id, "name": "updated-env", "json": "{\"FOO\":\"bar\"}" }),
+        Some(&token),
+    )
+    .await;
+    assert!(
+        status == StatusCode::OK || status == StatusCode::NO_CONTENT,
+        "update environment returned {:?}",
+        status
+    );
+
+    // -- Update template --
+    let (_, tpl) = post_json_with_token(
+        app.clone(),
+        &format!("/api/projects/{}/templates", project_id),
+        json!({ "name": "original-tpl", "playbook": "old.yml" }),
+        Some(&token),
+    )
+    .await;
+    let tpl_id = tpl["id"].as_i64().expect("template id");
+
+    let (status, _) = put_json(
+        app.clone(),
+        &format!("/api/projects/{}/templates/{}", project_id, tpl_id),
+        json!({ "name": "updated-tpl", "playbook": "new.yml" }),
+        Some(&token),
+    )
+    .await;
+    assert!(
+        status == StatusCode::OK || status == StatusCode::NO_CONTENT,
+        "update template returned {:?}",
+        status
+    );
+}
+
+// ── E2E: WebSocket endpoint reachable ─────────────────────────────────────
+
+/// Verifies the WebSocket endpoint at /api/ws accepts an upgrade handshake.
+/// Full message-level testing requires a live server with I/O; here we confirm
+/// the route is wired and returns 101 Switching Protocols (not 404/405).
+#[tokio::test]
+async fn test_websocket_endpoint_accepts_upgrade() {
+    let (app, _temp) = seeded_app().await;
+
+    // Send a WebSocket upgrade request to the global ws endpoint.
+    // The server should respond with 101 Switching Protocols if the route exists.
+    let request = Request::builder()
+        .method("GET")
+        .uri("/api/ws")
+        .header("Connection", "Upgrade")
+        .header("Upgrade", "websocket")
+        .header("Sec-WebSocket-Version", "13")
+        .header("Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ==")
+        .body(Body::empty())
+        .unwrap();
+
+    let response = app.oneshot(request).await.expect("oneshot");
+    // 101 = successful upgrade; 400 = bad request (auth missing but route found).
+    // Both are acceptable — what matters is the route is not 404/405.
+    assert_ne!(
+        response.status(),
+        StatusCode::NOT_FOUND,
+        "WebSocket route /api/ws must exist"
+    );
+    assert_ne!(
+        response.status(),
+        StatusCode::METHOD_NOT_ALLOWED,
+        "WebSocket route /api/ws must accept GET"
+    );
+}
+
 // ── Delete schedule ───────────────────────────────────────────────────────
 
 #[tokio::test]

@@ -1,42 +1,78 @@
 # ============================================================================
-# Semaphore UI — Demo (одна команда, открыть http://localhost:3000)
+# Semaphore UI — Demo (одна команда, открыть http://localhost:8088)
 # ============================================================================
 # Запуск:
-#   docker compose -f docker-compose.demo.yml up --build
+#   docker compose -f docker-compose.demo.yml up --build -d
+#   bash fill-demo-data.sh
 #
 # Учётные данные:  admin / admin123
 # URL:             http://localhost:8088
+#
+# Сервисы:
+#   semaphore      — UI + API (порт 8088), включает ansible
+#   ansible-target — SSH-цель для демо плейбуков (user: demo / demo123)
 # ============================================================================
 
 services:
   semaphore:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.demo
     container_name: semaphore-demo
     restart: unless-stopped
     ports:
       - "8088:3000"
     environment:
-      # SQLite — не нужна отдельная БД
       SEMAPHORE_DB_DIALECT: sqlite
       SEMAPHORE_DB_PATH: /app/data/semaphore.db
       SEMAPHORE_WEB_PATH: /app/web/public
-      # Демо-аккаунт: создаётся автоматически при первом запуске
       SEMAPHORE_ADMIN: admin
       SEMAPHORE_ADMIN_PASSWORD: admin123
       SEMAPHORE_ADMIN_NAME: Administrator
       SEMAPHORE_ADMIN_EMAIL: admin@semaphore.local
       RUST_LOG: info
     volumes:
-      # Данные сохраняются между перезапусками
       - semaphore_demo_data:/app/data
+    depends_on:
+      ansible-target:
+        condition: service_started
+    networks:
+      - demo-net
     healthcheck:
-      test: ["CMD-SHELL", "echo ok"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:3000/api/ping || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 3
+      retries: 10
+      start_period: 15s
+
+  ansible-target:
+    image: debian:12-slim
+    container_name: semaphore-ansible-target
+    hostname: ansible-target
+    command: >
+      bash -c "
+        apt-get update -qq &&
+        apt-get install -y --no-install-recommends openssh-server python3 sudo curl &&
+        useradd -m -s /bin/bash demo &&
+        echo 'demo:demo123' | chpasswd &&
+        mkdir -p /home/demo/.ssh /run/sshd &&
+        sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config &&
+        sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config &&
+        echo 'PermitRootLogin no' >> /etc/ssh/sshd_config &&
+        echo 'AllowUsers demo' >> /etc/ssh/sshd_config &&
+        echo 'demo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers &&
+        ssh-keygen -A &&
+        exec /usr/sbin/sshd -D -e
+      "
+    networks:
+      - demo-net
+    expose:
+      - "22"
 
 volumes:
   semaphore_demo_data:
     driver: local
+
+networks:
+  demo-net:
+    driver: bridge

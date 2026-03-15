@@ -1,0 +1,71 @@
+# ============================================================================
+# Dockerfile.demo — Semaphore UI с Ansible для демо-запуска
+# Отличается от Dockerfile: debian base вместо distroless, плюс ansible/ssh
+# ============================================================================
+
+# ── Зависимости (кэшируются отдельно от исходников) ──────────────────────
+FROM rust:slim AS deps
+
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY rust/Cargo.toml rust/Cargo.lock ./
+RUN mkdir -p src benches \
+    && echo "fn main() {}" > src/main.rs \
+    && echo "" > src/lib.rs \
+    && echo "fn main() {}" > benches/cache_bench.rs \
+    && echo "fn main() {}" > benches/db_bench.rs \
+    && cargo build --release \
+    && rm -rf src benches
+
+# ── Основная сборка ───────────────────────────────────────────────────────
+FROM deps AS builder
+
+COPY rust/ ./
+RUN touch src/main.rs
+RUN cargo build --release && mkdir -p /app/data
+
+# ── Финальный образ с Ansible ──────────────────────────────────────────────
+FROM debian:12-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    libssl3 \
+    ansible \
+    python3 \
+    python3-pip \
+    sshpass \
+    openssh-client \
+    git \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Бинарь
+COPY --from=builder /app/target/release/semaphore /usr/local/bin/semaphore
+
+# Vanilla JS фронтенд
+COPY web/public /app/web/public
+
+# Директория для данных
+COPY --from=builder /app/data /app/data
+
+# Демо-плейбуки (встроены в образ)
+RUN mkdir -p /app/playbooks
+COPY demo-playbooks/ /app/playbooks/
+
+WORKDIR /app
+
+EXPOSE 3000
+
+ENV SEMAPHORE_DB_DIALECT=sqlite
+ENV SEMAPHORE_DB_PATH=/app/data/semaphore.db
+ENV SEMAPHORE_WEB_PATH=/app/web/public
+ENV SEMAPHORE_ADMIN=admin
+ENV SEMAPHORE_ADMIN_PASSWORD=admin123
+ENV SEMAPHORE_ADMIN_NAME=Administrator
+ENV SEMAPHORE_ADMIN_EMAIL=admin@semaphore.local
+
+CMD ["/usr/local/bin/semaphore", "server", "--host", "0.0.0.0", "--port", "3000"]

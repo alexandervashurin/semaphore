@@ -125,7 +125,7 @@ impl AlertService {
         &self,
         users: Vec<User>,
     ) -> Result<()> {
-        use crate::utils::mailer::{send_email, Email, SmtpConfig};
+        use crate::utils::mailer::{send_email, Email};
         
         if !crate::config::email_alert_enabled() {
             return Ok(());
@@ -152,7 +152,7 @@ impl AlertService {
             let user_email = user.email.clone();
             info!("Attempting to send email alert to {}", user_email);
 
-            let config = SmtpConfig::default(); // TODO: Загрузить из конфига
+            let config = crate::config::get_smtp_config();
             let email = Email::new(
                 crate::config::get_email_sender(),
                 user.email,

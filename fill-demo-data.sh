@@ -1,195 +1,230 @@
 #!/bin/bash
 # ============================================================================
-# Скрипт наполнения БД тестовыми данными для Semaphore UI
+# Наполнение БД тестовыми данными для Semaphore UI (Rust)
+# Совместим с Go semaphore API: inventory_type + inventory (data)
 # ============================================================================
-
+# Использование:
+#   bash fill-demo-data.sh              # localhost:8088 (docker-compose.demo.yml)
+#   bash fill-demo-data.sh native       # localhost:3000 (cargo run)
+# ============================================================================
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Цвета для вывода
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-NC='\033[0m'
-
-# Режим по умолчанию
-MODE="${1:-native}"
-
-# URL API и учётные данные
+MODE="${1:-docker}"
 case $MODE in
-    native)
-        API_URL="http://localhost:3000/api"
-        USERNAME="admin"
-        PASSWORD="admin123"
-        ;;
-    hybrid|docker)
-        API_URL="http://localhost:3000/api"
-        USERNAME="admin"
-        PASSWORD="demo123"
-        ;;
-    *)
-        echo -e "${RED}Неизвестный режим: $MODE${NC}"
-        exit 1
-        ;;
+    native) API_URL="http://localhost:3000/api" ;;
+    *) API_URL="http://localhost:8088/api" ;;
 esac
+USERNAME="admin"; PASSWORD="admin123"
 
-info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
+BLUE='\033[0;34m'; CYAN='\033[0;36m'; NC='\033[0m'
+info()    { echo -e "${BLUE}[INFO]${NC} $1"; }
 success() { echo -e "${GREEN}[OK]${NC} $1"; }
-error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
-step() { echo -e "${CYAN}➜${NC} $1"; }
+warn()    { echo -e "${YELLOW}[WARN]${NC} $1"; }
+error()   { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
+step()    { echo -e "${CYAN}-->${NC} $1"; }
 
-# Получение токена
 get_token() {
-    step "Получение токена..."
-    local response=$(curl -s -X POST "$API_URL/auth/login" \
+    step "Авторизация..."
+    local resp
+    resp=$(curl -sf -X POST "$API_URL/auth/login" \
         -H "Content-Type: application/json" \
-        -d "{\"username\":\"$USERNAME\",\"password\":\"$PASSWORD\"}")
-    TOKEN=$(echo "$response" | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
-    [ -z "$TOKEN" ] && error "Не удалось получить токен"
+        -d "{\"username\":\"$USERNAME\",\"password\":\"$PASSWORD\"}") \
+        || error "Не удалось подключиться к $API_URL"
+    TOKEN=$(echo "$resp" | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])" 2>/dev/null)
+    [ -z "$TOKEN" ] && error "Токен не получен. Ответ: $resp"
     success "Токен получен"
 }
 
-# API функции
-api_post() {
-    curl -s -X POST "$API_URL$1" \
+post() {
+    curl -sf -X POST "$API_URL$1" \
         -H "Content-Type: application/json" \
         -H "Authorization: Bearer $TOKEN" \
         -d "$2"
 }
 
-# Создание проекта
+extract_id() {
+    python3 -c "import sys,json; d=json.loads(sys.stdin.read()); print(d.get('id',0))"
+}
+
 create_project() {
-    step "Создание проекта: $1..."
-    local response=$(api_post "/projects" "{\"name\":\"$1\"}")
-    local id=$(echo "$response" | grep -o '"id":[0-9]*' | head -1 | cut -d':' -f2)
-    [ -n "$id" ] && success "Проект создан (ID: $id)" && echo "$id" || echo "0"
+    step "Проект: $1"
+    local id
+    id=$(post "/projects" "{\"name\":\"$1\",\"alert\":false,\"max_parallel_tasks\":0}" | extract_id)
+    [ "$id" -gt 0 ] && success "Проект '$1' (ID: $id)" || warn "Ошибка проекта '$1'"
+    echo "$id"
 }
 
-# Создание ключа доступа
 create_key() {
-    step "Создание ключа: $2..."
-    local response=$(api_post "/project/$1/keys" "{\"name\":\"$2\",\"type\":\"$3\",\"login\":\"$4\",\"password\":\"$5\"}")
-    local id=$(echo "$response" | grep -o '"id":[0-9]*' | head -1 | cut -d':' -f2)
-    [ -n "$id" ] && success "Ключ создан (ID: $id)" && echo "$id" || echo "0"
+    # $1=pid $2=name $3=type $4=login(opt) $5=secret(opt)
+    step "Ключ: $2 (type=$3)"
+    local body="{\"name\":\"$2\",\"type\":\"$3\""
+    [ -n "$4" ] && body="${body},\"login\":\"$4\""
+    [ -n "$5" ] && body="${body},\"secret\":\"$5\""
+    body="${body}}"
+    local id; id=$(post "/project/$1/keys" "$body" | extract_id)
+    [ "$id" -gt 0 ] && success "Ключ '$2' (ID: $id)" || warn "Ошибка ключа '$2'"
+    echo "$id"
 }
 
-# Создание репозитория
 create_repo() {
-    step "Создание репозитория: $2..."
-    local response=$(api_post "/project/$1/repositories" "{\"name\":\"$2\",\"git_url\":\"$3\",\"git_branch\":\"$4\"}")
-    local id=$(echo "$response" | grep -o '"id":[0-9]*' | head -1 | cut -d':' -f2)
-    [ -n "$id" ] && success "Репозиторий создан (ID: $id)" && echo "$id" || echo "0"
+    # $1=pid $2=name $3=url $4=branch
+    step "Репозиторий: $2"
+    local id
+    id=$(post "/project/$1/repositories" \
+        "{\"name\":\"$2\",\"git_url\":\"$3\",\"git_branch\":\"${4:-main}\"}" | extract_id)
+    [ "$id" -gt 0 ] && success "Репозиторий '$2' (ID: $id)" || warn "Ошибка репозитория '$2'"
+    echo "$id"
 }
 
-# Создание инвентаря
 create_inventory() {
-    step "Создание инвентаря: $2..."
-    local response=$(api_post "/project/$1/inventories" "{\"name\":\"$2\",\"inventory_type\":\"static\",\"inventory_data\":\"$4\",\"ssh_login\":\"$5\",\"ssh_port\":$6,\"key_id\":$7}")
-    local id=$(echo "$response" | grep -o '"id":[0-9]*' | head -1 | cut -d':' -f2)
-    [ -n "$id" ] && success "Инвентарь создан (ID: $id)" && echo "$id" || echo "0"
+    # $1=pid $2=name $3=type $4=data
+    step "Инвентарь: $2 (type=$3)"
+    local data_esc
+    data_esc=$(printf '%s' "$4" | python3 -c "import sys,json; print(json.dumps(sys.stdin.read()))")
+    local id
+    id=$(post "/project/$1/inventories" \
+        "{\"name\":\"$2\",\"inventory_type\":\"$3\",\"inventory\":${data_esc}}" | extract_id)
+    [ "$id" -gt 0 ] && success "Инвентарь '$2' (ID: $id)" || warn "Ошибка инвентаря '$2'"
+    echo "$id"
 }
 
-# Создание окружения
-create_env() {
-    step "Создание окружения: $2..."
-    local response=$(api_post "/project/$1/environments" "{\"name\":\"$2\",\"json\":\"$3\"}")
-    local id=$(echo "$response" | grep -o '"id":[0-9]*' | head -1 | cut -d':' -f2)
-    [ -n "$id" ] && success "Окружение создано (ID: $id)" && echo "$id" || echo "0"
+create_environment() {
+    # $1=pid $2=name $3=json_object_string
+    step "Окружение: $2"
+    local jstr
+    jstr=$(printf '%s' "$3" | python3 -c "import sys,json; print(json.dumps(sys.stdin.read().strip()))")
+    local id
+    id=$(post "/project/$1/environments" "{\"name\":\"$2\",\"json\":${jstr}}" | extract_id)
+    [ "$id" -gt 0 ] && success "Окружение '$2' (ID: $id)" || warn "Ошибка окружения '$2'"
+    echo "$id"
 }
 
-# Создание шаблона
 create_template() {
-    step "Создание шаблона: $2..."
-    local response=$(api_post "/project/$1/templates" "{\"name\":\"$2\",\"playbook\":\"$3\",\"inventory_id\":$4,\"repository_id\":$5,\"environment_id\":$6,\"app\":\"$7\"}")
-    local id=$(echo "$response" | grep -o '"id":[0-9]*' | head -1 | cut -d':' -f2)
-    [ -n "$id" ] && success "Шаблон создан (ID: $id)" && echo "$id" || echo "0"
+    # $1=pid $2=name $3=playbook $4=inventory_id $5=repo_id(opt) $6=env_id(opt) $7=app
+    step "Шаблон: $2"
+    local body="{\"name\":\"$2\",\"playbook\":\"$3\",\"inventory_id\":$4,\"app\":\"${7:-ansible}\""
+    [ -n "$5" ] && [ "$5" -gt 0 ] 2>/dev/null && body="${body},\"repository_id\":$5"
+    [ -n "$6" ] && [ "$6" -gt 0 ] 2>/dev/null && body="${body},\"environment_id\":$6"
+    body="${body}}"
+    local id; id=$(post "/project/$1/templates" "$body" | extract_id)
+    [ "$id" -gt 0 ] && success "Шаблон '$2' (ID: $id)" || warn "Ошибка шаблона '$2'"
+    echo "$id"
 }
 
-# Создание задачи
+create_schedule() {
+    # $1=pid $2=name $3=template_id $4=cron
+    step "Расписание: $2 ($4)"
+    local id
+    id=$(post "/project/$1/schedules" \
+        "{\"name\":\"$2\",\"template_id\":$3,\"cron\":\"$4\",\"active\":true,\"project_id\":$1}" | extract_id)
+    [ "$id" -gt 0 ] && success "Расписание '$2' (ID: $id)" || warn "Ошибка расписания '$2'"
+    echo "$id"
+}
+
 create_task() {
-    step "Создание задачи..."
-    local response=$(api_post "/project/$1/tasks" "{\"template_id\":$2}")
-    local id=$(echo "$response" | grep -o '"id":[0-9]*' | head -1 | cut -d':' -f2)
-    [ -n "$id" ] && success "Задача создана (ID: $id)" && echo "$id" || echo "0"
+    # $1=pid $2=template_id
+    step "Запуск задачи (шаблон #$2)..."
+    local id; id=$(post "/project/$1/tasks" "{\"template_id\":$2}" | extract_id)
+    [ "$id" -gt 0 ] && success "Задача запущена (ID: $id)" || warn "Ошибка задачи"
+    echo "$id"
 }
 
-# ============================================================================
-# Основное наполнение
-# ============================================================================
-
-info "Режим: $MODE | API: $API_URL"
+# ════════════════════════════════════════════════════════════════════════════
+info "API: $API_URL"
 get_token
 
+# ── Проект 1: Demo Project ──────────────────────────────────────────────────
 echo ""
-echo -e "${YELLOW}=== Проекты ===${NC}"
+echo -e "${YELLOW}== Проект 1: Demo Project ==${NC}"
 P1=$(create_project "Demo Project")
+
+create_key "$P1" "No Key (none)" "none" "" ""
+create_key "$P1" "demo user (password)" "login_password" "demo" "demo123"
+
+R1=$(create_repo "$P1" "Demo Playbooks (local)" "file:///app/playbooks" "main")
+
+I_LOCAL=$(create_inventory "$P1" "Localhost" "static" \
+"[local]
+localhost ansible_connection=local")
+
+I_TARGET=$(create_inventory "$P1" "Demo Target (ansible-target)" "static" \
+"[demo_servers]
+ansible-target ansible_user=demo ansible_password=demo123 ansible_ssh_common_args='-o StrictHostKeyChecking=no'")
+
+E_DEV=$(create_environment "$P1" "Development" \
+'{"ENV": "development", "DEBUG": "true", "APP_VERSION": "1.0.0"}')
+E_PROD=$(create_environment "$P1" "Production" \
+'{"ENV": "production", "DEBUG": "false", "APP_VERSION": "2.5.1"}')
+
+T_HELLO=$(create_template "$P1" "Hello World (localhost)" \
+    "hello.yml" "$I_LOCAL" "$R1" "$E_DEV" "ansible")
+T_PING=$(create_template "$P1" "Ping Demo Servers" \
+    "ping.yml" "$I_TARGET" "$R1" "$E_DEV" "ansible")
+T_DEPLOY=$(create_template "$P1" "Deploy Web App" \
+    "deploy-web.yml" "$I_TARGET" "$R1" "$E_PROD" "ansible")
+
+create_schedule "$P1" "Hourly Hello" "$T_HELLO" "0 * * * *"
+create_schedule "$P1" "Nightly Deploy" "$T_DEPLOY" "0 2 * * *"
+create_task "$P1" "$T_HELLO"
+
+# ── Проект 2: Infrastructure ────────────────────────────────────────────────
+echo ""
+echo -e "${YELLOW}== Проект 2: Infrastructure ==${NC}"
 P2=$(create_project "Infrastructure")
+
+create_key "$P2" "Deploy SSH Key" "ssh" "ubuntu" ""
+create_key "$P2" "AWS Access" "login_password" "aws_key_id" "aws_secret_key"
+create_repo "$P2" "Infrastructure Code" "https://github.com/example/infra.git" "main"
+create_repo "$P2" "Terraform Modules" "https://github.com/example/terraform-modules.git" "main"
+
+I_PROD=$(create_inventory "$P2" "Production Servers" "static" \
+"[production]
+prod1.example.com
+prod2.example.com")
+create_inventory "$P2" "Staging Servers" "static" \
+"[staging]
+staging1.example.com"
+create_environment "$P2" "AWS us-east-1" '{"AWS_REGION": "us-east-1", "TF_VAR_env": "prod"}'
+create_environment "$P2" "GCP europe-west" '{"GOOGLE_PROJECT": "my-project"}'
+
+T_PROV=$(create_template "$P2" "Provision Servers" "provision.yml" "$I_PROD" "" "" "ansible")
+create_schedule "$P2" "Weekly Provision" "$T_PROV" "0 3 * * 1"
+
+# ── Проект 3: Web Applications ───────────────────────────────────────────────
+echo ""
+echo -e "${YELLOW}== Проект 3: Web Applications ==${NC}"
 P3=$(create_project "Web Applications")
 
-echo ""
-echo -e "${YELLOW}=== Ключи доступа ===${NC}"
-K1=$(create_key $P1 "Local User" "login_password" "root" "password123")
-K2=$(create_key $P1 "Ansible Vault" "none" "" "")
-K3=$(create_key $P2 "SSH Key" "ssh" "ubuntu" "")
-K4=$(create_key $P2 "Admin User" "login_password" "admin" "admin123")
-K5=$(create_key $P3 "Deploy User" "login_password" "deploy" "deploy123")
+create_key "$P3" "Deploy User" "login_password" "deploy" "deploy123"
+create_repo "$P3" "Web App Repo" "https://github.com/example/webapp.git" "main"
 
-echo ""
-echo -e "${YELLOW}=== Репозитории ===${NC}"
-R1=$(create_repo $P1 "Demo Repository" "https://github.com/semaphoreui/demo-playbooks.git" "main")
-R2=$(create_repo $P1 "Local Scripts" "https://github.com/example/scripts.git" "master")
-R3=$(create_repo $P2 "Infrastructure Code" "https://github.com/example/infrastructure.git" "main")
-R4=$(create_repo $P2 "Terraform Modules" "https://github.com/example/terraform-modules.git" "main")
-R5=$(create_repo $P3 "Web App Deploy" "https://github.com/example/webapp.git" "main")
-R6=$(create_repo $P3 "Nginx Configs" "https://github.com/example/nginx-configs.git" "master")
+I_WEB=$(create_inventory "$P3" "Web Servers" "static" \
+"[webservers]
+web1.example.com
+web2.example.com
 
-echo ""
-echo -e "${YELLOW}=== Инвентари ===${NC}"
-I1=$(create_inventory $P1 "Demo Inventory" "static" "[webservers]\\nweb1.example.com\\nweb2.example.com" "root" 22 $K1)
-I2=$(create_inventory $P2 "Production Servers" "static" "[production]\\nprod1.example.com\\nprod2.example.com" "ubuntu" 22 $K3)
-I3=$(create_inventory $P3 "Web Servers" "static" "[apps]\\napp1.example.com" "deploy" 22 $K5)
+[dbservers]
+db1.example.com")
+create_environment "$P3" "Production" '{"APP_ENV": "production", "NODE_ENV": "production"}'
 
-echo ""
-echo -e "${YELLOW}=== Окружения ===${NC}"
-E1=$(create_env $P1 "Development" "{\"ENV\": \"dev\", \"DEBUG\": \"true\"}")
-E2=$(create_env $P1 "Production" "{\"ENV\": \"prod\", \"DEBUG\": \"false\"}")
-E3=$(create_env $P2 "AWS" "{\"AWS_REGION\": \"us-east-1\"}")
-E4=$(create_env $P2 "GCP" "{\"GOOGLE_PROJECT\": \"my-project\"}")
-E5=$(create_env $P3 "Web App" "{\"APP_ENV\": \"production\"}")
+T_FE=$(create_template "$P3" "Deploy Frontend" "deploy.yml" "$I_WEB" "" "" "ansible")
+T_SSL=$(create_template "$P3" "Update SSL Certs" "ssl-renew.yml" "$I_WEB" "" "" "ansible")
+create_template "$P3" "Restart Services" "restart.yml" "$I_WEB" "" "" "ansible"
 
-echo ""
-echo -e "${YELLOW}=== Шаблоны ===${NC}"
-T1=$(create_template $P1 "Deploy Web App" "deploy.yml" $I1 $R1 $E1 "ansible")
-T2=$(create_template $P1 "Run Tests" "test.yml" $I1 $R1 $E2 "ansible")
-T3=$(create_template $P1 "Backup DB" "backup.yml" $I1 $R2 $E1 "ansible")
-T4=$(create_template $P2 "Deploy Infra" "main.tf" $I2 $R3 $E3 "terraform")
-T5=$(create_template $P2 "Create VPC" "vpc.tf" $I2 $R3 $E3 "terraform")
-T6=$(create_template $P2 "Deploy EC2" "ec2.tf" $I2 $R4 $E3 "terraform")
-T7=$(create_template $P3 "Deploy Nginx" "nginx-deploy.yml" $I3 $R5 $E5 "ansible")
-T8=$(create_template $P3 "Update SSL" "ssl-update.yml" $I3 $R5 $E5 "ansible")
-T9=$(create_template $P3 "Restart Services" "restart.sh" $I3 $R6 $E5 "shell")
+create_schedule "$P3" "Nightly Deploy" "$T_FE" "0 1 * * *"
+create_schedule "$P3" "Monthly SSL Renew" "$T_SSL" "0 4 1 * *"
 
+# ── Итог ─────────────────────────────────────────────────────────────────────
 echo ""
-echo -e "${YELLOW}=== Задачи ===${NC}"
-create_task $P1 $T1
-create_task $P2 $T4
-create_task $P3 $T7
-
+echo -e "${GREEN}+----------------------------------------------------------+${NC}"
+echo -e "${GREEN}|   Тестовые данные созданы успешно!                       |${NC}"
+echo -e "${GREEN}+----------------------------------------------------------+${NC}"
 echo ""
-echo -e "${GREEN}╔════════════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║         Тестовые данные созданы успешно!               ║${NC}"
-echo -e "${GREEN}╚════════════════════════════════════════════════════════╝${NC}"
+echo "  Проектов: 3 | Шаблонов: 8 | Расписаний: 5"
 echo ""
-echo "Создано:"
-echo "  • Проектов: 3"
-echo "  • Ключей доступа: 5"
-echo "  • Репозиториев: 6"
-echo "  • Инвентарей: 3"
-echo "  • Окружений: 5"
-echo "  • Шаблонов: 9"
-echo "  • Задач: 3"
+echo -e "${CYAN}http://localhost:8088  (admin / admin123)${NC}"
 echo ""
-echo "Откройте веб-интерфейс: http://localhost:3000"
+echo "Реальный ansible:"
+echo "  Demo Project -> Шаблоны -> 'Hello World (localhost)' -> Run"
+echo "  Demo Project -> Шаблоны -> 'Ping Demo Servers' -> Run (нужен ansible-target)"

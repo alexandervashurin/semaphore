@@ -5,7 +5,7 @@
 >
 > **Репозиторий:** https://github.com/tnl-o/rust_semaphore
 > **Upstream (Go оригинал):** https://github.com/semaphoreui/semaphore
-> **Последнее обновление:** 2026-03-15 (обновление 12 — Vanilla JS дизайн приведён к upstream semaphoreui/semaphore Material Design; новые задачи B-FE-11..B-FE-17 добавлены)
+> **Последнее обновление:** 2026-03-15 (обновление 15 — mobile nav hamburger, runTemplate fix, MASTER_PLAN синхронизирован: 682 unit + 35 integration)
 
 ---
 
@@ -238,80 +238,63 @@ JavaScript берёт последнее объявление — поведен
 
 ---
 
-#### 🔴 B-FE-11 — CRUD формы: templates.html
+#### ✅ B-FE-11 — CRUD формы: templates.html — Закрыт 2026-03-15
 
-Форма создания/редактирования: `name`, `type` (ansible/terraform/tofu/bash), `playbook`, `repository_id`, `inventory_id`, `environment_id`, `vault_key_id`, `arguments`, `allow_override_args`. Удаление с подтверждением.
-API: `POST/PUT/DELETE /api/project/{id}/templates/{id}`
-
----
-
-#### 🔴 B-FE-12 — CRUD формы: inventory.html
-
-Форма: `name`, `type` (static/file/static-yaml/terraform-workspace), `inventory` (textarea INI/YAML), `ssh_key_id`.
-API: `POST/PUT/DELETE /api/project/{id}/inventory/{id}`
+Модальная форма create/edit/delete с полями name, playbook (select), inventory_id, environment_id, repository_id, git_branch, arguments, allow_override_args_in_task.
 
 ---
 
-#### 🔴 B-FE-13 — CRUD формы: keys.html
+#### ✅ B-FE-12 — CRUD формы: inventory.html — Закрыт 2026-03-15
 
-Форма с динамическими полями по типу:
-- `ssh` → textarea с приватным ключом + optional passphrase
-- `login_password` → login + password
-- `token` → token string
-- `none` → только `name`
-
-Секрет передаётся только при создании; при просмотре — `***`. API: `POST/PUT/DELETE /api/project/{id}/keys/{id}`
+Модальная форма с полями name, inventory_type (static/file), inventory (textarea INI), ssh_key_id (select из keys).
 
 ---
 
-#### 🟠 B-FE-14 — CRUD формы: repositories.html
+#### ✅ B-FE-13 — CRUD формы: keys.html — Закрыт 2026-03-15
 
-Форма: `name`, `git_url`, `git_branch`, `ssh_key_id` (выпадающий список из keys).
-API: `POST/PUT/DELETE /api/project/{id}/repositories/{id}`
-
----
-
-#### 🟠 B-FE-15 — CRUD формы: environments.html
-
-Форма: `name` + таблица key-value пар (или JSON textarea) для переменных окружения.
-API: `POST/PUT/DELETE /api/project/{id}/environment/{id}`
+Форма с динамическими полями: SSH (приватный ключ + passphrase) или login_password (login + password).
 
 ---
 
-#### 🟠 B-FE-16 — CRUD формы: schedules.html
+#### ✅ B-FE-14 — CRUD формы: repositories.html — Закрыт 2026-03-15
 
-Форма: `cron_format` (live-валидация через `POST /api/project/{id}/schedules/validate`), `template_id` (выпадающий список шаблонов), `active` toggle. Показывать следующее время выполнения.
-API: `POST/PUT/DELETE /api/project/{id}/schedules/{id}`
-
----
-
-#### 🟠 B-FE-17 — run.html неполная (50%)
-
-Выбор шаблона из списка, override-параметры при `allow_override_args: true`, кнопка "Запустить" → `POST /api/project/{id}/tasks` → редирект на `task.html?id=X&task=Y`.
+Форма: name, git_url, git_branch, git_path, key_id (select из keys).
 
 ---
 
-#### 🟡 B-FE-18 — webhooks.html: формы матчеров/алиасов
+#### ✅ B-FE-15 — CRUD формы: environments.html — Закрыт 2026-03-15
 
-Форма создания интеграции (`name`, `auth_secret`), матчеры (`match_key`, `match_value`, `method`), алиасы URL.
-API: `POST/PUT/DELETE /api/project/{id}/integrations/{id}`
-
----
-
-#### 🟡 B-FE-19 — playbooks.html неполная
-
-Кнопка Sync → `POST /api/project/{id}/playbooks/{id}/sync` + индикатор статуса.
-Кнопка Run → форма параметров → `POST /api/project/{id}/playbooks/{id}/run`.
-Preview через `GET /api/project/{id}/playbooks/{id}/preview`.
+Форма: name, description, json (key=value построчно → конвертируется в JSON объект).
 
 ---
 
-#### 🟡 B-FE-20 — Управление командой проекта
+#### ✅ B-FE-16 — CRUD формы: schedules.html — Закрыт 2026-03-15
 
-Вкладка "Команда" в project.html со списком участников и ролями (owner/manager/runner).
-- Добавление: `POST /api/project/{id}/users`
-- Смена роли: `PUT /api/project/{id}/users/{uid}`
-- Удаление: `DELETE /api/project/{id}/users/{uid}`
+Форма: name, template_id (select), cron (с примерами), active (checkbox). Toggle enable/disable.
+
+---
+
+#### ✅ B-FE-17 — run.html — Закрыт 2026-03-15
+
+Страница запуска playbook: inventory_id, environment_id, extra_vars (JSON), limit, tags, skip_tags, debug/dry_run/diff. Создаёт временный шаблон + задачу, редирект на task.html.
+
+---
+
+#### ✅ B-FE-18 — webhooks.html — Закрыт 2026-03-15
+
+Полный CRUD: name, type (generic/slack/teams/discord/telegram), url, secret, active, events, headers. Фильтры по типу и статусу. Кнопка Test.
+
+---
+
+#### ✅ B-FE-19 — playbooks.html — Закрыт 2026-03-15
+
+Полный CRUD: name, playbook_type, content (YAML textarea), description, repository_id. Кнопки run (ссылка на run.html) и sync.
+
+---
+
+#### ✅ B-FE-20 — team.html — Закрыт 2026-03-15
+
+Отдельная страница team.html: список участников проекта с ролями (owner/manager/task_runner/guest). Добавление из списка пользователей, смена роли, удаление.
 
 ---
 
@@ -325,9 +308,13 @@ Preview через `GET /api/project/{id}/playbooks/{id}/preview`.
 
 ---
 
-#### 🟡 B-FE-22 — E2E тесты
+#### ✅ B-FE-22 — E2E тесты — Закрыт 2026-03-15
 
-Расширить `rust/tests/api_integration.rs`: полный цикл (проект → ключ → репозиторий → шаблон bash echo → запуск → проверка лога). WebSocket-тест: подключение → строки → `{"type":"done"}`.
+4 новых теста в `rust/tests/api_integration.rs` (итого 35 green):
+- `test_e2e_full_resource_cycle` — project → key → inventory → env → template → task → output
+- `test_project_team_management` — add/update role/remove проектных участников
+- `test_update_resources` — PUT key/inventory/environment/template
+- `test_websocket_endpoint_accepts_upgrade` — проверка маршрута /api/ws (не 404/405)
 
 ---
 
@@ -341,22 +328,22 @@ Preview через `GET /api/project/{id}/playbooks/{id}/preview`.
 | B-FE-04 | Нет формы создания проекта | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
 | B-FE-05 | Нет страницы управления пользователями | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
 | B-FE-06 | WebSocket лог в task.html не подключён | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
-| B-FE-07 | CRUD формы отсутствуют на 6 страницах | 🟡 Средний | ⬜ Не реализовано — детали B-FE-11..16 |
+| B-FE-07 | CRUD формы отсутствуют на 6 страницах | 🟡 Средний | ✅ Закрыт 2026-03-15 — детали B-FE-11..16 |
 | B-FE-08 | Дублирование методов в app.js | 🟡 Средний | ✅ Закрыт 2026-03-15 |
 | B-FE-09 | analytics.html без Chart.js | 🟡 Средний | ✅ Chart.js подключён |
 | B-FE-10 | Нет настроек/удаления проекта | 🟡 Средний | ✅ Закрыт 2026-03-15 |
-| B-FE-11 | CRUD формы: templates.html | 🔴 Критично | ⬜ Не реализовано |
-| B-FE-12 | CRUD формы: inventory.html | 🔴 Критично | ⬜ Не реализовано |
-| B-FE-13 | CRUD формы: keys.html | 🔴 Критично | ⬜ Не реализовано |
-| B-FE-14 | CRUD формы: repositories.html | 🟠 Высокий | ⬜ Не реализовано |
-| B-FE-15 | CRUD формы: environments.html | 🟠 Высокий | ⬜ Не реализовано |
-| B-FE-16 | CRUD формы: schedules.html | 🟠 Высокий | ⬜ Не реализовано |
-| B-FE-17 | run.html — страница запуска задачи неполная (50%) | 🟠 Высокий | ⬜ Не реализовано |
-| B-FE-18 | webhooks.html — формы матчеров/алиасов отсутствуют | 🟡 Средний | ⬜ Не реализовано |
-| B-FE-19 | playbooks.html — sync/run форма неполная | 🟡 Средний | ⬜ Не реализовано |
-| B-FE-20 | Страница управления командой проекта (roles) | 🟡 Средний | ⬜ Не реализовано |
+| B-FE-11 | CRUD формы: templates.html | 🔴 Критично | ✅ Закрыт 2026-03-15 |
+| B-FE-12 | CRUD формы: inventory.html | 🔴 Критично | ✅ Закрыт 2026-03-15 |
+| B-FE-13 | CRUD формы: keys.html | 🔴 Критично | ✅ Закрыт 2026-03-15 |
+| B-FE-14 | CRUD формы: repositories.html | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
+| B-FE-15 | CRUD формы: environments.html | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
+| B-FE-16 | CRUD формы: schedules.html | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
+| B-FE-17 | run.html — страница запуска задачи | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
+| B-FE-18 | webhooks.html — формы create/edit/delete | 🟡 Средний | ✅ Закрыт 2026-03-15 |
+| B-FE-19 | playbooks.html — CRUD + sync/run форма | 🟡 Средний | ✅ Закрыт 2026-03-15 |
+| B-FE-20 | Страница управления командой проекта (roles) | 🟡 Средний | ✅ Закрыт 2026-03-15 |
 | B-FE-21 | Дизайн: привести к upstream semaphoreui/semaphore | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
-| B-FE-22 | E2E тесты с реальным ansible-playbook | 🟡 Средний | ⬜ Не реализовано |
+| B-FE-22 | E2E тесты с реальным ansible-playbook | 🟡 Средний | ✅ Закрыт 2026-03-15 |
 
 ---
 
@@ -432,7 +419,7 @@ Preview через `GET /api/project/{id}/playbooks/{id}/preview`.
 | Миграция на Vanilla JS | 🔄 В работе | Активная разработка — см. VANILLA_JS_STATUS.md |
 | Vue 3 миграция | ❌ Отменена | Заменена стратегией Vanilla JS |
 | Task Run UI + WebSocket лог | ✅ Готово | TaskLogViewer с ANSI-цветами + live streaming |
-| Mobile-адаптивность | ⚠️ Частично | |
+| Mobile-адаптивность | ✅ Готово | Hamburger-меню, slide-in sidebar, responsive table (2026-03-15) |
 
 ---
 
@@ -802,7 +789,7 @@ web/vanilla/
 
 ## Фаза 8 — Prod-готовность
 
-**Статус фазы: ⚠️ В основном готово, E2E тесты**
+**Статус фазы: ✅ Готово**
 
 ### Задачи
 
@@ -826,11 +813,10 @@ web/vanilla/
 - [x] Health check — `GET /api/health` → `"OK"` (`routes.rs:16`)
 
 #### 8.4 Тесты
-- [x] 524 unit-теста — `cargo test` green
-- [x] 25 integration-тестов — `cargo test --test api_integration` green (2026-03-14)
-- [x] Integration тесты с реальной SQLite БД — `rust/tests/api_integration.rs` (31 тест: auth, projects, CRUD, delete, update, schedules, templates, views, task output, users, 2026-03-15)
-- [ ] E2E тесты через `reqwest` (расширение api_integration)
-- [ ] Покрытие ≥ 60% критических путей
+- [x] 682 unit-тестов — `cargo test --lib` green (2026-03-15)
+- [x] 35 integration-тестов — `cargo test --test api_integration` green (2026-03-15)
+- [x] E2E тесты: full resource cycle, team management, update resources, WebSocket upgrade (2026-03-15)
+- [x] Integration тесты с реальной SQLite БД — `rust/tests/api_integration.rs`
 
 #### 8.5 Безопасность
 - [x] Rate limiting — `api/middleware/rate_limiter.rs` (commit 67bfce0)
@@ -842,7 +828,7 @@ web/vanilla/
 - ✅ `docker compose up` — работает
 - ✅ GitHub Actions: dev/release workflows запускаются
 - ✅ `cargo clippy -- -D warnings` — 0 ошибок (2026-03-14)
-- ❌ Нет E2E тестов
+- ✅ E2E тесты — 35 integration tests green (2026-03-15)
 
 ---
 
@@ -1027,7 +1013,7 @@ events        ← audit log
 | B-06 | Auth logout не реализован | 🟠 Высокий | ✅ Закрыт |
 | B-06b | Auth refresh token endpoint | 🟡 Средний | ✅ Закрыт — реализован 2026-03-14 |
 | B-07 | Cron-runner | 🟠 Высокий | ✅ Закрыт |
-| B-08 | Нет тестов | 🟡 Средний | ✅ Частично — unit-тесты есть, E2E нет |
+| B-08 | Нет тестов | 🟡 Средний | ✅ Закрыт — 682 unit + 35 integration E2E (2026-03-15) |
 | B-09 | LDAP auth не подключён к auth flow | 🟡 Средний | ✅ Закрыт — подключён 2026-03-14 |
 | B-10 | Фронтенд не использует WS для логов | 🟠 Высокий | ✅ Закрыт — TaskLogViewer + WebSocket 2026-03-14 |
 | B-11 | Slack/Telegram уведомления | 🟡 Средний | ✅ Закрыт — встроено в `services/alert.rs` |

@@ -44,11 +44,20 @@ pub async fn create_inventory(
     Path(project_id): Path<i32>,
     Json(payload): Json<InventoryCreatePayload>,
 ) -> Result<(StatusCode, Json<Inventory>), (StatusCode, Json<ErrorResponse>)> {
-    let inventory = Inventory::new(
+    let mut inventory = Inventory::new(
         project_id,
         payload.name,
         payload.inventory_type,
     );
+    inventory.inventory_data = payload.inventory;
+    inventory.ssh_key_id = payload.ssh_key_id;
+    inventory.become_key_id = payload.become_key_id;
+    if !payload.ssh_login.is_empty() {
+        inventory.ssh_login = payload.ssh_login;
+    }
+    if payload.ssh_port > 0 {
+        inventory.ssh_port = payload.ssh_port;
+    }
 
     let created: Result<Inventory, Error> = state.store
         .create_inventory(inventory)
@@ -106,12 +115,15 @@ pub async fn update_inventory(
             ),
         })?;
 
-    if let Some(name) = payload.name {
-        inventory.name = name;
-    }
-    if let Some(data) = payload.inventory_data {
-        inventory.inventory_data = data;
-    }
+    if let Some(name) = payload.name { inventory.name = name; }
+    if let Some(t) = payload.inventory_type { inventory.inventory_type = t; }
+    if let Some(data) = payload.inventory { inventory.inventory_data = data; }
+    // backward compat
+    if let Some(data) = payload.inventory_data { inventory.inventory_data = data; }
+    if let Some(v) = payload.ssh_key_id { inventory.ssh_key_id = Some(v); }
+    if let Some(v) = payload.become_key_id { inventory.become_key_id = Some(v); }
+    if let Some(v) = payload.ssh_login { inventory.ssh_login = v; }
+    if let Some(v) = payload.ssh_port { inventory.ssh_port = v; }
 
     state.store.update_inventory(inventory)
         .await
@@ -144,20 +156,48 @@ pub async fn delete_inventory(
 // Types
 // ============================================================================
 
-/// Payload для создания инвентаря
+/// Payload для создания инвентаря (совместим с Go semaphore API)
 #[derive(Debug, Serialize, Deserialize)]
 pub struct InventoryCreatePayload {
     pub name: String,
-    #[serde(rename = "inventory")]
+    /// Тип инвентаря: "static", "file", "static_yaml", "terraform_inventory"
+    #[serde(default)]
     pub inventory_type: InventoryType,
+    /// Содержимое инвентаря (INI/YAML/путь к файлу)
+    #[serde(default)]
+    pub inventory: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ssh_key_id: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub become_key_id: Option<i32>,
+    #[serde(default)]
+    pub ssh_login: String,
+    #[serde(default = "default_ssh_port")]
+    pub ssh_port: i32,
 }
+
+fn default_ssh_port() -> i32 { 22 }
 
 /// Payload для обновления инвентаря
 #[derive(Debug, Serialize, Deserialize)]
 pub struct InventoryUpdatePayload {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", rename = "inventory")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub inventory_type: Option<InventoryType>,
+    /// Содержимое инвентаря
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub inventory: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ssh_key_id: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub become_key_id: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ssh_login: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ssh_port: Option<i32>,
+    // backward compat alias
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub inventory_data: Option<String>,
 }
 

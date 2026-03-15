@@ -126,7 +126,22 @@
         }
 
         function runTemplate(id) {
-            ui.showAlert('Запуск шаблона будет реализован в следующей версии', 'warning');
+            if (!confirm('Запустить шаблон?')) return;
+
+            const btn = document.querySelector(`button[onclick="runTemplate(${id})"]`);
+            if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+
+            api.post('/project/' + projectId + '/tasks', { template_id: id })
+                .then(task => {
+                    ui.showAlert('Задача #' + task.id + ' запущена', 'success');
+                    setTimeout(() => {
+                        window.location.href = 'task.html?id=' + projectId + '&task=' + task.id;
+                    }, 800);
+                })
+                .catch(error => {
+                    ui.showAlert('Ошибка запуска: ' + error.message, 'danger');
+                    if (btn) { btn.disabled = false; btn.textContent = '▶'; }
+                });
         }
 
         function openTemplateModal(template = null, refs = {}) {

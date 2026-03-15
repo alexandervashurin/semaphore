@@ -1,0 +1,21 @@
+---
+# Простой демо-плейбук: ping + получить факты
+- name: Demo — Ping and Facts
+  hosts: all
+  gather_facts: yes
+  tasks:
+    - name: Ping hosts
+      ansible.builtin.ping:
+
+    - name: Print hostname and OS
+      ansible.builtin.debug:
+        msg: "Host {{ inventory_hostname }} running {{ ansible_distribution }} {{ ansible_distribution_version }}"
+
+    - name: Print current date
+      ansible.builtin.command: date
+      register: date_output
+      changed_when: false
+
+    - name: Show date
+      ansible.builtin.debug:
+        msg: "Current time on {{ inventory_hostname }}: {{ date_output.stdout }}"
