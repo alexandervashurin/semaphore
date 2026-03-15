@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Команда - Semaphore UI</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar"></aside>
+
+        <div class="main-content">
+            <div class="main-header">
+                <h2 id="project-title">Команда</h2>
+            </div>
+
+            <div class="main-body">
+                <div class="page-header">
+                    <h1>👥 Команда проекта</h1>
+                    <button class="btn btn-primary" onclick="openMemberModal()">+ Добавить участника</button>
+                </div>
+
+                <div id="team-content">
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        <p>Загрузка команды...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        checkAuth();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = urlParams.get('id');
+
+        if (!projectId) {
+            window.location.href = 'index.html';
+        }
+
+        api.getProject(projectId)
+            .then(project => {
+                $('#project-title').textContent = project.name + ' → Команда';
+                document.title = 'Команда - ' + project.name;
+            })
+            .catch(console.error);
+
+        loadTeam();
+
+        function loadTeam() {
+            const container = $('#team-content');
+
+            api.get('/project/' + projectId + '/users')
+                .then(members => {
+                    if (members.length === 0) {
+                        ui.showEmpty(container, '👥', 'Нет участников', 'Добавьте первого участника в проект');
+                    } else {
+                        container.innerHTML = `
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Пользователь</th>
+                                        <th>Имя</th>
+                                        <th>Роль</th>
+                                        <th>Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${members.map(m => `
+                                        <tr>
+                                            <td><strong>${escapeHtml(m.username)}</strong></td>
+                                            <td>${escapeHtml(m.name || '—')}</td>
+                                            <td>${getRoleBadge(m.role)}</td>
+                                            <td>
+                                                <button class="btn btn-sm" onclick="editMember(${m.id}, '${escapeHtml(m.username)}', '${escapeHtml(m.role)}')" title="Изменить роль">✏️</button>
+                                                <button class="btn btn-danger btn-sm" onclick="removeMember(${m.id}, '${escapeHtml(m.username)}')" title="Удалить из проекта">🗑️</button>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    ui.showError(container, error.message);
+                });
+        }
+
+        function getRoleBadge(role) {
+            const map = {
+                'owner':       ['badge-success', '👑 Owner'],
+                'manager':     ['badge-primary', '🔧 Manager'],
+                'task_runner': ['badge-warning', '▶ Task Runner'],
+                'guest':       ['badge-secondary', '👁 Guest'],
+                'none':        ['badge-danger',  '✗ None'],
+            };
+            const [cls, label] = map[role] || ['badge-secondary', role];
+            return `<span class="badge ${cls}">${label}</span>`;
+        }
+
+        function editMember(userId, username, currentRole) {
+            openMemberModal({ id: userId, username, role: currentRole });
+        }
+
+        function removeMember(userId, username) {
+            if (!confirm(`Удалить ${username} из проекта?`)) return;
+
+            api.delete('/project/' + projectId + '/users/' + userId)
+                .then(() => {
+                    ui.showAlert('Участник удалён из проекта', 'success');
+                    loadTeam();
+                })
+                .catch(error => {
+                    ui.showAlert('Ошибка: ' + error.message, 'danger');
+                });
+        }
+
+        function openMemberModal(member = null) {
+            const isEdit = !!member;
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.id = 'member-modal';
+
+            // Для добавления нового участника нужен список всех пользователей
+            const userSelectHtml = isEdit
+                ? `<div class="form-group">
+                       <label>Пользователь</label>
+                       <input type="text" class="form-control" value="${escapeHtml(member.username)}" readonly>
+                   </div>`
+                : `<div class="form-group">
+                       <label for="user_id">Пользователь *</label>
+                       <select id="user_id" class="form-control" required>
+                           <option value="">Загрузка...</option>
+                       </select>
+                   </div>`;
+
+            modal.innerHTML = `
+                <div class="modal" style="max-width: 500px;">
+                    <div class="modal-header">
+                        <h2>${isEdit ? '✏️ Изменить роль' : '➕ Добавить участника'}</h2>
+                    </div>
+                    <form id="member-form">
+                        ${userSelectHtml}
+                        <div class="form-group">
+                            <label for="role">Роль *</label>
+                            <select id="role" class="form-control" required>
+                                <option value="owner"       ${member?.role === 'owner'       ? 'selected' : ''}>👑 Owner — полный контроль над проектом</option>
+                                <option value="manager"     ${member?.role === 'manager'     ? 'selected' : ''}>🔧 Manager — управление шаблонами и ресурсами</option>
+                                <option value="task_runner" ${member?.role === 'task_runner' ? 'selected' : ''}>▶ Task Runner — только запуск задач</option>
+                                <option value="guest"       ${member?.role === 'guest'       ? 'selected' : ''}>👁 Guest — только просмотр</option>
+                            </select>
+                        </div>
+                        <div class="modal-footer" style="margin-top: 20px;">
+                            <button type="button" class="btn" onclick="closeMemberModal()">Отмена</button>
+                            <button type="submit" class="btn btn-primary">${isEdit ? 'Сохранить' : 'Добавить'}</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            // Загружаем список пользователей для нового участника
+            if (!isEdit) {
+                api.getUsers()
+                    .then(users => {
+                        const select = $('#user_id');
+                        select.innerHTML = '<option value="">Выберите пользователя</option>' +
+                            users.map(u => `<option value="${u.id}">${escapeHtml(u.username)}${u.name ? ' (' + escapeHtml(u.name) + ')' : ''}</option>`).join('');
+                    })
+                    .catch(() => {
+                        $('#user_id').innerHTML = '<option value="">Ошибка загрузки пользователей</option>';
+                    });
+            }
+
+            $('#member-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                saveMember(member?.id);
+            });
+
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeMemberModal();
+            });
+        }
+
+        function closeMemberModal() {
+            const modal = $('#member-modal');
+            if (modal) modal.remove();
+        }
+
+        function saveMember(userId) {
+            const role = $('#role').value;
+            const btn = $('#member-form button[type="submit"]');
+            btn.disabled = true;
+            btn.textContent = 'Сохранение...';
+
+            let promise;
+            if (userId) {
+                // Обновление роли
+                promise = api.put('/project/' + projectId + '/users/' + userId, { role });
+            } else {
+                // Добавление нового участника
+                const selectedUserId = $('#user_id').value;
+                if (!selectedUserId) {
+                    ui.showAlert('Выберите пользователя', 'warning');
+                    btn.disabled = false;
+                    btn.textContent = 'Добавить';
+                    return;
+                }
+                promise = api.post('/project/' + projectId + '/users', {
+                    user_id: parseInt(selectedUserId),
+                    role
+                });
+            }
+
+            promise
+                .then(() => {
+                    ui.showAlert(userId ? 'Роль обновлена' : 'Участник добавлен', 'success');
+                    closeMemberModal();
+                    loadTeam();
+                })
+                .catch(error => {
+                    ui.showAlert('Ошибка: ' + error.message, 'danger');
+                })
+                .finally(() => {
+                    btn.disabled = false;
+                    btn.textContent = userId ? 'Сохранить' : 'Добавить';
+                });
+        }
+
+        window.editMember = editMember;
+        window.removeMember = removeMember;
+    </script>
+</body>
+</html>

@@ -427,6 +427,7 @@ const SIDEBAR_ITEMS = [
     { href: 'analytics.html',    icon: '◑',  label: 'Аналитика' },
     { href: 'webhooks.html',     icon: '⇌',  label: 'Webhooks' },
     { href: 'playbooks.html',    icon: '▶',  label: 'Playbooks' },
+    { href: 'team.html',         icon: '👥', label: 'Команда' },
 ];
 
 function renderSidebar() {
