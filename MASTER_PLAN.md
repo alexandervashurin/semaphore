@@ -5,7 +5,7 @@
 >
 > **Репозиторий:** https://github.com/tnl-o/rust_semaphore
 > **Upstream (Go оригинал):** https://github.com/semaphoreui/semaphore
-> **Последнее обновление:** 2026-03-15 (обновление 26 — закрыты все B-BE-01..B-BE-24: runners/apps/roles/integrations/tasks/environment/access_key API + исправлены pre-existing test failures)
+> **Последнее обновление:** 2026-03-15 (обновление 27 — закрыты B-BE-06/07/08: secret_storage sync/refs endpoints + model fields source_storage_type/secret + добавлена CREATE TABLE secret_storage в schema; закрыт B-FE-55: Terraform Workspaces tab)
 
 ---
 
@@ -696,7 +696,7 @@ JavaScript берёт последнее объявление — поведен
 | B-FE-52 | `templates.html` — deploy: build_template_id, autorun (ссылка на build-шаблон) | 🟡 Средний | ✅ Закрыт 2026-03-15 |
 | B-FE-53 | `templates.html` — дублировать/скопировать шаблон | 🟡 Средний | ✅ Закрыт 2026-03-15 |
 | B-FE-54 | `template.html` — таб Permissions (CRUD прав на шаблон) | 🟡 Средний | ✅ Закрыт 2026-03-15 (вкладка и чтение прав, CRUD зависит от backend задач B-BE-09..11,16..18) |
-| B-FE-55 | `template.html` — таб Terraform Workspaces (state history, aliases, attach/detach) | 🟡 Средний | ⬜ |
+| B-FE-55 | `template.html` — таб Terraform Workspaces (state history, aliases, attach/detach) | 🟡 Средний | ✅ Закрыт 2026-03-15 |
 | B-FE-56 | `template.html` — кнопка Stop All Tasks + refs перед удалением | 🟡 Средний | ✅ Закрыт 2026-03-15 |
 | B-FE-57 | `task.html` — повторный запуск задачи (re-run button) | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
 | B-FE-58 | `task.html` — полный TaskForm: survey_vars, build_task_id (deploy), git_branch override | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
@@ -729,9 +729,9 @@ JavaScript берёт последнее объявление — поведен
 | B-BE-03 | Runners: POST /api/internal/runners (runner self-registration + heartbeat API) | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
 | B-BE-04 | Apps: PUT /api/apps/:id (update app config), POST /api/apps/:id/active (toggle) | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
 | B-BE-05 | Apps: сделать DB-backed вместо hardcoded (миграция + модель) | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
-| B-BE-06 | Secret Storages: POST /api/project/:id/secret_storages/:id/sync | 🟡 Средний | ⬜ |
-| B-BE-07 | Secret Storages: GET /api/project/:id/secret_storages/:id/refs | 🟡 Средний | ⬜ |
-| B-BE-08 | Secret Storages: добавить поля source_storage_type + secret в модель | 🟡 Средний | ⬜ |
+| B-BE-06 | Secret Storages: POST /api/project/:id/secret_storages/:id/sync | 🟡 Средний | ✅ Закрыт 2026-03-15 |
+| B-BE-07 | Secret Storages: GET /api/project/:id/secret_storages/:id/refs | 🟡 Средний | ✅ Закрыт 2026-03-15 |
+| B-BE-08 | Secret Storages: добавить поля source_storage_type + secret в модель | 🟡 Средний | ✅ Закрыт 2026-03-15 |
 | B-BE-09 | Custom Roles: добавить поле permissions (bitmask i32) в модель Role | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
 | B-BE-10 | Custom Roles: зарегистрировать все роуты /api/project/:id/roles и /api/roles | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
 | B-BE-11 | Custom Roles: GET /api/project/:id/roles/all (built-in + custom) | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
