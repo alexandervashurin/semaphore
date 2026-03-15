@@ -34,6 +34,30 @@ pub async fn get_tasks(
     Ok(Json(tasks))
 }
 
+/// Получает последние задачи проекта (по дате создания)
+///
+/// GET /api/project/{project_id}/tasks/last
+pub async fn get_last_tasks(
+    State(state): State<Arc<AppState>>,
+    Path(project_id): Path<i32>,
+) -> std::result::Result<Json<Vec<TaskWithTpl>>, (StatusCode, Json<ErrorResponse>)> {
+    let tasks = state
+        .store
+        .get_tasks(project_id, None)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
+
+    // Возвращаем только последние 20 записей
+    let limited: Vec<TaskWithTpl> = tasks.into_iter().take(20).collect();
+
+    Ok(Json(limited))
+}
+
 /// Получает задачу по ID
 pub async fn get_task(
     State(state): State<Arc<AppState>>,

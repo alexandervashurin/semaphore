@@ -67,10 +67,13 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/api/projects/{project_id}/tasks", post(handlers::create_task))
         .route("/api/projects/{project_id}/tasks/{id}", get(handlers::get_task))
         .route("/api/projects/{project_id}/tasks/{id}", delete(handlers::delete_task))
+        // Vue-алиасы
         .route("/api/project/{project_id}/tasks", get(handlers::get_tasks))
         .route("/api/project/{project_id}/tasks", post(handlers::create_task))
         .route("/api/project/{project_id}/tasks/{id}", get(handlers::get_task))
         .route("/api/project/{project_id}/tasks/{id}", delete(handlers::delete_task))
+        // Последние задачи проекта (History)
+        .route("/api/project/{project_id}/tasks/last", get(handlers::tasks::get_last_tasks))
 
         // Инвентари
         .route("/api/projects/{project_id}/inventories", get(handlers::get_inventories))

@@ -121,11 +121,18 @@
                     return;
                 }
 
+                const allTasks = tasks || [];
                 const lastByTpl = {};
-                (tasks || []).forEach(t => {
+                const tasksByTpl = {};
+                allTasks.forEach(t => {
                     if (!lastByTpl[t.template_id] || t.id > lastByTpl[t.template_id].id) {
                         lastByTpl[t.template_id] = t;
                     }
+                    if (!tasksByTpl[t.template_id]) tasksByTpl[t.template_id] = [];
+                    tasksByTpl[t.template_id].push(t);
+                });
+                Object.keys(tasksByTpl).forEach(key => {
+                    tasksByTpl[key].sort((a, b) => new Date(b.created) - new Date(a.created));
                 });
 
                 const statusBadge = (t) => {
@@ -149,6 +156,7 @@
                     <table class="table">
                         <thead>
                             <tr>
+                                <th style="width:40px;"></th>
                                 <th>Название</th>
                                 <th>Playbook</th>
                                 <th>Последний запуск</th>
@@ -156,8 +164,14 @@
                             </tr>
                         </thead>
                         <tbody>
-                            ${visible.map(tpl => `
+                            ${visible.map(tpl => {
+                                const tplTasks = (tasksByTpl[tpl.id] || []).slice(0, 5);
+                                const hasTasks = tplTasks.length > 0;
+                                return `
                                 <tr>
+                                    <td style="text-align:center;">
+                                        ${hasTasks ? `<button class="btn btn-sm" style="padding:0 6px;" onclick="toggleTemplateTasks(${tpl.id})" title="Показать последние задачи">▾</button>` : ''}
+                                    </td>
                                     <td>
                                         <div style="display:flex; align-items:center; gap:4px;">
                                             <a href="template.html?id=${projectId}&tpl=${tpl.id}" style="font-weight:600; text-decoration:none; color:var(--primary);">${escapeHtml(tpl.name)}</a>
@@ -174,7 +188,37 @@
                                         <button class="btn btn-danger btn-sm" onclick="deleteTemplate(${tpl.id})" title="Удалить">🗑️</button>
                                     </td>
                                 </tr>
-                            `).join('')}
+                                ${hasTasks ? `
+                                <tr id="tpl-tasks-${tpl.id}" style="display:none; background:#fafafa;">
+                                    <td></td>
+                                    <td colspan="4">
+                                        <div style="font-size:12px; color:var(--text-light); margin-bottom:4px;">Последние задачи этого шаблона:</div>
+                                        <table class="table" style="margin:0; font-size:12px;">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width:60px;">#</th>
+                                                    <th>Статус</th>
+                                                    <th>Сообщение</th>
+                                                    <th>Пользователь</th>
+                                                    <th>Создана</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                ${tplTasks.map(t => `
+                                                    <tr>
+                                                        <td><a href="task.html?id=${projectId}&task=${t.id}" style="text-decoration:none; color:var(--primary);">#${t.id}</a></td>
+                                                        <td>${statusBadge(t)}</td>
+                                                        <td>${escapeHtml(t.message || '—')}</td>
+                                                        <td>${escapeHtml(t.user_name || t.username || '—')}</td>
+                                                        <td>${formatRelativeTime(t.created)}</td>
+                                                    </tr>
+                                                `).join('')}
+                                            </tbody>
+                                        </table>
+                                    </td>
+                                </tr>
+                                ` : ''}`;
+                            }).join('')}
                         </tbody>
                     </table>
                     <style>
@@ -333,6 +377,11 @@
                 const showBranch = tpl.allow_override_branch_in_task;
                 const showInventory = tpl.allow_inventory_in_task;
                 const showArgs = !!tpl.allow_override_args_in_task || allowArgs;
+                const tp = tpl.task_params || {};
+                const showLimit = tp.allow_override_limit;
+                const showTags = tp.allow_override_tags;
+                const showSkipTags = tp.allow_override_skip_tags;
+                const showDebug = tp.allow_debug;
 
                 modal.innerHTML = `
                     <div class="modal" style="max-width:620px;">
@@ -362,6 +411,37 @@
                                 <label>CLI аргументы <span style="color:var(--text-light); font-size:12px;">(переопределить)</span></label>
                                 <input type="text" id="task-args" class="form-control" value="${escapeHtml(tpl.arguments || '')}" placeholder="--limit=host1 --tags=deploy">
                             </div>` : ''}
+                            ${(showLimit || showTags || showSkipTags || showDebug) ? `
+                            <div style="border-top:1px solid var(--border); margin:16px 0 8px; padding-top:8px;">
+                                <strong style="font-size:13px; color:var(--text-light);">Параметры Ansible</strong>
+                            </div>` : ''}
+                            ${showLimit ? `
+                            <div class="form-group">
+                                <label>Limit</label>
+                                <input type="text" id="task-limit" class="form-control" value="${escapeHtml(tp.limit || '')}" placeholder="host1,host2 или group">
+                            </div>` : ''}
+                            ${showTags ? `
+                            <div class="form-group">
+                                <label>Tags</label>
+                                <input type="text" id="task-tags" class="form-control" value="${escapeHtml(tp.tags || '')}" placeholder="deploy,db">
+                            </div>` : ''}
+                            ${showSkipTags ? `
+                            <div class="form-group">
+                                <label>Skip tags</label>
+                                <input type="text" id="task-skip-tags" class="form-control" value="${escapeHtml(tp.skip_tags || '')}" placeholder="slow">
+                            </div>` : ''}
+                            ${showDebug ? `
+                            <div class="form-group">
+                                <label>Режим отладки</label>
+                                <select id="task-debug" class="form-control">
+                                    <option value="">По умолчанию</option>
+                                    <option value="1" ${tp.debug_level === 1 ? 'selected' : ''}>Уровень 1</option>
+                                    <option value="2" ${tp.debug_level === 2 ? 'selected' : ''}>Уровень 2</option>
+                                    <option value="3" ${tp.debug_level === 3 ? 'selected' : ''}>Уровень 3</option>
+                                    <option value="4" ${tp.debug_level === 4 ? 'selected' : ''}>Уровень 4</option>
+                                    <option value="5" ${tp.debug_level === 5 ? 'selected' : ''}>Уровень 5</option>
+                                </select>
+                            </div>` : ''}
                             <div class="modal-footer">
                                 <button type="button" class="btn" onclick="document.getElementById('new-task-dialog').remove()">Отмена</button>
                                 <button type="submit" class="btn btn-primary">▶ Запустить</button>
@@ -384,6 +464,26 @@
                     if (branch) params.git_branch = branch;
                     if (args) params.arguments = args;
                     if (inventory_id) params.inventory_id = inventory_id;
+                    const taskParams = {};
+                    if (showLimit) {
+                        const v = document.getElementById('task-limit').value.trim();
+                        if (v) taskParams.limit = v;
+                    }
+                    if (showTags) {
+                        const v = document.getElementById('task-tags').value.trim();
+                        if (v) taskParams.tags = v;
+                    }
+                    if (showSkipTags) {
+                        const v = document.getElementById('task-skip-tags').value.trim();
+                        if (v) taskParams.skip_tags = v;
+                    }
+                    if (showDebug) {
+                        const v = document.getElementById('task-debug').value;
+                        if (v) taskParams.debug_level = parseInt(v);
+                    }
+                    if (Object.keys(taskParams).length > 0) {
+                        params.task_params = taskParams;
+                    }
                     launchTask(templateId, tplName, params);
                 });
             }).catch(err => ui.showAlert('Ошибка загрузки шаблона: ' + err.message, 'danger'));
@@ -803,10 +903,17 @@
             }).catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
         }
 
+        function toggleTemplateTasks(id) {
+            const row = document.getElementById('tpl-tasks-' + id);
+            if (!row) return;
+            row.style.display = row.style.display === 'none' || row.style.display === '' ? 'table-row' : 'none';
+        }
+
         window.editTemplate = editTemplate;
         window.deleteTemplate = deleteTemplate;
         window.runTemplate = runTemplate;
         window.copyTemplate = copyTemplate;
+        window.toggleTemplateTasks = toggleTemplateTasks;
     </script>
 </body>
 </html>

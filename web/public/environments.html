@@ -67,6 +67,17 @@
                     <label for="env-name">Название *</label>
                     <input type="text" id="env-name" class="form-control" required placeholder="Production">
                 </div>
+                <div class="form-group">
+                    <label for="env-secret-storage">Secret Storage</label>
+                    <select id="env-secret-storage" class="form-control">
+                        <option value="">Не выбрано</option>
+                    </select>
+                    <small style="color:var(--text-light); font-size:12px;">Опционально: внешний Vault/DVLS для секрета окружения.</small>
+                </div>
+                <div class="form-group">
+                    <label for="env-secret-prefix">Префикс ключей в Secret Storage</label>
+                    <input type="text" id="env-secret-prefix" class="form-control" placeholder="projects/prod/env">
+                </div>
 
                 <!-- VARS TAB -->
                 <div id="env-tab-vars">
@@ -131,6 +142,7 @@
         let currentVarsMode = 'json';
         let currentEnvTab = 'vars';
         let secrets = []; // [{id, name, type, value}]
+        let envSecretStorages = [];
 
         api.getProject(projectId)
             .then(p => {
@@ -138,7 +150,11 @@
                 document.title = 'Окружения — ' + p.name;
             }).catch(() => {});
 
-        loadEnvironments();
+        // Загрузить список secret storages (если backend поддерживает)
+        api.request('/project/' + projectId + '/secret_storages', { method: 'GET' })
+            .then(list => { envSecretStorages = list || []; })
+            .catch(() => { envSecretStorages = []; })
+            .finally(() => loadEnvironments());
 
         // ── Load & render ───────────────────────────────────────────────────
         function loadEnvironments() {
@@ -220,6 +236,16 @@
             document.getElementById('env-id').value = env ? env.id : '';
             document.getElementById('env-name').value = env ? env.name : '';
 
+            // Secret storage select
+            const select = document.getElementById('env-secret-storage');
+            if (select) {
+                select.innerHTML = '<option value="">Не выбрано</option>' +
+                    envSecretStorages.map(s =>
+                        `<option value="${s.id}" ${env && env.secret_storage_id === s.id ? 'selected' : ''}>${escapeHtml(s.name)} (${escapeHtml(s.type)})</option>`
+                    ).join('');
+            }
+            document.getElementById('env-secret-prefix').value = env && env.secret_storage_key_prefix ? env.secret_storage_key_prefix : '';
+
             // Init JSON/table for variables
             const jsonStr = env ? (env.json || '{}') : '{}';
             setVarsMode('json');
@@ -282,6 +308,10 @@
                 name,
                 json: jsonStr,
                 secrets: secretsToSave.length ? JSON.stringify(secretsToSave) : null,
+                secret_storage_id: document.getElementById('env-secret-storage').value
+                    ? parseInt(document.getElementById('env-secret-storage').value, 10)
+                    : null,
+                secret_storage_key_prefix: document.getElementById('env-secret-prefix').value.trim() || null,
             };
 
             const method = id ? 'PUT' : 'POST';

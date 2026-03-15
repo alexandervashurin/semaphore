@@ -65,6 +65,7 @@
                                     <tr>
                                         <th>Название</th>
                                         <th>Тип</th>
+                                        <th>Runner tag</th>
                                         <th>SSH ключ</th>
                                         <th>Действия</th>
                                     </tr>
@@ -73,7 +74,8 @@
                                     ${inventories.map(inv => `
                                         <tr>
                                             <td><strong>${escapeHtml(inv.name)}</strong></td>
-                                            <td><span class="badge">${inv.inventory_type || 'static'}</span></td>
+                                            <td><span class="badge">${escapeHtml(inv.inventory_type || 'static')}</span></td>
+                                            <td>${escapeHtml(inv.runner_tag || '—')}</td>
                                             <td>${inv.ssh_key_id ? '🔐 ID: ' + inv.ssh_key_id : '—'}</td>
                                             <td>
                                                 <button class="btn btn-sm" onclick="editInventory(${inv.id})">✏️</button>
@@ -135,6 +137,8 @@
                                 <option value="static" ${inv?.inventory_type === 'static' || !inv ? 'selected' : ''}>Статический INI</option>
                                 <option value="static-yaml" ${inv?.inventory_type === 'static-yaml' ? 'selected' : ''}>Статический YAML</option>
                                 <option value="file" ${inv?.inventory_type === 'file' ? 'selected' : ''}>Файл (путь)</option>
+                                <option value="terraform-workspace" ${inv?.inventory_type === 'terraform-workspace' ? 'selected' : ''}>Terraform workspace</option>
+                                <option value="tofu-workspace" ${inv?.inventory_type === 'tofu-workspace' ? 'selected' : ''}>OpenTofu workspace</option>
                             </select>
                         </div>
                         <div class="form-group" id="inv-content-group">
@@ -145,6 +149,11 @@
                         <div class="form-group" id="inv-path-group" style="display:none;">
                             <label for="inv-path">Путь к файлу *</label>
                             <input type="text" id="inv-path" class="form-control" value="${escapeHtml(inv?.inventory_data || '')}" placeholder="/etc/ansible/hosts или путь в репозитории">
+                        </div>
+                        <div class="form-group">
+                            <label for="runner_tag">Runner tag</label>
+                            <input type="text" id="runner_tag" class="form-control" value="${escapeHtml(inv?.runner_tag || '')}" placeholder="prod-runner">
+                            <small style="color:var(--text-light);">Тег runner'а для привязки выполнения на конкретные агенты.</small>
                         </div>
                         <div class="form-group">
                             <label for="ssh_key_id">Ключ подключения (SSH)</label>
@@ -215,23 +224,27 @@
 
         function saveInventory(id) {
             const type = $('#inventory_type').value;
-            const invContent = type === 'file'
+            const isFile = type === 'file';
+            const usesContent = type === 'static' || type === 'static-yaml';
+            const invContent = isFile
                 ? document.getElementById('inv-path').value.trim()
                 : $('#inventory').value.trim();
             const data = {
                 name: $('#name').value.trim(),
                 inventory_type: type,
-                inventory: invContent,
+                inventory: usesContent ? invContent : null,
+                inventory_data: isFile ? invContent : (usesContent ? null : invContent),
                 ssh_key_id:  $('#ssh_key_id').value  ? parseInt($('#ssh_key_id').value)  : null,
-                sudo_key_id: $('#sudo_key_id').value ? parseInt($('#sudo_key_id').value) : null
+                sudo_key_id: $('#sudo_key_id').value ? parseInt($('#sudo_key_id').value) : null,
+                runner_tag: $('#runner_tag').value.trim() || null
             };
 
             if (!data.name) {
                 ui.showAlert('Введите название', 'warning');
                 return;
             }
-            if (!data.inventory) {
-                ui.showAlert('Введите инвентарь', 'warning');
+            if ((type === 'static' || type === 'static-yaml' || type === 'file') && !invContent) {
+                ui.showAlert('Введите инвентарь или путь к файлу', 'warning');
                 return;
             }
 

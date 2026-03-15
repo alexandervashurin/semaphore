@@ -5,7 +5,7 @@
 >
 > **Репозиторий:** https://github.com/tnl-o/rust_semaphore
 > **Upstream (Go оригинал):** https://github.com/semaphoreui/semaphore
-> **Последнее обновление:** 2026-03-15 (обновление 22 — реализованы: B-FE-37 runners.html, B-FE-38 apps.html, B-FE-59 task details, B-FE-67/68 environments secrets+JSON editor, B-FE-60/61 schedules cron builder+run_at, B-FE-69/70 webhooks→integrations rewrite)
+> **Последнее обновление:** 2026-03-15 (обновление 24 — уточнены статусы B-FE-27..30, добавлены реализации analytics.html, activity.html и tokens.html)
 
 ---
 
@@ -434,7 +434,7 @@ JavaScript берёт последнее объявление — поведен
 
 ### B-FE-25: Template View Page
 
-**Статус: 🔄 В работе (берёт AI-агент Cursor, 2026-03-15)**
+**Статус: ✅ Закрыт 2026-03-15.** Реализована страница `template.html` с вкладками Tasks/Details и тулбаром.
 
 В оригинале каждый шаблон имеет свою страницу `/project/:id/templates/:tplId` с вкладками:
 
@@ -464,7 +464,7 @@ JavaScript берёт последнее объявление — поведен
 
 ### B-FE-26: NewTaskDialog (форма параметров запуска)
 
-**Статус: 🔄 В работе (берёт AI-агент Cursor, 2026-03-15)**
+**Статус: ✅ Закрыт 2026-03-15.** Реализован модальный диалог перед запуском в `templates.html` с динамическими полями по `allow_*` флагам.
 
 В оригинале кнопка ▶ Run на шаблоне открывает **диалог с формой** перед запуском.
 
@@ -496,7 +496,7 @@ JavaScript берёт последнее объявление — поведен
 
 ### B-FE-27: Stats страница
 
-**Статус: ⬜ Не начато** (у нас есть `analytics.html`, но без нужных данных)
+**Статус: ✅ Закрыт 2026-03-15.** Реализована `analytics.html` с Chart.js (line + doughnut), фильтрами по периоду и пользователю на клиенте.
 
 **В оригинале:**
 - LineChart с тремя линиями: Success / Failed / Stopped задачи
@@ -508,7 +508,7 @@ JavaScript берёт последнее объявление — поведен
 
 ### B-FE-28: Activity страница
 
-**Статус: ⬜ Не начато**
+**Статус: ✅ Закрыт 2026-03-15.** Реализована `activity.html` с таблицей событий проекта и fallback на список задач при недоступности events API.
 
 **В оригинале:**
 - Таблица событий проекта: Time / User / Description
@@ -519,7 +519,7 @@ JavaScript берёт последнее объявление — поведен
 
 ### B-FE-29: Визуальный редактор Cron
 
-**Статус: ⬜ Не начато** (у нас только raw cron-строка)
+**Статус: ✅ Закрыт 2026-03-15.** В `schedules.html` реализован визуальный cron‑builder (чекбоксы минут/часов/дней/месяцев/дней недели) + ручное поле cron.
 
 **В оригинале (две режима):**
 
@@ -542,7 +542,7 @@ JavaScript берёт последнее объявление — поведен
 
 ### B-FE-30: API Tokens страница
 
-**Статус: ⬜ Не начато**
+**Статус: ✅ Закрыт 2026-03-15.** Реализована страница `tokens.html` для управления пользовательскими API‑токенами.
 
 Глобальная страница `/tokens` для управления API-токенами пользователя.
 
@@ -562,7 +562,7 @@ JavaScript берёт последнее объявление — поведен
 
 ### B-FE-31: Расширенные типы инвентаря
 
-**Статус: ⬜ Не начато**
+**Статус: ✅ Закрыт 2026-03-15.** Типы `static-yaml` и `file` добавлены в `inventory.html`, форма поддерживает SSH/sudo ключи.
 
 У нас есть `static` тип. В оригинале дополнительно:
 
@@ -580,7 +580,7 @@ JavaScript берёт последнее объявление — поведен
 
 ### B-FE-32: Expand rows в Templates
 
-**Статус: ⬜ Не начато**
+**Статус: ✅ Закрыт 2026-03-15.** В `templates.html` добавлены разворачиваемые строки с последними задачами шаблона.
 
 В таблице шаблонов в оригинале:
 - Разворачивающаяся строка с последними 5 задачами шаблона
@@ -594,7 +594,7 @@ JavaScript берёт последнее объявление — поведен
 
 ### B-FE-33: Улучшения Task Log
 
-**Статус: ⬜ Не начато**
+**Статус: ✅ Закрыт 2026-03-15.** В `task.html` добавлены пользователь, явная длительность, commit-информация, timestamp в логе и Confirm/Reject/скачивание лога.
 
 | Фича | Описание |
 |---|---|
@@ -609,7 +609,7 @@ JavaScript берёт последнее объявление — поведен
 
 ### B-FE-34: Project Settings страница
 
-**Статус: 🔄 В работе (берёт AI-агент Cursor, 2026-03-15)** (у нас есть базовое редактирование в `project.html`)
+**Статус: ✅ Закрыт 2026-03-15.** В `project.html` реализованы поля max_parallel_tasks, Telegram Chat ID, Allow Alerts и кнопки Backup/Test Alerts/Clear Cache/Delete Project.
 
 **Полный список полей из оригинала:**
 - **Project Name** (required)
@@ -681,7 +681,7 @@ JavaScript берёт последнее объявление — поведен
 | B-FE-42 | `secret_storages.html` — Vault/DVLS интеграция (CRUD + sync) | 🟡 Средний | ⬜ |
 | B-FE-43 | `integration_detail.html` — детали интеграции: матчеры + extract values | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
 | B-FE-44 | `accept_invite.html` — страница принятия приглашения (?token=...) | 🟡 Средний | ✅ Закрыт 2026-03-15 |
-| B-FE-45 | `restore.html` — импорт/восстановление проекта из JSON-бэкапа | 🟡 Средний | ⬜ |
+| B-FE-45 | `restore.html` — импорт/восстановление проекта из JSON-бэкапа | 🟡 Средний | ✅ Закрыт 2026-03-15 |
 
 #### Улучшения существующих страниц
 
@@ -714,9 +714,9 @@ JavaScript берёт последнее объявление — поведен
 | B-FE-70 | `webhooks.html` — auth_method (token/hmac), auth_header, auth_secret_id | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
 | B-FE-71 | `team.html` — Invites tab (приглашения: list, add, delete) | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
 | B-FE-72 | `team.html` — Roles tab (кастомные роли, permissions bitmask) | 🟡 Средний | ⬜ |
-| B-FE-73 | `project.html` — Test Alerts button, Clear Cache button, Test Notifications | 🟡 Средний | ⬜ |
-| B-FE-74 | `analytics.html` — filter by user, настоящий период (week/month/year) | 🟡 Средний | ⬜ |
-| B-FE-75 | `users.html` — pro checkbox, TOTP enable/disable (QR code + recovery code) | 🟡 Средний | ⬜ |
+| B-FE-73 | `project.html` — Test Alerts button, Clear Cache button, Test Notifications | 🟡 Средний | ✅ Закрыт 2026-03-15 |
+| B-FE-74 | `analytics.html` — filter by user, настоящий период (week/month/year) | 🟡 Средний | ✅ Закрыт 2026-03-15 |
+| B-FE-75 | `users.html` — pro checkbox, TOTP enable/disable (QR code + recovery code) | 🟡 Средний | ✅ Закрыт 2026-03-15 |
 
 ---
 
@@ -737,7 +737,7 @@ JavaScript берёт последнее объявление — поведен
 | B-BE-11 | Custom Roles: GET /api/project/:id/roles/all (built-in + custom) | 🟠 Высокий | ⬜ |
 | B-BE-12 | Invites: PUT /api/project/:id/invites/:id (смена роли у приглашения) | 🟡 Средний | ⬜ |
 | B-BE-13 | Invites: POST /api/invites/accept/:token (принятие приглашения, без auth) | 🟠 Высокий | ⬜ |
-| B-BE-14 | Tasks: GET /api/project/:id/tasks/last (последние 20 задач для History) | 🔴 Критично | ⬜ |
+| B-BE-14 | Tasks: GET /api/project/:id/tasks/last (последние 20 задач для History) | 🔴 Критично | ✅ Реализован 2026-03-15 (`handlers/projects/tasks.rs::get_last_tasks`) |
 | B-BE-15 | Tasks: GET /api/tasks (все активные задачи всех проектов — глобальный список) | 🟠 Высокий | ⬜ |
 | B-BE-16 | Templates: GET /api/project/:id/templates/:id/refs (где используется шаблон) | 🟡 Средний | ⬜ |
 | B-BE-17 | Templates: POST /api/project/:id/templates/:id/stop_all_tasks | 🟡 Средний | ⬜ |
@@ -748,7 +748,7 @@ JavaScript берёт последнее объявление — поведен
 | B-BE-22 | Environment: добавить поля secret_storage_id + secret_storage_key_prefix в модель | 🟡 Средний | ⬜ |
 | B-BE-23 | AccessKey: добавить source_storage_type + source_storage_id + source_key в модель | 🟡 Средний | ⬜ |
 | B-BE-24 | Project: DELETE /api/project/:id/cache (clear project cache) | 🟡 Средний | ⬜ |
-| B-BE-25 | Project: POST /api/project/:id/notifications/test (тест алертов) | 🟡 Средний | ⬜ |
+| B-BE-25 | Project: POST /api/project/:id/notifications/test (тест алертов) | 🟡 Средний | ✅ Реализован (`/api/projects/{id}/notifications/test`) |
 
 ---
 

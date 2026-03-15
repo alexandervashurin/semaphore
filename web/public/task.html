@@ -164,6 +164,7 @@
                             <thead><tr>
                                 <th>#</th>
                                 <th>Шаблон</th>
+                                <th>Пользователь</th>
                                 <th>Статус</th>
                                 <th>Создана</th>
                                 <th>Длительность</th>
@@ -178,6 +179,7 @@
                                                 ${escapeHtml(templatesCache[t.template_id] || 'Шаблон #' + t.template_id)}
                                             </a>
                                         </td>
+                                        <td>${escapeHtml(t.user_name || t.username || '—')}</td>
                                         <td><span class="status-badge status-${t.status}">${statusLabel(t.status)}</span></td>
                                         <td>${formatDate(t.created)}</td>
                                         <td>${calcDuration(t)}</td>
@@ -205,6 +207,12 @@
             const diff = Math.floor((end - new Date(task.start_time)) / 1000);
             if (diff < 60) return diff + 'с';
             return Math.floor(diff/60) + 'м ' + (diff%60) + 'с';
+        }
+
+        function formatTimeOnly(dateStr) {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         }
 
         // ---- Task detail modal ----
@@ -278,6 +286,10 @@
                     <div class="task-meta-value">${escapeHtml(templatesCache[task.template_id] || 'Шаблон #' + task.template_id)}</div>
                 </div>
                 <div class="task-meta-item">
+                    <div class="task-meta-label">Пользователь</div>
+                    <div class="task-meta-value">${escapeHtml(task.user_name || task.username || '—')}</div>
+                </div>
+                <div class="task-meta-item">
                     <div class="task-meta-label">Создана</div>
                     <div class="task-meta-value">${formatDate(task.created)}</div>
                 </div>
@@ -306,7 +318,9 @@
                 }
                 container.innerHTML = output.map(item => {
                     const line = typeof item === 'string' ? item : (item.output || '');
-                    return `<div class="log-line ${getLogClass(line)}">${escapeHtml(line)}</div>`;
+                    const ts = item.time ? '[' + formatTimeOnly(item.time) + '] ' : '';
+                    const fullLine = ts + line;
+                    return `<div class="log-line ${getLogClass(line)}">${escapeHtml(fullLine)}</div>`;
                 }).join('');
                 container.scrollTop = container.scrollHeight;
             }).catch(err => {
@@ -406,7 +420,11 @@
         function downloadCurrentLog() {
             if (!currentTaskId) return;
             api.getTaskOutput(projectId, currentTaskId).then(output => {
-                const lines = output.map(item => typeof item === 'string' ? item : (item.output || ''));
+                const lines = output.map(item => {
+                    const line = typeof item === 'string' ? item : (item.output || '');
+                    const ts = item.time ? '[' + formatTimeOnly(item.time) + '] ' : '';
+                    return ts + line;
+                });
                 const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
