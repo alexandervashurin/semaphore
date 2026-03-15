@@ -15,7 +15,8 @@ use crate::models::Template;
 use crate::models::template::{TemplateType, TemplateApp};
 use crate::error::Error;
 use crate::api::middleware::ErrorResponse;
-use crate::db::store::{TemplateManager, ProjectStore};
+use crate::db::store::{TemplateManager, ProjectStore, TaskManager};
+use crate::services::task_logger::TaskStatus;
 
 /// Получить список шаблонов проекта
 ///
@@ -165,6 +166,36 @@ pub async fn delete_template(
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse::new(e.to_string()))
         ))?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// Остановить все задачи шаблона
+///
+/// POST /api/projects/:project_id/templates/:template_id/stop_all_tasks
+pub async fn stop_all_template_tasks(
+    State(state): State<Arc<AppState>>,
+    Path((project_id, template_id)): Path<(i32, i32)>,
+) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+    // Получаем все активные задачи шаблона
+    let tasks = state.store.get_tasks(project_id, Some(template_id))
+        .await
+        .map_err(|e| (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(e.to_string()))
+        ))?;
+
+    // Останавливаем каждую активную задачу
+    for task_with_tpl in tasks {
+        if task_with_tpl.task.status.is_active() {
+            state.store.update_task_status(project_id, task_with_tpl.task.id, TaskStatus::Stopped)
+                .await
+                .map_err(|e| (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(ErrorResponse::new(e.to_string()))
+                ))?;
+        }
+    }
 
     Ok(StatusCode::NO_CONTENT)
 }

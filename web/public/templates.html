@@ -333,10 +333,11 @@
                 api.getInventories(projectId).catch(() => []),
                 api.getEnvironments(projectId).catch(() => []),
                 api.getRepositories(projectId).catch(() => []),
-                loadViews()
+                loadViews(),
+                api.getTemplates(projectId).catch(() => [])
             ])
-            .then(([template, playbooks, inventories, environments, repositories, views]) => {
-                openTemplateModal(template, { playbooks, inventories, environments, repositories, views });
+            .then(([template, playbooks, inventories, environments, repositories, views, allTemplates]) => {
+                openTemplateModal(template, { playbooks, inventories, environments, repositories, views, allTemplates });
             })
             .catch(error => {
                 ui.showAlert('Ошибка: ' + error.message, 'danger');
@@ -642,10 +643,11 @@
                     api.getInventories(projectId).catch(() => []),
                     api.getEnvironments(projectId).catch(() => []),
                     api.getRepositories(projectId).catch(() => []),
-                    loadViews()
+                    loadViews(),
+                    api.getTemplates(projectId).catch(() => [])
                 ])
-                .then(([playbooks, inventories, environments, repositories, views]) => {
-                    renderModal(template, { playbooks, inventories, environments, repositories, views });
+                .then(([playbooks, inventories, environments, repositories, views, allTemplates]) => {
+                    renderModal(template, { playbooks, inventories, environments, repositories, views, allTemplates });
                 })
                 .catch(console.error);
             } else {
@@ -653,7 +655,8 @@
             }
 
             function renderModal(tpl, data) {
-                const { playbooks, inventories, environments, repositories, views } = data;
+                const { playbooks, inventories, environments, repositories, views, allTemplates } = data;
+                const buildTemplates = (allTemplates || []).filter(t => t.type === 'build');
                 
                 const modal = document.createElement('div');
                 modal.className = 'modal-overlay';
@@ -684,7 +687,7 @@
 
                                 <div class="form-group">
                                     <label for="tpl-type">Назначение</label>
-                                    <select id="tpl-type" class="form-control">
+                                    <select id="tpl-type" class="form-control" onchange="onTypeChange()">
                                         <option value="task" ${(!tpl?.type||tpl?.type==='task'||tpl?.type==='default'||tpl?.type==='ansible')?'selected':''}>Task</option>
                                         <option value="build" ${tpl?.type==='build'?'selected':''}>Build</option>
                                         <option value="deploy" ${tpl?.type==='deploy'?'selected':''}>Deploy</option>
@@ -754,14 +757,20 @@
                                     <label for="build_template_id">Шаблон сборки (deploy)</label>
                                     <select id="build_template_id" class="form-control">
                                         <option value="">— не задан —</option>
+                                        ${buildTemplates.map(bt => `
+                                            <option value="${bt.id}" ${tpl?.build_template_id === bt.id ? 'selected' : ''}>
+                                                ${escapeHtml(bt.name || ('Build #' + bt.id))}
+                                            </option>
+                                        `).join('')}
                                     </select>
+                                    <div class="form-hint">Используется только для deploy-шаблонов: этот шаблон будет запускаться после успешной сборки.</div>
                                 </div>
                             </div>
 
                             <div style="border-top:1px solid var(--border); margin:16px 0 12px; padding-top:12px;">
                                 <strong style="font-size:13px; color:var(--text-light); text-transform:uppercase; letter-spacing:.5px;">Разрешения при запуске</strong>
                             </div>
-                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
                                 <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
                                     <input type="checkbox" id="allow_override_args_in_task" ${tpl?.allow_override_args_in_task ? 'checked' : ''}>
                                     Переопределять CLI аргументы
@@ -786,6 +795,29 @@
                                     <input type="checkbox" id="autorun" ${tpl?.autorun ? 'checked' : ''}>
                                     Авто-запуск при успешной сборке
                                 </label>
+                            </div>
+
+                            <div style="border-top:1px solid var(--border); margin:16px 0 12px; padding-top:12px;">
+                                <strong style="font-size:13px; color:var(--text-light); text-transform:uppercase; letter-spacing:.5px;">Параметры Terraform / OpenTofu</strong>
+                            </div>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
+                                <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+                                    <input type="checkbox" id="tf_auto_approve" ${tpl?.task_params?.auto_approve ? 'checked' : ''}>
+                                    Авто-подтверждение (auto-approve)
+                                </label>
+                                <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+                                    <input type="checkbox" id="tf_allow_auto_approve" ${tpl?.task_params?.allow_auto_approve ? 'checked' : ''}>
+                                    Разрешить менять auto-approve при запуске
+                                </label>
+                                <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+                                    <input type="checkbox" id="tf_override_backend" ${tpl?.task_params?.override_backend ? 'checked' : ''}>
+                                    Переопределить backend конфигурацию
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label for="tf_backend_filename">Файл backend конфигурации</label>
+                                <input type="text" id="tf_backend_filename" class="form-control" value="${escapeHtml(tpl?.task_params?.backend_filename || '')}" placeholder="backend.tfvars или путь к файлу">
+                                <div class="form-hint">Используется для Terraform/OpenTofu; оставьте пустым, если используется стандартный backend.</div>
                             </div>
 
                             <div class="modal-footer" style="margin-top:20px;">
@@ -832,6 +864,19 @@
             }
         }
 
+        function onTypeChange() {
+            const typeSelect = document.getElementById('tpl-type');
+            const row = document.getElementById('build-template-row');
+            if (!typeSelect || !row) return;
+            if (typeSelect.value === 'deploy') {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+                const sel = document.getElementById('build_template_id');
+                if (sel) sel.value = '';
+            }
+        }
+
         function saveTemplate(id) {
             const viewIdVal = document.getElementById('view_id') && document.getElementById('view_id').value
                 ? parseInt(document.getElementById('view_id').value) : null;
@@ -857,6 +902,29 @@
                 suppress_success_alerts: document.getElementById('suppress_success_alerts').checked,
                 autorun: document.getElementById('autorun').checked,
             };
+
+            const taskParams = {};
+            const tfAutoApprove = document.getElementById('tf_auto_approve');
+            const tfAllowAutoApprove = document.getElementById('tf_allow_auto_approve');
+            const tfOverrideBackend = document.getElementById('tf_override_backend');
+            const tfBackendFilename = document.getElementById('tf_backend_filename');
+
+            if (tfAutoApprove && tfAutoApprove.checked) {
+                taskParams.auto_approve = true;
+            }
+            if (tfAllowAutoApprove && tfAllowAutoApprove.checked) {
+                taskParams.allow_auto_approve = true;
+            }
+            if (tfOverrideBackend && tfOverrideBackend.checked) {
+                taskParams.override_backend = true;
+            }
+            if (tfBackendFilename) {
+                const v = tfBackendFilename.value.trim();
+                if (v) taskParams.backend_filename = v;
+            }
+            if (Object.keys(taskParams).length > 0) {
+                data.task_params = Object.assign({}, (tpl && tpl.task_params) || {}, taskParams);
+            }
 
             if (!data.name) {
                 ui.showAlert('Введите название', 'warning');

@@ -691,13 +691,13 @@ JavaScript берёт последнее объявление — поведен
 | B-FE-47 | `templates.html` — тип шаблона: build / deploy / task (вкладки в форме) | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
 | B-FE-48 | `templates.html` — поля формы: survey_vars, vaults, runner_tag, allow_parallel_tasks, suppress_success_alerts | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
 | B-FE-49 | `templates.html` — Ansible task_params: limit, tags, skip_tags + allow_override_* | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
-| B-FE-50 | `templates.html` — Terraform task_params: auto_approve, override_backend, backend_filename | 🟡 Средний | ⬜ |
+| B-FE-50 | `templates.html` — Terraform task_params: auto_approve, override_backend, backend_filename | 🟡 Средний | ✅ Закрыт 2026-03-15 |
 | B-FE-51 | `templates.html` — inline cron: cronRepositoryId + cronFormat + schedule validate/create | 🟡 Средний | ⬜ |
-| B-FE-52 | `templates.html` — deploy: build_template_id, autorun (ссылка на build-шаблон) | 🟡 Средний | ⬜ |
+| B-FE-52 | `templates.html` — deploy: build_template_id, autorun (ссылка на build-шаблон) | 🟡 Средний | ✅ Закрыт 2026-03-15 |
 | B-FE-53 | `templates.html` — дублировать/скопировать шаблон | 🟡 Средний | ✅ Закрыт 2026-03-15 |
-| B-FE-54 | `template.html` — таб Permissions (CRUD прав на шаблон) | 🟡 Средний | ⬜ |
+| B-FE-54 | `template.html` — таб Permissions (CRUD прав на шаблон) | 🟡 Средний | ✅ Закрыт 2026-03-15 (вкладка и чтение прав, CRUD зависит от backend задач B-BE-09..11,16..18) |
 | B-FE-55 | `template.html` — таб Terraform Workspaces (state history, aliases, attach/detach) | 🟡 Средний | ⬜ |
-| B-FE-56 | `template.html` — кнопка Stop All Tasks + refs перед удалением | 🟡 Средний | ⬜ |
+| B-FE-56 | `template.html` — кнопка Stop All Tasks + refs перед удалением | 🟡 Средний | ✅ Закрыт 2026-03-15 |
 | B-FE-57 | `task.html` — повторный запуск задачи (re-run button) | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
 | B-FE-58 | `task.html` — полный TaskForm: survey_vars, build_task_id (deploy), git_branch override | 🟠 Высокий | ⬜ |
 | B-FE-59 | `task.html` — детали задачи: branch, debug, dry_run, diff, limit, environment vars | 🟡 Средний | ✅ Закрыт 2026-03-15 |
@@ -706,8 +706,8 @@ JavaScript берёт последнее объявление — поведен
 | B-FE-62 | `schedules.html` — task_params форма внутри расписания | 🟡 Средний | ✅ Закрыт 2026-03-15 |
 | B-FE-63 | `inventory.html` — типы tofu-workspace и terraform-workspace | 🟡 Средний | ⬜ |
 | B-FE-64 | `inventory.html` — runner_tag поле (PRO→free) | 🟡 Средний | ⬜ |
-| B-FE-65 | `keys.html` — source_storage_type tabs: Local/Storage/Env/File | 🟡 Средний | ⬜ |
-| B-FE-66 | `environments.html` — поля secret_storage_id + secret_storage_key_prefix | 🟡 Средний | ⬜ |
+| B-FE-65 | `keys.html` — source_storage_type tabs: Local/Storage/Env/File | 🟡 Средний | ✅ Закрыт 2026-03-15 |
+| B-FE-66 | `environments.html` — поля secret_storage_id + secret_storage_key_prefix | 🟡 Средний | ✅ Закрыт 2026-03-15 |
 | B-FE-67 | `environments.html` — secrets tab (masked vars + env secrets) | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
 | B-FE-68 | `environments.html` — JSON editor + key/value table режимы для extra variables | 🟡 Средний | ✅ Закрыт 2026-03-15 |
 | B-FE-69 | `webhooks.html` — aliases (list, add, delete, copy URL) | 🟠 Высокий | ✅ Закрыт 2026-03-15 |

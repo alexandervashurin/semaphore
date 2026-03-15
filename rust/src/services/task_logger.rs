@@ -102,6 +102,20 @@ impl TaskStatus {
         )
     }
 
+    /// Проверяет, активна ли задача (не завершена)
+    pub fn is_active(&self) -> bool {
+        matches!(
+            self,
+            TaskStatus::Waiting
+                | TaskStatus::Starting
+                | TaskStatus::WaitingConfirmation
+                | TaskStatus::Confirmed
+                | TaskStatus::Rejected
+                | TaskStatus::Running
+                | TaskStatus::Stopping
+        )
+    }
+
     /// Проверяет, завершена ли задача
     pub fn is_finished(&self) -> bool {
         matches!(
