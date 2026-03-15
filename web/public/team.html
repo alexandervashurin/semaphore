@@ -27,6 +27,7 @@
                     <div style="display:flex; gap:0;">
                         <button id="tab-members" onclick="switchTab('members')" style="padding:8px 20px; border:none; background:transparent; cursor:pointer; font-size:14px; border-bottom:3px solid var(--primary); font-weight:600; color:var(--primary);">Участники</button>
                         <button id="tab-invites" onclick="switchTab('invites')" style="padding:8px 20px; border:none; background:transparent; cursor:pointer; font-size:14px; border-bottom:3px solid transparent; color:var(--text-light);">Приглашения</button>
+                        <button id="tab-roles" onclick="switchTab('roles')" style="padding:8px 20px; border:none; background:transparent; cursor:pointer; font-size:14px; border-bottom:3px solid transparent; color:var(--text-light);">Роли</button>
                     </div>
                 </div>
 
@@ -38,6 +39,7 @@
                 </div>
 
                 <div id="invites-content" style="display:none;"></div>
+                <div id="roles-content" style="display:none;"></div>
             </div>
         </div>
     </div>
@@ -248,25 +250,226 @@
         function switchTab(tab) {
             currentTab = tab;
             const isMembers = tab === 'members';
+            const isInvites = tab === 'invites';
+            const isRoles = tab === 'roles';
 
-            const tabM = $('#tab-members');
-            const tabI = $('#tab-invites');
             const activeStyle = 'border-bottom:3px solid var(--primary); font-weight:600; color:var(--primary);';
             const inactiveStyle = 'border-bottom:3px solid transparent; color:var(--text-light);';
 
-            tabM.style.cssText = 'padding:8px 20px; border:none; background:transparent; cursor:pointer; font-size:14px; ' + (isMembers ? activeStyle : inactiveStyle);
-            tabI.style.cssText = 'padding:8px 20px; border:none; background:transparent; cursor:pointer; font-size:14px; ' + (!isMembers ? activeStyle : inactiveStyle);
+            const tabM = $('#tab-members');
+            const tabI = $('#tab-invites');
+            const tabR = $('#tab-roles');
+            if (tabM) tabM.style.cssText = 'padding:8px 20px; border:none; background:transparent; cursor:pointer; font-size:14px; ' + (isMembers ? activeStyle : inactiveStyle);
+            if (tabI) tabI.style.cssText = 'padding:8px 20px; border:none; background:transparent; cursor:pointer; font-size:14px; ' + (isInvites ? activeStyle : inactiveStyle);
+            if (tabR) tabR.style.cssText = 'padding:8px 20px; border:none; background:transparent; cursor:pointer; font-size:14px; ' + (isRoles ? activeStyle : inactiveStyle);
 
             $('#team-content').style.display = isMembers ? 'block' : 'none';
-            $('#invites-content').style.display = isMembers ? 'none' : 'block';
+            $('#invites-content').style.display = isInvites ? 'block' : 'none';
+            $('#roles-content').style.display = isRoles ? 'block' : 'none';
 
             const actionBtn = $('#page-action-btn');
             if (isMembers) {
                 actionBtn.innerHTML = '<button class="btn btn-primary" onclick="openMemberModal()">+ Добавить участника</button>';
-            } else {
+            } else if (isInvites) {
                 actionBtn.innerHTML = '<button class="btn btn-primary" onclick="openInviteModal()">+ Создать приглашение</button>';
                 loadInvites();
+            } else if (isRoles) {
+                actionBtn.innerHTML = '<button class="btn btn-primary" onclick="openRoleModal()">+ Новая роль</button>';
+                loadProjectRoles();
             }
+        }
+
+        // ---- Roles tab (custom roles) ----
+        let projectRoles = [];
+
+        function loadProjectRoles() {
+            const container = $('#roles-content');
+            ui.showLoading(container);
+            api.request(`/project/${projectId}/roles`, { method: 'GET' })
+                .then(data => {
+                    projectRoles = data || [];
+                    renderRolesTab();
+                })
+                .catch(err => {
+                    if (err && /not implemented|not found|405|404/i.test(err.message)) {
+                        container.innerHTML = `
+                            <div class="card" style="max-width:620px;margin:0 auto;">
+                                <h3 style="margin-bottom:8px;">Управление кастомными ролями недоступно</h3>
+                                <p style="color:var(--text-light); font-size:14px; margin-bottom:0;">
+                                    ${escapeHtml(err.message || 'Бэкенд API для кастомных ролей ещё не реализован. '
+                                    + 'После реализации задач B-BE-09..B-BE-11 эта вкладка начнёт работать автоматически.')}
+                                </p>
+                            </div>
+                        `;
+                    } else {
+                        ui.showError(container, err.message || 'Ошибка загрузки ролей');
+                    }
+                });
+        }
+
+        function renderRolesTab() {
+            const container = $('#roles-content');
+            if (!projectRoles.length) {
+                container.innerHTML = `
+                    <div class="card text-center" style="max-width:620px;margin:0 auto;">
+                        <div style="font-size:40px;margin-bottom:10px;">🔑</div>
+                        <h3>Нет ролей</h3>
+                        <p style="color:var(--text-light);">Создайте первую роль с нужным набором прав.</p>
+                        <button class="btn btn-primary mt-2" onclick="openRoleModal()">+ Новая роль</button>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="card">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Название</th>
+                                <th>Идентификатор</th>
+                                <th>Права (bitmask)</th>
+                                <th style="width:140px;">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${projectRoles.map(r => `
+                                <tr>
+                                    <td><strong>${escapeHtml(r.name || '')}</strong></td>
+                                    <td><code>${escapeHtml(r.slug || '')}</code></td>
+                                    <td><span class="badge">${typeof r.permissions === 'number' ? r.permissions : '—'}</span></td>
+                                    <td>
+                                        <button class="btn btn-sm" onclick="openRoleModal(${r.id})">✏️</button>
+                                        <button class="btn btn-danger btn-sm" onclick="deleteRole(${r.id})">🗑️</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function openRoleModal(id) {
+            const role = id != null ? projectRoles.find(r => r.id === id) : null;
+            const isEdit = !!role;
+
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            overlay.id = 'role-modal';
+            overlay.innerHTML = `
+                <div class="modal" style="max-width:520px;">
+                    <div class="modal-header">
+                        <h2>${isEdit ? '✏️ Редактирование роли' : '➕ Новая роль'}</h2>
+                    </div>
+                    <form id="role-form">
+                        <div class="form-group">
+                            <label for="role-name">Название *</label>
+                            <input id="role-name" type="text" class="form-control" required
+                                   value="${escapeHtml(role?.name || '')}" placeholder="Оператор">
+                        </div>
+                        <div class="form-group">
+                            <label for="role-slug">Идентификатор (slug) *</label>
+                            <input id="role-slug" type="text" class="form-control" required
+                                   value="${escapeHtml(role?.slug || '')}" placeholder="operator">
+                            <p class="form-hint">Используется во внутренних правилах доступа.</p>
+                        </div>
+                        <div class="form-group">
+                            <label>Права (permissions)</label>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:13px;">
+                                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                                    <input type="checkbox" id="perm-run" ${role?.permissions_run_tasks ? 'checked' : ''}>
+                                    Запускать задачи
+                                </label>
+                                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                                    <input type="checkbox" id="perm-manage-project" ${role?.permissions_manage_project ? 'checked' : ''}>
+                                    Управлять проектом
+                                </label>
+                                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                                    <input type="checkbox" id="perm-manage-resources" ${role?.permissions_manage_resources ? 'checked' : ''}>
+                                    Управлять ресурсами
+                                </label>
+                                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                                    <input type="checkbox" id="perm-manage-users" ${role?.permissions_manage_users ? 'checked' : ''}>
+                                    Управлять пользователями
+                                </label>
+                            </div>
+                            <p class="form-hint">Физически сохраняются как битовая маска, но здесь представлены как флажки.</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn" onclick="closeRoleModal()">Отмена</button>
+                            <button type="submit" class="btn btn-primary">${isEdit ? 'Сохранить' : 'Создать'}</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+
+            document.getElementById('role-form').addEventListener('submit', function (e) {
+                e.preventDefault();
+                saveRole(role?.id || null);
+            });
+
+            overlay.addEventListener('click', function (e) {
+                if (e.target === overlay) closeRoleModal();
+            });
+        }
+
+        function closeRoleModal() {
+            const m = document.getElementById('role-modal');
+            if (m) m.remove();
+        }
+
+        function computePermissionsFromCheckboxes() {
+            let mask = 0;
+            if (document.getElementById('perm-run')?.checked) mask |= 1;
+            if (document.getElementById('perm-manage-project')?.checked) mask |= 2;
+            if (document.getElementById('perm-manage-resources')?.checked) mask |= 4;
+            if (document.getElementById('perm-manage-users')?.checked) mask |= 8;
+            return mask;
+        }
+
+        function saveRole(id) {
+            const name = document.getElementById('role-name').value.trim();
+            const slug = document.getElementById('role-slug').value.trim();
+
+            if (!name || !slug) {
+                ui.showAlert('Заполните название и идентификатор роли', 'warning');
+                return;
+            }
+
+            const permissions = computePermissionsFromCheckboxes();
+
+            const payload = {
+                id: id || 0,
+                project_id: parseInt(projectId, 10),
+                name,
+                slug,
+                permissions
+            };
+
+            const method = id ? 'PUT' : 'POST';
+            const url = `/project/${projectId}/roles` + (id ? `/${id}` : '');
+
+            api.request(url, { method, body: JSON.stringify(payload) })
+                .then(() => {
+                    ui.showAlert(id ? 'Роль обновлена' : 'Роль создана', 'success');
+                    closeRoleModal();
+                    loadProjectRoles();
+                })
+                .catch(err => {
+                    ui.showAlert('Ошибка сохранения роли: ' + err.message, 'danger');
+                });
+        }
+
+        function deleteRole(id) {
+            if (!confirm('Удалить эту роль?')) return;
+            api.request(`/project/${projectId}/roles/${id}`, { method: 'DELETE' })
+                .then(() => {
+                    ui.showAlert('Роль удалена', 'success');
+                    loadProjectRoles();
+                })
+                .catch(err => ui.showAlert('Ошибка удаления: ' + err.message, 'danger'));
         }
 
         function loadInvites() {
