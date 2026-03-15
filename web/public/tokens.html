@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Токены - Semaphore UI</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar"></aside>
+        <div class="main-content">
+            <div class="main-header">
+                <h2>API Токены</h2>
+            </div>
+            <div class="main-body">
+                <div class="page-header">
+                    <h1>🔑 API Токены</h1>
+                    <button class="btn btn-primary" onclick="createToken()">+ Новый токен</button>
+                </div>
+
+                <div class="card" style="margin-bottom:16px; background:#f0f7ff; border-left:4px solid #1976d2;">
+                    <p style="margin:0; font-size:14px;">
+                        API токены используются для доступа к Semaphore API без авторизации через форму входа.
+                        Используйте заголовок: <code>Authorization: Bearer &lt;token&gt;</code>
+                    </p>
+                </div>
+
+                <div id="tokens-content">
+                    <div class="loading"><div class="loading-spinner"></div><p>Загрузка токенов...</p></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        checkAuth();
+        loadTokens();
+
+        function loadTokens() {
+            const container = $('#tokens-content');
+            api.request('/user/tokens')
+                .then(tokens => {
+                    if (!tokens || tokens.length === 0) {
+                        ui.showEmpty(container, '🔑', 'Нет токенов', 'Создайте первый API токен');
+                        return;
+                    }
+                    container.innerHTML = `
+                        <table class="table">
+                            <thead><tr>
+                                <th>Токен</th>
+                                <th>Создан</th>
+                                <th>Статус</th>
+                                <th>Действия</th>
+                            </tr></thead>
+                            <tbody>
+                                ${tokens.map(tok => `
+                                    <tr>
+                                        <td>
+                                            <span id="tok-${tok.id}" style="font-family:monospace; letter-spacing:1px;">
+                                                ${'•'.repeat(Math.min((tok.id||'').length || 24, 24))}
+                                            </span>
+                                            <button class="btn btn-sm" onclick="toggleToken('${escapeHtml(tok.id)}', this)" title="Показать/скрыть">👁</button>
+                                            <button class="btn btn-sm" onclick="copyToken('${escapeHtml(tok.id)}')" title="Копировать">📋</button>
+                                        </td>
+                                        <td style="color:var(--text-light); font-size:13px;">${formatDate(tok.created)}</td>
+                                        <td>
+                                            ${tok.expired
+                                                ? '<span style="color:#c53030; font-weight:600;">✗ Истёк</span>'
+                                                : '<span style="color:#276749; font-weight:600;">✓ Активен</span>'}
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-danger btn-sm" onclick="deleteToken('${escapeHtml(tok.id)}')">🗑️ Удалить</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                })
+                .catch(err => ui.showError(container, 'Ошибка загрузки токенов: ' + err.message));
+        }
+
+        function createToken() {
+            api.post('/user/tokens', {})
+                .then(tok => {
+                    ui.showAlert('Токен создан: ' + tok.id, 'success');
+                    loadTokens();
+                })
+                .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+        }
+
+        function deleteToken(id) {
+            if (!confirm('Удалить токен?')) return;
+            api.delete('/user/tokens/' + id)
+                .then(() => { ui.showAlert('Токен удалён', 'info'); loadTokens(); })
+                .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+        }
+
+        function toggleToken(id, btn) {
+            const el = document.getElementById('tok-' + id);
+            if (!el) return;
+            if (el.dataset.revealed) {
+                el.textContent = '•'.repeat(Math.min(id.length, 24));
+                delete el.dataset.revealed;
+            } else {
+                el.textContent = id;
+                el.dataset.revealed = '1';
+            }
+        }
+
+        function copyToken(id) {
+            navigator.clipboard.writeText(id)
+                .then(() => ui.showAlert('Токен скопирован', 'success'))
+                .catch(() => ui.showAlert('Не удалось скопировать', 'warning'));
+        }
+    </script>
+</body>
+</html>

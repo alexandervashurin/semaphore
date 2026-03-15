@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Интеграция - Semaphore UI</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .tab-nav { display:flex; gap:0; border-bottom:2px solid var(--border); margin-bottom:16px; }
+        .tab-btn { padding:8px 20px; border:none; background:transparent; cursor:pointer; font-size:14px; border-bottom:3px solid transparent; color:var(--text-light); }
+        .tab-btn.active { border-bottom-color:var(--primary); font-weight:600; color:var(--primary); }
+        .tab-panel { display:none; }
+        .tab-panel.active { display:block; }
+        .method-badge { display:inline-block; padding:1px 8px; border-radius:4px; font-size:11px; font-weight:700; font-family:monospace; background:#e3f2fd; color:#1565c0; }
+        .copy-url { cursor:pointer; color:var(--primary); font-size:12px; text-decoration:underline; }
+        .webhook-url-box { background:#f5f5f5; border:1px solid var(--border); border-radius:6px; padding:10px 14px; font-family:monospace; font-size:12px; word-break:break-all; }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar"></aside>
+        <div class="main-content">
+            <div class="main-header">
+                <h2 id="page-title">Интеграция</h2>
+            </div>
+            <div class="main-body">
+                <div id="loading-state">
+                    <div class="loading"><div class="loading-spinner"></div><p>Загрузка...</p></div>
+                </div>
+                <div id="main-content" style="display:none;">
+                    <div class="page-header" style="margin-bottom:16px;">
+                        <div>
+                            <h1 id="integration-name">—</h1>
+                            <div id="webhook-url-section" style="margin-top:8px;"></div>
+                        </div>
+                        <div style="display:flex; gap:8px;">
+                            <a id="back-link" href="webhooks.html" class="btn btn-sm">← Webhooks</a>
+                            <button class="btn btn-sm" onclick="editIntegration()">✏️ Изменить</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteIntegration()">🗑️ Удалить</button>
+                        </div>
+                    </div>
+
+                    <div class="tab-nav">
+                        <button class="tab-btn active" onclick="switchTab('matchers', this)">Матчеры</button>
+                        <button class="tab-btn" onclick="switchTab('values', this)">Extract Values</button>
+                        <button class="tab-btn" onclick="switchTab('aliases', this)">Aliases</button>
+                    </div>
+
+                    <div id="tab-matchers" class="tab-panel active"></div>
+                    <div id="tab-values" class="tab-panel"></div>
+                    <div id="tab-aliases" class="tab-panel"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        checkAuth();
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = urlParams.get('id');
+        const integrationId = urlParams.get('integration');
+        if (!projectId || !integrationId) window.location.href = 'index.html';
+
+        let currentIntegration = null;
+
+        // Update back link
+        document.getElementById('back-link').href = 'webhooks.html?id=' + projectId;
+
+        // Load project name
+        api.getProject(projectId).then(p => {
+            document.title = 'Интеграция — ' + p.name;
+        }).catch(() => {});
+
+        // Load integration
+        loadIntegration();
+
+        function loadIntegration() {
+            api.get('/project/' + projectId + '/integrations/' + integrationId)
+                .then(integration => {
+                    currentIntegration = integration;
+                    document.getElementById('integration-name').textContent = integration.name;
+                    document.getElementById('page-title').textContent = integration.name;
+                    document.getElementById('loading-state').style.display = 'none';
+                    document.getElementById('main-content').style.display = 'block';
+
+                    // Webhook URL
+                    const aliases = document.getElementById('webhook-url-section');
+                    const baseUrl = window.location.origin;
+                    aliases.innerHTML = `
+                        <div style="font-size:13px; color:var(--text-light); margin-bottom:6px;">Webhook URL (через alias):</div>
+                        <div class="webhook-url-box" id="base-webhook-url">${baseUrl}/api/integrations/trigger/{alias}</div>
+                    `;
+
+                    loadMatchers();
+                    loadAliases();
+                })
+                .catch(err => {
+                    document.getElementById('loading-state').innerHTML = `<div class="alert alert-danger">Ошибка: ${escapeHtml(err.message)}</div>`;
+                });
+        }
+
+        function switchTab(tab, btn) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('tab-' + tab).classList.add('active');
+
+            if (tab === 'values') loadExtractValues();
+            if (tab === 'aliases') loadAliases();
+            if (tab === 'matchers') loadMatchers();
+        }
+
+        // ---- Matchers ----
+        function loadMatchers() {
+            const container = document.getElementById('tab-matchers');
+            container.innerHTML = `
+                <div class="page-header" style="margin-bottom:12px;">
+                    <h3 style="margin:0;">Матчеры</h3>
+                    <button class="btn btn-primary btn-sm" onclick="openMatcherModal()">+ Добавить матчер</button>
+                </div>
+            `;
+
+            api.get('/project/' + projectId + '/integrations/' + integrationId + '/matchers')
+                .then(matchers => {
+                    if (!matchers || matchers.length === 0) {
+                        container.innerHTML += `<div style="color:var(--text-light); font-style:italic; padding:16px 0;">
+                            Нет матчеров. Матчеры определяют условия при которых webhook активирует задачу.
+                        </div>`;
+                        return;
+                    }
+                    container.innerHTML += `
+                        <table class="table">
+                            <thead><tr><th>Название</th><th>Тип данных</th><th>Метод</th><th>Ключ</th><th>Значение</th><th></th></tr></thead>
+                            <tbody>
+                                ${matchers.map(m => `
+                                    <tr>
+                                        <td><strong>${escapeHtml(m.name)}</strong></td>
+                                        <td><span class="method-badge">${escapeHtml(m.body_data_type)}</span></td>
+                                        <td>${escapeHtml(m.method)}</td>
+                                        <td style="font-family:monospace; font-size:12px;">${escapeHtml(m.key || '—')}</td>
+                                        <td style="font-family:monospace; font-size:12px;">${escapeHtml(m.matcher_value || '—')}</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-danger" onclick="deleteMatcher(${m.id})" title="Удалить">🗑️</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                })
+                .catch(() => {
+                    container.innerHTML += `<div style="padding:12px; background:#fff3cd; border-radius:6px; font-size:13px;">
+                        ⚠️ API матчеров не реализован (B-BE-20). Матчеры будут доступны в следующих версиях.
+                    </div>`;
+                    renderMatcherAddHint(container);
+                });
+        }
+
+        function renderMatcherAddHint(container) {
+            container.innerHTML += `
+                <div style="margin-top:12px;">
+                    <button class="btn btn-primary btn-sm" onclick="openMatcherModal()">+ Добавить матчер</button>
+                </div>
+            `;
+        }
+
+        function openMatcherModal() {
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.id = 'matcher-modal';
+            modal.innerHTML = `
+                <div class="modal" style="max-width:540px;">
+                    <div class="modal-header"><h2>+ Добавить матчер</h2></div>
+                    <form id="matcher-form">
+                        <div class="form-group">
+                            <label>Название</label>
+                            <input type="text" id="m-name" class="form-control" placeholder="header_auth" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Тип данных тела</label>
+                            <select id="m-body-type" class="form-control">
+                                <option value="json">JSON</option>
+                                <option value="header">Header</option>
+                                <option value="form">Form</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Метод сравнения</label>
+                            <select id="m-method" class="form-control">
+                                <option value="equals">Equals</option>
+                                <option value="contains">Contains</option>
+                                <option value="regex">Regex</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Ключ (JSON path / Header name)</label>
+                            <input type="text" id="m-key" class="form-control" placeholder="$.action или X-Github-Event">
+                        </div>
+                        <div class="form-group">
+                            <label>Значение для сравнения</label>
+                            <input type="text" id="m-value" class="form-control" placeholder="push" required>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn" onclick="document.getElementById('matcher-modal').remove()">Отмена</button>
+                            <button type="submit" class="btn btn-primary">Добавить</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+            document.getElementById('matcher-form').addEventListener('submit', e => {
+                e.preventDefault();
+                const data = {
+                    name: document.getElementById('m-name').value.trim(),
+                    body_data_type: document.getElementById('m-body-type').value,
+                    method: document.getElementById('m-method').value,
+                    key: document.getElementById('m-key').value.trim() || null,
+                    matcher_value: document.getElementById('m-value').value.trim(),
+                    matcher_type: 'value',
+                    integration_id: parseInt(integrationId),
+                    project_id: parseInt(projectId),
+                };
+                const btn = modal.querySelector('button[type="submit"]');
+                btn.disabled = true;
+                api.post('/project/' + projectId + '/integrations/' + integrationId + '/matchers', data)
+                    .then(() => {
+                        modal.remove();
+                        ui.showAlert('Матчер добавлен', 'success');
+                        loadMatchers();
+                    })
+                    .catch(err => { ui.showAlert('Ошибка: ' + err.message, 'danger'); btn.disabled = false; });
+            });
+        }
+
+        function deleteMatcher(id) {
+            if (!confirm('Удалить матчер?')) return;
+            api.delete('/project/' + projectId + '/integrations/' + integrationId + '/matchers/' + id)
+                .then(() => { ui.showAlert('Матчер удалён', 'success'); loadMatchers(); })
+                .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+        }
+
+        // ---- Extract Values ----
+        function loadExtractValues() {
+            const container = document.getElementById('tab-values');
+            container.innerHTML = `
+                <div class="page-header" style="margin-bottom:12px;">
+                    <h3 style="margin:0;">Extract Values</h3>
+                    <button class="btn btn-primary btn-sm" onclick="openValueModal()">+ Добавить</button>
+                </div>
+            `;
+
+            api.get('/project/' + projectId + '/integrations/' + integrationId + '/values')
+                .then(values => {
+                    if (!values || values.length === 0) {
+                        container.innerHTML += `<div style="color:var(--text-light); font-style:italic; padding:16px 0;">
+                            Нет извлекаемых значений. Extract Values передают данные из webhook-запроса в переменные задачи.
+                        </div>`;
+                        return;
+                    }
+                    container.innerHTML += `
+                        <table class="table">
+                            <thead><tr><th>Название</th><th>Источник</th><th>Ключ</th><th>Переменная</th><th></th></tr></thead>
+                            <tbody>
+                                ${values.map(v => `
+                                    <tr>
+                                        <td><strong>${escapeHtml(v.name)}</strong></td>
+                                        <td><span class="method-badge">${escapeHtml(v.value_source)}</span></td>
+                                        <td style="font-family:monospace; font-size:12px;">${escapeHtml(v.key || '—')}</td>
+                                        <td style="font-family:monospace; font-size:12px;">${escapeHtml(v.variable || '—')}</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-danger" onclick="deleteValue(${v.id})" title="Удалить">🗑️</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                })
+                .catch(() => {
+                    container.innerHTML += `<div style="padding:12px; background:#fff3cd; border-radius:6px; font-size:13px;">
+                        ⚠️ API extract values не реализован (B-BE-21). Будет доступно в следующих версиях.
+                    </div>`;
+                });
+        }
+
+        function openValueModal() {
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.id = 'value-modal';
+            modal.innerHTML = `
+                <div class="modal" style="max-width:520px;">
+                    <div class="modal-header"><h2>+ Extract Value</h2></div>
+                    <form id="value-form">
+                        <div class="form-group">
+                            <label>Название</label>
+                            <input type="text" id="v-name" class="form-control" placeholder="git_ref" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Источник значения</label>
+                            <select id="v-source" class="form-control">
+                                <option value="body">Body (JSON/Form)</option>
+                                <option value="header">Header</option>
+                                <option value="query">Query param</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Ключ (JSON path / Header name)</label>
+                            <input type="text" id="v-key" class="form-control" placeholder="$.ref или X-Github-Ref">
+                        </div>
+                        <div class="form-group">
+                            <label>Переменная назначения</label>
+                            <input type="text" id="v-var" class="form-control" placeholder="GIT_BRANCH">
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn" onclick="document.getElementById('value-modal').remove()">Отмена</button>
+                            <button type="submit" class="btn btn-primary">Добавить</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+            document.getElementById('value-form').addEventListener('submit', e => {
+                e.preventDefault();
+                const data = {
+                    name: document.getElementById('v-name').value.trim(),
+                    value_source: document.getElementById('v-source').value,
+                    key: document.getElementById('v-key').value.trim() || null,
+                    variable: document.getElementById('v-var').value.trim() || null,
+                    body_data_type: 'json',
+                    value_name: document.getElementById('v-name').value.trim(),
+                    value_type: 'string',
+                };
+                const btn = modal.querySelector('button[type="submit"]');
+                btn.disabled = true;
+                api.post('/project/' + projectId + '/integrations/' + integrationId + '/values', data)
+                    .then(() => {
+                        modal.remove();
+                        ui.showAlert('Extract value добавлен', 'success');
+                        loadExtractValues();
+                    })
+                    .catch(err => { ui.showAlert('Ошибка: ' + err.message, 'danger'); btn.disabled = false; });
+            });
+        }
+
+        function deleteValue(id) {
+            if (!confirm('Удалить extract value?')) return;
+            api.delete('/project/' + projectId + '/integrations/' + integrationId + '/values/' + id)
+                .then(() => { ui.showAlert('Удалено', 'success'); loadExtractValues(); })
+                .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+        }
+
+        // ---- Aliases ----
+        function loadAliases() {
+            const container = document.getElementById('tab-aliases');
+            container.innerHTML = `
+                <div class="page-header" style="margin-bottom:12px;">
+                    <h3 style="margin:0;">Aliases</h3>
+                    <button class="btn btn-primary btn-sm" onclick="addAlias()">+ Добавить alias</button>
+                </div>
+            `;
+
+            api.get('/project/' + projectId + '/integrations/aliases')
+                .then(all => {
+                    const aliases = (all || []).filter(a => a.integration_id === parseInt(integrationId));
+                    if (aliases.length === 0) {
+                        container.innerHTML += `<div style="color:var(--text-light); font-style:italic; padding:16px 0;">
+                            Нет aliases. Alias — это уникальный URL для этого webhook.
+                        </div>`;
+                        return;
+                    }
+                    const base = window.location.origin + '/api/integrations/trigger/';
+                    container.innerHTML += `
+                        <table class="table">
+                            <thead><tr><th>Alias</th><th>Webhook URL</th><th></th></tr></thead>
+                            <tbody>
+                                ${aliases.map(a => `
+                                    <tr>
+                                        <td><code>${escapeHtml(a.alias)}</code></td>
+                                        <td>
+                                            <div style="display:flex; align-items:center; gap:8px;">
+                                                <code style="font-size:11px; color:var(--text-light);">${base}${escapeHtml(a.alias)}</code>
+                                                <span class="copy-url" onclick="copyAlias('${escapeHtml(a.alias)}')">📋 Копировать</span>
+                                            </div>
+                                        </td>
+                                        <td><button class="btn btn-sm btn-danger" onclick="deleteAlias(${a.id})">🗑️</button></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                })
+                .catch(err => {
+                    container.innerHTML += `<div class="alert alert-danger">${escapeHtml(err.message)}</div>`;
+                });
+        }
+
+        function copyAlias(alias) {
+            const url = window.location.origin + '/api/integrations/trigger/' + alias;
+            navigator.clipboard.writeText(url)
+                .then(() => ui.showAlert('URL скопирован', 'success'))
+                .catch(() => ui.showAlert('URL: ' + url, 'info'));
+        }
+
+        function addAlias() {
+            const alias = prompt('Введите alias (только латиница, цифры, дефис):');
+            if (!alias || !alias.trim()) return;
+            api.post('/project/' + projectId + '/integrations/aliases', {
+                integration_id: parseInt(integrationId),
+                project_id: parseInt(projectId),
+                alias: alias.trim()
+            })
+            .then(() => { ui.showAlert('Alias добавлен', 'success'); loadAliases(); })
+            .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+        }
+
+        function deleteAlias(id) {
+            if (!confirm('Удалить alias?')) return;
+            api.delete('/project/' + projectId + '/integrations/aliases/' + id)
+                .then(() => { ui.showAlert('Alias удалён', 'success'); loadAliases(); })
+                .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+        }
+
+        // ---- Edit/Delete integration ----
+        function editIntegration() {
+            if (!currentIntegration) return;
+            api.getTemplates(projectId).then(templates => {
+                const modal = document.createElement('div');
+                modal.className = 'modal-overlay';
+                modal.id = 'edit-integration-modal';
+                modal.innerHTML = `
+                    <div class="modal" style="max-width:480px;">
+                        <div class="modal-header"><h2>✏️ Редактировать интеграцию</h2></div>
+                        <form id="edit-integration-form">
+                            <div class="form-group">
+                                <label>Название</label>
+                                <input type="text" id="int-name" class="form-control" value="${escapeHtml(currentIntegration.name)}" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Шаблон</label>
+                                <select id="int-template" class="form-control">
+                                    ${templates.map(t => `<option value="${t.id}" ${t.id === currentIntegration.template_id ? 'selected' : ''}>${escapeHtml(t.name)}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn" onclick="document.getElementById('edit-integration-modal').remove()">Отмена</button>
+                                <button type="submit" class="btn btn-primary">Сохранить</button>
+                            </div>
+                        </form>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+                document.getElementById('edit-integration-form').addEventListener('submit', e => {
+                    e.preventDefault();
+                    api.put('/project/' + projectId + '/integrations/' + integrationId, {
+                        name: document.getElementById('int-name').value.trim(),
+                        template_id: parseInt(document.getElementById('int-template').value)
+                    }).then(() => {
+                        modal.remove();
+                        ui.showAlert('Интеграция обновлена', 'success');
+                        loadIntegration();
+                    }).catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+                });
+            }).catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+        }
+
+        function deleteIntegration() {
+            if (!confirm('Удалить интеграцию "' + (currentIntegration?.name || '') + '"?')) return;
+            api.delete('/project/' + projectId + '/integrations/' + integrationId)
+                .then(() => {
+                    ui.showAlert('Интеграция удалена', 'success');
+                    setTimeout(() => window.location.href = 'webhooks.html?id=' + projectId, 800);
+                })
+                .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+        }
+    </script>
+</body>
+</html>

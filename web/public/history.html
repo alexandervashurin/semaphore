@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>История задач - Semaphore UI</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .status-badge { display:inline-block; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:600; }
+        .status-success { background:#c6f6d5; color:#276749; }
+        .status-error,.status-failed { background:#fed7d7; color:#c53030; }
+        .status-running { background:#e3f2fd; color:#1565c0; }
+        .status-waiting { background:#f0f0f0; color:#555; }
+        .status-waiting_confirmation { background:#fff3cd; color:#856404; }
+        .status-cancelled,.status-stopped { background:#e9ecef; color:#495057; }
+        .filter-bar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:16px; }
+        .filter-bar select, .filter-bar input { padding:6px 10px; border:1px solid var(--border); border-radius:6px; font-size:13px; }
+        .duration-cell { font-size:12px; color:var(--text-light); white-space:nowrap; }
+        .task-row:hover { background:rgba(0,0,0,.03); cursor:pointer; }
+        .task-row td { vertical-align:middle; }
+        .auto-refresh-toggle { display:flex; align-items:center; gap:6px; font-size:13px; }
+        .pagination { display:flex; gap:6px; align-items:center; margin-top:16px; }
+        .pagination button { padding:4px 12px; border:1px solid var(--border); border-radius:4px; background:#fff; cursor:pointer; font-size:13px; }
+        .pagination button:disabled { opacity:.4; cursor:default; }
+        .pagination .page-info { font-size:13px; color:var(--text-light); padding:0 8px; }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar"></aside>
+        <div class="main-content">
+            <div class="main-header">
+                <h2 id="project-title">История задач</h2>
+            </div>
+            <div class="main-body">
+                <div class="page-header">
+                    <h1>▶ История задач</h1>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <label class="auto-refresh-toggle">
+                            <input type="checkbox" id="auto-refresh" checked>
+                            Авто-обновление
+                        </label>
+                        <button class="btn btn-sm" onclick="loadHistory()">↺ Обновить</button>
+                    </div>
+                </div>
+
+                <div class="filter-bar">
+                    <select id="filter-status">
+                        <option value="">Все статусы</option>
+                        <option value="waiting">Ожидание</option>
+                        <option value="running">Выполняется</option>
+                        <option value="success">Успешно</option>
+                        <option value="error">Ошибка</option>
+                        <option value="cancelled">Отменено</option>
+                        <option value="waiting_confirmation">Ожидает подтверждения</option>
+                    </select>
+                    <select id="filter-template">
+                        <option value="">Все шаблоны</option>
+                    </select>
+                    <input type="text" id="filter-search" placeholder="Поиск по сообщению или ID..." style="min-width:200px;">
+                    <button class="btn btn-sm" onclick="applyFilters()">Фильтр</button>
+                    <button class="btn btn-sm" onclick="resetFilters()">Сбросить</button>
+                </div>
+
+                <div id="history-content">
+                    <div class="loading"><div class="loading-spinner"></div><p>Загрузка...</p></div>
+                </div>
+
+                <div id="pagination" class="pagination" style="display:none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        checkAuth();
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = urlParams.get('id');
+        if (!projectId) { window.location.href = 'index.html'; }
+
+        let allTasks = [];
+        let filteredTasks = [];
+        let templates = {};
+        let currentPage = 0;
+        const PAGE_SIZE = 25;
+        let refreshTimer = null;
+
+        // Load project name
+        api.getProject(projectId).then(p => {
+            $('#project-title').textContent = p.name + ' → История задач';
+            document.title = 'История — ' + p.name;
+        }).catch(() => {});
+
+        // Load templates for filter
+        api.getTemplates(projectId).then(tpls => {
+            templates = {};
+            tpls.forEach(t => { templates[t.id] = t.name; });
+            const sel = $('#filter-template');
+            tpls.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.id;
+                opt.textContent = t.name;
+                sel.appendChild(opt);
+            });
+        }).catch(() => {});
+
+        loadHistory();
+        setupAutoRefresh();
+
+        function setupAutoRefresh() {
+            const checkbox = $('#auto-refresh');
+            checkbox.addEventListener('change', () => {
+                if (checkbox.checked) startRefresh();
+                else stopRefresh();
+            });
+            startRefresh();
+        }
+
+        function startRefresh() {
+            stopRefresh();
+            refreshTimer = setInterval(() => {
+                if ($('#auto-refresh').checked) loadHistory(true);
+            }, 10000);
+        }
+
+        function stopRefresh() {
+            if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+        }
+
+        function loadHistory(silent = false) {
+            const container = $('#history-content');
+            if (!silent) ui.showLoading(container);
+
+            api.getTasks(projectId)
+                .then(tasks => {
+                    allTasks = (tasks || []).sort((a, b) => new Date(b.created) - new Date(a.created));
+                    applyFilters();
+                })
+                .catch(err => ui.showError(container, err.message));
+        }
+
+        function applyFilters() {
+            const statusFilter = $('#filter-status').value;
+            const tplFilter = $('#filter-template').value;
+            const search = ($('#filter-search').value || '').trim().toLowerCase();
+
+            filteredTasks = allTasks.filter(t => {
+                if (statusFilter && t.status !== statusFilter) return false;
+                if (tplFilter && String(t.template_id) !== String(tplFilter)) return false;
+                if (search) {
+                    const msg = (t.message || '').toLowerCase();
+                    const id = String(t.id);
+                    if (!msg.includes(search) && !id.includes(search)) return false;
+                }
+                return true;
+            });
+
+            currentPage = 0;
+            renderPage();
+        }
+
+        function resetFilters() {
+            $('#filter-status').value = '';
+            $('#filter-template').value = '';
+            $('#filter-search').value = '';
+            applyFilters();
+        }
+
+        function renderPage() {
+            const container = $('#history-content');
+            const pagination = $('#pagination');
+
+            if (!filteredTasks || filteredTasks.length === 0) {
+                pagination.style.display = 'none';
+                ui.showEmpty(container, '▶', 'Нет задач', 'Запустите шаблон чтобы появились задачи');
+                return;
+            }
+
+            const total = filteredTasks.length;
+            const totalPages = Math.ceil(total / PAGE_SIZE);
+            const start = currentPage * PAGE_SIZE;
+            const pageTasks = filteredTasks.slice(start, start + PAGE_SIZE);
+
+            container.innerHTML = `
+                <table class="table">
+                    <thead><tr>
+                        <th>#</th>
+                        <th>Шаблон</th>
+                        <th>Статус</th>
+                        <th>Сообщение</th>
+                        <th>Пользователь</th>
+                        <th>Начало</th>
+                        <th>Длительность</th>
+                        <th>Действия</th>
+                    </tr></thead>
+                    <tbody>
+                        ${pageTasks.map(t => {
+                            const dur = calcDuration(t.start, t.end);
+                            const tplName = templates[t.template_id] || ('Шаблон #' + t.template_id);
+                            return `
+                            <tr class="task-row" onclick="openTask(${t.id})">
+                                <td style="font-size:13px; color:var(--text-light);">#${t.id}</td>
+                                <td><strong>${escapeHtml(tplName)}</strong></td>
+                                <td><span class="status-badge status-${t.status}">${statusLabel(t.status)}</span></td>
+                                <td style="font-size:13px; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(t.message || '—')}</td>
+                                <td style="font-size:13px;">${escapeHtml(t.user_name || t.username || '—')}</td>
+                                <td class="duration-cell">${formatRelativeTime(t.created)}</td>
+                                <td class="duration-cell">${dur}</td>
+                                <td onclick="event.stopPropagation()">
+                                    <div style="display:flex; gap:4px;">
+                                        <a href="task.html?id=${projectId}&task=${t.id}" class="btn btn-sm" title="Просмотр">👁</a>
+                                        ${t.status === 'running' || t.status === 'waiting'
+                                            ? `<button class="btn btn-sm btn-danger" onclick="stopTask(${t.id})" title="Остановить">■</button>`
+                                            : `<button class="btn btn-sm" onclick="rerunTask(${t.template_id})" title="Повторить">↺</button>`}
+                                        ${t.status === 'waiting_confirmation'
+                                            ? `<button class="btn btn-sm btn-primary" onclick="confirmTask(${t.id})" title="Подтвердить">✓</button>
+                                               <button class="btn btn-sm btn-danger" onclick="rejectTask(${t.id})" title="Отклонить">✗</button>`
+                                            : ''}
+                                    </div>
+                                </td>
+                            </tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            // Pagination
+            if (totalPages > 1) {
+                pagination.style.display = 'flex';
+                pagination.innerHTML = `
+                    <button onclick="goPage(${currentPage - 1})" ${currentPage === 0 ? 'disabled' : ''}>← Пред</button>
+                    <span class="page-info">${start + 1}–${Math.min(start + PAGE_SIZE, total)} из ${total}</span>
+                    <button onclick="goPage(${currentPage + 1})" ${currentPage >= totalPages - 1 ? 'disabled' : ''}>След →</button>
+                `;
+            } else {
+                pagination.style.display = 'none';
+            }
+        }
+
+        function goPage(page) {
+            currentPage = page;
+            renderPage();
+            window.scrollTo(0, 0);
+        }
+
+        function openTask(id) {
+            window.location.href = 'task.html?id=' + projectId + '&task=' + id;
+        }
+
+        function stopTask(id) {
+            if (!confirm('Остановить задачу #' + id + '?')) return;
+            api.stopTask(projectId, id)
+                .then(() => { ui.showAlert('Задача #' + id + ' остановлена', 'success'); loadHistory(true); })
+                .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+        }
+
+        function rerunTask(templateId) {
+            window.location.href = 'run.html?id=' + projectId + '&tpl=' + templateId;
+        }
+
+        function confirmTask(id) {
+            api.confirmTask(projectId, id)
+                .then(() => { ui.showAlert('Задача #' + id + ' подтверждена', 'success'); loadHistory(true); })
+                .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+        }
+
+        function rejectTask(id) {
+            api.rejectTask(projectId, id)
+                .then(() => { ui.showAlert('Задача #' + id + ' отклонена', 'info'); loadHistory(true); })
+                .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+        }
+
+        function calcDuration(start, end) {
+            if (!start) return '—';
+            const s = new Date(start);
+            const e = end ? new Date(end) : new Date();
+            const ms = e - s;
+            if (ms < 0) return '—';
+            const secs = Math.floor(ms / 1000);
+            if (secs < 60) return secs + 'с';
+            const mins = Math.floor(secs / 60);
+            const rem = secs % 60;
+            if (mins < 60) return mins + 'м ' + rem + 'с';
+            return Math.floor(mins / 60) + 'ч ' + (mins % 60) + 'м';
+        }
+
+        function statusLabel(s) {
+            return {
+                waiting: 'Ожидание',
+                running: 'Выполняется',
+                success: 'Успешно',
+                error: 'Ошибка',
+                failed: 'Ошибка',
+                cancelled: 'Отменено',
+                stopped: 'Остановлено',
+                waiting_confirmation: 'Подтверждение'
+            }[s] || s;
+        }
+
+        function formatRelativeTime(dateStr) {
+            if (!dateStr) return '—';
+            const date = new Date(dateStr);
+            const now = new Date();
+            const diff = now - date;
+            const minutes = Math.floor(diff / 60000);
+            const hours = Math.floor(diff / 3600000);
+            const days = Math.floor(diff / 86400000);
+            if (minutes < 1) return 'только что';
+            if (minutes < 60) return minutes + ' мин. назад';
+            if (hours < 24) return hours + ' ч. назад';
+            if (days < 7) return days + ' дн. назад';
+            return new Date(dateStr).toLocaleDateString('ru-RU', { day:'numeric', month:'short', year:'numeric' });
+        }
+    </script>
+</body>
+</html>

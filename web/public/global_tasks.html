@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Все задачи - Semaphore UI</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .status-badge { display:inline-block; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:600; }
+        .status-success { background:#c6f6d5; color:#276749; }
+        .status-error,.status-failed { background:#fed7d7; color:#c53030; }
+        .status-running { background:#e3f2fd; color:#1565c0; }
+        .status-waiting { background:#f0f0f0; color:#555; }
+        .status-waiting_confirmation { background:#fff3cd; color:#856404; }
+        .status-cancelled,.status-stopped { background:#e9ecef; color:#495057; }
+        .project-tag { display:inline-block; padding:1px 8px; border-radius:8px; font-size:11px; background:rgba(0,80,87,.1); color:var(--primary); margin-left:4px; }
+        .filter-bar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:16px; }
+        .filter-bar select { padding:6px 10px; border:1px solid var(--border); border-radius:6px; font-size:13px; }
+        .auto-refresh-toggle { display:flex; align-items:center; gap:6px; font-size:13px; }
+        .task-row:hover { background:rgba(0,0,0,.03); cursor:pointer; }
+        .running-indicator { width:8px; height:8px; border-radius:50%; background:#1565c0; display:inline-block; animation:pulse 1.5s infinite; margin-right:4px; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar"></aside>
+        <div class="main-content">
+            <div class="main-header">
+                <h2>Все задачи</h2>
+            </div>
+            <div class="main-body">
+                <div class="page-header">
+                    <h1>▶ Все задачи</h1>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <label class="auto-refresh-toggle">
+                            <input type="checkbox" id="auto-refresh" checked>
+                            Авто-обновление
+                        </label>
+                        <button class="btn btn-sm" onclick="loadAllTasks()">↺ Обновить</button>
+                    </div>
+                </div>
+
+                <div id="running-section" style="margin-bottom:20px; display:none;">
+                    <h3 style="margin-bottom:10px; font-size:14px; color:var(--text-light); text-transform:uppercase; letter-spacing:.5px;">
+                        <span class="running-indicator"></span>Выполняются
+                    </h3>
+                    <div id="running-tasks"></div>
+                </div>
+
+                <div class="filter-bar">
+                    <select id="filter-project">
+                        <option value="">Все проекты</option>
+                    </select>
+                    <select id="filter-status">
+                        <option value="">Все статусы</option>
+                        <option value="running">Выполняется</option>
+                        <option value="waiting">Ожидание</option>
+                        <option value="success">Успешно</option>
+                        <option value="error">Ошибка</option>
+                        <option value="cancelled">Отменено</option>
+                        <option value="waiting_confirmation">Ожидает подтверждения</option>
+                    </select>
+                </div>
+
+                <div id="tasks-content">
+                    <div class="loading"><div class="loading-spinner"></div><p>Загрузка...</p></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        checkAuth();
+
+        let allProjects = [];
+        let allTasks = []; // {task, project}
+        let refreshTimer = null;
+
+        loadAllTasks();
+        setupAutoRefresh();
+
+        function setupAutoRefresh() {
+            const cb = $('#auto-refresh');
+            cb.addEventListener('change', () => {
+                if (cb.checked) startRefresh(); else stopRefresh();
+            });
+            startRefresh();
+        }
+
+        function startRefresh() {
+            stopRefresh();
+            refreshTimer = setInterval(() => {
+                if ($('#auto-refresh').checked) loadAllTasks(true);
+            }, 12000);
+        }
+
+        function stopRefresh() {
+            if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+        }
+
+        function loadAllTasks(silent = false) {
+            const container = $('#tasks-content');
+            if (!silent) ui.showLoading(container);
+
+            api.getProjects().then(projects => {
+                allProjects = projects || [];
+
+                // Populate project filter
+                const sel = $('#filter-project');
+                const existing = Array.from(sel.options).map(o => o.value);
+                projects.forEach(p => {
+                    if (!existing.includes(String(p.id))) {
+                        const opt = document.createElement('option');
+                        opt.value = p.id;
+                        opt.textContent = p.name;
+                        sel.appendChild(opt);
+                    }
+                });
+
+                // Load tasks from all projects in parallel
+                return Promise.all(
+                    projects.map(p =>
+                        api.getTasks(p.id)
+                            .then(tasks => (tasks || []).map(t => ({ task: t, project: p })))
+                            .catch(() => [])
+                    )
+                );
+            })
+            .then(results => {
+                allTasks = results.flat().sort((a, b) => new Date(b.task.created) - new Date(a.task.created));
+                renderTasks();
+            })
+            .catch(err => ui.showError($('#tasks-content'), err.message));
+        }
+
+        function renderTasks() {
+            const projectFilter = $('#filter-project').value;
+            const statusFilter = $('#filter-status').value;
+
+            let filtered = allTasks;
+            if (projectFilter) filtered = filtered.filter(x => String(x.project.id) === projectFilter);
+            if (statusFilter) filtered = filtered.filter(x => x.task.status === statusFilter);
+
+            // Running section
+            const running = allTasks.filter(x => x.task.status === 'running' || x.task.status === 'waiting' || x.task.status === 'waiting_confirmation');
+            const runningSection = $('#running-section');
+            const runningEl = $('#running-tasks');
+            if (running.length > 0 && !statusFilter) {
+                runningSection.style.display = 'block';
+                runningEl.innerHTML = running.map(x => renderTaskRow(x, true)).join('');
+            } else {
+                runningSection.style.display = 'none';
+            }
+
+            const container = $('#tasks-content');
+            // Exclude running from main list if no filter
+            const mainList = statusFilter ? filtered : filtered.filter(x => x.task.status !== 'running' && x.task.status !== 'waiting' && x.task.status !== 'waiting_confirmation');
+
+            if (mainList.length === 0 && running.length === 0) {
+                ui.showEmpty(container, '▶', 'Нет задач', 'Запустите шаблон в любом проекте');
+                return;
+            }
+
+            if (mainList.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+
+            const shown = mainList.slice(0, 100);
+            container.innerHTML = `
+                <table class="table">
+                    <thead><tr>
+                        <th>#</th>
+                        <th>Проект / Шаблон</th>
+                        <th>Статус</th>
+                        <th>Пользователь</th>
+                        <th>Начало</th>
+                        <th>Длительность</th>
+                        <th></th>
+                    </tr></thead>
+                    <tbody>
+                        ${shown.map(x => renderTaskRow(x)).join('')}
+                    </tbody>
+                </table>
+                ${mainList.length > 100 ? `<p style="color:var(--text-light); font-size:13px; margin-top:8px;">Показано первые 100 из ${mainList.length} задач</p>` : ''}
+            `;
+        }
+
+        function renderTaskRow({ task: t, project: p }, compact = false) {
+            const dur = calcDuration(t.start, t.end);
+            return `
+                <tr class="task-row" onclick="window.location.href='history.html?id=${p.id}'">
+                    <td style="font-size:12px; color:var(--text-light);">#${t.id}</td>
+                    <td>
+                        <a href="history.html?id=${p.id}" onclick="event.stopPropagation();" style="font-size:13px; font-weight:600; color:var(--primary); text-decoration:none;">${escapeHtml(p.name)}</a>
+                        <div style="font-size:11px; color:var(--text-light);">Шаблон #${t.template_id}</div>
+                    </td>
+                    <td><span class="status-badge status-${t.status}">${statusLabel(t.status)}</span></td>
+                    <td style="font-size:13px;">${escapeHtml(t.user_name || t.username || '—')}</td>
+                    <td style="font-size:12px; color:var(--text-light);">${formatRelativeTime(t.created)}</td>
+                    <td style="font-size:12px; color:var(--text-light);">${dur}</td>
+                    <td>
+                        <a href="task.html?id=${p.id}&task=${t.id}" class="btn btn-sm" onclick="event.stopPropagation();" title="Открыть">👁</a>
+                        ${t.status === 'running' || t.status === 'waiting'
+                            ? `<button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); stopTask(${p.id}, ${t.id})" title="Остановить">■</button>`
+                            : ''}
+                    </td>
+                </tr>`;
+        }
+
+        function stopTask(projectId, id) {
+            if (!confirm('Остановить задачу #' + id + '?')) return;
+            api.stopTask(projectId, id)
+                .then(() => { ui.showAlert('Задача #' + id + ' остановлена', 'success'); loadAllTasks(true); })
+                .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+        }
+
+        function calcDuration(start, end) {
+            if (!start) return '—';
+            const ms = (end ? new Date(end) : new Date()) - new Date(start);
+            if (ms < 0) return '—';
+            const secs = Math.floor(ms / 1000);
+            if (secs < 60) return secs + 'с';
+            const mins = Math.floor(secs / 60);
+            if (mins < 60) return mins + 'м ' + (secs % 60) + 'с';
+            return Math.floor(mins / 60) + 'ч ' + (mins % 60) + 'м';
+        }
+
+        function statusLabel(s) {
+            return { waiting:'Ожидание', running:'Выполняется', success:'Успешно',
+                error:'Ошибка', failed:'Ошибка', cancelled:'Отменено',
+                stopped:'Остановлено', waiting_confirmation:'Подтверждение' }[s] || s;
+        }
+
+        function formatRelativeTime(dateStr) {
+            if (!dateStr) return '—';
+            const diff = Date.now() - new Date(dateStr);
+            const mins = Math.floor(diff / 60000);
+            if (mins < 1) return 'только что';
+            if (mins < 60) return mins + ' мин. назад';
+            const hrs = Math.floor(diff / 3600000);
+            if (hrs < 24) return hrs + ' ч. назад';
+            return Math.floor(diff / 86400000) + ' дн. назад';
+        }
+
+        $('#filter-project').addEventListener('change', renderTasks);
+        $('#filter-status').addEventListener('change', renderTasks);
+    </script>
+</body>
+</html>

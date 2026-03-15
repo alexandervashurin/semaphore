@@ -70,6 +70,59 @@
             }
         }
 
+        async function saveSettings(e) {
+            e.preventDefault();
+            const name = document.getElementById('proj-name').value.trim();
+            const parallel = parseInt(document.getElementById('proj-parallel').value) || 0;
+            const telegram = document.getElementById('proj-telegram').value.trim() || null;
+            const alert = document.getElementById('proj-alerts').checked;
+            const msg = document.getElementById('settings-msg');
+            try {
+                await api.updateProject(projectId, {
+                    name,
+                    max_parallel_tasks: parallel,
+                    telegram_chat: telegram,
+                    alert
+                });
+                $('#project-title').textContent = name;
+                document.title = name + ' - Semaphore UI';
+                msg.style.color = '#276749';
+                msg.textContent = '✅ Настройки сохранены';
+                setTimeout(() => { msg.textContent = ''; }, 3000);
+            } catch (err) {
+                msg.style.color = '#c53030';
+                msg.textContent = '❌ ' + err.message;
+            }
+        }
+
+        async function backupProject() {
+            try {
+                const [project, templates, inventories, environments, repositories, keys] = await Promise.all([
+                    api.getProject(projectId),
+                    api.getTemplates(projectId).catch(() => []),
+                    api.getInventories(projectId).catch(() => []),
+                    api.getEnvironments(projectId).catch(() => []),
+                    api.getRepositories(projectId).catch(() => []),
+                    api.getKeys(projectId).catch(() => [])
+                ]);
+                const backup = {
+                    exported_at: new Date().toISOString(),
+                    project, templates, inventories, environments, repositories, keys
+                };
+                const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+                const url  = URL.createObjectURL(blob);
+                const a    = document.createElement('a');
+                const ts   = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+                a.href = url;
+                a.download = 'semaphore-backup-' + projectId + '-' + ts + '.json';
+                a.click();
+                URL.revokeObjectURL(url);
+                ui.showAlert('Резервная копия скачана', 'success');
+            } catch (err) {
+                ui.showAlert('Ошибка резервного копирования: ' + err.message, 'danger');
+            }
+        }
+
         async function confirmDeleteProject() {
             if (!confirm('Удалить проект? Это действие необратимо.')) return;
             try {
@@ -136,20 +189,47 @@
                 </div>
 
                 <div class="card mt-4">
-                    <h3 style="margin-bottom: 15px;">⚙️ Настройки проекта</h3>
-                    <div style="margin-bottom: 20px;">
-                        <label style="display: block; margin-bottom: 6px; font-weight: 500;">Название проекта</label>
-                        <div style="display: flex; gap: 10px;">
-                            <input id="project-name-input" type="text" class="form-control" value="${escapeHtml(project.name)}" style="max-width: 320px;">
-                            <button class="btn btn-primary" onclick="renameProject()">Сохранить</button>
+                    <h3 style="margin-bottom: 20px;">⚙️ Настройки проекта</h3>
+
+                    <form id="settings-form" onsubmit="saveSettings(event)">
+                        <div class="form-group">
+                            <label for="proj-name">Название проекта</label>
+                            <input id="proj-name" type="text" class="form-control" value="${escapeHtml(project.name)}" required style="max-width:380px;">
                         </div>
-                        <div id="rename-msg" style="margin-top: 8px; font-size: 13px;"></div>
+                        <div class="form-group">
+                            <label for="proj-parallel">Макс. параллельных задач <span style="color:var(--text-light); font-size:12px;">(0 = без ограничений)</span></label>
+                            <input id="proj-parallel" type="number" min="0" class="form-control" value="${project.max_parallel_tasks || 0}" style="max-width:140px;">
+                        </div>
+                        <div class="form-group">
+                            <label for="proj-telegram">Telegram Chat ID <span style="color:var(--text-light); font-size:12px;">(для алертов, необязательно)</span></label>
+                            <input id="proj-telegram" type="text" class="form-control" value="${escapeHtml(project.telegram_chat || project.telegram_chat_id || '')}" placeholder="-1001234567890" style="max-width:280px;">
+                        </div>
+                        <div class="form-group">
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="checkbox" id="proj-alerts" ${project.alert ? 'checked' : ''}>
+                                Отправлять уведомления об ошибках задач
+                            </label>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <button type="submit" class="btn btn-primary">💾 Сохранить настройки</button>
+                            <span id="settings-msg" style="font-size:13px;"></span>
+                        </div>
+                    </form>
+
+                    <hr style="border:none; border-top:1px solid var(--border); margin:24px 0;">
+
+                    <div style="margin-bottom:20px;">
+                        <h4 style="margin-bottom:10px;">📦 Управление</h4>
+                        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                            <button class="btn btn-sm" onclick="backupProject()">📥 Скачать резервную копию</button>
+                        </div>
                     </div>
-                    <hr style="border: none; border-top: 1px solid var(--border); margin: 20px 0;">
+
+                    <hr style="border:none; border-top:1px solid var(--border); margin:20px 0;">
                     <div>
-                        <h4 style="color: #e74c3c; margin-bottom: 10px;">Опасная зона</h4>
-                        <p style="color: var(--text-light); font-size: 14px; margin-bottom: 12px;">Удаление проекта необратимо. Все шаблоны, задачи и настройки будут удалены.</p>
-                        <button class="btn" style="background: #e74c3c; color: #fff;" onclick="confirmDeleteProject()">🗑️ Удалить проект</button>
+                        <h4 style="color:#c53030; margin-bottom:10px;">⚠️ Опасная зона</h4>
+                        <p style="color:var(--text-light); font-size:14px; margin-bottom:12px;">Удаление проекта необратимо. Все шаблоны, задачи, ключи и настройки будут удалены.</p>
+                        <button class="btn" style="background:#c53030; color:#fff;" onclick="confirmDeleteProject()">🗑️ Удалить проект</button>
                     </div>
                 </div>
             `;

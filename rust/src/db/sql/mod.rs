@@ -78,21 +78,10 @@ impl SqlStore {
         }
         let pool = self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?;
 
-        // Проверяем, есть ли таблица project (основная для CRUD)
-        let project_exists: Option<String> = sqlx::query_scalar(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='project'",
-        )
-        .fetch_optional(pool)
-        .await
-        .map_err(Error::Database)?;
+        // Всегда применяем миграции (CREATE TABLE IF NOT EXISTS идемпотентны)
+        Self::migrate_project_user_created(pool).await?;
 
-        if project_exists.is_some() {
-            // Миграция: добавить колонку created в project__user, если её нет
-            Self::migrate_project_user_created(pool).await?;
-            return Ok(());
-        }
-
-        // Проверяем, есть ли таблица user (для обратной совместимости со старыми БД)
+        // Проверяем, есть ли таблица user (для обратной совместимости)
         let user_exists: Option<String> = sqlx::query_scalar(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='user'",
         )
@@ -100,7 +89,7 @@ impl SqlStore {
         .await
         .map_err(Error::Database)?;
 
-        tracing::info!("Инициализация схемы БД (создание недостающих таблиц)...");
+        tracing::info!("Применение схемы БД (CREATE TABLE IF NOT EXISTS)...");
 
         // Таблица миграций
         sqlx::query(
@@ -309,6 +298,10 @@ impl SqlStore {
                 arguments TEXT,
                 vault_key_id INTEGER,
                 allow_override_args_vars INTEGER NOT NULL DEFAULT 0,
+                allow_override_branch_in_task INTEGER NOT NULL DEFAULT 0,
+                allow_inventory_in_task INTEGER NOT NULL DEFAULT 0,
+                allow_parallel_tasks INTEGER NOT NULL DEFAULT 0,
+                suppress_success_alerts INTEGER NOT NULL DEFAULT 0,
                 start_version TEXT,
                 build_template_id INTEGER,
                 view_id INTEGER,
@@ -386,6 +379,69 @@ impl SqlStore {
         .await
         .map_err(Error::Database)?;
 
+        // playbook — хранимые YAML плейбуки
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS playbook (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id INTEGER NOT NULL REFERENCES project(id) ON DELETE CASCADE,
+                name TEXT NOT NULL DEFAULT '',
+                content TEXT NOT NULL DEFAULT '',
+                description TEXT,
+                playbook_type TEXT NOT NULL DEFAULT 'ansible',
+                repository_id INTEGER,
+                created DATETIME NOT NULL DEFAULT (datetime('now')),
+                updated DATETIME NOT NULL DEFAULT (datetime('now'))
+            )",
+        )
+        .execute(pool)
+        .await
+        .map_err(Error::Database)?;
+
+        // integration — входящие webhook-триггеры
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS integration (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id INTEGER NOT NULL REFERENCES project(id) ON DELETE CASCADE,
+                name TEXT NOT NULL DEFAULT '',
+                template_id INTEGER,
+                auth_method TEXT NOT NULL DEFAULT 'none',
+                auth_header TEXT,
+                auth_secret_id INTEGER
+            )",
+        )
+        .execute(pool)
+        .await
+        .map_err(Error::Database)?;
+
+        // integration_alias — псевдонимы интеграций
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS integration_alias (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                integration_id INTEGER NOT NULL REFERENCES integration(id) ON DELETE CASCADE,
+                project_id INTEGER NOT NULL,
+                alias TEXT NOT NULL UNIQUE
+            )",
+        )
+        .execute(pool)
+        .await
+        .map_err(Error::Database)?;
+
+        // event — журнал событий
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS event (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id INTEGER REFERENCES project(id) ON DELETE CASCADE,
+                user_id INTEGER,
+                object_id INTEGER,
+                object_type TEXT NOT NULL DEFAULT '',
+                description TEXT NOT NULL DEFAULT '',
+                created DATETIME NOT NULL DEFAULT (datetime('now'))
+            )",
+        )
+        .execute(pool)
+        .await
+        .map_err(Error::Database)?;
+
         tracing::info!("Схема БД инициализирована");
         Ok(())
     }
@@ -419,6 +475,82 @@ impl SqlStore {
             .map_err(Error::Database)?;
             tracing::info!("Миграция: добавлена колонка created в project__user");
         }
+
+        // Миграции для таблицы schedule — добавление run_at полей
+        for (col, definition) in [
+            ("run_at", "TEXT"),
+            ("delete_after_run", "INTEGER NOT NULL DEFAULT 0"),
+        ] {
+            let exists: i32 = sqlx::query_scalar(
+                &format!("SELECT COUNT(*) FROM pragma_table_info('schedule') WHERE name='{col}'"),
+            )
+            .fetch_optional(pool)
+            .await
+            .map_err(Error::Database)?
+            .unwrap_or(0);
+
+            if exists == 0 {
+                sqlx::query(&format!("ALTER TABLE schedule ADD COLUMN {col} {definition}"))
+                    .execute(pool)
+                    .await
+                    .map_err(Error::Database)?;
+                tracing::info!("Миграция: добавлена колонка {col} в schedule");
+            }
+        }
+
+        // Миграции для таблицы integration — добавление auth полей
+        for (col, definition) in [
+            ("auth_method", "TEXT NOT NULL DEFAULT 'none'"),
+            ("auth_header", "TEXT"),
+            ("auth_secret_id", "INTEGER"),
+        ] {
+            let exists: i32 = sqlx::query_scalar(
+                &format!("SELECT COUNT(*) FROM pragma_table_info('integration') WHERE name='{col}'"),
+            )
+            .fetch_optional(pool)
+            .await
+            .map_err(Error::Database)?
+            .unwrap_or(0);
+
+            if exists == 0 {
+                sqlx::query(&format!("ALTER TABLE integration ADD COLUMN {col} {definition}"))
+                    .execute(pool)
+                    .await
+                    .map_err(Error::Database)?;
+                tracing::info!("Миграция: добавлена колонка {col} в integration");
+            }
+        }
+
+        // Миграции для таблицы template
+        for (col, definition) in [
+            ("view_id", "INTEGER"),
+            ("build_template_id", "INTEGER"),
+            ("autorun", "INTEGER NOT NULL DEFAULT 0"),
+            ("survey_vars", "TEXT"),
+            ("allow_override_args_vars", "INTEGER NOT NULL DEFAULT 0"),
+            ("allow_override_branch_in_task", "INTEGER NOT NULL DEFAULT 0"),
+            ("allow_inventory_in_task", "INTEGER NOT NULL DEFAULT 0"),
+            ("allow_parallel_tasks", "INTEGER NOT NULL DEFAULT 0"),
+            ("suppress_success_alerts", "INTEGER NOT NULL DEFAULT 0"),
+            ("deleted", "INTEGER NOT NULL DEFAULT 0"),
+        ] {
+            let exists: i32 = sqlx::query_scalar(
+                &format!("SELECT COUNT(*) FROM pragma_table_info('template') WHERE name='{col}'"),
+            )
+            .fetch_optional(pool)
+            .await
+            .map_err(Error::Database)?
+            .unwrap_or(0);
+
+            if exists == 0 {
+                sqlx::query(&format!("ALTER TABLE template ADD COLUMN {col} {definition}"))
+                    .execute(pool)
+                    .await
+                    .map_err(Error::Database)?;
+                tracing::info!("Миграция: добавлена колонка {col} в template");
+            }
+        }
+
         Ok(())
     }
 

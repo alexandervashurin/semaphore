@@ -38,6 +38,9 @@ services:
         condition: service_started
     networks:
       - demo-net
+      - host-bridge
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:3000/api/ping || exit 1"]
       interval: 10s
@@ -76,3 +79,7 @@ volumes:
 networks:
   demo-net:
     driver: bridge
+  host-bridge:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.host_binding_ipv4: "0.0.0.0"

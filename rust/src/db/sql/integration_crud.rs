@@ -50,37 +50,43 @@ impl SqlDb {
         match self.get_dialect() {
             crate::db::sql::types::SqlDialect::SQLite => {
                 let result = sqlx::query(
-                    "INSERT INTO integration (project_id, name, template_id) VALUES (?, ?, ?)"
+                    "INSERT INTO integration (project_id, name, template_id, auth_method, auth_header, auth_secret_id) VALUES (?, ?, ?, ?, ?, ?)"
                 )
                 .bind(integration.project_id)
                 .bind(&integration.name)
                 .bind(integration.template_id)
+                .bind(&integration.auth_method)
+                .bind(&integration.auth_header)
+                .bind(integration.auth_secret_id)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
                 .map_err(Error::Database)?;
-                
+
                 integration.id = result.last_insert_rowid() as i32;
                 Ok(integration)
             }
             _ => Err(Error::Other("Only SQLite supported for now".to_string()))
         }
     }
-    
+
     /// Обновляет интеграцию
     pub async fn update_integration(&self, integration: Integration) -> Result<()> {
         match self.get_dialect() {
             crate::db::sql::types::SqlDialect::SQLite => {
                 sqlx::query(
-                    "UPDATE integration SET name = ?, template_id = ? WHERE id = ? AND project_id = ?"
+                    "UPDATE integration SET name = ?, template_id = ?, auth_method = ?, auth_header = ?, auth_secret_id = ? WHERE id = ? AND project_id = ?"
                 )
                 .bind(&integration.name)
                 .bind(integration.template_id)
+                .bind(&integration.auth_method)
+                .bind(&integration.auth_header)
+                .bind(integration.auth_secret_id)
                 .bind(integration.id)
                 .bind(integration.project_id)
                 .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
                 .await
                 .map_err(Error::Database)?;
-                
+
                 Ok(())
             }
             _ => Err(Error::Other("Only SQLite supported for now".to_string()))
@@ -125,7 +131,10 @@ mod tests {
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 project_id INTEGER NOT NULL,
                 name TEXT NOT NULL,
-                template_id INTEGER
+                template_id INTEGER,
+                auth_method TEXT NOT NULL DEFAULT 'none',
+                auth_header TEXT,
+                auth_secret_id INTEGER
             )"
         )
         .execute(db.get_sqlite_pool().unwrap())
@@ -144,6 +153,9 @@ mod tests {
             project_id: 1,
             name: "Test Integration".to_string(),
             template_id: 1,
+            auth_method: "none".to_string(),
+            auth_header: None,
+            auth_secret_id: None,
         };
         
         let created = db.create_integration(integration.clone()).await.unwrap();
@@ -167,6 +179,9 @@ mod tests {
                 project_id: 1,
                 name: format!("Integration {}", i),
                 template_id: 1,
+                auth_method: "none".to_string(),
+                auth_header: None,
+                auth_secret_id: None,
             };
             db.create_integration(integration).await.unwrap();
         }
@@ -187,6 +202,9 @@ mod tests {
             project_id: 1,
             name: "Test Integration".to_string(),
             template_id: 1,
+            auth_method: "none".to_string(),
+            auth_header: None,
+            auth_secret_id: None,
         };
         
         let created = db.create_integration(integration).await.unwrap();
@@ -212,6 +230,9 @@ mod tests {
             project_id: 1,
             name: "Test Integration".to_string(),
             template_id: 1,
+            auth_method: "none".to_string(),
+            auth_header: None,
+            auth_secret_id: None,
         };
         
         let created = db.create_integration(integration).await.unwrap();

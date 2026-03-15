@@ -129,6 +129,24 @@ impl std::fmt::Display for TemplateApp {
     }
 }
 
+impl std::str::FromStr for TemplateApp {
+    type Err = std::convert::Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "ansible" => TemplateApp::Ansible,
+            "terraform" => TemplateApp::Terraform,
+            "tofu" => TemplateApp::Tofu,
+            "terragrunt" => TemplateApp::Terragrunt,
+            "bash" => TemplateApp::Bash,
+            "powershell" => TemplateApp::PowerShell,
+            "python" => TemplateApp::Python,
+            "pulumi" => TemplateApp::Pulumi,
+            _ => TemplateApp::Default,
+        })
+    }
+}
+
 impl<DB: Database> Type<DB> for TemplateApp
 where
     String: Type<DB>,
@@ -233,6 +251,38 @@ pub struct Template {
     /// ID ключа vault
     #[serde(skip_serializing_if = "Option::is_none")]
     pub vault_key_id: Option<i32>,
+
+    /// ID View (группа шаблонов)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub view_id: Option<i32>,
+
+    /// ID шаблона сборки (для type=deploy)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub build_template_id: Option<i32>,
+
+    /// Автозапуск при успешном build
+    #[serde(default)]
+    pub autorun: bool,
+
+    /// Разрешить переопределение аргументов при запуске
+    #[serde(default)]
+    pub allow_override_args_in_task: bool,
+
+    /// Разрешить переопределение ветки при запуске
+    #[serde(default)]
+    pub allow_override_branch_in_task: bool,
+
+    /// Разрешить смену инвентаря при запуске
+    #[serde(default)]
+    pub allow_inventory_in_task: bool,
+
+    /// Разрешить параллельный запуск
+    #[serde(default)]
+    pub allow_parallel_tasks: bool,
+
+    /// Подавлять уведомления при успехе
+    #[serde(default)]
+    pub suppress_success_alerts: bool,
 }
 
 /// Шаблон с правами доступа
@@ -281,6 +331,14 @@ impl Template {
             created: Utc::now(),
             arguments: None,
             vault_key_id: None,
+            view_id: None,
+            build_template_id: None,
+            autorun: false,
+            allow_override_args_in_task: false,
+            allow_override_branch_in_task: false,
+            allow_inventory_in_task: false,
+            allow_parallel_tasks: false,
+            suppress_success_alerts: false,
         }
     }
 }

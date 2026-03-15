@@ -5,6 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Окружения - Semaphore UI</title>
     <link rel="stylesheet" href="styles.css">
+    <style>
+        .mode-toggle { display:flex; border:1px solid var(--border-color); border-radius:4px; overflow:hidden; width:fit-content; margin-bottom:8px; }
+        .mode-toggle button { padding:5px 14px; border:none; background:none; cursor:pointer; font-size:12px; color:var(--text-light); }
+        .mode-toggle button.active { background:var(--primary-color); color:#fff; }
+        .kv-table { width:100%; border-collapse:collapse; }
+        .kv-table td { padding:4px 6px; border-bottom:1px solid var(--border-color); }
+        .kv-table td input { width:100%; border:none; background:none; padding:3px; font-size:13px; }
+        .kv-table td input:focus { outline:1px solid var(--primary-color); border-radius:2px; }
+        .kv-table th { font-size:11px; color:var(--text-light); font-weight:500; padding:4px 6px; text-align:left; }
+        .secret-type-badge { font-size:10px; padding:2px 6px; border-radius:10px; background:#e3f2fd; color:#1565c0; }
+        .json-error { color:#c53030; font-size:11px; margin-top:3px; display:none; }
+    </style>
 </head>
 <body>
     <div class="layout">
@@ -13,20 +25,97 @@
         <div class="main-content">
             <div class="main-header">
                 <h2 id="project-title">Окружения</h2>
+                <button class="btn btn-primary" onclick="openModal()">+ Новое окружение</button>
             </div>
 
             <div class="main-body">
-                <div class="page-header">
-                    <h1>⚙️ Окружения</h1>
-                    <button class="btn btn-primary" onclick="openEnvironmentModal()">+ Новое Окружение</button>
-                </div>
-
-                <div id="environments-content">
+                <div id="envs-content">
                     <div class="loading">
                         <div class="loading-spinner"></div>
-                        <p>Загрузка окружений...</p>
+                        <p>Загрузка...</p>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Environment Modal -->
+    <div id="env-modal" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width:680px; max-height:92vh; overflow-y:auto;">
+            <div class="modal-header">
+                <h3 id="env-modal-title">Новое окружение</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+
+            <!-- Tab bar -->
+            <div style="border-bottom:1px solid var(--border-color); padding:0 20px; display:flex; gap:4px;">
+                <button id="tab-vars-btn" onclick="switchEnvTab('vars')"
+                    style="padding:8px 16px; border:none; border-bottom:2px solid var(--primary-color); background:none; cursor:pointer; font-size:13px; color:var(--primary-color); font-weight:500; margin-bottom:-1px;">
+                    Переменные
+                </button>
+                <button id="tab-secrets-btn" onclick="switchEnvTab('secrets')"
+                    style="padding:8px 16px; border:none; border-bottom:2px solid transparent; background:none; cursor:pointer; font-size:13px; color:var(--text-light);">
+                    Секреты
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <input type="hidden" id="env-id">
+
+                <!-- Basic fields (always shown) -->
+                <div class="form-group">
+                    <label for="env-name">Название *</label>
+                    <input type="text" id="env-name" class="form-control" required placeholder="Production">
+                </div>
+
+                <!-- VARS TAB -->
+                <div id="env-tab-vars">
+                    <div class="form-group">
+                        <label>Extra Variables</label>
+                        <div class="mode-toggle">
+                            <button id="vars-json-btn" class="active" onclick="setVarsMode('json')">{ JSON }</button>
+                            <button id="vars-table-btn" onclick="setVarsMode('table')">⊞ Таблица</button>
+                        </div>
+
+                        <!-- JSON mode -->
+                        <div id="vars-json-section">
+                            <textarea id="vars-json" class="form-control" rows="12"
+                                style="font-family:monospace; font-size:12px; resize:vertical;"
+                                placeholder='{"DB_HOST": "localhost", "APP_ENV": "production"}'
+                                oninput="onJsonInput()"></textarea>
+                            <div id="json-error" class="json-error">⚠ Неверный JSON</div>
+                        </div>
+
+                        <!-- Table mode -->
+                        <div id="vars-table-section" style="display:none;">
+                            <div style="border:1px solid var(--border-color); border-radius:4px; overflow:hidden;">
+                                <table class="kv-table">
+                                    <thead><tr>
+                                        <th style="width:45%">Ключ</th>
+                                        <th style="width:45%">Значение</th>
+                                        <th style="width:10%"></th>
+                                    </tr></thead>
+                                    <tbody id="kv-tbody"></tbody>
+                                </table>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-secondary" style="margin-top:6px;" onclick="addKvRow()">+ Добавить переменную</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECRETS TAB -->
+                <div id="env-tab-secrets" style="display:none;">
+                    <div style="margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:13px; color:var(--text-light);">Секреты окружения (значения маскируются)</span>
+                        <button class="btn btn-sm btn-primary" onclick="addSecret()">+ Добавить секрет</button>
+                    </div>
+                    <div id="secrets-list"></div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Отмена</button>
+                <button class="btn btn-primary" onclick="saveEnvironment()">Сохранить</button>
             </div>
         </div>
     </div>
@@ -34,207 +123,336 @@
     <script src="app.js"></script>
     <script>
         checkAuth();
-
         const urlParams = new URLSearchParams(window.location.search);
         const projectId = urlParams.get('id');
+        if (!projectId) window.location.href = 'index.html';
 
-        if (!projectId) {
-            window.location.href = 'index.html';
-        }
+        let environments = [];
+        let currentVarsMode = 'json';
+        let currentEnvTab = 'vars';
+        let secrets = []; // [{id, name, type, value}]
 
         api.getProject(projectId)
-            .then(project => {
-                $('#project-title').textContent = project.name + ' → Окружения';
-                document.title = 'Окружения - ' + project.name;
-            })
-            .catch(console.error);
+            .then(p => {
+                document.getElementById('project-title').textContent = p.name + ' → Окружения';
+                document.title = 'Окружения — ' + p.name;
+            }).catch(() => {});
 
         loadEnvironments();
 
+        // ── Load & render ───────────────────────────────────────────────────
         function loadEnvironments() {
-            const container = $('#environments-content');
-            
             api.getEnvironments(projectId)
-                .then(envs => {
-                    if (envs.length === 0) {
-                        ui.showEmpty(container, '⚙️', 'Нет окружений', 'Создайте первое окружение с переменными');
-                    } else {
-                        container.innerHTML = `
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th>Название</th>
-                                        <th>Переменные</th>
-                                        <th>Описание</th>
-                                        <th>Действия</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${envs.map(env => {
-                                        const vars = JSON.parse(env.json || '{}');
-                                        const varCount = Object.keys(vars).length;
-                                        return `
-                                            <tr>
-                                                <td><strong>${escapeHtml(env.name)}</strong></td>
-                                                <td><span class="badge">${varCount} переменных</span></td>
-                                                <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(env.description || '—')}</td>
-                                                <td>
-                                                    <button class="btn btn-sm" onclick="editEnvironment(${env.id})">✏️</button>
-                                                    <button class="btn btn-danger btn-sm" onclick="deleteEnvironment(${env.id})">🗑️</button>
-                                                </td>
-                                            </tr>
-                                        `;
-                                    }).join('')}
-                                </tbody>
-                            </table>
-                        `;
-                    }
+                .then(data => {
+                    environments = data || [];
+                    renderEnvironments();
                 })
-                .catch(error => {
-                    ui.showError(container, error.message);
+                .catch(err => {
+                    document.getElementById('envs-content').innerHTML =
+                        `<div class="alert alert-danger">Ошибка: ${escapeHtml(err.message)}</div>`;
                 });
         }
 
-        function editEnvironment(id) {
-            api.getEnvironment(projectId, id)
-                .then(env => {
-                    openEnvironmentModal(env);
-                })
-                .catch(error => {
-                    ui.showAlert('Ошибка: ' + error.message, 'danger');
-                });
-        }
-
-        function deleteEnvironment(id) {
-            if (!confirm('Вы уверены что хотите удалить это окружение?')) return;
-
-            api.deleteEnvironment(projectId, id)
-                .then(() => {
-                    ui.showAlert('Окружение удалено', 'success');
-                    loadEnvironments();
-                })
-                .catch(error => {
-                    ui.showAlert('Ошибка: ' + error.message, 'danger');
-                });
-        }
-
-        function openEnvironmentModal(env = null) {
-            const isEdit = !!env;
-            const vars = env ? JSON.parse(env.json || '{}') : {};
-            const varsText = Object.entries(vars).map(([k, v]) => `${k}=${v}`).join('\n');
-            
-            const modal = document.createElement('div');
-            modal.className = 'modal-overlay';
-            modal.id = 'environment-modal';
-            modal.innerHTML = `
-                <div class="modal" style="max-width: 600px;">
-                    <div class="modal-header">
-                        <h2>${isEdit ? '✏️ Редактирование' : '➕ Новое'} Окружение</h2>
-                    </div>
-                    <form id="environment-form">
-                        <div class="form-group">
-                            <label for="name">Название *</label>
-                            <input type="text" id="name" class="form-control" required value="${escapeHtml(env?.name || '')}" placeholder="Production">
-                        </div>
-                        <div class="form-group">
-                            <label for="description">Описание</label>
-                            <textarea id="description" class="form-control" rows="2" placeholder="Описание окружения">${escapeHtml(env?.description || '')}</textarea>
-                        </div>
-                        <div class="form-group">
-                            <label for="json">Переменные (JSON) *</label>
-                            <textarea id="json" class="form-control" rows="10" required placeholder='{"app_env": "production", "db_host": "localhost"}' style="font-family: monospace; font-size: 13px;">${escapeHtml(varsText)}</textarea>
-                            <small style="color: var(--text-light);">Формат: key=value (каждая переменная с новой строки)</small>
-                        </div>
-                        <div class="modal-footer" style="margin-top: 20px;">
-                            <button type="button" class="btn" onclick="closeEnvironmentModal()">Отмена</button>
-                            <button type="submit" class="btn btn-primary">${isEdit ? 'Сохранить' : 'Создать'}</button>
-                        </div>
-                    </form>
-                </div>
-            `;
-            document.body.appendChild(modal);
-
-            $('#environment-form').addEventListener('submit', (e) => {
-                e.preventDefault();
-                saveEnvironment(env?.id);
-            });
-
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) closeEnvironmentModal();
-            });
-        }
-
-        function closeEnvironmentModal() {
-            const modal = $('#environment-modal');
-            if (modal) modal.remove();
-        }
-
-        function saveEnvironment(id) {
-            const name = $('#name').value.trim();
-            const description = $('#description').value.trim();
-            const jsonText = $('#json').value.trim();
-
-            if (!name) {
-                ui.showAlert('Введите название', 'warning');
+        function renderEnvironments() {
+            const el = document.getElementById('envs-content');
+            if (!environments.length) {
+                el.innerHTML = `
+                    <div class="card text-center">
+                        <div style="font-size:48px;margin-bottom:15px">⚙️</div>
+                        <h3>Нет окружений</h3>
+                        <p style="color:var(--text-light)">Создайте окружение с переменными для запуска задач</p>
+                        <button class="btn btn-primary mt-3" onclick="openModal()">Создать окружение</button>
+                    </div>`;
                 return;
             }
 
-            // Парсим переменные из формата key=value
-            const vars = {};
-            const lines = jsonText.split('\n');
-            for (const line of lines) {
-                const trimmed = line.trim();
-                if (!trimmed || trimmed.startsWith('#')) continue;
-                
-                const eqIndex = trimmed.indexOf('=');
-                if (eqIndex > 0) {
-                    const key = trimmed.substring(0, eqIndex).trim();
-                    const value = trimmed.substring(eqIndex + 1).trim();
-                    if (key) {
-                        vars[key] = value;
-                    }
-                } else {
-                    // Если нет =, считаем что это JSON
-                    try {
-                        const parsed = JSON.parse(trimmed);
-                        Object.assign(vars, parsed);
-                    } catch (e) {
-                        // Игнорируем невалидные строки
-                    }
-                }
-            }
-
-            const data = {
-                name: name,
-                description: description || null,
-                json: JSON.stringify(vars)
-            };
-
-            const btn = $('#environment-form button[type="submit"]');
-            btn.disabled = true;
-            btn.textContent = 'Сохранение...';
-
-            const promise = id 
-                ? api.updateEnvironment(projectId, id, data)
-                : api.createEnvironment(projectId, data);
-
-            promise
-                .then(() => {
-                    ui.showAlert(id ? 'Окружение обновлено' : 'Окружение создано', 'success');
-                    closeEnvironmentModal();
-                    loadEnvironments();
-                })
-                .catch(error => {
-                    ui.showAlert('Ошибка: ' + error.message, 'danger');
-                })
-                .finally(() => {
-                    btn.disabled = false;
-                    btn.textContent = id ? 'Сохранить' : 'Создать';
-                });
+            el.innerHTML = `
+                <div class="card">
+                    <table class="table">
+                        <thead><tr>
+                            <th>Название</th>
+                            <th>Переменные</th>
+                            <th>Секреты</th>
+                            <th style="width:110px">Действия</th>
+                        </tr></thead>
+                        <tbody>
+                            ${environments.map(env => {
+                                let varCount = 0;
+                                try { varCount = Object.keys(JSON.parse(env.json || '{}')).length; } catch(e) {}
+                                let secretCount = 0;
+                                try { secretCount = (JSON.parse(env.secrets || '[]')).length; } catch(e) {}
+                                return `<tr>
+                                    <td><strong>${escapeHtml(env.name)}</strong></td>
+                                    <td><span class="badge badge-secondary">${varCount} переменных</span></td>
+                                    <td><span class="badge badge-info">${secretCount} секретов</span></td>
+                                    <td>
+                                        <button class="btn btn-sm btn-secondary" onclick="editEnvironment(${env.id})" title="Редактировать">✎</button>
+                                        <button class="btn btn-sm btn-danger" onclick="deleteEnvironment(${env.id})" title="Удалить">🗑</button>
+                                    </td>
+                                </tr>`;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>`;
         }
 
-        window.editEnvironment = editEnvironment;
-        window.deleteEnvironment = deleteEnvironment;
+        // ── CRUD ────────────────────────────────────────────────────────────
+        function editEnvironment(id) {
+            const env = environments.find(e => e.id === id);
+            if (!env) return;
+            openModal(env);
+        }
+
+        function deleteEnvironment(id) {
+            if (!confirm('Удалить это окружение?')) return;
+            api.deleteEnvironment(projectId, id)
+                .then(() => {
+                    loadEnvironments();
+                    notify('Окружение удалено', 'success');
+                })
+                .catch(err => alert('Ошибка: ' + err.message));
+        }
+
+        // ── Modal ───────────────────────────────────────────────────────────
+        function openModal(env = null) {
+            const isEdit = !!env;
+            document.getElementById('env-modal-title').textContent = isEdit ? 'Редактировать окружение' : 'Новое окружение';
+            document.getElementById('env-id').value = env ? env.id : '';
+            document.getElementById('env-name').value = env ? env.name : '';
+
+            // Init JSON/table for variables
+            const jsonStr = env ? (env.json || '{}') : '{}';
+            setVarsMode('json');
+            try {
+                const parsed = JSON.parse(jsonStr);
+                document.getElementById('vars-json').value = JSON.stringify(parsed, null, 2);
+            } catch(e) {
+                document.getElementById('vars-json').value = jsonStr;
+            }
+            document.getElementById('json-error').style.display = 'none';
+
+            // Init secrets
+            try { secrets = JSON.parse(env && env.secrets || '[]'); } catch(e) { secrets = []; }
+            renderSecretsList();
+
+            switchEnvTab('vars');
+            document.getElementById('env-modal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('env-modal').style.display = 'none';
+        }
+
+        function saveEnvironment() {
+            const id = document.getElementById('env-id').value;
+            const name = document.getElementById('env-name').value.trim();
+            if (!name) { alert('Введите название'); return; }
+
+            // Collect JSON
+            let jsonStr = '{}';
+            if (currentVarsMode === 'json') {
+                const raw = document.getElementById('vars-json').value.trim();
+                try {
+                    JSON.parse(raw);
+                    jsonStr = raw || '{}';
+                } catch(e) {
+                    alert('Ошибка: неверный JSON в поле переменных');
+                    return;
+                }
+            } else {
+                const obj = {};
+                document.querySelectorAll('#kv-tbody tr').forEach(row => {
+                    const k = row.querySelector('.kv-key').value.trim();
+                    const v = row.querySelector('.kv-val').value;
+                    if (k) obj[k] = v;
+                });
+                jsonStr = JSON.stringify(obj);
+            }
+
+            // Collect secrets (don't send masked values back)
+            const secretsToSave = secrets.filter(s => s.name).map(s => ({
+                name: s.name,
+                type: s.type || 'var',
+                value: s.value && s.value !== '****' ? s.value : (s._originalValue || ''),
+            }));
+
+            const payload = {
+                id: id ? parseInt(id) : 0,
+                project_id: parseInt(projectId),
+                name,
+                json: jsonStr,
+                secrets: secretsToSave.length ? JSON.stringify(secretsToSave) : null,
+            };
+
+            const method = id ? 'PUT' : 'POST';
+            const url = id
+                ? `${API_BASE}/project/${projectId}/environments/${id}`
+                : `${API_BASE}/project/${projectId}/environments`;
+
+            api.request(method, url, payload)
+                .then(() => {
+                    closeModal();
+                    loadEnvironments();
+                    notify(`Окружение ${id ? 'обновлено' : 'создано'}`, 'success');
+                })
+                .catch(err => alert('Ошибка: ' + err.message));
+        }
+
+        // ── Tab switching ───────────────────────────────────────────────────
+        function switchEnvTab(tab) {
+            currentEnvTab = tab;
+            document.getElementById('env-tab-vars').style.display = tab === 'vars' ? '' : 'none';
+            document.getElementById('env-tab-secrets').style.display = tab === 'secrets' ? '' : 'none';
+
+            const vBtn = document.getElementById('tab-vars-btn');
+            const sBtn = document.getElementById('tab-secrets-btn');
+            vBtn.style.borderBottomColor = tab === 'vars' ? 'var(--primary-color)' : 'transparent';
+            vBtn.style.color = tab === 'vars' ? 'var(--primary-color)' : 'var(--text-light)';
+            vBtn.style.fontWeight = tab === 'vars' ? '500' : 'normal';
+            sBtn.style.borderBottomColor = tab === 'secrets' ? 'var(--primary-color)' : 'transparent';
+            sBtn.style.color = tab === 'secrets' ? 'var(--primary-color)' : 'var(--text-light)';
+            sBtn.style.fontWeight = tab === 'secrets' ? '500' : 'normal';
+        }
+
+        // ── Vars mode (JSON ↔ Table) ─────────────────────────────────────────
+        function setVarsMode(mode) {
+            if (mode === 'table') {
+                // Validate JSON before switching
+                const raw = document.getElementById('vars-json').value.trim();
+                if (raw) {
+                    try {
+                        JSON.parse(raw);
+                    } catch(e) {
+                        document.getElementById('json-error').style.display = 'block';
+                        return;
+                    }
+                }
+                // Build table from JSON
+                const obj = raw ? JSON.parse(raw) : {};
+                buildKvTable(obj);
+            } else {
+                // Convert table to JSON
+                const obj = {};
+                document.querySelectorAll('#kv-tbody tr').forEach(row => {
+                    const k = row.querySelector('.kv-key')?.value.trim();
+                    const v = row.querySelector('.kv-val')?.value || '';
+                    if (k) obj[k] = v;
+                });
+                document.getElementById('vars-json').value = JSON.stringify(obj, null, 2);
+            }
+
+            currentVarsMode = mode;
+            document.getElementById('vars-json-section').style.display = mode === 'json' ? '' : 'none';
+            document.getElementById('vars-table-section').style.display = mode === 'table' ? '' : 'none';
+            document.getElementById('vars-json-btn').classList.toggle('active', mode === 'json');
+            document.getElementById('vars-table-btn').classList.toggle('active', mode === 'table');
+            document.getElementById('json-error').style.display = 'none';
+        }
+
+        function buildKvTable(obj) {
+            const tbody = document.getElementById('kv-tbody');
+            tbody.innerHTML = '';
+            const entries = Object.entries(obj);
+            if (!entries.length) {
+                addKvRow('', '');
+            } else {
+                entries.forEach(([k, v]) => addKvRow(k, String(v)));
+            }
+        }
+
+        function addKvRow(key = '', value = '') {
+            const tbody = document.getElementById('kv-tbody');
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><input class="kv-key" value="${escapeHtml(key)}" placeholder="KEY" oninput="syncKvToJson()"></td>
+                <td><input class="kv-val" value="${escapeHtml(value)}" placeholder="value" oninput="syncKvToJson()"></td>
+                <td><button type="button" style="background:none;border:none;cursor:pointer;color:#c53030;font-size:16px;" onclick="this.closest('tr').remove(); syncKvToJson()">×</button></td>
+            `;
+            tbody.appendChild(tr);
+        }
+
+        function syncKvToJson() {
+            // Keep JSON in sync for save operation
+        }
+
+        function onJsonInput() {
+            const raw = document.getElementById('vars-json').value;
+            const errEl = document.getElementById('json-error');
+            if (!raw.trim()) { errEl.style.display = 'none'; return; }
+            try { JSON.parse(raw); errEl.style.display = 'none'; }
+            catch(e) { errEl.style.display = 'block'; }
+        }
+
+        // ── Secrets management ──────────────────────────────────────────────
+        function renderSecretsList() {
+            const el = document.getElementById('secrets-list');
+            if (!secrets.length) {
+                el.innerHTML = `<div style="color:var(--text-light); font-size:13px; padding:12px; text-align:center; border:1px dashed var(--border-color); border-radius:4px;">
+                    Нет секретов. Добавьте переменные, которые нужно скрыть от логов.</div>`;
+                return;
+            }
+
+            el.innerHTML = `
+                <div style="border:1px solid var(--border-color); border-radius:4px; overflow:hidden;">
+                    <table style="width:100%; border-collapse:collapse;">
+                        <thead><tr style="background:var(--bg-secondary,#f5f5f5);">
+                            <th style="padding:6px 10px; text-align:left; font-size:11px; color:var(--text-light);">Название</th>
+                            <th style="padding:6px 10px; text-align:left; font-size:11px; color:var(--text-light);">Тип</th>
+                            <th style="padding:6px 10px; text-align:left; font-size:11px; color:var(--text-light);">Значение</th>
+                            <th style="width:40px;"></th>
+                        </tr></thead>
+                        <tbody>
+                            ${secrets.map((s, idx) => `
+                                <tr style="border-top:1px solid var(--border-color);">
+                                    <td style="padding:6px 10px;">
+                                        <input class="form-control" style="padding:3px 6px; font-size:13px;" value="${escapeHtml(s.name || '')}"
+                                            oninput="secrets[${idx}].name=this.value" placeholder="SECRET_KEY">
+                                    </td>
+                                    <td style="padding:6px 10px;">
+                                        <select class="form-control" style="padding:3px 6px; font-size:12px;" onchange="secrets[${idx}].type=this.value">
+                                            <option value="var" ${s.type === 'var' ? 'selected' : ''}>var</option>
+                                            <option value="env" ${s.type === 'env' ? 'selected' : ''}>env</option>
+                                        </select>
+                                    </td>
+                                    <td style="padding:6px 10px;">
+                                        <input type="password" class="form-control" style="padding:3px 6px; font-size:13px;"
+                                            value="${escapeHtml(s.value || '')}"
+                                            oninput="secrets[${idx}]._originalValue=secrets[${idx}].value; secrets[${idx}].value=this.value"
+                                            placeholder="••••••••">
+                                    </td>
+                                    <td style="padding:6px;">
+                                        <button type="button" style="background:none;border:none;cursor:pointer;color:#c53030;font-size:18px;" onclick="removeSecret(${idx})">×</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>`;
+        }
+
+        function addSecret() {
+            secrets.push({ name: '', type: 'var', value: '' });
+            renderSecretsList();
+        }
+
+        function removeSecret(idx) {
+            secrets.splice(idx, 1);
+            renderSecretsList();
+        }
+
+        // ── Utilities ───────────────────────────────────────────────────────
+        function notify(message, type = 'info') {
+            const el = document.createElement('div');
+            el.className = `alert alert-${type}`;
+            el.textContent = message;
+            Object.assign(el.style, { position:'fixed', top:'20px', right:'20px', zIndex:'10000', minWidth:'280px' });
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 3000);
+        }
+
+        window.onclick = e => {
+            if (e.target === document.getElementById('env-modal')) closeModal();
+        };
     </script>
 </body>
 </html>

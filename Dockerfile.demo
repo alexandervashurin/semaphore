@@ -4,7 +4,7 @@
 # ============================================================================
 
 # ── Зависимости (кэшируются отдельно от исходников) ──────────────────────
-FROM rust:slim AS deps
+FROM rust:slim-bookworm AS deps
 
 RUN apt-get update && apt-get install -y \
     pkg-config \

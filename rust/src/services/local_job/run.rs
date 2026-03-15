@@ -65,7 +65,19 @@ impl LocalJob {
         repository.git_path = Some(repo_path.to_string_lossy().to_string());
 
         let install_args = LocalAppInstallingArgs::default();
-        let run_args = LocalAppRunningArgs::default();
+        let mut run_args = LocalAppRunningArgs::default();
+
+        // Write inventory data to temp file and pass -i to ansible-playbook
+        if !self.inventory.inventory_data.is_empty() {
+            let inv_path = self.tmp_dir.join("inventory");
+            if let Err(e) = std::fs::write(&inv_path, &self.inventory.inventory_data) {
+                self.log(&format!("Warning: could not write inventory file: {e}"));
+            } else {
+                let cli_args = run_args.cli_args.entry("default".to_string()).or_insert_with(Vec::new);
+                cli_args.push("-i".to_string());
+                cli_args.push(inv_path.to_string_lossy().to_string());
+            }
+        }
 
         match self.template.app {
             TemplateApp::Ansible => {

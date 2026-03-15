@@ -122,6 +122,9 @@ const api = {
     async login(username, password) {
         const data = await this.post('/auth/login', { username, password });
         localStorage.setItem(STORAGE_KEY, data.token);
+        // Save user info for sidebar display
+        const userInfo = { username: data.username || data.name || username };
+        localStorage.setItem(USER_KEY, JSON.stringify(userInfo));
         return data;
     },
 
@@ -301,6 +304,35 @@ const api = {
 
     deleteTemplate(projectId, id) {
         return this.delete('/project/' + projectId + '/templates/' + id);
+    },
+
+    // Tasks
+    getTasks(projectId) {
+        return this.get('/project/' + projectId + '/tasks');
+    },
+
+    getTask(projectId, id) {
+        return this.get('/project/' + projectId + '/tasks/' + id);
+    },
+
+    getTaskOutput(projectId, id) {
+        return this.get('/project/' + projectId + '/tasks/' + id + '/output');
+    },
+
+    runTask(projectId, templateId) {
+        return this.post('/project/' + projectId + '/tasks', { template_id: templateId });
+    },
+
+    stopTask(projectId, id) {
+        return this.post('/project/' + projectId + '/tasks/' + id + '/stop', {});
+    },
+
+    confirmTask(projectId, id) {
+        return this.post('/project/' + projectId + '/tasks/' + id + '/confirm', {});
+    },
+
+    rejectTask(projectId, id) {
+        return this.post('/project/' + projectId + '/tasks/' + id + '/reject', {});
     }
 };
 
@@ -417,8 +449,11 @@ function checkAuth() {
 
 const SIDEBAR_ITEMS = [
     { href: 'index.html',        icon: '◈',  label: 'Dashboard',    noId: true },
+    { href: 'global_tasks.html', icon: '▶',  label: 'Все задачи',   noId: true },
     { href: 'project.html',      icon: '⬡',  label: 'Обзор' },
     { href: 'templates.html',    icon: '▦',  label: 'Шаблоны' },
+    { href: 'history.html',      icon: '▶',  label: 'История задач' },
+    { href: 'activity.html',     icon: '📋', label: 'Активность' },
     { href: 'inventory.html',    icon: '≡',  label: 'Инвентарь' },
     { href: 'environments.html', icon: '⊕',  label: 'Окружения' },
     { href: 'repositories.html', icon: '⌥',  label: 'Репозитории' },
@@ -426,8 +461,10 @@ const SIDEBAR_ITEMS = [
     { href: 'schedules.html',    icon: '◷',  label: 'Расписания' },
     { href: 'analytics.html',    icon: '◑',  label: 'Аналитика' },
     { href: 'webhooks.html',     icon: '⇌',  label: 'Webhooks' },
-    { href: 'playbooks.html',    icon: '▶',  label: 'Playbooks' },
+    { href: 'playbooks.html',    icon: '📜', label: 'Playbooks' },
     { href: 'team.html',         icon: '👥', label: 'Команда' },
+    { href: 'runners.html',      icon: '⚡', label: 'Runners',    noId: true },
+    { href: 'apps.html',         icon: '◆',  label: 'Apps',       noId: true },
 ];
 
 function renderSidebar() {
@@ -446,6 +483,9 @@ function renderSidebar() {
         return `<li><a href="${href}" ${isActive}><span class="nav-icon">${item.icon}</span>${item.label}</a></li>`;
     }).join('');
 
+    const storedUser = (() => { try { return JSON.parse(localStorage.getItem(USER_KEY) || 'null'); } catch { return null; } })();
+    const userName = storedUser?.username || storedUser?.name || '';
+
     sidebar.innerHTML = `
         <div class="sidebar-logo">
             <div class="sidebar-logo-dot"><img src="/logo.svg" alt=""></div>
@@ -454,6 +494,14 @@ function renderSidebar() {
         <div class="sidebar-section">Навигация</div>
         <ul class="sidebar-nav">${navItems}</ul>
         <div class="sidebar-footer">
+            ${userName ? `<div style="display:flex; align-items:center; gap:8px; padding:8px 0; margin-bottom:6px; border-top:1px solid rgba(255,255,255,.15); padding-top:10px;">
+                <div style="width:30px; height:30px; border-radius:50%; background:rgba(255,255,255,.25); display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700; flex-shrink:0;">${userName[0].toUpperCase()}</div>
+                <span style="font-size:13px; opacity:.9; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(userName)}</span>
+            </div>` : ''}
+            <div style="display:flex; gap:6px; margin-bottom:6px;">
+                <a href="tokens.html" class="btn btn-sm" style="flex:1; text-align:center; font-size:12px; background:rgba(255,255,255,.12); color:#fff; border:none;">🔑 Токены</a>
+                <a href="users.html" class="btn btn-sm" style="flex:1; text-align:center; font-size:12px; background:rgba(255,255,255,.12); color:#fff; border:none;">👤 Аккаунт</a>
+            </div>
             <button class="btn btn-logout" onclick="api.logout()" style="width:100%;justify-content:center;">
                 Выйти
             </button>

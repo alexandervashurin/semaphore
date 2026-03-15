@@ -18,11 +18,15 @@ USERNAME="admin"; PASSWORD="admin123"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 BLUE='\033[0;34m'; CYAN='\033[0;36m'; NC='\033[0m'
-info()    { echo -e "${BLUE}[INFO]${NC} $1"; }
-success() { echo -e "${GREEN}[OK]${NC} $1"; }
-warn()    { echo -e "${YELLOW}[WARN]${NC} $1"; }
-error()   { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
-step()    { echo -e "${CYAN}-->${NC} $1"; }
+# Все сообщения в stderr — не мешают захвату ID через $()
+info()    { echo -e "${BLUE}[INFO]${NC} $1" >&2; }
+success() { echo -e "${GREEN}[OK]${NC} $1" >&2; }
+warn()    { echo -e "${YELLOW}[WARN]${NC} $1" >&2; }
+error()   { echo -e "${RED}[ERROR]${NC} $1" >&2; exit 1; }
+step()    { echo -e "${CYAN}-->${NC} $1" >&2; }
+
+# Извлечение ID из JSON без python/jq (работает на Windows Git Bash)
+extract_id() { grep -o '"id":[0-9]*' | head -1 | cut -d':' -f2; }
 
 get_token() {
     step "Авторизация..."
@@ -31,7 +35,7 @@ get_token() {
         -H "Content-Type: application/json" \
         -d "{\"username\":\"$USERNAME\",\"password\":\"$PASSWORD\"}") \
         || error "Не удалось подключиться к $API_URL"
-    TOKEN=$(echo "$resp" | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])" 2>/dev/null)
+    TOKEN=$(echo "$resp" | grep -o '"token":"[^"]*"' | head -1 | cut -d'"' -f4)
     [ -z "$TOKEN" ] && error "Токен не получен. Ответ: $resp"
     success "Токен получен"
 }
@@ -43,16 +47,12 @@ post() {
         -d "$2"
 }
 
-extract_id() {
-    python3 -c "import sys,json; d=json.loads(sys.stdin.read()); print(d.get('id',0))"
-}
-
 create_project() {
     step "Проект: $1"
-    local id
-    id=$(post "/projects" "{\"name\":\"$1\",\"alert\":false,\"max_parallel_tasks\":0}" | extract_id)
-    [ "$id" -gt 0 ] && success "Проект '$1' (ID: $id)" || warn "Ошибка проекта '$1'"
-    echo "$id"
+    local resp; resp=$(post "/projects" "{\"name\":\"$1\",\"alert\":false,\"max_parallel_tasks\":0}")
+    local id; id=$(echo "$resp" | extract_id)
+    [ -n "$id" ] && success "Проект '$1' (ID: $id)" || { warn "Ошибка: $resp"; id=0; }
+    echo "${id:-0}"
 }
 
 create_key() {
@@ -63,8 +63,8 @@ create_key() {
     [ -n "$5" ] && body="${body},\"secret\":\"$5\""
     body="${body}}"
     local id; id=$(post "/project/$1/keys" "$body" | extract_id)
-    [ "$id" -gt 0 ] && success "Ключ '$2' (ID: $id)" || warn "Ошибка ключа '$2'"
-    echo "$id"
+    [ -n "$id" ] && success "Ключ '$2' (ID: $id)" || warn "Ошибка ключа '$2'"
+    echo "${id:-0}"
 }
 
 create_repo() {
@@ -73,31 +73,30 @@ create_repo() {
     local id
     id=$(post "/project/$1/repositories" \
         "{\"name\":\"$2\",\"git_url\":\"$3\",\"git_branch\":\"${4:-main}\"}" | extract_id)
-    [ "$id" -gt 0 ] && success "Репозиторий '$2' (ID: $id)" || warn "Ошибка репозитория '$2'"
-    echo "$id"
+    [ -n "$id" ] && success "Репозиторий '$2' (ID: $id)" || warn "Ошибка репозитория '$2'"
+    echo "${id:-0}"
 }
 
 create_inventory() {
-    # $1=pid $2=name $3=type $4=data
+    # $1=pid $2=name $3=type $4=data (multiline ok — will be JSON-escaped)
     step "Инвентарь: $2 (type=$3)"
-    local data_esc
-    data_esc=$(printf '%s' "$4" | python3 -c "import sys,json; print(json.dumps(sys.stdin.read()))")
+    # escape newlines for JSON
+    local data_esc; data_esc=$(printf '%s' "$4" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr '\n' '\\' | sed 's/\\/\\n/g')
     local id
-    id=$(post "/project/$1/inventories" \
-        "{\"name\":\"$2\",\"inventory_type\":\"$3\",\"inventory\":${data_esc}}" | extract_id)
-    [ "$id" -gt 0 ] && success "Инвентарь '$2' (ID: $id)" || warn "Ошибка инвентаря '$2'"
-    echo "$id"
+    id=$(post "/project/$1/inventory" \
+        "{\"name\":\"$2\",\"inventory_type\":\"$3\",\"inventory\":\"${data_esc}\"}" | extract_id)
+    [ -n "$id" ] && success "Инвентарь '$2' (ID: $id)" || warn "Ошибка инвентаря '$2'"
+    echo "${id:-0}"
 }
 
 create_environment() {
-    # $1=pid $2=name $3=json_object_string
+    # $1=pid $2=name $3=json_vars (single-line JSON object)
     step "Окружение: $2"
-    local jstr
-    jstr=$(printf '%s' "$3" | python3 -c "import sys,json; print(json.dumps(sys.stdin.read().strip()))")
     local id
-    id=$(post "/project/$1/environments" "{\"name\":\"$2\",\"json\":${jstr}}" | extract_id)
-    [ "$id" -gt 0 ] && success "Окружение '$2' (ID: $id)" || warn "Ошибка окружения '$2'"
-    echo "$id"
+    id=$(post "/project/$1/environment" \
+        "{\"name\":\"$2\",\"json\":\"$3\"}" | extract_id)
+    [ -n "$id" ] && success "Окружение '$2' (ID: $id)" || warn "Ошибка окружения '$2'"
+    echo "${id:-0}"
 }
 
 create_template() {
@@ -108,8 +107,8 @@ create_template() {
     [ -n "$6" ] && [ "$6" -gt 0 ] 2>/dev/null && body="${body},\"environment_id\":$6"
     body="${body}}"
     local id; id=$(post "/project/$1/templates" "$body" | extract_id)
-    [ "$id" -gt 0 ] && success "Шаблон '$2' (ID: $id)" || warn "Ошибка шаблона '$2'"
-    echo "$id"
+    [ -n "$id" ] && success "Шаблон '$2' (ID: $id)" || warn "Ошибка шаблона '$2'"
+    echo "${id:-0}"
 }
 
 create_schedule() {
@@ -117,17 +116,17 @@ create_schedule() {
     step "Расписание: $2 ($4)"
     local id
     id=$(post "/project/$1/schedules" \
-        "{\"name\":\"$2\",\"template_id\":$3,\"cron\":\"$4\",\"active\":true,\"project_id\":$1}" | extract_id)
-    [ "$id" -gt 0 ] && success "Расписание '$2' (ID: $id)" || warn "Ошибка расписания '$2'"
-    echo "$id"
+        "{\"id\":0,\"name\":\"$2\",\"template_id\":$3,\"cron\":\"$4\",\"active\":true,\"project_id\":$1}" | extract_id)
+    [ -n "$id" ] && success "Расписание '$2' (ID: $id)" || warn "Ошибка расписания '$2'"
+    echo "${id:-0}"
 }
 
 create_task() {
     # $1=pid $2=template_id
     step "Запуск задачи (шаблон #$2)..."
     local id; id=$(post "/project/$1/tasks" "{\"template_id\":$2}" | extract_id)
-    [ "$id" -gt 0 ] && success "Задача запущена (ID: $id)" || warn "Ошибка задачи"
-    echo "$id"
+    [ -n "$id" ] && success "Задача запущена (ID: $id)" || warn "Ошибка задачи"
+    echo "${id:-0}"
 }
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -153,9 +152,9 @@ I_TARGET=$(create_inventory "$P1" "Demo Target (ansible-target)" "static" \
 ansible-target ansible_user=demo ansible_password=demo123 ansible_ssh_common_args='-o StrictHostKeyChecking=no'")
 
 E_DEV=$(create_environment "$P1" "Development" \
-'{"ENV": "development", "DEBUG": "true", "APP_VERSION": "1.0.0"}')
+'{\"ENV\": \"development\", \"DEBUG\": \"true\", \"APP_VERSION\": \"1.0.0\"}')
 E_PROD=$(create_environment "$P1" "Production" \
-'{"ENV": "production", "DEBUG": "false", "APP_VERSION": "2.5.1"}')
+'{\"ENV\": \"production\", \"DEBUG\": \"false\", \"APP_VERSION\": \"2.5.1\"}')
 
 T_HELLO=$(create_template "$P1" "Hello World (localhost)" \
     "hello.yml" "$I_LOCAL" "$R1" "$E_DEV" "ansible")
@@ -178,17 +177,18 @@ create_key "$P2" "AWS Access" "login_password" "aws_key_id" "aws_secret_key"
 create_repo "$P2" "Infrastructure Code" "https://github.com/example/infra.git" "main"
 create_repo "$P2" "Terraform Modules" "https://github.com/example/terraform-modules.git" "main"
 
-I_PROD=$(create_inventory "$P2" "Production Servers" "static" \
+I_PROD2=$(create_inventory "$P2" "Production Servers" "static" \
 "[production]
 prod1.example.com
 prod2.example.com")
 create_inventory "$P2" "Staging Servers" "static" \
 "[staging]
 staging1.example.com"
-create_environment "$P2" "AWS us-east-1" '{"AWS_REGION": "us-east-1", "TF_VAR_env": "prod"}'
-create_environment "$P2" "GCP europe-west" '{"GOOGLE_PROJECT": "my-project"}'
-
-T_PROV=$(create_template "$P2" "Provision Servers" "provision.yml" "$I_PROD" "" "" "ansible")
+create_environment "$P2" "AWS us-east-1" \
+'{\"AWS_REGION\": \"us-east-1\", \"TF_VAR_env\": \"prod\"}'
+create_environment "$P2" "GCP europe-west" \
+'{\"GOOGLE_PROJECT\": \"my-project\"}'
+T_PROV=$(create_template "$P2" "Provision Servers" "provision.yml" "$I_PROD2" "" "" "ansible")
 create_schedule "$P2" "Weekly Provision" "$T_PROV" "0 3 * * 1"
 
 # ── Проект 3: Web Applications ───────────────────────────────────────────────
@@ -206,19 +206,19 @@ web2.example.com
 
 [dbservers]
 db1.example.com")
-create_environment "$P3" "Production" '{"APP_ENV": "production", "NODE_ENV": "production"}'
+create_environment "$P3" "Production" \
+'{\"APP_ENV\": \"production\", \"NODE_ENV\": \"production\"}'
 
 T_FE=$(create_template "$P3" "Deploy Frontend" "deploy.yml" "$I_WEB" "" "" "ansible")
 T_SSL=$(create_template "$P3" "Update SSL Certs" "ssl-renew.yml" "$I_WEB" "" "" "ansible")
 create_template "$P3" "Restart Services" "restart.yml" "$I_WEB" "" "" "ansible"
-
 create_schedule "$P3" "Nightly Deploy" "$T_FE" "0 1 * * *"
 create_schedule "$P3" "Monthly SSL Renew" "$T_SSL" "0 4 1 * *"
 
 # ── Итог ─────────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${GREEN}+----------------------------------------------------------+${NC}"
-echo -e "${GREEN}|   Тестовые данные созданы успешно!                       |${NC}"
+echo -e "${GREEN}|   Тестовые данные созданы!                               |${NC}"
 echo -e "${GREEN}+----------------------------------------------------------+${NC}"
 echo ""
 echo "  Проектов: 3 | Шаблонов: 8 | Расписаний: 5"
@@ -227,4 +227,4 @@ echo -e "${CYAN}http://localhost:8088  (admin / admin123)${NC}"
 echo ""
 echo "Реальный ansible:"
 echo "  Demo Project -> Шаблоны -> 'Hello World (localhost)' -> Run"
-echo "  Demo Project -> Шаблоны -> 'Ping Demo Servers' -> Run (нужен ansible-target)"
+echo "  Demo Project -> Шаблоны -> 'Ping Demo Servers' -> Run"

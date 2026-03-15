@@ -18,7 +18,16 @@
             <div class="main-body">
                 <div class="page-header">
                     <h1>👥 Команда проекта</h1>
-                    <button class="btn btn-primary" onclick="openMemberModal()">+ Добавить участника</button>
+                    <div id="page-action-btn">
+                        <button class="btn btn-primary" onclick="openMemberModal()">+ Добавить участника</button>
+                    </div>
+                </div>
+
+                <div style="border-bottom:2px solid var(--border); margin-bottom:16px;">
+                    <div style="display:flex; gap:0;">
+                        <button id="tab-members" onclick="switchTab('members')" style="padding:8px 20px; border:none; background:transparent; cursor:pointer; font-size:14px; border-bottom:3px solid var(--primary); font-weight:600; color:var(--primary);">Участники</button>
+                        <button id="tab-invites" onclick="switchTab('invites')" style="padding:8px 20px; border:none; background:transparent; cursor:pointer; font-size:14px; border-bottom:3px solid transparent; color:var(--text-light);">Приглашения</button>
+                    </div>
                 </div>
 
                 <div id="team-content">
@@ -27,6 +36,8 @@
                         <p>Загрузка команды...</p>
                     </div>
                 </div>
+
+                <div id="invites-content" style="display:none;"></div>
             </div>
         </div>
     </div>
@@ -230,6 +241,146 @@
                     btn.disabled = false;
                     btn.textContent = userId ? 'Сохранить' : 'Добавить';
                 });
+        }
+
+        let currentTab = 'members';
+
+        function switchTab(tab) {
+            currentTab = tab;
+            const isMembers = tab === 'members';
+
+            const tabM = $('#tab-members');
+            const tabI = $('#tab-invites');
+            const activeStyle = 'border-bottom:3px solid var(--primary); font-weight:600; color:var(--primary);';
+            const inactiveStyle = 'border-bottom:3px solid transparent; color:var(--text-light);';
+
+            tabM.style.cssText = 'padding:8px 20px; border:none; background:transparent; cursor:pointer; font-size:14px; ' + (isMembers ? activeStyle : inactiveStyle);
+            tabI.style.cssText = 'padding:8px 20px; border:none; background:transparent; cursor:pointer; font-size:14px; ' + (!isMembers ? activeStyle : inactiveStyle);
+
+            $('#team-content').style.display = isMembers ? 'block' : 'none';
+            $('#invites-content').style.display = isMembers ? 'none' : 'block';
+
+            const actionBtn = $('#page-action-btn');
+            if (isMembers) {
+                actionBtn.innerHTML = '<button class="btn btn-primary" onclick="openMemberModal()">+ Добавить участника</button>';
+            } else {
+                actionBtn.innerHTML = '<button class="btn btn-primary" onclick="openInviteModal()">+ Создать приглашение</button>';
+                loadInvites();
+            }
+        }
+
+        function loadInvites() {
+            const container = $('#invites-content');
+            ui.showLoading(container);
+            api.get('/project/' + projectId + '/invites')
+                .then(invites => {
+                    if (!invites || invites.length === 0) {
+                        ui.showEmpty(container, '✉️', 'Нет приглашений', 'Создайте приглашение чтобы добавить пользователя в проект');
+                        return;
+                    }
+                    const baseUrl = window.location.origin;
+                    container.innerHTML = `
+                        <table class="table">
+                            <thead><tr>
+                                <th>Пользователь</th>
+                                <th>Роль</th>
+                                <th>Ссылка приглашения</th>
+                                <th>Создан</th>
+                                <th>Действия</th>
+                            </tr></thead>
+                            <tbody>
+                                ${invites.map(inv => `
+                                    <tr>
+                                        <td><strong>${escapeHtml(inv.user_name || inv.user_email || 'ID: ' + inv.user_id)}</strong>
+                                            ${inv.user_email ? `<div style="font-size:11px; color:var(--text-light);">${escapeHtml(inv.user_email)}</div>` : ''}
+                                        </td>
+                                        <td>${getRoleBadge(inv.role)}</td>
+                                        <td>
+                                            <div style="display:flex; align-items:center; gap:6px;">
+                                                <code style="font-size:11px; background:#f5f5f5; padding:2px 6px; border-radius:4px; overflow:hidden; text-overflow:ellipsis; max-width:200px; display:inline-block;">${baseUrl}/accept_invite.html?token=${escapeHtml(inv.token)}</code>
+                                                <button class="btn btn-sm" onclick="copyInviteLink('${escapeHtml(inv.token)}')" title="Копировать ссылку">📋</button>
+                                            </div>
+                                        </td>
+                                        <td style="font-size:12px; color:var(--text-light);">${formatDate(inv.created)}</td>
+                                        <td>
+                                            <button class="btn btn-danger btn-sm" onclick="deleteInvite(${inv.id})" title="Удалить">🗑️</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                })
+                .catch(err => ui.showError(container, err.message));
+        }
+
+        function copyInviteLink(token) {
+            const url = window.location.origin + '/accept_invite.html?token=' + token;
+            navigator.clipboard.writeText(url).then(() => ui.showAlert('Ссылка скопирована', 'success'))
+                .catch(() => ui.showAlert('Скопируйте ссылку вручную: ' + url, 'info'));
+        }
+
+        function deleteInvite(id) {
+            if (!confirm('Удалить приглашение?')) return;
+            api.delete('/project/' + projectId + '/invites/' + id)
+                .then(() => { ui.showAlert('Приглашение удалено', 'success'); loadInvites(); })
+                .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+        }
+
+        function openInviteModal() {
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.id = 'invite-modal';
+            document.body.appendChild(modal);
+
+            api.getUsers().then(users => {
+                modal.innerHTML = `
+                    <div class="modal" style="max-width:480px;">
+                        <div class="modal-header"><h2>✉️ Создать приглашение</h2></div>
+                        <form id="invite-form">
+                            <div class="form-group">
+                                <label for="invite-user">Пользователь *</label>
+                                <select id="invite-user" class="form-control" required>
+                                    <option value="">Выберите пользователя</option>
+                                    ${users.map(u => `<option value="${u.id}">${escapeHtml(u.username)}${u.name ? ' — ' + escapeHtml(u.name) : ''}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="invite-role">Роль *</label>
+                                <select id="invite-role" class="form-control" required>
+                                    <option value="owner">👑 Owner</option>
+                                    <option value="manager" selected>🔧 Manager</option>
+                                    <option value="task_runner">▶ Task Runner</option>
+                                    <option value="guest">👁 Guest</option>
+                                </select>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn" onclick="document.getElementById('invite-modal').remove()">Отмена</button>
+                                <button type="submit" class="btn btn-primary">Создать</button>
+                            </div>
+                        </form>
+                    </div>
+                `;
+                modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+                $('#invite-form').addEventListener('submit', e => {
+                    e.preventDefault();
+                    const userId = parseInt($('#invite-user').value);
+                    const role = $('#invite-role').value;
+                    if (!userId) { ui.showAlert('Выберите пользователя', 'warning'); return; }
+                    const btn = modal.querySelector('button[type="submit"]');
+                    btn.disabled = true;
+                    api.post('/project/' + projectId + '/invites', { user_id: userId, role })
+                        .then(inv => {
+                            modal.remove();
+                            ui.showAlert('Приглашение создано', 'success');
+                            loadInvites();
+                            copyInviteLink(inv.token);
+                        })
+                        .catch(err => { ui.showAlert('Ошибка: ' + err.message, 'danger'); btn.disabled = false; });
+                });
+            }).catch(() => {
+                modal.innerHTML = '<div class="modal" style="max-width:400px;"><p>Ошибка загрузки пользователей</p><div class="modal-footer"><button class="btn" onclick="this.closest(\'.modal-overlay\').remove()">Закрыть</button></div></div>';
+            });
         }
 
         window.editMember = editMember;

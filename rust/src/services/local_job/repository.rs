@@ -13,9 +13,43 @@ impl LocalJob {
         let repo_path = self.get_repository_path();
         std::fs::create_dir_all(&repo_path)?;
 
-        // TODO: Использовать GitRepository для clone/pull при наличии git_url
-        if !self.repository.git_url.is_empty() {
-            self.log("Git clone/pull pending implementation - using empty directory");
+        if self.repository.git_url.starts_with("file://") {
+            // Для локальных репозиториев — копируем файлы напрямую
+            let src_path = self.repository.git_url.trim_start_matches("file://");
+            let src = std::path::Path::new(src_path);
+            if src.is_dir() {
+                if let Err(e) = copy_dir_recursive(src, &repo_path) {
+                    self.log(&format!("Warning: could not copy local repo: {e}"));
+                } else {
+                    self.log(&format!("Copied local repository from {src_path}"));
+                }
+            } else {
+                self.log(&format!("Warning: local path {src_path} not found, using empty directory"));
+            }
+        } else if !self.repository.git_url.is_empty() {
+            // Используем GitRepository для clone/pull
+            use crate::services::git_repository::GitRepository;
+            let git_repo = GitRepository::new(
+                self.repository.clone(),
+                self.task.project_id,
+                self.task.template_id,
+            ).with_tmp_dir(format!("task_{}", self.task.id));
+            let full_path = git_repo.get_full_path();
+            let result = if full_path.exists() && full_path.join(".git").exists() {
+                git_repo.pull().await
+            } else {
+                git_repo.clone().await
+            };
+            match result {
+                Ok(()) => {
+                    self.log("Repository cloned/updated");
+                    // Копируем в repo_path
+                    if let Err(e) = copy_dir_recursive(&full_path, &repo_path) {
+                        self.log(&format!("Warning: could not copy repo: {e}"));
+                    }
+                }
+                Err(e) => self.log(&format!("Warning: git error: {e}, using existing directory")),
+            }
         }
 
         self.log("Repository update completed");
@@ -45,6 +79,21 @@ impl LocalJob {
     pub fn get_repository_path(&self) -> std::path::PathBuf {
         self.work_dir.join("repository")
     }
+}
+
+fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(dst)?;
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let ftype = entry.file_type()?;
+        let dst_path = dst.join(entry.file_name());
+        if ftype.is_dir() {
+            copy_dir_recursive(&entry.path(), &dst_path)?;
+        } else {
+            std::fs::copy(entry.path(), dst_path)?;
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]

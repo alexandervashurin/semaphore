@@ -968,3 +968,52 @@ code {
     .table { font-size: 13px; }
     .table th, .table td { padding: 8px 10px; }
 }
+
+/* ---- Run task modal ---- */
+.run-status-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    background: #e3f2fd;
+    color: #1976d2;
+}
+.run-status-waiting  { background: #f0f0f0; color: #666; }
+.run-status-running  { background: #e3f2fd; color: #1976d2; }
+.run-status-success  { background: #c6f6d5; color: #276749; }
+.run-status-error, .run-status-failed { background: #fed7d7; color: #c53030; }
+.run-status-cancelled { background: #e0e0e0; color: #424242; }
+
+.run-progress-bar {
+    height: 4px;
+    background: #e0e0e0;
+    border-radius: 2px;
+    overflow: hidden;
+}
+.run-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #005057, #00897b);
+    animation: run-indeterminate 1.5s infinite;
+    width: 40%;
+}
+@keyframes run-indeterminate {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(350%); }
+}
+
+.run-log-container {
+    background: #1e1e1e;
+    color: #d4d4d4;
+    padding: 16px;
+    border-radius: 6px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    height: 420px;
+    overflow-y: auto;
+}
+.run-log-line { margin-bottom: 3px; white-space: pre-wrap; word-break: break-all; }
+.run-log-info    { color: #d4d4d4; }
+.run-log-success { color: #4ec9b0; }
+.run-log-warning { color: #ce9178; }
+.run-log-error   { color: #f48771; }

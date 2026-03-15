@@ -28,6 +28,8 @@ impl ScheduleManager for SqlStore {
                     last_commit_hash: row.try_get("last_commit_hash").ok().flatten(),
                     repository_id: row.try_get("repository_id").ok(),
                     created: row.try_get("created").ok(),
+                    run_at: row.try_get("run_at").ok().flatten(),
+                    delete_after_run: row.try_get::<i32, _>("delete_after_run").ok().unwrap_or(0) != 0,
                 }).collect())
             }
             SqlDialect::PostgreSQL => {
@@ -44,6 +46,8 @@ impl ScheduleManager for SqlStore {
                     last_commit_hash: row.try_get("last_commit_hash").ok().flatten(),
                     repository_id: row.try_get("repository_id").ok(),
                     created: row.try_get("created").ok(),
+                    run_at: row.try_get("run_at").ok().flatten(),
+                    delete_after_run: row.try_get::<i32, _>("delete_after_run").ok().unwrap_or(0) != 0,
                 }).collect())
             }
             SqlDialect::MySQL => {
@@ -60,6 +64,8 @@ impl ScheduleManager for SqlStore {
                     last_commit_hash: row.try_get("last_commit_hash").ok().flatten(),
                     repository_id: row.try_get("repository_id").ok(),
                     created: row.try_get("created").ok(),
+                    run_at: row.try_get("run_at").ok().flatten(),
+                    delete_after_run: row.try_get::<i32, _>("delete_after_run").ok().unwrap_or(0) != 0,
                 }).collect())
             }
         }
@@ -84,6 +90,8 @@ impl ScheduleManager for SqlStore {
                     last_commit_hash: row.try_get("last_commit_hash").ok().flatten(),
                     repository_id: row.try_get("repository_id").ok(),
                     created: row.try_get("created").ok(),
+                    run_at: row.try_get("run_at").ok().flatten(),
+                    delete_after_run: row.try_get::<i32, _>("delete_after_run").ok().unwrap_or(0) != 0,
                 })
             }
             SqlDialect::PostgreSQL => {
@@ -103,6 +111,8 @@ impl ScheduleManager for SqlStore {
                     last_commit_hash: row.try_get("last_commit_hash").ok().flatten(),
                     repository_id: row.try_get("repository_id").ok(),
                     created: row.try_get("created").ok(),
+                    run_at: row.try_get("run_at").ok().flatten(),
+                    delete_after_run: row.try_get::<i32, _>("delete_after_run").ok().unwrap_or(0) != 0,
                 })
             }
             SqlDialect::MySQL => {
@@ -122,6 +132,8 @@ impl ScheduleManager for SqlStore {
                     last_commit_hash: row.try_get("last_commit_hash").ok().flatten(),
                     repository_id: row.try_get("repository_id").ok(),
                     created: row.try_get("created").ok(),
+                    run_at: row.try_get("run_at").ok().flatten(),
+                    delete_after_run: row.try_get::<i32, _>("delete_after_run").ok().unwrap_or(0) != 0,
                 })
             }
         }
@@ -130,40 +142,49 @@ impl ScheduleManager for SqlStore {
     async fn create_schedule(&self, mut schedule: Schedule) -> Result<Schedule> {
         match self.get_dialect() {
             SqlDialect::SQLite => {
-                let query = "INSERT INTO schedule (project_id, template_id, cron, name, active, created) VALUES (?, ?, ?, ?, ?, ?) RETURNING id";
+                let query = "INSERT INTO schedule (project_id, template_id, cron, cron_format, name, active, created, run_at, delete_after_run) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id";
                 let id: i32 = sqlx::query_scalar(query)
                     .bind(schedule.project_id)
                     .bind(schedule.template_id)
                     .bind(&schedule.cron)
+                    .bind(&schedule.cron_format)
                     .bind(&schedule.name)
                     .bind(schedule.active)
                     .bind(&schedule.created)
+                    .bind(&schedule.run_at)
+                    .bind(schedule.delete_after_run as i32)
                     .fetch_one(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?).await.map_err(Error::Database)?;
                 schedule.id = id;
                 Ok(schedule)
             }
             SqlDialect::PostgreSQL => {
-                let query = "INSERT INTO schedule (project_id, template_id, cron, name, active, created) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id";
+                let query = "INSERT INTO schedule (project_id, template_id, cron, cron_format, name, active, created, run_at, delete_after_run) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id";
                 let id: i32 = sqlx::query_scalar(query)
                     .bind(schedule.project_id)
                     .bind(schedule.template_id)
                     .bind(&schedule.cron)
+                    .bind(&schedule.cron_format)
                     .bind(&schedule.name)
                     .bind(schedule.active)
                     .bind(&schedule.created)
+                    .bind(&schedule.run_at)
+                    .bind(schedule.delete_after_run)
                     .fetch_one(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?).await.map_err(Error::Database)?;
                 schedule.id = id;
                 Ok(schedule)
             }
             SqlDialect::MySQL => {
-                let query = "INSERT INTO `schedule` (project_id, template_id, cron, name, active, created) VALUES (?, ?, ?, ?, ?, ?)";
+                let query = "INSERT INTO `schedule` (project_id, template_id, cron, cron_format, name, active, created, run_at, delete_after_run) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
                 let result = sqlx::query(query)
                     .bind(schedule.project_id)
                     .bind(schedule.template_id)
                     .bind(&schedule.cron)
+                    .bind(&schedule.cron_format)
                     .bind(&schedule.name)
                     .bind(schedule.active)
                     .bind(&schedule.created)
+                    .bind(&schedule.run_at)
+                    .bind(schedule.delete_after_run as i32)
                     .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?).await.map_err(Error::Database)?;
                 schedule.id = result.last_insert_id() as i32;
                 Ok(schedule)
@@ -174,29 +195,38 @@ impl ScheduleManager for SqlStore {
     async fn update_schedule(&self, schedule: Schedule) -> Result<()> {
         match self.get_dialect() {
             SqlDialect::SQLite => {
-                let query = "UPDATE schedule SET cron = ?, name = ?, active = ? WHERE id = ?";
+                let query = "UPDATE schedule SET cron = ?, cron_format = ?, name = ?, active = ?, run_at = ?, delete_after_run = ? WHERE id = ?";
                 sqlx::query(query)
                     .bind(&schedule.cron)
+                    .bind(&schedule.cron_format)
                     .bind(&schedule.name)
                     .bind(schedule.active)
+                    .bind(&schedule.run_at)
+                    .bind(schedule.delete_after_run as i32)
                     .bind(schedule.id)
                     .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?).await.map_err(Error::Database)?;
             }
             SqlDialect::PostgreSQL => {
-                let query = "UPDATE schedule SET cron = $1, name = $2, active = $3 WHERE id = $4";
+                let query = "UPDATE schedule SET cron = $1, cron_format = $2, name = $3, active = $4, run_at = $5, delete_after_run = $6 WHERE id = $7";
                 sqlx::query(query)
                     .bind(&schedule.cron)
+                    .bind(&schedule.cron_format)
                     .bind(&schedule.name)
                     .bind(schedule.active)
+                    .bind(&schedule.run_at)
+                    .bind(schedule.delete_after_run)
                     .bind(schedule.id)
                     .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?).await.map_err(Error::Database)?;
             }
             SqlDialect::MySQL => {
-                let query = "UPDATE `schedule` SET cron = ?, name = ?, active = ? WHERE id = ?";
+                let query = "UPDATE `schedule` SET cron = ?, cron_format = ?, name = ?, active = ?, run_at = ?, delete_after_run = ? WHERE id = ?";
                 sqlx::query(query)
                     .bind(&schedule.cron)
+                    .bind(&schedule.cron_format)
                     .bind(&schedule.name)
                     .bind(schedule.active)
+                    .bind(&schedule.run_at)
+                    .bind(schedule.delete_after_run as i32)
                     .bind(schedule.id)
                     .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?).await.map_err(Error::Database)?;
             }

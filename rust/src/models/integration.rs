@@ -10,6 +10,15 @@ pub struct Integration {
     pub project_id: i32,
     pub name: String,
     pub template_id: i32,
+    /// Метод аутентификации: "none", "hmac", "token"
+    #[serde(default)]
+    pub auth_method: String,
+    /// Заголовок HTTP для проверки токена/подписи
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auth_header: Option<String>,
+    /// ID ключа (secret) для HMAC/token
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auth_secret_id: Option<i32>,
 }
 
 /// Извлекаемое значение интеграции

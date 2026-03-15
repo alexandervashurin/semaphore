@@ -47,16 +47,24 @@ pub async fn create_template(
         project_id,
         name: payload.name,
         playbook: payload.playbook,
-        description: String::new(),
+        description: payload.description,
         inventory_id: payload.inventory_id,
         repository_id: payload.repository_id,
         environment_id: payload.environment_id,
-        r#type: TemplateType::Default,
-        app: TemplateApp::Ansible,
-        git_branch: Some("main".to_string()),
+        r#type: payload.r#type.as_deref().unwrap_or("ansible").parse().unwrap_or(TemplateType::Default),
+        app: payload.app.as_deref().unwrap_or("ansible").parse().unwrap_or(TemplateApp::Ansible),
+        git_branch: payload.git_branch.or_else(|| Some("main".to_string())),
         created: Utc::now(),
-        arguments: None,
-        vault_key_id: None,
+        arguments: payload.arguments,
+        vault_key_id: payload.vault_key_id,
+        view_id: payload.view_id,
+        build_template_id: payload.build_template_id,
+        autorun: payload.autorun,
+        allow_override_args_in_task: payload.allow_override_args_in_task,
+        allow_override_branch_in_task: payload.allow_override_branch_in_task,
+        allow_inventory_in_task: payload.allow_inventory_in_task,
+        allow_parallel_tasks: payload.allow_parallel_tasks,
+        suppress_success_alerts: payload.suppress_success_alerts,
     };
 
     let created = state.store.create_template(template)
@@ -113,15 +121,26 @@ pub async fn update_template(
             ),
         })?;
 
-    if let Some(name) = payload.name {
-        template.name = name;
-    }
-    if let Some(playbook) = payload.playbook {
-        template.playbook = playbook;
-    }
-    if let Some(description) = payload.description {
-        template.description = description;
-    }
+    if let Some(name) = payload.name { template.name = name; }
+    if let Some(playbook) = payload.playbook { template.playbook = playbook; }
+    if let Some(description) = payload.description { template.description = description; }
+    if let Some(v) = payload.inventory_id { template.inventory_id = Some(v); }
+    if let Some(v) = payload.repository_id { template.repository_id = Some(v); }
+    if let Some(v) = payload.environment_id { template.environment_id = Some(v); }
+    if let Some(v) = payload.vault_key_id { template.vault_key_id = Some(v); }
+    if let Some(v) = payload.view_id { template.view_id = Some(v); }
+    if payload.view_id == Some(0) { template.view_id = None; }
+    if let Some(v) = payload.build_template_id { template.build_template_id = Some(v); }
+    if let Some(v) = payload.git_branch { template.git_branch = Some(v); }
+    if let Some(v) = payload.arguments { template.arguments = Some(v); }
+    if let Some(v) = payload.r#type { template.r#type = v.parse().unwrap_or(TemplateType::Default); }
+    if let Some(v) = payload.app { template.app = v.parse().unwrap_or(TemplateApp::Ansible); }
+    if let Some(v) = payload.autorun { template.autorun = v; }
+    if let Some(v) = payload.allow_override_args_in_task { template.allow_override_args_in_task = v; }
+    if let Some(v) = payload.allow_override_branch_in_task { template.allow_override_branch_in_task = v; }
+    if let Some(v) = payload.allow_inventory_in_task { template.allow_inventory_in_task = v; }
+    if let Some(v) = payload.allow_parallel_tasks { template.allow_parallel_tasks = v; }
+    if let Some(v) = payload.suppress_success_alerts { template.suppress_success_alerts = v; }
 
     state.store.update_template(template)
         .await
@@ -154,17 +173,45 @@ pub async fn delete_template(
 // Types
 // ============================================================================
 
-/// Payload для создания шаблона
+/// Payload для создания/обновления шаблона (единый — используется для PUT тоже)
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TemplateCreatePayload {
     pub name: String,
     pub playbook: String,
+    #[serde(default)]
+    pub description: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub inventory_id: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub repository_id: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub environment_id: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub vault_key_id: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub view_id: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub build_template_id: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub git_branch: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub arguments: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub r#type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub app: Option<String>,
+    #[serde(default)]
+    pub autorun: bool,
+    #[serde(default)]
+    pub allow_override_args_in_task: bool,
+    #[serde(default)]
+    pub allow_override_branch_in_task: bool,
+    #[serde(default)]
+    pub allow_inventory_in_task: bool,
+    #[serde(default)]
+    pub allow_parallel_tasks: bool,
+    #[serde(default)]
+    pub suppress_success_alerts: bool,
 }
 
 /// Payload для обновления шаблона
@@ -176,6 +223,38 @@ pub struct TemplateUpdatePayload {
     pub playbook: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub inventory_id: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub repository_id: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub environment_id: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub vault_key_id: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub view_id: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub build_template_id: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub git_branch: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub arguments: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub r#type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub app: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub autorun: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub allow_override_args_in_task: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub allow_override_branch_in_task: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub allow_inventory_in_task: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub allow_parallel_tasks: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub suppress_success_alerts: Option<bool>,
 }
 
 // ============================================================================

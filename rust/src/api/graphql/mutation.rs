@@ -132,6 +132,14 @@ impl MutationRoot {
             app: TemplateApp::Default,
             r#type: TemplateType::Ansible,
             created: Utc::now(),
+            view_id: None,
+            build_template_id: None,
+            autorun: false,
+            allow_override_args_in_task: false,
+            allow_override_branch_in_task: false,
+            allow_inventory_in_task: false,
+            allow_parallel_tasks: false,
+            suppress_success_alerts: false,
         };
 
         let created = store.create_template(new_template).await?;

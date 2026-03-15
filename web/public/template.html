@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Шаблон - Semaphore UI</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid var(--border);
+            margin-bottom: 16px;
+            gap: 0;
+            overflow-x: auto;
+        }
+        .tab-button {
+            padding: 8px 20px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 14px;
+            border-bottom: 3px solid transparent;
+            white-space: nowrap;
+        }
+        .tab-button.active {
+            border-bottom-color: var(--primary);
+            font-weight: 600;
+            color: var(--primary);
+        }
+        .template-meta-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .template-meta-item { }
+        .template-meta-label {
+            font-size: 12px;
+            color: var(--text-light);
+            margin-bottom: 3px;
+        }
+        .template-meta-value {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-waiting  { background: #f0f0f0; color: #666; }
+        .status-running  { background: #e3f2fd; color: #1976d2; }
+        .status-success  { background: #c6f6d5; color: #276749; }
+        .status-error,
+        .status-failed   { background: #fed7d7; color: #c53030; }
+        .status-cancelled,
+        .status-stopped  { background: #e0e0e0; color: #424242; }
+        .task-row:hover { background: rgba(0,0,0,.03); cursor: pointer; }
+        .task-row td { vertical-align: middle; }
+        .duration-cell { font-size: 12px; color: var(--text-light); white-space: nowrap; }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar"></aside>
+
+        <div class="main-content">
+            <div class="main-header">
+                <h2 id="page-title">Шаблон</h2>
+            </div>
+
+            <div class="main-body">
+                <div class="page-header">
+                    <div>
+                        <h1 id="template-name-heading">▦ Шаблон</h1>
+                        <p id="template-breadcrumb" style="margin-top:4px; font-size:13px; color:var(--text-light);"></p>
+                    </div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button class="btn btn-sm" onclick="goToTemplates()">← К шаблонам</button>
+                        <button class="btn btn-primary btn-sm" onclick="runTemplateFromView()">▶ Запустить</button>
+                    </div>
+                </div>
+
+                <div class="tabs">
+                    <button class="tab-button active" id="tab-tasks" onclick="switchTab('tasks')">Задачи</button>
+                    <button class="tab-button" id="tab-details" onclick="switchTab('details')">Детали</button>
+                </div>
+
+                <div id="tab-content-tasks">
+                    <div id="tasks-content">
+                        <div class="loading">
+                            <div class="loading-spinner"></div>
+                            <p>Загрузка задач...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-content-details" style="display:none;">
+                    <div id="details-content">
+                        <div class="loading">
+                            <div class="loading-spinner"></div>
+                            <p>Загрузка деталей шаблона...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        checkAuth();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = urlParams.get('id');
+        const templateId = urlParams.get('tpl');
+
+        if (!projectId || !templateId) {
+            window.location.href = 'index.html';
+        }
+
+        let currentTemplate = null;
+        let inventoriesMap = {};
+        let environmentsMap = {};
+        let repositoriesMap = {};
+        let viewsMap = {};
+
+        api.getProject(projectId)
+            .then(project => {
+                document.title = 'Шаблон - ' + project.name;
+                const titleEl = document.getElementById('page-title');
+                if (titleEl) titleEl.textContent = project.name + ' → Шаблон';
+            })
+            .catch(() => {});
+
+        loadTemplateAndRefs();
+        loadTemplateTasks();
+
+        function loadTemplateAndRefs() {
+            const detailsContainer = document.getElementById('details-content');
+            api.getTemplate(projectId, templateId)
+                .then(tpl => {
+                    currentTemplate = tpl;
+                    return Promise.all([
+                        api.getInventories(projectId).catch(() => []),
+                        api.getEnvironments(projectId).catch(() => []),
+                        api.getRepositories(projectId).catch(() => []),
+                        api.get('/project/' + projectId + '/views').catch(() => [])
+                    ]).then(([inventories, environments, repositories, views]) => {
+                        inventoriesMap = {};
+                        environmentsMap = {};
+                        repositoriesMap = {};
+                        viewsMap = {};
+                        inventories.forEach(i => inventoriesMap[i.id] = i.name);
+                        environments.forEach(e => environmentsMap[e.id] = e.name);
+                        repositories.forEach(r => repositoriesMap[r.id] = r.name);
+                        views.forEach(v => viewsMap[v.id] = v.title);
+                        renderTemplateDetails(tpl, detailsContainer);
+                        updateTemplateHeader(tpl);
+                    });
+                })
+                .catch(err => {
+                    ui.showError(detailsContainer, err.message);
+                });
+        }
+
+        function updateTemplateHeader(tpl) {
+            const h = document.getElementById('template-name-heading');
+            if (h) {
+                h.textContent = '▦ ' + (tpl.name || ('Шаблон #' + tpl.id));
+            }
+            const bc = document.getElementById('template-breadcrumb');
+            if (bc) {
+                const parts = [];
+                if (tpl.app) parts.push('Приложение: ' + tpl.app);
+                if (tpl.type) parts.push('Тип: ' + tpl.type);
+                if (tpl.view_id && viewsMap[tpl.view_id]) parts.push('Группа: ' + viewsMap[tpl.view_id]);
+                bc.textContent = parts.join(' • ');
+            }
+        }
+
+        function renderTemplateDetails(tpl, container) {
+            const inventoryName = tpl.inventory_id ? (inventoriesMap[tpl.inventory_id] || ('Инвентарь #' + tpl.inventory_id)) : '—';
+            const envName = tpl.environment_id ? (environmentsMap[tpl.environment_id] || ('Окружение #' + tpl.environment_id)) : '—';
+            const repoName = tpl.repository_id ? (repositoriesMap[tpl.repository_id] || ('Репозиторий #' + tpl.repository_id)) : '—';
+            const viewName = tpl.view_id ? (viewsMap[tpl.view_id] || ('Группа #' + tpl.view_id)) : '—';
+
+            container.innerHTML = `
+                <div class="template-meta-grid">
+                    <div class="template-meta-item">
+                        <div class="template-meta-label">Название</div>
+                        <div class="template-meta-value">${escapeHtml(tpl.name || '')}</div>
+                    </div>
+                    <div class="template-meta-item">
+                        <div class="template-meta-label">Playbook</div>
+                        <div class="template-meta-value"><code>${escapeHtml(tpl.playbook || '')}</code></div>
+                    </div>
+                    <div class="template-meta-item">
+                        <div class="template-meta-label">Инвентарь</div>
+                        <div class="template-meta-value">${escapeHtml(inventoryName)}</div>
+                    </div>
+                    <div class="template-meta-item">
+                        <div class="template-meta-label">Окружение</div>
+                        <div class="template-meta-value">${escapeHtml(envName)}</div>
+                    </div>
+                    <div class="template-meta-item">
+                        <div class="template-meta-label">Репозиторий</div>
+                        <div class="template-meta-value">${escapeHtml(repoName)}</div>
+                    </div>
+                    <div class="template-meta-item">
+                        <div class="template-meta-label">Git ветка</div>
+                        <div class="template-meta-value">${escapeHtml(tpl.git_branch || 'main')}</div>
+                    </div>
+                    <div class="template-meta-item">
+                        <div class="template-meta-label">Приложение</div>
+                        <div class="template-meta-value">${escapeHtml(tpl.app || 'ansible')}</div>
+                    </div>
+                    <div class="template-meta-item">
+                        <div class="template-meta-label">Тип шаблона</div>
+                        <div class="template-meta-value">${escapeHtml(tpl.type || 'task')}</div>
+                    </div>
+                    <div class="template-meta-item">
+                        <div class="template-meta-label">Группа (View)</div>
+                        <div class="template-meta-value">${escapeHtml(viewName)}</div>
+                    </div>
+                    <div class="template-meta-item">
+                        <div class="template-meta-label">Переопределение аргументов</div>
+                        <div class="template-meta-value">${tpl.allow_override_args_in_task ? 'Разрешено' : 'Запрещено'}</div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="template-meta-label">Описание</label>
+                    <div style="font-size:14px;">${tpl.description ? escapeHtml(tpl.description) : '<span style="color:var(--text-light);">Нет описания</span>'}</div>
+                </div>
+                <div class="form-group">
+                    <label class="template-meta-label">Аргументы командной строки по умолчанию</label>
+                    <div style="font-family:monospace; font-size:13px; background:#f5f5f5; border-radius:4px; padding:6px 8px;">
+                        ${tpl.arguments ? escapeHtml(tpl.arguments) : '<span style="color:var(--text-light);">Не заданы</span>'}
+                    </div>
+                </div>
+            `;
+        }
+
+        function loadTemplateTasks() {
+            const container = document.getElementById('tasks-content');
+            ui.showLoading(container);
+            api.getTasks(projectId)
+                .then(tasks => {
+                    const list = (tasks || []).filter(t => String(t.template_id) === String(templateId));
+                    if (list.length === 0) {
+                        ui.showEmpty(container, '▶', 'Нет задач для этого шаблона', 'Запустите шаблон, чтобы увидеть историю задач.');
+                        return;
+                    }
+                    list.sort((a, b) => new Date(b.created) - new Date(a.created));
+                    container.innerHTML = `
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Статус</th>
+                                    <th>Сообщение</th>
+                                    <th>Пользователь</th>
+                                    <th>Создана</th>
+                                    <th>Длительность</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${list.map(t => `
+                                    <tr class="task-row" onclick="openTask(${t.id})">
+                                        <td style="font-size:13px; color:var(--text-light);">#${t.id}</td>
+                                        <td><span class="status-badge status-${t.status}">${statusLabel(t.status)}</span></td>
+                                        <td style="font-size:13px; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(t.message || '—')}</td>
+                                        <td style="font-size:13px;">${escapeHtml(t.user_name || t.username || '—')}</td>
+                                        <td class="duration-cell">${formatRelativeTime(t.created)}</td>
+                                        <td class="duration-cell">${calcDuration(t.start, t.end)}</td>
+                                        <td onclick="event.stopPropagation()">
+                                            <a href="task.html?id=${projectId}&task=${t.id}" class="btn btn-sm" title="Открыть задачу">👁</a>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                })
+                .catch(err => ui.showError(container, err.message));
+        }
+
+        function statusLabel(s) {
+            return {
+                waiting: 'Ожидание',
+                running: 'Выполняется',
+                success: 'Успешно',
+                error: 'Ошибка',
+                failed: 'Ошибка',
+                cancelled: 'Отменено',
+                stopped: 'Остановлено',
+                waiting_confirmation: 'Ожидает подтверждения'
+            }[s] || s;
+        }
+
+        function calcDuration(start, end) {
+            if (!start) return '—';
+            const s = new Date(start);
+            const e = end ? new Date(end) : new Date();
+            const ms = e - s;
+            if (ms < 0) return '—';
+            const secs = Math.floor(ms / 1000);
+            if (secs < 60) return secs + 'с';
+            const mins = Math.floor(secs / 60);
+            const rem = secs % 60;
+            if (mins < 60) return mins + 'м ' + rem + 'с';
+            return Math.floor(mins / 60) + 'ч ' + (mins % 60) + 'м';
+        }
+
+        function switchTab(tab) {
+            const tasksTab = document.getElementById('tab-tasks');
+            const detailsTab = document.getElementById('tab-details');
+            const tasksContent = document.getElementById('tab-content-tasks');
+            const detailsContent = document.getElementById('tab-content-details');
+
+            if (tab === 'tasks') {
+                tasksTab.classList.add('active');
+                detailsTab.classList.remove('active');
+                tasksContent.style.display = '';
+                detailsContent.style.display = 'none';
+            } else {
+                tasksTab.classList.remove('active');
+                detailsTab.classList.add('active');
+                tasksContent.style.display = 'none';
+                detailsContent.style.display = '';
+            }
+        }
+
+        function goToTemplates() {
+            window.location.href = 'templates.html?id=' + projectId;
+        }
+
+        function runTemplateFromView() {
+            // Используем существующую страницу запуска с расширенной формой
+            window.location.href = 'run.html?id=' + projectId + '&tpl=' + templateId;
+        }
+
+        function openTask(taskId) {
+            window.location.href = 'task.html?id=' + projectId + '&task=' + taskId;
+        }
+    </script>
+</body>
+</html>
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Шаблон - Semaphore UI</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .tpl-tabs { display:flex; gap:0; border-bottom:2px solid #e0e0e0; margin-bottom:20px; }
+        .tpl-tab  { padding:10px 24px; cursor:pointer; font-weight:500; color:var(--text-light);
+                    border-bottom:2px solid transparent; margin-bottom:-2px; transition:all .2s; }
+        .tpl-tab.active { color:var(--primary); border-bottom-color:var(--primary); }
+        .tpl-tab:hover:not(.active) { color:var(--text); background:#f5f5f5; }
+
+        .status-badge { display:inline-block; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600; }
+        .status-waiting   { background:#f0f0f0; color:#666; }
+        .status-running   { background:#e3f2fd; color:#1976d2; }
+        .status-success   { background:#c6f6d5; color:#276749; }
+        .status-error,.status-failed { background:#fed7d7; color:#c53030; }
+        .status-cancelled { background:#e0e0e0; color:#424242; }
+
+        .detail-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:16px; }
+        .detail-item { }
+        .detail-label { font-size:12px; color:var(--text-light); margin-bottom:4px; }
+        .detail-value { font-weight:500; }
+
+        .toolbar { display:flex; gap:8px; align-items:center; margin-bottom:20px; flex-wrap:wrap; }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar"></aside>
+        <div class="main-content">
+            <div class="main-header">
+                <h2 id="page-title">Шаблон</h2>
+            </div>
+            <div class="main-body">
+                <div id="tpl-content">
+                    <div class="loading"><div class="loading-spinner"></div><p>Загрузка...</p></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        checkAuth();
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = urlParams.get('id');
+        const tplId     = urlParams.get('tpl');
+        if (!projectId || !tplId) { window.location.href = 'templates.html'; }
+
+        let tpl = null;
+        let activeTab = 'tasks';
+
+        Promise.all([
+            api.getProject(projectId),
+            api.getTemplate(projectId, tplId)
+        ]).then(([project, template]) => {
+            tpl = template;
+            $('#page-title').textContent = project.name + ' → ' + template.name;
+            document.title = template.name + ' - Semaphore UI';
+            renderPage();
+        }).catch(err => {
+            $('#tpl-content').innerHTML = '<div class="alert alert-danger">Ошибка: ' + escapeHtml(err.message) + '</div>';
+        });
+
+        function renderPage() {
+            const content = $('#tpl-content');
+            content.innerHTML = `
+                <div class="toolbar">
+                    <button class="btn btn-primary" onclick="openRunDialog()">▶ Запустить</button>
+                    <button class="btn btn-sm" onclick="openEditDialog()">✏️ Редактировать</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteTpl()">🗑️ Удалить</button>
+                    <div style="flex:1"></div>
+                    <a href="templates.html?id=${projectId}" class="btn btn-sm">← Шаблоны</a>
+                </div>
+
+                ${tpl.description ? `<p style="color:var(--text-light); margin-bottom:16px;">${escapeHtml(tpl.description)}</p>` : ''}
+
+                <div class="tpl-tabs">
+                    <div class="tpl-tab active" id="tab-tasks" onclick="switchTab('tasks')">Задачи</div>
+                    <div class="tpl-tab" id="tab-details" onclick="switchTab('details')">Детали</div>
+                </div>
+
+                <div id="tab-content-tasks"></div>
+                <div id="tab-content-details" style="display:none;"></div>
+            `;
+            loadTasksTab();
+            renderDetailsTab();
+        }
+
+        function switchTab(name) {
+            activeTab = name;
+            document.querySelectorAll('.tpl-tab').forEach(t => t.classList.remove('active'));
+            $('#tab-' + name).classList.add('active');
+            document.querySelectorAll('[id^="tab-content-"]').forEach(el => el.style.display = 'none');
+            $('#tab-content-' + name).style.display = '';
+        }
+
+        function loadTasksTab() {
+            const container = $('#tab-content-tasks');
+            container.innerHTML = '<div class="loading"><div class="loading-spinner"></div><p>Загрузка задач...</p></div>';
+            api.getTasks(projectId).then(tasks => {
+                const filtered = (tasks || []).filter(t => t.template_id === parseInt(tplId))
+                    .sort((a, b) => new Date(b.created) - new Date(a.created));
+
+                if (!filtered.length) {
+                    ui.showEmpty(container, '▶', 'Нет задач', 'Нажмите "Запустить" для первого запуска');
+                    return;
+                }
+
+                container.innerHTML = `
+                    <table class="table">
+                        <thead><tr>
+                            <th>#</th><th>Статус</th><th>Создана</th><th>Длительность</th><th></th>
+                        </tr></thead>
+                        <tbody>
+                            ${filtered.map(t => `
+                                <tr style="cursor:pointer;" onclick="openTaskDetail(${t.id})">
+                                    <td><strong>#${t.id}</strong></td>
+                                    <td><span class="status-badge status-${t.status}">${statusLabel(t.status)}</span></td>
+                                    <td>${formatDate(t.created)}</td>
+                                    <td>${calcDuration(t)}</td>
+                                    <td><button class="btn btn-sm" onclick="event.stopPropagation(); openTaskDetail(${t.id})">🔍</button></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            }).catch(err => ui.showError(container, err.message));
+        }
+
+        function renderDetailsTab() {
+            const container = $('#tab-content-details');
+            container.innerHTML = `
+                <div class="card">
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <div class="detail-label">Playbook</div>
+                            <div class="detail-value"><code>${escapeHtml(tpl.playbook || '—')}</code></div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Git ветка</div>
+                            <div class="detail-value">${escapeHtml(tpl.git_branch || 'main')}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Инвентарь ID</div>
+                            <div class="detail-value">${tpl.inventory_id || '—'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Окружение ID</div>
+                            <div class="detail-value">${tpl.environment_id || '—'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Репозиторий ID</div>
+                            <div class="detail-value">${tpl.repository_id || '—'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">App</div>
+                            <div class="detail-value">${escapeHtml(tpl.app || 'ansible')}</div>
+                        </div>
+                        ${tpl.arguments ? `<div class="detail-item" style="grid-column:1/-1;">
+                            <div class="detail-label">CLI аргументы</div>
+                            <div class="detail-value"><code>${escapeHtml(tpl.arguments)}</code></div>
+                        </div>` : ''}
+                        <div class="detail-item">
+                            <div class="detail-label">Создан</div>
+                            <div class="detail-value">${formatDate(tpl.created)}</div>
+                        </div>
+                    </div>
+                    <hr style="margin:20px 0;">
+                    <div>
+                        <strong>Переопределения при запуске:</strong>
+                        <div style="display:flex; gap:12px; margin-top:8px; flex-wrap:wrap;">
+                            ${flag('CLI аргументы', tpl.allow_override_args_in_task)}
+                            ${flag('Git ветка', tpl.allow_override_branch_in_task)}
+                            ${flag('Инвентарь', tpl.allow_inventory_in_task)}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function flag(label, val) {
+            const color = val ? '#276749' : '#999';
+            const icon  = val ? '✓' : '✗';
+            return `<span style="color:${color}; font-size:13px;">${icon} ${label}</span>`;
+        }
+
+        function statusLabel(s) {
+            return {waiting:'Ожидание',running:'Выполняется',success:'Успешно',
+                    error:'Ошибка',failed:'Ошибка',cancelled:'Отменено'}[s] || s;
+        }
+
+        function calcDuration(task) {
+            if (!task.start_time) return '—';
+            const end = task.end_time ? new Date(task.end_time) : new Date();
+            const diff = Math.floor((end - new Date(task.start_time)) / 1000);
+            if (diff < 60) return diff + 'с';
+            return Math.floor(diff/60) + 'м ' + (diff%60) + 'с';
+        }
+
+        // ---- Task detail modal (same as task.html) ----
+        let currentTaskId = null;
+        let detailWs = null;
+        let detailPollTimer = null;
+
+        function openTaskDetail(taskId) {
+            currentTaskId = taskId;
+            const modal = document.createElement('div');
+            modal.id = 'task-detail-modal';
+            modal.className = 'modal-overlay';
+            modal.innerHTML = `
+                <div class="modal" style="max-width:900px; width:95vw;">
+                    <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center;">
+                        <h2 id="td-title">Задача #${taskId}</h2>
+                        <div style="display:flex; gap:8px;">
+                            <span id="td-status" class="status-badge"></span>
+                            <button class="btn btn-sm" onclick="downloadTaskLog(${taskId})">📥</button>
+                            <button class="btn btn-sm" onclick="closeTaskDetail()">✕</button>
+                        </div>
+                    </div>
+                    <div id="td-progress" style="display:none; margin-bottom:8px;">
+                        <div class="run-progress-bar"><div class="run-progress-fill"></div></div>
+                    </div>
+                    <div id="td-meta" style="margin-bottom:12px;"></div>
+                    <div id="td-log" class="run-log-container" style="height:380px;">
+                        <div style="color:#666; text-align:center; padding:40px;">Загрузка...</div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.addEventListener('click', e => { if (e.target === modal) closeTaskDetail(); });
+            loadTaskDetail(taskId);
+        }
+
+        function closeTaskDetail() {
+            if (detailWs) { detailWs.close(); detailWs = null; }
+            if (detailPollTimer) { clearInterval(detailPollTimer); detailPollTimer = null; }
+            const m = document.getElementById('task-detail-modal');
+            if (m) m.remove();
+        }
+
+        function loadTaskDetail(taskId) {
+            api.getTask(projectId, taskId).then(task => {
+                const badge = $('#td-status');
+                badge.className = 'status-badge status-' + task.status;
+                badge.textContent = statusLabel(task.status);
+                const running = ['running','waiting','starting'].includes(task.status);
+                $('#td-progress').style.display = running ? 'block' : 'none';
+                $('#td-meta').innerHTML = `
+                    <div style="display:flex; gap:20px; flex-wrap:wrap; font-size:13px; color:var(--text-light);">
+                        <span>Создана: ${formatDate(task.created)}</span>
+                        ${task.start_time ? '<span>Старт: ' + formatDate(task.start_time) + '</span>' : ''}
+                        ${task.end_time ? '<span>Завершение: ' + formatDate(task.end_time) + '</span>' : ''}
+                        <span>Длительность: ${calcDuration(task)}</span>
+                    </div>`;
+                if (running) {
+                    connectDetailWs(taskId);
+                    detailPollTimer = setInterval(() => {
+                        api.getTask(projectId, taskId).then(t => {
+                            badge.className = 'status-badge status-' + t.status;
+                            badge.textContent = statusLabel(t.status);
+                            if (!['running','waiting','starting'].includes(t.status)) {
+                                clearInterval(detailPollTimer);
+                                $('#td-progress').style.display = 'none';
+                                loadTaskLog(taskId);
+                                loadTasksTab();
+                            }
+                        });
+                    }, 4000);
+                } else {
+                    loadTaskLog(taskId);
+                }
+            });
+        }
+
+        function connectDetailWs(taskId) {
+            if (detailWs) return;
+            const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+            detailWs = new WebSocket(`${proto}://${location.host}/api/project/${projectId}/tasks/${taskId}/ws`);
+            const container = $('#td-log');
+            if (container) container.innerHTML = '';
+            detailWs.onmessage = e => {
+                try {
+                    const msg = JSON.parse(e.data);
+                    if (msg.type === 'output') appendToDetail(msg.line || '');
+                    else if (msg.type === 'done') { detailWs.close(); detailWs = null; }
+                } catch { appendToDetail(e.data); }
+            };
+            detailWs.onerror = () => { detailWs = null; };
+            detailWs.onclose = () => { detailWs = null; };
+        }
+
+        function appendToDetail(text) {
+            const c = $('#td-log');
+            if (!c) return;
+            const d = document.createElement('div');
+            d.className = 'run-log-line ' + getLogClass(text);
+            d.textContent = text;
+            c.appendChild(d);
+            c.scrollTop = c.scrollHeight;
+        }
+
+        function loadTaskLog(taskId) {
+            api.getTaskOutput(projectId, taskId).then(output => {
+                const c = $('#td-log');
+                if (!c) return;
+                c.innerHTML = (output||[]).map(item => {
+                    const line = typeof item === 'string' ? item : (item.output||'');
+                    return `<div class="run-log-line ${getLogClass(line)}">${escapeHtml(line)}</div>`;
+                }).join('');
+                c.scrollTop = c.scrollHeight;
+            });
+        }
+
+        function downloadTaskLog(taskId) {
+            api.getTaskOutput(projectId, taskId).then(output => {
+                const lines = (output||[]).map(i => typeof i === 'string' ? i : (i.output||''));
+                const blob = new Blob([lines.join('\n')], { type:'text/plain' });
+                const url  = URL.createObjectURL(blob);
+                const a    = document.createElement('a');
+                a.href = url; a.download = 'task-' + taskId + '.log'; a.click();
+                URL.revokeObjectURL(url);
+            });
+        }
+
+        function getLogClass(line) {
+            const l = (line||'').toLowerCase();
+            if (l.includes('ok=') || l.includes('changed=') || l.includes('successfully')) return 'run-log-success';
+            if (l.includes('failed=') || l.includes('fatal') || l.includes('error')) return 'run-log-error';
+            if (l.includes('warning') || l.includes('warn')) return 'run-log-warning';
+            return 'run-log-info';
+        }
+
+        // ---- Run dialog ----
+        function openRunDialog() {
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.innerHTML = `
+                <div class="modal" style="max-width:500px;">
+                    <div class="modal-header"><h2>▶ ${escapeHtml(tpl.name)}</h2></div>
+                    <form id="run-form">
+                        <div class="form-group">
+                            <label>Сообщение <span style="color:var(--text-light); font-size:12px;">(необязательно)</span></label>
+                            <input type="text" id="run-message" class="form-control" placeholder="Описание запуска...">
+                        </div>
+                        <div class="form-group">
+                            <label>Git ветка <span style="color:var(--text-light); font-size:12px;">(оставьте пустым для дефолтной)</span></label>
+                            <input type="text" id="run-branch" class="form-control" placeholder="${escapeHtml(tpl.git_branch || 'main')}">
+                        </div>
+                        ${tpl.allow_override_args_in_task ? `<div class="form-group">
+                            <label>CLI аргументы</label>
+                            <input type="text" id="run-args" class="form-control" placeholder="--limit=host1">
+                        </div>` : ''}
+                        <div class="modal-footer">
+                            <button type="button" class="btn" onclick="this.closest('.modal-overlay').remove()">Отмена</button>
+                            <button type="submit" class="btn btn-primary">▶ Запустить</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+            document.getElementById('run-form').addEventListener('submit', e => {
+                e.preventDefault();
+                const body = { template_id: parseInt(tplId) };
+                const msg = document.getElementById('run-message').value.trim();
+                const br  = document.getElementById('run-branch').value.trim();
+                const args = document.getElementById('run-args')?.value.trim();
+                if (msg)  body.message    = msg;
+                if (br)   body.git_branch = br;
+                if (args) body.arguments  = args;
+                modal.remove();
+                api.post('/project/' + projectId + '/tasks', body)
+                    .then(task => {
+                        openTaskDetail(task.id);
+                        loadTasksTab();
+                    })
+                    .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+            });
+        }
+
+        function openEditDialog() {
+            Promise.all([
+                api.getPlaybooks(projectId).catch(() => []),
+                api.getInventories(projectId).catch(() => []),
+                api.getEnvironments(projectId).catch(() => []),
+                api.getRepositories(projectId).catch(() => [])
+            ]).then(([playbooks, inventories, environments, repositories]) => {
+                // Reuse template modal from templates.html pattern
+                window.location.href = 'templates.html?id=' + projectId;
+            });
+        }
+
+        function deleteTpl() {
+            if (!confirm('Удалить шаблон "' + tpl.name + '"? Это действие нельзя отменить.')) return;
+            api.deleteTemplate(projectId, tplId)
+                .then(() => { window.location.href = 'templates.html?id=' + projectId; })
+                .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+        }
+    </script>
+</body>
+</html>

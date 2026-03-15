@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Webhooks - Semaphore UI</title>
+    <title>Интеграции - Semaphore UI</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -12,100 +12,125 @@
 
         <div class="main-content">
             <div class="main-header">
-                <h2 id="project-title">Webhooks</h2>
-                <button class="btn btn-primary" onclick="showCreateDialog()">+ Добавить webhook</button>
+                <h2 id="project-title">Интеграции</h2>
+                <button class="btn btn-primary" id="add-btn" onclick="openCreateModal()">+ Добавить интеграцию</button>
+            </div>
+
+            <!-- Tabs -->
+            <div style="border-bottom: 2px solid var(--border-color); margin: 0 20px;">
+                <button class="tab-btn active" id="tab-integrations" onclick="switchTab('integrations')"
+                    style="padding: 10px 20px; border: none; background: none; cursor: pointer; font-size: 14px; border-bottom: 2px solid var(--primary-color); margin-bottom: -2px; color: var(--primary-color); font-weight: 500;">
+                    Интеграции
+                </button>
+                <button class="tab-btn" id="tab-aliases" onclick="switchTab('aliases')"
+                    style="padding: 10px 20px; border: none; background: none; cursor: pointer; font-size: 14px; color: var(--text-light);">
+                    Алиасы
+                </button>
             </div>
 
             <div class="main-body">
-                <!-- Filters -->
-                <div class="card mb-4">
-                    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-                        <input type="text" id="search-input" class="form-control" placeholder="Поиск webhooks..." style="flex: 1; min-width: 200px;">
-                        <select id="type-filter" class="form-control" style="width: auto;">
-                            <option value="">Все типы</option>
-                            <option value="generic">Generic</option>
-                            <option value="slack">Slack</option>
-                            <option value="teams">Teams</option>
-                            <option value="discord">Discord</option>
-                            <option value="telegram">Telegram</option>
-                        </select>
-                        <select id="status-filter" class="form-control" style="width: auto;">
-                            <option value="">Все статусы</option>
-                            <option value="true">Активные</option>
-                            <option value="false">Неактивные</option>
-                        </select>
+                <!-- Integrations Tab -->
+                <div id="content-integrations">
+                    <div id="integrations-list">
+                        <div class="loading">
+                            <div class="loading-spinner"></div>
+                            <p>Загрузка интеграций...</p>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Webhooks Table -->
-                <div id="webhooks-content">
-                    <div class="loading">
-                        <div class="loading-spinner"></div>
-                        <p>Загрузка webhooks...</p>
+                <!-- Aliases Tab -->
+                <div id="content-aliases" style="display:none;">
+                    <div class="main-header" style="padding: 0; margin-bottom: 15px;">
+                        <span></span>
+                        <button class="btn btn-primary btn-sm" onclick="openAliasModal()">+ Добавить алиас</button>
+                    </div>
+                    <div id="aliases-list">
+                        <div class="loading">
+                            <div class="loading-spinner"></div>
+                            <p>Загрузка алиасов...</p>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Create/Edit Modal -->
-    <div id="webhook-modal" class="modal" style="display: none;">
-        <div class="modal-content" style="max-width: 600px;">
+    <!-- Create/Edit Integration Modal -->
+    <div id="integration-modal" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width: 560px;">
             <div class="modal-header">
-                <h3 id="modal-title">Создать webhook</h3>
+                <h3 id="modal-title">Создать интеграцию</h3>
                 <button class="modal-close" onclick="closeModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <form id="webhook-form">
-                    <input type="hidden" id="webhook-id">
-                    
+                <form id="integration-form">
+                    <input type="hidden" id="int-id">
+
                     <div class="form-group">
-                        <label for="webhook-name">Название *</label>
-                        <input type="text" id="webhook-name" class="form-control" required>
+                        <label for="int-name">Название *</label>
+                        <input type="text" id="int-name" class="form-control" required placeholder="My Webhook">
                     </div>
 
                     <div class="form-group">
-                        <label for="webhook-type">Тип *</label>
-                        <select id="webhook-type" class="form-control" required>
-                            <option value="generic">Generic</option>
-                            <option value="slack">Slack</option>
-                            <option value="teams">Teams</option>
-                            <option value="discord">Discord</option>
-                            <option value="telegram">Telegram</option>
+                        <label for="int-template">Шаблон *</label>
+                        <select id="int-template" class="form-control" required>
+                            <option value="">— Выберите шаблон —</option>
                         </select>
                     </div>
 
                     <div class="form-group">
-                        <label for="webhook-url">URL *</label>
-                        <input type="url" id="webhook-url" class="form-control" placeholder="https://..." required>
+                        <label for="int-auth-method">Метод аутентификации</label>
+                        <select id="int-auth-method" class="form-control" onchange="onAuthMethodChange()">
+                            <option value="none">Нет</option>
+                            <option value="hmac">HMAC</option>
+                            <option value="token">Token</option>
+                        </select>
                     </div>
 
-                    <div class="form-group">
-                        <label for="webhook-secret">Secret (для подписи)</label>
-                        <input type="text" id="webhook-secret" class="form-control" placeholder="my-secret-key">
+                    <div id="auth-header-group" class="form-group" style="display:none;">
+                        <label for="int-auth-header">Заголовок аутентификации</label>
+                        <input type="text" id="int-auth-header" class="form-control" placeholder="X-Hub-Signature-256">
                     </div>
 
-                    <div class="form-group">
-                        <label>
-                            <input type="checkbox" id="webhook-active" checked>
-                            Активен
-                        </label>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="webhook-events">События (через запятую)</label>
-                        <input type="text" id="webhook-events" class="form-control" placeholder="task.success, task.failed" value="task.success, task.failed">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="webhook-headers">Дополнительные заголовки (JSON)</label>
-                        <textarea id="webhook-headers" class="form-control" rows="3" placeholder='{"Authorization": "Bearer token"}'></textarea>
+                    <div id="auth-secret-group" class="form-group" style="display:none;">
+                        <label for="int-auth-secret">Ключ (Secret)</label>
+                        <select id="int-auth-secret" class="form-control">
+                            <option value="">— Выберите ключ —</option>
+                        </select>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeModal()">Отмена</button>
-                <button class="btn btn-primary" onclick="saveWebhook()">Сохранить</button>
+                <button class="btn btn-primary" onclick="saveIntegration()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Alias Modal -->
+    <div id="alias-modal" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width: 480px;">
+            <div class="modal-header">
+                <h3>Добавить алиас</h3>
+                <button class="modal-close" onclick="closeAliasModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="alias-integration">Интеграция *</label>
+                    <select id="alias-integration" class="form-control" required>
+                        <option value="">— Выберите интеграцию —</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="alias-value">Алиас *</label>
+                    <input type="text" id="alias-value" class="form-control" required placeholder="my-webhook-alias">
+                    <small style="color: var(--text-light);">Уникальный URL-идентификатор для этой интеграции</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeAliasModal()">Отмена</button>
+                <button class="btn btn-primary" onclick="saveAlias()">Создать</button>
             </div>
         </div>
     </div>
@@ -116,243 +141,350 @@
 
         const urlParams = new URLSearchParams(window.location.search);
         const projectId = urlParams.get('id');
+        if (!projectId) window.location.href = 'index.html';
 
-        if (!projectId) {
-            window.location.href = 'index.html';
+        let integrations = [];
+        let templates = [];
+        let keys = [];
+        let aliases = [];
+
+        // ── Tabs ────────────────────────────────────────────────────────────
+        function switchTab(tab) {
+            document.getElementById('content-integrations').style.display = tab === 'integrations' ? '' : 'none';
+            document.getElementById('content-aliases').style.display = tab === 'aliases' ? '' : 'none';
+
+            document.getElementById('tab-integrations').style.borderBottom = tab === 'integrations' ? '2px solid var(--primary-color)' : 'none';
+            document.getElementById('tab-integrations').style.color = tab === 'integrations' ? 'var(--primary-color)' : 'var(--text-light)';
+            document.getElementById('tab-integrations').style.fontWeight = tab === 'integrations' ? '500' : 'normal';
+
+            document.getElementById('tab-aliases').style.borderBottom = tab === 'aliases' ? '2px solid var(--primary-color)' : 'none';
+            document.getElementById('tab-aliases').style.color = tab === 'aliases' ? 'var(--primary-color)' : 'var(--text-light)';
+            document.getElementById('tab-aliases').style.fontWeight = tab === 'aliases' ? '500' : 'normal';
+
+            document.getElementById('add-btn').textContent = tab === 'integrations' ? '+ Добавить интеграцию' : '+ Добавить алиас';
+            document.getElementById('add-btn').onclick = tab === 'integrations' ? openCreateModal : openAliasModal;
+
+            if (tab === 'aliases' && aliases.length === 0) loadAliases();
         }
 
-        let webhooks = [];
-
-        // Загрузка webhooks
-        function loadWebhooks() {
-            const search = document.getElementById('search-input').value;
-            const type = document.getElementById('type-filter').value;
-            const status = document.getElementById('status-filter').value;
-
-            let url = `${API_BASE}/project/${projectId}/webhooks?`;
-            if (type) url += `type=${type}&`;
-            if (status !== '') url += `active=${status}&`;
-
-            api.get(url)
+        // ── Load data ───────────────────────────────────────────────────────
+        function loadIntegrations() {
+            api.get(`${API_BASE}/project/${projectId}/integrations`)
                 .then(data => {
-                    webhooks = data;
-                    if (search) {
-                        webhooks = webhooks.filter(w => w.name.toLowerCase().includes(search.toLowerCase()));
-                    }
-                    showWebhooksTable(webhooks);
+                    integrations = data || [];
+                    renderIntegrations();
                 })
-                .catch(error => {
-                    ui.showError($('#webhooks-content'), error.message);
+                .catch(err => {
+                    document.getElementById('integrations-list').innerHTML =
+                        `<div class="alert alert-danger">Ошибка загрузки: ${escapeHtml(err.message)}</div>`;
                 });
         }
 
-        // Отображение таблицы
-        function showWebhooksTable(data) {
-            const content = $('#webhooks-content');
-            
-            if (data.length === 0) {
-                content.innerHTML = `
+        function loadAliases() {
+            api.get(`${API_BASE}/project/${projectId}/integrations/aliases`)
+                .then(data => {
+                    aliases = data || [];
+                    renderAliases();
+                })
+                .catch(err => {
+                    document.getElementById('aliases-list').innerHTML =
+                        `<div class="alert alert-danger">Ошибка загрузки алиасов: ${escapeHtml(err.message)}</div>`;
+                });
+        }
+
+        function loadTemplates() {
+            return api.get(`${API_BASE}/project/${projectId}/templates`)
+                .then(data => { templates = data || []; })
+                .catch(() => { templates = []; });
+        }
+
+        function loadKeys() {
+            return api.get(`${API_BASE}/project/${projectId}/keys`)
+                .then(data => { keys = data || []; })
+                .catch(() => { keys = []; });
+        }
+
+        // ── Render integrations ─────────────────────────────────────────────
+        function renderIntegrations() {
+            const el = document.getElementById('integrations-list');
+            if (integrations.length === 0) {
+                el.innerHTML = `
                     <div class="card text-center">
-                        <div style="font-size: 48px; margin-bottom: 15px;">🔗</div>
-                        <h3>Нет webhooks</h3>
-                        <p style="color: var(--text-light);">Создайте первый webhook для интеграции с внешними сервисами</p>
-                        <button class="btn btn-primary mt-3" onclick="showCreateDialog()">Создать webhook</button>
-                    </div>
-                `;
+                        <div style="font-size:48px;margin-bottom:15px;">🔗</div>
+                        <h3>Нет интеграций</h3>
+                        <p style="color:var(--text-light)">Создайте входящий webhook для запуска задач из внешних систем</p>
+                        <button class="btn btn-primary mt-3" onclick="openCreateModal()">Создать интеграцию</button>
+                    </div>`;
                 return;
             }
 
-            content.innerHTML = `
+            const webhookBase = `${location.protocol}//${location.host}/api/project/${projectId}/integrations`;
+
+            el.innerHTML = `
                 <div class="card">
                     <table class="table">
                         <thead>
                             <tr>
                                 <th>Название</th>
-                                <th>Тип</th>
-                                <th>URL</th>
-                                <th>События</th>
-                                <th>Статус</th>
-                                <th style="width: 150px;">Действия</th>
+                                <th>Шаблон</th>
+                                <th>Аутентификация</th>
+                                <th>Webhook URL</th>
+                                <th style="width:160px">Действия</th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${data.map(w => `
-                                <tr>
-                                    <td><strong>${escapeHtml(w.name)}</strong></td>
-                                    <td>${getTypeBadge(w.type)}</td>
-                                    <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(w.url)}</td>
-                                    <td>${w.events ? w.events.map(e => `<span class="badge badge-info">${escapeHtml(e)}</span>`).join('') : '—'}</td>
-                                    <td>${w.active ? '<span class="badge badge-success">Активен</span>' : '<span class="badge badge-secondary">Неактивен</span>'}</td>
+                            ${integrations.map(i => {
+                                const tpl = templates.find(t => t.id === i.template_id);
+                                const authBadge = i.auth_method === 'hmac'
+                                    ? '<span class="badge badge-warning">HMAC</span>'
+                                    : i.auth_method === 'token'
+                                        ? '<span class="badge badge-info">Token</span>'
+                                        : '<span class="badge badge-secondary">Нет</span>';
+                                const url = `${webhookBase}/${i.id}`;
+                                return `<tr>
+                                    <td><strong>${escapeHtml(i.name)}</strong></td>
+                                    <td>${tpl ? escapeHtml(tpl.name) : '<span style="color:var(--text-light)">—</span>'}</td>
+                                    <td>${authBadge}</td>
                                     <td>
-                                        <button class="btn btn-sm btn-primary" onclick="testWebhook(${w.id})" title="Тестировать">▶</button>
-                                        <button class="btn btn-sm btn-secondary" onclick="editWebhook(${w.id})" title="Редактировать">✎</button>
-                                        <button class="btn btn-sm btn-danger" onclick="deleteWebhook(${w.id})" title="Удалить">🗑</button>
+                                        <span style="font-family:monospace;font-size:12px;color:var(--text-light)">${escapeHtml(url)}</span>
+                                        <button class="btn btn-sm btn-secondary" onclick="copyUrl('${escapeHtml(url)}')" title="Копировать URL" style="padding:2px 6px;font-size:11px;">⧉</button>
                                     </td>
-                                </tr>
-                            `).join('')}
+                                    <td>
+                                        <button class="btn btn-sm btn-secondary" onclick="editIntegration(${i.id})" title="Редактировать">✎</button>
+                                        <a href="integration_detail.html?id=${projectId}&integration=${i.id}" class="btn btn-sm btn-primary" title="Матчеры/Алиасы">⚙</a>
+                                        <button class="btn btn-sm btn-danger" onclick="deleteIntegration(${i.id})" title="Удалить">🗑</button>
+                                    </td>
+                                </tr>`;
+                            }).join('')}
                         </tbody>
                     </table>
-                </div>
-            `;
+                </div>`;
         }
 
-        function getTypeBadge(type) {
-            const colors = {
-                'generic': 'badge-secondary',
-                'slack': 'badge-success',
-                'teams': 'badge-primary',
-                'discord': 'badge-info',
-                'telegram': 'badge-warning'
-            };
-            const icons = {
-                'generic': '🔗',
-                'slack': '#slack',
-                'teams': '💬',
-                'discord': '🎮',
-                'telegram': '✈️'
-            };
-            return `<span class="badge ${colors[type] || 'badge-secondary'}">${icons[type] || '🔗'} ${type}</span>`;
+        // ── Render aliases ──────────────────────────────────────────────────
+        function renderAliases() {
+            const el = document.getElementById('aliases-list');
+            if (aliases.length === 0) {
+                el.innerHTML = `
+                    <div class="card text-center">
+                        <div style="font-size:40px;margin-bottom:12px;">🔀</div>
+                        <h3>Нет алиасов</h3>
+                        <p style="color:var(--text-light)">Создайте уникальные URL-псевдонимы для интеграций</p>
+                    </div>`;
+                return;
+            }
+
+            const baseUrl = `${location.protocol}//${location.host}/api/project/${projectId}/integrations/aliases/`;
+
+            el.innerHTML = `
+                <div class="card">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Алиас</th>
+                                <th>Интеграция</th>
+                                <th>URL</th>
+                                <th style="width:100px">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${aliases.map(a => {
+                                const integration = integrations.find(i => i.id === a.integration_id);
+                                const url = baseUrl + escapeHtml(a.alias);
+                                return `<tr>
+                                    <td><code>${escapeHtml(a.alias)}</code></td>
+                                    <td>${integration ? escapeHtml(integration.name) : '#' + a.integration_id}</td>
+                                    <td>
+                                        <span style="font-family:monospace;font-size:12px;color:var(--text-light)">${url}</span>
+                                        <button class="btn btn-sm btn-secondary" onclick="copyUrl('${url}')" title="Копировать" style="padding:2px 6px;font-size:11px;">⧉</button>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-danger" onclick="deleteAlias(${a.id})" title="Удалить">🗑</button>
+                                    </td>
+                                </tr>`;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>`;
         }
 
-        // Показать диалог создания
-        function showCreateDialog() {
-            document.getElementById('modal-title').textContent = 'Создать webhook';
-            document.getElementById('webhook-form').reset();
-            document.getElementById('webhook-id').value = '';
-            document.getElementById('webhook-active').checked = true;
-            document.getElementById('webhook-modal').style.display = 'block';
+        // ── Integration Modal ───────────────────────────────────────────────
+        function openCreateModal() {
+            document.getElementById('modal-title').textContent = 'Создать интеграцию';
+            document.getElementById('int-id').value = '';
+            document.getElementById('int-name').value = '';
+            document.getElementById('int-auth-method').value = 'none';
+            document.getElementById('int-auth-header').value = '';
+            onAuthMethodChange();
+            populateTemplateSelect(null);
+            populateKeySelect(null);
+            document.getElementById('integration-modal').style.display = 'block';
         }
 
-        // Редактирование webhook
-        function editWebhook(id) {
-            const webhook = webhooks.find(w => w.id === id);
-            if (!webhook) return;
-
-            document.getElementById('modal-title').textContent = 'Редактировать webhook';
-            document.getElementById('webhook-id').value = webhook.id;
-            document.getElementById('webhook-name').value = webhook.name;
-            document.getElementById('webhook-type').value = webhook.type;
-            document.getElementById('webhook-url').value = webhook.url;
-            document.getElementById('webhook-secret').value = webhook.secret || '';
-            document.getElementById('webhook-active').checked = webhook.active;
-            document.getElementById('webhook-events').value = webhook.events ? webhook.events.join(', ') : '';
-            document.getElementById('webhook-headers').value = webhook.headers ? JSON.stringify(webhook.headers, null, 2) : '';
-            document.getElementById('webhook-modal').style.display = 'block';
+        function editIntegration(id) {
+            const item = integrations.find(i => i.id === id);
+            if (!item) return;
+            document.getElementById('modal-title').textContent = 'Редактировать интеграцию';
+            document.getElementById('int-id').value = item.id;
+            document.getElementById('int-name').value = item.name;
+            document.getElementById('int-auth-method').value = item.auth_method || 'none';
+            document.getElementById('int-auth-header').value = item.auth_header || '';
+            onAuthMethodChange();
+            populateTemplateSelect(item.template_id);
+            populateKeySelect(item.auth_secret_id);
+            document.getElementById('integration-modal').style.display = 'block';
         }
 
-        // Закрытие модального окна
         function closeModal() {
-            document.getElementById('webhook-modal').style.display = 'none';
+            document.getElementById('integration-modal').style.display = 'none';
         }
 
-        // Сохранение webhook
-        function saveWebhook() {
-            const id = document.getElementById('webhook-id').value;
-            const name = document.getElementById('webhook-name').value.trim();
-            const type = document.getElementById('webhook-type').value;
-            const url = document.getElementById('webhook-url').value.trim();
-            const secret = document.getElementById('webhook-secret').value.trim();
-            const active = document.getElementById('webhook-active').checked;
-            const eventsStr = document.getElementById('webhook-events').value.trim();
-            const headersStr = document.getElementById('webhook-headers').value.trim();
+        function onAuthMethodChange() {
+            const method = document.getElementById('int-auth-method').value;
+            const showHeader = method !== 'none';
+            const showSecret = method === 'hmac' || method === 'token';
+            document.getElementById('auth-header-group').style.display = showHeader ? '' : 'none';
+            document.getElementById('auth-secret-group').style.display = showSecret ? '' : 'none';
+        }
 
-            if (!name || !type || !url) {
+        function populateTemplateSelect(selectedId) {
+            const sel = document.getElementById('int-template');
+            sel.innerHTML = '<option value="">— Выберите шаблон —</option>' +
+                templates.map(t => `<option value="${t.id}" ${t.id === selectedId ? 'selected' : ''}>${escapeHtml(t.name)}</option>`).join('');
+        }
+
+        function populateKeySelect(selectedId) {
+            const sel = document.getElementById('int-auth-secret');
+            sel.innerHTML = '<option value="">— Выберите ключ —</option>' +
+                keys.map(k => `<option value="${k.id}" ${k.id === selectedId ? 'selected' : ''}>${escapeHtml(k.name)}</option>`).join('');
+        }
+
+        function saveIntegration() {
+            const id = document.getElementById('int-id').value;
+            const name = document.getElementById('int-name').value.trim();
+            const templateId = parseInt(document.getElementById('int-template').value);
+            const authMethod = document.getElementById('int-auth-method').value;
+            const authHeader = document.getElementById('int-auth-header').value.trim() || null;
+            const authSecretId = document.getElementById('int-auth-secret').value
+                ? parseInt(document.getElementById('int-auth-secret').value) : null;
+
+            if (!name || !templateId) {
                 alert('Заполните обязательные поля');
                 return;
             }
 
-            const events = eventsStr ? eventsStr.split(',').map(s => s.trim()).filter(s => s) : [];
-            let headers = {};
-            if (headersStr) {
-                try {
-                    headers = JSON.parse(headersStr);
-                } catch (e) {
-                    alert('Неверный формат JSON для заголовков');
-                    return;
-                }
-            }
-
-            const data = {
+            const payload = {
+                id: id ? parseInt(id) : 0,
                 project_id: parseInt(projectId),
                 name,
-                type,
-                url,
-                secret: secret || null,
-                active,
-                events,
-                headers
+                template_id: templateId,
+                auth_method: authMethod,
+                auth_header: authHeader,
+                auth_secret_id: authSecretId,
             };
 
             const method = id ? 'PUT' : 'POST';
-            const endpoint = id ? `${API_BASE}/project/${projectId}/webhooks/${id}` : `${API_BASE}/project/${projectId}/webhooks`;
+            const url = id
+                ? `${API_BASE}/project/${projectId}/integrations/${id}`
+                : `${API_BASE}/project/${projectId}/integrations`;
 
-            api.request(method, endpoint, data)
+            api.request(method, url, payload)
                 .then(() => {
                     closeModal();
-                    loadWebhooks();
-                    showNotification(`Webhook ${id ? 'обновлён' : 'создан'}`, 'success');
+                    loadIntegrations();
+                    showNotification(`Интеграция ${id ? 'обновлена' : 'создана'}`, 'success');
                 })
-                .catch(error => {
-                    alert('Ошибка: ' + error.message);
-                });
+                .catch(err => alert('Ошибка: ' + err.message));
         }
 
-        // Тестирование webhook
-        function testWebhook(id) {
-            if (!confirm('Протестировать webhook? Будет отправлен тестовый запрос.')) return;
-
-            api.request('POST', `${API_BASE}/project/${projectId}/webhooks/${id}/test`, {})
+        function deleteIntegration(id) {
+            if (!confirm('Удалить эту интеграцию?')) return;
+            api.request('DELETE', `${API_BASE}/project/${projectId}/integrations/${id}`)
                 .then(() => {
-                    showNotification('Тестовый запрос отправлен', 'success');
+                    loadIntegrations();
+                    showNotification('Интеграция удалена', 'success');
                 })
-                .catch(error => {
-                    alert('Ошибка при тестировании: ' + error.message);
-                });
+                .catch(err => alert('Ошибка: ' + err.message));
         }
 
-        // Удаление webhook
-        function deleteWebhook(id) {
-            if (!confirm('Удалить этот webhook? Это действие нельзя отменить.')) return;
-
-            api.request('DELETE', `${API_BASE}/project/${projectId}/webhooks/${id}`)
-                .then(() => {
-                    loadWebhooks();
-                    showNotification('Webhook удалён', 'success');
-                })
-                .catch(error => {
-                    alert('Ошибка: ' + error.message);
-                });
+        // ── Alias Modal ─────────────────────────────────────────────────────
+        function openAliasModal() {
+            const sel = document.getElementById('alias-integration');
+            sel.innerHTML = '<option value="">— Выберите интеграцию —</option>' +
+                integrations.map(i => `<option value="${i.id}">${escapeHtml(i.name)}</option>`).join('');
+            document.getElementById('alias-value').value = '';
+            document.getElementById('alias-modal').style.display = 'block';
         }
 
-        // Уведомления
-        function showNotification(message, type = 'info') {
-            const notification = document.createElement('div');
-            notification.className = `alert alert-${type}`;
-            notification.textContent = message;
-            notification.style.position = 'fixed';
-            notification.style.top = '20px';
-            notification.style.right = '20px';
-            notification.style.zIndex = '10000';
-            notification.style.minWidth = '300px';
-            document.body.appendChild(notification);
-            setTimeout(() => notification.remove(), 3000);
+        function closeAliasModal() {
+            document.getElementById('alias-modal').style.display = 'none';
         }
 
-        // Закрытие модального окна по клику вне
-        window.onclick = function(event) {
-            const modal = document.getElementById('webhook-modal');
-            if (event.target === modal) {
-                closeModal();
+        function saveAlias() {
+            const integrationId = parseInt(document.getElementById('alias-integration').value);
+            const alias = document.getElementById('alias-value').value.trim();
+            if (!integrationId || !alias) {
+                alert('Заполните все поля');
+                return;
             }
+
+            api.request('POST', `${API_BASE}/project/${projectId}/integrations/aliases`, {
+                id: 0,
+                integration_id: integrationId,
+                project_id: parseInt(projectId),
+                alias,
+            })
+                .then(() => {
+                    closeAliasModal();
+                    loadAliases();
+                    showNotification('Алиас создан', 'success');
+                })
+                .catch(err => alert('Ошибка: ' + err.message));
         }
 
-        // Фильтры
-        document.getElementById('search-input').addEventListener('input', loadWebhooks);
-        document.getElementById('type-filter').addEventListener('change', loadWebhooks);
-        document.getElementById('status-filter').addEventListener('change', loadWebhooks);
+        function deleteAlias(id) {
+            if (!confirm('Удалить алиас?')) return;
+            api.request('DELETE', `${API_BASE}/project/${projectId}/integrations/aliases/${id}`)
+                .then(() => {
+                    loadAliases();
+                    showNotification('Алиас удалён', 'success');
+                })
+                .catch(err => alert('Ошибка: ' + err.message));
+        }
 
-        // Загрузка при старте
-        loadWebhooks();
+        // ── Utilities ───────────────────────────────────────────────────────
+        function copyUrl(url) {
+            navigator.clipboard.writeText(url)
+                .then(() => showNotification('URL скопирован', 'success'))
+                .catch(() => {
+                    const ta = document.createElement('textarea');
+                    ta.value = url;
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    ta.remove();
+                    showNotification('URL скопирован', 'success');
+                });
+        }
+
+        function showNotification(message, type = 'info') {
+            const el = document.createElement('div');
+            el.className = `alert alert-${type}`;
+            el.textContent = message;
+            Object.assign(el.style, { position:'fixed', top:'20px', right:'20px', zIndex:'10000', minWidth:'280px' });
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 3000);
+        }
+
+        window.onclick = e => {
+            if (e.target === document.getElementById('integration-modal')) closeModal();
+            if (e.target === document.getElementById('alias-modal')) closeAliasModal();
+        };
+
+        // ── Init ────────────────────────────────────────────────────────────
+        Promise.all([loadTemplates(), loadKeys()]).then(() => {
+            loadIntegrations();
+        });
     </script>
 </body>
 </html>

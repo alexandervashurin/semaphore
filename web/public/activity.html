@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Активность - Semaphore UI</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar"></aside>
+        <div class="main-content">
+            <div class="main-header">
+                <h2 id="project-title">Активность</h2>
+            </div>
+            <div class="main-body">
+                <div class="page-header">
+                    <h1>📋 Активность проекта</h1>
+                    <button class="btn btn-sm" onclick="loadActivity()">↺ Обновить</button>
+                </div>
+                <div id="activity-content">
+                    <div class="loading"><div class="loading-spinner"></div><p>Загрузка...</p></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        checkAuth();
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = urlParams.get('id');
+        if (!projectId) { window.location.href = 'index.html'; }
+
+        api.getProject(projectId).then(p => {
+            $('#project-title').textContent = p.name + ' → Активность';
+            document.title = 'Активность - ' + p.name;
+        }).catch(() => {});
+
+        loadActivity();
+
+        function loadActivity() {
+            const container = $('#activity-content');
+            ui.showLoading(container);
+
+            api.request('/project/' + projectId + '/events')
+                .then(events => {
+                    if (!events || events.length === 0) {
+                        ui.showEmpty(container, '📋', 'Нет событий', 'События появятся по мере работы с проектом');
+                        return;
+                    }
+                    container.innerHTML = `
+                        <table class="table">
+                            <thead><tr>
+                                <th>Время</th>
+                                <th>Пользователь</th>
+                                <th>Описание</th>
+                                <th>Объект</th>
+                            </tr></thead>
+                            <tbody>
+                                ${events.map(ev => `
+                                    <tr>
+                                        <td style="white-space:nowrap; color:var(--text-light); font-size:13px;">${formatDate(ev.created || ev.time)}</td>
+                                        <td>${escapeHtml(ev.username || ev.user || '—')}</td>
+                                        <td>${escapeHtml(ev.description || ev.type || '—')}</td>
+                                        <td style="color:var(--text-light); font-size:13px;">${escapeHtml(ev.object_type ? ev.object_type + ' #' + ev.object_id : '—')}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                })
+                .catch(err => {
+                    // Fallback: show tasks as activity
+                    api.getTasks(projectId).then(tasks => {
+                        if (!tasks || tasks.length === 0) {
+                            ui.showEmpty(container, '📋', 'Нет событий', 'События появятся по мере работы с проектом');
+                            return;
+                        }
+                        tasks.sort((a, b) => new Date(b.created) - new Date(a.created));
+                        container.innerHTML = `
+                            <div class="alert" style="background:#fff3cd; border-color:#ffc107; margin-bottom:16px;">
+                                ℹ️ События API недоступны — показаны задачи проекта
+                            </div>
+                            <table class="table">
+                                <thead><tr>
+                                    <th>Время</th>
+                                    <th>Событие</th>
+                                    <th>Статус</th>
+                                </tr></thead>
+                                <tbody>
+                                    ${tasks.slice(0, 50).map(t => `
+                                        <tr>
+                                            <td style="color:var(--text-light); font-size:13px;">${formatDate(t.created)}</td>
+                                            <td>Запуск задачи <strong>#${t.id}</strong> (шаблон #${t.template_id})</td>
+                                            <td><span class="status-badge-sm status-${t.status}">${statusLabel(t.status)}</span></td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                            <style>
+                                .status-badge-sm { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; }
+                                .status-success { background:#c6f6d5; color:#276749; }
+                                .status-error,.status-failed { background:#fed7d7; color:#c53030; }
+                                .status-running { background:#e3f2fd; color:#1976d2; }
+                                .status-waiting { background:#f0f0f0; color:#666; }
+                            </style>
+                        `;
+                    }).catch(() => ui.showError(container, err.message));
+                });
+        }
+
+        function statusLabel(s) {
+            return {waiting:'Ожидание',running:'Выполняется',success:'Успешно',
+                    error:'Ошибка',failed:'Ошибка',cancelled:'Отменено'}[s] || s;
+        }
+    </script>
+</body>
+</html>

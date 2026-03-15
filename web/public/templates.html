@@ -18,7 +18,14 @@
             <div class="main-body">
                 <div class="page-header">
                     <h1>📋 Шаблоны</h1>
-                    <button class="btn btn-primary" onclick="openTemplateModal()">+ Новый Шаблон</button>
+                    <div style="display:flex; gap:8px;">
+                        <button class="btn btn-sm" onclick="openViewsDialog()" title="Управление группами">⊞ Группы</button>
+                        <button class="btn btn-primary" onclick="openTemplateModal()">+ Новый Шаблон</button>
+                    </div>
+                </div>
+
+                <div id="views-tabs" style="display:none; margin-bottom:16px; border-bottom:2px solid var(--border);">
+                    <div id="tabs-list" style="display:flex; gap:0; overflow-x:auto;"></div>
                 </div>
 
                 <div id="templates-content">
@@ -42,6 +49,9 @@
             window.location.href = 'index.html';
         }
 
+        let allViews = [];
+        let activeViewId = null; // null = "All"
+
         api.getProject(projectId)
             .then(project => {
                 $('#project-title').textContent = project.name + ' → Шаблоны';
@@ -51,49 +61,225 @@
 
         loadTemplates();
 
+        function addViewApiMethods() {
+            // These use the /api/project/:id/views endpoints
+        }
+
+        function loadViews() {
+            return api.get('/project/' + projectId + '/views').catch(() => []);
+        }
+
+        function renderViewTabs(views, templates) {
+            const tabsEl = $('#views-tabs');
+            const tabsList = $('#tabs-list');
+            if (!views || views.length === 0) {
+                tabsEl.style.display = 'none';
+                return;
+            }
+            tabsEl.style.display = 'block';
+            const tabStyle = `style="padding:8px 20px; border:none; background:transparent; cursor:pointer; font-size:14px; border-bottom:3px solid transparent; white-space:nowrap;"`;
+            const activeStyle = `style="padding:8px 20px; border:none; background:transparent; cursor:pointer; font-size:14px; border-bottom:3px solid var(--primary); font-weight:600; color:var(--primary); white-space:nowrap;"`;
+
+            const countAll = templates.length;
+            tabsList.innerHTML = `
+                <button ${activeViewId === null ? activeStyle : tabStyle} onclick="setActiveView(null)">Все (${countAll})</button>
+                ${views.sort((a, b) => (a.position || 0) - (b.position || 0)).map(v => {
+                    const cnt = templates.filter(t => t.view_id === v.id).length;
+                    return `<button ${activeViewId === v.id ? activeStyle : tabStyle} onclick="setActiveView(${v.id})">${escapeHtml(v.title)} (${cnt})</button>`;
+                }).join('')}
+            `;
+        }
+
+        function setActiveView(viewId) {
+            activeViewId = viewId;
+            loadTemplates();
+        }
+
         function loadTemplates() {
             const container = $('#templates-content');
-            
-            api.getTemplates(projectId)
-                .then(templates => {
+
+            Promise.all([
+                api.getTemplates(projectId),
+                loadViews(),
+                api.getTasks(projectId).catch(() => [])
+            ])
+            .then(([templates, views, tasks]) => {
+                allViews = views || [];
+                renderViewTabs(allViews, templates);
+
+                // Filter by active view
+                const visible = activeViewId === null
+                    ? templates
+                    : templates.filter(t => t.view_id === activeViewId);
+
+                if (visible.length === 0) {
                     if (templates.length === 0) {
                         ui.showEmpty(container, '📋', 'Нет шаблонов', 'Создайте первый шаблон для запуска playbook');
                     } else {
-                        container.innerHTML = `
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th>Название</th>
-                                        <th>Playbook</th>
-                                        <th>Инвентарь</th>
-                                        <th>Окружение</th>
-                                        <th>Репозиторий</th>
-                                        <th>Действия</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${templates.map(tpl => `
-                                        <tr>
-                                            <td><strong>${escapeHtml(tpl.name)}</strong></td>
-                                            <td><code>${escapeHtml(tpl.playbook)}</code></td>
-                                            <td>${tpl.inventory_id ? '📦 ID: ' + tpl.inventory_id : '—'}</td>
-                                            <td>${tpl.environment_id ? '⚙️ ID: ' + tpl.environment_id : '—'}</td>
-                                            <td>${tpl.repository_id ? '🗂️ ID: ' + tpl.repository_id : '—'}</td>
-                                            <td>
-                                                <button class="btn btn-success btn-sm" onclick="runTemplate(${tpl.id})" title="Запустить">▶</button>
-                                                <button class="btn btn-sm" onclick="editTemplate(${tpl.id})" title="Редактировать">✏️</button>
-                                                <button class="btn btn-danger btn-sm" onclick="deleteTemplate(${tpl.id})" title="Удалить">🗑️</button>
-                                            </td>
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        `;
+                        ui.showEmpty(container, '📋', 'Нет шаблонов в этой группе', 'Переключите вкладку или создайте шаблон');
                     }
-                })
-                .catch(error => {
-                    ui.showError(container, error.message);
+                    return;
+                }
+
+                const lastByTpl = {};
+                (tasks || []).forEach(t => {
+                    if (!lastByTpl[t.template_id] || t.id > lastByTpl[t.template_id].id) {
+                        lastByTpl[t.template_id] = t;
+                    }
                 });
+
+                const statusBadge = (t) => {
+                    if (!t) return '<span style="color:#999">—</span>';
+                    const cls = { waiting:'status-waiting', running:'status-running', success:'status-success',
+                        error:'status-error', failed:'status-error', cancelled:'status-cancelled' }[t.status] || '';
+                    const lbl = { waiting:'Ожидание', running:'Выполняется', success:'Успешно',
+                        error:'Ошибка', failed:'Ошибка', cancelled:'Отменено' }[t.status] || t.status;
+                    return `<a href="history.html?id=${projectId}" style="text-decoration:none;">
+                        <span class="status-badge ${cls}" style="font-size:11px;">${lbl}</span>
+                    </a>`;
+                };
+
+                const viewName = (viewId) => {
+                    if (!viewId) return '';
+                    const v = allViews.find(v => v.id === viewId);
+                    return v ? `<span style="font-size:10px; background:rgba(0,80,87,.12); color:var(--primary); padding:1px 6px; border-radius:8px; margin-left:4px;">${escapeHtml(v.title)}</span>` : '';
+                };
+
+                container.innerHTML = `
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Название</th>
+                                <th>Playbook</th>
+                                <th>Последний запуск</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${visible.map(tpl => `
+                                <tr>
+                                    <td>
+                                        <div style="display:flex; align-items:center; gap:4px;">
+                                            <a href="template.html?id=${projectId}&tpl=${tpl.id}" style="font-weight:600; text-decoration:none; color:var(--primary);">${escapeHtml(tpl.name)}</a>
+                                            ${viewName(tpl.view_id)}
+                                        </div>
+                                        <div style="font-size:11px; color:var(--text-light); margin-top:2px;"><code>${escapeHtml(tpl.playbook || '')}</code></div>
+                                    </td>
+                                    <td style="color:var(--text-light); font-size:13px;">${escapeHtml(tpl.playbook || '')}</td>
+                                    <td>${statusBadge(lastByTpl[tpl.id])}</td>
+                                    <td>
+                                        <button class="btn btn-success btn-sm" onclick="runTemplate(${tpl.id}, '${escapeHtml(tpl.name).replace(/'/g,"\\'")}', ${!!tpl.allow_override_args_in_task})" title="Запустить">▶ Запустить</button>
+                                        <button class="btn btn-sm" onclick="editTemplate(${tpl.id})" title="Редактировать">✏️</button>
+                                        <button class="btn btn-sm" onclick="copyTemplate(${tpl.id})" title="Копировать">⧉</button>
+                                        <button class="btn btn-danger btn-sm" onclick="deleteTemplate(${tpl.id})" title="Удалить">🗑️</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    <style>
+                        .status-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-weight:600; }
+                        .status-waiting  { background:#f0f0f0; color:#666; }
+                        .status-running  { background:#e3f2fd; color:#1976d2; }
+                        .status-success  { background:#c6f6d5; color:#276749; }
+                        .status-error    { background:#fed7d7; color:#c53030; }
+                        .status-cancelled{ background:#e0e0e0; color:#424242; }
+                    </style>
+                `;
+            })
+            .catch(error => {
+                ui.showError($('#templates-content'), error.message);
+            });
+        }
+
+        // ---- Views management dialog ----
+        function openViewsDialog() {
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.id = 'views-dialog';
+            document.body.appendChild(modal);
+            renderViewsDialog(modal);
+            modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+        }
+
+        function renderViewsDialog(modal) {
+            loadViews().then(views => {
+                allViews = views || [];
+                modal.innerHTML = `
+                    <div class="modal" style="max-width:520px;">
+                        <div class="modal-header">
+                            <h2>⊞ Группы шаблонов</h2>
+                        </div>
+                        <div style="margin-bottom:16px;">
+                            <p style="color:var(--text-light); font-size:13px; margin-bottom:12px;">Группы позволяют организовать шаблоны по вкладкам.</p>
+                            ${views.length === 0
+                                ? '<p style="color:var(--text-light); font-style:italic;">Нет групп — шаблоны не разделены</p>'
+                                : `<table class="table" style="margin-bottom:0;">
+                                    <thead><tr><th>Название</th><th>Позиция</th><th></th></tr></thead>
+                                    <tbody>
+                                        ${views.sort((a,b) => (a.position||0)-(b.position||0)).map(v => `
+                                            <tr>
+                                                <td><strong>${escapeHtml(v.title)}</strong></td>
+                                                <td style="color:var(--text-light);">${v.position}</td>
+                                                <td>
+                                                    <button class="btn btn-sm" onclick="editView(${v.id}, '${escapeHtml(v.title).replace(/'/g,"\\'")}')" title="Переименовать">✏️</button>
+                                                    <button class="btn btn-sm btn-danger" onclick="deleteView(${v.id})" title="Удалить">🗑️</button>
+                                                </td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>`}
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center; border-top:1px solid var(--border); padding-top:12px;">
+                            <input type="text" id="new-view-name" class="form-control" placeholder="Название новой группы" style="flex:1;">
+                            <button class="btn btn-primary" onclick="addView()">+ Добавить</button>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn" onclick="document.getElementById('views-dialog').remove()">Закрыть</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function addView() {
+            const name = document.getElementById('new-view-name').value.trim();
+            if (!name) { ui.showAlert('Введите название группы', 'warning'); return; }
+            const pos = allViews.length > 0 ? Math.max(...allViews.map(v => v.position || 0)) + 1 : 0;
+            api.post('/project/' + projectId + '/views', { title: name, position: pos })
+                .then(() => {
+                    ui.showAlert('Группа создана', 'success');
+                    const modal = document.getElementById('views-dialog');
+                    if (modal) renderViewsDialog(modal);
+                    loadTemplates();
+                })
+                .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+        }
+
+        function editView(id, currentTitle) {
+            const newTitle = prompt('Новое название группы:', currentTitle);
+            if (!newTitle || newTitle === currentTitle) return;
+            api.put('/project/' + projectId + '/views/' + id, { title: newTitle, position: allViews.find(v=>v.id===id)?.position || 0 })
+                .then(() => {
+                    ui.showAlert('Группа обновлена', 'success');
+                    const modal = document.getElementById('views-dialog');
+                    if (modal) renderViewsDialog(modal);
+                    loadTemplates();
+                })
+                .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+        }
+
+        function deleteView(id) {
+            if (!confirm('Удалить группу? Шаблоны останутся, но потеряют привязку к группе.')) return;
+            api.delete('/project/' + projectId + '/views/' + id)
+                .then(() => {
+                    ui.showAlert('Группа удалена', 'success');
+                    if (activeViewId === id) activeViewId = null;
+                    const modal = document.getElementById('views-dialog');
+                    if (modal) renderViewsDialog(modal);
+                    loadTemplates();
+                })
+                .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
         }
 
         function editTemplate(id) {
@@ -102,10 +288,11 @@
                 api.getPlaybooks(projectId).catch(() => []),
                 api.getInventories(projectId).catch(() => []),
                 api.getEnvironments(projectId).catch(() => []),
-                api.getRepositories(projectId).catch(() => [])
+                api.getRepositories(projectId).catch(() => []),
+                loadViews()
             ])
-            .then(([template, playbooks, inventories, environments, repositories]) => {
-                openTemplateModal(template, { playbooks, inventories, environments, repositories });
+            .then(([template, playbooks, inventories, environments, repositories, views]) => {
+                openTemplateModal(template, { playbooks, inventories, environments, repositories, views });
             })
             .catch(error => {
                 ui.showAlert('Ошибка: ' + error.message, 'danger');
@@ -125,38 +312,240 @@
                 });
         }
 
-        function runTemplate(id) {
-            if (!confirm('Запустить шаблон?')) return;
+        function runTemplate(templateId, tplName, allowArgs) {
+            openNewTaskDialog(templateId, tplName || ('Шаблон #' + templateId), allowArgs);
+        }
 
-            const btn = document.querySelector(`button[onclick="runTemplate(${id})"]`);
-            if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+        function openNewTaskDialog(templateId, tplName, allowArgs) {
+            const existing = document.getElementById('new-task-dialog');
+            if (existing) existing.remove();
 
-            api.post('/project/' + projectId + '/tasks', { template_id: id })
-                .then(task => {
-                    ui.showAlert('Задача #' + task.id + ' запущена', 'success');
-                    setTimeout(() => {
-                        window.location.href = 'task.html?id=' + projectId + '&task=' + task.id;
-                    }, 800);
-                })
-                .catch(error => {
-                    ui.showAlert('Ошибка запуска: ' + error.message, 'danger');
-                    if (btn) { btn.disabled = false; btn.textContent = '▶'; }
+            // Загружаем шаблон и справочники для динамической формы
+            Promise.all([
+                api.getTemplate(projectId, templateId),
+                api.getInventories(projectId).catch(() => []),
+                api.getEnvironments(projectId).catch(() => [])
+            ]).then(([tpl, inventories, environments]) => {
+                const modal = document.createElement('div');
+                modal.id = 'new-task-dialog';
+                modal.className = 'modal-overlay';
+
+                const showBranch = tpl.allow_override_branch_in_task;
+                const showInventory = tpl.allow_inventory_in_task;
+                const showArgs = !!tpl.allow_override_args_in_task || allowArgs;
+
+                modal.innerHTML = `
+                    <div class="modal" style="max-width:620px;">
+                        <div class="modal-header">
+                            <h2>▶ ${escapeHtml(tplName)}</h2>
+                        </div>
+                        <form id="new-task-form">
+                            <div class="form-group">
+                                <label>Сообщение <span style="color:var(--text-light); font-size:12px;">(необязательно)</span></label>
+                                <input type="text" id="task-message" class="form-control" placeholder="Описание запуска, коммент...">
+                            </div>
+                            ${showBranch ? `
+                            <div class="form-group">
+                                <label>Git ветка <span style="color:var(--text-light); font-size:12px;">(оставьте пустым для ветки по умолчанию)</span></label>
+                                <input type="text" id="task-branch" class="form-control" value="${escapeHtml(tpl.git_branch || '')}" placeholder="main">
+                            </div>` : ''}
+                            ${showInventory ? `
+                            <div class="form-group">
+                                <label>Инвентарь</label>
+                                <select id="task-inventory" class="form-control">
+                                    <option value="">По умолчанию (${tpl.inventory_id || 'не задан'})</option>
+                                    ${inventories.map(inv => `<option value="${inv.id}" ${tpl.inventory_id === inv.id ? 'selected' : ''}>${escapeHtml(inv.name)}</option>`).join('')}
+                                </select>
+                            </div>` : ''}
+                            ${showArgs ? `
+                            <div class="form-group">
+                                <label>CLI аргументы <span style="color:var(--text-light); font-size:12px;">(переопределить)</span></label>
+                                <input type="text" id="task-args" class="form-control" value="${escapeHtml(tpl.arguments || '')}" placeholder="--limit=host1 --tags=deploy">
+                            </div>` : ''}
+                            <div class="modal-footer">
+                                <button type="button" class="btn" onclick="document.getElementById('new-task-dialog').remove()">Отмена</button>
+                                <button type="submit" class="btn btn-primary">▶ Запустить</button>
+                            </div>
+                        </form>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+                document.getElementById('new-task-form').addEventListener('submit', e => {
+                    e.preventDefault();
+                    const message = document.getElementById('task-message').value.trim() || null;
+                    const branch = showBranch ? (document.getElementById('task-branch').value.trim() || null) : null;
+                    const args = showArgs ? (document.getElementById('task-args').value.trim() || null) : null;
+                    const invSelect = showInventory ? document.getElementById('task-inventory') : null;
+                    const inventory_id = invSelect && invSelect.value ? parseInt(invSelect.value) : null;
+                    modal.remove();
+                    const params = { message };
+                    if (branch) params.git_branch = branch;
+                    if (args) params.arguments = args;
+                    if (inventory_id) params.inventory_id = inventory_id;
+                    launchTask(templateId, tplName, params);
                 });
+            }).catch(err => ui.showAlert('Ошибка загрузки шаблона: ' + err.message, 'danger'));
+        }
+
+        function launchTask(templateId, tplName, params) {
+            const body = Object.fromEntries(
+                Object.entries({ template_id: templateId, ...params }).filter(([,v]) => v != null)
+            );
+            api.post('/project/' + projectId + '/tasks', body)
+                .then(task => openRunModal(task.id, templateId, tplName))
+                .catch(error => ui.showAlert('Ошибка запуска: ' + error.message, 'danger'));
+        }
+
+        // ---- Run modal ----
+        let runModalTaskId = null;
+        let runWs = null;
+        let runPollTimer = null;
+
+        function openRunModal(taskId, templateId, tplName) {
+            runModalTaskId = taskId;
+            tplName = tplName || 'Шаблон #' + templateId;
+
+            // Create modal
+            const modal = document.createElement('div');
+            modal.id = 'run-modal';
+            modal.className = 'modal-overlay';
+            modal.innerHTML = `
+                <div class="modal" style="max-width:900px; width:95vw;">
+                    <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center;">
+                        <h2>▶ ${escapeHtml(tplName)}</h2>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <span id="run-status-badge" class="run-status-badge">Запуск...</span>
+                            <a href="task.html?id=${projectId}" class="btn btn-sm">История задач</a>
+                            <button class="btn btn-sm" onclick="closeRunModal()">✕</button>
+                        </div>
+                    </div>
+                    <div id="run-progress" style="margin-bottom:8px;">
+                        <div class="run-progress-bar"><div class="run-progress-fill"></div></div>
+                    </div>
+                    <div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <small style="color:var(--text-light);">Задача #${taskId}</small>
+                            <label style="font-size:12px; color:var(--text-light); cursor:pointer;">
+                                <input type="checkbox" id="run-autoscroll" checked> Автопрокрутка
+                            </label>
+                        </div>
+                        <div id="run-log" class="run-log-container"></div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.addEventListener('click', e => { if (e.target === modal) closeRunModal(); });
+
+            connectRunWs(taskId);
+            startRunPoll(taskId);
+        }
+
+        function closeRunModal() {
+            if (runWs) { runWs.close(); runWs = null; }
+            if (runPollTimer) { clearInterval(runPollTimer); runPollTimer = null; }
+            const modal = document.getElementById('run-modal');
+            if (modal) modal.remove();
+            runModalTaskId = null;
+        }
+
+        function connectRunWs(taskId) {
+            if (runWs) return;
+            const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+            runWs = new WebSocket(`${proto}://${location.host}/api/project/${projectId}/tasks/${taskId}/ws`);
+
+            runWs.onmessage = (event) => {
+                try {
+                    const msg = JSON.parse(event.data);
+                    if (msg.type === 'output') appendRunLine(msg.line || '');
+                    else if (msg.type === 'done') { runWs.close(); runWs = null; finishRunModal(taskId); }
+                } catch (e) { appendRunLine(event.data); }
+            };
+            runWs.onerror = () => { runWs = null; };
+            runWs.onclose  = () => { runWs = null; };
+        }
+
+        function startRunPoll(taskId) {
+            if (runPollTimer) return;
+            runPollTimer = setInterval(() => {
+                api.getTask(projectId, taskId).then(task => {
+                    const badge = document.getElementById('run-status-badge');
+                    if (badge) {
+                        badge.textContent = statusRunLabel(task.status);
+                        badge.className = 'run-status-badge run-status-' + task.status;
+                    }
+                    const running = task.status === 'running' || task.status === 'waiting' || task.status === 'starting';
+                    if (!running) {
+                        clearInterval(runPollTimer); runPollTimer = null;
+                        finishRunModal(taskId);
+                    }
+                });
+            }, 4000);
+        }
+
+        function finishRunModal(taskId) {
+            if (runPollTimer) { clearInterval(runPollTimer); runPollTimer = null; }
+            const progress = document.getElementById('run-progress');
+            if (progress) progress.style.display = 'none';
+
+            // Load full log from API (WebSocket may have missed lines)
+            api.getTaskOutput(projectId, taskId).then(output => {
+                const container = document.getElementById('run-log');
+                if (!container) return;
+                container.innerHTML = (output || []).map(item => {
+                    const line = typeof item === 'string' ? item : (item.output || '');
+                    return `<div class="run-log-line ${getRunLogClass(line)}">${escapeHtml(line)}</div>`;
+                }).join('');
+                container.scrollTop = container.scrollHeight;
+            }).catch(() => {});
+
+            api.getTask(projectId, taskId).then(task => {
+                const badge = document.getElementById('run-status-badge');
+                if (badge) {
+                    badge.textContent = statusRunLabel(task.status);
+                    badge.className = 'run-status-badge run-status-' + task.status;
+                }
+            }).catch(() => {});
+        }
+
+        function appendRunLine(text) {
+            const container = document.getElementById('run-log');
+            if (!container) return;
+            const div = document.createElement('div');
+            div.className = 'run-log-line ' + getRunLogClass(text);
+            div.textContent = text;
+            container.appendChild(div);
+            const autoScroll = document.getElementById('run-autoscroll');
+            if (autoScroll && autoScroll.checked) container.scrollTop = container.scrollHeight;
+        }
+
+        function getRunLogClass(line) {
+            const lower = (line || '').toLowerCase();
+            if (lower.includes('ok=') || lower.includes('changed=') || lower.includes('successfully')) return 'run-log-success';
+            if (lower.includes('failed=') || lower.includes('fatal') || lower.includes('error')) return 'run-log-error';
+            if (lower.includes('warning') || lower.includes('warn')) return 'run-log-warning';
+            return 'run-log-info';
+        }
+
+        function statusRunLabel(s) {
+            return { waiting: 'Ожидание', running: 'Выполняется', success: 'Успешно',
+                     error: 'Ошибка', failed: 'Ошибка', cancelled: 'Отменено' }[s] || s;
         }
 
         function openTemplateModal(template = null, refs = {}) {
             const isEdit = !!template;
-            
-            // Если данные для справочников не переданы, загружаем их
+
             if (!refs.playbooks) {
                 Promise.all([
                     api.getPlaybooks(projectId).catch(() => []),
                     api.getInventories(projectId).catch(() => []),
                     api.getEnvironments(projectId).catch(() => []),
-                    api.getRepositories(projectId).catch(() => [])
+                    api.getRepositories(projectId).catch(() => []),
+                    loadViews()
                 ])
-                .then(([playbooks, inventories, environments, repositories]) => {
-                    renderModal(template, { playbooks, inventories, environments, repositories });
+                .then(([playbooks, inventories, environments, repositories, views]) => {
+                    renderModal(template, { playbooks, inventories, environments, repositories, views });
                 })
                 .catch(console.error);
             } else {
@@ -164,71 +553,142 @@
             }
 
             function renderModal(tpl, data) {
-                const { playbooks, inventories, environments, repositories } = data;
+                const { playbooks, inventories, environments, repositories, views } = data;
                 
                 const modal = document.createElement('div');
                 modal.className = 'modal-overlay';
                 modal.id = 'template-modal';
                 modal.innerHTML = `
-                    <div class="modal" style="max-width: 700px;">
+                    <div class="modal" style="max-width:760px;">
                         <div class="modal-header">
                             <h2>${isEdit ? '✏️ Редактирование' : '➕ Новый'} Шаблон</h2>
                         </div>
-                        <form id="template-form">
-                            <div class="form-group">
-                                <label for="name">Название *</label>
-                                <input type="text" id="name" class="form-control" required value="${escapeHtml(tpl?.name || '')}" placeholder="Deploy to Production">
+                        <form id="template-form" style="max-height:80vh; overflow-y:auto; padding-right:4px;">
+
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                                <div class="form-group" style="grid-column:1/-1;">
+                                    <label for="name">Название *</label>
+                                    <input type="text" id="name" class="form-control" required value="${escapeHtml(tpl?.name || '')}" placeholder="Deploy to Production">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="tpl-app">Тип приложения</label>
+                                    <select id="tpl-app" class="form-control" onchange="onAppChange()">
+                                        <option value="ansible" ${(tpl?.app||'ansible')==='ansible'?'selected':''}>Ansible</option>
+                                        <option value="terraform" ${tpl?.app==='terraform'?'selected':''}>Terraform</option>
+                                        <option value="tofu" ${tpl?.app==='tofu'?'selected':''}>OpenTofu</option>
+                                        <option value="bash" ${tpl?.app==='bash'?'selected':''}>Bash</option>
+                                        <option value="python" ${tpl?.app==='python'?'selected':''}>Python</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="tpl-type">Назначение</label>
+                                    <select id="tpl-type" class="form-control">
+                                        <option value="task" ${(!tpl?.type||tpl?.type==='task'||tpl?.type==='default'||tpl?.type==='ansible')?'selected':''}>Task</option>
+                                        <option value="build" ${tpl?.type==='build'?'selected':''}>Build</option>
+                                        <option value="deploy" ${tpl?.type==='deploy'?'selected':''}>Deploy</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group" style="grid-column:1/-1;">
+                                    <label for="playbook">Playbook / Скрипт *</label>
+                                    <div style="display:flex; gap:8px;">
+                                        <select id="playbook-select" class="form-control" onchange="syncPlaybookInput()" style="flex:1;">
+                                            <option value="">— выбрать из списка —</option>
+                                            ${playbooks.map(pb => `<option value="${pb.name}" ${tpl?.playbook === pb.name ? 'selected' : ''}>${escapeHtml(pb.name)}</option>`).join('')}
+                                        </select>
+                                        <input type="text" id="playbook" class="form-control" value="${escapeHtml(tpl?.playbook || '')}" placeholder="site.yml" style="flex:1;" required>
+                                    </div>
+                                    <small style="color:var(--text-light);">Выберите из списка или введите путь вручную</small>
+                                </div>
+
+                                <div class="form-group" style="grid-column:1/-1;">
+                                    <label for="description">Описание</label>
+                                    <textarea id="description" class="form-control" rows="2" placeholder="Описание шаблона">${escapeHtml(tpl?.description || '')}</textarea>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="inventory_id">Инвентарь</label>
+                                    <select id="inventory_id" class="form-control">
+                                        <option value="">— не задан —</option>
+                                        ${inventories.map(inv => `<option value="${inv.id}" ${tpl?.inventory_id === inv.id ? 'selected' : ''}>${escapeHtml(inv.name)}</option>`).join('')}
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="environment_id">Окружение</label>
+                                    <select id="environment_id" class="form-control">
+                                        <option value="">— не выбрано —</option>
+                                        ${environments.map(env => `<option value="${env.id}" ${tpl?.environment_id === env.id ? 'selected' : ''}>${escapeHtml(env.name)}</option>`).join('')}
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="repository_id">Репозиторий</label>
+                                    <select id="repository_id" class="form-control">
+                                        <option value="">— не выбрано —</option>
+                                        ${repositories.map(repo => `<option value="${repo.id}" ${tpl?.repository_id === repo.id ? 'selected' : ''}>${escapeHtml(repo.name)}</option>`).join('')}
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="git_branch">Ветка Git</label>
+                                    <input type="text" id="git_branch" class="form-control" value="${escapeHtml(tpl?.git_branch || 'main')}" placeholder="main">
+                                </div>
+
+                                <div class="form-group" style="grid-column:1/-1;">
+                                    <label for="arguments">CLI аргументы</label>
+                                    <input type="text" id="arguments" class="form-control" value="${escapeHtml(tpl?.arguments || '')}" placeholder="--verbose --limit=host1 --tags=deploy">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="view_id">Группа (View)</label>
+                                    <select id="view_id" class="form-control">
+                                        <option value="">Без группы</option>
+                                        ${(views||[]).sort((a,b)=>(a.position||0)-(b.position||0)).map(v => `<option value="${v.id}" ${tpl?.view_id === v.id ? 'selected' : ''}>${escapeHtml(v.title)}</option>`).join('')}
+                                    </select>
+                                </div>
+
+                                <div id="build-template-row" class="form-group" style="${tpl?.type!=='deploy'?'display:none;':''}">
+                                    <label for="build_template_id">Шаблон сборки (deploy)</label>
+                                    <select id="build_template_id" class="form-control">
+                                        <option value="">— не задан —</option>
+                                    </select>
+                                </div>
                             </div>
-                            <div class="form-group">
-                                <label for="playbook">Playbook *</label>
-                                <select id="playbook" class="form-control" required>
-                                    <option value="">Выберите playbook</option>
-                                    ${playbooks.map(pb => `<option value="${pb.name}" ${tpl?.playbook === pb.name ? 'selected' : ''}>${escapeHtml(pb.name)}</option>`).join('')}
-                                </select>
-                                <small style="color: var(--text-light);">Выберите playbook из списка или введите новый</small>
+
+                            <div style="border-top:1px solid var(--border); margin:16px 0 12px; padding-top:12px;">
+                                <strong style="font-size:13px; color:var(--text-light); text-transform:uppercase; letter-spacing:.5px;">Разрешения при запуске</strong>
                             </div>
-                            <div class="form-group">
-                                <label for="description">Описание</label>
-                                <textarea id="description" class="form-control" rows="2" placeholder="Описание шаблона">${escapeHtml(tpl?.description || '')}</textarea>
-                            </div>
-                            <div class="form-group">
-                                <label for="inventory_id">Инвентарь *</label>
-                                <select id="inventory_id" class="form-control" required>
-                                    <option value="">Выберите инвентарь</option>
-                                    ${inventories.map(inv => `<option value="${inv.id}" ${tpl?.inventory_id === inv.id ? 'selected' : ''}>${escapeHtml(inv.name)}</option>`).join('')}
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="environment_id">Окружение</label>
-                                <select id="environment_id" class="form-control">
-                                    <option value="">Не выбрано</option>
-                                    ${environments.map(env => `<option value="${env.id}" ${tpl?.environment_id === env.id ? 'selected' : ''}>${escapeHtml(env.name)}</option>`).join('')}
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="repository_id">Репозиторий</label>
-                                <select id="repository_id" class="form-control">
-                                    <option value="">Не выбрано</option>
-                                    ${repositories.map(repo => `<option value="${repo.id}" ${tpl?.repository_id === repo.id ? 'selected' : ''}>${escapeHtml(repo.name)}</option>`).join('')}
-                                </select>
-                                <small style="color: var(--text-light);">Репозиторий для загрузки playbook</small>
-                            </div>
-                            <div class="form-group">
-                                <label for="git_branch">Ветка Git</label>
-                                <input type="text" id="git_branch" class="form-control" value="${escapeHtml(tpl?.git_branch || 'main')}" placeholder="main">
-                            </div>
-                            <div class="form-group">
-                                <label for="arguments">Аргументы командной строки</label>
-                                <input type="text" id="arguments" class="form-control" value="${escapeHtml(tpl?.arguments || '')}" placeholder="--verbose --limit=host1">
-                                <small style="color: var(--text-light);">Дополнительные аргументы для ansible-playbook</small>
-                            </div>
-                            <div class="form-group">
-                                <label>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                                <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
                                     <input type="checkbox" id="allow_override_args_in_task" ${tpl?.allow_override_args_in_task ? 'checked' : ''}>
-                                    Разрешить переопределение аргументов при запуске
+                                    Переопределять CLI аргументы
+                                </label>
+                                <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+                                    <input type="checkbox" id="allow_override_branch_in_task" ${tpl?.allow_override_branch_in_task ? 'checked' : ''}>
+                                    Переопределять ветку Git
+                                </label>
+                                <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+                                    <input type="checkbox" id="allow_inventory_in_task" ${tpl?.allow_inventory_in_task ? 'checked' : ''}>
+                                    Менять инвентарь при запуске
+                                </label>
+                                <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+                                    <input type="checkbox" id="allow_parallel_tasks" ${tpl?.allow_parallel_tasks ? 'checked' : ''}>
+                                    Разрешить параллельные запуски
+                                </label>
+                                <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+                                    <input type="checkbox" id="suppress_success_alerts" ${tpl?.suppress_success_alerts ? 'checked' : ''}>
+                                    Не отправлять уведомления при успехе
+                                </label>
+                                <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+                                    <input type="checkbox" id="autorun" ${tpl?.autorun ? 'checked' : ''}>
+                                    Авто-запуск при успешной сборке
                                 </label>
                             </div>
-                            <div class="modal-footer" style="margin-top: 20px;">
+
+                            <div class="modal-footer" style="margin-top:20px;">
                                 <button type="button" class="btn" onclick="closeTemplateModal()">Отмена</button>
                                 <button type="submit" class="btn btn-primary">${isEdit ? 'Сохранить' : 'Создать'}</button>
                             </div>
@@ -253,19 +713,49 @@
             if (modal) modal.remove();
         }
 
+        function syncPlaybookInput() {
+            const sel = document.getElementById('playbook-select');
+            if (sel && sel.value) {
+                const pb = document.getElementById('playbook');
+                if (pb) pb.value = sel.value;
+            }
+        }
+
+        function onAppChange() {
+            const app = document.getElementById('tpl-app');
+            if (!app) return;
+            const playbook = document.getElementById('playbook');
+            if (playbook && !playbook.value) {
+                if (app.value === 'terraform' || app.value === 'tofu') playbook.placeholder = 'main.tf (путь к директории)';
+                else if (app.value === 'bash') playbook.placeholder = 'script.sh';
+                else playbook.placeholder = 'site.yml';
+            }
+        }
+
         function saveTemplate(id) {
+            const viewIdVal = document.getElementById('view_id') && document.getElementById('view_id').value
+                ? parseInt(document.getElementById('view_id').value) : null;
+            const buildTplId = document.getElementById('build_template_id') && document.getElementById('build_template_id').value
+                ? parseInt(document.getElementById('build_template_id').value) : null;
             const data = {
-                name: $('#name').value.trim(),
-                playbook: $('#playbook').value.trim(),
-                description: $('#description').value.trim() || null,
-                inventory_id: $('#inventory_id').value ? parseInt($('#inventory_id').value) : null,
-                environment_id: $('#environment_id').value ? parseInt($('#environment_id').value) : null,
-                repository_id: $('#repository_id').value ? parseInt($('#repository_id').value) : null,
-                git_branch: $('#git_branch').value.trim() || 'main',
-                arguments: $('#arguments').value.trim() || null,
-                allow_override_args_in_task: $('#allow_override_args_in_task').checked,
-                type: 'ansible',
-                app: 'ansible'
+                name: document.getElementById('name').value.trim(),
+                playbook: document.getElementById('playbook').value.trim(),
+                description: document.getElementById('description').value.trim() || '',
+                inventory_id: document.getElementById('inventory_id').value ? parseInt(document.getElementById('inventory_id').value) : null,
+                environment_id: document.getElementById('environment_id').value ? parseInt(document.getElementById('environment_id').value) : null,
+                repository_id: document.getElementById('repository_id').value ? parseInt(document.getElementById('repository_id').value) : null,
+                git_branch: document.getElementById('git_branch').value.trim() || 'main',
+                arguments: document.getElementById('arguments').value.trim() || null,
+                app: document.getElementById('tpl-app').value,
+                type: document.getElementById('tpl-type').value,
+                view_id: viewIdVal,
+                build_template_id: buildTplId,
+                allow_override_args_in_task: document.getElementById('allow_override_args_in_task').checked,
+                allow_override_branch_in_task: document.getElementById('allow_override_branch_in_task').checked,
+                allow_inventory_in_task: document.getElementById('allow_inventory_in_task').checked,
+                allow_parallel_tasks: document.getElementById('allow_parallel_tasks').checked,
+                suppress_success_alerts: document.getElementById('suppress_success_alerts').checked,
+                autorun: document.getElementById('autorun').checked,
             };
 
             if (!data.name) {
@@ -273,11 +763,7 @@
                 return;
             }
             if (!data.playbook) {
-                ui.showAlert('Выберите playbook', 'warning');
-                return;
-            }
-            if (!data.inventory_id) {
-                ui.showAlert('Выберите инвентарь', 'warning');
+                ui.showAlert('Введите путь к playbook / скрипту', 'warning');
                 return;
             }
 
@@ -304,9 +790,23 @@
                 });
         }
 
+        function copyTemplate(id) {
+            api.getTemplate(projectId, id).then(tpl => {
+                const copy = Object.assign({}, tpl);
+                delete copy.id;
+                delete copy.created;
+                copy.name = tpl.name + ' (копия)';
+                return api.createTemplate(projectId, copy);
+            }).then(() => {
+                ui.showAlert('Шаблон скопирован', 'success');
+                loadTemplates();
+            }).catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+        }
+
         window.editTemplate = editTemplate;
         window.deleteTemplate = deleteTemplate;
         window.runTemplate = runTemplate;
+        window.copyTemplate = copyTemplate;
     </script>
 </body>
 </html>

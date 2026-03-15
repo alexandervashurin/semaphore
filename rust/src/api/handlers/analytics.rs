@@ -50,6 +50,29 @@ pub async fn get_project_analytics(
     } else {
         0.0
     };
+
+    // Вычисляем avg/max/min длительности задач (start..end)
+    let durations_secs: Vec<f64> = tasks.iter()
+        .filter_map(|t| match (t.task.start, t.task.end) {
+            (Some(s), Some(e)) => {
+                let d = (e - s).num_seconds();
+                if d >= 0 { Some(d as f64) } else { None }
+            }
+            _ => None,
+        })
+        .collect();
+    let avg_task_duration_secs = if durations_secs.is_empty() {
+        0.0
+    } else {
+        durations_secs.iter().sum::<f64>() / durations_secs.len() as f64
+    };
+    let max_task_duration_secs = durations_secs.iter().cloned().fold(0.0f64, f64::max);
+    let min_task_duration_secs = if durations_secs.is_empty() {
+        0.0
+    } else {
+        durations_secs.iter().cloned().fold(f64::MAX, f64::min)
+    };
+    let total_duration_secs = durations_secs.iter().sum::<f64>() as i64;
     
     // Получаем шаблоны для статистики
     let templates = state.store
@@ -117,7 +140,7 @@ pub async fn get_project_analytics(
         total_keys: keys.len() as i64,
         total_schedules: schedules.len() as i64,
         success_rate,
-        avg_task_duration_secs: 0.0, // TODO: вычислить из задач
+        avg_task_duration_secs,
     };
     
     // Определяем период
@@ -130,18 +153,25 @@ pub async fn get_project_analytics(
         success: successful_tasks,
         failed: failed_tasks,
         stopped: stopped_tasks,
-        avg_duration_secs: 0.0,
-        max_duration_secs: 0.0,
-        min_duration_secs: 0.0,
-        total_duration_secs: 0,
+        avg_duration_secs: avg_task_duration_secs,
+        max_duration_secs: max_task_duration_secs,
+        min_duration_secs: min_task_duration_secs,
+        total_duration_secs,
     };
     
-    // Метрики производительности (заглушка)
+    // Вычисляем tasks_per_day (за последние 30 дней)
+    let thirty_days_ago = Utc::now() - Duration::days(30);
+    let recent_tasks = tasks.iter()
+        .filter(|t| t.task.created > thirty_days_ago)
+        .count() as f64;
+    let tasks_per_day = recent_tasks / 30.0;
+    let tasks_per_hour = tasks_per_day / 24.0;
+
     let performance = PerformanceMetrics {
         avg_queue_time_secs: 0.0,
-        avg_execution_time_secs: 0.0,
-        tasks_per_hour: 0.0,
-        tasks_per_day: 0.0,
+        avg_execution_time_secs: avg_task_duration_secs,
+        tasks_per_hour,
+        tasks_per_day,
         concurrent_tasks_avg: 0.0,
         concurrent_tasks_max: 0,
         resource_usage: ResourceUsage::default(),

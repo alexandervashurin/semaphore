@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Запуск Playbook - Semaphore UI</title>
+    <title>Запуск - Semaphore UI</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -12,14 +12,14 @@
 
         <div class="main-content">
             <div class="main-header">
-                <h2>Запуск Playbook</h2>
+                <h2 id="run-title">Запуск</h2>
             </div>
 
             <div class="main-body">
                 <div id="run-content">
                     <div class="loading">
                         <div class="loading-spinner"></div>
-                        <p>Загрузка данных playbook...</p>
+                        <p>Загрузка...</p>
                     </div>
                 </div>
             </div>
@@ -33,211 +33,230 @@
         const urlParams = new URLSearchParams(window.location.search);
         const projectId = urlParams.get('id');
         const playbookId = urlParams.get('playbook');
+        const templateId = urlParams.get('tpl');
 
-        if (!projectId || !playbookId) {
-            window.location.href = 'playbooks.html?id=' + projectId;
+        if (!projectId) { window.location.href = 'index.html'; }
+
+        // Route to appropriate run flow
+        if (templateId) {
+            // Template-based run (main flow)
+            loadTemplateRun();
+        } else if (playbookId) {
+            // Playbook-based run (legacy)
+            loadPlaybookRun();
+        } else {
+            // Show template selector
+            loadTemplateSelectorRun();
         }
 
-        let playbook = null;
-        let inventories = [];
-        let environments = [];
+        // ---- Template-based run ----
+        function loadTemplateRun() {
+            Promise.all([
+                api.getTemplate(projectId, templateId),
+                api.getInventories(projectId).catch(() => []),
+                api.getEnvironments(projectId).catch(() => [])
+            ]).then(([tpl, inventories, environments]) => {
+                document.title = 'Запуск — ' + tpl.name;
+                $('#run-title').textContent = 'Запуск: ' + tpl.name;
+                showTemplateRunForm(tpl, inventories, environments);
+            }).catch(err => ui.showError($('#run-content'), err.message));
+        }
 
-        // Загрузка данных
-        Promise.all([
-            api.getPlaybook(projectId, playbookId),
-            api.getInventories(projectId).catch(() => []),
-            api.getEnvironments(projectId).catch(() => [])
-        ])
-        .then(([pb, invs, envs]) => {
-            playbook = pb;
-            inventories = invs;
-            environments = envs;
-            document.title = 'Запуск - ' + pb.name;
-            showRunForm();
-        })
-        .catch(error => {
-            ui.showError($('#run-content'), 'Ошибка загрузки: ' + error.message);
-        });
-
-        function showRunForm() {
+        function showTemplateRunForm(tpl, inventories, environments) {
             const content = $('#run-content');
             content.innerHTML = `
-                <div style="max-width: 800px; margin: 0 auto;">
-                    <div class="page-header">
-                        <h1>▶ Запуск Playbook</h1>
-                    </div>
-
-                    <div class="card mb-4">
-                        <h3 style="margin-bottom: 15px;">${escapeHtml(playbook.name)}</h3>
-                        <p style="color: var(--text-light); margin-bottom: 10px;">${escapeHtml(playbook.description || 'Нет описания')}</p>
-                        <div style="display: flex; gap: 10px;">
-                            <span class="badge badge-${playbook.playbook_type || 'ansible'}">${playbook.playbook_type || 'ansible'}</span>
-                            ${playbook.repository_id ? '<span class="badge">🗂️ Репозиторий: ID ' + playbook.repository_id + '</span>' : ''}
+                <div style="max-width:720px; margin:0 auto;">
+                    <div class="card" style="margin-bottom:16px;">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                            <div>
+                                <h3>${escapeHtml(tpl.name)}</h3>
+                                <div style="color:var(--text-light); font-size:13px; margin-top:4px;">
+                                    ${escapeHtml(tpl.playbook || '')}
+                                    ${tpl.git_branch ? ' · ветка: ' + escapeHtml(tpl.git_branch) : ''}
+                                </div>
+                            </div>
+                            <a href="template.html?id=${projectId}&tpl=${tpl.id}" class="btn btn-sm">← К шаблону</a>
                         </div>
                     </div>
 
                     <form id="run-form">
-                        <div class="card mb-4">
-                            <h3 style="margin-bottom: 20px;">Параметры запуска</h3>
-                            
+                        <div class="card" style="margin-bottom:16px;">
+                            <h4 style="margin-bottom:16px;">Параметры запуска</h4>
+
                             <div class="form-group">
-                                <label for="inventory_id">Инвентарь *</label>
-                                <select id="inventory_id" class="form-control" required>
-                                    <option value="">Выберите инвентарь</option>
-                                    ${inventories.map(inv => `<option value="${inv.id}">${escapeHtml(inv.name)}</option>`).join('')}
+                                <label for="run-message">Комментарий (необязательно)</label>
+                                <input type="text" id="run-message" class="form-control" placeholder="Описание запуска">
+                            </div>
+
+                            ${tpl.allow_override_branch_in_task ? `
+                            <div class="form-group">
+                                <label for="run-branch">Git ветка</label>
+                                <input type="text" id="run-branch" class="form-control" value="${escapeHtml(tpl.git_branch || '')}" placeholder="main">
+                            </div>` : ''}
+
+                            ${tpl.allow_inventory_in_task ? `
+                            <div class="form-group">
+                                <label for="run-inventory">Инвентарь</label>
+                                <select id="run-inventory" class="form-control">
+                                    <option value="">По умолчанию (${tpl.inventory_id || 'не задан'})</option>
+                                    ${inventories.map(inv => `<option value="${inv.id}" ${tpl.inventory_id === inv.id ? 'selected' : ''}>${escapeHtml(inv.name)}</option>`).join('')}
                                 </select>
-                            </div>
+                            </div>` : ''}
 
+                            ${tpl.allow_override_args_in_task ? `
                             <div class="form-group">
-                                <label for="environment_id">Окружение</label>
-                                <select id="environment_id" class="form-control">
-                                    <option value="">Не выбрано</option>
-                                    ${environments.map(env => `<option value="${env.id}">${escapeHtml(env.name)}</option>`).join('')}
-                                </select>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="extra_vars">Дополнительные переменные (JSON)</label>
-                                <textarea id="extra_vars" class="form-control" rows="5" placeholder='{"app_env": "production", "version": "1.0.0"}' style="font-family: monospace; font-size: 13px;"></textarea>
-                                <small style="color: var(--text-light);">Переменные которые будут переданы в playbook</small>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="limit">Ограничить хосты</label>
-                                <input type="text" id="limit" class="form-control" placeholder="host1,host2 или group1:group2">
-                                <small style="color: var(--text-light);">Запустить только на указанных хостах (ansible --limit)</small>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="tags">Теги</label>
-                                <input type="text" id="tags" class="form-control" placeholder="tag1,tag2">
-                                <small style="color: var(--text-light);">Запустить только задачи с указанными тегами (ansible --tags)</small>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="skip_tags">Пропустить теги</label>
-                                <input type="text" id="skip_tags" class="form-control" placeholder="tag1,tag2">
-                                <small style="color: var(--text-light);">Пропустить задачи с указанными тегами (ansible --skip-tags)</small>
-                            </div>
+                                <label for="run-args">CLI аргументы</label>
+                                <input type="text" id="run-args" class="form-control" value="${escapeHtml(tpl.arguments || '')}" placeholder="--extra-vars 'key=val'">
+                            </div>` : ''}
                         </div>
 
-                        <div class="card mb-4">
-                            <h3 style="margin-bottom: 15px;">Опции</h3>
-                            
-                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                    <input type="checkbox" id="debug">
-                                    <span>Debug режим</span>
-                                </label>
-                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                    <input type="checkbox" id="dry_run">
-                                    <span>Dry run (тест)</span>
-                                </label>
-                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                    <input type="checkbox" id="diff">
-                                    <span>Показывать diff</span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                            <a href="playbooks.html?id=${projectId}" class="btn">Отмена</a>
-                            <button type="submit" class="btn btn-success" id="run-btn">
-                                <span>▶ Запустить Playbook</span>
-                            </button>
+                        <div style="display:flex; gap:10px; justify-content:flex-end;">
+                            <a href="templates.html?id=${projectId}" class="btn">Отмена</a>
+                            <button type="submit" id="run-btn" class="btn btn-primary">▶ Запустить</button>
                         </div>
                     </form>
                 </div>
             `;
 
-            $('#run-form').addEventListener('submit', (e) => {
+            $('#run-form').addEventListener('submit', e => {
                 e.preventDefault();
-                runPlaybook();
+                const btn = $('#run-btn');
+                btn.disabled = true;
+                btn.textContent = 'Запуск...';
+
+                const body = { template_id: parseInt(templateId) };
+                const msgEl = document.getElementById('run-message');
+                const branchEl = document.getElementById('run-branch');
+                const argsEl = document.getElementById('run-args');
+                const invEl = document.getElementById('run-inventory');
+                if (msgEl && msgEl.value.trim()) body.message = msgEl.value.trim();
+                if (branchEl && branchEl.value.trim()) body.git_branch = branchEl.value.trim();
+                if (argsEl && argsEl.value.trim()) body.arguments = argsEl.value.trim();
+                if (invEl && invEl.value) body.inventory_id = parseInt(invEl.value);
+
+                api.post('/project/' + projectId + '/tasks', body)
+                    .then(task => {
+                        ui.showAlert('Запущено! Задача #' + task.id, 'success');
+                        setTimeout(() => {
+                            window.location.href = 'task.html?id=' + projectId + '&task=' + task.id;
+                        }, 800);
+                    })
+                    .catch(err => {
+                        ui.showAlert('Ошибка: ' + err.message, 'danger');
+                        btn.disabled = false;
+                        btn.textContent = '▶ Запустить';
+                    });
             });
         }
 
-        function runPlaybook() {
-            const btn = $('#run-btn');
-            btn.disabled = true;
-            btn.innerHTML = '<span class="loading-spinner" style="width: 16px; height: 16px; border: 2px solid white; border-top-color: transparent; display: inline-block; animation: spin 1s linear infinite;"></span> Запуск...';
+        // ---- Playbook-based run ----
+        function loadPlaybookRun() {
+            Promise.all([
+                api.getPlaybook(projectId, playbookId),
+                api.getInventories(projectId).catch(() => []),
+                api.getEnvironments(projectId).catch(() => [])
+            ]).then(([pb, inventories, environments]) => {
+                document.title = 'Запуск — ' + pb.name;
+                $('#run-title').textContent = 'Запуск: ' + pb.name;
+                showPlaybookRunForm(pb, inventories, environments);
+            }).catch(err => ui.showError($('#run-content'), err.message));
+        }
 
-            // Собираем данные
-            const extraVarsText = $('#extra_vars').value.trim();
-            let extraVars = null;
-            
-            if (extraVarsText) {
-                try {
-                    extraVars = JSON.parse(extraVarsText);
-                } catch (e) {
-                    ui.showAlert('Неверный формат JSON в дополнительных переменных', 'warning');
-                    btn.disabled = false;
-                    btn.innerHTML = '<span>▶ Запустить Playbook</span>';
+        function showPlaybookRunForm(pb, inventories, environments) {
+            const content = $('#run-content');
+            content.innerHTML = `
+                <div style="max-width:720px; margin:0 auto;">
+                    <div class="card" style="margin-bottom:16px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <h3>${escapeHtml(pb.name)}</h3>
+                            <a href="playbooks.html?id=${projectId}" class="btn btn-sm">← Playbooks</a>
+                        </div>
+                        ${pb.description ? `<p style="color:var(--text-light); margin-top:8px;">${escapeHtml(pb.description)}</p>` : ''}
+                    </div>
+
+                    <form id="run-form">
+                        <div class="card" style="margin-bottom:16px;">
+                            <h4 style="margin-bottom:16px;">Параметры</h4>
+                            <div class="form-group">
+                                <label for="run-inventory">Инвентарь *</label>
+                                <select id="run-inventory" class="form-control" required>
+                                    <option value="">Выберите инвентарь</option>
+                                    ${inventories.map(inv => `<option value="${inv.id}">${escapeHtml(inv.name)}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="run-env">Окружение</label>
+                                <select id="run-env" class="form-control">
+                                    <option value="">Не выбрано</option>
+                                    ${environments.map(env => `<option value="${env.id}">${escapeHtml(env.name)}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:10px; justify-content:flex-end;">
+                            <a href="playbooks.html?id=${projectId}" class="btn">Отмена</a>
+                            <button type="submit" id="run-btn" class="btn btn-primary">▶ Запустить</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+
+            $('#run-form').addEventListener('submit', e => {
+                e.preventDefault();
+                const btn = $('#run-btn');
+                btn.disabled = true;
+                btn.textContent = 'Запуск...';
+                const invId = document.getElementById('run-inventory').value;
+                const envId = document.getElementById('run-env').value;
+
+                const body = {};
+                if (invId) body.inventory_id = parseInt(invId);
+                if (envId) body.environment_id = parseInt(envId);
+
+                api.post('/project/' + projectId + '/playbooks/' + playbookId + '/run', body)
+                    .then(task => {
+                        ui.showAlert('Playbook запущен! Задача #' + (task.id || ''), 'success');
+                        setTimeout(() => {
+                            window.location.href = task.id
+                                ? 'task.html?id=' + projectId + '&task=' + task.id
+                                : 'task.html?id=' + projectId;
+                        }, 800);
+                    })
+                    .catch(err => {
+                        ui.showAlert('Ошибка: ' + err.message, 'danger');
+                        btn.disabled = false;
+                        btn.textContent = '▶ Запустить';
+                    });
+            });
+        }
+
+        // ---- Template selector (no template specified) ----
+        function loadTemplateSelectorRun() {
+            api.getTemplates(projectId).then(templates => {
+                $('#run-title').textContent = 'Выбор шаблона для запуска';
+                const content = $('#run-content');
+                if (!templates || templates.length === 0) {
+                    ui.showEmpty(content, '📋', 'Нет шаблонов', 'Создайте шаблон чтобы запустить задачу');
                     return;
                 }
-            }
-
-            const data = {
-                inventory_id: $('#inventory_id').value ? parseInt($('#inventory_id').value) : null,
-                environment_id: $('#environment_id').value ? parseInt($('#environment_id').value) : null,
-                extra_vars: extraVars,
-                limit: $('#limit').value.trim() || null,
-                tags: $('#tags').value.trim() ? $('#tags').value.trim().split(',').map(t => t.trim()) : null,
-                skip_tags: $('#skip_tags').value.trim() ? $('#skip_tags').value.trim().split(',').map(t => t.trim()) : null,
-                debug: $('#debug').checked,
-                dry_run: $('#dry_run').checked,
-                diff: $('#diff').checked
-            };
-
-            // Валидация
-            if (!data.inventory_id) {
-                ui.showAlert('Выберите инвентарь', 'warning');
-                btn.disabled = false;
-                btn.innerHTML = '<span>▶ Запустить Playbook</span>';
-                return;
-            }
-
-            // Создаём задачу на запуск
-            // Сначала создаём временный шаблон для запуска
-            const templateData = {
-                name: 'Temp: ' + playbook.name + ' ' + new Date().toLocaleTimeString(),
-                playbook: playbook.name,
-                inventory_id: data.inventory_id,
-                environment_id: data.environment_id,
-                repository_id: playbook.repository_id,
-                type: playbook.playbook_type || 'ansible',
-                app: playbook.playbook_type || 'ansible'
-            };
-
-            api.createTemplate(projectId, templateData)
-                .then(template => {
-                    // Теперь создаём задачу
-                    const taskData = {
-                        template_id: template.id,
-                        playbook: playbook.name,
-                        inventory_id: data.inventory_id,
-                        environment_id: data.environment_id,
-                        extra_vars: data.extra_vars ? JSON.stringify(data.extra_vars) : null,
-                        task_limit: data.limit,
-                        debug: data.debug,
-                        dry_run: data.dry_run,
-                        diff: data.diff
-                    };
-
-                    return api.post('/project/' + projectId + '/tasks', taskData);
-                })
-                .then(task => {
-                    ui.showAlert('Playbook запущен! Задача #' + task.id, 'success');
-                    
-                    // Перенаправляем на страницу задачи через 2 секунды
-                    setTimeout(() => {
-                        window.location.href = 'task.html?id=' + projectId + '&task=' + task.id;
-                    }, 2000);
-                })
-                .catch(error => {
-                    ui.showAlert('Ошибка запуска: ' + error.message, 'danger');
-                    btn.disabled = false;
-                    btn.innerHTML = '<span>▶ Запустить Playbook</span>';
-                });
+                content.innerHTML = `
+                    <div style="max-width:720px; margin:0 auto;">
+                        <div class="card">
+                            <h3 style="margin-bottom:16px;">Выберите шаблон для запуска</h3>
+                            <div style="display:flex; flex-direction:column; gap:8px;">
+                                ${templates.map(tpl => `
+                                    <div style="display:flex; align-items:center; justify-content:space-between; padding:12px; border:1px solid var(--border); border-radius:6px;">
+                                        <div>
+                                            <strong>${escapeHtml(tpl.name)}</strong>
+                                            <div style="font-size:12px; color:var(--text-light);">${escapeHtml(tpl.playbook || '')}</div>
+                                        </div>
+                                        <a href="run.html?id=${projectId}&tpl=${tpl.id}" class="btn btn-primary btn-sm">▶ Запустить</a>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).catch(err => ui.showError($('#run-content'), err.message));
         }
     </script>
 </body>

@@ -160,18 +160,42 @@ impl AnsiblePlaybook {
         let mut child = cmd.spawn()?;
         // На Windows child.id() возвращает Option<u32>
         let pid = child.id().unwrap_or(0);
-        
+
         // Callback для процесса (передаём PID)
         if let Some(callback) = cb {
             callback(pid);
         }
-        
+
+        // Читаем stdout и stderr параллельно через spawn
+        let logger_stdout = self.logger.clone();
+        let logger_stderr = self.logger.clone();
+        let stdout_handle = if let Some(stdout) = child.stdout.take() {
+            let handle = tokio::spawn(async move {
+                let mut reader = BufReader::new(stdout).lines();
+                while let Ok(Some(line)) = reader.next_line().await {
+                    logger_stdout.log(&line);
+                }
+            });
+            Some(handle)
+        } else { None };
+        let stderr_handle = if let Some(stderr) = child.stderr.take() {
+            let handle = tokio::spawn(async move {
+                let mut reader = BufReader::new(stderr).lines();
+                while let Ok(Some(line)) = reader.next_line().await {
+                    logger_stderr.log(&line);
+                }
+            });
+            Some(handle)
+        } else { None };
+
         let status = child.wait().await?;
-        
+        if let Some(h) = stdout_handle { let _ = h.await; }
+        if let Some(h) = stderr_handle { let _ = h.await; }
+
         if !status.success() {
             return Err(Error::Other(format!("Playbook failed with status: {}", status)));
         }
-        
+
         Ok(())
     }
 

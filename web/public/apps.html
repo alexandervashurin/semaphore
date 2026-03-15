@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apps - Semaphore UI</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .app-card {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 18px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            margin-bottom: 8px;
+            background: #fff;
+        }
+        .app-icon {
+            width: 42px; height: 42px;
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+        .app-info { flex: 1; }
+        .app-title { font-weight: 600; font-size: 15px; }
+        .app-path { font-family: monospace; font-size: 12px; color: var(--text-light); margin-top: 2px; }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar"></aside>
+
+        <div class="main-content">
+            <div class="main-header">
+                <h2>Apps</h2>
+            </div>
+
+            <div class="main-body">
+                <div class="card" style="margin-bottom:16px; padding:12px 16px; background:#e8f5e9; border-left:4px solid #43a047;">
+                    <strong>Apps</strong> — исполняемые приложения, которые Semaphore использует для запуска задач
+                    (Ansible, Terraform, Bash и др.). Список определяется конфигурацией сервера.
+                </div>
+
+                <div id="apps-content">
+                    <div class="loading"><div class="loading-spinner"></div><p>Загрузка...</p></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit App Modal -->
+    <div id="app-modal" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width:480px;">
+            <div class="modal-header">
+                <h3 id="app-modal-title">Редактировать App</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="app-id">
+
+                <div class="form-group">
+                    <label>Тип</label>
+                    <input type="text" id="app-type" class="form-control" readonly style="background:#f5f5f5; color:var(--text-light);">
+                </div>
+
+                <div class="form-group">
+                    <label for="app-path">Путь к бинарнику</label>
+                    <input type="text" id="app-path" class="form-control" placeholder="/usr/bin/ansible-playbook">
+                </div>
+
+                <div class="form-group">
+                    <label for="app-args">Дополнительные аргументы (через пробел)</label>
+                    <input type="text" id="app-args" class="form-control" placeholder="--extra-vars ...">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Отмена</button>
+                <button class="btn btn-primary" onclick="saveApp()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        checkAuth();
+
+        let apps = [];
+
+        const APP_ICONS = {
+            ansible: { icon: '⚙', color: '#ee0000', label: 'Ansible' },
+            terraform: { icon: '⬡', color: '#7b42bc', label: 'Terraform' },
+            tofu: { icon: '⬡', color: '#1c5ef5', label: 'OpenTofu' },
+            terragrunt: { icon: '⬡', color: '#448844', label: 'Terragrunt' },
+            bash: { icon: '$', color: '#333', label: 'Bash' },
+            python: { icon: '🐍', color: '#3776ab', label: 'Python' },
+            powershell: { icon: '>', color: '#0078d4', label: 'PowerShell' },
+            pulumi: { icon: '◆', color: '#8a3391', label: 'Pulumi' },
+        };
+
+        loadApps();
+
+        function loadApps() {
+            api.get(`${API_BASE}/apps`)
+                .then(data => {
+                    apps = data || [];
+                    renderApps();
+                })
+                .catch(err => {
+                    document.getElementById('apps-content').innerHTML =
+                        `<div class="alert alert-danger">Ошибка загрузки: ${escapeHtml(err.message)}</div>`;
+                });
+        }
+
+        function renderApps() {
+            const el = document.getElementById('apps-content');
+            if (!apps.length) {
+                el.innerHTML = '<div class="alert alert-info">Нет доступных Apps.</div>';
+                return;
+            }
+
+            // Sort by priority
+            const sorted = [...apps].sort((a, b) => (a.priority || 0) - (b.priority || 0));
+
+            el.innerHTML = sorted.map(app => {
+                const meta = APP_ICONS[app.id] || { icon: '?', color: '#888', label: app.title };
+                const argsStr = (app.args || []).join(' ');
+                return `
+                    <div class="app-card">
+                        <div class="app-icon" style="background:${meta.color}20; color:${meta.color}; font-weight:700;">
+                            ${meta.icon}
+                        </div>
+                        <div class="app-info">
+                            <div class="app-title">${escapeHtml(app.title || meta.label)}</div>
+                            <div class="app-path">${escapeHtml(app.path || 'путь не задан')}</div>
+                            ${argsStr ? `<div style="font-size:11px; color:var(--text-light); margin-top:2px;">args: <code>${escapeHtml(argsStr)}</code></div>` : ''}
+                        </div>
+                        <div style="display:flex; gap:6px; align-items:center;">
+                            <span class="badge badge-success" style="font-size:11px;">✓ Доступен</span>
+                            <button class="btn btn-sm btn-secondary" onclick="editApp('${escapeHtml(app.id)}')" title="Редактировать путь">✎</button>
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
+        function editApp(id) {
+            const app = apps.find(a => a.id === id);
+            if (!app) return;
+            document.getElementById('app-modal-title').textContent = 'Редактировать: ' + (app.title || id);
+            document.getElementById('app-id').value = id;
+            document.getElementById('app-type').value = id;
+            document.getElementById('app-path').value = app.path || '';
+            document.getElementById('app-args').value = (app.args || []).join(' ');
+            document.getElementById('app-modal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('app-modal').style.display = 'none';
+        }
+
+        function saveApp() {
+            const id = document.getElementById('app-id').value;
+            const path = document.getElementById('app-path').value.trim();
+            const argsStr = document.getElementById('app-args').value.trim();
+            const args = argsStr ? argsStr.split(/\s+/) : [];
+
+            api.request('PUT', `${API_BASE}/apps/${id}`, { id, path, args })
+                .then(() => {
+                    closeModal();
+                    loadApps();
+                    notify('App обновлён', 'success');
+                })
+                .catch(err => {
+                    // API might not support PUT — show info
+                    notify('Изменение пути App не поддерживается в этой версии', 'info');
+                    closeModal();
+                });
+        }
+
+        function notify(msg, type = 'info') {
+            const el = document.createElement('div');
+            el.className = `alert alert-${type}`;
+            el.textContent = msg;
+            Object.assign(el.style, { position:'fixed', top:'20px', right:'20px', zIndex:'10000', minWidth:'260px' });
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 3000);
+        }
+
+        window.onclick = e => {
+            if (e.target === document.getElementById('app-modal')) closeModal();
+        };
+    </script>
+</body>
+</html>

@@ -132,18 +132,29 @@
                         <div class="form-group">
                             <label for="inventory_type">Тип *</label>
                             <select id="inventory_type" class="form-control" required onchange="toggleInventoryField()">
-                                <option value="static" ${inv?.inventory_type === 'static' ? 'selected' : ''}>Статический (вручную)</option>
-                                <option value="file" ${inv?.inventory_type === 'file' ? 'selected' : ''}>Файл</option>
+                                <option value="static" ${inv?.inventory_type === 'static' || !inv ? 'selected' : ''}>Статический INI</option>
+                                <option value="static-yaml" ${inv?.inventory_type === 'static-yaml' ? 'selected' : ''}>Статический YAML</option>
+                                <option value="file" ${inv?.inventory_type === 'file' ? 'selected' : ''}>Файл (путь)</option>
                             </select>
                         </div>
-                        <div class="form-group" id="inventory-data-group">
-                            <label for="inventory">Инвентарь (INI формат) *</label>
-                            <textarea id="inventory" class="form-control" rows="10" required placeholder="[webservers]\nweb1.example.com\nweb2.example.com\n\n[dbserververs]\ndb1.example.com" style="font-family: monospace; font-size: 13px;">${escapeHtml(inv?.inventory || '')}</textarea>
-                            <small style="color: var(--text-light);">Формат INI: [group]\nhost1\nhost2</small>
+                        <div class="form-group" id="inv-content-group">
+                            <label id="inv-content-label" for="inventory">Инвентарь (INI формат) *</label>
+                            <textarea id="inventory" class="form-control" rows="10" placeholder="[webservers]&#10;web1.example.com&#10;web2.example.com" style="font-family:monospace; font-size:13px;">${escapeHtml(inv?.inventory_data || inv?.inventory || '')}</textarea>
+                            <small id="inv-content-hint" style="color:var(--text-light);">INI: [group]\nhost1\nhost2</small>
+                        </div>
+                        <div class="form-group" id="inv-path-group" style="display:none;">
+                            <label for="inv-path">Путь к файлу *</label>
+                            <input type="text" id="inv-path" class="form-control" value="${escapeHtml(inv?.inventory_data || '')}" placeholder="/etc/ansible/hosts или путь в репозитории">
                         </div>
                         <div class="form-group">
-                            <label for="ssh_key_id">SSH ключ</label>
+                            <label for="ssh_key_id">Ключ подключения (SSH)</label>
                             <select id="ssh_key_id" class="form-control">
+                                <option value="">Не выбрано</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="sudo_key_id">Ключ sudo (login/password)</label>
+                            <select id="sudo_key_id" class="form-control">
                                 <option value="">Не выбрано</option>
                             </select>
                         </div>
@@ -159,9 +170,14 @@
             // Загрузка ключей
             api.getKeys(projectId)
                 .then(keys => {
-                    const select = $('#ssh_key_id');
-                    select.innerHTML = '<option value="">Не выбрано</option>' + 
-                        keys.filter(k => k.type === 'ssh').map(k => `<option value="${k.id}" ${inv?.ssh_key_id === k.id ? 'selected' : ''}>${escapeHtml(k.name)}</option>`).join('');
+                    const sshSel  = $('#ssh_key_id');
+                    const sudoSel = $('#sudo_key_id');
+                    sshSel.innerHTML  = '<option value="">Не выбрано</option>' +
+                        keys.filter(k => k.type === 'ssh' || k.type === 'none').map(k =>
+                            `<option value="${k.id}" ${inv?.ssh_key_id === k.id ? 'selected' : ''}>${escapeHtml(k.name)}</option>`).join('');
+                    sudoSel.innerHTML = '<option value="">Не выбрано</option>' +
+                        keys.filter(k => k.type === 'login_password').map(k =>
+                            `<option value="${k.id}" ${inv?.sudo_key_id === k.id ? 'selected' : ''}>${escapeHtml(k.name)}</option>`).join('');
                 })
                 .catch(console.error);
 
@@ -180,8 +196,16 @@
 
         function toggleInventoryField() {
             const type = $('#inventory_type').value;
-            const label = $('#inventory-data-group label');
-            label.textContent = type === 'file' ? 'Путь к файлу *' : 'Инвентарь (INI формат) *';
+            const isFile = type === 'file';
+            const isYaml = type === 'static-yaml';
+            $('#inv-content-group').style.display = isFile ? 'none' : '';
+            $('#inv-path-group').style.display     = isFile ? '' : 'none';
+            if (!isFile) {
+                const lbl  = document.getElementById('inv-content-label');
+                const hint = document.getElementById('inv-content-hint');
+                lbl.textContent  = isYaml ? 'Инвентарь (YAML формат) *' : 'Инвентарь (INI формат) *';
+                hint.textContent = isYaml ? 'YAML: all:\n  hosts:\n    host1:' : 'INI: [group]\nhost1\nhost2';
+            }
         }
 
         function closeInventoryModal() {
@@ -190,11 +214,16 @@
         }
 
         function saveInventory(id) {
+            const type = $('#inventory_type').value;
+            const invContent = type === 'file'
+                ? document.getElementById('inv-path').value.trim()
+                : $('#inventory').value.trim();
             const data = {
                 name: $('#name').value.trim(),
-                inventory_type: $('#inventory_type').value,
-                inventory: $('#inventory').value.trim(),
-                ssh_key_id: $('#ssh_key_id').value ? parseInt($('#ssh_key_id').value) : null
+                inventory_type: type,
+                inventory: invContent,
+                ssh_key_id:  $('#ssh_key_id').value  ? parseInt($('#ssh_key_id').value)  : null,
+                sudo_key_id: $('#sudo_key_id').value ? parseInt($('#sudo_key_id').value) : null
             };
 
             if (!data.name) {

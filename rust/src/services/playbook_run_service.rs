@@ -172,6 +172,14 @@ impl PlaybookRunService {
             description: format!("Auto-generated template for {}", playbook.name),
             arguments: None,
             vault_key_id: None,
+            view_id: None,
+            build_template_id: None,
+            autorun: false,
+            allow_override_args_in_task: false,
+            allow_override_branch_in_task: false,
+            allow_inventory_in_task: false,
+            allow_parallel_tasks: false,
+            suppress_success_alerts: false,
         };
 
         let created_template = store.create_template(template).await?;

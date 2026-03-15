@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Runners - Semaphore UI</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar"></aside>
+
+        <div class="main-content">
+            <div class="main-header">
+                <h2>Runners</h2>
+                <button class="btn btn-primary" onclick="openModal()">+ Добавить Runner</button>
+            </div>
+
+            <div class="main-body">
+                <div class="card" style="margin-bottom:16px; padding:12px 16px; background:#fff3cd; border-left:4px solid #ffc107;">
+                    <strong>Runners</strong> — агенты, которые выполняют задачи. Глобальные runners обслуживают все проекты.
+                    Runner считается <strong>онлайн</strong>, если его последняя активность была менее 30 секунд назад.
+                </div>
+
+                <div id="runners-content">
+                    <div class="loading"><div class="loading-spinner"></div><p>Загрузка...</p></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Runner Modal -->
+    <div id="runner-modal" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width:520px;">
+            <div class="modal-header">
+                <h3 id="modal-title">Добавить Runner</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="runner-id">
+
+                <div class="form-group">
+                    <label for="runner-name">Название *</label>
+                    <input type="text" id="runner-name" class="form-control" required placeholder="My Runner">
+                </div>
+
+                <div class="form-group">
+                    <label for="runner-webhook">Webhook URL</label>
+                    <input type="url" id="runner-webhook" class="form-control" placeholder="https://...">
+                </div>
+
+                <div class="form-group">
+                    <label for="runner-max-tasks">Макс. параллельных задач</label>
+                    <input type="number" id="runner-max-tasks" class="form-control" min="1" max="100" value="1">
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="runner-active" checked>
+                        Активен
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Отмена</button>
+                <button class="btn btn-primary" onclick="saveRunner()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Token Modal -->
+    <div id="token-modal" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width:480px;">
+            <div class="modal-header">
+                <h3>Токен Runner'а</h3>
+                <button class="modal-close" onclick="document.getElementById('token-modal').style.display='none'">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="color:var(--text-light); margin-bottom:10px;">Используйте этот токен для подключения runner'а:</p>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <code id="token-value" style="flex:1; background:#f5f5f5; padding:8px 12px; border-radius:4px; font-size:13px; word-break:break-all;"></code>
+                    <button class="btn btn-secondary btn-sm" onclick="copyToken()">⧉ Копировать</button>
+                </div>
+                <p style="color:#c53030; font-size:12px; margin-top:10px;">⚠ Сохраните токен сейчас — он больше не будет показан!</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        checkAuth();
+
+        let runners = [];
+
+        loadRunners();
+        setInterval(loadRunners, 15000); // Refresh every 15s to update online status
+
+        function loadRunners() {
+            api.get(`${API_BASE}/runners`)
+                .then(data => {
+                    runners = data || [];
+                    renderRunners();
+                })
+                .catch(err => {
+                    document.getElementById('runners-content').innerHTML =
+                        `<div class="alert alert-danger">Ошибка загрузки: ${escapeHtml(err.message)}</div>`;
+                });
+        }
+
+        function renderRunners() {
+            const el = document.getElementById('runners-content');
+            if (!runners.length) {
+                el.innerHTML = `
+                    <div class="card text-center">
+                        <div style="font-size:48px;margin-bottom:15px">⚡</div>
+                        <h3>Нет Runners</h3>
+                        <p style="color:var(--text-light)">Добавьте runner для выполнения задач</p>
+                        <button class="btn btn-primary mt-3" onclick="openModal()">Добавить Runner</button>
+                    </div>`;
+                return;
+            }
+
+            const now = Date.now();
+            el.innerHTML = `
+                <div class="card">
+                    <table class="table">
+                        <thead><tr>
+                            <th>Статус</th>
+                            <th>Название</th>
+                            <th>Макс. задач</th>
+                            <th>Последняя активность</th>
+                            <th>Проект</th>
+                            <th style="width:130px">Действия</th>
+                        </tr></thead>
+                        <tbody>
+                            ${runners.map(r => {
+                                const lastActive = r.last_active ? new Date(r.last_active) : null;
+                                const secsSince = lastActive ? Math.floor((now - lastActive.getTime()) / 1000) : null;
+                                const online = secsSince !== null && secsSince < 30;
+                                const statusBadge = !r.active
+                                    ? '<span class="badge badge-secondary">Выключен</span>'
+                                    : online
+                                        ? '<span class="badge badge-success">● Онлайн</span>'
+                                        : '<span class="badge badge-secondary">○ Оффлайн</span>';
+                                const lastStr = lastActive
+                                    ? (secsSince < 60 ? secsSince + 'с назад' : formatDate(r.last_active))
+                                    : '—';
+                                return `<tr>
+                                    <td>${statusBadge}</td>
+                                    <td><strong>${escapeHtml(r.name)}</strong></td>
+                                    <td>${r.max_parallel_tasks || 1}</td>
+                                    <td>${lastStr}</td>
+                                    <td>${r.project_id ? 'Проект #' + r.project_id : '<span style="color:var(--text-light)">Глобальный</span>'}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-secondary" onclick="editRunner(${r.id})" title="Редактировать">✎</button>
+                                        <button class="btn btn-sm btn-${r.active ? 'warning' : 'success'}" onclick="toggleRunner(${r.id}, ${!r.active})" title="${r.active ? 'Выключить' : 'Включить'}">${r.active ? '⏸' : '▶'}</button>
+                                        <button class="btn btn-sm btn-danger" onclick="deleteRunner(${r.id})" title="Удалить">🗑</button>
+                                    </td>
+                                </tr>`;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>`;
+        }
+
+        function openModal(runner = null) {
+            document.getElementById('modal-title').textContent = runner ? 'Редактировать Runner' : 'Добавить Runner';
+            document.getElementById('runner-id').value = runner ? runner.id : '';
+            document.getElementById('runner-name').value = runner ? runner.name : '';
+            document.getElementById('runner-webhook').value = runner ? (runner.webhook || '') : '';
+            document.getElementById('runner-max-tasks').value = runner ? (runner.max_parallel_tasks || 1) : 1;
+            document.getElementById('runner-active').checked = runner ? runner.active : true;
+            document.getElementById('runner-modal').style.display = 'block';
+        }
+
+        function editRunner(id) {
+            const r = runners.find(x => x.id === id);
+            if (r) openModal(r);
+        }
+
+        function closeModal() {
+            document.getElementById('runner-modal').style.display = 'none';
+        }
+
+        function saveRunner() {
+            const id = document.getElementById('runner-id').value;
+            const name = document.getElementById('runner-name').value.trim();
+            if (!name) { alert('Введите название'); return; }
+
+            const payload = {
+                id: id ? parseInt(id) : 0,
+                name,
+                webhook: document.getElementById('runner-webhook').value.trim() || null,
+                max_parallel_tasks: parseInt(document.getElementById('runner-max-tasks').value) || 1,
+                active: document.getElementById('runner-active').checked,
+            };
+
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `${API_BASE}/runners/${id}` : `${API_BASE}/runners`;
+
+            api.request(method, url, payload)
+                .then(resp => {
+                    closeModal();
+                    if (!id && resp && resp.token) {
+                        document.getElementById('token-value').textContent = resp.token;
+                        document.getElementById('token-modal').style.display = 'block';
+                    }
+                    loadRunners();
+                    notify(`Runner ${id ? 'обновлён' : 'создан'}`, 'success');
+                })
+                .catch(err => alert('Ошибка: ' + err.message));
+        }
+
+        function toggleRunner(id, active) {
+            const r = runners.find(x => x.id === id);
+            if (!r) return;
+            api.request('PUT', `${API_BASE}/runners/${id}`, { ...r, active })
+                .then(() => loadRunners())
+                .catch(err => alert('Ошибка: ' + err.message));
+        }
+
+        function deleteRunner(id) {
+            if (!confirm('Удалить этот Runner?')) return;
+            api.request('DELETE', `${API_BASE}/runners/${id}`)
+                .then(() => { loadRunners(); notify('Runner удалён', 'success'); })
+                .catch(err => alert('Ошибка: ' + err.message));
+        }
+
+        function copyToken() {
+            const val = document.getElementById('token-value').textContent;
+            navigator.clipboard.writeText(val).then(() => notify('Токен скопирован', 'success'));
+        }
+
+        function notify(msg, type = 'info') {
+            const el = document.createElement('div');
+            el.className = `alert alert-${type}`;
+            el.textContent = msg;
+            Object.assign(el.style, { position:'fixed', top:'20px', right:'20px', zIndex:'10000', minWidth:'260px' });
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 3000);
+        }
+
+        window.onclick = e => {
+            if (e.target === document.getElementById('runner-modal')) closeModal();
+            if (e.target === document.getElementById('token-modal')) document.getElementById('token-modal').style.display = 'none';
+        };
+    </script>
+</body>
+</html>

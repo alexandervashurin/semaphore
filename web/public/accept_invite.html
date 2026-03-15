@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Принятие приглашения - Semaphore UI</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body { background:var(--primary); }
+        .invite-wrap { display:flex; align-items:center; justify-content:center; min-height:100vh; }
+        .invite-card { background:#fff; border-radius:12px; padding:40px; max-width:440px; width:100%; box-shadow:0 8px 40px rgba(0,0,0,.2); text-align:center; }
+        .invite-icon { font-size:48px; margin-bottom:16px; }
+        .invite-card h1 { font-size:22px; margin-bottom:8px; }
+        .invite-card p { color:var(--text-light); margin-bottom:24px; }
+    </style>
+</head>
+<body>
+    <div class="invite-wrap">
+        <div class="invite-card" id="invite-card">
+            <div class="invite-icon">✉️</div>
+            <h1>Приглашение в проект</h1>
+            <p id="invite-desc">Проверка приглашения...</p>
+            <div id="invite-action"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+
+        if (!token) {
+            showError('Неверная ссылка приглашения. Токен не найден.');
+        } else {
+            // Check if user is logged in
+            const authToken = localStorage.getItem('semaphore_token');
+            if (!authToken) {
+                // Redirect to login, then back
+                localStorage.setItem('invite_token', token);
+                window.location.href = '/login.html';
+            } else {
+                showAcceptForm();
+            }
+        }
+
+        // After login, check if there's a pending invite token
+        const pendingToken = localStorage.getItem('invite_token');
+        if (pendingToken && localStorage.getItem('semaphore_token') && !token) {
+            localStorage.removeItem('invite_token');
+            window.location.href = '/accept_invite.html?token=' + pendingToken;
+        }
+
+        function showAcceptForm() {
+            document.getElementById('invite-desc').textContent = 'Вы получили приглашение в проект Semaphore.';
+            document.getElementById('invite-action').innerHTML = `
+                <button class="btn btn-primary" style="width:100%; margin-bottom:10px;" onclick="acceptInvite()">
+                    ✓ Принять приглашение
+                </button>
+                <a href="index.html" class="btn" style="width:100%;">Отмена</a>
+            `;
+        }
+
+        function acceptInvite() {
+            const btn = document.querySelector('button.btn-primary');
+            btn.disabled = true;
+            btn.textContent = 'Принятие...';
+
+            fetch('/api/invites/accept/' + encodeURIComponent(token), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + localStorage.getItem('semaphore_token')
+                }
+            })
+            .then(r => r.json().then(data => ({ ok: r.ok, data })))
+            .then(({ ok, data }) => {
+                if (!ok) throw new Error(data.error || data.message || 'Ошибка');
+                const projectId = data.project_id;
+                document.getElementById('invite-card').innerHTML = `
+                    <div class="invite-icon">✅</div>
+                    <h1>Вы добавлены в проект!</h1>
+                    <p>Вы успешно присоединились к проекту.</p>
+                    <a href="project.html?id=${projectId}" class="btn btn-primary" style="width:100%;">Открыть проект</a>
+                `;
+            })
+            .catch(err => {
+                showError(err.message);
+            });
+        }
+
+        function showError(msg) {
+            document.getElementById('invite-card').innerHTML = `
+                <div class="invite-icon">❌</div>
+                <h1>Ошибка</h1>
+                <p style="color:#c53030;">${msg}</p>
+                <a href="index.html" class="btn btn-primary" style="width:100%;">На главную</a>
+            `;
+        }
+    </script>
+</body>
+</html>
