@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Роли проекта - Semaphore UI</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar"></aside>
+
+        <div class="main-content">
+            <div class="main-header">
+                <h2 id="project-title">Роли проекта</h2>
+                <button class="btn btn-primary" id="add-role-btn">+ Новая роль</button>
+            </div>
+
+            <div class="main-body">
+                <div id="roles-content">
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        <p>Загрузка ролей...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        checkAuth();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = urlParams.get('id');
+
+        if (!projectId) {
+            window.location.href = 'index.html';
+        }
+
+        const rolesContent = document.getElementById('roles-content');
+        const addRoleBtn   = document.getElementById('add-role-btn');
+
+        api.getProject(projectId)
+            .then(project => {
+                document.getElementById('project-title').textContent = project.name + ' → Роли';
+                document.title = 'Роли - ' + project.name;
+            })
+            .catch(() => {});
+
+        let roles = [];
+
+        function showBackendStub(message) {
+            rolesContent.innerHTML = `
+                <div class="card" style="max-width:620px;margin:0 auto;">
+                    <h3 style="margin-bottom:8px;">Управление ролями недоступно</h3>
+                    <p style="color:var(--text-light); font-size:14px; margin-bottom:0;">
+                        ${escapeHtml(message || 'Бэкенд API для кастомных ролей ещё не реализован. ' +
+                        'Фронтенд поддерживает эту страницу, но для работы требуется реализация задач B-BE-09..B-BE-11.')}
+                    </p>
+                </div>
+            `;
+            addRoleBtn.disabled = true;
+        }
+
+        function loadRoles() {
+            api.get(`/project/${projectId}/roles`)
+                .then(data => {
+                    roles = data || [];
+                    renderRoles();
+                })
+                .catch(err => {
+                    // Если 404/501/405 — показываем заглушку, а не "красный" экран
+                    if (err && /not implemented|not found|405|404/i.test(err.message)) {
+                        showBackendStub(err.message);
+                    } else {
+                        ui.showError(rolesContent, err.message || 'Ошибка загрузки ролей');
+                    }
+                });
+        }
+
+        function renderRoles() {
+            if (!roles.length) {
+                rolesContent.innerHTML = `
+                    <div class="card text-center" style="max-width:620px;margin:0 auto;">
+                        <div style="font-size:40px;margin-bottom:10px;">🔑</div>
+                        <h3>Нет ролей</h3>
+                        <p style="color:var(--text-light);">Создайте первую роль с нужным набором прав.</p>
+                        <button class="btn btn-primary mt-2" onclick="openRoleModal()">+ Новая роль</button>
+                    </div>
+                `;
+                return;
+            }
+
+            rolesContent.innerHTML = `
+                <div class="card">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Название</th>
+                                <th>Идентификатор</th>
+                                <th>Права</th>
+                                <th style="width:140px;">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${roles.map(r => `
+                                <tr>
+                                    <td><strong>${escapeHtml(r.name || '')}</strong></td>
+                                    <td><code>${escapeHtml(r.slug || '')}</code></td>
+                                    <td>${renderPermissionsBadges(r.permissions)}</td>
+                                    <td>
+                                        <button class="btn btn-sm" onclick="openRoleModal(${r.id})">✏️</button>
+                                        <button class="btn btn-danger btn-sm" onclick="deleteRole(${r.id})">🗑️</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function openRoleModal(id) {
+            const role = id != null ? roles.find(r => r.id === id) : null;
+            const isEdit = !!role;
+
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            overlay.id = 'role-modal';
+            overlay.innerHTML = `
+                <div class="modal" style="max-width:520px;">
+                    <div class="modal-header">
+                        <h2>${isEdit ? '✏️ Редактирование роли' : '➕ Новая роль'}</h2>
+                    </div>
+                    <form id="role-form">
+                        <div class="form-group">
+                            <label for="role-name">Название *</label>
+                            <input id="role-name" type="text" class="form-control" required
+                                   value="${escapeHtml(role?.name || '')}" placeholder="Оператор">
+                        </div>
+                        <div class="form-group">
+                            <label for="role-slug">Идентификатор (slug) *</label>
+                            <input id="role-slug" type="text" class="form-control" required
+                                   value="${escapeHtml(role?.slug || '')}" placeholder="operator">
+                            <p class="form-hint">Используется во внутренних правилах доступа.</p>
+                        </div>
+                        <div class="form-group">
+                            <label>Права (permissions)</label>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:13px;">
+                                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                                    <input type="checkbox" id="perm-run" ${role?.permissions_run_tasks ? 'checked' : ''}>
+                                    Запускать задачи
+                                </label>
+                                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                                    <input type="checkbox" id="perm-manage-project" ${role?.permissions_manage_project ? 'checked' : ''}>
+                                    Управлять проектом
+                                </label>
+                                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                                    <input type="checkbox" id="perm-manage-resources" ${role?.permissions_manage_resources ? 'checked' : ''}>
+                                    Управлять ресурсами
+                                </label>
+                                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                                    <input type="checkbox" id="perm-manage-users" ${role?.permissions_manage_users ? 'checked' : ''}>
+                                    Управлять пользователями
+                                </label>
+                            </div>
+                            <p class="form-hint">Физически сохраняются как битовая маска, но здесь представлены как флажки.</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn" onclick="closeRoleModal()">Отмена</button>
+                            <button type="submit" class="btn btn-primary">${isEdit ? 'Сохранить' : 'Создать'}</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+
+            document.getElementById('role-form').addEventListener('submit', function (e) {
+                e.preventDefault();
+                saveRole(role?.id || null);
+            });
+
+            overlay.addEventListener('click', function (e) {
+                if (e.target === overlay) closeRoleModal();
+            });
+        }
+
+        function closeRoleModal() {
+            const m = document.getElementById('role-modal');
+            if (m) m.remove();
+        }
+
+        function computePermissionsFromCheckboxes() {
+            // Простая маска: 1=run, 2=manage_project, 4=manage_resources, 8=manage_users
+            let mask = 0;
+            if (document.getElementById('perm-run')?.checked) mask |= 1;
+            if (document.getElementById('perm-manage-project')?.checked) mask |= 2;
+            if (document.getElementById('perm-manage-resources')?.checked) mask |= 4;
+            if (document.getElementById('perm-manage-users')?.checked) mask |= 8;
+            return mask;
+        }
+
+        function saveRole(id) {
+            const name = document.getElementById('role-name').value.trim();
+            const slug = document.getElementById('role-slug').value.trim();
+
+            if (!name || !slug) {
+                ui.showAlert('Заполните название и идентификатор роли', 'warning');
+                return;
+            }
+
+            const permissions = computePermissionsFromCheckboxes();
+
+            const payload = {
+                id: id || 0,
+                project_id: parseInt(projectId, 10),
+                name,
+                slug,
+                permissions
+            };
+
+            const url = `/project/${projectId}/roles` + (id ? `/${id}` : '');
+            const promise = id ? api.put(url, payload) : api.post(url, payload);
+
+            promise
+                .then(() => {
+                    ui.showAlert(id ? 'Роль обновлена' : 'Роль создана', 'success');
+                    closeRoleModal();
+                    loadRoles();
+                })
+                .catch(err => {
+                    ui.showAlert('Ошибка сохранения роли: ' + err.message, 'danger');
+                });
+        }
+
+        function deleteRole(id) {
+            if (!confirm('Удалить эту роль?')) return;
+            api.delete(`/project/${projectId}/roles/${id}`)
+                .then(() => {
+                    ui.showAlert('Роль удалена', 'success');
+                    loadRoles();
+                })
+                .catch(err => ui.showAlert('Ошибка удаления: ' + err.message, 'danger'));
+        }
+
+        function renderPermissionsBadges(permissions) {
+            if (typeof permissions !== 'number') return '<span class="badge badge-secondary">—</span>';
+            const labels = [];
+            if (permissions & 1)  labels.push('Запуск задач');
+            if (permissions & 2)  labels.push('Управление проектом');
+            if (permissions & 4)  labels.push('Управление ресурсами');
+            if (permissions & 8)  labels.push('Управление пользователями');
+            if (!labels.length)   return '<span class="badge badge-secondary">Нет прав</span>';
+            return labels.map(l => `<span class="badge badge-primary" style="margin-right:4px; font-size:11px;">${l}</span>`).join('');
+        }
+
+        addRoleBtn.addEventListener('click', () => openRoleModal());
+
+        loadRoles();
+
+        // Экспорт функций в global scope (на случай inline-handlers)
+        window.openRoleModal = openRoleModal;
+        window.deleteRole = deleteRole;
+    </script>
+</body>
+</html>
+

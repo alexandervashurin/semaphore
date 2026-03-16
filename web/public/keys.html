@@ -65,22 +65,37 @@
                                     <tr>
                                         <th>Название</th>
                                         <th>Тип</th>
-                                        <th>Логин</th>
+                                        <th>Источник</th>
+                                        <th>Логин / Детали</th>
                                         <th>Действия</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    ${keys.map(key => `
+                                    ${keys.map(key => {
+                                        const srcType = key.source_storage_type || 'db';
+                                        const srcLabel = srcType === 'db'
+                                            ? 'Локально'
+                                            : srcType === 'env'
+                                                ? 'Env'
+                                                : srcType === 'file'
+                                                    ? 'File'
+                                                    : 'Storage';
+                                        const srcBadgeCls = srcType === 'db' ? 'badge-secondary'
+                                            : (srcType === 'storage' ? 'badge-primary' : 'badge-info');
+                                        const details = key.login_password_login
+                                            || (key.source_key ? key.source_key : (key.ssh_key ? key.ssh_key.substring(0, 20) + '...' : '—'));
+                                        return `
                                         <tr>
                                             <td><strong>${escapeHtml(key.name)}</strong></td>
                                             <td><span class="badge badge-${key.type === 'ssh' ? 'success' : 'warning'}">${key.type === 'ssh' ? 'SSH Key' : 'Login/Password'}</span></td>
-                                            <td>${key.login_password_login || key.ssh_key?.substring(0, 20) + '...' || '—'}</td>
+                                            <td><span class="badge ${srcBadgeCls}">${srcLabel}</span></td>
+                                            <td>${escapeHtml(details || '—')}</td>
                                             <td>
                                                 <button class="btn btn-sm" onclick="editKey(${key.id})">✏️</button>
                                                 <button class="btn btn-danger btn-sm" onclick="deleteKey(${key.id})">🗑️</button>
                                             </td>
-                                        </tr>
-                                    `).join('')}
+                                        </tr>`;
+                                    }).join('')}
                                 </tbody>
                             </table>
                         `;
@@ -114,6 +129,14 @@
                 });
         }
 
+        let secretStoragesCache = [];
+
+        function loadSecretStorages() {
+            return api.request('/project/' + projectId + '/secret_storages', { method: 'GET' })
+                .then(list => { secretStoragesCache = list || []; })
+                .catch(() => { secretStoragesCache = []; });
+        }
+
         function openKeyModal(key = null) {
             const isEdit = !!key;
             const isSSH = key?.type === 'ssh' || !key;
@@ -138,6 +161,23 @@
                                 <option value="login_password" ${!isSSH ? 'selected' : ''}>Login/Password</option>
                             </select>
                         </div>
+                        <div class="form-group">
+                            <label>Источник секрета</label>
+                            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                                <label style="display:flex; align-items:center; gap:4px; font-size:13px; cursor:pointer;">
+                                    <input type="radio" name="src_type" value="db" ${!key || !key.source_storage_type || key.source_storage_type === 'db' ? 'checked' : ''} onchange="toggleSourceFields()"> Локально
+                                </label>
+                                <label style="display:flex; align-items:center; gap:4px; font-size:13px; cursor:pointer;">
+                                    <input type="radio" name="src_type" value="env" ${key?.source_storage_type === 'env' ? 'checked' : ''} onchange="toggleSourceFields()"> Переменная окружения
+                                </label>
+                                <label style="display:flex; align-items:center; gap:4px; font-size:13px; cursor:pointer;">
+                                    <input type="radio" name="src_type" value="file" ${key?.source_storage_type === 'file' ? 'checked' : ''} onchange="toggleSourceFields()"> Файл
+                                </label>
+                                <label style="display:flex; align-items:center; gap:4px; font-size:13px; cursor:pointer;">
+                                    <input type="radio" name="src_type" value="storage" ${key?.source_storage_type === 'storage' ? 'checked' : ''} onchange="toggleSourceFields()"> Secret Storage
+                                </label>
+                            </div>
+                        </div>
                         <div id="ssh-fields" style="display: ${isSSH ? 'block' : 'none'}">
                             <div class="form-group">
                                 <label for="ssh_key">SSH приватный ключ *</label>
@@ -158,6 +198,21 @@
                                 <input type="password" id="login_password_password" class="form-control" required value="${escapeHtml(key?.login_password_password || '')}" placeholder="password">
                             </div>
                         </div>
+                        <div id="source-fields" class="form-group" style="margin-top:8px;">
+                            <label for="source_key">Ключ / путь</label>
+                            <input type="text" id="source_key" class="form-control"
+                                   value="${escapeHtml(key?.source_key || '')}"
+                                   placeholder="ENV_VAR / /path/to/file / storage/key/path">
+                            <small style="color:var(--text-light); font-size:12px;">
+                                Для Env укажите имя переменной, для File — путь к файлу, для Storage — путь внутри Secret Storage.
+                            </small>
+                        </div>
+                        <div class="form-group" id="storage-select-group" style="display:${key?.source_storage_type === 'storage' ? 'block' : 'none'}">
+                            <label for="source_storage_id">Secret Storage</label>
+                            <select id="source_storage_id" class="form-control">
+                                <option value="">Не выбрано</option>
+                            </select>
+                        </div>
                         <div class="modal-footer" style="margin-top: 20px;">
                             <button type="button" class="btn" onclick="closeKeyModal()">Отмена</button>
                             <button type="submit" class="btn btn-primary">${isEdit ? 'Сохранить' : 'Создать'}</button>
@@ -166,6 +221,19 @@
                 </div>
             `;
             document.body.appendChild(modal);
+
+            // Загрузить список secret storages для выбора при source_storage_type=storage
+            loadSecretStorages().then(() => {
+                const select = document.getElementById('source_storage_id');
+                if (select) {
+                    select.innerHTML = '<option value="">Не выбрано</option>' +
+                        secretStoragesCache.map(s =>
+                            `<option value="${s.id}" ${key?.source_storage_id === s.id ? 'selected' : ''}>${escapeHtml(s.name)} (${escapeHtml(s.type)})</option>`
+                        ).join('');
+                }
+            });
+
+            toggleSourceFields();
 
             $('#key-form').addEventListener('submit', (e) => {
                 e.preventDefault();
@@ -181,6 +249,31 @@
             const type = $('#type').value;
             $('#ssh-fields').style.display = type === 'ssh' ? 'block' : 'none';
             $('#login-password-fields').style.display = type === 'ssh' ? 'none' : 'block';
+        }
+
+        function getSelectedSourceType() {
+            const radios = document.querySelectorAll('input[name="src_type"]');
+            for (const r of radios) {
+                if (r.checked) return r.value;
+            }
+            return 'db';
+        }
+
+        function toggleSourceFields() {
+            const src = getSelectedSourceType();
+            const srcGroup = document.getElementById('source-fields');
+            const storageGroup = document.getElementById('storage-select-group');
+            if (!srcGroup) return;
+            if (src === 'db') {
+                srcGroup.style.display = 'none';
+                if (storageGroup) storageGroup.style.display = 'none';
+            } else if (src === 'storage') {
+                srcGroup.style.display = '';
+                if (storageGroup) storageGroup.style.display = 'block';
+            } else {
+                srcGroup.style.display = '';
+                if (storageGroup) storageGroup.style.display = 'none';
+            }
         }
 
         function closeKeyModal() {
@@ -222,6 +315,23 @@
                 if (!data.login_password_password) {
                     ui.showAlert('Введите пароль', 'warning');
                     return;
+                }
+            }
+
+            // Источник секрета
+            const srcType = getSelectedSourceType();
+            data.source_storage_type = srcType;
+            if (srcType === 'db') {
+                data.source_storage_id = null;
+                data.source_key = null;
+            } else {
+                const srcKey = document.getElementById('source_key')?.value.trim() || null;
+                data.source_key = srcKey;
+                if (srcType === 'storage') {
+                    const stId = document.getElementById('source_storage_id')?.value;
+                    data.source_storage_id = stId ? parseInt(stId) : null;
+                } else {
+                    data.source_storage_id = null;
                 }
             }
 

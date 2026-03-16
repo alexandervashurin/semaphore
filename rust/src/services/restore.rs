@@ -115,6 +115,7 @@ impl RestoreEntryAsync for BackupEnvironment {
             name: self.name.clone(),
             json: self.json.clone(),
             secret_storage_id: None,
+            secret_storage_key_prefix: None,
             secrets: None,
             created: None,
         };
@@ -235,6 +236,9 @@ impl RestoreEntryAsync for BackupAccessKey {
             access_key_access_key: None,
             access_key_secret_key: None,
             secret_storage_id: None,
+            source_storage_type: None,
+            source_storage_id: None,
+            source_key: None,
             environment_id: None,
             created: None,
         };
@@ -276,6 +280,7 @@ impl RestoreEntryAsync for BackupInventory {
             become_key_id: None,
             vaults: None,
             created: Some(chrono::Utc::now()),
+            runner_tag: None,
         };
 
         // Находим SSH ключ по имени
@@ -373,6 +378,9 @@ impl RestoreEntryAsync for BackupTemplate {
             allow_inventory_in_task: false,
             allow_parallel_tasks: false,
             suppress_success_alerts: false,
+            task_params: None,
+            survey_vars: None,
+            vaults: None,
         };
 
         let new_tpl = store.create_template(tpl).await?;

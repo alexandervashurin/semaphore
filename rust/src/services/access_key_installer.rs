@@ -255,6 +255,9 @@ mod tests {
             environment_id: None,
             owner: Some(AccessKeyOwner::Project),
             created: None,
+            source_storage_type: None,
+            source_storage_id: None,
+            source_key: None,
         }
     }
 
@@ -337,6 +340,9 @@ mod tests {
             environment_id: None,
             owner: Some(AccessKeyOwner::Project),
             created: None,
+            source_storage_type: None,
+            source_storage_id: None,
+            source_key: None,
         };
 
         let installer = AccessKeyInstaller::default();

@@ -130,7 +130,7 @@ impl MutationRoot {
             arguments: None,
             git_branch: None,
             app: TemplateApp::Default,
-            r#type: TemplateType::Ansible,
+            r#type: TemplateType::Default,
             created: Utc::now(),
             view_id: None,
             build_template_id: None,
@@ -140,6 +140,9 @@ impl MutationRoot {
             allow_inventory_in_task: false,
             allow_parallel_tasks: false,
             suppress_success_alerts: false,
+            task_params: None,
+            survey_vars: None,
+            vaults: None,
         };
 
         let created = store.create_template(new_template).await?;

@@ -422,8 +422,10 @@
             content.innerHTML = `
                 <div class="toolbar">
                     <button class="btn btn-primary" onclick="openRunDialog()">▶ Запустить</button>
+                    <button class="btn btn-danger btn-sm" onclick="stopAllTasks()">⏹ Остановить все задачи</button>
                     <button class="btn btn-sm" onclick="openEditDialog()">✏️ Редактировать</button>
-                    <button class="btn btn-danger btn-sm" onclick="deleteTpl()">🗑️ Удалить</button>
+                    <button class="btn btn-sm" style="color:#c53030;" onclick="stopAllTasks()" title="Остановить все выполняющиеся задачи">■ Стоп всё</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteTplWithRefsCheck()">🗑️ Удалить</button>
                     <div style="flex:1"></div>
                     <a href="templates.html?id=${projectId}" class="btn btn-sm">← Шаблоны</a>
                 </div>
@@ -433,13 +435,19 @@
                 <div class="tpl-tabs">
                     <div class="tpl-tab active" id="tab-tasks" onclick="switchTab('tasks')">Задачи</div>
                     <div class="tpl-tab" id="tab-details" onclick="switchTab('details')">Детали</div>
+                    <div class="tpl-tab" id="tab-perms" onclick="switchTab('perms')">Права</div>
+                    <div class="tpl-tab" id="tab-workspaces" onclick="switchTab('workspaces')">Terraform Workspaces</div>
                 </div>
 
                 <div id="tab-content-tasks"></div>
                 <div id="tab-content-details" style="display:none;"></div>
+                <div id="tab-content-perms" style="display:none;"></div>
+                <div id="tab-content-workspaces" style="display:none;"></div>
             `;
             loadTasksTab();
             renderDetailsTab();
+            renderPermissionsTab();
+            renderWorkspacesTab();
         }
 
         function switchTab(name) {
@@ -448,6 +456,10 @@
             $('#tab-' + name).classList.add('active');
             document.querySelectorAll('[id^="tab-content-"]').forEach(el => el.style.display = 'none');
             $('#tab-content-' + name).style.display = '';
+            // Lazy-load permissions tab (B-FE-54)
+            if (name === 'perms') {
+                renderPermissionsTab();
+            }
         }
 
         function loadTasksTab() {
@@ -532,6 +544,203 @@
                     </div>
                 </div>
             `;
+        }
+
+        function renderPermissionsTab() {
+            const container = document.getElementById('tab-content-perms');
+            if (!container) return;
+            container.innerHTML = `
+                <div class="card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                        <div>
+                            <h3 style="margin:0;">🔐 Права доступа к шаблону</h3>
+                            <p style="margin:4px 0 0; color:var(--text-light); font-size:13px;">
+                                Детальные права для отдельных ролей (независимо от прав проекта)
+                            </p>
+                        </div>
+                        <button class="btn btn-primary" onclick="openPermissionModal()">+ Добавить право</button>
+                    </div>
+
+                    <div id="perms-loading" class="loading">
+                        <div class="loading-spinner"></div>
+                        <p>Загрузка прав доступа...</p>
+                    </div>
+
+                    <div id="perms-content"></div>
+                </div>
+            `;
+
+            loadPermissions();
+        }
+
+        function loadPermissions() {
+            const loading = $('#perms-loading');
+            const content = $('#perms-content');
+
+            api.get('/project/' + projectId + '/templates/' + tplId + '/permissions')
+                .then(perms => {
+                    if (loading) loading.style.display = 'none';
+
+                    if (!perms || !Array.isArray(perms) || perms.length === 0) {
+                        content.innerHTML = `
+                            <div class="text-center" style="padding:40px;">
+                                <div style="font-size:40px; margin-bottom:12px;">🔐</div>
+                                <h3>Нет прав доступа</h3>
+                                <p style="color:var(--text-light); margin-bottom:16px;">
+                                    Для этого шаблона ещё не настроены детальные права.
+                                    Базовые роли проекта (owner/manager/runner) продолжают работать.
+                                </p>
+                                <button class="btn btn-primary" onclick="openPermissionModal()">+ Добавить право</button>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    content.innerHTML = `
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Роль</th>
+                                    <th>Разрешение</th>
+                                    <th style="width:120px;">Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${perms.map(p => `
+                                    <tr>
+                                        <td><strong>${escapeHtml(p.role_name || p.role || '—')}</strong></td>
+                                        <td>${formatPermission(p.permission || p.type || '—')}</td>
+                                        <td>
+                                            <button class="btn btn-sm" onclick="editPermission(${p.id}, '${escapeHtml(p.role || '')}', '${escapeHtml(p.permission || '')}')" title="Редактировать">✏️</button>
+                                            <button class="btn btn-danger btn-sm" onclick="deletePermission(${p.id}, '${escapeHtml(p.role || '')}')" title="Удалить">🗑️</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                })
+                .catch(err => {
+                    if (loading) loading.style.display = 'none';
+                    // API ещё не реализовано — показываем заглушку
+                    content.innerHTML = `
+                        <div class="card" style="border-left:4px solid #f0ad4e;">
+                            <h4 style="margin-top:0;">⚠️ API прав шаблона в разработке</h4>
+                            <p style="color:var(--text-light); margin-bottom:0;">
+                                Backend endpoints для управления правами шаблонов будут реализованы в ближайшее время.
+                                После этого вкладка начнёт работать автоматически.
+                            </p>
+                        </div>
+                    `;
+                });
+        }
+
+        function formatPermission(perm) {
+            const labels = {
+                'run': '▶ Запуск задач',
+                'view': '👁 Просмотр',
+                'edit': '✏️ Редактирование',
+                'delete': '🗑️ Удаление',
+                'manage': '⚙️ Управление'
+            };
+            return labels[perm] || perm;
+        }
+
+        function openPermissionModal(roleId = null, role = '', permission = '') {
+            const isEdit = !!roleId;
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.innerHTML = `
+                <div class="modal" style="max-width:450px;">
+                    <div class="modal-header">
+                        <h3>${isEdit ? '✏️ Редактировать' : '🔐 Добавить'} право</h3>
+                        <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="permission-form">
+                            <div class="form-group">
+                                <label for="perm-role">Роль *</label>
+                                <select id="perm-role" class="form-control" required ${isEdit ? 'disabled' : ''}>
+                                    <option value="">— выберите роль —</option>
+                                    <option value="owner" ${role === 'owner' ? 'selected' : ''}>Owner (Владелец)</option>
+                                    <option value="manager" ${role === 'manager' ? 'selected' : ''}>Manager (Менеджер)</option>
+                                    <option value="runner" ${role === 'runner' ? 'selected' : ''}>Runner (Исполнитель)</option>
+                                    <option value="guest" ${role === 'guest' ? 'selected' : ''}>Guest (Гость)</option>
+                                </select>
+                                <small style="color:var(--text-light);">Роль проекта, для которой устанавливается право</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="perm-permission">Разрешение *</label>
+                                <select id="perm-permission" class="form-control" required>
+                                    <option value="">— выберите разрешение —</option>
+                                    <option value="run" ${permission === 'run' ? 'selected' : ''}>▶ Запуск задач</option>
+                                    <option value="view" ${permission === 'view' ? 'selected' : ''}>👁 Просмотр шаблона</option>
+                                    <option value="edit" ${permission === 'edit' ? 'selected' : ''}>✏️ Редактирование</option>
+                                    <option value="delete" ${permission === 'delete' ? 'selected' : ''}>🗑️ Удаление</option>
+                                    <option value="manage" ${permission === 'manage' ? 'selected' : ''}>⚙️ Полное управление</option>
+                                </select>
+                                <small style="color:var(--text-light);">
+                                    <strong>run</strong> — запуск задач из шаблона<br>
+                                    <strong>view</strong> — просмотр настроек<br>
+                                    <strong>edit</strong> — редактирование шаблона<br>
+                                    <strong>delete</strong> — удаление шаблона<br>
+                                    <strong>manage</strong> — все права включая управление правами
+                                </small>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn" onclick="this.closest('.modal-overlay').remove()">Отмена</button>
+                        <button type="submit" form="permission-form" class="btn btn-primary">${isEdit ? 'Сохранить' : 'Добавить'}</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            $('#permission-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const roleVal = $('#perm-role').value;
+                const permVal = $('#perm-permission').value;
+
+                if (!roleVal || !permVal) {
+                    ui.showAlert('Заполните все обязательные поля', 'warning');
+                    return;
+                }
+
+                const payload = { role: roleVal, permission: permVal };
+
+                (isEdit
+                    ? api.put('/project/' + projectId + '/templates/' + tplId + '/permissions/' + roleId, payload)
+                    : api.post('/project/' + projectId + '/templates/' + tplId + '/permissions', payload)
+                )
+                .then(() => {
+                    ui.showAlert('Право ' + (isEdit ? 'обновлено' : 'добавлено'), 'success');
+                    modal.remove();
+                    loadPermissions();
+                })
+                .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+            });
+
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.remove();
+            });
+        }
+
+        function editPermission(id, role, permission) {
+            openPermissionModal(id, role, permission);
+        }
+
+        function deletePermission(id, role) {
+            ui.confirm('Удалить право?', 'Вы уверены что хотите удалить право для роли "' + role + '"? Это действие нельзя отменить.')
+                .then(confirmed => {
+                    if (!confirmed) return;
+                    api.delete('/project/' + projectId + '/templates/' + tplId + '/permissions/' + id)
+                        .then(() => {
+                            ui.showAlert('Право удалено', 'success');
+                            loadPermissions();
+                        })
+                        .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+                });
         }
 
         function flag(label, val) {
@@ -686,6 +895,41 @@
             return 'run-log-info';
         }
 
+        // ---- Stop All Tasks (B-FE-55) ----
+        function stopAllTasks() {
+            if (!confirm('Остановить все выполняющиеся задачи для этого шаблона?')) return;
+            api.post('/project/' + projectId + '/templates/' + tplId + '/stop_all_tasks', {})
+                .then(() => { ui.showAlert('Все задачи остановлены', 'success'); loadTasksTab(); })
+                .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+        }
+
+        // ---- Delete with refs check (B-FE-56) ----
+        function deleteTplWithRefsCheck() {
+            api.get('/project/' + projectId + '/templates/' + tplId + '/refs')
+                .then(refs => {
+                    if (refs && refs.length > 0) {
+                        const refList = refs.map(r => `• ${escapeHtml(r.name || JSON.stringify(r))}`).join('\n');
+                        const msg = 'Этот шаблон используется в:\n' + refList + '\n\nУдалить всё равно?';
+                        if (!confirm(msg)) return;
+                        proceedDeleteTpl();
+                    } else {
+                        if (!confirm('Удалить шаблон "' + tpl.name + '"? Это действие нельзя отменить.')) return;
+                        proceedDeleteTpl();
+                    }
+                })
+                .catch(() => {
+                    // If refs endpoint not supported, fall back to simple delete
+                    if (!confirm('Удалить шаблон "' + tpl.name + '"? Это действие нельзя отменить.')) return;
+                    proceedDeleteTpl();
+                });
+        }
+
+        function proceedDeleteTpl() {
+            api.deleteTemplate(projectId, tplId)
+                .then(() => { window.location.href = 'templates.html?id=' + projectId; })
+                .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+        }
+
         // ---- Run dialog ----
         function openRunDialog() {
             const modal = document.createElement('div');
@@ -747,10 +991,233 @@
         }
 
         function deleteTpl() {
-            if (!confirm('Удалить шаблон "' + tpl.name + '"? Это действие нельзя отменить.')) return;
-            api.deleteTemplate(projectId, tplId)
-                .then(() => { window.location.href = 'templates.html?id=' + projectId; })
+            api.get('/project/' + projectId + '/templates/' + tplId + '/refs')
+                .then(refs => {
+                    let message = 'Удалить шаблон "' + (tpl.name || ('#' + tpl.id)) + '"? Это действие нельзя отменить.';
+                    if (refs && (refs.schedules || refs.tasks)) {
+                        const parts = [];
+                        if (refs.schedules) parts.push('расписания: ' + refs.schedules);
+                        if (refs.tasks) parts.push('задачи: ' + refs.tasks);
+                        if (parts.length) {
+                            message += '\n\nЭтот шаблон используется в: ' + parts.join(', ') + '.';
+                        }
+                    }
+                    ui.confirm('Удаление шаблона', message)
+                        .then(confirmed => {
+                            if (!confirmed) return;
+                            api.deleteTemplate(projectId, tplId)
+                                .then(() => { window.location.href = 'templates.html?id=' + projectId; })
+                                .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+                        });
+                })
+                .catch(() => {
+                    if (!confirm('Удалить шаблон "' + (tpl.name || ('#' + tpl.id)) + '"? Это действие нельзя отменить.')) return;
+                    api.deleteTemplate(projectId, tplId)
+                        .then(() => { window.location.href = 'templates.html?id=' + projectId; })
+                        .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+                });
+        }
+
+        function stopAllTasks() {
+            ui.confirm('Остановить все задачи', 'Остановить все активные задачи, запущенные из этого шаблона?')
+                .then(confirmed => {
+                    if (!confirmed) return;
+                    api.post('/project/' + projectId + '/templates/' + tplId + '/stop_all_tasks', {})
+                        .then(() => {
+                            ui.showAlert('Команда на остановку задач отправлена.', 'success');
+                            loadTasksTab();
+                        })
+                        .catch(err => ui.showAlert('Ошибка при остановке задач: ' + err.message, 'danger'));
+                });
+        }
+
+        // =====================================================================
+        // Terraform Workspaces Tab
+        // =====================================================================
+
+        function renderWorkspacesTab() {
+            const container = $('#tab-content-workspaces');
+            if (!container) return;
+
+            // Показываем вкладку только для Terraform/OpenTofu шаблонов
+            const isTerraform = tpl?.app === 'terraform' || tpl?.app === 'tofu' || tpl?.type === 'terraform';
+            if (!isTerraform) {
+                container.innerHTML = `
+                    <div class="card text-center" style="max-width:500px; margin:40px auto;">
+                        <div style="font-size:48px; margin-bottom:16px;">🌍</div>
+                        <h3>Workspaces не доступны</h3>
+                        <p style="color:var(--text-light);">
+                            Workspaces доступны только для шаблонов Terraform и OpenTofu.
+                            Текущий шаблон использует приложение: <strong>${escapeHtml(tpl?.app || '—')}</strong>
+                        </p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                        <div>
+                            <h3 style="margin:0;">🌍 Terraform Workspaces</h3>
+                            <p style="margin:4px 0 0; color:var(--text-light); font-size:13px;">
+                                Управление workspace'ами для изоляции окружений (dev, staging, production)
+                            </p>
+                        </div>
+                        <button class="btn btn-primary" onclick="openCreateWorkspaceModal()">+ Новый Workspace</button>
+                    </div>
+
+                    <div id="workspaces-loading" class="loading">
+                        <div class="loading-spinner"></div>
+                        <p>Загрузка workspace'ов...</p>
+                    </div>
+
+                    <div id="workspaces-content"></div>
+                </div>
+            `;
+
+            loadWorkspaces();
+        }
+
+        function loadWorkspaces() {
+            const loading = $('#workspaces-loading');
+            const content = $('#workspaces-content');
+
+            // Загружаем terraform inventory aliases (workspace'ы)
+            api.get('/project/' + projectId + '/inventories/' + tplId + '/terraform-aliases')
+                .then(aliases => {
+                    if (loading) loading.style.display = 'none';
+
+                    if (!aliases || aliases.length === 0) {
+                        content.innerHTML = `
+                            <div class="text-center" style="padding:40px;">
+                                <div style="font-size:40px; margin-bottom:12px;">🌍</div>
+                                <h3>Нет workspace'ов</h3>
+                                <p style="color:var(--text-light); margin-bottom:16px;">
+                                    Создайте первый workspace для управления состояниями Terraform/OpenTofu
+                                </p>
+                                <button class="btn btn-primary" onclick="openCreateWorkspaceModal()">+ Новый Workspace</button>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    content.innerHTML = `
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Workspace</th>
+                                    <th>Alias</th>
+                                    <th>Создан</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${aliases.map(a => `
+                                    <tr>
+                                        <td><code>${escapeHtml(a.alias || '—')}</code></td>
+                                        <td>${escapeHtml(a.name || '—')}</td>
+                                        <td>${a.created ? formatDate(a.created) : '—'}</td>
+                                        <td>
+                                            <button class="btn btn-sm" onclick="copyWorkspaceAlias('${escapeHtml(a.alias || '')}')" title="Копировать alias">📋</button>
+                                            <button class="btn btn-danger btn-sm" onclick="deleteWorkspace(${a.id}, '${escapeHtml(a.alias || '')}')" title="Удалить">🗑️</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                })
+                .catch(err => {
+                    if (loading) loading.style.display = 'none';
+                    // API ещё не реализовано — показываем заглушку
+                    content.innerHTML = `
+                        <div class="card" style="border-left:4px solid #f0ad4e;">
+                            <h4 style="margin-top:0;">⚠️ API workspace'ов в разработке</h4>
+                            <p style="color:var(--text-light); margin-bottom:0;">
+                                Backend endpoint <code>GET /project/:id/inventories/:id/terraform-aliases</code> 
+                                будет реализован в ближайшее время. После этого вкладка начнёт работать автоматически.
+                            </p>
+                        </div>
+                    `;
+                });
+        }
+
+        function openCreateWorkspaceModal() {
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.innerHTML = `
+                <div class="modal" style="max-width:450px;">
+                    <div class="modal-header">
+                        <h3>🌍 Новый Workspace</h3>
+                        <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="workspace-form">
+                            <div class="form-group">
+                                <label for="ws-name">Название workspace *</label>
+                                <input type="text" id="ws-name" class="form-control" required 
+                                    placeholder="production" pattern="[a-z][a-z0-9_-]*" 
+                                    title="Должно начинаться с буквы, содержать только строчные буквы, цифры, - и _">
+                                <small style="color:var(--text-light);">
+                                    Примеры: <code>dev</code>, <code>staging</code>, <code>production</code>
+                                </small>
+                            </div>
+                            <div class="form-group">
+                                <label for="ws-description">Описание</label>
+                                <input type="text" id="ws-description" class="form-control" placeholder="Production environment">
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn" onclick="this.closest('.modal-overlay').remove()">Отмена</button>
+                        <button type="submit" form="workspace-form" class="btn btn-primary">Создать</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            $('#workspace-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const name = $('#ws-name').value.trim();
+                const description = $('#ws-description').value.trim();
+
+                api.post('/project/' + projectId + '/inventories/' + tplId + '/terraform-aliases', {
+                    alias: name,
+                    name: description || name
+                })
+                .then(() => {
+                    ui.showAlert('Workspace создан', 'success');
+                    modal.remove();
+                    loadWorkspaces();
+                })
                 .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+            });
+
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.remove();
+            });
+        }
+
+        function copyWorkspaceAlias(alias) {
+            navigator.clipboard.writeText(alias).then(() => {
+                ui.showAlert('Alias скопирован в буфер: ' + alias, 'success');
+            }).catch(() => {
+                ui.showAlert('Не удалось скопировать', 'warning');
+            });
+        }
+
+        function deleteWorkspace(id, alias) {
+            ui.confirm('Удалить workspace?', 'Вы уверены что хотите удалить workspace "' + alias + '"? Это действие нельзя отменить.')
+                .then(confirmed => {
+                    if (!confirmed) return;
+                    api.delete('/project/' + projectId + '/inventories/' + tplId + '/terraform-aliases/' + id)
+                        .then(() => {
+                            ui.showAlert('Workspace удалён', 'success');
+                            loadWorkspaces();
+                        })
+                        .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+                });
         }
     </script>
 </body>

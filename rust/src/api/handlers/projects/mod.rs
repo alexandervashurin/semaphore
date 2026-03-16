@@ -19,6 +19,7 @@ pub mod backup_restore;
 pub mod refs;
 pub mod invites;
 pub mod notifications;
+pub mod roles;
 
 pub use keys::*;
 pub use schedules::*;
@@ -37,3 +38,4 @@ pub use backup_restore::*;
 pub use refs::*;
 pub use invites::*;
 pub use notifications::*;
+pub use roles::*;

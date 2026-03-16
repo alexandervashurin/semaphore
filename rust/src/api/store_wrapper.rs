@@ -724,4 +724,52 @@ impl crate::db::store::PlaybookRunManager for StoreWrapper {
 }
 
 #[async_trait]
+impl IntegrationMatcherManager for StoreWrapper {
+    async fn get_integration_matchers(&self, project_id: i32, integration_id: i32) -> Result<Vec<IntegrationMatcher>> {
+        self.inner.as_ref().as_ref().get_integration_matchers(project_id, integration_id).await
+    }
+    async fn create_integration_matcher(&self, matcher: IntegrationMatcher) -> Result<IntegrationMatcher> {
+        self.inner.as_ref().as_ref().create_integration_matcher(matcher).await
+    }
+    async fn update_integration_matcher(&self, matcher: IntegrationMatcher) -> Result<()> {
+        self.inner.as_ref().as_ref().update_integration_matcher(matcher).await
+    }
+    async fn delete_integration_matcher(&self, project_id: i32, integration_id: i32, matcher_id: i32) -> Result<()> {
+        self.inner.as_ref().as_ref().delete_integration_matcher(project_id, integration_id, matcher_id).await
+    }
+}
+
+#[async_trait]
+impl IntegrationExtractValueManager for StoreWrapper {
+    async fn get_integration_extract_values(&self, project_id: i32, integration_id: i32) -> Result<Vec<IntegrationExtractValue>> {
+        self.inner.as_ref().as_ref().get_integration_extract_values(project_id, integration_id).await
+    }
+    async fn create_integration_extract_value(&self, value: IntegrationExtractValue) -> Result<IntegrationExtractValue> {
+        self.inner.as_ref().as_ref().create_integration_extract_value(value).await
+    }
+    async fn update_integration_extract_value(&self, value: IntegrationExtractValue) -> Result<()> {
+        self.inner.as_ref().as_ref().update_integration_extract_value(value).await
+    }
+    async fn delete_integration_extract_value(&self, project_id: i32, integration_id: i32, value_id: i32) -> Result<()> {
+        self.inner.as_ref().as_ref().delete_integration_extract_value(project_id, integration_id, value_id).await
+    }
+}
+
+#[async_trait]
+impl ProjectRoleManager for StoreWrapper {
+    async fn get_project_roles(&self, project_id: i32) -> Result<Vec<crate::models::Role>> {
+        self.inner.as_ref().as_ref().get_project_roles(project_id).await
+    }
+    async fn create_project_role(&self, role: crate::models::Role) -> Result<crate::models::Role> {
+        self.inner.as_ref().as_ref().create_project_role(role).await
+    }
+    async fn update_project_role(&self, role: crate::models::Role) -> Result<()> {
+        self.inner.as_ref().as_ref().update_project_role(role).await
+    }
+    async fn delete_project_role(&self, project_id: i32, role_id: i32) -> Result<()> {
+        self.inner.as_ref().as_ref().delete_project_role(project_id, role_id).await
+    }
+}
+
+#[async_trait]
 impl Store for StoreWrapper {}

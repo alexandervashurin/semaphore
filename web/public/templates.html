@@ -121,11 +121,18 @@
                     return;
                 }
 
+                const allTasks = tasks || [];
                 const lastByTpl = {};
-                (tasks || []).forEach(t => {
+                const tasksByTpl = {};
+                allTasks.forEach(t => {
                     if (!lastByTpl[t.template_id] || t.id > lastByTpl[t.template_id].id) {
                         lastByTpl[t.template_id] = t;
                     }
+                    if (!tasksByTpl[t.template_id]) tasksByTpl[t.template_id] = [];
+                    tasksByTpl[t.template_id].push(t);
+                });
+                Object.keys(tasksByTpl).forEach(key => {
+                    tasksByTpl[key].sort((a, b) => new Date(b.created) - new Date(a.created));
                 });
 
                 const statusBadge = (t) => {
@@ -149,6 +156,7 @@
                     <table class="table">
                         <thead>
                             <tr>
+                                <th style="width:40px;"></th>
                                 <th>Название</th>
                                 <th>Playbook</th>
                                 <th>Последний запуск</th>
@@ -156,8 +164,14 @@
                             </tr>
                         </thead>
                         <tbody>
-                            ${visible.map(tpl => `
+                            ${visible.map(tpl => {
+                                const tplTasks = (tasksByTpl[tpl.id] || []).slice(0, 5);
+                                const hasTasks = tplTasks.length > 0;
+                                return `
                                 <tr>
+                                    <td style="text-align:center;">
+                                        ${hasTasks ? `<button class="btn btn-sm" style="padding:0 6px;" onclick="toggleTemplateTasks(${tpl.id})" title="Показать последние задачи">▾</button>` : ''}
+                                    </td>
                                     <td>
                                         <div style="display:flex; align-items:center; gap:4px;">
                                             <a href="template.html?id=${projectId}&tpl=${tpl.id}" style="font-weight:600; text-decoration:none; color:var(--primary);">${escapeHtml(tpl.name)}</a>
@@ -174,7 +188,37 @@
                                         <button class="btn btn-danger btn-sm" onclick="deleteTemplate(${tpl.id})" title="Удалить">🗑️</button>
                                     </td>
                                 </tr>
-                            `).join('')}
+                                ${hasTasks ? `
+                                <tr id="tpl-tasks-${tpl.id}" style="display:none; background:#fafafa;">
+                                    <td></td>
+                                    <td colspan="4">
+                                        <div style="font-size:12px; color:var(--text-light); margin-bottom:4px;">Последние задачи этого шаблона:</div>
+                                        <table class="table" style="margin:0; font-size:12px;">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width:60px;">#</th>
+                                                    <th>Статус</th>
+                                                    <th>Сообщение</th>
+                                                    <th>Пользователь</th>
+                                                    <th>Создана</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                ${tplTasks.map(t => `
+                                                    <tr>
+                                                        <td><a href="task.html?id=${projectId}&task=${t.id}" style="text-decoration:none; color:var(--primary);">#${t.id}</a></td>
+                                                        <td>${statusBadge(t)}</td>
+                                                        <td>${escapeHtml(t.message || '—')}</td>
+                                                        <td>${escapeHtml(t.user_name || t.username || '—')}</td>
+                                                        <td>${formatRelativeTime(t.created)}</td>
+                                                    </tr>
+                                                `).join('')}
+                                            </tbody>
+                                        </table>
+                                    </td>
+                                </tr>
+                                ` : ''}`;
+                            }).join('')}
                         </tbody>
                     </table>
                     <style>
@@ -289,14 +333,26 @@
                 api.getInventories(projectId).catch(() => []),
                 api.getEnvironments(projectId).catch(() => []),
                 api.getRepositories(projectId).catch(() => []),
-                loadViews()
+                loadViews(),
+                api.getTemplates(projectId).catch(() => [])
             ])
-            .then(([template, playbooks, inventories, environments, repositories, views]) => {
-                openTemplateModal(template, { playbooks, inventories, environments, repositories, views });
+            .then(([template, playbooks, inventories, environments, repositories, views, allTemplates]) => {
+                openTemplateModal(template, { playbooks, inventories, environments, repositories, views, allTemplates });
             })
             .catch(error => {
                 ui.showAlert('Ошибка: ' + error.message, 'danger');
             });
+        }
+
+        function loadBranchSuggestions(repoId) {
+            const datalist = document.getElementById('branch-suggestions');
+            if (!datalist) return;
+            if (!repoId) { datalist.innerHTML = ''; return; }
+            api.getRepositoryBranches(projectId, repoId)
+                .then(branches => {
+                    datalist.innerHTML = (branches || []).map(b => `<option value="${escapeHtml(b)}">`).join('');
+                })
+                .catch(() => {});
         }
 
         function deleteTemplate(id) {
@@ -333,6 +389,11 @@
                 const showBranch = tpl.allow_override_branch_in_task;
                 const showInventory = tpl.allow_inventory_in_task;
                 const showArgs = !!tpl.allow_override_args_in_task || allowArgs;
+                const tp = tpl.task_params || {};
+                const showLimit = tp.allow_override_limit;
+                const showTags = tp.allow_override_tags;
+                const showSkipTags = tp.allow_override_skip_tags;
+                const showDebug = tp.allow_debug;
 
                 modal.innerHTML = `
                     <div class="modal" style="max-width:620px;">
@@ -362,6 +423,37 @@
                                 <label>CLI аргументы <span style="color:var(--text-light); font-size:12px;">(переопределить)</span></label>
                                 <input type="text" id="task-args" class="form-control" value="${escapeHtml(tpl.arguments || '')}" placeholder="--limit=host1 --tags=deploy">
                             </div>` : ''}
+                            ${(showLimit || showTags || showSkipTags || showDebug) ? `
+                            <div style="border-top:1px solid var(--border); margin:16px 0 8px; padding-top:8px;">
+                                <strong style="font-size:13px; color:var(--text-light);">Параметры Ansible</strong>
+                            </div>` : ''}
+                            ${showLimit ? `
+                            <div class="form-group">
+                                <label>Limit</label>
+                                <input type="text" id="task-limit" class="form-control" value="${escapeHtml(tp.limit || '')}" placeholder="host1,host2 или group">
+                            </div>` : ''}
+                            ${showTags ? `
+                            <div class="form-group">
+                                <label>Tags</label>
+                                <input type="text" id="task-tags" class="form-control" value="${escapeHtml(tp.tags || '')}" placeholder="deploy,db">
+                            </div>` : ''}
+                            ${showSkipTags ? `
+                            <div class="form-group">
+                                <label>Skip tags</label>
+                                <input type="text" id="task-skip-tags" class="form-control" value="${escapeHtml(tp.skip_tags || '')}" placeholder="slow">
+                            </div>` : ''}
+                            ${showDebug ? `
+                            <div class="form-group">
+                                <label>Режим отладки</label>
+                                <select id="task-debug" class="form-control">
+                                    <option value="">По умолчанию</option>
+                                    <option value="1" ${tp.debug_level === 1 ? 'selected' : ''}>Уровень 1</option>
+                                    <option value="2" ${tp.debug_level === 2 ? 'selected' : ''}>Уровень 2</option>
+                                    <option value="3" ${tp.debug_level === 3 ? 'selected' : ''}>Уровень 3</option>
+                                    <option value="4" ${tp.debug_level === 4 ? 'selected' : ''}>Уровень 4</option>
+                                    <option value="5" ${tp.debug_level === 5 ? 'selected' : ''}>Уровень 5</option>
+                                </select>
+                            </div>` : ''}
                             <div class="modal-footer">
                                 <button type="button" class="btn" onclick="document.getElementById('new-task-dialog').remove()">Отмена</button>
                                 <button type="submit" class="btn btn-primary">▶ Запустить</button>
@@ -384,6 +476,26 @@
                     if (branch) params.git_branch = branch;
                     if (args) params.arguments = args;
                     if (inventory_id) params.inventory_id = inventory_id;
+                    const taskParams = {};
+                    if (showLimit) {
+                        const v = document.getElementById('task-limit').value.trim();
+                        if (v) taskParams.limit = v;
+                    }
+                    if (showTags) {
+                        const v = document.getElementById('task-tags').value.trim();
+                        if (v) taskParams.tags = v;
+                    }
+                    if (showSkipTags) {
+                        const v = document.getElementById('task-skip-tags').value.trim();
+                        if (v) taskParams.skip_tags = v;
+                    }
+                    if (showDebug) {
+                        const v = document.getElementById('task-debug').value;
+                        if (v) taskParams.debug_level = parseInt(v);
+                    }
+                    if (Object.keys(taskParams).length > 0) {
+                        params.task_params = taskParams;
+                    }
                     launchTask(templateId, tplName, params);
                 });
             }).catch(err => ui.showAlert('Ошибка загрузки шаблона: ' + err.message, 'danger'));
@@ -542,10 +654,11 @@
                     api.getInventories(projectId).catch(() => []),
                     api.getEnvironments(projectId).catch(() => []),
                     api.getRepositories(projectId).catch(() => []),
-                    loadViews()
+                    loadViews(),
+                    api.getTemplates(projectId).catch(() => [])
                 ])
-                .then(([playbooks, inventories, environments, repositories, views]) => {
-                    renderModal(template, { playbooks, inventories, environments, repositories, views });
+                .then(([playbooks, inventories, environments, repositories, views, allTemplates]) => {
+                    renderModal(template, { playbooks, inventories, environments, repositories, views, allTemplates });
                 })
                 .catch(console.error);
             } else {
@@ -553,7 +666,8 @@
             }
 
             function renderModal(tpl, data) {
-                const { playbooks, inventories, environments, repositories, views } = data;
+                const { playbooks, inventories, environments, repositories, views, allTemplates } = data;
+                const buildTemplates = (allTemplates || []).filter(t => t.type === 'build');
                 
                 const modal = document.createElement('div');
                 modal.className = 'modal-overlay';
@@ -584,7 +698,7 @@
 
                                 <div class="form-group">
                                     <label for="tpl-type">Назначение</label>
-                                    <select id="tpl-type" class="form-control">
+                                    <select id="tpl-type" class="form-control" onchange="onTypeChange()">
                                         <option value="task" ${(!tpl?.type||tpl?.type==='task'||tpl?.type==='default'||tpl?.type==='ansible')?'selected':''}>Task</option>
                                         <option value="build" ${tpl?.type==='build'?'selected':''}>Build</option>
                                         <option value="deploy" ${tpl?.type==='deploy'?'selected':''}>Deploy</option>
@@ -626,7 +740,7 @@
 
                                 <div class="form-group">
                                     <label for="repository_id">Репозиторий</label>
-                                    <select id="repository_id" class="form-control">
+                                    <select id="repository_id" class="form-control" onchange="loadBranchSuggestions(this.value)">
                                         <option value="">— не выбрано —</option>
                                         ${repositories.map(repo => `<option value="${repo.id}" ${tpl?.repository_id === repo.id ? 'selected' : ''}>${escapeHtml(repo.name)}</option>`).join('')}
                                     </select>
@@ -634,7 +748,8 @@
 
                                 <div class="form-group">
                                     <label for="git_branch">Ветка Git</label>
-                                    <input type="text" id="git_branch" class="form-control" value="${escapeHtml(tpl?.git_branch || 'main')}" placeholder="main">
+                                    <input type="text" id="git_branch" class="form-control" value="${escapeHtml(tpl?.git_branch || 'main')}" placeholder="main" list="branch-suggestions">
+                                    <datalist id="branch-suggestions"></datalist>
                                 </div>
 
                                 <div class="form-group" style="grid-column:1/-1;">
@@ -654,14 +769,63 @@
                                     <label for="build_template_id">Шаблон сборки (deploy)</label>
                                     <select id="build_template_id" class="form-control">
                                         <option value="">— не задан —</option>
+                                        ${buildTemplates.map(bt => `
+                                            <option value="${bt.id}" ${tpl?.build_template_id === bt.id ? 'selected' : ''}>
+                                                ${escapeHtml(bt.name || ('Build #' + bt.id))}
+                                            </option>
+                                        `).join('')}
                                     </select>
+                                    <div class="form-hint">Используется только для deploy-шаблонов: этот шаблон будет запускаться после успешной сборки.</div>
+                                </div>
+                            </div>
+
+                            <!-- Terraform Parameters (B-FE-50) -->
+                            <div id="terraform-params-section" style="display:none; border-top:1px solid var(--border); margin:16px 0 0; padding-top:12px;">
+                                <strong style="font-size:13px; color:var(--text-light); text-transform:uppercase; letter-spacing:.5px;">Параметры Terraform</strong>
+                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px;">
+                                    <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+                                        <input type="checkbox" id="auto_approve" ${tpl?.auto_approve ? 'checked' : ''}>
+                                        Auto-approve (-auto-approve)
+                                    </label>
+                                    <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+                                        <input type="checkbox" id="override_backend" ${tpl?.override_backend ? 'checked' : ''} onchange="toggleBackendFilename()">
+                                        Переопределить backend
+                                    </label>
+                                </div>
+                                <div class="form-group" id="backend-filename-row" style="${tpl?.override_backend ? '' : 'display:none;'} margin-top:8px;">
+                                    <label for="backend_filename">Путь к backend-файлу</label>
+                                    <input type="text" id="backend_filename" class="form-control" value="${escapeHtml(tpl?.backend_filename || '')}" placeholder="backend.tf">
+                                </div>
+                            </div>
+
+                            <!-- Inline Cron Schedule (B-FE-51) -->
+                            <div style="border-top:1px solid var(--border); margin:16px 0 0; padding-top:12px;">
+                                <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer; font-weight:600;">
+                                    <input type="checkbox" id="create_schedule" ${tpl?._create_schedule ? 'checked' : ''} onchange="toggleInlineSchedule()">
+                                    Создать расписание для этого шаблона
+                                </label>
+                                <div id="inline-schedule-section" style="display:none; margin-top:10px; padding:12px; background:#f8f9fa; border-radius:6px; border:1px solid var(--border);">
+                                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                                        <div class="form-group" style="margin-bottom:0;">
+                                            <label for="schedule_cron">Cron-выражение *</label>
+                                            <input type="text" id="schedule_cron" class="form-control" placeholder="0 2 * * *" value="">
+                                            <small style="color:var(--text-light);">Примеры: <code>0 2 * * *</code> (ежедневно в 2:00), <code>*/30 * * * *</code> (каждые 30 мин)</small>
+                                        </div>
+                                        <div class="form-group" style="margin-bottom:0;">
+                                            <label for="schedule_repo_id">Репозиторий для расписания</label>
+                                            <select id="schedule_repo_id" class="form-control">
+                                                <option value="">— не задан —</option>
+                                                ${repositories.map(repo => `<option value="${repo.id}">${escapeHtml(repo.name)}</option>`).join('')}
+                                            </select>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
                             <div style="border-top:1px solid var(--border); margin:16px 0 12px; padding-top:12px;">
                                 <strong style="font-size:13px; color:var(--text-light); text-transform:uppercase; letter-spacing:.5px;">Разрешения при запуске</strong>
                             </div>
-                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
                                 <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
                                     <input type="checkbox" id="allow_override_args_in_task" ${tpl?.allow_override_args_in_task ? 'checked' : ''}>
                                     Переопределять CLI аргументы
@@ -688,6 +852,29 @@
                                 </label>
                             </div>
 
+                            <div style="border-top:1px solid var(--border); margin:16px 0 12px; padding-top:12px;">
+                                <strong style="font-size:13px; color:var(--text-light); text-transform:uppercase; letter-spacing:.5px;">Параметры Terraform / OpenTofu</strong>
+                            </div>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
+                                <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+                                    <input type="checkbox" id="tf_auto_approve" ${tpl?.task_params?.auto_approve ? 'checked' : ''}>
+                                    Авто-подтверждение (auto-approve)
+                                </label>
+                                <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+                                    <input type="checkbox" id="tf_allow_auto_approve" ${tpl?.task_params?.allow_auto_approve ? 'checked' : ''}>
+                                    Разрешить менять auto-approve при запуске
+                                </label>
+                                <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+                                    <input type="checkbox" id="tf_override_backend" ${tpl?.task_params?.override_backend ? 'checked' : ''}>
+                                    Переопределить backend конфигурацию
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label for="tf_backend_filename">Файл backend конфигурации</label>
+                                <input type="text" id="tf_backend_filename" class="form-control" value="${escapeHtml(tpl?.task_params?.backend_filename || '')}" placeholder="backend.tfvars или путь к файлу">
+                                <div class="form-hint">Используется для Terraform/OpenTofu; оставьте пустым, если используется стандартный backend.</div>
+                            </div>
+
                             <div class="modal-footer" style="margin-top:20px;">
                                 <button type="button" class="btn" onclick="closeTemplateModal()">Отмена</button>
                                 <button type="submit" class="btn btn-primary">${isEdit ? 'Сохранить' : 'Создать'}</button>
@@ -696,6 +883,27 @@
                     </div>
                 `;
                 document.body.appendChild(modal);
+
+                // Initialize dynamic sections on modal open
+                onAppChange();   // show/hide terraform section
+                onTypeChange();  // show/hide build-template-row + populate build templates for deploy
+
+                // Load branch suggestions if repository is already selected
+                if (tpl?.repository_id) {
+                    loadBranchSuggestions(tpl.repository_id);
+                }
+
+                // Populate build_template_id with saved value when editing
+                if (tpl?.build_template_id && tpl?.type === 'deploy') {
+                    api.getTemplates(projectId).then(tmpls => {
+                        const builds = (tmpls || []).filter(t => t.type === 'build');
+                        const sel = document.getElementById('build_template_id');
+                        if (sel) {
+                            sel.innerHTML = '<option value="">— не задан —</option>' +
+                                builds.map(t => `<option value="${t.id}" ${t.id === tpl.build_template_id ? 'selected' : ''}>${escapeHtml(t.name)}</option>`).join('');
+                        }
+                    }).catch(() => {});
+                }
 
                 $('#template-form').addEventListener('submit', (e) => {
                     e.preventDefault();
@@ -730,6 +938,57 @@
                 else if (app.value === 'bash') playbook.placeholder = 'script.sh';
                 else playbook.placeholder = 'site.yml';
             }
+            // Show/hide Terraform params section (B-FE-50)
+            const terraformSection = document.getElementById('terraform-params-section');
+            if (terraformSection) {
+                terraformSection.style.display = (app.value === 'terraform' || app.value === 'tofu') ? '' : 'none';
+            }
+        }
+
+        function toggleBackendFilename() {
+            const cb = document.getElementById('override_backend');
+            const row = document.getElementById('backend-filename-row');
+            if (row) row.style.display = cb && cb.checked ? '' : 'none';
+        }
+
+        function toggleInlineSchedule() {
+            const cb = document.getElementById('create_schedule');
+            const section = document.getElementById('inline-schedule-section');
+            if (section) section.style.display = cb && cb.checked ? '' : 'none';
+        }
+
+        function onTypeChange() {
+            const typeEl = document.getElementById('tpl-type');
+            if (!typeEl) return;
+            const type = typeEl.value;
+            const buildRow = document.getElementById('build-template-row');
+            if (buildRow) {
+                buildRow.style.display = type === 'deploy' ? '' : 'none';
+            }
+            // Populate build_template_id with build-type templates (B-FE-52)
+            if (type === 'deploy') {
+                const sel = document.getElementById('build_template_id');
+                if (sel && sel.options.length <= 1) {
+                    api.getTemplates(projectId).then(tmpls => {
+                        const builds = (tmpls || []).filter(t => t.type === 'build');
+                        sel.innerHTML = '<option value="">— не задан —</option>' +
+                            builds.map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
+                    }).catch(() => {});
+                }
+            }
+        }
+
+        function onTypeChange() {
+            const typeSelect = document.getElementById('tpl-type');
+            const row = document.getElementById('build-template-row');
+            if (!typeSelect || !row) return;
+            if (typeSelect.value === 'deploy') {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+                const sel = document.getElementById('build_template_id');
+                if (sel) sel.value = '';
+            }
         }
 
         function saveTemplate(id) {
@@ -756,7 +1015,41 @@
                 allow_parallel_tasks: document.getElementById('allow_parallel_tasks').checked,
                 suppress_success_alerts: document.getElementById('suppress_success_alerts').checked,
                 autorun: document.getElementById('autorun').checked,
+                // Terraform params (B-FE-50)
+                auto_approve: document.getElementById('auto_approve') ? document.getElementById('auto_approve').checked : false,
+                override_backend: document.getElementById('override_backend') ? document.getElementById('override_backend').checked : false,
+                backend_filename: document.getElementById('backend_filename') ? (document.getElementById('backend_filename').value.trim() || null) : null,
             };
+
+            // Inline schedule (B-FE-51) — create schedule after template save
+            const createSchedule = document.getElementById('create_schedule') && document.getElementById('create_schedule').checked;
+            const scheduleCron = createSchedule && document.getElementById('schedule_cron') ? document.getElementById('schedule_cron').value.trim() : null;
+            const scheduleRepoId = createSchedule && document.getElementById('schedule_repo_id') && document.getElementById('schedule_repo_id').value
+                ? parseInt(document.getElementById('schedule_repo_id').value) : null;
+
+            // Terraform task_params (B-FE-50)
+            const taskParams = {};
+            const tfAutoApprove = document.getElementById('tf_auto_approve');
+            const tfAllowAutoApprove = document.getElementById('tf_allow_auto_approve');
+            const tfOverrideBackend = document.getElementById('tf_override_backend');
+            const tfBackendFilename = document.getElementById('tf_backend_filename');
+
+            if (tfAutoApprove && tfAutoApprove.checked) {
+                taskParams.auto_approve = true;
+            }
+            if (tfAllowAutoApprove && tfAllowAutoApprove.checked) {
+                taskParams.allow_auto_approve = true;
+            }
+            if (tfOverrideBackend && tfOverrideBackend.checked) {
+                taskParams.override_backend = true;
+            }
+            if (tfBackendFilename) {
+                const v = tfBackendFilename.value.trim();
+                if (v) taskParams.backend_filename = v;
+            }
+            if (Object.keys(taskParams).length > 0) {
+                data.task_params = Object.assign({}, (tpl && tpl.task_params) || {}, taskParams);
+            }
 
             if (!data.name) {
                 ui.showAlert('Введите название', 'warning');
@@ -776,7 +1069,19 @@
                 : api.createTemplate(projectId, data);
 
             promise
-                .then(() => {
+                .then((savedTpl) => {
+                    // Create inline schedule if requested (B-FE-51)
+                    if (createSchedule && scheduleCron) {
+                        const tplId = savedTpl?.id || id;
+                        if (tplId) {
+                            api.post('/project/' + projectId + '/schedules', {
+                                template_id: tplId,
+                                cron_format: scheduleCron,
+                                repository_id: scheduleRepoId || null,
+                                project_id: parseInt(projectId),
+                            }).catch(err => ui.showAlert('Шаблон создан, но ошибка расписания: ' + err.message, 'warning'));
+                        }
+                    }
                     ui.showAlert(id ? 'Шаблон обновлён' : 'Шаблон создан', 'success');
                     closeTemplateModal();
                     loadTemplates();
@@ -803,10 +1108,17 @@
             }).catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
         }
 
+        function toggleTemplateTasks(id) {
+            const row = document.getElementById('tpl-tasks-' + id);
+            if (!row) return;
+            row.style.display = row.style.display === 'none' || row.style.display === '' ? 'table-row' : 'none';
+        }
+
         window.editTemplate = editTemplate;
         window.deleteTemplate = deleteTemplate;
         window.runTemplate = runTemplate;
         window.copyTemplate = copyTemplate;
+        window.toggleTemplateTasks = toggleTemplateTasks;
     </script>
 </body>
 </html>

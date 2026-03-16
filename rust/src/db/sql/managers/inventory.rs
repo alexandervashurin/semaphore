@@ -37,6 +37,7 @@ impl InventoryManager for SqlStore {
                     become_key_id: row.get("become_key_id"),
                     vaults: row.get("vaults"),
                     created: row.get("created"),
+                    runner_tag: row.try_get("runner_tag").ok().flatten(),
                 }).collect())
             }
             SqlDialect::PostgreSQL => {
@@ -62,6 +63,7 @@ impl InventoryManager for SqlStore {
                     become_key_id: row.get("become_key_id"),
                     vaults: row.get("vaults"),
                     created: row.get("created"),
+                    runner_tag: row.try_get("runner_tag").ok().flatten(),
                 }).collect())
             }
             SqlDialect::MySQL => {
@@ -87,6 +89,7 @@ impl InventoryManager for SqlStore {
                     become_key_id: row.get("become_key_id"),
                     vaults: row.get("vaults"),
                     created: row.get("created"),
+                    runner_tag: row.try_get("runner_tag").ok().flatten(),
                 }).collect())
             }
         }
@@ -121,6 +124,7 @@ impl InventoryManager for SqlStore {
                     become_key_id: row.get("become_key_id"),
                     vaults: row.get("vaults"),
                     created: row.get("created"),
+                    runner_tag: row.try_get("runner_tag").ok().flatten(),
                 })
             }
             SqlDialect::PostgreSQL => {
@@ -150,6 +154,7 @@ impl InventoryManager for SqlStore {
                     become_key_id: row.get("become_key_id"),
                     vaults: row.get("vaults"),
                     created: row.get("created"),
+                    runner_tag: row.try_get("runner_tag").ok().flatten(),
                 })
             }
             SqlDialect::MySQL => {
@@ -179,6 +184,7 @@ impl InventoryManager for SqlStore {
                     become_key_id: row.get("become_key_id"),
                     vaults: row.get("vaults"),
                     created: row.get("created"),
+                    runner_tag: row.try_get("runner_tag").ok().flatten(),
                 })
             }
         }

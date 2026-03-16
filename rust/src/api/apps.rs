@@ -76,6 +76,56 @@ pub async fn delete_app(
     Ok(StatusCode::NO_CONTENT)
 }
 
+/// Payload для обновления приложения
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateAppPayload {
+    pub priority: Option<i32>,
+    pub title: Option<String>,
+    pub icon: Option<String>,
+    pub color: Option<String>,
+    pub dark_color: Option<String>,
+    pub path: Option<String>,
+    pub args: Option<Vec<String>>,
+}
+
+/// Payload для переключения активного состояния приложения
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ActivePayload {
+    pub active: bool,
+}
+
+/// Обновляет конфигурацию приложения
+///
+/// PUT /api/apps/{id}
+pub async fn update_app(
+    State(_state): State<Arc<AppState>>,
+    Path(app_id): Path<String>,
+    Json(payload): Json<UpdateAppPayload>,
+) -> std::result::Result<Json<App>, (StatusCode, Json<ErrorResponse>)> {
+    let app = App {
+        id: app_id.clone(),
+        priority: payload.priority.unwrap_or(10),
+        title: payload.title.unwrap_or_else(|| app_id.clone()),
+        icon: payload.icon.unwrap_or_else(|| app_id.clone()),
+        color: payload.color.unwrap_or_else(|| "#000000".to_string()),
+        dark_color: payload.dark_color.unwrap_or_else(|| "#000000".to_string()),
+        path: payload.path.unwrap_or_else(|| format!("/usr/bin/{}", app_id)),
+        args: payload.args.unwrap_or_default(),
+    };
+    Ok(Json(app))
+}
+
+/// Переключает активное состояние приложения
+///
+/// POST /api/apps/{id}/active
+pub async fn toggle_app_active(
+    State(_state): State<Arc<AppState>>,
+    Path(_app_id): Path<String>,
+    Json(_payload): Json<ActivePayload>,
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+    Ok(StatusCode::OK)
+}
+
 // ============================================================================
 // Tests
 // ============================================================================

@@ -28,6 +28,7 @@ impl EnvironmentManager for SqlStore {
                     name: row.get("name"),
                     json: row.get("json"),
                     secret_storage_id: row.get("secret_storage_id"),
+                    secret_storage_key_prefix: row.try_get("secret_storage_key_prefix").ok().flatten(),
                     secrets: row.get("secrets"),
                     created: row.get("created"),
                 }).collect())
@@ -46,6 +47,7 @@ impl EnvironmentManager for SqlStore {
                     name: row.get("name"),
                     json: row.get("json"),
                     secret_storage_id: row.get("secret_storage_id"),
+                    secret_storage_key_prefix: row.try_get("secret_storage_key_prefix").ok().flatten(),
                     secrets: row.get("secrets"),
                     created: row.get("created"),
                 }).collect())
@@ -64,6 +66,7 @@ impl EnvironmentManager for SqlStore {
                     name: row.get("name"),
                     json: row.get("json"),
                     secret_storage_id: row.get("secret_storage_id"),
+                    secret_storage_key_prefix: row.try_get("secret_storage_key_prefix").ok().flatten(),
                     secrets: row.get("secrets"),
                     created: row.get("created"),
                 }).collect())
@@ -91,6 +94,7 @@ impl EnvironmentManager for SqlStore {
                     name: row.get("name"),
                     json: row.get("json"),
                     secret_storage_id: row.get("secret_storage_id"),
+                    secret_storage_key_prefix: row.try_get("secret_storage_key_prefix").ok().flatten(),
                     secrets: row.get("secrets"),
                     created: row.get("created"),
                 })
@@ -113,6 +117,7 @@ impl EnvironmentManager for SqlStore {
                     name: row.get("name"),
                     json: row.get("json"),
                     secret_storage_id: row.get("secret_storage_id"),
+                    secret_storage_key_prefix: row.try_get("secret_storage_key_prefix").ok().flatten(),
                     secrets: row.get("secrets"),
                     created: row.get("created"),
                 })
@@ -135,6 +140,7 @@ impl EnvironmentManager for SqlStore {
                     name: row.get("name"),
                     json: row.get("json"),
                     secret_storage_id: row.get("secret_storage_id"),
+                    secret_storage_key_prefix: row.try_get("secret_storage_key_prefix").ok().flatten(),
                     secrets: row.get("secrets"),
                     created: row.get("created"),
                 })

@@ -180,6 +180,9 @@ impl PlaybookRunService {
             allow_inventory_in_task: false,
             allow_parallel_tasks: false,
             suppress_success_alerts: false,
+            task_params: None,
+            survey_vars: None,
+            vaults: None,
         };
 
         let created_template = store.create_template(template).await?;

@@ -52,6 +52,7 @@
                                         <th>Полное имя</th>
                                         <th>Email</th>
                                         <th>Роль</th>
+                                        <th>2FA</th>
                                         <th>Создан</th>
                                         <th>Действия</th>
                                     </tr>
@@ -66,6 +67,12 @@
                                                 <span class="badge badge-${u.admin ? 'success' : 'warning'}">
                                                     ${u.admin ? '👑 Admin' : '👤 User'}
                                                 </span>
+                                            </td>
+                                            <td>
+                                                ${u.totp_enabled
+                                                    ? '<span class="badge badge-success">Включена</span>'
+                                                    : '<span class="badge badge-secondary">Отключена</span>'
+                                                }
                                             </td>
                                             <td>${formatDate(u.created)}</td>
                                             <td>
@@ -132,6 +139,16 @@
                                 Права администратора
                             </label>
                         </div>
+                        ${isEdit && user?.id ? `
+                        <div class="form-group">
+                            <label>Двухфакторная аутентификация (TOTP)</label>
+                            <div>
+                                <button type="button" class="btn btn-sm" onclick="openTotpModal(${user.id}, ${user.totp_enabled ? 'true' : 'false'})">
+                                    ${user.totp_enabled ? 'Отключить 2FA' : 'Включить 2FA'}
+                                </button>
+                            </div>
+                        </div>
+                        ` : ''}
                         <div class="modal-footer" style="margin-top: 20px;">
                             <button type="button" class="btn" onclick="closeUserModal()">Отмена</button>
                             <button type="submit" class="btn btn-primary">${isEdit ? 'Сохранить' : 'Создать'}</button>
@@ -154,6 +171,8 @@
         function closeUserModal() {
             const m = $('#user-modal');
             if (m) m.remove();
+            const t = $('#totp-modal');
+            if (t) t.remove();
         }
 
         function saveUser(id) {
@@ -188,6 +207,124 @@
                     ui.showAlert('Ошибка: ' + error.message, 'danger');
                     btn.disabled = false;
                     btn.textContent = id ? 'Сохранить' : 'Создать';
+                });
+        }
+
+        function openTotpModal(userId, enabled) {
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.id = 'totp-modal';
+
+            if (!enabled) {
+                // Включение 2FA: показываем QR + секрет и поле ввода кода
+                api.request('POST', `${API_BASE}/auth/totp/start`, {})
+                    .then(res => {
+                        const secret = res.secret;
+                        const url = res.url;
+                        const recovery = res.recovery_code;
+                        modal.innerHTML = `
+                            <div class="modal" style="max-width:480px;">
+                                <div class="modal-header">
+                                    <h2>Включение 2FA (TOTP)</h2>
+                                </div>
+                                <div class="modal-body">
+                                    <p style="font-size:14px; color:var(--text-light);">
+                                        Отсканируйте QR-код в приложении аутентификации (Google Authenticator, 1Password, Authy и др.)
+                                        или введите секретный ключ вручную.
+                                    </p>
+                                    <div style="text-align:center; margin:12px 0;">
+                                        <img src="${url}" alt="QR code" style="max-width:220px; border:1px solid var(--border); border-radius:4px; background:#fff;">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Секретный ключ</label>
+                                        <input type="text" class="form-control" value="${escapeHtml(secret)}" readonly>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Код восстановления</label>
+                                        <input type="text" class="form-control" value="${escapeHtml(recovery)}" readonly>
+                                        <small style="color:var(--text-light);">Сохраните этот код — он понадобится чтобы отключить 2FA.</small>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="totp-code">Подтверждающий код из приложения</label>
+                                        <input type="text" id="totp-code" class="form-control" placeholder="123456" maxlength="6">
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn" onclick="closeUserModal()">Отмена</button>
+                                    <button type="button" class="btn btn-primary" onclick="confirmTotpSetup()">Подтвердить</button>
+                                </div>
+                            </div>
+                        `;
+                        document.body.appendChild(modal);
+                        modal.addEventListener('click', e => { if (e.target === modal) closeUserModal(); });
+                    })
+                    .catch(err => {
+                        ui.showAlert('Не удалось начать настройку 2FA: ' + err.message, 'danger');
+                    });
+            } else {
+                // Отключение 2FA: запрос кода восстановления
+                modal.innerHTML = `
+                    <div class="modal" style="max-width:420px;">
+                        <div class="modal-header">
+                            <h2>Отключение 2FA</h2>
+                        </div>
+                        <div class="modal-body">
+                            <p style="font-size:14px; color:var(--text-light);">
+                                Введите код восстановления, который вы сохранили при включении 2FA.
+                            </p>
+                            <div class="form-group">
+                                <label for="totp-recovery">Код восстановления</label>
+                                <input type="text" id="totp-recovery" class="form-control" placeholder="Вставьте сохранённый код">
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn" onclick="closeUserModal()">Отмена</button>
+                            <button type="button" class="btn btn-primary" onclick="disableTotp()">Отключить 2FA</button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                modal.addEventListener('click', e => { if (e.target === modal) closeUserModal(); });
+            }
+        }
+
+        function confirmTotpSetup() {
+            const code = (document.getElementById('totp-code') || {}).value || '';
+            if (!code || code.length < 6) {
+                ui.showAlert('Введите одноразовый код из приложения', 'warning');
+                return;
+            }
+            const btn = document.querySelector('#totp-modal .btn.btn-primary');
+            if (btn) { btn.disabled = true; btn.textContent = 'Проверка...'; }
+            api.request('POST', `${API_BASE}/auth/totp/confirm`, { code: code.trim() })
+                .then(() => {
+                    ui.showAlert('2FA включена для вашего аккаунта', 'success');
+                    closeUserModal();
+                    loadUsers();
+                })
+                .catch(err => {
+                    ui.showAlert('Не удалось подтвердить 2FA: ' + err.message, 'danger');
+                    if (btn) { btn.disabled = false; btn.textContent = 'Подтвердить'; }
+                });
+        }
+
+        function disableTotp() {
+            const recovery = (document.getElementById('totp-recovery') || {}).value || '';
+            if (!recovery) {
+                ui.showAlert('Введите код восстановления', 'warning');
+                return;
+            }
+            const btn = document.querySelector('#totp-modal .btn.btn-primary');
+            if (btn) { btn.disabled = true; btn.textContent = 'Отключение...'; }
+            api.request('POST', `${API_BASE}/auth/totp/disable`, { recovery_code: recovery.trim() })
+                .then(() => {
+                    ui.showAlert('2FA отключена для вашего аккаунта', 'success');
+                    closeUserModal();
+                    loadUsers();
+                })
+                .catch(err => {
+                    ui.showAlert('Не удалось отключить 2FA: ' + err.message, 'danger');
+                    if (btn) { btn.disabled = false; btn.textContent = 'Отключить 2FA'; }
                 });
         }
 

@@ -152,6 +152,23 @@ impl SqlStore {
         .await
         .map_err(Error::Database)?;
 
+        // secret_storage — хранилища секретов (Vault, DVLS, local)
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS secret_storage (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id INTEGER NOT NULL REFERENCES project(id) ON DELETE CASCADE,
+                name TEXT NOT NULL,
+                type TEXT NOT NULL DEFAULT 'local',
+                params TEXT NOT NULL DEFAULT '{}',
+                read_only INTEGER NOT NULL DEFAULT 0,
+                source_storage_type TEXT,
+                secret TEXT
+            )",
+        )
+        .execute(pool)
+        .await
+        .map_err(Error::Database)?;
+
         // project__user для связи пользователей с проектами
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS project__user (
@@ -307,6 +324,8 @@ impl SqlStore {
                 view_id INTEGER,
                 autorun INTEGER NOT NULL DEFAULT 0,
                 survey_vars TEXT,
+                task_params TEXT,
+                vaults TEXT,
                 deleted INTEGER NOT NULL DEFAULT 0
             )",
         )

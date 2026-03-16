@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Восстановление проекта — Semaphore UI</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="header">
+        <h1><img src="logo.svg" alt="">Semaphore UI</h1>
+        <div class="user-menu">
+            <a href="/index.html" class="btn btn-sm" style="margin-right: 8px;">← К проектам</a>
+            <button class="btn-logout" onclick="api.logout()">Выйти</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="page-header" style="margin-top: 8px;">
+            <div>
+                <h1 style="font-size:24px;letter-spacing:-0.5px;">Восстановление проекта</h1>
+                <p class="text-muted" style="margin-top:3px;">Импортируйте проект из JSON-бэкапа, созданного в Semaphore</p>
+            </div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px;">
+            <p style="font-size:14px; color:var(--text-light); margin-bottom:8px;">
+                Загрузите JSON-файл, полученный через кнопку <strong>Backup</strong> в настройках проекта.
+                Перед восстановлением убедитесь, что вы доверяете содержимому файла.
+            </p>
+            <ul style="font-size:13px; color:var(--text-light); padding-left:18px; margin:0;">
+                <li>Существующие проекты не затрагиваются.</li>
+                <li>Если проект с таким же именем уже есть, он будет импортирован как новый с другим ID.</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <form id="restore-form">
+                <div class="form-group">
+                    <label for="backup-file">JSON-бэкап проекта *</label>
+                    <input type="file" id="backup-file" class="form-control" accept=".json,application/json" required>
+                </div>
+
+                <div id="backup-preview" style="display:none; margin-top:10px; padding:10px 12px; border-radius:4px; background:var(--bg-muted); font-size:13px;">
+                    <div><strong>Имя проекта:</strong> <span id="preview-name"></span></div>
+                    <div><strong>ID в бэкапе:</strong> <span id="preview-id"></span></div>
+                    <div><strong>Ресурсы:</strong>
+                        <span id="preview-templates"></span> шаблонов,
+                        <span id="preview-inventories"></span> инвентарей,
+                        <span id="preview-environments"></span> окружений,
+                        <span id="preview-repositories"></span> репозиториев
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top:16px;">
+                    <label>
+                        <input type="checkbox" id="confirm-restore">
+                        Я понимаю, что импортирую данные в текущий инстанс Semaphore
+                    </label>
+                </div>
+
+                <div class="modal-footer" style="padding:0; margin-top:16px;">
+                    <button type="button" class="btn btn-ghost" onclick="window.location.href='index.html'">Отмена</button>
+                    <button type="submit" class="btn btn-primary" id="restore-submit" disabled>Импортировать</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        checkAuth();
+
+        const fileInput = document.getElementById('backup-file');
+        const previewBox = document.getElementById('backup-preview');
+        const previewName = document.getElementById('preview-name');
+        const previewId = document.getElementById('preview-id');
+        const previewTemplates = document.getElementById('preview-templates');
+        const previewInventories = document.getElementById('preview-inventories');
+        const previewEnvironments = document.getElementById('preview-environments');
+        const previewRepositories = document.getElementById('preview-repositories');
+        const confirmRestore = document.getElementById('confirm-restore');
+        const submitBtn = document.getElementById('restore-submit');
+
+        fileInput.addEventListener('change', () => {
+            const file = fileInput.files && fileInput.files[0];
+            previewBox.style.display = 'none';
+            previewName.textContent = '';
+            previewId.textContent = '';
+
+            if (!file) {
+                submitBtn.disabled = true;
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = e => {
+                try {
+                    const text = e.target.result;
+                    const json = JSON.parse(text);
+                    const project = json.project || json || {};
+                    previewName.textContent = escapeHtml(project.name || '—');
+                    previewId.textContent = project.id != null ? project.id : '—';
+                    const stats = json.stats || {};
+                    previewTemplates.textContent = stats.templates != null ? stats.templates : (Array.isArray(json.templates) ? json.templates.length : '—');
+                    previewInventories.textContent = stats.inventories != null ? stats.inventories : (Array.isArray(json.inventories) ? json.inventories.length : '—');
+                    previewEnvironments.textContent = stats.environments != null ? stats.environments : (Array.isArray(json.environments) ? json.environments.length : '—');
+                    previewRepositories.textContent = stats.repositories != null ? stats.repositories : (Array.isArray(json.repositories) ? json.repositories.length : '—');
+                    previewBox.style.display = 'block';
+                    updateSubmitState();
+                } catch (err) {
+                    ui.showAlert('Файл не похож на валидный JSON-бэкап проекта: ' + err.message, 'danger');
+                    fileInput.value = '';
+                    submitBtn.disabled = true;
+                }
+            };
+            reader.onerror = () => {
+                ui.showAlert('Не удалось прочитать файл бэкапа', 'danger');
+                fileInput.value = '';
+                submitBtn.disabled = true;
+            };
+            reader.readAsText(file, 'utf-8');
+        });
+
+        confirmRestore.addEventListener('change', updateSubmitState);
+
+        function updateSubmitState() {
+            const hasFile = !!(fileInput.files && fileInput.files[0]);
+            submitBtn.disabled = !(hasFile && confirmRestore.checked);
+        }
+
+        document.getElementById('restore-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const file = fileInput.files && fileInput.files[0];
+            if (!file) {
+                ui.showAlert('Выберите файл бэкапа', 'warning');
+                return;
+            }
+            if (!confirmRestore.checked) {
+                ui.showAlert('Подтвердите, что понимаете последствия импорта', 'warning');
+                return;
+            }
+
+            const reader = new FileReader();
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Импорт...';
+
+            reader.onload = ev => {
+                let json;
+                try {
+                    json = JSON.parse(ev.target.result);
+                } catch (err) {
+                    ui.showAlert('Файл не является валидным JSON: ' + err.message, 'danger');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Импортировать';
+                    return;
+                }
+
+                api.post('/projects/restore', json)
+                    .then(project => {
+                        ui.showAlert('Проект восстановлен: ' + escapeHtml(project.name || ''), 'success');
+                        setTimeout(() => {
+                            window.location.href = '/project.html?id=' + project.id;
+                        }, 800);
+                    })
+                    .catch(err => {
+                        ui.showAlert('Ошибка восстановления: ' + err.message, 'danger');
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Импортировать';
+                    });
+            };
+
+            reader.onerror = () => {
+                ui.showAlert('Ошибка чтения файла бэкапа', 'danger');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Импортировать';
+            };
+
+            reader.readAsText(file, 'utf-8');
+        });
+    </script>
+</body>
+</html>
+

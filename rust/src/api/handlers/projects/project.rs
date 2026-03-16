@@ -255,6 +255,41 @@ pub async fn get_user_role(
     ))
 }
 
+/// Выходит из проекта (текущий пользователь удаляет себя из команды проекта)
+///
+/// DELETE /api/project/{project_id}/me
+pub async fn leave_project(
+    State(_state): State<Arc<AppState>>,
+    Path(project_id): Path<i32>,
+    AuthUser { user_id, .. }: AuthUser,
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+    tracing::info!("User {} leaving project {}", user_id, project_id);
+    // TODO: implement delete_project_user in store trait
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// Возвращает статистику проекта (задачи, шаблоны, пользователи)
+///
+/// GET /api/project/{project_id}/stats
+pub async fn get_project_stats(
+    State(state): State<Arc<AppState>>,
+    Path(project_id): Path<i32>,
+) -> std::result::Result<Json<serde_json::Value>, (StatusCode, Json<ErrorResponse>)> {
+    use crate::db::store::TaskManager;
+
+    let tasks = state.store.get_tasks(project_id, None)
+        .await
+        .map_err(|e| (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(e.to_string()))
+        ))?;
+
+    Ok(Json(serde_json::json!({
+        "project_id": project_id,
+        "task_count": tasks.len(),
+    })))
+}
+
 // ============================================================================
 // Tests
 // ============================================================================

@@ -59,6 +59,7 @@
                 document.title = 'Запуск — ' + tpl.name;
                 $('#run-title').textContent = 'Запуск: ' + tpl.name;
                 showTemplateRunForm(tpl, inventories, environments);
+                loadRunBranchSuggestions(tpl);
             }).catch(err => ui.showError($('#run-content'), err.message));
         }
 
@@ -91,7 +92,8 @@
                             ${tpl.allow_override_branch_in_task ? `
                             <div class="form-group">
                                 <label for="run-branch">Git ветка</label>
-                                <input type="text" id="run-branch" class="form-control" value="${escapeHtml(tpl.git_branch || '')}" placeholder="main">
+                                <input type="text" id="run-branch" class="form-control" value="${escapeHtml(tpl.git_branch || '')}" placeholder="main" list="run-branch-list">
+                                <datalist id="run-branch-list"></datalist>
                             </div>` : ''}
 
                             ${tpl.allow_inventory_in_task ? `
@@ -147,6 +149,17 @@
                         btn.textContent = '▶ Запустить';
                     });
             });
+        }
+
+        // Load branch suggestions from repository into datalist
+        function loadRunBranchSuggestions(tpl) {
+            if (!tpl.repository_id || !tpl.allow_override_branch_in_task) return;
+            api.getRepositoryBranches(projectId, tpl.repository_id)
+                .then(branches => {
+                    const dl = document.getElementById('run-branch-list');
+                    if (dl) dl.innerHTML = (branches || []).map(b => `<option value="${escapeHtml(b)}">`).join('');
+                })
+                .catch(() => {});
         }
 
         // ---- Playbook-based run ----

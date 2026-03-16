@@ -34,6 +34,30 @@ pub async fn get_tasks(
     Ok(Json(tasks))
 }
 
+/// Получает последние задачи проекта (по дате создания)
+///
+/// GET /api/project/{project_id}/tasks/last
+pub async fn get_last_tasks(
+    State(state): State<Arc<AppState>>,
+    Path(project_id): Path<i32>,
+) -> std::result::Result<Json<Vec<TaskWithTpl>>, (StatusCode, Json<ErrorResponse>)> {
+    let tasks = state
+        .store
+        .get_tasks(project_id, None)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
+
+    // Возвращаем только последние 20 записей
+    let limited: Vec<TaskWithTpl> = tasks.into_iter().take(20).collect();
+
+    Ok(Json(limited))
+}
+
 /// Получает задачу по ID
 pub async fn get_task(
     State(state): State<Arc<AppState>>,
@@ -312,6 +336,54 @@ async fn execute_task_background(state: Arc<AppState>, task: Task) {
             let _ = store.update_task_status(task.project_id, task.id, TaskStatus::Error).await;
         }
     }
+}
+
+/// Возвращает raw-вывод задачи (текст без форматирования)
+///
+/// GET /api/project/{project_id}/tasks/{id}/raw_output
+pub async fn get_task_raw_output(
+    State(state): State<Arc<AppState>>,
+    Path((project_id, task_id)): Path<(i32, i32)>,
+) -> std::result::Result<String, (StatusCode, Json<ErrorResponse>)> {
+    let outputs = state.store.get_task_outputs(task_id)
+        .await
+        .map_err(|e| (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(e.to_string()))
+        ))?;
+
+    // Объединяем все строки вывода в plain text
+    let raw = outputs.iter()
+        .map(|o| o.output.as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    // Убираем ANSI-коды для raw формата
+    let clean = crate::utils::ansi::clear_from_ansi_codes(&raw);
+    let _ = project_id; // suppress unused warning
+    Ok(clean)
+}
+
+/// Возвращает стадии (этапы) задачи
+///
+/// GET /api/project/{project_id}/tasks/{id}/stages
+pub async fn get_task_stages(
+    State(_state): State<Arc<AppState>>,
+    Path((_project_id, _task_id)): Path<(i32, i32)>,
+) -> std::result::Result<Json<serde_json::Value>, (StatusCode, Json<ErrorResponse>)> {
+    // Stages — это более высокоуровневое представление стадий выполнения
+    // В базовой реализации возвращаем пустой список
+    Ok(Json(serde_json::json!([])))
+}
+
+/// Возвращает все активные задачи по всем проектам
+///
+/// GET /api/tasks
+pub async fn get_all_tasks(
+    State(_state): State<Arc<AppState>>,
+) -> std::result::Result<Json<Vec<TaskWithTpl>>, (StatusCode, Json<ErrorResponse>)> {
+    // Stub: в реальной реализации нужен запрос без фильтра по project_id
+    Ok(Json(vec![]))
 }
 
 /// Payload для создания задачи

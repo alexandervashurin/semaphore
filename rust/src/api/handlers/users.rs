@@ -15,6 +15,7 @@ use crate::models::User;
 use crate::db::store::{RetrieveQueryParams, UserManager};
 use crate::error::Error;
 use crate::api::middleware::ErrorResponse;
+use chrono;
 
 /// Получить список пользователей
 ///
@@ -167,6 +168,56 @@ pub async fn update_user_password(
 #[derive(Debug, Deserialize)]
 pub struct PasswordUpdatePayload {
     pub password: String,
+}
+
+/// Создать нового пользователя
+///
+/// POST /api/users
+pub async fn create_user(
+    State(state): State<Arc<AppState>>,
+    AuthUser { admin, .. }: AuthUser,
+    Json(payload): Json<CreateUserPayload>,
+) -> Result<(StatusCode, Json<User>), (StatusCode, Json<ErrorResponse>)> {
+    if !admin {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(ErrorResponse::new("Only admins can create users")),
+        ));
+    }
+
+    let user = User {
+        id: 0,
+        name: payload.name.unwrap_or_default(),
+        username: payload.username,
+        email: payload.email.unwrap_or_default(),
+        created: chrono::Utc::now(),
+        admin: payload.admin.unwrap_or(false),
+        external: false,
+        alert: false,
+        pro: false,
+        password: String::new(),
+        totp: None,
+        email_otp: None,
+    };
+
+    let created = state.store.create_user(user, payload.password.as_deref().unwrap_or(""))
+        .await
+        .map_err(|e| (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(e.to_string()))
+        ))?;
+
+    Ok((StatusCode::CREATED, Json(created)))
+}
+
+/// Payload для создания пользователя
+#[derive(Debug, Deserialize)]
+pub struct CreateUserPayload {
+    pub username: String,
+    pub name: Option<String>,
+    pub email: Option<String>,
+    pub password: Option<String>,
+    pub admin: Option<bool>,
 }
 
 /// Payload для обновления пользователя

@@ -5,7 +5,7 @@ use std::sync::Arc;
 use crate::api::state::AppState;
 use crate::api::handlers;
 use crate::api::websocket::websocket_handler;
-use crate::api::handlers::projects::{schedules, views, integration as project_integration, integration_alias, secret_storages, users as project_users, tasks, notifications, backup_restore, refs, invites};
+use crate::api::handlers::projects::{schedules, views, integration as project_integration, integration_alias, secret_storages, users as project_users, tasks, templates, repository, notifications, backup_restore, refs, invites, roles};
 use crate::api::{events, apps, options, runners, cache, system_info, user, graphql};
 use tower_http::services::{ServeDir, ServeFile};
 
@@ -32,6 +32,7 @@ pub fn api_routes() -> Router<Arc<AppState>> {
 
         // Пользователи
         .route("/api/users", get(handlers::get_users))
+        .route("/api/users", post(handlers::create_user))
         .route("/api/users/{id}", get(handlers::get_user))
         .route("/api/users/{id}", put(handlers::update_user))
         .route("/api/users/{id}", delete(handlers::delete_user))
@@ -50,6 +51,12 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/api/project/{id}", put(handlers::update_project))
         .route("/api/project/{id}", delete(handlers::delete_project))
 
+        // Leave project + Project stats
+        .route("/api/project/{project_id}/me", delete(handlers::projects::project::leave_project))
+        .route("/api/projects/{project_id}/me", delete(handlers::projects::project::leave_project))
+        .route("/api/project/{project_id}/stats", get(handlers::projects::project::get_project_stats))
+        .route("/api/projects/{project_id}/stats", get(handlers::projects::project::get_project_stats))
+
         // Шаблоны
         .route("/api/projects/{project_id}/templates", get(handlers::get_templates))
         .route("/api/projects/{project_id}/templates", post(handlers::create_template))
@@ -61,16 +68,21 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/api/project/{project_id}/templates/{id}", get(handlers::get_template))
         .route("/api/project/{project_id}/templates/{id}", put(handlers::update_template))
         .route("/api/project/{project_id}/templates/{id}", delete(handlers::delete_template))
+        .route("/api/project/{project_id}/templates/{id}/stop_all_tasks", post(handlers::stop_all_template_tasks))
 
         // Задачи
+        .route("/api/tasks", get(handlers::get_all_tasks))
         .route("/api/projects/{project_id}/tasks", get(handlers::get_tasks))
         .route("/api/projects/{project_id}/tasks", post(handlers::create_task))
         .route("/api/projects/{project_id}/tasks/{id}", get(handlers::get_task))
         .route("/api/projects/{project_id}/tasks/{id}", delete(handlers::delete_task))
+        // Vue-алиасы
         .route("/api/project/{project_id}/tasks", get(handlers::get_tasks))
         .route("/api/project/{project_id}/tasks", post(handlers::create_task))
         .route("/api/project/{project_id}/tasks/{id}", get(handlers::get_task))
         .route("/api/project/{project_id}/tasks/{id}", delete(handlers::delete_task))
+        // Последние задачи проекта (History)
+        .route("/api/project/{project_id}/tasks/last", get(tasks::get_last_tasks))
 
         // Инвентари
         .route("/api/projects/{project_id}/inventories", get(handlers::get_inventories))
@@ -198,6 +210,11 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/api/project/{project_id}/secret_storages/{id}", get(secret_storages::get_secret_storage))
         .route("/api/project/{project_id}/secret_storages/{id}", put(secret_storages::update_secret_storage))
         .route("/api/project/{project_id}/secret_storages/{id}", delete(secret_storages::delete_secret_storage))
+        // Secret Storages — дополнительные endpoints (B-BE-06/07)
+        .route("/api/project/{project_id}/secret_storages/{id}/sync", post(secret_storages::sync_secret_storage))
+        .route("/api/project/{project_id}/secret_storages/{id}/refs", get(secret_storages::get_secret_storage_refs))
+        .route("/api/projects/{project_id}/secret_storages/{id}/sync", post(secret_storages::sync_secret_storage))
+        .route("/api/projects/{project_id}/secret_storages/{id}/refs", get(secret_storages::get_secret_storage_refs))
 
         // Пользователи проекта (Project Users)
         .route("/api/projects/{project_id}/users", get(project_users::get_users))
@@ -222,6 +239,14 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         // Роль пользователя в проекте
         .route("/api/projects/{project_id}/role", get(handlers::get_user_role))
         .route("/api/project/{project_id}/role", get(handlers::get_user_role))
+
+        // Кастомные роли (Custom Roles)
+        .route("/api/project/{project_id}/roles/all", get(roles::get_all_roles))
+        .route("/api/project/{project_id}/roles", get(roles::get_roles))
+        .route("/api/project/{project_id}/roles", post(roles::create_role))
+        .route("/api/project/{project_id}/roles/{id}", get(roles::get_role))
+        .route("/api/project/{project_id}/roles/{id}", put(roles::update_role))
+        .route("/api/project/{project_id}/roles/{id}", delete(roles::delete_role))
 
         // Backup/Restore
         .route("/api/project/{project_id}/backup", get(backup_restore::get_backup))
@@ -262,7 +287,10 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         // Приложения (Apps)
         .route("/api/apps", get(apps::get_apps))
         .route("/api/apps/{id}", get(apps::get_app))
+        .route("/api/apps/{id}", put(apps::update_app))
         .route("/api/apps/{id}", delete(apps::delete_app))
+        // Apps - дополнительные endpoints (B-BE-04/05)
+        .route("/api/apps/{id}/active", post(apps::toggle_app_active))
 
         // Опции (Options) - admin only
         .route("/api/options", get(options::get_options))
@@ -276,9 +304,18 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/api/runners", post(runners::add_global_runner))
         .route("/api/runners/{id}", put(runners::update_runner))
         .route("/api/runners/{id}", delete(runners::delete_runner))
+        // Раннеры - дополнительные endpoints (B-BE-01/02/03)
+        .route("/api/runners/{id}/active", post(runners::toggle_runner_active))
+        .route("/api/runners/{id}/cache", delete(runners::clear_runner_cache))
+        .route("/api/project/{project_id}/runner_tags", get(runners::get_project_runner_tags))
+        .route("/api/internal/runners", post(runners::register_runner))
+        .route("/api/internal/runners/{id}", post(runners::runner_heartbeat))
 
         // Кэш (Cache) - admin only
         .route("/api/cache", delete(cache::clear_cache))
+
+        // Кэш проекта (B-BE-24)
+        .route("/api/project/{id}/cache", delete(cache::clear_project_cache))
 
         // Системная информация (System Info)
         .route("/api/info", get(system_info::get_system_info))
@@ -298,6 +335,55 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/api/user/tokens", get(user::get_api_tokens))
         .route("/api/user/tokens", post(user::create_api_token))
         .route("/api/user/tokens/{id}", delete(user::delete_api_token))
+
+        // Все задачи (Global Tasks List) (B-BE-15) — registered above via handlers::get_all_tasks
+
+        // Шаблоны - дополнительные endpoints (B-BE-17/18)
+        // stop_all_tasks для /api/project/ регистрирован выше (line 64)
+        .route("/api/project/{project_id}/templates/{id}/description", put(handlers::projects::templates::update_template_description))
+        .route("/api/projects/{project_id}/templates/{id}/stop_all_tasks", post(handlers::projects::templates::stop_all_template_tasks))
+        .route("/api/projects/{project_id}/templates/{id}/description", put(handlers::projects::templates::update_template_description))
+
+        // Integration Matchers CRUD (B-BE-20)
+        .route("/api/project/{project_id}/integrations/{integration_id}/matchers", get(project_integration::get_integration_matchers))
+        .route("/api/project/{project_id}/integrations/{integration_id}/matchers", post(project_integration::add_integration_matcher))
+        .route("/api/project/{project_id}/integrations/{integration_id}/matchers/{matcher_id}", put(project_integration::update_integration_matcher))
+        .route("/api/project/{project_id}/integrations/{integration_id}/matchers/{matcher_id}", delete(project_integration::delete_integration_matcher))
+
+        // Integration Extract Values CRUD (B-BE-21)
+        .route("/api/project/{project_id}/integrations/{integration_id}/extractvalues", get(project_integration::get_integration_extract_values))
+        .route("/api/project/{project_id}/integrations/{integration_id}/extractvalues", post(project_integration::add_integration_extract_value))
+        .route("/api/project/{project_id}/integrations/{integration_id}/extractvalues/{value_id}", put(project_integration::update_integration_extract_value))
+        .route("/api/project/{project_id}/integrations/{integration_id}/extractvalues/{value_id}", delete(project_integration::delete_integration_extract_value))
+        // Aliases for Go-compat: /values = extractvalues
+        .route("/api/project/{project_id}/integrations/{integration_id}/values", get(project_integration::get_integration_extract_values))
+        .route("/api/project/{project_id}/integrations/{integration_id}/values", post(project_integration::add_integration_extract_value))
+        .route("/api/project/{project_id}/integrations/{integration_id}/values/{value_id}", put(project_integration::update_integration_extract_value))
+        .route("/api/project/{project_id}/integrations/{integration_id}/values/{value_id}", delete(project_integration::delete_integration_extract_value))
+
+        // Расписание — toggle active
+        .route("/api/project/{project_id}/schedules/{id}/active", put(schedules::toggle_schedule_active))
+        .route("/api/projects/{project_id}/schedules/{id}/active", put(schedules::toggle_schedule_active))
+
+        // Templates — дополнительные endpoints
+        .route("/api/project/{project_id}/templates/{id}/schedules", get(templates::get_template_schedules))
+        .route("/api/project/{project_id}/templates/{id}/tasks", get(templates::get_template_tasks))
+        .route("/api/project/{project_id}/templates/{id}/tasks/last", get(templates::get_template_last_task))
+        .route("/api/project/{project_id}/templates/{id}/stats", get(templates::get_template_stats))
+        .route("/api/projects/{project_id}/templates/{id}/schedules", get(templates::get_template_schedules))
+        .route("/api/projects/{project_id}/templates/{id}/tasks", get(templates::get_template_tasks))
+        .route("/api/projects/{project_id}/templates/{id}/tasks/last", get(templates::get_template_last_task))
+        .route("/api/projects/{project_id}/templates/{id}/stats", get(templates::get_template_stats))
+
+        // Repository — branches (refs covered by refs.rs)
+        .route("/api/project/{project_id}/repositories/{id}/branches", get(repository::get_repository_branches))
+        .route("/api/projects/{project_id}/repositories/{id}/branches", get(repository::get_repository_branches))
+
+        // Tasks — raw output + stages
+        .route("/api/project/{project_id}/tasks/{id}/raw_output", get(tasks::get_task_raw_output))
+        .route("/api/project/{project_id}/tasks/{id}/stages", get(tasks::get_task_stages))
+        .route("/api/projects/{project_id}/tasks/{id}/raw_output", get(tasks::get_task_raw_output))
+        .route("/api/projects/{project_id}/tasks/{id}/stages", get(tasks::get_task_stages))
 }
 
 /// Создаёт маршруты для статических файлов

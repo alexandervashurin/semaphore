@@ -45,6 +45,9 @@ impl TemplateManager for SqlStore {
                     allow_inventory_in_task: row.try_get::<i32, _>("allow_inventory_in_task").ok().unwrap_or(0) != 0,
                     allow_parallel_tasks: row.try_get::<i32, _>("allow_parallel_tasks").ok().unwrap_or(0) != 0,
                     suppress_success_alerts: row.try_get::<i32, _>("suppress_success_alerts").ok().unwrap_or(0) != 0,
+                    task_params: row.try_get("task_params").ok().flatten(),
+                    survey_vars: row.try_get("survey_vars").ok().flatten(),
+                    vaults: row.try_get("vaults").ok().flatten(),
                 }).collect())
             }
             SqlDialect::PostgreSQL => {
@@ -78,6 +81,9 @@ impl TemplateManager for SqlStore {
                     allow_inventory_in_task: row.try_get("allow_inventory_in_task").ok().unwrap_or(false),
                     allow_parallel_tasks: row.try_get("allow_parallel_tasks").ok().unwrap_or(false),
                     suppress_success_alerts: row.try_get("suppress_success_alerts").ok().unwrap_or(false),
+                    task_params: row.try_get("task_params").ok().flatten(),
+                    survey_vars: row.try_get("survey_vars").ok().flatten(),
+                    vaults: row.try_get("vaults").ok().flatten(),
                 }).collect())
             }
             SqlDialect::MySQL => {
@@ -111,6 +117,9 @@ impl TemplateManager for SqlStore {
                     allow_inventory_in_task: row.try_get::<i32, _>("allow_inventory_in_task").ok().unwrap_or(0) != 0,
                     allow_parallel_tasks: row.try_get::<i32, _>("allow_parallel_tasks").ok().unwrap_or(0) != 0,
                     suppress_success_alerts: row.try_get::<i32, _>("suppress_success_alerts").ok().unwrap_or(0) != 0,
+                    task_params: row.try_get("task_params").ok().flatten(),
+                    survey_vars: row.try_get("survey_vars").ok().flatten(),
+                    vaults: row.try_get("vaults").ok().flatten(),
                 }).collect())
             }
         }
@@ -153,6 +162,9 @@ impl TemplateManager for SqlStore {
                     allow_inventory_in_task: row.try_get::<i32, _>("allow_inventory_in_task").ok().unwrap_or(0) != 0,
                     allow_parallel_tasks: row.try_get::<i32, _>("allow_parallel_tasks").ok().unwrap_or(0) != 0,
                     suppress_success_alerts: row.try_get::<i32, _>("suppress_success_alerts").ok().unwrap_or(0) != 0,
+                    task_params: row.try_get("task_params").ok().flatten(),
+                    survey_vars: row.try_get("survey_vars").ok().flatten(),
+                    vaults: row.try_get("vaults").ok().flatten(),
                 })
             }
             SqlDialect::PostgreSQL => {
@@ -190,6 +202,9 @@ impl TemplateManager for SqlStore {
                     allow_inventory_in_task: row.try_get("allow_inventory_in_task").ok().unwrap_or(false),
                     allow_parallel_tasks: row.try_get("allow_parallel_tasks").ok().unwrap_or(false),
                     suppress_success_alerts: row.try_get("suppress_success_alerts").ok().unwrap_or(false),
+                    task_params: row.try_get("task_params").ok().flatten(),
+                    survey_vars: row.try_get("survey_vars").ok().flatten(),
+                    vaults: row.try_get("vaults").ok().flatten(),
                 })
             }
             SqlDialect::MySQL => {
@@ -227,6 +242,9 @@ impl TemplateManager for SqlStore {
                     allow_inventory_in_task: row.try_get::<i32, _>("allow_inventory_in_task").ok().unwrap_or(0) != 0,
                     allow_parallel_tasks: row.try_get::<i32, _>("allow_parallel_tasks").ok().unwrap_or(0) != 0,
                     suppress_success_alerts: row.try_get::<i32, _>("suppress_success_alerts").ok().unwrap_or(0) != 0,
+                    task_params: row.try_get("task_params").ok().flatten(),
+                    survey_vars: row.try_get("survey_vars").ok().flatten(),
+                    vaults: row.try_get("vaults").ok().flatten(),
                 })
             }
         }
@@ -235,7 +253,7 @@ impl TemplateManager for SqlStore {
     async fn create_template(&self, mut template: Template) -> Result<Template> {
         match self.get_dialect() {
             SqlDialect::SQLite => {
-                let query = "INSERT INTO template (project_id, name, playbook, description, inventory_id, repository_id, environment_id, type, app, git_branch, created, arguments, vault_key_id, view_id, build_template_id, autorun, allow_override_args_vars, allow_override_branch_in_task, allow_inventory_in_task, allow_parallel_tasks, suppress_success_alerts) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id";
+                let query = "INSERT INTO template (project_id, name, playbook, description, inventory_id, repository_id, environment_id, type, app, git_branch, created, arguments, vault_key_id, view_id, build_template_id, autorun, allow_override_args_vars, allow_override_branch_in_task, allow_inventory_in_task, allow_parallel_tasks, suppress_success_alerts, task_params, survey_vars, vaults) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id";
                 let id: i32 = sqlx::query_scalar(query)
                     .bind(template.project_id)
                     .bind(&template.name)
@@ -258,6 +276,9 @@ impl TemplateManager for SqlStore {
                     .bind(template.allow_inventory_in_task as i32)
                     .bind(template.allow_parallel_tasks as i32)
                     .bind(template.suppress_success_alerts as i32)
+                    .bind(&template.task_params)
+                    .bind(&template.survey_vars)
+                    .bind(&template.vaults)
                     .fetch_one(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
                     .await
                     .map_err(Error::Database)?;
@@ -266,7 +287,7 @@ impl TemplateManager for SqlStore {
                 Ok(template)
             }
             SqlDialect::PostgreSQL => {
-                let query = "INSERT INTO template (project_id, name, playbook, description, inventory_id, repository_id, environment_id, type, app, git_branch, created, arguments, vault_key_id, view_id, build_template_id, autorun, allow_override_args_vars, allow_override_branch_in_task, allow_inventory_in_task, allow_parallel_tasks, suppress_success_alerts) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING id";
+                let query = "INSERT INTO template (project_id, name, playbook, description, inventory_id, repository_id, environment_id, type, app, git_branch, created, arguments, vault_key_id, view_id, build_template_id, autorun, allow_override_args_vars, allow_override_branch_in_task, allow_inventory_in_task, allow_parallel_tasks, suppress_success_alerts, task_params, survey_vars, vaults) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24) RETURNING id";
                 let id: i32 = sqlx::query_scalar(query)
                     .bind(template.project_id)
                     .bind(&template.name)
@@ -289,6 +310,9 @@ impl TemplateManager for SqlStore {
                     .bind(template.allow_inventory_in_task)
                     .bind(template.allow_parallel_tasks)
                     .bind(template.suppress_success_alerts)
+                    .bind(&template.task_params)
+                    .bind(&template.survey_vars)
+                    .bind(&template.vaults)
                     .fetch_one(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
                     .map_err(Error::Database)?;
@@ -297,7 +321,7 @@ impl TemplateManager for SqlStore {
                 Ok(template)
             }
             SqlDialect::MySQL => {
-                let query = "INSERT INTO `template` (project_id, name, playbook, description, inventory_id, repository_id, environment_id, type, app, git_branch, created, arguments, vault_key_id, view_id, build_template_id, autorun, allow_override_args_vars, allow_override_branch_in_task, allow_inventory_in_task, allow_parallel_tasks, suppress_success_alerts) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                let query = "INSERT INTO `template` (project_id, name, playbook, description, inventory_id, repository_id, environment_id, type, app, git_branch, created, arguments, vault_key_id, view_id, build_template_id, autorun, allow_override_args_vars, allow_override_branch_in_task, allow_inventory_in_task, allow_parallel_tasks, suppress_success_alerts, task_params, survey_vars, vaults) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
                 sqlx::query(query)
                     .bind(template.project_id)
                     .bind(&template.name)
@@ -320,6 +344,9 @@ impl TemplateManager for SqlStore {
                     .bind(template.allow_inventory_in_task as i32)
                     .bind(template.allow_parallel_tasks as i32)
                     .bind(template.suppress_success_alerts as i32)
+                    .bind(&template.task_params)
+                    .bind(&template.survey_vars)
+                    .bind(&template.vaults)
                     .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
                     .map_err(Error::Database)?;
@@ -338,7 +365,7 @@ impl TemplateManager for SqlStore {
     async fn update_template(&self, template: Template) -> Result<()> {
         match self.get_dialect() {
             SqlDialect::SQLite => {
-                let query = "UPDATE template SET name = ?, playbook = ?, description = ?, inventory_id = ?, repository_id = ?, environment_id = ?, type = ?, app = ?, git_branch = ?, arguments = ?, vault_key_id = ?, view_id = ?, build_template_id = ?, autorun = ?, allow_override_args_vars = ?, allow_override_branch_in_task = ?, allow_inventory_in_task = ?, allow_parallel_tasks = ?, suppress_success_alerts = ? WHERE id = ? AND project_id = ?";
+                let query = "UPDATE template SET name = ?, playbook = ?, description = ?, inventory_id = ?, repository_id = ?, environment_id = ?, type = ?, app = ?, git_branch = ?, arguments = ?, vault_key_id = ?, view_id = ?, build_template_id = ?, autorun = ?, allow_override_args_vars = ?, allow_override_branch_in_task = ?, allow_inventory_in_task = ?, allow_parallel_tasks = ?, suppress_success_alerts = ?, task_params = ?, survey_vars = ?, vaults = ? WHERE id = ? AND project_id = ?";
                 sqlx::query(query)
                     .bind(&template.name)
                     .bind(&template.playbook)
@@ -359,6 +386,9 @@ impl TemplateManager for SqlStore {
                     .bind(template.allow_inventory_in_task as i32)
                     .bind(template.allow_parallel_tasks as i32)
                     .bind(template.suppress_success_alerts as i32)
+                    .bind(&template.task_params)
+                    .bind(&template.survey_vars)
+                    .bind(&template.vaults)
                     .bind(template.id)
                     .bind(template.project_id)
                     .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
@@ -366,7 +396,7 @@ impl TemplateManager for SqlStore {
                     .map_err(Error::Database)?;
             }
             SqlDialect::PostgreSQL => {
-                let query = "UPDATE template SET name = $1, playbook = $2, description = $3, inventory_id = $4, repository_id = $5, environment_id = $6, type = $7, app = $8, git_branch = $9, arguments = $10, vault_key_id = $11, view_id = $12, build_template_id = $13, autorun = $14, allow_override_args_vars = $15, allow_override_branch_in_task = $16, allow_inventory_in_task = $17, allow_parallel_tasks = $18, suppress_success_alerts = $19 WHERE id = $20 AND project_id = $21";
+                let query = "UPDATE template SET name = $1, playbook = $2, description = $3, inventory_id = $4, repository_id = $5, environment_id = $6, type = $7, app = $8, git_branch = $9, arguments = $10, vault_key_id = $11, view_id = $12, build_template_id = $13, autorun = $14, allow_override_args_vars = $15, allow_override_branch_in_task = $16, allow_inventory_in_task = $17, allow_parallel_tasks = $18, suppress_success_alerts = $19, task_params = $20, survey_vars = $21, vaults = $22 WHERE id = $23 AND project_id = $24";
                 sqlx::query(query)
                     .bind(&template.name)
                     .bind(&template.playbook)
@@ -387,6 +417,9 @@ impl TemplateManager for SqlStore {
                     .bind(template.allow_inventory_in_task)
                     .bind(template.allow_parallel_tasks)
                     .bind(template.suppress_success_alerts)
+                    .bind(&template.task_params)
+                    .bind(&template.survey_vars)
+                    .bind(&template.vaults)
                     .bind(template.id)
                     .bind(template.project_id)
                     .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
@@ -394,7 +427,7 @@ impl TemplateManager for SqlStore {
                     .map_err(Error::Database)?;
             }
             SqlDialect::MySQL => {
-                let query = "UPDATE `template` SET name = ?, playbook = ?, description = ?, inventory_id = ?, repository_id = ?, environment_id = ?, type = ?, app = ?, git_branch = ?, arguments = ?, vault_key_id = ?, view_id = ?, build_template_id = ?, autorun = ?, allow_override_args_vars = ?, allow_override_branch_in_task = ?, allow_inventory_in_task = ?, allow_parallel_tasks = ?, suppress_success_alerts = ? WHERE id = ? AND project_id = ?";
+                let query = "UPDATE `template` SET name = ?, playbook = ?, description = ?, inventory_id = ?, repository_id = ?, environment_id = ?, type = ?, app = ?, git_branch = ?, arguments = ?, vault_key_id = ?, view_id = ?, build_template_id = ?, autorun = ?, allow_override_args_vars = ?, allow_override_branch_in_task = ?, allow_inventory_in_task = ?, allow_parallel_tasks = ?, suppress_success_alerts = ?, task_params = ?, survey_vars = ?, vaults = ? WHERE id = ? AND project_id = ?";
                 sqlx::query(query)
                     .bind(&template.name)
                     .bind(&template.playbook)
@@ -415,6 +448,9 @@ impl TemplateManager for SqlStore {
                     .bind(template.allow_inventory_in_task as i32)
                     .bind(template.allow_parallel_tasks as i32)
                     .bind(template.suppress_success_alerts as i32)
+                    .bind(&template.task_params)
+                    .bind(&template.survey_vars)
+                    .bind(&template.vaults)
                     .bind(template.id)
                     .bind(template.project_id)
                     .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)

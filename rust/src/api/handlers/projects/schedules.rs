@@ -105,6 +105,42 @@ pub async fn delete_schedule(
     Ok(StatusCode::NO_CONTENT)
 }
 
+/// Переключает активность расписания
+///
+/// PUT /api/project/{project_id}/schedules/{id}/active
+pub async fn toggle_schedule_active(
+    State(state): State<Arc<AppState>>,
+    Path((project_id, schedule_id)): Path<(i32, i32)>,
+    Json(payload): Json<serde_json::Value>,
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+    let active = payload.get("active")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+
+    let mut schedule = state.store.get_schedule(project_id, schedule_id)
+        .await
+        .map_err(|e| match e {
+            Error::NotFound(_) => (
+                StatusCode::NOT_FOUND,
+                Json(ErrorResponse::new("Schedule not found".to_string()))
+            ),
+            _ => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string()))
+            )
+        })?;
+
+    schedule.active = active;
+    state.store.update_schedule(schedule)
+        .await
+        .map_err(|e| (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(e.to_string()))
+        ))?;
+
+    Ok(StatusCode::OK)
+}
+
 /// Валидирует cron-выражение
 ///
 /// POST /api/projects/{project_id}/schedules/validate

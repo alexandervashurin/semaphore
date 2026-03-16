@@ -78,6 +78,14 @@ pub struct SecretStorage {
 
     /// Только для чтения
     pub read_only: bool,
+
+    /// Тип источника (для ключей доступа к внешнему хранилищу)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_storage_type: Option<String>,
+
+    /// Секрет/токен доступа к хранилищу (маскируется при сериализации)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub secret: Option<String>,
 }
 
 impl SecretStorage {
@@ -90,6 +98,8 @@ impl SecretStorage {
             r#type: storage_type,
             params,
             read_only: false,
+            source_storage_type: None,
+            secret: None,
         }
     }
 }

@@ -368,6 +368,33 @@ pub trait WebhookManager: Send + Sync {
     async fn create_webhook_log(&self, log: crate::models::webhook::WebhookLog) -> Result<crate::models::webhook::WebhookLog>;
 }
 
+/// Менеджер матчеров интеграции
+#[async_trait]
+pub trait IntegrationMatcherManager: Send + Sync {
+    async fn get_integration_matchers(&self, project_id: i32, integration_id: i32) -> Result<Vec<IntegrationMatcher>>;
+    async fn create_integration_matcher(&self, matcher: IntegrationMatcher) -> Result<IntegrationMatcher>;
+    async fn update_integration_matcher(&self, matcher: IntegrationMatcher) -> Result<()>;
+    async fn delete_integration_matcher(&self, project_id: i32, integration_id: i32, matcher_id: i32) -> Result<()>;
+}
+
+/// Менеджер extract values интеграции
+#[async_trait]
+pub trait IntegrationExtractValueManager: Send + Sync {
+    async fn get_integration_extract_values(&self, project_id: i32, integration_id: i32) -> Result<Vec<IntegrationExtractValue>>;
+    async fn create_integration_extract_value(&self, value: IntegrationExtractValue) -> Result<IntegrationExtractValue>;
+    async fn update_integration_extract_value(&self, value: IntegrationExtractValue) -> Result<()>;
+    async fn delete_integration_extract_value(&self, project_id: i32, integration_id: i32, value_id: i32) -> Result<()>;
+}
+
+/// Менеджер ролей проекта
+#[async_trait]
+pub trait ProjectRoleManager: Send + Sync {
+    async fn get_project_roles(&self, project_id: i32) -> Result<Vec<crate::models::Role>>;
+    async fn create_project_role(&self, role: crate::models::Role) -> Result<crate::models::Role>;
+    async fn update_project_role(&self, role: crate::models::Role) -> Result<()>;
+    async fn delete_project_role(&self, project_id: i32, role_id: i32) -> Result<()>;
+}
+
 /// Менеджер Playbook
 pub trait Store:
     ConnectionManager
@@ -396,5 +423,8 @@ pub trait Store:
     + WebhookManager
     + PlaybookManager
     + PlaybookRunManager
+    + IntegrationMatcherManager
+    + IntegrationExtractValueManager
+    + ProjectRoleManager
 {
 }

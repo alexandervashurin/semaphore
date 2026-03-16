@@ -363,6 +363,8 @@
             const name = document.getElementById('sched-name').value.trim();
             const templateId = document.getElementById('sched-template').value;
             const active = document.getElementById('sched-active').checked;
+            const branchOverride = document.getElementById('sched-branch').value.trim();
+            const envOverride = document.getElementById('sched-env').value;
 
             if (!name || !templateId) {
                 alert('Заполните название и шаблон');
@@ -377,6 +379,14 @@
                 active,
                 cron_format: currentMode === 'run_at' ? 'run_at' : null,
             };
+
+            // Параметры запуска (task_params внутри расписания)
+            if (branchOverride) {
+                payload.git_branch = branchOverride;
+            }
+            if (envOverride) {
+                payload.environment_id = parseInt(envOverride, 10);
+            }
 
             if (currentMode === 'run_at') {
                 const runAt = document.getElementById('sched-run-at').value;

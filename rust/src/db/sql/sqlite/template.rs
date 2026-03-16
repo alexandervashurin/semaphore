@@ -138,6 +138,17 @@ mod tests {
             created: Utc::now(),
             arguments: None,
             vault_key_id: None,
+            view_id: None,
+            build_template_id: None,
+            autorun: false,
+            allow_override_args_in_task: false,
+            allow_override_branch_in_task: false,
+            allow_inventory_in_task: false,
+            allow_parallel_tasks: false,
+            suppress_success_alerts: false,
+            task_params: None,
+            survey_vars: None,
+            vaults: None,
         };
         
         let created = create_template(&pool, template).await.unwrap();

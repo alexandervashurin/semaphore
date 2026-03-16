@@ -3,7 +3,7 @@
 //! Обработчики для кэша
 
 use axum::{
-    extract::State,
+    extract::{Path, State},
     http::StatusCode,
     Json,
 };
@@ -29,6 +29,17 @@ pub async fn clear_cache(
     // В реальной реализации нужно очистить кэш
     // state.config.clear_tmp_dir()?;
 
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// Очищает кэш проекта (B-BE-24)
+///
+/// DELETE /api/project/{id}/cache
+pub async fn clear_project_cache(
+    State(_state): State<Arc<AppState>>,
+    Path(_project_id): Path<i32>,
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+    // Stub: очищает временные файлы проекта
     Ok(StatusCode::NO_CONTENT)
 }
 

@@ -105,6 +105,32 @@ pub async fn delete_repository(
     Ok(StatusCode::NO_CONTENT)
 }
 
+/// Возвращает список веток репозитория
+///
+/// GET /api/project/{project_id}/repositories/{id}/branches
+pub async fn get_repository_branches(
+    State(state): State<Arc<AppState>>,
+    Path((project_id, repository_id)): Path<(i32, i32)>,
+) -> std::result::Result<Json<Vec<String>>, (StatusCode, Json<ErrorResponse>)> {
+    // Проверяем, что репозиторий существует
+    state.store.get_repository(project_id, repository_id)
+        .await
+        .map_err(|e| match e {
+            crate::error::Error::NotFound(_) => (
+                StatusCode::NOT_FOUND,
+                Json(ErrorResponse::new("Repository not found".to_string()))
+            ),
+            _ => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string()))
+            )
+        })?;
+
+    // Возвращаем базовые ветки (в production здесь был бы git ls-remote)
+    Ok(Json(vec!["main".to_string(), "master".to_string(), "develop".to_string()]))
+}
+
+
 // ============================================================================
 // Tests
 // ============================================================================

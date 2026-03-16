@@ -96,7 +96,9 @@
         }
 
         async function backupProject() {
+            const btn = document.getElementById('btn-backup');
             try {
+                if (btn) { btn.disabled = true; btn.textContent = '⏳ Подготовка...'; }
                 const [project, templates, inventories, environments, repositories, keys] = await Promise.all([
                     api.getProject(projectId),
                     api.getTemplates(projectId).catch(() => []),
@@ -120,6 +122,43 @@
                 ui.showAlert('Резервная копия скачана', 'success');
             } catch (err) {
                 ui.showAlert('Ошибка резервного копирования: ' + err.message, 'danger');
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = '📥 Скачать резервную копию'; }
+            }
+        }
+
+        async function testProjectNotifications() {
+            const btn = document.getElementById('btn-test-notify');
+            if (!btn) return;
+            const original = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '⏳ Отправка...';
+            try {
+                await api.request('POST', `${API_BASE}/project/${projectId}/notifications/test`, {});
+                ui.showAlert('Тестовое уведомление отправлено (проверьте канал алертов проекта)', 'success');
+            } catch (err) {
+                ui.showAlert('Не удалось отправить тестовое уведомление: ' + err.message, 'danger');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = original;
+            }
+        }
+
+        async function clearGlobalCache() {
+            const btn = document.getElementById('btn-clear-cache');
+            if (!btn) return;
+            if (!confirm('Очистить кэш приложения? Это может перезагрузить часть данных.')) return;
+            const original = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '⏳ Очистка...';
+            try {
+                await api.request('DELETE', `${API_BASE}/cache`, null);
+                ui.showAlert('Кэш приложения очищен', 'success');
+            } catch (err) {
+                ui.showAlert('Не удалось очистить кэш: ' + err.message, 'danger');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = original;
             }
         }
 
@@ -220,8 +259,21 @@
 
                     <div style="margin-bottom:20px;">
                         <h4 style="margin-bottom:10px;">📦 Управление</h4>
+                        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                            <button id="btn-backup" class="btn btn-sm" onclick="backupProject()">📥 Скачать резервную копию</button>
+                        </div>
+                    </div>
+
+                    <hr style="border:none; border-top:1px solid var(--border); margin:20px 0;">
+
+                    <div style="margin-bottom:20px;">
+                        <h4 style="margin-bottom:10px;">🔔 Тест и обслуживание</h4>
+                        <p style="color:var(--text-light); font-size:13px; margin-bottom:10px;">
+                            Эти действия помогают проверить настройки уведомлений и очистить внутренний кэш.
+                        </p>
                         <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                            <button class="btn btn-sm" onclick="backupProject()">📥 Скачать резервную копию</button>
+                            <button id="btn-test-notify" class="btn btn-sm" onclick="testProjectNotifications()">🔔 Тест уведомлений</button>
+                            <button id="btn-clear-cache" class="btn btn-sm" onclick="clearGlobalCache()">🧹 Очистить кэш</button>
                         </div>
                     </div>
 

@@ -49,7 +49,7 @@ mod tests;
 pub use user::{User, UserTotp, UserEmailOtp, UserWithProjectRole, ProjectUserRole};
 pub use project::Project;
 pub use task::{Task, TaskWithTpl, TaskOutput, TaskStage, TaskStageType, TaskStageWithResult, TaskStageResult, AnsibleTaskParams, TerraformTaskParams, DefaultTaskParams};
-pub use template::{Template, TemplateWithPerms, TemplateRolePerm, TemplateType, TemplateApp, TemplateFilter};
+pub use template::{Template, TemplateWithPerms, TemplateRolePerm, TemplateType, TemplateApp, TemplateFilter, SurveyVar, TemplateVaultRef};
 pub use template_vault::TemplateVault;
 pub use playbook::{Playbook, PlaybookCreate, PlaybookUpdate};
 pub use playbook_run::{PlaybookRunRequest, PlaybookRunResult, AnsiblePlaybookParams};

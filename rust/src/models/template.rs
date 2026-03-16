@@ -283,6 +283,18 @@ pub struct Template {
     /// Подавлять уведомления при успехе
     #[serde(default)]
     pub suppress_success_alerts: bool,
+
+    /// Параметры задачи (JSON)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub task_params: Option<serde_json::Value>,
+
+    /// Переменные опроса (survey variables) - JSON массив
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub survey_vars: Option<serde_json::Value>,
+
+    /// Vault ключи - JSON массив
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub vaults: Option<serde_json::Value>,
 }
 
 /// Шаблон с правами доступа
@@ -313,6 +325,38 @@ pub struct TemplateFilter {
     pub view_id: Option<i32>,
 }
 
+/// Переменная опроса (Survey Variable)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SurveyVar {
+    /// Имя переменной (key)
+    pub name: String,
+    /// Заголовок (label для UI)
+    #[serde(default)]
+    pub title: String,
+    /// Описание (подсказка)
+    #[serde(default)]
+    pub description: String,
+    /// Тип: string / int / enum / secret
+    #[serde(default)]
+    pub r#type: String,
+    /// Значения для enum (только для type=enum)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub enum_values: Option<Vec<String>>,
+    /// Обязательная переменная
+    #[serde(default)]
+    pub required: bool,
+}
+
+/// Vault ключ в шаблоне
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TemplateVaultRef {
+    /// ID ключа vault
+    pub vault_key_id: i32,
+    /// Тип vault
+    #[serde(default)]
+    pub r#type: String,
+}
+
 impl Template {
     /// Создаёт новый шаблон с значениями по умолчанию
     pub fn default_template(project_id: i32, name: String, playbook: String) -> Self {
@@ -339,6 +383,9 @@ impl Template {
             allow_inventory_in_task: false,
             allow_parallel_tasks: false,
             suppress_success_alerts: false,
+            task_params: None,
+            survey_vars: None,
+            vaults: None,
         }
     }
 }

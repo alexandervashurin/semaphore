@@ -164,6 +164,7 @@
                             <thead><tr>
                                 <th>#</th>
                                 <th>Шаблон</th>
+                                <th>Пользователь</th>
                                 <th>Статус</th>
                                 <th>Создана</th>
                                 <th>Длительность</th>
@@ -178,6 +179,7 @@
                                                 ${escapeHtml(templatesCache[t.template_id] || 'Шаблон #' + t.template_id)}
                                             </a>
                                         </td>
+                                        <td>${escapeHtml(t.user_name || t.username || '—')}</td>
                                         <td><span class="status-badge status-${t.status}">${statusLabel(t.status)}</span></td>
                                         <td>${formatDate(t.created)}</td>
                                         <td>${calcDuration(t)}</td>
@@ -205,6 +207,12 @@
             const diff = Math.floor((end - new Date(task.start_time)) / 1000);
             if (diff < 60) return diff + 'с';
             return Math.floor(diff/60) + 'м ' + (diff%60) + 'с';
+        }
+
+        function formatTimeOnly(dateStr) {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         }
 
         // ---- Task detail modal ----
@@ -278,6 +286,10 @@
                     <div class="task-meta-value">${escapeHtml(templatesCache[task.template_id] || 'Шаблон #' + task.template_id)}</div>
                 </div>
                 <div class="task-meta-item">
+                    <div class="task-meta-label">Пользователь</div>
+                    <div class="task-meta-value">${escapeHtml(task.user_name || task.username || '—')}</div>
+                </div>
+                <div class="task-meta-item">
                     <div class="task-meta-label">Создана</div>
                     <div class="task-meta-value">${formatDate(task.created)}</div>
                 </div>
@@ -306,7 +318,9 @@
                 }
                 container.innerHTML = output.map(item => {
                     const line = typeof item === 'string' ? item : (item.output || '');
-                    return `<div class="log-line ${getLogClass(line)}">${escapeHtml(line)}</div>`;
+                    const ts = item.time ? '[' + formatTimeOnly(item.time) + '] ' : '';
+                    const fullLine = ts + line;
+                    return `<div class="log-line ${getLogClass(line)}">${escapeHtml(fullLine)}</div>`;
                 }).join('');
                 container.scrollTop = container.scrollHeight;
             }).catch(err => {
@@ -400,13 +414,174 @@
             const btn = $('#modal-rerun-btn');
             const templateId = btn && btn.dataset.templateId;
             if (!templateId) return;
-            window.location.href = 'run.html?id=' + projectId + '&tpl=' + templateId;
+            // Fetch template to build enhanced run dialog (B-FE-58)
+            api.getTemplate(projectId, templateId).then(tpl => {
+                openEnhancedRunDialog(tpl, templateId);
+            }).catch(() => {
+                window.location.href = 'run.html?id=' + projectId + '&tpl=' + templateId;
+            });
+        }
+
+        // =====================================================================
+        // Enhanced Run Dialog (B-FE-58): survey_vars, build_task_id, git_branch override
+        // =====================================================================
+
+        function openEnhancedRunDialog(tpl, templateId) {
+            // Load build tasks if deploy type (B-FE-58)
+            const loadBuildTasks = (tpl.type === 'deploy')
+                ? api.getTasks(projectId).then(ts => (ts || []).filter(t => t.type === 'build' || t.status === 'success'))
+                : Promise.resolve([]);
+
+            loadBuildTasks.then(buildTasks => {
+                const modal = document.createElement('div');
+                modal.className = 'modal-overlay';
+                modal.id = 'enhanced-run-modal';
+
+                // Survey vars - parse from template
+                let surveyVars = [];
+                try { surveyVars = JSON.parse(tpl.survey_vars || tpl.survey_variables || '[]'); } catch(e) {}
+                const hasSurvey = Array.isArray(surveyVars) && surveyVars.length > 0;
+                const taskParams = tpl?.task_params || {};
+
+                modal.innerHTML = `
+                    <div class="modal" style="max-width:560px;">
+                        <div class="modal-header"><h2>&#9654; ${escapeHtml(tpl.name || 'Запуск задачи')}</h2></div>
+                        <form id="enhanced-run-form">
+                            <div class="form-group">
+                                <label>Сообщение <span style="color:var(--text-light); font-size:12px;">(необязательно)</span></label>
+                                <input type="text" id="er-message" class="form-control" placeholder="Описание запуска...">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Git ветка <span style="color:var(--text-light); font-size:12px;">(оставьте пустым для: ${escapeHtml(tpl.git_branch || 'main')})</span></label>
+                                <input type="text" id="er-branch" class="form-control" placeholder="${escapeHtml(tpl.git_branch || 'main')}">
+                            </div>
+
+                            ${taskParams.allow_override_args_in_task || tpl.allow_override_args_in_task ? `
+                            <div class="form-group">
+                                <label>CLI аргументы</label>
+                                <input type="text" id="er-args" class="form-control" placeholder="--limit=host1 --tags=deploy">
+                            </div>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                                <div class="form-group">
+                                    <label>--limit</label>
+                                    <input type="text" id="er-limit" class="form-control" placeholder="web-servers">
+                                </div>
+                                <div class="form-group">
+                                    <label>--tags</label>
+                                    <input type="text" id="er-tags" class="form-control" placeholder="deploy,config">
+                                </div>
+                                <div class="form-group">
+                                    <label>--skip-tags</label>
+                                    <input type="text" id="er-skip-tags" class="form-control" placeholder="notify">
+                                </div>
+                            </div>` : ''}
+
+                            ${taskParams.allow_debug ? `
+                            <div class="form-group">
+                                <label for="er-debug-level">Debug Level (Ansible)</label>
+                                <select id="er-debug-level" class="form-control">
+                                    <option value="0">Off</option>
+                                    <option value="1">1 - Minimal</option>
+                                    <option value="2">2 - Basic</option>
+                                    <option value="3" selected>3 - Default</option>
+                                    <option value="4">4 - Verbose</option>
+                                    <option value="5">5 - Debug</option>
+                                </select>
+                            </div>` : ''}
+
+                            ${tpl.type === 'deploy' && buildTasks.length > 0 ? `
+                            <div class="form-group">
+                                <label>Задача сборки (build_task_id)</label>
+                                <select id="er-build-task" class="form-control">
+                                    <option value="">— последняя успешная —</option>
+                                    ${buildTasks.slice(0, 20).map(t => `<option value="${t.id}">#${t.id} ${t.status === 'success' ? '&#10003;' : ''} ${formatDate(t.created)}</option>`).join('')}
+                                </select>
+                            </div>` : ''}
+
+                            ${hasSurvey ? `
+                            <div style="border-top:1px solid var(--border); margin:12px 0 8px; padding-top:12px;">
+                                <strong style="font-size:13px;">Переменные запуска</strong>
+                            </div>
+                            <div id="survey-vars-container">
+                                ${surveyVars.map((v, idx) => `
+                                    <div class="form-group">
+                                        <label>${escapeHtml(v.title || v.name || ('Переменная ' + (idx+1)))}${v.required ? ' *' : ''}</label>
+                                        ${v.description ? `<small style="color:var(--text-light);">${escapeHtml(v.description)}</small>` : ''}
+                                        ${v.type === 'enum' && v.enum_values ? `
+                                            <select id="sv-${idx}" class="form-control" ${v.required ? 'required' : ''}>
+                                                <option value="">— выберите —</option>
+                                                ${(v.enum_values || []).map(ev => `<option value="${escapeHtml(ev)}">${escapeHtml(ev)}</option>`).join('')}
+                                            </select>
+                                        ` : `
+                                            <input type="${v.type === 'secret' ? 'password' : v.type === 'int' ? 'number' : 'text'}" id="sv-${idx}"
+                                                class="form-control" placeholder="${escapeHtml(v.default_value || v.description || '')}"
+                                                value="${escapeHtml(v.default_value || '')}" ${v.required ? 'required' : ''}>
+                                        `}
+                                    </div>
+                                `).join('')}
+                            </div>` : ''}
+
+                            <div class="modal-footer">
+                                <button type="button" class="btn" onclick="document.getElementById('enhanced-run-modal').remove()">Отмена</button>
+                                <button type="submit" class="btn btn-primary">&#9654; Запустить</button>
+                            </div>
+                        </form>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+                document.getElementById('enhanced-run-form').addEventListener('submit', e => {
+                    e.preventDefault();
+                    const body = { template_id: parseInt(templateId) };
+                    const msg = document.getElementById('er-message')?.value.trim();
+                    const br  = document.getElementById('er-branch')?.value.trim();
+                    const args = document.getElementById('er-args')?.value.trim();
+                    const limit = document.getElementById('er-limit')?.value.trim();
+                    const tags = document.getElementById('er-tags')?.value.trim();
+                    const skipTags = document.getElementById('er-skip-tags')?.value.trim();
+                    const buildTask = document.getElementById('er-build-task')?.value;
+                    const debugLevel = document.getElementById('er-debug-level')?.value;
+
+                    if (msg)      body.message      = msg;
+                    if (br)       body.git_branch   = br;
+                    if (args)     body.arguments    = args;
+                    if (limit)    body.limit        = limit;
+                    if (tags)     body.tags         = tags;
+                    if (skipTags) body.skip_tags    = skipTags;
+                    if (buildTask) body.build_task_id = parseInt(buildTask);
+                    if (debugLevel && parseInt(debugLevel) > 0) body.debug = parseInt(debugLevel);
+
+                    // Collect survey vars
+                    if (hasSurvey) {
+                        const vars = {};
+                        surveyVars.forEach((v, idx) => {
+                            const el = document.getElementById('sv-' + idx);
+                            if (el && el.value) vars[v.name || ('var' + idx)] = v.type === 'int' ? parseInt(el.value) : el.value;
+                        });
+                        if (Object.keys(vars).length > 0) body.variables = vars;
+                    }
+
+                    modal.remove();
+                    api.post('/project/' + projectId + '/tasks', body)
+                        .then(task => {
+                            openTaskDetail(task.id);
+                            loadTasks();
+                        })
+                        .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+                });
+            });
         }
 
         function downloadCurrentLog() {
             if (!currentTaskId) return;
             api.getTaskOutput(projectId, currentTaskId).then(output => {
-                const lines = output.map(item => typeof item === 'string' ? item : (item.output || ''));
+                const lines = output.map(item => {
+                    const line = typeof item === 'string' ? item : (item.output || '');
+                    const ts = item.time ? '[' + formatTimeOnly(item.time) + '] ' : '';
+                    return ts + line;
+                });
                 const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');

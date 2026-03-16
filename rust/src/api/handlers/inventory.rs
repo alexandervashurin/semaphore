@@ -272,7 +272,7 @@ mod tests {
         }"#;
         let payload: InventoryUpdatePayload = serde_json::from_str(json).unwrap();
         assert_eq!(payload.name, Some("Updated Inventory".to_string()));
-        assert!(payload.inventory_data.is_some());
+        assert!(payload.inventory.is_some());
     }
 
     #[test]

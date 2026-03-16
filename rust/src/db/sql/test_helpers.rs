@@ -75,7 +75,18 @@ pub async fn init_template_table(pool: &sqlx::SqlitePool) -> Result<(), crate::e
             git_branch TEXT,
             created DATETIME NOT NULL,
             arguments TEXT,
-            vault_key_id INTEGER
+            vault_key_id INTEGER,
+            view_id INTEGER,
+            build_template_id INTEGER,
+            autorun INTEGER NOT NULL DEFAULT 0,
+            allow_override_args_in_task INTEGER NOT NULL DEFAULT 0,
+            allow_override_branch_in_task INTEGER NOT NULL DEFAULT 0,
+            allow_inventory_in_task INTEGER NOT NULL DEFAULT 0,
+            allow_parallel_tasks INTEGER NOT NULL DEFAULT 0,
+            suppress_success_alerts INTEGER NOT NULL DEFAULT 0,
+            task_params TEXT,
+            survey_vars TEXT,
+            vaults TEXT
         )",
     )
     .execute(pool)

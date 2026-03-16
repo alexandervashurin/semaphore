@@ -17,7 +17,45 @@ use crate::services::local_job::LocalJob;
 use crate::db_lib::AccessKeyInstallerImpl;
 use crate::error::Error;
 use crate::api::middleware::ErrorResponse;
-use crate::db::store::{TaskManager, TemplateManager, InventoryManager, RepositoryManager, EnvironmentManager};
+use crate::db::store::{TaskManager, TemplateManager, InventoryManager, RepositoryManager, EnvironmentManager, ProjectStore};
+
+/// Получить все активные задачи всех проектов
+///
+/// GET /api/tasks
+pub async fn get_all_tasks(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Vec<TaskWithTpl>>, (StatusCode, Json<ErrorResponse>)> {
+    // Получаем все проекты
+    let projects = state.store.get_projects(None)
+        .await
+        .map_err(|e| (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(e.to_string()))
+        ))?;
+
+    // Собираем активные задачи из всех проектов
+    let mut all_tasks = Vec::new();
+    for project in projects {
+        let tasks = state.store.get_tasks(project.id, None::<i32>)
+            .await
+            .map_err(|e| (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string()))
+            ))?;
+
+        // Фильтруем только активные задачи
+        for task_with_tpl in tasks {
+            if task_with_tpl.task.status.is_active() {
+                all_tasks.push(task_with_tpl);
+            }
+        }
+    }
+
+    // Сортируем по дате создания (новые первые)
+    all_tasks.sort_by(|a, b| b.task.created.cmp(&a.task.created));
+
+    Ok(Json(all_tasks))
+}
 
 /// Получить список задач проекта
 ///
@@ -115,6 +153,26 @@ pub async fn get_task(
     })?;
 
     Ok(Json(task))
+}
+
+/// Получить последние задачи проекта
+///
+/// GET /api/project/:project_id/tasks/last
+pub async fn get_last_tasks(
+    State(state): State<Arc<AppState>>,
+    Path(project_id): Path<i32>,
+) -> Result<Json<Vec<TaskWithTpl>>, (StatusCode, Json<ErrorResponse>)> {
+    let tasks: Result<Vec<TaskWithTpl>, Error> = state.store
+        .get_tasks(project_id, None::<i32>)
+        .await;
+
+    let tasks = tasks.map_err(|e| (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        Json(ErrorResponse::new(e.to_string()))
+    ))?;
+
+    let limited: Vec<TaskWithTpl> = tasks.into_iter().take(20).collect();
+    Ok(Json(limited))
 }
 
 /// Удалить задачу

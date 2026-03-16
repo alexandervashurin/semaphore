@@ -154,6 +154,7 @@ mod tests {
             name: String::from("Test Env"),
             json: String::from(r#"{"var1": "value1"}"#),
             secret_storage_id: None,
+            secret_storage_key_prefix: None,
             secrets: None,
             created: None,
         };
