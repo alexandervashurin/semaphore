@@ -415,14 +415,21 @@ impl ExporterChain {
         let len = self.exporters.len();
 
         for (i, key) in sorted_keys.iter().enumerate() {
-            if let Some(exporter) = self.exporters.get_mut(key) {
-                info!("Loading {}...", key);
-                let mut progress = ProgressBar::new(100.0 / len as f32);
-                // TODO: Исправить borrow checker issue
-                // exporter.load(store, self, &mut progress)?;
-                progress.update((i + 1) as f32 * 100.0 / len as f32);
-                let _ = store;  // suppress unused warning
+            // Извлекаем экспортер, чтобы освободить заимствование self.exporters
+            let mut exporter = match self.exporters.remove(key) {
+                Some(e) => e,
+                None => continue,
+            };
+            info!("Loading {}...", key);
+            // self теперь доступен как &dyn DataExporter (после remove, нет mutable borrow)
+            let data_exporter: &dyn DataExporter = self;
+            let mut progress = ProgressBar::new(100.0 / len as f32);
+            if let Err(e) = exporter.load(store, data_exporter, &mut progress) {
+                self.exporters.insert(key.clone(), exporter);
+                return Err(e);
             }
+            progress.update((i + 1) as f32 * 100.0 / len as f32);
+            self.exporters.insert(key.clone(), exporter);
         }
 
         Ok(())
@@ -433,13 +440,19 @@ impl ExporterChain {
         let sorted_keys = Self::get_sorted_keys(&self.exporters, |e| e.import_depends_on())?;
 
         for key in sorted_keys {
-            if let Some(exporter) = self.exporters.get_mut(&key) {
-                info!("Restoring {}...", key);
-                let mut progress = ProgressBar::new(0.0);
-                // TODO: Исправить borrow checker issue
-                // exporter.restore(store, self, &mut progress)?;
-                let _ = (store, progress);  // suppress unused warnings
+            // Извлекаем экспортер, чтобы освободить заимствование self.exporters
+            let mut exporter = match self.exporters.remove(&key) {
+                Some(e) => e,
+                None => continue,
+            };
+            info!("Restoring {}...", key);
+            let data_exporter: &dyn DataExporter = self;
+            let mut progress = ProgressBar::new(0.0);
+            if let Err(e) = exporter.restore(store, data_exporter, &mut progress) {
+                self.exporters.insert(key, exporter);
+                return Err(e);
             }
+            self.exporters.insert(key, exporter);
         }
 
         Ok(())

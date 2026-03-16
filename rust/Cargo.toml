@@ -68,10 +68,11 @@ rand = "0.8"  # Для rsa crate
 lettre = { version = "0.11", features = ["tokio1-native-tls", "builder", "smtp-transport"] }
 rustls = "0.23"
 
-# Encryption (RSA)
+# Encryption (RSA + AES-256-GCM)
 rsa = "0.9"
 pkcs1 = "0.7"
 pem = "3.0"
+aes-gcm = "0.10"
 
 # Shell escaping
 shlex = "1.3"

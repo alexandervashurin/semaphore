@@ -58,20 +58,27 @@ impl LocalJob {
 
     /// Переключает репозиторий на нужный коммит/ветку
     pub async fn checkout_repository(&mut self) -> Result<()> {
-        // TODO: Использовать GitRepository для checkout
-        // let git_repo = GitRepository::new(...)?;
-        
-        if let Some(ref commit_hash) = self.task.commit_hash {
-            self.log(&format!("Checking out commit: {}", commit_hash));
-            // git_repo.checkout(commit_hash).await?;
+        use crate::services::git_repository::GitRepository;
 
-            self.set_commit(commit_hash, &self.task.commit_message.clone().unwrap_or_default());
-        } else if self.repository.git_branch.as_ref().is_some_and(|s| !s.is_empty()) {
-            self.log(&format!("Checking out branch: {}", self.repository.git_branch.as_deref().unwrap_or("unknown")));
-            // git_repo.checkout(&self.repository.git_branch).await?;
+        let git_repo = GitRepository::new(
+            self.repository.clone(),
+            self.task.project_id,
+            self.task.template_id,
+        ).with_tmp_dir(format!("task_{}", self.task.id));
+
+        if let Some(commit_hash) = self.task.commit_hash.clone() {
+            self.log(&format!("Checking out commit: {}", commit_hash));
+            git_repo.checkout(&commit_hash).await?;
+            let msg = self.task.commit_message.clone().unwrap_or_default();
+            self.set_commit(&commit_hash, &msg);
+        } else if let Some(branch) = self.repository.git_branch.clone() {
+            if !branch.is_empty() {
+                self.log(&format!("Checking out branch: {}", branch));
+                git_repo.checkout(&branch).await?;
+            }
         }
 
-        self.log("Repository checkout completed (pending implementation)");
+        self.log("Repository checkout completed");
         Ok(())
     }
 

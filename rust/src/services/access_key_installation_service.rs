@@ -98,35 +98,93 @@ impl AccessKeyInstallationServiceTrait for AccessKeyInstallationServiceImpl {
 // AccessKeyEncryptionServiceImpl (заглушка)
 // ============================================================================
 
-/// Простая реализация шифрования (без реального шифрования)
-/// В production нужно использовать реальное шифрование
-pub struct SimpleEncryptionService;
+/// Реализация шифрования секретов с AES-256-GCM
+pub struct SimpleEncryptionService {
+    /// 32-байтный ключ шифрования
+    key: [u8; 32],
+}
 
-impl AccessKeyEncryptionService for SimpleEncryptionService {
-    fn encrypt_secret(&self, _key: &mut DbAccessKey) -> Result<()> {
-        // TODO: Реализовать шифрование
-        Ok(())
-    }
-
-    fn decrypt_secret(&self, _key: &mut DbAccessKey) -> Result<()> {
-        // TODO: Реализовать дешифрование
-        Ok(())
-    }
-
-    fn serialize_secret(&self, _key: &mut DbAccessKey) -> Result<()> {
-        // TODO: Реализовать сериализацию
-        Ok(())
-    }
-
-    fn deserialize_secret(&self, _key: &mut DbAccessKey) -> Result<()> {
-        // TODO: Реализовать десериализацию
-        Ok(())
+impl SimpleEncryptionService {
+    /// Создаёт сервис с указанным ключом (UTF-8 строка, padded/truncated до 32 байт)
+    pub fn new(secret: &str) -> Self {
+        let mut key = [0u8; 32];
+        let bytes = secret.as_bytes();
+        let len = bytes.len().min(32);
+        key[..len].copy_from_slice(&bytes[..len]);
+        Self { key }
     }
 }
 
 impl Default for SimpleEncryptionService {
     fn default() -> Self {
-        Self
+        Self::new("semaphore-default-encryption-key")
+    }
+}
+
+impl AccessKeyEncryptionService for SimpleEncryptionService {
+    /// Шифрует поле `secret` ключа с помощью AES-256-GCM
+    fn encrypt_secret(&self, key: &mut DbAccessKey) -> Result<()> {
+        use crate::utils::encryption::aes256_encrypt;
+        if let Some(ref plaintext) = key.secret {
+            let encrypted = aes256_encrypt(plaintext.as_bytes(), &self.key)
+                .map_err(|e| Error::Other(e.to_string()))?;
+            key.secret = Some(encrypted);
+        }
+        Ok(())
+    }
+
+    /// Дешифрует поле `secret` ключа
+    fn decrypt_secret(&self, key: &mut DbAccessKey) -> Result<()> {
+        use crate::utils::encryption::aes256_decrypt;
+        if let Some(ref encrypted) = key.secret {
+            let plaintext_bytes = aes256_decrypt(encrypted, &self.key)
+                .map_err(|e| Error::Other(e.to_string()))?;
+            key.secret = Some(String::from_utf8(plaintext_bytes)
+                .map_err(|e| Error::Other(e.to_string()))?);
+        }
+        Ok(())
+    }
+
+    /// Сериализует ssh_key / login_password → JSON → key.secret
+    fn serialize_secret(&self, key: &mut DbAccessKey) -> Result<()> {
+        use crate::db_lib::DbAccessKeyType;
+        match key.key_type {
+            DbAccessKeyType::Ssh => {
+                if let Some(ref ssh_key) = key.ssh_key {
+                    key.secret = Some(serde_json::to_string(ssh_key)
+                        .map_err(|e| Error::Other(e.to_string()))?);
+                }
+            }
+            DbAccessKeyType::LoginPassword => {
+                if let Some(ref lp) = key.login_password {
+                    key.secret = Some(serde_json::to_string(lp)
+                        .map_err(|e| Error::Other(e.to_string()))?);
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    /// Десериализует key.secret → ssh_key / login_password
+    fn deserialize_secret(&self, key: &mut DbAccessKey) -> Result<()> {
+        use crate::db_lib::{DbAccessKeyType, DbSshKey, DbLoginPassword};
+        if let Some(ref secret) = key.secret.clone() {
+            match key.key_type {
+                DbAccessKeyType::Ssh => {
+                    let ssh_key: DbSshKey = serde_json::from_str(secret)
+                        .map_err(|e| Error::Other(e.to_string()))?;
+                    key.ssh_key = Some(ssh_key);
+                }
+                DbAccessKeyType::LoginPassword => {
+                    let lp: DbLoginPassword = serde_json::from_str(secret)
+                        .map_err(|e| Error::Other(e.to_string()))?;
+                    key.login_password = Some(lp);
+                }
+                _ => {}
+            }
+        }
+        Ok(())
     }
 }
 
@@ -217,13 +275,13 @@ mod tests {
 
     #[test]
     fn test_simple_encryption_service() {
-        let encryption = SimpleEncryptionService;
+        let encryption = SimpleEncryptionService::default();
         let mut key = DbAccessKey {
             id: 1,
             name: "Test".to_string(),
             key_type: DbAccessKeyType::Ssh,
             project_id: Some(1),
-            secret: Some("secret".to_string()),
+            secret: Some(r#"{"login":"user","passphrase":"","private_key":"test"}"#.to_string()),
             plain: None,
             string_value: None,
             login_password: None,
@@ -248,7 +306,7 @@ mod tests {
 
     #[test]
     fn test_access_key_installation_service_creation() {
-        let encryption = Box::new(SimpleEncryptionService);
+        let encryption = Box::new(SimpleEncryptionService::default());
         let service = AccessKeyInstallationServiceImpl::new(encryption);
 
         // Проверяем, что сервис создан
@@ -257,7 +315,7 @@ mod tests {
 
     #[test]
     fn test_access_key_installation_service_install_none() {
-        let encryption = Box::new(SimpleEncryptionService);
+        let encryption = Box::new(SimpleEncryptionService::default());
         let service = AccessKeyInstallationServiceImpl::new(encryption);
         let logger = BasicLogger::new();
 
@@ -291,7 +349,7 @@ mod tests {
 
     #[test]
     fn test_access_key_installation_service_install_ssh() {
-        let encryption = Box::new(SimpleEncryptionService);
+        let encryption = Box::new(SimpleEncryptionService::default());
         let service = AccessKeyInstallationServiceImpl::new(encryption);
         let logger = BasicLogger::new();
 
@@ -329,7 +387,7 @@ mod tests {
 
     #[test]
     fn test_access_key_service_creation() {
-        let encryption = Box::new(SimpleEncryptionService);
+        let encryption = Box::new(SimpleEncryptionService::default());
         let service = AccessKeyServiceImpl::new(encryption);
 
         // Проверяем, что сервис создан
@@ -338,7 +396,7 @@ mod tests {
 
     #[test]
     fn test_access_key_service_create() {
-        let encryption = Box::new(SimpleEncryptionService);
+        let encryption = Box::new(SimpleEncryptionService::default());
         let service = AccessKeyServiceImpl::new(encryption);
 
         let key = DbAccessKey {

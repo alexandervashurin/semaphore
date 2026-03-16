@@ -55,12 +55,20 @@ where
     }
 }
 
-/// Секрет окружения
+/// Секрет окружения (DB row)
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct EnvironmentSecret {
     pub id: i32,
     pub environment_id: i32,
     pub secret_id: i32,
+    pub secret_type: EnvironmentSecretType,
+}
+
+/// Значение секрета окружения (хранится в JSON строке `environment.secrets`)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EnvironmentSecretValue {
+    pub name: String,
+    pub secret: String,
     pub secret_type: EnvironmentSecretType,
 }
 

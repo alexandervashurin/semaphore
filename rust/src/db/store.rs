@@ -339,8 +339,10 @@ pub trait PlaybookManager: Send + Sync {
 pub trait PlaybookRunManager: Send + Sync {
     async fn get_playbook_runs(&self, filter: PlaybookRunFilter) -> Result<Vec<PlaybookRun>>;
     async fn get_playbook_run(&self, id: i32, project_id: i32) -> Result<PlaybookRun>;
+    async fn get_playbook_run_by_task_id(&self, task_id: i32) -> Result<Option<PlaybookRun>>;
     async fn create_playbook_run(&self, run: PlaybookRunCreate) -> Result<PlaybookRun>;
     async fn update_playbook_run(&self, id: i32, project_id: i32, update: PlaybookRunUpdate) -> Result<PlaybookRun>;
+    async fn update_playbook_run_status(&self, id: i32, status: PlaybookRunStatus) -> Result<()>;
     async fn delete_playbook_run(&self, id: i32, project_id: i32) -> Result<()>;
     async fn get_playbook_run_stats(&self, playbook_id: i32) -> Result<PlaybookRunStats>;
 }

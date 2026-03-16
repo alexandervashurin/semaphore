@@ -150,8 +150,30 @@ impl SessionManager for SqlStore {
         Ok(())
     }
 
-    async fn verify_session(&self, _user_id: i32, _session_id: i32) -> Result<()> {
-        // TODO: реализовать проверку сессии
+    async fn verify_session(&self, _user_id: i32, session_id: i32) -> Result<()> {
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                sqlx::query("UPDATE session SET verified = 1 WHERE id = ?")
+                    .bind(session_id)
+                    .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
+                    .await
+                    .map_err(Error::Database)?;
+            }
+            SqlDialect::PostgreSQL => {
+                sqlx::query("UPDATE session SET verified = TRUE WHERE id = $1")
+                    .bind(session_id)
+                    .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
+                    .await
+                    .map_err(Error::Database)?;
+            }
+            SqlDialect::MySQL => {
+                sqlx::query("UPDATE `session` SET verified = 1 WHERE id = ?")
+                    .bind(session_id)
+                    .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
+                    .await
+                    .map_err(Error::Database)?;
+            }
+        }
         Ok(())
     }
 

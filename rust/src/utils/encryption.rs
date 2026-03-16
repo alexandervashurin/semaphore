@@ -1,12 +1,15 @@
 //! Модуль криптографии
 //!
-//! Предоставляет функции для генерации RSA ключей
+//! Предоставляет функции для генерации RSA ключей и AES-256-GCM шифрования
 
 use pem::{encode, Pem};
 use rand::rngs::OsRng;
 use rsa::{pkcs1::EncodeRsaPrivateKey, pkcs1::EncodeRsaPublicKey, RsaPrivateKey, RsaPublicKey};
 use std::io::Write;
 use thiserror::Error;
+use aes_gcm::{Aes256Gcm, Key, Nonce};
+use aes_gcm::aead::{Aead, AeadCore, KeyInit, OsRng as AesOsRng};
+use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 
 /// Типы ошибок encryption
 #[derive(Debug, Error)]
@@ -43,6 +46,44 @@ impl From<std::io::Error> for EncryptionError {
 pub struct KeyPair {
     /// Публичный ключ в PEM формате
     pub public_key: String,
+}
+
+// ============================================================================
+// AES-256-GCM шифрование
+// ============================================================================
+
+/// Шифрует plaintext с помощью AES-256-GCM
+///
+/// Возвращает base64(nonce || ciphertext_with_tag)
+///
+/// # Errors
+/// Возвращает EncryptionError::Encoding при ошибке шифрования
+pub fn aes256_encrypt(plaintext: &[u8], key: &[u8; 32]) -> Result<String, EncryptionError> {
+    let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key));
+    let nonce = Aes256Gcm::generate_nonce(&mut AesOsRng);
+    let ciphertext = cipher.encrypt(&nonce, plaintext)
+        .map_err(|e| EncryptionError::Encoding(e.to_string()))?;
+    let mut combined = nonce.to_vec();
+    combined.extend_from_slice(&ciphertext);
+    Ok(BASE64.encode(combined))
+}
+
+/// Дешифрует base64(nonce || ciphertext_with_tag) с помощью AES-256-GCM
+///
+/// # Errors
+/// Возвращает EncryptionError при ошибке декодирования или дешифрования
+pub fn aes256_decrypt(encoded: &str, key: &[u8; 32]) -> Result<Vec<u8>, EncryptionError> {
+    let data = BASE64.decode(encoded)
+        .map_err(|e| EncryptionError::Encoding(e.to_string()))?;
+    if data.len() < 12 {
+        return Err(EncryptionError::Encoding("Ciphertext too short".to_string()));
+    }
+    let (nonce_bytes, ciphertext) = data.split_at(12);
+    let nonce = Nonce::from_slice(nonce_bytes);
+    let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key));
+    let plaintext = cipher.decrypt(nonce, ciphertext)
+        .map_err(|e| EncryptionError::Encoding(e.to_string()))?;
+    Ok(plaintext)
 }
 
 /// Генерирует RSA приватный ключ (2048 бит) и записывает его в файл
