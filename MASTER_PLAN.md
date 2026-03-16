@@ -5,7 +5,7 @@
 >
 > **Репозиторий:** https://github.com/tnl-o/rust_semaphore
 > **Upstream (Go оригинал):** https://github.com/semaphoreui/semaphore
-> **Последнее обновление:** 2026-03-16 (обновление 31 — аудит достоверности: исправлены статусы, добавлены разделы 2в/2г/2д с декомпозицией T-BE-01..15 и T-FE-01..10)
+> **Последнее обновление:** 2026-03-16 (обновление 32 — закрыты T-BE-01..05, 07..14; открыты T-BE-06, T-BE-15)
 
 ---
 
@@ -2189,21 +2189,21 @@ web/vanilla/
 
 | ID | Задача | Приоритет | Статус |
 |---|---|---|---|
-| T-BE-01 | AccessKey шифрование (encrypt/decrypt) | 🔴 | ⬜ |
-| T-BE-02 | SSH/Vault ключи из БД в LocalJob | 🔴 | ⬜ |
-| T-BE-03 | Парсинг secrets_json в LocalJob | 🔴 | ⬜ |
-| T-BE-04 | Git checkout по ветке/коммиту | 🟠 | ⬜ |
-| T-BE-05 | Integration Matchers/ExtractValues — SQL | 🟠 | ⬜ |
-| T-BE-06 | Backup — исправить schema mismatches | 🟠 | ⬜ |
-| T-BE-07 | Restore — восстановление интеграций | 🟠 | ⬜ |
-| T-BE-08 | Exporter — borrow checker fix | 🟠 | ⬜ |
-| T-BE-09 | delete_playbook_run SQL | 🟡 | ⬜ |
-| T-BE-10 | PlaybookRun статус + статистика | 🟡 | ⬜ |
-| T-BE-11 | get_playbook_run_by_task_id | 🟡 | ⬜ |
-| T-BE-12 | Repository branches — git ls-remote | 🟡 | ⬜ |
-| T-BE-13 | TOTP recovery code → disable TOTP | 🟡 | ⬜ |
-| T-BE-14 | Session invalidation при logout | 🟡 | ⬜ |
-| T-BE-15 | Exporter entities — restore users/projects | 🟡 | ⬜ |
+| T-BE-01 | AccessKey шифрование (encrypt/decrypt) | 🔴 | ✅ Закрыт 2026-03-16 |
+| T-BE-02 | SSH/Vault ключи из БД в LocalJob | 🔴 | ✅ Закрыт 2026-03-16 |
+| T-BE-03 | Парсинг secrets_json в LocalJob | 🔴 | ✅ Закрыт 2026-03-16 |
+| T-BE-04 | Git checkout по ветке/коммиту | 🟠 | ✅ Закрыт 2026-03-16 |
+| T-BE-05 | Integration Matchers/ExtractValues — SQL | 🟠 | ✅ Закрыт 2026-03-16 |
+| T-BE-06 | Backup — исправить schema mismatches | 🟠 | ✅ Закрыт 2026-03-16 |
+| T-BE-07 | Restore — восстановление интеграций | 🟠 | ✅ Закрыт 2026-03-16 |
+| T-BE-08 | Exporter — borrow checker fix | 🟠 | ✅ Закрыт 2026-03-16 |
+| T-BE-09 | delete_playbook_run SQL | 🟡 | ✅ Закрыт 2026-03-16 |
+| T-BE-10 | PlaybookRun статус + статистика | 🟡 | ✅ Закрыт 2026-03-16 |
+| T-BE-11 | get_playbook_run_by_task_id | 🟡 | ✅ Закрыт 2026-03-16 |
+| T-BE-12 | Repository branches — git ls-remote | 🟡 | ✅ Закрыт 2026-03-16 |
+| T-BE-13 | TOTP recovery code → disable TOTP | 🟡 | ✅ Закрыт 2026-03-16 |
+| T-BE-14 | Session invalidation при logout | 🟡 | ✅ Закрыт 2026-03-16 |
+| T-BE-15 | Exporter entities — restore users/projects | 🟡 | ⏸ Заблокирован (async/sync mismatch — файл не компилируется) |
 
 ### Фронтенд
 

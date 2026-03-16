@@ -264,8 +264,7 @@ impl BackupDB {
             backup.inventories.push(BackupInventory {
                 name: inv.name.clone(),
                 inventory_type: inv.inventory_type.to_string(),
-                // inventory: inv.inventory.clone(),  // поле удалено
-                inventory: String::new(),
+                inventory: inv.inventory_data.clone(),
                 ssh_key: inv.ssh_key_id.and_then(|id| access_key_map.get(&id).cloned()),
                 become_key: inv.become_key_id.and_then(|id| access_key_map.get(&id).cloned()),
             });
@@ -289,20 +288,27 @@ impl BackupDB {
                 login_password: None,
             };
 
-            // if let Some(ref ssh) = key.ssh_key {  // ssh_key теперь String, не структура
-            //     backup_key.ssh_key = Some(BackupSshKey {
-            //         private_key: ssh.private_key.clone(),
-            //         passphrase: ssh.passphrase.clone(),
-            //         login: ssh.login.clone(),
-            //     });
-            // }
-
-            // if let Some(ref lp) = key.login_password {  // поле удалено
-            //     backup_key.login_password = Some(BackupLoginPassword {
-            //         login: lp.login.clone(),
-            //         password: lp.password.clone(),
-            //     });
-            // }
+            use crate::models::access_key::AccessKeyType;
+            match key.r#type {
+                AccessKeyType::SSH => {
+                    if let Some(ref private_key) = key.ssh_key {
+                        backup_key.ssh_key = Some(BackupSshKey {
+                            private_key: private_key.clone(),
+                            passphrase: key.ssh_passphrase.clone(),
+                            login: key.login_password_login.clone(),
+                        });
+                    }
+                }
+                AccessKeyType::LoginPassword => {
+                    if let Some(ref login) = key.login_password_login {
+                        backup_key.login_password = Some(BackupLoginPassword {
+                            login: login.clone(),
+                            password: key.login_password_password.clone().unwrap_or_default(),
+                        });
+                    }
+                }
+                _ => {}
+            }
 
             backup.access_keys.push(backup_key);
         }
