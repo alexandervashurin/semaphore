@@ -117,7 +117,8 @@ pub struct Inventory {
     pub inventory_data: String,
 
     /// ID ключа доступа
-    pub key_id: i32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub key_id: Option<i32>,
 
     /// ID хранилища секретов
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -164,7 +165,7 @@ impl Inventory {
             name,
             inventory_type,
             inventory_data: String::new(),
-            key_id: 0,
+            key_id: None,
             secret_storage_id: None,
             ssh_login: "root".to_string(),
             ssh_port: 22,
@@ -187,7 +188,7 @@ impl Default for Inventory {
             name: String::new(),
             inventory_type: InventoryType::Static,
             inventory_data: String::new(),
-            key_id: 0,
+            key_id: None,
             secret_storage_id: None,
             ssh_login: "root".to_string(),
             ssh_port: 22,

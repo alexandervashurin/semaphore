@@ -271,7 +271,7 @@ impl RestoreEntryAsync for BackupInventory {
             name: self.name.clone(),
             inventory_type: self.inventory_type.parse().unwrap_or(InventoryType::Static),
             inventory_data: self.inventory.clone(),
-            key_id: 0,
+            key_id: None,
             secret_storage_id: None,
             ssh_login: "root".to_string(),
             ssh_port: 22,
@@ -327,7 +327,7 @@ impl RestoreEntryAsync for BackupRepository {
             // git_type: self.git_type.parse().unwrap_or(RepositoryType::Git),  // поле удалено
             git_type: RepositoryType::Git,
             git_branch: self.git_branch.clone().into(),
-            key_id: 0,
+            key_id: None,
             git_path: None,
             created: None,
         };

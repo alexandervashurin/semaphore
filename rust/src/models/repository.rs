@@ -82,7 +82,8 @@ pub struct Repository {
     pub git_branch: Option<String>,
 
     /// ID ключа доступа
-    pub key_id: i32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub key_id: Option<i32>,
 
     /// Путь к файлу (для file-типа)
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -103,7 +104,7 @@ impl Repository {
             git_url,
             git_type: RepositoryType::Git,
             git_branch: None,
-            key_id: 0,
+            key_id: None,
             git_path: None,
             created: None,
         }
@@ -129,7 +130,7 @@ impl Default for Repository {
             git_url: String::new(),
             git_type: RepositoryType::Git,
             git_branch: None,
-            key_id: 0,
+            key_id: None,
             git_path: None,
             created: None,
         }

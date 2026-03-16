@@ -145,12 +145,12 @@ async fn clone_repository(repository: &crate::models::Repository, path: &Path) -
     
     // Настраиваем callback для аутентификации
     let mut remote_callbacks = RemoteCallbacks::new();
-    
+
     // Если есть SSH ключ, настраиваем SSH аутентификацию
-    if repository.key_id != 0 {
+    if repository.key_id.is_some() {
         // TODO: Получить AccessKey из БД и настроить SSH аутентификацию
         // Временно используем заглушку
-        warn!("SSH аутентификация для key_id={} требует реализации", repository.key_id);
+        warn!("SSH аутентификация для key_id={:?} требует реализации", repository.key_id);
         
         // Устанавливаем credentials callback для SSH
         remote_callbacks.credentials(|url, username_from_url, allowed_types| {

@@ -255,7 +255,7 @@ impl BackupDB {
                 name: repo.name.clone(),
                 git_url: repo.git_url.clone(),
                 git_branch: repo.git_branch.clone().unwrap_or_default(),
-                ssh_key: access_key_map.get(&repo.key_id).cloned(),
+                ssh_key: repo.key_id.and_then(|id| access_key_map.get(&id).cloned()),
             });
         }
 

@@ -34,6 +34,10 @@ ADD COLUMN IF NOT EXISTS created TIMESTAMP WITH TIME ZONE DEFAULT NOW();
 ALTER TABLE project 
 ADD COLUMN IF NOT EXISTS alert_chat VARCHAR(255);
 
+-- Добавляем колонку runner_tag в таблицу inventory (если отсутствует)
+ALTER TABLE inventory 
+ADD COLUMN IF NOT EXISTS runner_tag VARCHAR(255);
+
 -- Обновляем запись о миграции
 INSERT INTO migration (version, name) 
 VALUES (4, 'Add secret storage columns')

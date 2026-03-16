@@ -28,9 +28,9 @@ impl RepositoryManager for SqlStore {
                     name: row.get("name"),
                     git_url: row.get("git_url"),
                     git_type: row.get("git_type"),
-                    git_branch: row.get("git_branch"),
-                    key_id: row.get("key_id"),
-                    git_path: row.get("git_path"),
+                    git_branch: row.try_get("git_branch").ok().flatten(),
+                    key_id: row.try_get("key_id").ok().flatten(),
+                    git_path: row.try_get("git_path").ok().flatten(),
                     created: row.get("created"),
                 }).collect())
             }
@@ -48,9 +48,9 @@ impl RepositoryManager for SqlStore {
                     name: row.get("name"),
                     git_url: row.get("git_url"),
                     git_type: row.get("git_type"),
-                    git_branch: row.get("git_branch"),
-                    key_id: row.get("key_id"),
-                    git_path: row.get("git_path"),
+                    git_branch: row.try_get("git_branch").ok().flatten(),
+                    key_id: row.try_get("key_id").ok().flatten(),
+                    git_path: row.try_get("git_path").ok().flatten(),
                     created: row.get("created"),
                 }).collect())
             }
@@ -68,9 +68,9 @@ impl RepositoryManager for SqlStore {
                     name: row.get("name"),
                     git_url: row.get("git_url"),
                     git_type: row.get("git_type"),
-                    git_branch: row.get("git_branch"),
-                    key_id: row.get("key_id"),
-                    git_path: row.get("git_path"),
+                    git_branch: row.try_get("git_branch").ok().flatten(),
+                    key_id: row.try_get("key_id").ok().flatten(),
+                    git_path: row.try_get("git_path").ok().flatten(),
                     created: row.get("created"),
                 }).collect())
             }
