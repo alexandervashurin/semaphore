@@ -61,7 +61,7 @@ impl From<DbAccessKeyRole> for AccessKeyRole {
 }
 
 /// Данные SSH ключа (аналог Go SshKey)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DbSshKey {
     pub login: String,
     pub passphrase: String,
@@ -69,7 +69,7 @@ pub struct DbSshKey {
 }
 
 /// Данные логина/пароля (аналог Go LoginPassword)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DbLoginPassword {
     pub login: String,
     pub password: String,

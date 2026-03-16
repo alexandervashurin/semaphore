@@ -496,8 +496,27 @@ impl BackupFormat {
 
         // 8. Интеграции
         for integration in &self.integrations {
-            // TODO: Реализовать восстановление интеграций
-            warn!("Integration {} not restored (not implemented)", integration.name);
+            // Map old template_id to restored template: use first available template as fallback
+            let template_id = restore_db.templates.first().map(|t| t.id).unwrap_or(0);
+
+            let new_integration = crate::models::Integration {
+                id: 0,
+                project_id: restore_db.meta.id,
+                name: integration.name.clone(),
+                template_id,
+                auth_method: String::new(),
+                auth_header: None,
+                auth_secret_id: None,
+            };
+
+            match store.create_integration(new_integration).await {
+                Ok(created) => {
+                    restore_db.integrations.push(created);
+                }
+                Err(e) => {
+                    warn!("Failed to restore integration {}: {}", integration.name, e);
+                }
+            }
         }
 
         info!("Project restore completed successfully!");

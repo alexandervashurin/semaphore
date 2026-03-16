@@ -13,6 +13,7 @@ use crate::api::state::AppState;
 use crate::models::Role;
 use crate::error::Error;
 use crate::api::middleware::ErrorResponse;
+use crate::db::store::ProjectRoleManager;
 
 /// Встроенные роли проекта (всегда доступны)
 fn builtin_roles(project_id: i32) -> Vec<Role> {
@@ -56,10 +57,17 @@ fn builtin_roles(project_id: i32) -> Vec<Role> {
 ///
 /// GET /api/project/{project_id}/roles/all
 pub async fn get_all_roles(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
 ) -> Result<Json<Vec<Role>>, (StatusCode, Json<ErrorResponse>)> {
-    let roles = builtin_roles(project_id);
+    let mut roles = builtin_roles(project_id);
+    let custom = state.store.get_project_roles(project_id)
+        .await
+        .map_err(|e| (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(e.to_string()))
+        ))?;
+    roles.extend(custom);
     Ok(Json(roles))
 }
 
@@ -67,24 +75,26 @@ pub async fn get_all_roles(
 ///
 /// GET /api/project/{project_id}/roles
 pub async fn get_roles(
-    State(_state): State<Arc<AppState>>,
-    Path(_project_id): Path<i32>,
+    State(state): State<Arc<AppState>>,
+    Path(project_id): Path<i32>,
 ) -> Result<Json<Vec<Role>>, (StatusCode, Json<ErrorResponse>)> {
-    // Временная заглушка - возвращаем пустой список
-    // TODO: Реализовать получение ролей из БД
-    Ok(Json(vec![]))
+    let roles = state.store.get_project_roles(project_id)
+        .await
+        .map_err(|e| (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(e.to_string()))
+        ))?;
+    Ok(Json(roles))
 }
 
 /// Создать роль
 ///
 /// POST /api/project/{project_id}/roles
 pub async fn create_role(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
     Json(payload): Json<RoleCreatePayload>,
 ) -> Result<(StatusCode, Json<Role>), (StatusCode, Json<ErrorResponse>)> {
-    // Временная заглушка - возвращаем mock роль
-    // TODO: Реализовать создание роли в БД
     let role = Role {
         id: 0,
         project_id,
@@ -93,36 +103,64 @@ pub async fn create_role(
         description: payload.description,
         permissions: payload.permissions,
     };
-
-    Ok((StatusCode::CREATED, Json(role)))
+    let created = state.store.create_project_role(role)
+        .await
+        .map_err(|e| (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(e.to_string()))
+        ))?;
+    Ok((StatusCode::CREATED, Json(created)))
 }
 
 /// Получить роль по ID
 ///
 /// GET /api/project/{project_id}/roles/{role_id}
 pub async fn get_role(
-    State(_state): State<Arc<AppState>>,
-    Path((_project_id, role_id)): Path<(i32, i32)>,
+    State(state): State<Arc<AppState>>,
+    Path((project_id, role_id)): Path<(i32, i32)>,
 ) -> Result<Json<Role>, (StatusCode, Json<ErrorResponse>)> {
-    // Временная заглушка - возвращаем ошибку 404
-    // TODO: Реализовать получение роли из БД
-    Err(Error::NotFound(format!("Role {} not found", role_id)))
+    let roles = state.store.get_project_roles(project_id)
+        .await
         .map_err(|e| (
-            StatusCode::NOT_FOUND,
+            StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse::new(e.to_string()))
-        ))
+        ))?;
+    let role = roles.into_iter().find(|r| r.id == role_id)
+        .ok_or_else(|| (
+            StatusCode::NOT_FOUND,
+            Json(ErrorResponse::new(format!("Role {} not found", role_id)))
+        ))?;
+    Ok(Json(role))
 }
 
 /// Обновить роль
 ///
 /// PUT /api/project/{project_id}/roles/{role_id}
 pub async fn update_role(
-    State(_state): State<Arc<AppState>>,
-    Path((_project_id, _role_id)): Path<(i32, i32)>,
-    Json(_payload): Json<RoleUpdatePayload>,
+    State(state): State<Arc<AppState>>,
+    Path((project_id, role_id)): Path<(i32, i32)>,
+    Json(payload): Json<RoleUpdatePayload>,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    // Временная заглушка - возвращаем OK
-    // TODO: Реализовать обновление роли в БД
+    let roles = state.store.get_project_roles(project_id)
+        .await
+        .map_err(|e| (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(e.to_string()))
+        ))?;
+    let mut role = roles.into_iter().find(|r| r.id == role_id)
+        .ok_or_else(|| (
+            StatusCode::NOT_FOUND,
+            Json(ErrorResponse::new(format!("Role {} not found", role_id)))
+        ))?;
+    if let Some(name) = payload.name { role.name = name; }
+    if let Some(description) = payload.description { role.description = Some(description); }
+    if let Some(permissions) = payload.permissions { role.permissions = Some(permissions); }
+    state.store.update_project_role(role)
+        .await
+        .map_err(|e| (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(e.to_string()))
+        ))?;
     Ok(StatusCode::OK)
 }
 
@@ -130,11 +168,21 @@ pub async fn update_role(
 ///
 /// DELETE /api/project/{project_id}/roles/{role_id}
 pub async fn delete_role(
-    State(_state): State<Arc<AppState>>,
-    Path((_project_id, _role_id)): Path<(i32, i32)>,
+    State(state): State<Arc<AppState>>,
+    Path((project_id, role_id)): Path<(i32, i32)>,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    // Временная заглушка - возвращаем OK
-    // TODO: Реализовать удаление роли из БД
+    state.store.delete_project_role(project_id, role_id)
+        .await
+        .map_err(|e| match e {
+            Error::NotFound(_) => (
+                StatusCode::NOT_FOUND,
+                Json(ErrorResponse::new(format!("Role {} not found", role_id)))
+            ),
+            _ => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string()))
+            )
+        })?;
     Ok(StatusCode::NO_CONTENT)
 }
 

@@ -14,7 +14,7 @@ use crate::api::extractors::AuthUser;
 use crate::models::{Project, ProjectUser, ProjectUserRole};
 use crate::Error;
 use crate::api::middleware::ErrorResponse;
-use crate::db::store::{ProjectStore, UserManager};
+use crate::db::store::{ProjectStore, UserManager, TaskManager};
 use crate::services::backup::BackupFormat;
 
 /// Получает проекты пользователя
@@ -259,12 +259,16 @@ pub async fn get_user_role(
 ///
 /// DELETE /api/project/{project_id}/me
 pub async fn leave_project(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
     AuthUser { user_id, .. }: AuthUser,
 ) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    tracing::info!("User {} leaving project {}", user_id, project_id);
-    // TODO: implement delete_project_user in store trait
+    state.store.delete_project_user(project_id, user_id)
+        .await
+        .map_err(|e| (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(e.to_string()))
+        ))?;
     Ok(StatusCode::NO_CONTENT)
 }
 

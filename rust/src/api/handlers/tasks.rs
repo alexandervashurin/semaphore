@@ -260,6 +260,7 @@ async fn execute_task_background(state: Arc<AppState>, task: Task) {
         tmp_dir,
     );
 
+    job.store = Some(Arc::new(state.store.clone()) as Arc<dyn crate::db::store::Store + Send + Sync>);
     let result = job.run("runner", None, "default").await;
     job.cleanup();
 

@@ -57,7 +57,7 @@ pub use playbook_run_history::{PlaybookRun, PlaybookRunCreate, PlaybookRunUpdate
 pub use totp_verification::TotpVerification;
 pub use inventory::{Inventory, InventoryType};
 pub use repository::{Repository, RepositoryType};
-pub use environment::{Environment, EnvironmentSecret, EnvironmentSecretType};
+pub use environment::{Environment, EnvironmentSecret, EnvironmentSecretType, EnvironmentSecretValue};
 pub use access_key::{AccessKey, AccessKeyOwner, AccessKeyType, SshKeyData, LoginPasswordData};
 pub use integration::{Integration, IntegrationExtractValue, IntegrationMatcher, IntegrationAlias};
 pub use schedule::{Schedule, ScheduleWithTpl};

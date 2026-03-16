@@ -46,6 +46,8 @@ pub struct LocalJob {
     pub work_dir: PathBuf,
     /// Временная директория
     pub tmp_dir: PathBuf,
+    /// Store для загрузки SSH ключей из БД (опционально)
+    pub store: Option<Arc<dyn crate::db::store::Store + Send + Sync>>,
     /// Имя пользователя (для Job trait)
     pub username: String,
     /// Входящая версия (для Job trait)
@@ -87,6 +89,7 @@ impl LocalJob {
             username: String::new(),
             incoming_version: None,
             alias: String::new(),
+            store: None,
         }
     }
 

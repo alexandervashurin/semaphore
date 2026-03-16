@@ -3,7 +3,7 @@
 use crate::db::sql::SqlStore;
 use crate::db::sql::types::SqlDialect;
 use crate::db::store::*;
-use crate::models::{Project, ProjectUser};
+use crate::models::{Project, ProjectUser, Role};
 use crate::error::{Error, Result};
 use async_trait::async_trait;
 use sqlx::Row;
@@ -339,6 +339,210 @@ impl ProjectStore for SqlStore {
                     .bind(project_user.user_id)
                     .bind(&role_str)
                     .bind(project_user.created)
+                    .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
+                    .await
+                    .map_err(Error::Database)?;
+            }
+        }
+        Ok(())
+    }
+
+    async fn delete_project_user(&self, project_id: i32, user_id: i32) -> Result<()> {
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                sqlx::query("DELETE FROM project__user WHERE project_id = ? AND user_id = ?")
+                    .bind(project_id)
+                    .bind(user_id)
+                    .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
+                    .await
+                    .map_err(Error::Database)?;
+            }
+            SqlDialect::PostgreSQL => {
+                sqlx::query("DELETE FROM project__user WHERE project_id = $1 AND user_id = $2")
+                    .bind(project_id)
+                    .bind(user_id)
+                    .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
+                    .await
+                    .map_err(Error::Database)?;
+            }
+            SqlDialect::MySQL => {
+                sqlx::query("DELETE FROM project__user WHERE project_id = ? AND user_id = ?")
+                    .bind(project_id)
+                    .bind(user_id)
+                    .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
+                    .await
+                    .map_err(Error::Database)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+// ============================================================================
+// ProjectRoleManager - CRUD для кастомных ролей проекта
+// ============================================================================
+
+#[async_trait]
+impl ProjectRoleManager for SqlStore {
+    async fn get_project_roles(&self, project_id: i32) -> Result<Vec<Role>> {
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let roles = sqlx::query_as::<_, Role>(
+                    "SELECT id, project_id, slug, name, description, permissions FROM project_role WHERE project_id = ? ORDER BY id"
+                )
+                .bind(project_id)
+                .fetch_all(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
+                .await
+                .map_err(Error::Database)?;
+                Ok(roles)
+            }
+            SqlDialect::PostgreSQL => {
+                let roles = sqlx::query_as::<_, Role>(
+                    "SELECT id, project_id, slug, name, description, permissions FROM project_role WHERE project_id = $1 ORDER BY id"
+                )
+                .bind(project_id)
+                .fetch_all(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
+                .await
+                .map_err(Error::Database)?;
+                Ok(roles)
+            }
+            SqlDialect::MySQL => {
+                let roles = sqlx::query_as::<_, Role>(
+                    "SELECT id, project_id, slug, name, description, permissions FROM project_role WHERE project_id = ? ORDER BY id"
+                )
+                .bind(project_id)
+                .fetch_all(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
+                .await
+                .map_err(Error::Database)?;
+                Ok(roles)
+            }
+        }
+    }
+
+    async fn create_project_role(&self, role: Role) -> Result<Role> {
+        let permissions = role.permissions.unwrap_or(0);
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let pool = self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?;
+                let result = sqlx::query(
+                    "INSERT INTO project_role (project_id, slug, name, description, permissions) VALUES (?, ?, ?, ?, ?)"
+                )
+                .bind(role.project_id)
+                .bind(&role.slug)
+                .bind(&role.name)
+                .bind(&role.description)
+                .bind(permissions)
+                .execute(pool)
+                .await
+                .map_err(Error::Database)?;
+                let id = result.last_insert_rowid() as i32;
+                Ok(Role { id, ..role })
+            }
+            SqlDialect::PostgreSQL => {
+                let pool = self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?;
+                let row = sqlx::query_as::<_, Role>(
+                    "INSERT INTO project_role (project_id, slug, name, description, permissions) VALUES ($1, $2, $3, $4, $5) RETURNING id, project_id, slug, name, description, permissions"
+                )
+                .bind(role.project_id)
+                .bind(&role.slug)
+                .bind(&role.name)
+                .bind(&role.description)
+                .bind(permissions)
+                .fetch_one(pool)
+                .await
+                .map_err(Error::Database)?;
+                Ok(row)
+            }
+            SqlDialect::MySQL => {
+                let pool = self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?;
+                let result = sqlx::query(
+                    "INSERT INTO project_role (project_id, slug, name, description, permissions) VALUES (?, ?, ?, ?, ?)"
+                )
+                .bind(role.project_id)
+                .bind(&role.slug)
+                .bind(&role.name)
+                .bind(&role.description)
+                .bind(permissions)
+                .execute(pool)
+                .await
+                .map_err(Error::Database)?;
+                let id = result.last_insert_id() as i32;
+                Ok(Role { id, ..role })
+            }
+        }
+    }
+
+    async fn update_project_role(&self, role: Role) -> Result<()> {
+        let permissions = role.permissions.unwrap_or(0);
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                sqlx::query(
+                    "UPDATE project_role SET slug = ?, name = ?, description = ?, permissions = ? WHERE id = ? AND project_id = ?"
+                )
+                .bind(&role.slug)
+                .bind(&role.name)
+                .bind(&role.description)
+                .bind(permissions)
+                .bind(role.id)
+                .bind(role.project_id)
+                .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
+                .await
+                .map_err(Error::Database)?;
+            }
+            SqlDialect::PostgreSQL => {
+                sqlx::query(
+                    "UPDATE project_role SET slug = $1, name = $2, description = $3, permissions = $4 WHERE id = $5 AND project_id = $6"
+                )
+                .bind(&role.slug)
+                .bind(&role.name)
+                .bind(&role.description)
+                .bind(permissions)
+                .bind(role.id)
+                .bind(role.project_id)
+                .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
+                .await
+                .map_err(Error::Database)?;
+            }
+            SqlDialect::MySQL => {
+                sqlx::query(
+                    "UPDATE project_role SET slug = ?, name = ?, description = ?, permissions = ? WHERE id = ? AND project_id = ?"
+                )
+                .bind(&role.slug)
+                .bind(&role.name)
+                .bind(&role.description)
+                .bind(permissions)
+                .bind(role.id)
+                .bind(role.project_id)
+                .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
+                .await
+                .map_err(Error::Database)?;
+            }
+        }
+        Ok(())
+    }
+
+    async fn delete_project_role(&self, project_id: i32, role_id: i32) -> Result<()> {
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                sqlx::query("DELETE FROM project_role WHERE id = ? AND project_id = ?")
+                    .bind(role_id)
+                    .bind(project_id)
+                    .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
+                    .await
+                    .map_err(Error::Database)?;
+            }
+            SqlDialect::PostgreSQL => {
+                sqlx::query("DELETE FROM project_role WHERE id = $1 AND project_id = $2")
+                    .bind(role_id)
+                    .bind(project_id)
+                    .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
+                    .await
+                    .map_err(Error::Database)?;
+            }
+            SqlDialect::MySQL => {
+                sqlx::query("DELETE FROM project_role WHERE id = ? AND project_id = ?")
+                    .bind(role_id)
+                    .bind(project_id)
                     .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
                     .await
                     .map_err(Error::Database)?;

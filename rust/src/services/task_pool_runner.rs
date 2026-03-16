@@ -118,6 +118,7 @@ impl TaskPool {
             tmp_dir.clone(),
         );
 
+        job.store = Some(self.store.clone());
         job.set_run_params("runner".to_string(), None, "default".to_string());
 
         let result = job.run("runner", None, "default").await;

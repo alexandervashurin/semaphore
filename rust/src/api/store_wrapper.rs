@@ -162,6 +162,10 @@ impl ProjectStore for StoreWrapper {
     async fn create_project_user(&self, project_user: crate::models::ProjectUser) -> Result<()> {
         self.inner.as_ref().as_ref().create_project_user(project_user).await
     }
+
+    async fn delete_project_user(&self, project_id: i32, user_id: i32) -> Result<()> {
+        self.inner.as_ref().as_ref().delete_project_user(project_id, user_id).await
+    }
 }
 
 #[async_trait]
@@ -706,12 +710,20 @@ impl crate::db::store::PlaybookRunManager for StoreWrapper {
         self.inner.as_ref().as_ref().get_playbook_run(id, project_id).await
     }
 
+    async fn get_playbook_run_by_task_id(&self, task_id: i32) -> Result<Option<PlaybookRun>> {
+        self.inner.as_ref().as_ref().get_playbook_run_by_task_id(task_id).await
+    }
+
     async fn create_playbook_run(&self, run: PlaybookRunCreate) -> Result<PlaybookRun> {
         self.inner.as_ref().as_ref().create_playbook_run(run).await
     }
 
     async fn update_playbook_run(&self, id: i32, project_id: i32, update: PlaybookRunUpdate) -> Result<PlaybookRun> {
         self.inner.as_ref().as_ref().update_playbook_run(id, project_id, update).await
+    }
+
+    async fn update_playbook_run_status(&self, id: i32, status: PlaybookRunStatus) -> Result<()> {
+        self.inner.as_ref().as_ref().update_playbook_run_status(id, status).await
     }
 
     async fn delete_playbook_run(&self, id: i32, project_id: i32) -> Result<()> {

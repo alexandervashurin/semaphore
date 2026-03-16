@@ -5,7 +5,7 @@
 >
 > **Репозиторий:** https://github.com/tnl-o/rust_semaphore
 > **Upstream (Go оригинал):** https://github.com/semaphoreui/semaphore
-> **Последнее обновление:** 2026-03-15 (обновление 29 — дополнительные Go-совместимые API: schedules toggle_active, template schedules/tasks/stats, repo branches, task raw_output/stages, integration /values alias, POST /api/users; frontend: branch autocomplete в templates/run формах)
+> **Последнее обновление:** 2026-03-16 (обновление 32 — закрыты T-BE-01..05, 07..14; открыты T-BE-06, T-BE-15)
 
 ---
 
@@ -1559,6 +1559,666 @@ web/vanilla/
 - ✅ GitHub Actions: dev/release workflows запускаются
 - ✅ `cargo clippy -- -D warnings` — 0 ошибок (2026-03-14)
 - ✅ E2E тесты — 35 integration tests green (2026-03-15)
+
+---
+
+## 2в. Аудит достоверности — замечания к «завершённым» задачам
+
+> Проведён 2026-03-16. Код — единственный источник правды. Ниже перечислены места, где
+> статус в плане расходится с реальным состоянием кода.
+
+### ⚠️ Фаза 4 — Task Runner: помечена «✅ Завершена», но SSH/Vault/Secrets не подключены к БД
+
+| Пункт плана | Что написано | Реальность |
+|---|---|---|
+| 4.3 «SSH-ключи во временные файлы» | ✅ | ❌ `local_job/ssh.rs:14,25` — закомментировано. `install_ssh_keys()` только логирует ID, ключ из БД не загружается |
+| 4.3 «Vault keys» | ✅ | ❌ `local_job/vault.rs:18` — аналогичный стаб, `vaults_json` не парсится |
+| 4.3 «Env-переменные из Environment» | ✅ | ⚠️ `local_job/args.rs:27,85` и `environment.rs:117` — `secrets_json` (секретные переменные окружения) не распарсивается в трёх местах |
+| 4.3 «Git clone/pull» | ✅ | ⚠️ `local_job/repository.rs:61` — `checkout_repository()` не выполняет реальный `git checkout`. Ветка/коммит не применяются |
+
+**Следствие:** задачи запускаются (процесс создаётся), но без правильных SSH-ключей, vault-файлов и переменных окружения. Ansible против защищённых хостов — не работает.
+
+---
+
+### ⚠️ Раздел 3.1 «Шифрование ключей AES-256» — ✅ в плане, стаб в коде
+
+| Пункт плана | Что написано | Реальность |
+|---|---|---|
+| B-05 «Шифрование ключей — AES-256» | ✅ Закрыт | ❌ `services/access_key_installation_service.rs:107-122` — `encrypt_secret()`, `decrypt_secret()`, `serialize_secret()`, `deserialize_secret()` — пустые заглушки. `utils/encryption.rs` с AES-256 существует, но к ключам не подключён |
+
+**Следствие:** SSH-ключи и пароли хранятся в БД в открытом виде. Критический риск безопасности для production.
+
+---
+
+### ⚠️ Раздел 7.1 «Webhooks входящие — полный CRUD + матчеры» — матчеры в БД не работают
+
+| Пункт плана | Что написано | Реальность |
+|---|---|---|
+| B-BE-20/21 «Integrations matchers + extract values» | ✅ Закрыт | ❌ `db/sql/managers/integration_matcher.rs` — `IntegrationMatcherManager` и `IntegrationExtractValueManager` — 8 методов, все возвращают пустой список/OK без записи в БД. Таблиц `integration_matcher` и `integration_extract_value` нет в схеме |
+
+**Следствие:** матчеры создаются через API (200 OK), но не сохраняются. Входящие вебхуки не фильтруются.
+
+---
+
+### ⚠️ Раздел 7.10 «Backup / Restore» — частично реализован (~40%)
+
+| Пункт плана | Что написано | Реальность |
+|---|---|---|
+| B-BE-... «Backup / Restore» | ✅ Закрыт | ⚠️ `services/backup.rs` — несоответствие схемы: поля `inventory.inventory`, `key.ssh_key`, `key.login_password` используются в backup но удалены из моделей. `services/restore.rs:499` — восстановление интеграций не реализовано. `services/exporter.rs:421,439` — `exporter.load()` / `exporter.restore()` закомментированы из-за borrow checker ошибки |
+
+---
+
+### ⚠️ PlaybookRun сервисы — статус не персистируется
+
+| Файл | Проблема |
+|---|---|
+| `services/playbook_run_status_service.rs:49` | Обновление статуса в БД закомментировано (TODO) |
+| `services/playbook_run_status_service.rs:87` | Статистика запусков не сохраняется |
+| `db/sql/managers/playbook_run.rs:588` | `delete_playbook_run` — пустой стаб |
+
+---
+
+### ✅ Что проверено и действительно работает
+
+- Ядро Task Runner (lifecycle, pool, queue, process spawn) — **реально работает**
+- WebSocket лог-стриминг — **реально работает**
+- JWT/TOTP/OIDC/LDAP аутентификация — **реально работает**
+- CRUD всех основных сущностей (projects, templates, inventory, keys, repos, envs, schedules) — **работает**
+- Cron scheduler — **работает**
+- Custom Roles CRUD (project_role) — **реализован 2026-03-16**
+- leave_project (delete_project_user) — **реализован 2026-03-16**
+- Frontend: 28 HTML-страниц, Material Design, sidebar — **работает**
+
+---
+
+## 2г. Новые задачи — Бэкенд
+
+> Статусы: `⬜ Не начато` | `🔄 В работе` | `✅ Закрыт ГГГГ-ММ-ДД`
+>
+> Приоритет: 🔴 Критично → 🟠 Высокий → 🟡 Средний
+
+---
+
+### 🔴 T-BE-01 — Шифрование ключей доступа (AccessKey encrypt/decrypt)
+
+**Приоритет:** 🔴 Критично — ключи хранятся plaintext
+**Файлы:** `rust/src/services/access_key_installation_service.rs`, `rust/src/utils/encryption.rs`
+**Статус:** ⬜ Не начато
+
+**Что сделать:**
+
+1. В `access_key_installation_service.rs` найти `struct SimpleEncryptionService` и реализовать 4 метода:
+   - `encrypt_secret(key)` → взять `key.secret` (String), зашифровать через `utils::encryption::encrypt(secret, &app_key)`, записать обратно
+   - `decrypt_secret(key)` → взять зашифрованный `key.secret`, вызвать `utils::encryption::decrypt(...)`, записать plaintext
+   - `serialize_secret(key)` → сериализовать `key.type` (ssh/login_password/none/token) в JSON строку в `key.secret`
+   - `deserialize_secret(key)` → разобрать JSON из `key.secret` и заполнить соответствующие поля
+
+2. Ключ шифрования — получать из `AppConfig` (поле `encryption_key` или `SEMAPHORE_ACCESS_KEY_ENCRYPTION` env var). Добавить поле в конфиг если нет.
+
+3. При создании ключа через API (`POST /api/project/{id}/keys`) — вызвать `encrypt_secret()` перед записью в БД.
+
+4. При загрузке ключа (`GET` или внутри task runner) — вызвать `decrypt_secret()`.
+
+5. Написать unit-тест: создать ключ → зашифровать → дешифровать → проверить совпадение.
+
+---
+
+### 🔴 T-BE-02 — Загрузка SSH/Vault ключей из БД в LocalJob
+
+**Приоритет:** 🔴 Критично — ansible-playbook запускается без SSH аутентификации
+**Файлы:** `rust/src/services/local_job/ssh.rs`, `rust/src/services/local_job/vault.rs`, `rust/src/services/local_job/mod.rs`
+**Статус:** ⬜ Не начато
+
+**Что сделать:**
+
+1. В `LocalJob` struct (mod.rs) добавить поле `store: Arc<dyn Store>`. Передавать его при создании из `TaskRunner`.
+
+2. В `install_ssh_keys()` (ssh.rs):
+   - Раскомментировать и дописать: `let key = self.store.get_access_key(self.task.project_id, key_id).await?;`
+   - Вызвать `decrypt_secret(&mut key)` (из T-BE-01)
+   - Передать в `self.key_installer.install(&key, DbAccessKeyRole::Git, &self.logger)?`
+   - Аналогично для `become_key_id` с ролью `DbAccessKeyRole::AnsibleBecomeUser`
+
+3. В `vault.rs::install_vault_files()`:
+   - Раскомментировать: загрузить vault ключи из `task.params.vault_keys` (JSON массив ID)
+   - Для каждого ID → `store.get_access_key(project_id, id)` → `decrypt_secret` → записать во временный файл
+   - Путь к файлу передать в ansible args через `--vault-password-file`
+
+4. Добавить тест: mock store с тестовым ключом → `install_ssh_keys()` → проверить что `ssh_key_installation` заполнен.
+
+---
+
+### 🔴 T-BE-03 — Парсинг secrets_json в LocalJob (args, environment, vault)
+
+**Приоритет:** 🔴 Критично — секретные переменные из Environment не попадают в задачу
+**Файлы:** `rust/src/services/local_job/args.rs:27,85`, `rust/src/services/local_job/environment.rs:117`, `rust/src/services/local_job/vault.rs:18`
+**Статус:** ⬜ Не начато
+
+**Что сделать:**
+
+1. Определить или найти тип `EnvironmentSecret { name: String, secret: String, secret_type: EnvironmentSecretType }` в `models/environment.rs`. Добавить если нет.
+
+2. В `args.rs` (Ansible args, строки 27 и 85):
+   - Парсить `self.environment.secrets` как `Vec<EnvironmentSecret>` через `serde_json::from_str`
+   - Для каждого секрета с `secret_type == Var` → добавить в `extra_vars`: `"key": "value"`
+   - Для Terraform args (строка 85): аналогично через `-var key=value`
+
+3. В `environment.rs` (строка 117):
+   - Парсить `secrets` → для `secret_type == Env` → добавить в `env_vars: HashMap` под ключом `name`
+   - Эти переменные передаются как env-vars дочернему процессу
+
+4. В `vault.rs` (строка 18):
+   - Парсить `task.params.vaults` (JSON) → список ID ключей типа vault
+   - Загрузить каждый из store (потребует T-BE-02 для store в LocalJob)
+
+5. Покрыть unit-тестами: парсинг secrets_json → проверка что переменные попадают в нужные места.
+
+---
+
+### 🟠 T-BE-04 — Git checkout по ветке/коммиту в LocalJob
+
+**Приоритет:** 🟠 Высокий — задачи всегда берут HEAD вместо нужной ветки
+**Файлы:** `rust/src/services/local_job/repository.rs:61`, `rust/src/services/git_repository.rs`
+**Статус:** ⬜ Не начато
+
+**Что сделать:**
+
+1. В `git_repository.rs` добавить метод:
+   ```rust
+   pub async fn checkout(&self, git_ref: &str) -> Result<()>
+   ```
+   — запускает `git -C <path> checkout <git_ref>` через `tokio::process::Command`.
+
+2. В `checkout_repository()` (repository.rs):
+   - Если `self.task.commit_hash` задан → `git_repo.checkout(&commit_hash).await?`
+   - Иначе если `self.repository.git_branch` задан → `git_repo.checkout(&branch).await?`
+   - Записать результат через `self.set_commit(hash, message)`
+
+3. Для получения текущего commit hash после checkout добавить:
+   ```rust
+   pub async fn get_current_commit(&self) -> Result<String>
+   ```
+   — запускает `git -C <path> rev-parse HEAD`.
+
+4. Добавить тест с локальным file:// репозиторием — создать branch, переключиться, проверить.
+
+---
+
+### 🟠 T-BE-05 — Integration Matchers и ExtractValues — реальная БД
+
+**Приоритет:** 🟠 Высокий — входящие вебхуки не фильтруются (матчеры не сохраняются)
+**Файлы:** `rust/src/db/sql/managers/integration_matcher.rs`, `rust/src/db/sql/mod.rs`
+**Статус:** ⬜ Не начато
+
+**Что сделать:**
+
+1. В `db/sql/mod.rs` добавить два `CREATE TABLE IF NOT EXISTS`:
+
+   ```sql
+   integration_matcher (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       project_id INTEGER NOT NULL,
+       integration_id INTEGER NOT NULL REFERENCES integration(id) ON DELETE CASCADE,
+       name TEXT NOT NULL DEFAULT '',
+       match_type TEXT NOT NULL DEFAULT 'body',  -- body / header
+       body_data_type TEXT,                        -- json / string
+       key TEXT NOT NULL DEFAULT '',
+       method TEXT NOT NULL DEFAULT '==',          -- == / != / contains
+       value TEXT NOT NULL DEFAULT ''
+   )
+
+   integration_extract_value (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       project_id INTEGER NOT NULL,
+       integration_id INTEGER NOT NULL REFERENCES integration(id) ON DELETE CASCADE,
+       name TEXT NOT NULL DEFAULT '',
+       value_source TEXT NOT NULL DEFAULT 'body',  -- body / header
+       body_data_type TEXT,
+       key TEXT NOT NULL DEFAULT '',
+       variable_type TEXT NOT NULL DEFAULT 'environment',  -- environment / task
+       variable TEXT NOT NULL DEFAULT ''
+   )
+   ```
+
+2. В `integration_matcher.rs` реализовать все 8 методов для SQLite/PostgreSQL/MySQL аналогично другим менеджерам. Примеры:
+   - `get_integration_matchers(project_id, integration_id)` → `SELECT * FROM integration_matcher WHERE project_id=? AND integration_id=?`
+   - `create_integration_matcher(matcher)` → `INSERT INTO integration_matcher (...) VALUES (...)` → вернуть с id
+   - `update_integration_matcher(matcher)` → `UPDATE ... WHERE id=?`
+   - `delete_integration_matcher(project_id, integration_id, matcher_id)` → `DELETE WHERE id=? AND project_id=?`
+
+3. Обновить `StoreWrapper` — добавить делегирующие реализации для обоих трейтов.
+
+4. Покрыть integration-тестами: create → get → update → delete матчера.
+
+---
+
+### 🟠 T-BE-06 — Backup/Restore: исправить schema mismatches
+
+**Приоритет:** 🟠 Высокий — backup endpoint возвращает ошибку из-за несовпадения полей
+**Файлы:** `rust/src/services/backup.rs`
+**Статус:** ⬜ Не начато
+
+**Что сделать:**
+
+1. Запустить `cargo check` и найти все ошибки компиляции в `backup.rs` (поля, которые удалены из моделей).
+
+2. Для каждого поля-несоответствия:
+   - `inventory.inventory` — найти актуальное поле в `models/inventory.rs`, заменить
+   - `key.ssh_key`, `key.login_password` — найти как AccessKey хранит данные сейчас (поле `secret` как String + `key_type`), переписать маппинг
+
+3. Убедиться что `BackupDB::load(store)` компилируется и корректно маппит все поля.
+
+4. Добавить интеграционный тест: создать проект с данными → вызвать backup → убедиться что JSON правильный.
+
+---
+
+### 🟠 T-BE-07 — Restore: восстановление интеграций
+
+**Приоритет:** 🟠 Высокий — backup бесполезен если restore неполный
+**Файл:** `rust/src/services/restore.rs:499`
+**Статус:** ⬜ Не начато
+
+**Что сделать:**
+
+1. В `RestoreProject::restore()` раскомментировать/реализовать блок интеграций (строка 499):
+   ```rust
+   for integration in &self.integrations {
+       let created = store.create_integration(integration.clone()).await?;
+       // восстановить aliases, matchers, extract_values
+   }
+   ```
+
+2. Аналогично проверить что восстанавливаются: `integration_alias`, `integration_matcher`, `integration_extract_value` (после T-BE-05).
+
+3. Добавить тест: backup проекта с интеграцией → restore → проверить наличие интеграции в БД.
+
+---
+
+### 🟠 T-BE-08 — Exporter: исправить borrow checker
+
+**Приоритет:** 🟠 Высокий — export (backup) не работает полностью
+**Файл:** `rust/src/services/exporter.rs:421,439`
+**Статус:** ⬜ Не начато
+
+**Что сделать:**
+
+1. Проблема: `self.exporters.get_mut(key)` берёт `&mut self.exporters`, а `exporter.load(store, self, ...)` требует `&mut self` → double mutable borrow.
+
+2. Решение — swap паттерн:
+   ```rust
+   if let Some(mut exporter) = self.exporters.remove(&key) {
+       exporter.load(store, self, &mut progress)?;
+       self.exporters.insert(key, exporter);
+   }
+   ```
+
+3. Применить аналогично к строке 439 (`restore`).
+
+4. Проверить что `cargo check` проходит после правки.
+
+---
+
+### 🟡 T-BE-09 — delete_playbook_run: SQL реализация
+
+**Приоритет:** 🟡 Средний
+**Файл:** `rust/src/db/sql/managers/playbook_run.rs:588`
+**Статус:** ⬜ Не начато
+
+**Что сделать:**
+
+1. В `delete_playbook_run(id, project_id)` добавить SQL для трёх диалектов:
+   - SQLite/MySQL: `DELETE FROM playbook_run WHERE id = ? AND project_id = ?`
+   - PostgreSQL: `DELETE FROM playbook_run WHERE id = $1 AND project_id = $2`
+
+2. Убедиться что таблица `playbook_run` существует в схеме (`db/sql/mod.rs`), при необходимости добавить.
+
+---
+
+### 🟡 T-BE-10 — PlaybookRun: персистировать статус и статистику
+
+**Приоритет:** 🟡 Средний
+**Файлы:** `rust/src/services/playbook_run_status_service.rs:49,87`
+**Статус:** ⬜ Не начато
+
+**Что сделать:**
+
+1. Добавить в `PlaybookRunManager` trait метод `update_playbook_run_status(id, status, end_time)`.
+
+2. Реализовать SQL UPDATE для трёх диалектов в managers.
+
+3. В `playbook_run_status_service.rs::update_from_task_status()` — вызвать метод вместо TODO.
+
+4. В `update_run_statistics()` — реализовать через `get_playbook_run_by_task_id()` (найти run по task_id) и UPDATE поля `total_runs`, `success_runs`, `failed_runs`.
+
+---
+
+### 🟡 T-BE-11 — get_playbook_run_by_task_id
+
+**Приоритет:** 🟡 Средний (зависит от T-BE-10)
+**Файл:** `rust/src/services/playbook_run_status_service.rs:32`
+**Статус:** ⬜ Не начато
+
+**Что сделать:**
+
+1. Добавить в `PlaybookRunManager` trait:
+   ```rust
+   async fn get_playbook_run_by_task_id(&self, task_id: i32) -> Result<Option<PlaybookRun>>;
+   ```
+
+2. SQL: `SELECT * FROM playbook_run WHERE task_id = ? LIMIT 1`
+
+3. Реализовать для SQLite/PG/MySQL + MockStore.
+
+4. Вызвать в `playbook_run_status_service.rs:32` вместо TODO.
+
+---
+
+### 🟡 T-BE-12 — Repository branches: реальный git ls-remote
+
+**Приоритет:** 🟡 Средний — autocomplete показывает hardcoded ветки
+**Файл:** `rust/src/api/handlers/projects/repository.rs`
+**Статус:** ⬜ Не начато
+
+**Что сделать:**
+
+1. В `get_repository_branches()`:
+   - Загрузить репозиторий из store: `store.get_repository(project_id, repository_id)`
+   - Запустить: `git ls-remote --heads <git_url>` через `tokio::process::Command` с timeout 10 сек
+   - Парсить stdout: каждая строка `<hash>\trefs/heads/<branch>` → взять `<branch>`
+   - При ошибке или timeout — fallback на `["main", "master", "develop"]`
+
+2. Если репозиторий использует SSH-ключ (`key_id` задан):
+   - Временно записать ключ в temp file → передать `GIT_SSH_COMMAND=ssh -i /tmp/key` в env дочернего процесса
+
+3. Кэшировать результат в `AppState` (HashMap project_id+repo_id → branches) с TTL 60 секунд, чтобы не вызывать git при каждом вводе символа.
+
+---
+
+### 🟡 T-BE-13 — TOTP: отключение после recovery code
+
+**Приоритет:** 🟡 Средний
+**Файл:** `rust/src/api/handlers/auth.rs:304`
+**Статус:** ⬜ Не начато
+
+**Что сделать:**
+
+1. В обработчике проверки recovery code — после успешной проверки добавить:
+   ```rust
+   store.delete_user_totp(user_id).await?;
+   ```
+   Метод `delete_user_totp` уже есть в `UserManager` trait.
+
+2. Возвращать в ответе флаг `"totp_disabled": true` чтобы фронтенд мог обновить UI.
+
+3. Добавить unit-тест: создать пользователя с TOTP → использовать recovery code → проверить что TOTP удалён.
+
+---
+
+### 🟡 T-BE-14 — Session: реальная инвалидация при logout
+
+**Приоритет:** 🟡 Средний
+**Файлы:** `rust/src/api/auth.rs:45`, `rust/src/db/sql/managers/session.rs:154`
+**Статус:** ⬜ Не начато
+
+**Что сделать:**
+
+1. В `session.rs` реализовать `check_session(token)` — проверить что сессия не `expired=true`.
+
+2. Добавить `invalidate_session(token)` в `SessionManager` trait:
+   ```sql
+   UPDATE session SET expired = true WHERE token = ?
+   ```
+
+3. В `api/auth.rs` logout handler — вызвать `store.invalidate_session(token)` вместо TODO.
+
+4. В auth middleware — при проверке JWT дополнительно вызывать `check_session(token)`, отказывать если инвалидирована.
+
+---
+
+### 🟡 T-BE-15 — Exporter entities: restore пользователей и проектов
+
+**Приоритет:** 🟡 Средний
+**Файл:** `rust/src/services/exporter_entities.rs:37,80`
+**Статус:** ⬜ Не начато
+
+**Что сделать:**
+
+1. В `exporter_entities.rs` строка 37 (restore пользователей):
+   - Реализовать загрузку из store: `store.get_user(backup_user.id)` → если не найден → `store.create_user(...)`
+   - При конфликте имён — использовать `generate_unique_name()` из `exporter_utils.rs`
+
+2. Строка 80 (restore проектов):
+   - `store.create_project(project)` → получить новый ID → сохранить маппинг старый_id → новый_id
+   - Этот маппинг используется при restore зависимых сущностей (templates, tasks)
+
+---
+
+## 2д. Новые задачи — Фронтенд
+
+> Задачи отсортированы по зависимости от бэкенд-задач.
+
+---
+
+### 🔴 T-FE-01 — Предупреждение о нешифрованных ключах (до T-BE-01)
+
+**Приоритет:** 🔴 Критично — пользователь должен знать о риске
+**Файл:** `web/public/keys.html`
+**Статус:** ⬜ Не начато
+
+**Что сделать:**
+
+1. В `keys.html` добавить баннер вверху страницы (только если `SEMAPHORE_ENCRYPTION_KEY` не задан):
+   - API: `GET /api/info` или `GET /api/health` — добавить поле `encryption_enabled: bool`
+   - Если `false` → показать желтый баннер: «⚠️ Ключи шифрования не настроены. Ключи доступа хранятся в открытом виде. Задайте переменную SEMAPHORE_ACCESS_KEY_ENCRYPTION.»
+
+2. Бэкенд: добавить `encryption_enabled` в ответ `GET /api/ping` или `GET /api/info`.
+
+---
+
+### 🟠 T-FE-02 — Integration Matchers UI в integration_detail.html (после T-BE-05)
+
+**Приоритет:** 🟠 Высокий — интерфейс матчеров присутствует, но данные не сохраняются
+**Файл:** `web/public/integration_detail.html`
+**Статус:** ⬜ Не начато
+
+**Что сделать:**
+
+1. Проверить что в `integration_detail.html` функции загрузки/сохранения матчеров вызывают правильные API:
+   - `GET /api/project/{id}/integrations/{int_id}/matchers` — загрузить список
+   - `POST /api/project/{id}/integrations/{int_id}/matchers` — создать
+   - `PUT /api/project/{id}/integrations/{int_id}/matchers/{matcher_id}` — обновить
+   - `DELETE /api/project/{id}/integrations/{int_id}/matchers/{matcher_id}` — удалить
+
+2. Форма создания матчера должна иметь поля: `name`, `match_type` (body/header), `body_data_type` (json/string), `key`, `method` (==/!=/contains), `value`.
+
+3. Аналогично для секции Extract Values — 5 полей: `name`, `value_source`, `body_data_type`, `key`, `variable_type`, `variable`.
+
+4. После сохранения — обновлять список без перезагрузки страницы.
+
+---
+
+### 🟠 T-FE-03 — Backup / Restore UI (после T-BE-06/07)
+
+**Приоритет:** 🟠 Высокий
+**Файлы:** `web/public/project.html`, `web/public/restore.html`
+**Статус:** ⬜ Не начато
+
+**Что сделать:**
+
+1. В `project.html` вкладка «Настройки» → кнопка «Скачать бэкап»:
+   - `GET /api/project/{id}/backup` → получить JSON
+   - `downloadJSON(data, "backup_project_" + id + "_" + dateStr + ".json")`
+   - Показывать спиннер, обрабатывать ошибки
+
+2. В `restore.html` форма восстановления проекта:
+   - `<input type="file" accept=".json">` — выбор файла
+   - Превью: прочитать JSON через `FileReader`, показать `name`, `created`, список сущностей
+   - Кнопка «Восстановить» → `POST /api/projects/restore` с телом JSON
+   - После успеха — редирект на страницу нового проекта
+
+---
+
+### 🟠 T-FE-04 — Roles tab в team.html: реальный CRUD (Custom Roles)
+
+**Приоритет:** 🟠 Высокий — Custom Roles теперь реализованы в бэкенде (2026-03-16)
+**Файл:** `web/public/team.html`
+**Статус:** ⬜ Не начато
+
+**Что сделать:**
+
+1. На вкладке «Роли» в `team.html` реализовать полный CRUD:
+   - `GET /api/project/{id}/roles` → отображать список с именем, slug, permissions bitmask
+   - Форма создания: поля `name`, `slug`, permissions (набор чекбоксов: «Запускать задачи», «Обновлять ресурсы», «Управлять проектом», «Управлять пользователями», «Управлять ролями», «Просмотр аудит-лога», «Управлять интеграциями», «Управлять secret storages»)
+   - Сохранять как bitmask: `run_tasks=1, update_resources=2, manage_project=4, manage_users=8, manage_roles=16, view_audit_log=32, manage_integrations=64, manage_secret_storages=128`
+   - Edit: `PUT /api/project/{id}/roles/{role_id}`
+   - Delete: `DELETE /api/project/{id}/roles/{role_id}` (только кастомные, id > 0)
+
+2. Встроенные роли (id < 0: Owner/Manager/Task Runner/Guest) отображать без кнопок Edit/Delete.
+
+---
+
+### 🟠 T-FE-05 — Branch autocomplete через реальный API (после T-BE-12)
+
+**Приоритет:** 🟠 Высокий — сейчас показываются hardcoded ветки
+**Файлы:** `web/public/templates.html`, `web/public/run.html`
+**Статус:** ⬜ Не начато
+
+**Что сделать:**
+
+1. Функция `loadBranchSuggestions(repositoryId)` в обоих файлах уже вызывает `api.getRepositoryBranches()`. Убедиться что функция корректно:
+   - Вызывает `GET /api/project/{id}/repositories/{repo_id}/branches`
+   - Обновляет `<datalist id="branch-suggestions">` актуальными ветками
+   - При пустом repositoryId — очищает datalist
+   - При ошибке — не крашится, оставляет предыдущие значения
+
+2. В форме создания шаблона добавить обработчик `onchange` на поле `repository_id`:
+   ```js
+   select.addEventListener('change', () => loadBranchSuggestions(select.value));
+   ```
+
+3. Показывать индикатор загрузки веток пока запрос выполняется (атрибут `disabled` на поле branch).
+
+---
+
+### 🟡 T-FE-06 — Статус шифрования ключа в keys.html
+
+**Приоритет:** 🟡 Средний (после T-BE-01)
+**Файл:** `web/public/keys.html`
+**Статус:** ⬜ Не начато
+
+**Что сделать:**
+
+1. В таблице ключей добавить колонку «Хранение»:
+   - `source_storage_type == "db"` → «🔒 Локально» (если encryption enabled) или «⚠️ Plaintext»
+   - `source_storage_type == "env"` → «Переменная окружения»
+   - `source_storage_type == "storage"` → «Vault / External»
+
+2. Tooltip при наведении на иконку — объяснить что значит статус.
+
+---
+
+### 🟡 T-FE-07 — PlaybookRun история в playbooks.html (после T-BE-10)
+
+**Приоритет:** 🟡 Средний
+**Файл:** `web/public/playbooks.html`
+**Статус:** ⬜ Не начато
+
+**Что сделать:**
+
+1. При клике на playbook — показывать раздел «История запусков»:
+   - `GET /api/project/{id}/playbooks/{playbook_id}/runs` → таблица: ID | Статус | Запустил | Начало | Длительность
+   - Статус-бейдж: running (синий пульсирующий) / success (зелёный) / failed (красный)
+
+2. Кнопка «Запустить снова» для завершённых запусков:
+   - `POST /api/project/{id}/playbooks/{playbook_id}/run` с теми же параметрами
+
+---
+
+### 🟡 T-FE-08 — Task Stages в task.html (после реализации бэкенда)
+
+**Приоритет:** 🟡 Средний
+**Файл:** `web/public/task.html`
+**Статус:** ⬜ Не начато
+
+**Что сделать:**
+
+1. Над блоком лога добавить горизонтальную прогресс-шкалу стадий:
+   - `GET /api/project/{id}/tasks/{task_id}/stages` → `[{name, status, duration}]`
+   - Если endpoint возвращает `[]` — шкалу не показывать
+   - Визуализация: `[Clone] ──✓── [Setup] ──✓── [Run] ──⟳── [Cleanup]`
+   - Цвета: done=зелёный, running=синий пульс, pending=серый, failed=красный
+
+---
+
+### 🟡 T-FE-09 — Уведомление о незавершённом 2FA в users.html (после T-BE-13)
+
+**Приоритет:** 🟡 Средний
+**Файл:** `web/public/users.html`
+**Статус:** ⬜ Не начато
+
+**Что сделать:**
+
+1. В форме профиля пользователя (`GET /api/user/me`) показывать статус 2FA:
+   - Если `totp_enabled: true` — зелёная метка «2FA активна» + кнопка «Отключить»
+   - Если `false` — жёлтое предупреждение «2FA не настроена» + кнопка «Включить»
+
+2. При нажатии «Отключить» — запрос пароля для подтверждения, затем `DELETE /api/user/me/2fa`.
+
+---
+
+### 🟡 T-FE-10 — Показывать реальные ошибки при неудаче задачи
+
+**Приоритет:** 🟡 Средний — UX улучшение
+**Файл:** `web/public/task.html`, `web/public/history.html`
+**Статус:** ⬜ Не начато
+
+**Что сделать:**
+
+1. В `task.html` при статусе `error`:
+   - Прокручивать лог до последней строки содержащей `ERROR:` или `FAILED`
+   - Выделять эти строки красным (дополнительный CSS класс `log-line-error`)
+   - Показывать в заголовке карточки: «Ошибка на строке N: FAILED — [имя task]»
+
+2. В `history.html` добавить тултип к красному статусу — первые 100 символов последней ошибки из лога (через отдельный `GET /api/project/{id}/tasks/{id}/output?limit=5&order=desc`).
+
+---
+
+## 2е. Сводная таблица новых задач
+
+### Бэкенд
+
+| ID | Задача | Приоритет | Статус |
+|---|---|---|---|
+| T-BE-01 | AccessKey шифрование (encrypt/decrypt) | 🔴 | ✅ Закрыт 2026-03-16 |
+| T-BE-02 | SSH/Vault ключи из БД в LocalJob | 🔴 | ✅ Закрыт 2026-03-16 |
+| T-BE-03 | Парсинг secrets_json в LocalJob | 🔴 | ✅ Закрыт 2026-03-16 |
+| T-BE-04 | Git checkout по ветке/коммиту | 🟠 | ✅ Закрыт 2026-03-16 |
+| T-BE-05 | Integration Matchers/ExtractValues — SQL | 🟠 | ✅ Закрыт 2026-03-16 |
+| T-BE-06 | Backup — исправить schema mismatches | 🟠 | ✅ Закрыт 2026-03-16 |
+| T-BE-07 | Restore — восстановление интеграций | 🟠 | ✅ Закрыт 2026-03-16 |
+| T-BE-08 | Exporter — borrow checker fix | 🟠 | ✅ Закрыт 2026-03-16 |
+| T-BE-09 | delete_playbook_run SQL | 🟡 | ✅ Закрыт 2026-03-16 |
+| T-BE-10 | PlaybookRun статус + статистика | 🟡 | ✅ Закрыт 2026-03-16 |
+| T-BE-11 | get_playbook_run_by_task_id | 🟡 | ✅ Закрыт 2026-03-16 |
+| T-BE-12 | Repository branches — git ls-remote | 🟡 | ✅ Закрыт 2026-03-16 |
+| T-BE-13 | TOTP recovery code → disable TOTP | 🟡 | ✅ Закрыт 2026-03-16 |
+| T-BE-14 | Session invalidation при logout | 🟡 | ✅ Закрыт 2026-03-16 |
+| T-BE-15 | Exporter entities — restore users/projects | 🟡 | ⏸ Заблокирован (async/sync mismatch — файл не компилируется) |
+
+### Фронтенд
+
+| ID | Задача | Приоритет | Зависит от | Статус |
+|---|---|---|---|---|
+| T-FE-01 | Баннер нешифрованных ключей | 🔴 | T-BE-01 | ⬜ |
+| T-FE-02 | Integration Matchers UI | 🟠 | T-BE-05 | ⬜ |
+| T-FE-03 | Backup/Restore UI | 🟠 | T-BE-06/07 | ⬜ |
+| T-FE-04 | Roles CRUD в team.html | 🟠 | ✅ Custom Roles | ⬜ |
+| T-FE-05 | Branch autocomplete реальный | 🟠 | T-BE-12 | ⬜ |
+| T-FE-06 | Статус шифрования в keys.html | 🟡 | T-BE-01 | ⬜ |
+| T-FE-07 | PlaybookRun история | 🟡 | T-BE-10 | ⬜ |
+| T-FE-08 | Task Stages прогресс-шкала | 🟡 | — | ⬜ |
+| T-FE-09 | 2FA управление в users.html | 🟡 | T-BE-13 | ⬜ |
+| T-FE-10 | Ошибки задачи — UX улучшения | 🟡 | — | ⬜ |
 
 ---
 

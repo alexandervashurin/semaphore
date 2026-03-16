@@ -194,6 +194,9 @@ impl ProjectStore for MockStore {
     async fn create_project_user(&self, _project_user: crate::models::ProjectUser) -> Result<()> {
         Ok(())
     }
+    async fn delete_project_user(&self, _project_id: i32, _user_id: i32) -> Result<()> {
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -760,12 +763,20 @@ impl PlaybookRunManager for MockStore {
         Err(Error::NotFound("PlaybookRun not found".to_string()))
     }
 
+    async fn get_playbook_run_by_task_id(&self, _task_id: i32) -> Result<Option<PlaybookRun>> {
+        Ok(None)
+    }
+
     async fn create_playbook_run(&self, _run: PlaybookRunCreate) -> Result<PlaybookRun> {
         Err(Error::Database(sqlx::Error::Protocol("Not implemented in mock".to_string())))
     }
 
     async fn update_playbook_run(&self, _id: i32, _project_id: i32, _update: PlaybookRunUpdate) -> Result<PlaybookRun> {
         Err(Error::Database(sqlx::Error::Protocol("Not implemented in mock".to_string())))
+    }
+
+    async fn update_playbook_run_status(&self, _id: i32, _status: PlaybookRunStatus) -> Result<()> {
+        Ok(())
     }
 
     async fn delete_playbook_run(&self, _id: i32, _project_id: i32) -> Result<()> {

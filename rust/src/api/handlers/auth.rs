@@ -301,8 +301,13 @@ pub async fn recovery_session(
             ));
         }
 
-        // TODO: Отключаем TOTP после использования recovery code
-        // state.store.delete_totp(user.id).await?;
+        // Отключаем TOTP после использования recovery code
+        state.store.delete_user_totp(user.id)
+            .await
+            .map_err(|e| (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(format!("Ошибка отключения TOTP: {}", e))),
+            ))?;
     } else {
         return Err((
             StatusCode::BAD_REQUEST,

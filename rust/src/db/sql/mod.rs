@@ -398,6 +398,21 @@ impl SqlStore {
         .await
         .map_err(Error::Database)?;
 
+        // project_role — кастомные роли проекта
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS project_role (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id INTEGER NOT NULL REFERENCES project(id) ON DELETE CASCADE,
+                slug TEXT NOT NULL,
+                name TEXT NOT NULL,
+                description TEXT,
+                permissions INTEGER NOT NULL DEFAULT 0
+            )",
+        )
+        .execute(pool)
+        .await
+        .map_err(Error::Database)?;
+
         // playbook — хранимые YAML плейбуки
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS playbook (

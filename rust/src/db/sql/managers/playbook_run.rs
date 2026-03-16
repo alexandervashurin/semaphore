@@ -232,6 +232,71 @@ impl PlaybookRunManager for SqlStore {
         }
     }
 
+    async fn get_playbook_run_by_task_id(&self, task_id: i32) -> Result<Option<PlaybookRun>> {
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                let run = sqlx::query_as::<_, PlaybookRun>(
+                    "SELECT * FROM playbook_run WHERE task_id = ? LIMIT 1"
+                )
+                .bind(task_id)
+                .fetch_optional(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
+                .await
+                .map_err(Error::Database)?;
+                Ok(run)
+            }
+            SqlDialect::PostgreSQL => {
+                let run = sqlx::query_as::<_, PlaybookRun>(
+                    "SELECT * FROM playbook_run WHERE task_id = $1 LIMIT 1"
+                )
+                .bind(task_id)
+                .fetch_optional(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
+                .await
+                .map_err(Error::Database)?;
+                Ok(run)
+            }
+            SqlDialect::MySQL => {
+                let run = sqlx::query_as::<_, PlaybookRun>(
+                    "SELECT * FROM playbook_run WHERE task_id = ? LIMIT 1"
+                )
+                .bind(task_id)
+                .fetch_optional(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
+                .await
+                .map_err(Error::Database)?;
+                Ok(run)
+            }
+        }
+    }
+
+    async fn update_playbook_run_status(&self, id: i32, status: PlaybookRunStatus) -> Result<()> {
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                sqlx::query("UPDATE playbook_run SET status = ?, updated = datetime('now') WHERE id = ?")
+                    .bind(status.to_string())
+                    .bind(id)
+                    .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
+                    .await
+                    .map_err(Error::Database)?;
+            }
+            SqlDialect::PostgreSQL => {
+                sqlx::query("UPDATE playbook_run SET status = $1, updated = NOW() WHERE id = $2")
+                    .bind(status.to_string())
+                    .bind(id)
+                    .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
+                    .await
+                    .map_err(Error::Database)?;
+            }
+            SqlDialect::MySQL => {
+                sqlx::query("UPDATE playbook_run SET status = ?, updated = NOW() WHERE id = ?")
+                    .bind(status.to_string())
+                    .bind(id)
+                    .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
+                    .await
+                    .map_err(Error::Database)?;
+            }
+        }
+        Ok(())
+    }
+
     async fn create_playbook_run(&self, run: PlaybookRunCreate) -> Result<PlaybookRun> {
         match self.get_dialect() {
             SqlDialect::SQLite => {
@@ -584,8 +649,33 @@ impl PlaybookRunManager for SqlStore {
         }
     }
 
-    async fn delete_playbook_run(&self, _id: i32, _project_id: i32) -> Result<()> {
-        // TODO: Реализовать удаление
+    async fn delete_playbook_run(&self, id: i32, project_id: i32) -> Result<()> {
+        match self.get_dialect() {
+            SqlDialect::SQLite => {
+                sqlx::query("DELETE FROM playbook_run WHERE id = ? AND project_id = ?")
+                    .bind(id)
+                    .bind(project_id)
+                    .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
+                    .await
+                    .map_err(Error::Database)?;
+            }
+            SqlDialect::PostgreSQL => {
+                sqlx::query("DELETE FROM playbook_run WHERE id = $1 AND project_id = $2")
+                    .bind(id)
+                    .bind(project_id)
+                    .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
+                    .await
+                    .map_err(Error::Database)?;
+            }
+            SqlDialect::MySQL => {
+                sqlx::query("DELETE FROM playbook_run WHERE id = ? AND project_id = ?")
+                    .bind(id)
+                    .bind(project_id)
+                    .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
+                    .await
+                    .map_err(Error::Database)?;
+            }
+        }
         Ok(())
     }
 

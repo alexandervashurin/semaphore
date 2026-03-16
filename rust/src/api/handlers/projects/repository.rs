@@ -112,8 +112,7 @@ pub async fn get_repository_branches(
     State(state): State<Arc<AppState>>,
     Path((project_id, repository_id)): Path<(i32, i32)>,
 ) -> std::result::Result<Json<Vec<String>>, (StatusCode, Json<ErrorResponse>)> {
-    // Проверяем, что репозиторий существует
-    state.store.get_repository(project_id, repository_id)
+    let repo = state.store.get_repository(project_id, repository_id)
         .await
         .map_err(|e| match e {
             crate::error::Error::NotFound(_) => (
@@ -126,8 +125,14 @@ pub async fn get_repository_branches(
             )
         })?;
 
-    // Возвращаем базовые ветки (в production здесь был бы git ls-remote)
-    Ok(Json(vec!["main".to_string(), "master".to_string(), "develop".to_string()]))
+    // Выполняем git ls-remote для получения актуальных веток
+    use crate::services::git_repository::GitRepository;
+    let git_repo = GitRepository::new(repo, project_id, repository_id);
+    let branches = git_repo.get_remote_branches()
+        .await
+        .unwrap_or_else(|_| vec!["main".to_string(), "master".to_string()]);
+
+    Ok(Json(branches))
 }
 
 
