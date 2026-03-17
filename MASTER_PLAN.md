@@ -5,7 +5,7 @@
 >
 > **Репозиторий:** https://github.com/tnl-o/rust_semaphore
 > **Upstream (Go оригинал):** https://github.com/semaphoreui/semaphore
-> **Последнее обновление:** 2026-03-17 (обновление 33 — закрыты T-FE-01..10, кроме T-FE-15 blocked)
+> **Последнее обновление:** 2026-03-17 (обновление 34 — реализованы get_global_tasks, get_all_schedules, playbook_run_status_service, vault/environment secrets parsing, ssh_auth_service)
 
 ---
 

@@ -31,7 +31,7 @@ impl PlaybookSyncService {
         store: &S,
     ) -> Result<Playbook>
     where
-        S: PlaybookManager + RepositoryManager,
+        S: PlaybookManager + RepositoryManager + AccessKeyManager,
     {
         // 1. Получаем playbook
         let playbook = store.get_playbook(playbook_id, project_id).await?;
@@ -55,7 +55,7 @@ impl PlaybookSyncService {
             temp_dir.path()
         );
 
-        clone_repository(&repository, temp_dir.path()).await?;
+        clone_repository(&repository, temp_dir.path(), project_id, store).await?;
 
         // 5. Читаем playbook файл
         // Путь к файлу берем из названия playbook или используем название как путь
@@ -105,7 +105,7 @@ impl PlaybookSyncService {
         store: &S,
     ) -> Result<String>
     where
-        S: PlaybookManager + RepositoryManager,
+        S: PlaybookManager + RepositoryManager + AccessKeyManager,
     {
         // 1. Получаем playbook
         let playbook = store.get_playbook(playbook_id, project_id).await?;
@@ -123,7 +123,7 @@ impl PlaybookSyncService {
             Error::Other(format!("Не удалось создать временную директорию: {}", e))
         })?;
 
-        clone_repository(&repository, temp_dir.path()).await?;
+        clone_repository(&repository, temp_dir.path(), project_id, store).await?;
 
         // 5. Читаем playbook файл
         let playbook_file_path = determine_playbook_path(temp_dir.path(), &playbook.name);
@@ -140,48 +140,67 @@ impl PlaybookSyncService {
 }
 
 /// Клонирует Git репозиторий в указанную директорию
-async fn clone_repository(repository: &crate::models::Repository, path: &Path) -> Result<()> {
-    let mut fetch_options = FetchOptions::new();
-    
-    // Настраиваем callback для аутентификации
-    let mut remote_callbacks = RemoteCallbacks::new();
-    
-    // Если есть SSH ключ, настраиваем SSH аутентификацию
-    if repository.key_id != 0 {
-        // TODO: Получить AccessKey из БД и настроить SSH аутентификацию
-        // Временно используем заглушку
-        warn!("SSH аутентификация для key_id={} требует реализации", repository.key_id);
-        
-        // Устанавливаем credentials callback для SSH
-        remote_callbacks.credentials(|url, username_from_url, allowed_types| {
-            info!("Git credentials callback: URL={}, allowed_types={:?}", url, allowed_types);
-            
+async fn clone_repository<S>(
+    repository: &crate::models::Repository,
+    path: &Path,
+    project_id: i32,
+    store: &S,
+) -> Result<()>
+where
+    S: AccessKeyManager,
+{
+    // Загружаем данные ключа async перед входом в spawn_blocking
+    let (ssh_key, ssh_passphrase, login, password) = if repository.key_id != 0 {
+        match store.get_access_key(project_id, repository.key_id).await {
+            Ok(key) => (key.ssh_key, key.ssh_passphrase, key.login_password_login, key.login_password_password),
+            Err(e) => {
+                warn!("Failed to load access key {} for repository: {}", repository.key_id, e);
+                (None, None, None, None)
+            }
+        }
+    } else {
+        (None, None, None, None)
+    };
+
+    let git_url = repository.git_url.clone();
+    let path = path.to_path_buf();
+
+    // Используем spawn_blocking т.к. git2 не Send
+    tokio::task::spawn_blocking(move || {
+        let mut fetch_options = FetchOptions::new();
+        let mut remote_callbacks = RemoteCallbacks::new();
+
+        remote_callbacks.credentials(move |_url, username_from_url, allowed_types| {
             if allowed_types.contains(git2::CredentialType::SSH_KEY) {
-                // Пытаемся использовать SSH агент
+                if let Some(ref key_pem) = ssh_key {
+                    return Cred::ssh_key_from_memory(
+                        username_from_url.unwrap_or("git"),
+                        None,
+                        key_pem,
+                        ssh_passphrase.as_deref(),
+                    );
+                }
                 Cred::ssh_key_from_agent(username_from_url.unwrap_or("git"))
+            } else if allowed_types.contains(git2::CredentialType::USER_PASS_PLAINTEXT) {
+                Cred::userpass_plaintext(
+                    login.as_deref().unwrap_or(""),
+                    password.as_deref().unwrap_or(""),
+                )
             } else {
                 Cred::default()
             }
         });
-    } else {
-        // Без аутентификации или HTTP аутентификация
-        remote_callbacks.credentials(|url, username_from_url, allowed_types| {
-            info!("Git credentials callback (no key): URL={}", url);
-            Cred::default()
-        });
-    }
-    
-    fetch_options.remote_callbacks(remote_callbacks);
 
-    let mut builder = RepoBuilder::new();
-    builder.fetch_options(fetch_options);
+        fetch_options.remote_callbacks(remote_callbacks);
 
-    // Клонируем репозиторий
-    let _repo = builder
-        .clone(&repository.git_url, path)
-        .map_err(Error::Git)?;
+        let mut builder = RepoBuilder::new();
+        builder.fetch_options(fetch_options);
 
-    Ok(())
+        builder.clone(&git_url, &path).map_err(Error::Git)?;
+        Ok(())
+    })
+    .await
+    .map_err(|e| Error::Other(format!("spawn_blocking error: {}", e)))?
 }
 
 /// Определяет путь к файлу playbook
