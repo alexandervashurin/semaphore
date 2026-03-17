@@ -3,6 +3,7 @@
 pub mod access_key_installation_service;
 pub mod access_key_installer;
 pub mod alert;
+pub mod auto_backup;
 pub mod backup;
 pub mod cache_service;
 pub mod exporter;
