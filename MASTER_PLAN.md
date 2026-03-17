@@ -5,7 +5,7 @@
 >
 > **Репозиторий:** https://github.com/tnl-o/rust_semaphore
 > **Upstream (Go оригинал):** https://github.com/semaphoreui/semaphore
-> **Последнее обновление:** 2026-03-17 (обновление 35 — SchedulePool подключён к запуску сервера; рефакторинг Store chain на Arc<dyn Store+Send+Sync>; create_task_execution shared service)
+> **Последнее обновление:** 2026-03-17 (обновление 36 — AutoBackupService подключён к серверу; security_headers middleware в router; 665 unit-тестов зелёные; merge upstream/main + origin/main)
 
 ---
 
@@ -1543,7 +1543,7 @@ web/vanilla/
 - [x] Health check — `GET /api/health` → `"OK"` (`routes.rs:16`)
 
 #### 8.4 Тесты
-- [x] 682 unit-тестов — `cargo test --lib` green (2026-03-15)
+- [x] 665 unit-тестов — `cargo test --lib` green (2026-03-17, исправлены тесты после merge)
 - [x] 35 integration-тестов — `cargo test --test api_integration` green (2026-03-15)
 - [x] E2E тесты: full resource cycle, team management, update resources, WebSocket upgrade (2026-03-15)
 - [x] Integration тесты с реальной SQLite БД — `rust/tests/api_integration.rs`
@@ -1551,7 +1551,8 @@ web/vanilla/
 #### 8.5 Безопасность
 - [x] Rate limiting — `api/middleware/rate_limiter.rs` (commit 67bfce0)
 - [x] CORS настройки — реализованы
-- [x] Security headers (`X-Frame-Options`, CSP, etc.) — `api/middleware/security_headers.rs` (commit 67bfce0)
+- [x] Security headers (`X-Frame-Options`, CSP, HSTS, etc.) — применяются глобально через axum middleware (2026-03-17)
+- [x] AutoBackupService — подключён к серверу, включается через `SEMAPHORE_AUTO_BACKUP_ENABLED=true` (2026-03-17)
 - [ ] Аудит: секреты не утекают в логи
 
 ### Критерии готовности
