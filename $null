@@ -1,0 +1,5 @@
+unknown flag: --build
+
+Usage:  docker volume rm [OPTIONS] VOLUME [VOLUME...]
+
+Run 'docker volume rm --help' for more information
