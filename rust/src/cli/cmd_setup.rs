@@ -1,6 +1,6 @@
 //! CLI - Setup Command
 //!
-//! Команда для настройки Semaphore
+//! Команда для настройки Velum
 
 use clap::Args;
 use crate::cli::CliResult;
@@ -16,7 +16,7 @@ pub struct SetupCommand {
 impl SetupCommand {
     /// Выполняет команду
     pub fn run(&self) -> CliResult<()> {
-        println!("Semaphore UI Setup Wizard");
+        println!("Velum UI Setup Wizard");
         println!("========================");
 
         if self.non_interactive {

@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# Semaphore UI - Универсальный скрипт запуска
+# Velum - Универсальный скрипт запуска
 # ============================================================================
 # Поддерживаемые режимы:
 #   1. native   - Чистый запуск: SQLite + Backend + Frontend на хосте
@@ -170,7 +170,7 @@ setup_env_native() {
     
     # Создание .env файла
     cat > "$ENV_FILE" << EOF
-# Semaphore UI - Native Mode (SQLite)
+# Velum - Native Mode (SQLite)
 SEMAPHORE_DB_DIALECT=sqlite
 SEMAPHORE_DB_PATH=$SEMAPHORE_DB_PATH
 SEMAPHORE_WEB_PATH=$SEMAPHORE_WEB_PATH
@@ -209,7 +209,7 @@ setup_env_hybrid() {
     
     # Создание .env файла
     cat > "$ENV_FILE" << EOF
-# Semaphore UI - Hybrid Mode (PostgreSQL in Docker)
+# Velum - Hybrid Mode (PostgreSQL in Docker)
 SEMAPHORE_DB_DIALECT=postgres
 SEMAPHORE_DB_URL=$SEMAPHORE_DB_URL
 SEMAPHORE_WEB_PATH=$SEMAPHORE_WEB_PATH
@@ -230,7 +230,7 @@ setup_env_docker() {
     # Для docker режима переменные нужны только для docker-compose
     # Создаём .env файл для docker-compose
     cat > "$ENV_FILE" << EOF
-# Semaphore UI - Docker Mode
+# Velum - Docker Mode
 SEMAPHORE_DB_DIALECT=postgres
 SEMAPHORE_DB_URL=postgres://semaphore:semaphore_pass@db:5432/semaphore
 SEMAPHORE_WEB_PATH=/app/web/public
@@ -500,7 +500,7 @@ logs_native() {
 print_status_native() {
     echo ""
     echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║         Semaphore UI запущен! (Native Mode)            ║${NC}"
+    echo -e "${BLUE}║         Velum запущен! (Native Mode)            ║${NC}"
     echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
     echo ""
     echo -e "${GREEN}🌐 Web-интерфейс:${NC} http://localhost:3000"
@@ -646,7 +646,7 @@ logs_hybrid() {
 print_status_hybrid() {
     echo ""
     echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║         Semaphore UI запущен! (Hybrid Mode)            ║${NC}"
+    echo -e "${BLUE}║         Velum запущен! (Hybrid Mode)            ║${NC}"
     echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
     echo ""
     echo -e "${GREEN}🌐 Web-интерфейс:${NC} http://localhost:3000"
@@ -709,7 +709,7 @@ logs_docker() {
 print_status_docker() {
     echo ""
     echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║         Semaphore UI запущен! (Docker Mode)            ║${NC}"
+    echo -e "${BLUE}║         Velum запущен! (Docker Mode)            ║${NC}"
     echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
     echo ""
     echo -e "${GREEN}🌐 Web-интерфейс:${NC} http://localhost"

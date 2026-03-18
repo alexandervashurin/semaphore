@@ -1,6 +1,6 @@
 //! PRO DB Module
 //!
-//! PRO DB модуль для Semaphore
+//! PRO DB модуль для Velum
 
 pub mod factory;
 

@@ -1,6 +1,6 @@
-//! Semaphore Desktop - Tauri Application
+//! Velum Desktop - Tauri Application
 //! 
-//! Desktop приложение для Semaphore UI с поддержкой:
+//! Desktop приложение для Velum UI с поддержкой:
 //! - Системного трея
 //! - Уведомлений
 //! - Локального сервера
@@ -43,7 +43,7 @@ impl Default for AppState {
 // API Types
 // ============================================================================
 
-/// Задача Semaphore
+/// Задача Velum
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Task {
     pub id: i64,
@@ -54,7 +54,7 @@ pub struct Task {
     pub output: Option<String>,
 }
 
-/// Проект Semaphore
+/// Проект Velum
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Project {
     pub id: i64,
@@ -87,7 +87,7 @@ async fn get_connection_state(
     })
 }
 
-/// Подключиться к серверу Semaphore
+/// Подключиться к серверу Velum
 #[tauri::command]
 async fn connect_to_server(
     state: tauri::State<'_, Arc<Mutex<AppState>>>,

@@ -71,7 +71,7 @@ services:
     env_file:
       - .env
   semaphore:
-    image: semaphoreui/semaphore:latest
+    image: velum/velum:latest
     environment:
       SEMAPHORE_DB_DIALECT: "bolt"
       SEMAPHORE_ADMIN_PASSWORD: "changeme"

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Проект - СЕМАФОРЪ</title>
+    <title>Проект - Velum</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -48,7 +48,7 @@
         ])
         .then(([project, playbooks, templates, inventories, environments]) => {
             $('#project-title').textContent = project.name;
-            document.title = project.name + ' - СЕМАФОРЪ';
+            document.title = project.name + ' - Velum';
             showProjectDashboard(project, { playbooks, templates, inventories, environments });
         })
         .catch(error => {
@@ -63,7 +63,7 @@
             try {
                 await api.updateProject(projectId, { name });
                 document.getElementById('project-title').textContent = name;
-                document.title = name + ' - СЕМАФОРЪ';
+                document.title = name + ' - Velum';
                 if (msg) { msg.style.color = 'var(--success, green)'; msg.textContent = '✅ Сохранено'; }
             } catch (e) {
                 if (msg) { msg.style.color = '#e74c3c'; msg.textContent = '❌ ' + e.message; }
@@ -85,7 +85,7 @@
                     alert
                 });
                 $('#project-title').textContent = name;
-                document.title = name + ' - СЕМАФОРЪ';
+                document.title = name + ' - Velum';
                 msg.style.color = '#276749';
                 msg.textContent = '✅ Настройки сохранены';
                 setTimeout(() => { msg.textContent = ''; }, 3000);

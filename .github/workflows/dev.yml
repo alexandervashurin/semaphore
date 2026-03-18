@@ -657,10 +657,10 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           images: |
-            semaphoreui/semaphore-community
+            velum/velum-community
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
-            maintainer=Semaphore UI <support@semaphoreui.com>
+            maintainer=Velum <support@semaphoreui.com>
           tags: |
             type=raw,value=develop
           flavor: |
@@ -715,7 +715,7 @@ jobs:
             semaphoreui/runner-community
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
-            maintainer=Semaphore UI <support@semaphoreui.com>
+            maintainer=Velum <support@semaphoreui.com>
           tags: |
             type=raw,value=develop
           flavor: |

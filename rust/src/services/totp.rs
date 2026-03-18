@@ -169,7 +169,7 @@ mod tests {
             email_otp: None,
         };
 
-        let secret = generate_totp_secret(&user, "Semaphore").unwrap();
+        let secret = generate_totp_secret(&user, "Velum").unwrap();
 
         assert!(!secret.secret.is_empty());
         assert!(secret.url.starts_with("otpauth://totp/"));
@@ -178,7 +178,7 @@ mod tests {
 
         // Проверяем, что URL содержит правильные параметры
         assert!(secret.url.contains(&format!("secret={}", secret.secret)));
-        assert!(secret.url.contains("issuer=Semaphore"));
+        assert!(secret.url.contains("issuer=Velum"));
     }
 
     #[test]

@@ -25,7 +25,7 @@ impl Default for GrpcServerConfig {
     }
 }
 
-/// gRPC сервер Semaphore
+/// gRPC сервер Velum
 pub struct GrpcServer {
     config: GrpcServerConfig,
 }

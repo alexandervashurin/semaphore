@@ -48,7 +48,7 @@ variables for `INSTALL_PATH` (`/usr/local/bin`) and `REQUIRE_SUDO` (true).
 task docker:test
 ```
 
-[dockerhub]: https://hub.docker.com/r/semaphoreui/semaphore
+[dockerhub]: https://hub.docker.com/r/velum/velum
 [docker]: https://docs.docker.com/engine/install/
 [podman]: https://podman.io/docs/installation
 [gotask]: https://taskfile.dev/installation/

@@ -26,7 +26,7 @@ services:
       - ldap
 
   semaphore:
-    image: semaphoreui/semaphore:latest
+    image: velum/velum:latest
 #    container_name: semaphore
     environment:
       SEMAPHORE_DB_DIALECT: "bolt"

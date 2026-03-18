@@ -107,7 +107,7 @@ async function loadDashboard() {
         
         // Отправляем уведомление о загрузке
         invoke('send_notification', {
-            title: 'Semaphore UI',
+            title: 'Velum',
             body: `Загружено ${projects.length} проектов и ${tasks.length} задач`
         }).catch(console.error);
         

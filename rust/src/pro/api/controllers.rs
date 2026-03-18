@@ -1,6 +1,6 @@
 //! PRO API Controllers
 //!
-//! PRO контроллеры для Semaphore API
+//! PRO контроллеры для Velum API
 
 use axum::{
     extract::State,

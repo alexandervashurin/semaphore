@@ -33,7 +33,7 @@ for file in "${FILES[@]}"; do
         echo "Обработка: $file"
         
         # Замена импорта
-        sed -i 's|"github.com/semaphoreui/semaphore/pkg/random"|"crypto/rand"|g' "$file"
+        sed -i 's|"github.com/velum/velum/pkg/random"|"crypto/rand"|g' "$file"
         
         # Замена random.String(n) на генерацию через crypto/rand
         # Генерируем hex строку нужной длины

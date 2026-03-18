@@ -1,4 +1,4 @@
-# Конфигурация СЕМАФОРЪ
+# Конфигурация Velum
 
 ## 🎯 Демонстрационное окружение
 
@@ -98,7 +98,7 @@ sqlite:///tmp/semaphore.db
 docker run -p 3000:3000 \
   -e SEMAPHORE_DB_URL="postgres://semaphore:semaphore_pass@localhost:5433/semaphore" \
   -e SEMAPHORE_HTTP_PORT=3000 \
-  semaphoreui/semaphore:rust
+  velum/velum:rust
 ```
 
 ### Docker (SQLite)
@@ -109,7 +109,7 @@ docker run -p 3000:3000 \
   -e SEMAPHORE_DB_PATH=/var/lib/semaphore/semaphore.db \
   -e SEMAPHORE_ADMIN=admin \
   -e SEMAPHORE_ADMIN_PASSWORD=changeme \
-  semaphoreui/semaphore:rust
+  velum/velum:rust
 ```
 
 ### Docker (PostgreSQL)
@@ -122,14 +122,14 @@ docker run -p 3000:3000 \
   -e SEMAPHORE_DB_USER=semaphore \
   -e SEMAPHORE_DB_PASS=secret \
   -e SEMAPHORE_DB_NAME=semaphore \
-  semaphoreui/semaphore:rust
+  velum/velum:rust
 ```
 
 ### Systemd
 
 ```ini
 [Unit]
-Description=СЕМАФОРЪ (Rust)
+Description=Velum (Rust)
 After=network.target
 
 [Service]

@@ -1,4 +1,4 @@
-# Deployment Guide for СЕМАФОРЪ (Rust)
+# Deployment Guide for Velum (Rust)
 
 **Версия:** v2.1.0  
 **Дата:** 17 марта 2026 г.
@@ -164,7 +164,7 @@ chown semaphore:semaphore /var/lib/semaphore
 Создать `/etc/systemd/system/semaphore.service`:
 ```ini
 [Unit]
-Description=СЕМАФОРЪ (Rust)
+Description=Velum (Rust)
 Documentation=https://github.com/tnl-o/semarust
 After=network.target
 

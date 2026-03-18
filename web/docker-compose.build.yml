@@ -1,6 +1,6 @@
 version: '3.8'
 
-# Docker Compose для сборки frontend Semaphore UI
+# Docker Compose для сборки frontend Velum
 # Использование: docker-compose -f web/docker-compose.build.yml build
 
 services:

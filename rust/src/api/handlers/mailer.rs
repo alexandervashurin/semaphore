@@ -36,17 +36,17 @@ pub async fn send_test_email(
     };
 
     // Формируем тестовое сообщение
-    let subject = "🔔 Test Email from Semaphore UI";
+    let subject = "🔔 Test Email from Velum UI";
     let body = format!(
         r#"
         <html>
             <body>
-                <h1>Test Email from Semaphore UI</h1>
+                <h1>Test Email from Velum UI</h1>
                 <p>This is a test email to verify SMTP configuration.</p>
                 <p><strong>Recipient:</strong> {}</p>
                 <p><strong>Time:</strong> {}</p>
                 <hr>
-                <p style="color: gray; font-size: 12px;">Sent by Semaphore UI</p>
+                <p style="color: gray; font-size: 12px;">Sent by Velum UI</p>
             </body>
         </html>
         "#,

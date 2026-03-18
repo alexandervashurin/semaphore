@@ -1,10 +1,10 @@
 //! App Types
 //!
-//! Типы приложений для Semaphore
+//! Типы приложений для Velum
 
 use serde::{Deserialize, Serialize};
 
-/// Приложение Semaphore
+/// Приложение Velum
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[derive(Default)]
 pub struct App {

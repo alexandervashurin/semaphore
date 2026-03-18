@@ -7,7 +7,7 @@ use tracing::info;
 use crate::error::Result;
 use crate::grpc::services::GrpcServerConfig;
 
-/// gRPC сервер Semaphore
+/// gRPC сервер Velum
 pub struct GrpcServer {
     config: GrpcServerConfig,
 }

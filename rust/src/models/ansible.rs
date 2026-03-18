@@ -1,6 +1,6 @@
 //! Ansible Models
 //!
-//! Ansible модели для Semaphore
+//! Ansible модели для Velum
 
 use serde::{Deserialize, Serialize};
 

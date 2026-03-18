@@ -1,6 +1,6 @@
 //! Runners Module
 //!
-//! Модуль раннеров для Semaphore
+//! Модуль раннеров для Velum
 
 pub mod job_pool;
 pub mod running_job;

@@ -78,7 +78,7 @@ export default {
   enterEnvJson: '輸入環境 JSON...',
   environmentAndExtraVariablesMustBeValidJsonExample: '環境和額外變數必須是有效的 JSON。範例：',
   dashboard2: '儀表板',
-  ansibleSemaphore: 'Semaphore UI',
+  ansibleSemaphore: 'Velum',
   wereSorryButHtmlwebpackpluginoptionstitleDoesntWor: '我們很抱歉，但 <%= htmlWebpackPlugin.options.title %> 在未啟用 JavaScript 的情況下無法正常工作。請啟用它以繼續。',
   deleteInventory: '刪除庫存',
   newInventory: '新庫存',

@@ -26,7 +26,7 @@ pub fn get_ansible_version() -> Option<String> {
     }
 }
 
-/// Проверяет наличие обновлений Semaphore
+/// Проверяет наличие обновлений Velum
 pub fn check_update() -> Option<String> {
     // Проверка обновлений через GitHub API
     // Используем reqwest для HTTP запросов

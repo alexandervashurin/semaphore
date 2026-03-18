@@ -1,10 +1,10 @@
 #!/bin/bash
-# Скрипт создания демо-данных для Semaphore UI
+# Скрипт создания демо-данных для Velum
 
 DB_PATH="/tmp/semaphore.db"
 PASSWORD_HASH='$2b$12$pDKL.XOgDcQCXBm77saF4eO/84j.Ul1zDhnYPUM61vkqZAUnz9vwS'
 
-echo "📊 Создание демо-данных для Semaphore UI..."
+echo "📊 Создание демо-данных для Velum..."
 echo "============================================"
 
 if [ ! -f "$DB_PATH" ]; then

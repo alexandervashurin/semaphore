@@ -79,7 +79,7 @@ export default {
   enterEnvJson: 'Env JSON eingeben...',
   environmentAndExtraVariablesMustBeValidJsonExample: 'Variablen müssen gültiges JSON sein. Beispiel:',
   dashboard2: 'Dashboard',
-  ansibleSemaphore: 'Semaphore UI',
+  ansibleSemaphore: 'Velum',
   wereSorryButHtmlwebpackpluginoptionstitleDoesntWor:
     'JavaScript ist deaktiviert. Bitte aktivieren Sie es für die vollständige Funktionalität.',
   deleteInventory: 'Inventory löschen',

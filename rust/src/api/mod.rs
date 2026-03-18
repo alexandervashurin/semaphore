@@ -1,6 +1,6 @@
 //! HTTP API на базе Axum
 //!
-//! Предоставляет REST API для управления Semaphore
+//! Предоставляет REST API для управления Velum
 
 pub mod apps;
 pub mod auth;

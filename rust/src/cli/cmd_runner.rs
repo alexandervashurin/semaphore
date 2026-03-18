@@ -20,7 +20,7 @@ pub struct RunnerCommand {
 impl RunnerCommand {
     /// Выполняет команду
     pub fn run(&self) -> CliResult<()> {
-        println!("Semaphore UI Runner");
+        println!("Velum UI Runner");
         println!("Use 'help' for more information");
 
         // В реальной реализации нужно запустить runner

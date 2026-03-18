@@ -1,5 +1,5 @@
 /**
- * Semaphore UI - Core JavaScript
+ * Velum - Core JavaScript
  * Чистый JS без зависимостей
  */
 
@@ -519,7 +519,7 @@ function renderSidebar() {
     sidebar.innerHTML = `
         <div class="sidebar-logo">
             <div class="sidebar-logo-dot"><img src="/logo.png" alt=""></div>
-            <h2>СЕМАФОРЪ</h2>
+            <h2>Velum</h2>
         </div>
         <div class="sidebar-section">
             <span>Проект</span>

@@ -2,7 +2,7 @@
 
 ## Обзор
 
-Реализован полный CRUD API для управления Playbook (Ansible, Terraform, Shell) в СЕМАФОРЪ.
+Реализован полный CRUD API для управления Playbook (Ansible, Terraform, Shell) в Velum.
 
 ## Изменения
 

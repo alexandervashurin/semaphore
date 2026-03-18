@@ -1,4 +1,4 @@
-# 🐳 СЕМАФОРЪ - Запуск одним Docker-контейнером
+# 🐳 Velum - Запуск одним Docker-контейнером
 
 > **All-in-One решение:** Backend + Frontend + Nginx + SQLite в одном контейнере
 

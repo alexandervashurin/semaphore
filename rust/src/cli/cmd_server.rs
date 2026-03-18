@@ -24,7 +24,7 @@ pub struct ServerCommand {
 impl ServerCommand {
     /// Выполняет команду
     pub fn run(&self, config: Arc<Config>) -> CliResult<()> {
-        println!("Starting Semaphore UI server...");
+        println!("Starting Velum UI server...");
         println!("Listening on {}:{}", self.host, self.port);
 
         // Создаём хранилище и запускаем сервер в одном runtime

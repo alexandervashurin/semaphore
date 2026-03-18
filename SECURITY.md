@@ -8,7 +8,7 @@
 
 ## Сообщение об уязвимостях
 
-Мы серьёзно относимся к безопасности СЕМАФОРЪ. Если вы обнаружили уязвимость, пожалуйста, следуйте этим рекомендациям.
+Мы серьёзно относимся к безопасности Velum. Если вы обнаружили уязвимость, пожалуйста, следуйте этим рекомендациям.
 
 ### Как сообщить
 
@@ -17,7 +17,7 @@
 Вместо этого:
 
 1. **Email**: Отправьте письмо на security@semaphoreui.com
-2. **GitHub**: Используйте [Private Vulnerability Reporting](https://github.com/semaphoreui/semaphore/security/advisories/new)
+2. **GitHub**: Используйте [Private Vulnerability Reporting](https://github.com/velum/velum/security/advisories/new)
 
 ### Что включать
 

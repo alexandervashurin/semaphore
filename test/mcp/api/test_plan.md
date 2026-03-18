@@ -1,4 +1,4 @@
-# СЕМАФОРЪ Test Plan
+# Velum Test Plan
 
 > For LLM/MCP execution instructions, safety rules, and reporting templates, see `AGENT.md`.
 
@@ -45,7 +45,7 @@
 ## Test Case 4: Test bash script
 **Objective**: Verify running bash scripts
 **Steps**:
-1. Add repository "Semaphore" https://github.com/semaphoreui/semaphore with branch `develop`.
+1. Add repository "Semaphore" https://github.com/velum/velum with branch `develop`.
 2. Create a template with following options:
    * Type: Bash script
    * Script path test/mcp/api/data/case4/test.sh

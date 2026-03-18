@@ -5,7 +5,7 @@ BASE_URL="http://localhost:3000/api"
 LOGIN="admin"
 PASSWORD="demo123"
 
-echo "📊 Заполнение Semaphore UI тестовыми данными через API"
+echo "📊 Заполнение Velum тестовыми данными через API"
 echo "======================================================="
 echo ""
 

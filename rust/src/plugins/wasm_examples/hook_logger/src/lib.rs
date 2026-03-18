@@ -1,7 +1,7 @@
 //! Hook Logger - WASM плагин для логирования событий
 //!
 //! Этот плагин демонстрирует базовую функциональность WASM плагинов
-//! для Semaphore UI.
+//! для Velum UI.
 
 use serde::{Deserialize, Serialize};
 
@@ -90,7 +90,7 @@ pub extern "C" fn get_plugin_info() -> i32 {
         "name": "Hook Logger",
         "version": "0.1.0",
         "description": "WASM плагин для логирования событий хуков",
-        "author": "Semaphore Team",
+        "author": "Velum Team",
         "type": "hook",
         "enabled": true
     });
@@ -135,7 +135,7 @@ pub extern "C" fn task_after_fail(data_ptr: i32, data_len: i32) -> i32 {
 }
 
 // ============================================================================
-// Хост-функции (импортируются из Semaphore)
+// Хост-функции (импортируются из Velum)
 // ============================================================================
 
 #[link(wasm_import_module = "semaphore")]

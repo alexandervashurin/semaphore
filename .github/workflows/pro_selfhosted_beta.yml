@@ -39,7 +39,7 @@ jobs:
 
       - name: Add PRO implementation
         run: |
-          git clone https://${{ secrets.GH_TOKEN }}@github.com/semaphoreui/semaphorepro-module.git pro_impl
+          git clone https://${{ secrets.GH_TOKEN }}@github.com/velum/velumpro-module.git pro_impl
           go work init . ./pro_impl
 
       - name: Install deps
@@ -107,10 +107,10 @@ jobs:
           images: |
             public.ecr.aws/semaphore/pro/server
             public.ecr.aws/semaphore/server
-            semaphoreui/semaphore
+            velum/velum
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
-            maintainer=Semaphore UI <support@semaphoreui.com>
+            maintainer=Velum <support@semaphoreui.com>
           tags: |
             type=raw,value=${{ github.ref_name }}
 
@@ -147,7 +147,7 @@ jobs:
           tags: |
             public.ecr.aws/semaphore/pro/server:${{ github.ref_name }}-ansible2.16.5
             public.ecr.aws/semaphore/server:${{ github.ref_name }}-ansible2.16.5
-            semaphoreui/semaphore:${{ github.ref_name }}-ansible2.16.5
+            velum/velum:${{ github.ref_name }}-ansible2.16.5
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false
@@ -170,7 +170,7 @@ jobs:
           tags: |
             public.ecr.aws/semaphore/pro/server:${{ github.ref_name }}-powershell7.5.0
             public.ecr.aws/semaphore/server:${{ github.ref_name }}-powershell7.5.0
-            semaphoreui/semaphore:${{ github.ref_name }}-powershell7.5.0
+            velum/velum:${{ github.ref_name }}-powershell7.5.0
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false
@@ -188,7 +188,7 @@ jobs:
             semaphoreui/runner
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
-            maintainer=Semaphore UI <support@semaphoreui.com>
+            maintainer=Velum <support@semaphoreui.com>
           tags: |
             type=raw,value=${{ github.ref_name }}
 

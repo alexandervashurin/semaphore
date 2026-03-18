@@ -3,7 +3,7 @@ name = "semaphore"
 version = "0.1.0"
 edition = "2021"
 authors = ["Alexander Vashurin <alexandervashurin@yandex.ru>"]
-description = "Rust-реализация Semaphore UI - современный веб-интерфейс для управления DevOps-инструментами (Ansible, Terraform, PowerShell и др.)"
+description = "Rust-реализация Velum UI - современный веб-интерфейс для управления DevOps-инструментами (Ansible, Terraform, PowerShell и др.)"
 license = "MIT"
 repository = "https://github.com/alexandervashurin/semaphore"
 

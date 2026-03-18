@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# Semaphore UI - Универсальный скрипт управления
+# Velum - Универсальный скрипт управления
 # ============================================================================
 # Все команды управления в одном скрипте
 #
@@ -131,7 +131,7 @@ setup_env_native() {
     export RUST_LOG="${RUST_LOG:-info}"
     mkdir -p "$(dirname "$SEMAPHORE_DB_PATH")" "$LOG_DIR"
     cat > "$ENV_FILE" <<EOF
-# Semaphore UI - Native Mode (SQLite)
+# Velum - Native Mode (SQLite)
 SEMAPHORE_DB_DIALECT=sqlite
 SEMAPHORE_DB_PATH=$SEMAPHORE_DB_PATH
 SEMAPHORE_WEB_PATH=$SEMAPHORE_WEB_PATH
@@ -161,7 +161,7 @@ setup_env_hybrid() {
     export RUST_LOG="${RUST_LOG:-info}"
     mkdir -p "$LOG_DIR"
     cat > "$ENV_FILE" <<EOF
-# Semaphore UI - Hybrid Mode (PostgreSQL in Docker)
+# Velum - Hybrid Mode (PostgreSQL in Docker)
 SEMAPHORE_DB_DIALECT=postgres
 SEMAPHORE_DB_URL=$SEMAPHORE_DB_URL
 SEMAPHORE_WEB_PATH=$SEMAPHORE_WEB_PATH
@@ -178,7 +178,7 @@ EOF
 setup_env_docker() {
     step "Настройка переменных окружения (docker)..."
     cat > "$ENV_FILE" <<EOF
-# Semaphore UI - Docker Mode
+# Velum - Docker Mode
 SEMAPHORE_DB_DIALECT=postgres
 SEMAPHORE_DB_URL=postgres://semaphore:semaphore_pass@db:5432/semaphore
 SEMAPHORE_WEB_PATH=/app/web/public
@@ -308,7 +308,7 @@ cmd_logs_native() {
 print_status_native() {
     echo ""
     echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║         Semaphore UI запущен! (Native Mode)            ║${NC}"
+    echo -e "${BLUE}║         Velum запущен! (Native Mode)            ║${NC}"
     echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
     echo ""
     echo -e "${GREEN}🌐 Web-интерфейс:${NC} http://localhost:3000"
@@ -416,7 +416,7 @@ cmd_logs_hybrid() {
 print_status_hybrid() {
     echo ""
     echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║         Semaphore UI запущен! (Hybrid Mode)            ║${NC}"
+    echo -e "${BLUE}║         Velum запущен! (Hybrid Mode)            ║${NC}"
     echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
     echo ""
     echo -e "${GREEN}🌐 Web-интерфейс:${NC} http://localhost:3000"
@@ -480,7 +480,7 @@ cmd_logs_docker() {
 print_status_docker() {
     echo ""
     echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║         Semaphore UI запущен! (Docker Mode)            ║${NC}"
+    echo -e "${BLUE}║         Velum запущен! (Docker Mode)            ║${NC}"
     echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
     echo ""
     echo -e "${GREEN}🌐 Web-интерфейс:${NC} http://localhost"
@@ -501,7 +501,7 @@ print_status_docker() {
 # ============================================================================
 
 cmd_status() {
-    header "Статус Semaphore UI"
+    header "Статус Velum"
     
     echo "Контейнеры:"
     docker ps -a --filter name=semaphore --format "  {{.Names}} - {{.Status}}" 2>/dev/null || echo "  Нет контейнеров semaphore"
@@ -535,7 +535,7 @@ cmd_build() {
 }
 
 cmd_help() {
-    header "Semaphore UI - Справка"
+    header "Velum - Справка"
     cat <<EOF
 Использование: $0 <КОМАНДА> [ОПЦИИ]
 

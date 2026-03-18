@@ -4,7 +4,7 @@
 > Обновляй статус задач по мере выполнения. Добавляй заметки в секцию `## Журнал решений`.
 >
 > **Репозиторий:** https://github.com/tnl-o/rust_semaphore
-> **Upstream (Go оригинал):** https://github.com/semaphoreui/semaphore
+> **Upstream (Go оригинал):** https://github.com/velum/velum
 > **Последнее обновление:** 2026-03-17 (обновление 36 — AutoBackupService подключён к серверу; security_headers middleware в router; 665 unit-тестов зелёные; merge upstream/main + origin/main)
 
 ---
@@ -34,7 +34,7 @@
 
 ## 1. Обзор проекта и контекст
 
-**СЕМАФОРЪ** — open-source веб-интерфейс для запуска Ansible, Terraform, OpenTofu, Terragrunt и других DevOps-инструментов. Оригинал написан на Go + Gin. Этот проект — полная миграция бэкенда на Rust с одновременным обновлением фронтенда с Vue 2 (EOL декабрь 2023) на Vue 3.
+**Velum** — open-source веб-интерфейс для запуска Ansible, Terraform, OpenTofu, Terragrunt и других DevOps-инструментов. Оригинал написан на Go + Gin. Этот проект — полная миграция бэкенда на Rust с одновременным обновлением фронтенда с Vue 2 (EOL декабрь 2023) на Vue 3.
 
 **Почему Rust?**
 - Производительность: меньше памяти, меньше задержек
@@ -298,7 +298,7 @@ JavaScript берёт последнее объявление — поведен
 
 ---
 
-#### 🟠 B-FE-21 — Дизайн: привести к upstream semaphoreui/semaphore
+#### 🟠 B-FE-21 — Дизайн: привести к upstream velum/velum
 
 **✅ Закрыт 2026-03-15.** Реализован Material Design совпадающий с upstream Vue/Vuetify:
 - Roboto font, teal sidebar `#005057`/`#003236`, primary `#1976D2`
@@ -342,7 +342,7 @@ JavaScript берёт последнее объявление — поведен
 | B-FE-18 | webhooks.html — формы create/edit/delete | 🟡 Средний | ✅ Закрыт 2026-03-15 |
 | B-FE-19 | playbooks.html — CRUD + sync/run форма | 🟡 Средний | ✅ Закрыт 2026-03-15 |
 | B-FE-20 | Страница управления командой проекта (roles) | 🟡 Средний | ✅ Закрыт 2026-03-15 |
-| B-FE-21 | Дизайн: привести к upstream semaphoreui/semaphore | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
+| B-FE-21 | Дизайн: привести к upstream velum/velum | 🟠 Высокий | ✅ Закрыт 2026-03-15 |
 | B-FE-22 | E2E тесты с реальным ansible-playbook | 🟡 Средний | ✅ Закрыт 2026-03-15 |
 | B-FE-23 | История задач (task.html) — страница списка + модалка детали + live-лог | 🔴 Критично | ✅ Закрыт 2026-03-15 |
 | B-FE-24 | Run modal в templates.html — live-лог при запуске задачи | 🔴 Критично | ✅ Закрыт 2026-03-15 |
@@ -362,8 +362,8 @@ JavaScript берёт последнее объявление — поведен
 
 ## 2.5 Анализ оригинального UI (аудит 2026-03-15)
 
-> Детальное сравнение нашего фронтенда с оригиналом **semaphoreui/semaphore** (Vue.js).
-> Источник правды: https://github.com/semaphoreui/semaphore
+> Детальное сравнение нашего фронтенда с оригиналом **velum/velum** (Vue.js).
+> Источник правды: https://github.com/velum/velum
 > Задача: перенести всё нижеперечисленное в наш Vanilla JS фронтенд.
 
 ---
@@ -660,9 +660,9 @@ JavaScript берёт последнее объявление — поведен
 
 ## 2.6 Полный аудит оригинала — задачи для 100% паритета (2026-03-15)
 
-> Глубокий аудит **каждого** аспекта `semaphoreui/semaphore` по исходникам Vue.js.
+> Глубокий аудит **каждого** аспекта `velum/velum` по исходникам Vue.js.
 > Все PRO/Enterprise фичи реализуем как обычные (без ограничений).
-> Источник: https://github.com/semaphoreui/semaphore/tree/develop/web/src
+> Источник: https://github.com/velum/velum/tree/develop/web/src
 
 ---
 
@@ -2490,7 +2490,7 @@ docker compose up -d
 ### Промт для Cursor AI — вставь это в начало разговора
 
 ```
-Ты работаешь над проектом rust_semaphore – клон СЕМАФОРЪ (DevOps-планировщик задач).
+Ты работаешь над проектом rust_semaphore – клон Velum (DevOps-планировщик задач).
 Репозиторий: https://github.com/tnl-o/rust_semaphore
 
 Стек фронтенда:

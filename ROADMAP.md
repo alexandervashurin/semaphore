@@ -1,9 +1,9 @@
-# 🗺️ Дорожная карта проекта СЕМАФОРЪ (Rust)
+# 🗺️ Дорожная карта проекта Velum (Rust)
 
 > **Репозиторий:** https://github.com/tnl-o/rust_semaphore
-> **Upstream (Go-оригинал — эталон фич):** https://github.com/semaphoreui/semaphore
+> **Upstream (Go-оригинал — эталон фич):** https://github.com/velum/velum
 > **Последнее обновление:** 14 марта 2026 г.
-> **Цель:** Полная миграция СЕМАФОРЪ с Go на Rust + замена Vue 2 на Vanilla JS, feature parity с Go-оригиналом.
+> **Цель:** Полная миграция Velum с Go на Rust + замена Vue 2 на Vanilla JS, feature parity с Go-оригиналом.
 
 ---
 
@@ -20,12 +20,12 @@
 
 ## 🎯 Цель проекта
 
-**СЕМАФОРЪ** — open-source веб-интерфейс для Ansible, Terraform, OpenTofu, PowerShell и других DevOps-инструментов. Оригинал написан на Go + Gin + Vue 2.
+**Velum** — open-source веб-интерфейс для Ansible, Terraform, OpenTofu, PowerShell и других DevOps-инструментов. Оригинал написан на Go + Gin + Vue 2.
 
 Этот форк:
 - **Мигрирует бэкенд** с Go на Rust (Axum + SQLx + Tokio) — производительнее, безопаснее, меньше памяти
 - **Мигрирует фронтенд** с Vue 2 (EOL декабрь 2023) на **Vanilla JS** — меньше зависимостей, быстрее загрузка, вечная поддержка
-- Сохраняет **полный feature parity** с Go-оригиналом (`semaphoreui/semaphore`)
+- Сохраняет **полный feature parity** с Go-оригиналом (`velum/velum`)
 
 **Что должно работать:**
 - Управление проектами с ролевой моделью (admin/manager/runner)
@@ -94,7 +94,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    СЕМАФОРЪ (Rust)                   │
+│                    Velum (Rust)                   │
 ├─────────────────────────────────────────────────────────┤
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐  │
 │  │  Frontend   │    │   Backend   │    │  Database   │  │

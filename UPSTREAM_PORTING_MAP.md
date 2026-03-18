@@ -1,8 +1,8 @@
 # Сравнение semaphore-upstream (Go) и Rust-проекта
 
-Документ сопоставляет файлы upstream (semaphoreui/semaphore, ветка develop) с файлами Rust-проекта, куда перенесены функции. Замечания по каждому сравнению.
+Документ сопоставляет файлы upstream (velum/velum, ветка develop) с файлами Rust-проекта, куда перенесены функции. Замечания по каждому сравнению.
 
-**Источник upstream:** `semaphore-upstream/` или https://github.com/semaphoreui/semaphore (develop)
+**Источник upstream:** `semaphore-upstream/` или https://github.com/velum/velum (develop)
 
 ---
 

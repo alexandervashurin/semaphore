@@ -1,7 +1,7 @@
 //! Сервис запуска Playbook
 //!
 //! Этот модуль предоставляет функциональность для запуска playbook
-//! через создание задачи (Task) в Semaphore.
+//! через создание задачи (Task) в Velum.
 
 use crate::db::store::*;
 use crate::error::{Error, Result};

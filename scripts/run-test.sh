@@ -1,9 +1,9 @@
 #!/bin/bash
-# Запуск Semaphore UI с тестовой SQLite БД (для разработки)
+# Запуск Velum с тестовой SQLite БД (для разработки)
 
 set -e
 
-echo "🚀 Запуск Semaphore UI с тестовой SQLite БД..."
+echo "🚀 Запуск Velum с тестовой SQLite БД..."
 
 # Переменные окружения
 export SEMAPHORE_DB_DIALECT=sqlite

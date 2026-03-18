@@ -1,6 +1,6 @@
 //! PRO API Module
 //!
-//! PRO API модуль для Semaphore
+//! PRO API модуль для Velum
 
 pub mod controllers;
 

@@ -139,7 +139,7 @@ impl UsersController {
         }
 
         // Генерируем секрет
-        let totp_secret = generate_totp_secret(&user, "Semaphore UI")?;
+        let totp_secret = generate_totp_secret(&user, "Velum UI")?;
 
         Ok(Json(TotpSecretResponse {
             secret: totp_secret.secret,

@@ -6,7 +6,7 @@
   tasks:
     - name: Say hello
       ansible.builtin.debug:
-        msg: "Hello from Semaphore UI (Rust)! Host: {{ inventory_hostname }}"
+        msg: "Hello from Velum (Rust)! Host: {{ inventory_hostname }}"
 
     - name: Check Python version
       ansible.builtin.command: python3 --version

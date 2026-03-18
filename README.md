@@ -1,4 +1,4 @@
-# 🦀 СЕМАФОРЪ на Rust
+# 🦀 Velum на Rust
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/Rust-1.80+-blue.svg)](https://www.rust-lang.org)
@@ -8,7 +8,7 @@
 [![Frontend](https://img.shields.io/badge/frontend-Vue%202-brightgreen.svg)]()
 [![Production Ready](https://img.shields.io/badge/status-production%20ready-brightgreen.svg)]()
 
-**Полная миграция СЕМАФОРЪ на Rust** - высокопроизводительная, безопасная и надёжная система автоматизации для Ansible, Terraform, OpenTofu, Terragrunt, PowerShell и других DevOps-инструментов.
+**Полная миграция Velum на Rust** - высокопроизводительная, безопасная и надёжная система автоматизации для Ansible, Terraform, OpenTofu, Terragrunt, PowerShell и других DevOps-инструментов.
 
 ## 🎯 Демо-режим
 
@@ -224,4 +224,4 @@ cargo test
 
 MIT © [Alexander Vashurin](https://github.com/alexandervashurin)
 
-Оригинальный проект [Semaphore UI](https://github.com/semaphoreui/semaphore) на Go.
+Оригинальный проект [Velum](https://github.com/velum/velum) на Go.

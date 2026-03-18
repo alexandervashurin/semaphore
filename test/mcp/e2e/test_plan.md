@@ -1,4 +1,4 @@
-# Test Plan for СЕМАФОРЪ using Playwright MCP
+# Test Plan for Velum using Playwright MCP
 
 > For LLM/MCP execution instructions, safety rules, and reporting templates, see `AGENT.md`.
 

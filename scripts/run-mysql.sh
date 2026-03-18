@@ -1,9 +1,9 @@
 #!/bin/bash
-# Запуск Semaphore UI с MySQL
+# Запуск Velum с MySQL
 
 set -e
 
-echo "🚀 Запуск Semaphore UI с MySQL..."
+echo "🚀 Запуск Velum с MySQL..."
 
 # Переменные окружения
 export SEMAPHORE_DB_DIALECT=mysql

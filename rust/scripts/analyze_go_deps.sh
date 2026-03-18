@@ -10,7 +10,7 @@ SEMAPHORE_ROOT="$(dirname "$PROJECT_ROOT")"
 
 cd "$SEMAPHORE_ROOT"
 
-echo "🔍 Анализ зависимостей Go модулей Semaphore UI"
+echo "🔍 Анализ зависимостей Go модулей Velum"
 echo "=============================================="
 echo ""
 

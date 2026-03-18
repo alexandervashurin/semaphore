@@ -1,7 +1,7 @@
 # Compose
 
 With the `docker-compose` snippets within this directory you are able to plug
-different setups of СЕМАФОРЪ together. Below you can find some example
+different setups of Velum together. Below you can find some example
 combinations.
 
 Some of the snippets define environment variables which could be optionally

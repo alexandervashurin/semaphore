@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
-  title: Semaphore UI API
+  title: Velum API
   description: |
-    REST API для управления Semaphore UI - системой автоматизации DevOps процессов.
+    REST API для управления Velum - системой автоматизации DevOps процессов.
     
     ## Аутентификация
     Все запросы к API требуют аутентификации через JWT токен.
@@ -13,7 +13,7 @@ info:
     - Production: `https://your-domain.com/api`
   version: 1.0.0
   contact:
-    name: Semaphore UI
+    name: Velum
     url: https://github.com/alexandervashurin/semaphore
     email: alexandervashurin@yandex.ru
 

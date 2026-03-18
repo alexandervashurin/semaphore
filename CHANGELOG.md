@@ -628,7 +628,7 @@ curl -X POST http://localhost:3000/api/project/1/playbooks \
 
 #### Добавлено
 - Последняя версия на Go перед миграцией на Rust
-- Полная функциональность СЕМАФОРЪ
+- Полная функциональность Velum
 - Поддержка Ansible, Terraform, OpenTofu, Terragrunt, PowerShell
 - REST API для управления проектами, задачами, шаблонами
 - CLI для администрирования
@@ -643,7 +643,7 @@ curl -X POST http://localhost:3000/api/project/1/playbooks \
 
 ## [0.x.x] - История Go Версии
 
-Полная история Go версии доступна в оригинальном репозитории Semaphore UI.
+Полная история Go версии доступна в оригинальном репозитории Velum.
 
 ---
 

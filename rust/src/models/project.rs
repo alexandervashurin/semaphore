@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
-/// Проект - верхнеуровневая структура в Semaphore
+/// Проект - верхнеуровневая структура в Velum
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Project {
     /// Уникальный идентификатор

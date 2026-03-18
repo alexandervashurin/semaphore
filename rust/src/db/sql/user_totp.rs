@@ -239,7 +239,7 @@ mod tests {
         };
         
         // Генерируем секрет
-        let totp_secret = totp::generate_totp_secret(&user, "Semaphore").unwrap();
+        let totp_secret = totp::generate_totp_secret(&user, "Velum").unwrap();
         assert!(!totp_secret.secret.is_empty());
         
         // Генерируем код

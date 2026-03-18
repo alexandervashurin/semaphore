@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Шаблон - СЕМАФОРЪ</title>
+    <title>Шаблон - Velum</title>
     <link rel="stylesheet" href="styles.css">
     <style>
         .tabs {
@@ -355,7 +355,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Шаблон - СЕМАФОРЪ</title>
+    <title>Шаблон - Velum</title>
     <link rel="stylesheet" href="styles.css">
     <style>
         .tpl-tabs { display:flex; gap:0; border-bottom:2px solid #e0e0e0; margin-bottom:20px; }
@@ -411,7 +411,7 @@
         ]).then(([project, template]) => {
             tpl = template;
             $('#page-title').textContent = project.name + ' → ' + template.name;
-            document.title = template.name + ' - СЕМАФОРЪ';
+            document.title = template.name + ' - Velum';
             renderPage();
         }).catch(err => {
             $('#tpl-content').innerHTML = '<div class="alert alert-danger">Ошибка: ' + escapeHtml(err.message) + '</div>';

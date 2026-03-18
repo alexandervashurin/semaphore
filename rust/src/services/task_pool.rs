@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{mpsc, RwLock, Semaphore};
+use tokio::sync::{mpsc, RwLock, Velum};
 use chrono::{DateTime, Utc};
 use tracing::{info, warn, error, debug};
 
@@ -56,7 +56,7 @@ pub struct TaskPoolState {
     /// Активные проекты
     pub active_projects: HashMap<i32, Project>,
     /// Блокировки для параллельных задач
-    pub blocks: HashMap<i32, Arc<Semaphore>>,
+    pub blocks: HashMap<i32, Arc<Velum>>,
 }
 
 impl Default for TaskPoolState {
@@ -363,7 +363,7 @@ impl TaskPool {
     /// Устанавливает блокировку для шаблона
     pub async fn set_block(&self, template_id: i32, permits: usize) {
         let mut state = self.state.write().await;
-        state.blocks.insert(template_id, Arc::new(Semaphore::new(permits)));
+        state.blocks.insert(template_id, Arc::new(Velum::new(permits)));
     }
 
     /// Снимает блокировку

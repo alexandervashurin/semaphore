@@ -79,7 +79,7 @@ export default {
   enterEnvJson: 'Введіть env JSON...',
   environmentAndExtraVariablesMustBeValidJsonExample: 'Змінні середовища та додаткові змінні повинні бути валідним JSON. Приклад:',
   dashboard2: 'Панель керування',
-  ansibleSemaphore: 'Semaphore UI',
+  ansibleSemaphore: 'Velum',
   wereSorryButHtmlwebpackpluginoptionstitleDoesntWor: 'Вибачте, але <%= htmlWebpackPlugin.options.title %> не працює належним чином без JavaScript. Будь ласка, увімкніть його.',
   deleteInventory: 'Видалити інвентар',
   newInventory: 'Новий інвентар',

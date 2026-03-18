@@ -197,7 +197,7 @@ impl WebhookService {
         json!({
             "attachments": [{
                 "color": color,
-                "author_name": format!("{} Semaphore UI", emoji),
+                "author_name": format!("{} Velum UI", emoji),
                 "title": title,
                 "text": text,
                 "fields": [
@@ -212,7 +212,7 @@ impl WebhookService {
                         "short": true
                     }
                 ],
-                "footer": "Semaphore UI",
+                "footer": "Velum UI",
                 "ts": event.timestamp.timestamp()
             }]
         })
@@ -237,7 +237,7 @@ impl WebhookService {
             "summary": title,
             "sections": [{
                 "activityTitle": title,
-                "activitySubtitle": "Semaphore UI",
+                "activitySubtitle": "Velum UI",
                 "activityText": text,
                 "facts": [
                     {
@@ -283,7 +283,7 @@ impl WebhookService {
                     }
                 ],
                 "footer": {
-                    "text": "Semaphore UI"
+                    "text": "Velum UI"
                 },
                 "timestamp": event.timestamp.to_rfc3339()
             }]

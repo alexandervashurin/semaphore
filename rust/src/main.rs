@@ -1,4 +1,4 @@
-//! Точка входа в приложение Semaphore CLI
+//! Точка входа в приложение Velum CLI
 
 use clap::Parser;
 use semaphore_ffi::cli::Cli;

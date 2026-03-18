@@ -43,7 +43,7 @@ pub async fn start_totp_setup(
     }
 
     // Генерируем секрет
-    let totp_secret = generate_totp_secret(&user, "Semaphore UI")
+    let totp_secret = generate_totp_secret(&user, "Velum UI")
         .map_err(|e| (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse::new(format!("Ошибка генерации секрета: {}", e))),
@@ -84,7 +84,7 @@ pub async fn confirm_totp_setup(
     }
 
     // Генерируем секрет (временно)
-    let totp_secret = generate_totp_secret(&user, "Semaphore UI")
+    let totp_secret = generate_totp_secret(&user, "Velum UI")
         .map_err(|e| (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse::new(format!("Ошибка генерации секрета: {}", e))),

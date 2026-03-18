@@ -1,6 +1,6 @@
 //! PRO Services Module
 //!
-//! PRO сервисы для Semaphore
+//! PRO сервисы для Velum
 
 pub mod ha;
 pub mod server;

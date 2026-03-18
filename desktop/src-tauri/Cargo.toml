@@ -1,7 +1,7 @@
 [package]
 name = "semaphore-desktop"
 version = "0.4.0"
-description = "Semaphore UI Desktop Application"
+description = "Velum UI Desktop Application"
 authors = ["Alexander Vashurin <alexandervashurin@yandex.ru>"]
 license = "MIT"
 repository = "https://github.com/alexandervashurin/semaphore"

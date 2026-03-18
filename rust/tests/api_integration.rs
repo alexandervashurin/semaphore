@@ -1,4 +1,4 @@
-//! Integration tests for the Semaphore REST API
+//! Integration tests for the Velum REST API
 //!
 //! Tests run against a real SQLite in-memory-like (temp-file) database and
 //! the actual Axum router.  No mocks, no stubs — every test hits the full

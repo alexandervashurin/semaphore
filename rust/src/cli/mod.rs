@@ -1,6 +1,6 @@
 //! Интерфейс командной строки (CLI)
 //!
-//! Предоставляет команды для управления Semaphore:
+//! Предоставляет команды для управления Velum:
 //! - server - запуск веб-сервера
 //! - runner - запуск раннера задач
 //! - migrate - миграции базы данных
@@ -40,7 +40,7 @@ pub use cmd_user::UserCommand;
 pub use cmd_vault::VaultCommand;
 pub use cmd_version::VersionCommand;
 
-/// Semaphore UI - современный веб-интерфейс для управления DevOps-инструментами
+/// Velum UI - современный веб-интерфейс для управления DevOps-инструментами
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 pub struct Cli {
@@ -101,7 +101,7 @@ enum Commands {
     /// Управление проектами
     Project(ProjectCommand),
 
-    /// Настройка Semaphore (интерактивный мастер)
+    /// Настройка Velum (интерактивный мастер)
     Setup(SetupCommand),
 
     /// Управление API токенами
@@ -364,7 +364,7 @@ fn cmd_server(args: ServerArgs, config: Config) -> anyhow::Result<()> {
     use crate::api::create_app;
     use std::net::SocketAddr;
 
-    tracing::info!("Запуск сервера Semaphore...");
+    tracing::info!("Запуск сервера Velum...");
 
     // Создание хранилища
     let store: std::sync::Arc<dyn crate::db::Store + Send + Sync> =
@@ -396,7 +396,7 @@ fn cmd_server(args: ServerArgs, config: Config) -> anyhow::Result<()> {
 /// Команда: запуск раннера
 #[allow(unused_variables)]
 fn cmd_runner(args: RunnerArgs, config: Config) -> anyhow::Result<()> {
-    tracing::info!("Запуск раннера Semaphore...");
+    tracing::info!("Запуск раннера Velum...");
     tracing::warn!("Запуск раннера через CLI пока не поддерживается. Используйте 'semaphore server' вместо этого.");
     Ok(())
 }
@@ -519,9 +519,9 @@ fn cmd_project(args: ProjectArgs, config: Config) -> anyhow::Result<()> {
 
 /// Команда: настройка
 fn cmd_setup(_args: SetupArgs, _config: Config) -> anyhow::Result<()> {
-    tracing::info!("Мастер настройки Semaphore...");
+    tracing::info!("Мастер настройки Velum...");
     
-    println!("\n=== Мастер настройки Semaphore ===\n");
+    println!("\n=== Мастер настройки Velum ===\n");
     println!("Создайте файл конфигурации вручную или используйте переменные окружения:");
     println!();
     println!("  SEMAPHORE_DB_DIALECT=sqlite    # или postgres, mysql");
@@ -542,7 +542,7 @@ fn cmd_setup(_args: SetupArgs, _config: Config) -> anyhow::Result<()> {
 
 /// Команда: версия
 fn cmd_version() -> anyhow::Result<()> {
-    println!("Semaphore UI {}", env!("CARGO_PKG_VERSION"));
+    println!("Velum UI {}", env!("CARGO_PKG_VERSION"));
     Ok(())
 }
 

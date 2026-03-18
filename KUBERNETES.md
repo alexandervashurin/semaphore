@@ -1,4 +1,4 @@
-# Kubernetes Integration в СЕМАФОРЪ
+# Kubernetes Integration в Velum
 
 > **Интеграция с Kubernetes для запуска задач в контейнерах**
 
@@ -16,7 +16,7 @@
 
 ## 📋 Обзор
 
-СЕМАФОРЪ поддерживает запуск задач в Kubernetes кластерах через:
+Velum поддерживает запуск задач в Kubernetes кластерах через:
 
 - **Kubernetes Jobs** - запуск задач в изолированных контейнерах
 - **Helm Charts** - управление приложениями через Helm

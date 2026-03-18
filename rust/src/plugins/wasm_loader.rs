@@ -1,7 +1,7 @@
 //! WASM Plugin Loader - Загрузчик WASM плагинов
 //!
 //! Этот модуль отвечает за динамическую загрузку WASM плагинов,
-//! их валидацию и интеграцию с системой плагинов Semaphore.
+//! их валидацию и интеграцию с системой плагинов Velum.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

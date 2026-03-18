@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Скрипт сборки frontend Semaphore UI через Docker
+# Скрипт сборки frontend Velum через Docker
 # Не требует установки Node.js/npm на хосте
 
 set -e
@@ -8,7 +8,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
-echo "🐳 Сборка frontend Semaphore UI (Docker)"
+echo "🐳 Сборка frontend Velum (Docker)"
 echo "=========================================="
 
 # Проверка наличия Docker

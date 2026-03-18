@@ -1,6 +1,6 @@
 # Руководство для участников
 
-Спасибо за интерес к проекту СЕМАФОРЪ (Rust)! Это руководство поможет вам начать вносить вклад в проект.
+Спасибо за интерес к проекту Velum (Rust)! Это руководство поможет вам начать вносить вклад в проект.
 
 ## 📚 Содержание
 
@@ -215,7 +215,7 @@ mod tests {
 ## 🤝 Сообщество
 
 - **Discord**: [https://discord.gg/5R6k7hNGcH](https://discord.gg/5R6k7hNGcH)
-- **GitHub Issues**: [https://github.com/semaphoreui/semaphore/issues](https://github.com/semaphoreui/semaphore/issues)
+- **GitHub Issues**: [https://github.com/velum/velum/issues](https://github.com/velum/velum/issues)
 - **YouTube**: [https://www.youtube.com/@semaphoreui](https://www.youtube.com/@semaphoreui)
 
 ## 📖 Ресурсы

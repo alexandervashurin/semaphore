@@ -1,6 +1,6 @@
 //! PRO модуль
 //!
-//! PRO функции Semaphore UI
+//! PRO функции Velum UI
 
 pub mod api;
 pub mod db;

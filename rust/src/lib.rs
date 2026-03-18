@@ -1,4 +1,4 @@
-//! Semaphore UI - Современный веб-интерфейс для управления DevOps-инструментами
+//! Velum UI - Современный веб-интерфейс для управления DevOps-инструментами
 #![allow(unused_imports, unused_variables, dead_code, unused_mut)]
 //!
 //! Этот проект представляет собой систему автоматизации для Ansible, Terraform,

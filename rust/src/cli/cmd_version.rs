@@ -12,7 +12,7 @@ pub struct VersionCommand {}
 impl VersionCommand {
     /// Выполняет команду
     pub fn run(&self) -> CliResult<()> {
-        println!("Semaphore UI {}", env!("CARGO_PKG_VERSION"));
+        println!("Velum UI {}", env!("CARGO_PKG_VERSION"));
         Ok(())
     }
 }

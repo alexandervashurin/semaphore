@@ -1,6 +1,6 @@
 //! Server Services Module
 //!
-//! Сервисы сервера для Semaphore
+//! Сервисы сервера для Velum
 
 pub mod access_key_encryption_svc;
 pub mod access_key_svc;

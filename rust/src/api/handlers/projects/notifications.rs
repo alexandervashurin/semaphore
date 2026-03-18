@@ -53,7 +53,7 @@ pub async fn send_test_notification(
 
     // Формируем тестовое сообщение
     let message = format!(
-        "🔔 Test notification from Semaphore UI\n\nProject: {}\nStatus: Success",
+        "🔔 Test notification from Velum UI\n\nProject: {}\nStatus: Success",
         project.name
     );
 

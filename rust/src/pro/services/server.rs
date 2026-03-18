@@ -1,6 +1,6 @@
 //! PRO Services Module
 //!
-//! PRO сервисы для Semaphore
+//! PRO сервисы для Velum
 
 use crate::db::store::Store;
 use crate::error::{Error, Result};

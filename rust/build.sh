@@ -1,13 +1,13 @@
 #!/bin/bash
 
-# Скрипт сборки Semaphore UI (Rust)
+# Скрипт сборки Velum (Rust)
 # Использование: ./build.sh [release|debug]
 
 set -e
 
 BUILD_TYPE="${1:-release}"
 
-echo "🦀 Сборка Semaphore UI (Rust)"
+echo "🦀 Сборка Velum (Rust)"
 echo "Тип сборки: $BUILD_TYPE"
 
 # Проверка наличия Rust

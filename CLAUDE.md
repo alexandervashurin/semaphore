@@ -6,13 +6,13 @@
 
 ## Конечная цель проекта
 
-**Полная миграция СЕМАФОРЪ с Go на Rust** — feature parity с Go-оригиналом, опубликованная на GitHub.
+**Полная миграция Velum с Go на Rust** — feature parity с Go-оригиналом, опубликованная на GitHub.
 
 | Репозиторий | URL |
 |---|---|
 | Наш (origin) | https://github.com/tnl-o/rust_semaphore |
 | Upstream (alexandervashurin) | https://github.com/alexandervashurin/semaphore |
-| Go-оригинал (эталон фич) | https://github.com/semaphoreui/semaphore |
+| Go-оригинал (эталон фич) | https://github.com/velum/velum |
 
 Ориентируйся на **Go-оригинал** как источник правды о том, что должно работать.
 Ориентируйся на **MASTER_PLAN.md** как живой план задач.
@@ -214,5 +214,5 @@ web/public/
 - Не добавляй комментарии и docstrings к коду который не менял
 - Пуш делать после каждого коммита (это норма для этого проекта)
 - При merge-конфликтах: HEAD (наш код) имеет приоритет если сомневаешься
-- Смотри на Go-оригинал (`semaphoreui/semaphore`) как эталон API и поведения
+- Смотри на Go-оригинал (`velum/velum`) как эталон API и поведения
 - Образец CRUD форм на фронтенде — `web/public/users.html`
