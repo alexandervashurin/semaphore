@@ -6,7 +6,9 @@ use sqlx::FromRow;
 /// Интеграция - вебхук для внешних систем
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Integration {
+    #[serde(default)]
     pub id: i32,
+    #[serde(default)]
     pub project_id: i32,
     pub name: String,
     pub template_id: i32,
@@ -24,8 +26,11 @@ pub struct Integration {
 /// Извлекаемое значение интеграции
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct IntegrationExtractValue {
+    #[serde(default)]
     pub id: i32,
+    #[serde(default)]
     pub integration_id: i32,
+    #[serde(default)]
     pub project_id: i32,
     pub name: String,
     pub value_source: String,
@@ -39,8 +44,11 @@ pub struct IntegrationExtractValue {
 /// Матчер интеграции
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct IntegrationMatcher {
+    #[serde(default)]
     pub id: i32,
+    #[serde(default)]
     pub integration_id: i32,
+    #[serde(default)]
     pub project_id: i32,
     pub name: String,
     pub body_data_type: String,
@@ -53,8 +61,11 @@ pub struct IntegrationMatcher {
 /// Псевдоним интеграции
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct IntegrationAlias {
+    #[serde(default)]
     pub id: i32,
+    #[serde(default)]
     pub integration_id: i32,
+    #[serde(default)]
     pub project_id: i32,
     pub alias: String,
 }

@@ -4,14 +4,21 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
+fn default_active() -> bool { true }
+
 /// Раннер - исполнитель задач
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Runner {
+    #[serde(default)]
     pub id: i32,
+    #[serde(default)]
     pub project_id: Option<i32>,
+    #[serde(default)]
     pub token: String,
     pub name: String,
+    #[serde(default = "default_active")]
     pub active: bool,
+    #[serde(default)]
     pub last_active: Option<DateTime<Utc>>,
     
     /// Webhook URL для уведомлений

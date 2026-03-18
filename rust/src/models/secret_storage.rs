@@ -62,9 +62,11 @@ where
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct SecretStorage {
     /// Уникальный идентификатор
+    #[serde(default)]
     pub id: i32,
 
     /// ID проекта
+    #[serde(default)]
     pub project_id: i32,
 
     /// Название хранилища
@@ -74,9 +76,11 @@ pub struct SecretStorage {
     pub r#type: SecretStorageType,
 
     /// Параметры (JSON)
+    #[serde(default)]
     pub params: String,
 
     /// Только для чтения
+    #[serde(default)]
     pub read_only: bool,
 
     /// Тип источника (для ключей доступа к внешнему хранилищу)

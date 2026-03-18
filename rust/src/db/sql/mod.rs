@@ -373,12 +373,14 @@ impl SqlStore {
                 project_id INTEGER NOT NULL REFERENCES project(id) ON DELETE CASCADE,
                 template_id INTEGER NOT NULL,
                 name TEXT NOT NULL DEFAULT '',
-                cron TEXT NOT NULL,
+                cron TEXT NOT NULL DEFAULT '',
                 cron_format TEXT,
                 active BOOLEAN NOT NULL DEFAULT 1,
                 last_commit_hash TEXT,
                 repository_id INTEGER,
-                created DATETIME
+                created DATETIME,
+                run_at TEXT,
+                delete_after_run INTEGER NOT NULL DEFAULT 0
             )",
         )
         .execute(pool)
@@ -470,6 +472,25 @@ impl SqlStore {
                 object_type TEXT NOT NULL DEFAULT '',
                 description TEXT NOT NULL DEFAULT '',
                 created DATETIME NOT NULL DEFAULT (datetime('now'))
+            )",
+        )
+        .execute(pool)
+        .await
+        .map_err(Error::Database)?;
+
+        // runner — исполнители задач
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS runner (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id INTEGER REFERENCES project(id) ON DELETE CASCADE,
+                token TEXT NOT NULL DEFAULT '',
+                name TEXT NOT NULL DEFAULT '',
+                active BOOLEAN NOT NULL DEFAULT 1,
+                last_active DATETIME,
+                webhook TEXT,
+                max_parallel_tasks INTEGER,
+                tag TEXT,
+                created DATETIME
             )",
         )
         .execute(pool)
