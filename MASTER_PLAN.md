@@ -5,7 +5,7 @@
 >
 > **Репозиторий:** https://github.com/tnl-o/rust_semaphore
 > **Upstream (Go оригинал):** https://github.com/velum/velum
-> **Последнее обновление:** 2026-03-17 (обновление 36 — AutoBackupService подключён к серверу; security_headers middleware в router; 665 unit-тестов зелёные; merge upstream/main + origin/main)
+> **Последнее обновление:** 2026-03-18 (обновление 36 — AutoBackupService подключён к серверу; security_headers middleware в router; 665 unit-тестов зелёные; merge upstream/main + origin/main)
 
 ---
 
@@ -1664,7 +1664,7 @@ web/vanilla/
 
 ---
 
-### 🔴 T-BE-02 — Загрузка SSH/Vault ключей из БД в LocalJob
+### ✅ T-BE-02 — Загрузка SSH/Vault ключей из БД в LocalJob
 
 **Приоритет:** 🔴 Критично — ansible-playbook запускается без SSH аутентификации
 **Файлы:** `rust/src/services/local_job/ssh.rs`, `rust/src/services/local_job/vault.rs`, `rust/src/services/local_job/mod.rs`
@@ -1716,7 +1716,7 @@ web/vanilla/
 
 ---
 
-### 🟠 T-BE-04 — Git checkout по ветке/коммиту в LocalJob
+### ✅ T-BE-04 — Git checkout по ветке/коммиту в LocalJob
 
 **Приоритет:** 🟠 Высокий — задачи всегда берут HEAD вместо нужной ветки
 **Файлы:** `rust/src/services/local_job/repository.rs:61`, `rust/src/services/git_repository.rs`
@@ -1745,7 +1745,7 @@ web/vanilla/
 
 ---
 
-### 🟠 T-BE-05 — Integration Matchers и ExtractValues — реальная БД
+### ✅ T-BE-05 — Integration Matchers и ExtractValues — реальная БД
 
 **Приоритет:** 🟠 Высокий — входящие вебхуки не фильтруются (матчеры не сохраняются)
 **Файлы:** `rust/src/db/sql/managers/integration_matcher.rs`, `rust/src/db/sql/mod.rs`
@@ -1793,7 +1793,7 @@ web/vanilla/
 
 ---
 
-### 🟠 T-BE-06 — Backup/Restore: исправить schema mismatches
+### ✅ T-BE-06 — Backup/Restore — реализован реальный backup
 
 **Приоритет:** 🟠 Высокий — backup endpoint возвращает ошибку из-за несовпадения полей
 **Файлы:** `rust/src/services/backup.rs`
@@ -1813,7 +1813,7 @@ web/vanilla/
 
 ---
 
-### 🟠 T-BE-07 — Restore: восстановление интеграций
+### ✅ T-BE-07 — Restore: восстановление реализовано
 
 **Приоритет:** 🟠 Высокий — backup бесполезен если restore неполный
 **Файл:** `rust/src/services/restore.rs:499`
@@ -1835,7 +1835,7 @@ web/vanilla/
 
 ---
 
-### 🟠 T-BE-08 — Exporter: исправить borrow checker
+### ✅ T-BE-08 — Backup handler реализован через store
 
 **Приоритет:** 🟠 Высокий — export (backup) не работает полностью
 **Файл:** `rust/src/services/exporter.rs:421,439`
@@ -1859,7 +1859,7 @@ web/vanilla/
 
 ---
 
-### 🟡 T-BE-09 — delete_playbook_run: SQL реализация
+### ✅ T-BE-09 — delete_playbook_run: SQL реализован
 
 **Приоритет:** 🟡 Средний
 **Файл:** `rust/src/db/sql/managers/playbook_run.rs:588`
@@ -1875,7 +1875,7 @@ web/vanilla/
 
 ---
 
-### 🟡 T-BE-10 — PlaybookRun: персистировать статус и статистику
+### ✅ T-BE-10 — PlaybookRun: персистирование реализовано
 
 **Приоритет:** 🟡 Средний
 **Файлы:** `rust/src/services/playbook_run_status_service.rs:49,87`
@@ -1893,7 +1893,7 @@ web/vanilla/
 
 ---
 
-### 🟡 T-BE-11 — get_playbook_run_by_task_id
+### ✅ T-BE-11 — get_playbook_run_by_task_id реализован
 
 **Приоритет:** 🟡 Средний (зависит от T-BE-10)
 **Файл:** `rust/src/services/playbook_run_status_service.rs:32`
@@ -1914,7 +1914,7 @@ web/vanilla/
 
 ---
 
-### 🟡 T-BE-12 — Repository branches: реальный git ls-remote
+### ✅ T-BE-12 — Repository branches: git ls-remote реализован
 
 **Приоритет:** 🟡 Средний — autocomplete показывает hardcoded ветки
 **Файл:** `rust/src/api/handlers/projects/repository.rs`
@@ -1935,7 +1935,7 @@ web/vanilla/
 
 ---
 
-### 🟡 T-BE-13 — TOTP: отключение после recovery code
+### ✅ T-BE-13 — TOTP: отключение через recovery code реализовано
 
 **Приоритет:** 🟡 Средний
 **Файл:** `rust/src/api/handlers/auth.rs:304`
@@ -2000,7 +2000,7 @@ web/vanilla/
 
 ---
 
-### 🔴 T-FE-01 — Предупреждение о нешифрованных ключах (до T-BE-01)
+### ✅ T-FE-01 — Предупреждение о нешифрованных ключах реализовано
 
 **Приоритет:** 🔴 Критично — пользователь должен знать о риске
 **Файл:** `web/public/keys.html`
@@ -2016,7 +2016,7 @@ web/vanilla/
 
 ---
 
-### 🟠 T-FE-02 — Integration Matchers UI в integration_detail.html (после T-BE-05)
+### ✅ T-FE-02 — Integration Matchers UI реализован в integration_detail.html (после T-BE-05)
 
 **Приоритет:** 🟠 Высокий — интерфейс матчеров присутствует, но данные не сохраняются
 **Файл:** `web/public/integration_detail.html`
@@ -2038,7 +2038,7 @@ web/vanilla/
 
 ---
 
-### 🟠 T-FE-03 — Backup / Restore UI (после T-BE-06/07)
+### ✅ T-FE-03 — Backup / Restore UI реализован
 
 **Приоритет:** 🟠 Высокий
 **Файлы:** `web/public/project.html`, `web/public/restore.html`
@@ -2059,7 +2059,7 @@ web/vanilla/
 
 ---
 
-### 🟠 T-FE-04 — Roles tab в team.html: реальный CRUD (Custom Roles)
+### ✅ T-FE-04 — Roles tab в team.html: CRUD реализован
 
 **Приоритет:** 🟠 Высокий — Custom Roles теперь реализованы в бэкенде (2026-03-16)
 **Файл:** `web/public/team.html`
@@ -2078,7 +2078,7 @@ web/vanilla/
 
 ---
 
-### 🟠 T-FE-05 — Branch autocomplete через реальный API (после T-BE-12)
+### ✅ T-FE-05 — Branch autocomplete через реальный API реализован
 
 **Приоритет:** 🟠 Высокий — сейчас показываются hardcoded ветки
 **Файлы:** `web/public/templates.html`, `web/public/run.html`

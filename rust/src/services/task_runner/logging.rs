@@ -2,6 +2,7 @@
 //!
 //! Аналог services/tasks/task_runner_logging.go из Go версии
 
+use std::sync::Arc;
 use chrono::Utc;
 use crate::error::Result;
 use crate::services::task_runner::TaskRunner;
@@ -24,12 +25,13 @@ impl TaskRunner {
             "version": self.task.version,
         });
 
-        // Отправка через WebSocket
-        for &user_id in &self.users {
-            // TODO: Интеграция с WebSocketManager
-            // self.pool.ws_manager.send(user_id, message.clone()).await;
-        }
-        
+        // Отправка статуса через WebSocket (broadcast всем подписчикам)
+        let _ = self.pool.ws_manager.send_status(
+            self.task.id,
+            self.task.status.to_string(),
+            Utc::now(),
+        );
+
         // Уведомление слушателей статусов
         for listener in &self.status_listeners {
             listener(self.task.status);
@@ -52,11 +54,19 @@ impl TaskRunner {
             stage_id: None,
         };
 
-        // TODO: Асинхронная запись в БД
-        // let _ = self.pool.store.create_task_output(task_output).await;
+        // Отправка лога через WebSocket
+        let now = Utc::now();
+        let _ = self.pool.ws_manager.send_log(self.task.id, msg.to_string(), now);
+
+        // Сохранение в БД — fire-and-forget через spawn
+        let store = Arc::clone(&self.pool.store);
+        let output = task_output;
+        tokio::spawn(async move {
+            use crate::db::store::TaskManager;
+            let _ = store.create_task_output(output).await;
+        });
 
         // Уведомление слушателей логов
-        let now = Utc::now();
         for listener in &self.log_listeners {
             listener(now, msg.to_string());
         }
