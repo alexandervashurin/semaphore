@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Окружения - Velum</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
     <style>
         .mode-toggle { display:flex; border:1px solid var(--border-color); border-radius:4px; overflow:hidden; width:fit-content; margin-bottom:8px; }
         .mode-toggle button { padding:5px 14px; border:none; background:none; cursor:pointer; font-size:12px; color:var(--text-light); }
@@ -40,8 +41,8 @@
     </div>
 
     <!-- Environment Modal -->
-    <div id="env-modal" class="modal" style="display:none;">
-        <div class="modal-content" style="max-width:680px; max-height:92vh; overflow-y:auto;">
+    <div id="env-modal" class="modal-overlay" style="display:none;">
+        <div class="modal" style="max-width:680px; max-height:92vh; overflow-y:auto;">
             <div class="modal-header">
                 <h3 id="env-modal-title">Новое окружение</h3>
                 <button class="modal-close" onclick="closeModal()">&times;</button>
@@ -262,7 +263,7 @@
             renderSecretsList();
 
             switchEnvTab('vars');
-            document.getElementById('env-modal').style.display = 'block';
+            document.getElementById('env-modal').style.display = 'flex';
         }
 
         function closeModal() {

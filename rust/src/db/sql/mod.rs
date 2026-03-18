@@ -509,6 +509,67 @@ impl SqlStore {
         .await
         .map_err(Error::Database)?;
 
+        // api_token — токены API для пользователей
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS api_token (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+                name TEXT NOT NULL DEFAULT '',
+                token TEXT NOT NULL DEFAULT '',
+                created DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                expired INTEGER NOT NULL DEFAULT 0
+            )",
+        )
+        .execute(pool)
+        .await
+        .map_err(Error::Database)?;
+
+        // playbook_run — история запусков плейбуков
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS playbook_run (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                playbook_id INTEGER NOT NULL REFERENCES playbook(id) ON DELETE CASCADE,
+                task_id INTEGER,
+                status TEXT NOT NULL DEFAULT 'running',
+                started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                finished_at DATETIME,
+                triggered_by TEXT
+            )",
+        )
+        .execute(pool)
+        .await
+        .map_err(Error::Database)?;
+
+        // integration_extract_value — значения из интеграций
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS integration_extract_value (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                integration_id INTEGER NOT NULL REFERENCES integration(id) ON DELETE CASCADE,
+                name TEXT NOT NULL DEFAULT '',
+                value_source TEXT NOT NULL DEFAULT 'body',
+                key TEXT NOT NULL DEFAULT '',
+                variable TEXT NOT NULL DEFAULT ''
+            )",
+        )
+        .execute(pool)
+        .await
+        .map_err(Error::Database)?;
+
+        // integration_match_matcher — матчеры вебхуков
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS integration_match_matcher (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                integration_id INTEGER NOT NULL REFERENCES integration(id) ON DELETE CASCADE,
+                match_type TEXT NOT NULL DEFAULT 'body',
+                method TEXT NOT NULL DEFAULT 'equals',
+                name TEXT NOT NULL DEFAULT '',
+                value TEXT NOT NULL DEFAULT ''
+            )",
+        )
+        .execute(pool)
+        .await
+        .map_err(Error::Database)?;
+
         tracing::info!("Схема БД инициализирована");
         Ok(())
     }

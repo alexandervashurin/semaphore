@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Apps - Velum</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
     <style>
         .app-card {
             display: flex;
@@ -51,8 +52,8 @@
     </div>
 
     <!-- Edit App Modal -->
-    <div id="app-modal" class="modal" style="display:none;">
-        <div class="modal-content" style="max-width:480px;">
+    <div id="app-modal" class="modal-overlay" style="display:none;">
+        <div class="modal" style="max-width:480px;">
             <div class="modal-header">
                 <h3 id="app-modal-title">Редактировать App</h3>
                 <button class="modal-close" onclick="closeModal()">&times;</button>
@@ -152,7 +153,7 @@
             document.getElementById('app-type').value = id;
             document.getElementById('app-path').value = app.path || '';
             document.getElementById('app-args').value = (app.args || []).join(' ');
-            document.getElementById('app-modal').style.display = 'block';
+            document.getElementById('app-modal').style.display = 'flex';
         }
 
         function closeModal() {

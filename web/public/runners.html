@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Runners - Velum</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
 </head>
 <body>
     <div class="layout">
@@ -30,8 +31,8 @@
     </div>
 
     <!-- Runner Modal -->
-    <div id="runner-modal" class="modal" style="display:none;">
-        <div class="modal-content" style="max-width:520px;">
+    <div id="runner-modal" class="modal-overlay" style="display:none;">
+        <div class="modal" style="max-width:520px;">
             <div class="modal-header">
                 <h3 id="modal-title">Добавить Runner</h3>
                 <button class="modal-close" onclick="closeModal()">&times;</button>
@@ -69,8 +70,8 @@
     </div>
 
     <!-- Token Modal -->
-    <div id="token-modal" class="modal" style="display:none;">
-        <div class="modal-content" style="max-width:480px;">
+    <div id="token-modal" class="modal-overlay" style="display:none;">
+        <div class="modal" style="max-width:480px;">
             <div class="modal-header">
                 <h3>Токен Runner'а</h3>
                 <button class="modal-close" onclick="document.getElementById('token-modal').style.display='none'">&times;</button>
@@ -170,7 +171,7 @@
             document.getElementById('runner-webhook').value = runner ? (runner.webhook || '') : '';
             document.getElementById('runner-max-tasks').value = runner ? (runner.max_parallel_tasks || 1) : 1;
             document.getElementById('runner-active').checked = runner ? runner.active : true;
-            document.getElementById('runner-modal').style.display = 'block';
+            document.getElementById('runner-modal').style.display = 'flex';
         }
 
         function editRunner(id) {
@@ -203,7 +204,7 @@
                     closeModal();
                     if (!id && resp && resp.token) {
                         document.getElementById('token-value').textContent = resp.token;
-                        document.getElementById('token-modal').style.display = 'block';
+                        document.getElementById('token-modal').style.display = 'flex';
                     }
                     loadRunners();
                     notify(`Runner ${id ? 'обновлён' : 'создан'}`, 'success');

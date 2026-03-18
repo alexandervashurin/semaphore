@@ -1109,3 +1109,38 @@ code {
 .run-log-success { color: #4ec9b0; }
 .run-log-warning { color: #ce9178; }
 .run-log-error   { color: #f48771; }
+
+/* ── Font Awesome nav icons ─────────────────────────────── */
+.sidebar-nav li a .nav-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    text-align: center;
+    font-size: 14px;
+    flex-shrink: 0;
+    opacity: 0.85;
+}
+.sidebar-footer-controls .sidebar-theme-toggle {
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: var(--radius-sm);
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.sidebar-footer-controls .sidebar-theme-toggle:hover {
+    background: rgba(255,255,255,0.2);
+}
+
+/* ── Extended dark theme ─────────────────────────────────── */
+.theme-dark .card { background: var(--card-bg); }
+.theme-dark .form-control { background: #2a2a2a; border-color: rgba(255,255,255,0.15); color: var(--text); }
+.theme-dark .table th { background: #252525; color: var(--text-secondary); }
+.theme-dark .table tr:hover td { background: rgba(255,255,255,0.05); }
+.theme-dark .modal { background: #1e1e1e; }
+.theme-dark .modal-header { border-color: rgba(255,255,255,0.1); }
+.theme-dark .main-header { background: #1a1a1a; border-color: rgba(255,255,255,0.08); }
+.theme-dark { --text-light: rgba(255,255,255,0.5); --hover-bg: rgba(255,255,255,0.06); --grey-100: #222; --grey-200: #2a2a2a; --grey-300: #333; }

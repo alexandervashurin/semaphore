@@ -672,23 +672,23 @@ function checkAuth() {
 // ==================== Sidebar ====================
 
 const SIDEBAR_ITEMS = [
-    { href: 'index.html',        icon: '◈',  label: 'Dashboard',    noId: true },
-    { href: 'global_tasks.html', icon: '▶',  label: 'Все задачи',   noId: true },
-    { href: 'project.html',      icon: '⬡',  label: 'Обзор' },
-    { href: 'templates.html',    icon: '▦',  label: 'Шаблоны' },
-    { href: 'history.html',      icon: '▶',  label: 'История задач' },
-    { href: 'activity.html',     icon: '📋', label: 'Активность' },
-    { href: 'inventory.html',    icon: '≡',  label: 'Инвентарь' },
-    { href: 'environments.html', icon: '⊕',  label: 'Окружения' },
-    { href: 'repositories.html', icon: '⌥',  label: 'Репозитории' },
-    { href: 'keys.html',         icon: '⚿',  label: 'Ключи' },
-    { href: 'schedules.html',    icon: '◷',  label: 'Расписания' },
-    { href: 'analytics.html',    icon: '◑',  label: 'Аналитика' },
-    { href: 'webhooks.html',     icon: '⇌',  label: 'Webhooks' },
-    { href: 'playbooks.html',    icon: '📜', label: 'Playbooks' },
-    { href: 'team.html',         icon: '👥', label: 'Команда' },
-    { href: 'runners.html',      icon: '⚡', label: 'Runners',    noId: true },
-    { href: 'apps.html',         icon: '◆',  label: 'Apps',       noId: true },
+    { href: 'index.html',        icon: 'fa-solid fa-house',          label: 'Dashboard',    noId: true },
+    { href: 'global_tasks.html', icon: 'fa-solid fa-list-check',     label: 'Все задачи',   noId: true },
+    { href: 'project.html',      icon: 'fa-solid fa-folder-open',    label: 'Обзор' },
+    { href: 'templates.html',    icon: 'fa-solid fa-file-code',      label: 'Шаблоны' },
+    { href: 'history.html',      icon: 'fa-solid fa-clock-rotate-left', label: 'История задач' },
+    { href: 'activity.html',     icon: 'fa-solid fa-chart-line',     label: 'Активность' },
+    { href: 'inventory.html',    icon: 'fa-solid fa-server',         label: 'Инвентарь' },
+    { href: 'environments.html', icon: 'fa-solid fa-leaf',           label: 'Окружения' },
+    { href: 'repositories.html', icon: 'fa-brands fa-git-alt',       label: 'Репозитории' },
+    { href: 'keys.html',         icon: 'fa-solid fa-key',            label: 'Ключи' },
+    { href: 'schedules.html',    icon: 'fa-solid fa-calendar-days',  label: 'Расписания' },
+    { href: 'analytics.html',    icon: 'fa-solid fa-chart-bar',      label: 'Аналитика' },
+    { href: 'webhooks.html',     icon: 'fa-solid fa-webhook',        label: 'Webhooks' },
+    { href: 'playbooks.html',    icon: 'fa-solid fa-scroll',         label: 'Playbooks' },
+    { href: 'team.html',         icon: 'fa-solid fa-users',          label: 'Команда' },
+    { href: 'runners.html',      icon: 'fa-solid fa-bolt',           label: 'Runners',    noId: true },
+    { href: 'apps.html',         icon: 'fa-solid fa-puzzle-piece',   label: 'Apps',       noId: true },
 ];
 
 function renderSidebar() {
@@ -722,7 +722,7 @@ function renderSidebar() {
             ? item.href
             : item.href + '?id=' + projectIdForLinks;
         const isActive = currentPage === item.href ? 'class="active"' : '';
-        return `<li><a href="${href}" ${isActive}><span class="nav-icon">${item.icon}</span>${item.label}</a></li>`;
+        return `<li><a href="${href}" ${isActive}><i class="nav-icon ${item.icon}"></i>${item.label}</a></li>`;
     }).join('');
 
     sidebar.innerHTML = `
