@@ -553,7 +553,7 @@ impl UserManager for SqlStore {
         match self.get_dialect() {
             SqlDialect::SQLite => {
                 let query = "SELECT pu.*, u.username, u.name, u.email
-                     FROM project__user pu
+                     FROM project_user pu
                      JOIN user u ON pu.user_id = u.id
                      WHERE pu.project_id = ?
                      ORDER BY pu.id";
@@ -575,7 +575,7 @@ impl UserManager for SqlStore {
             }
             SqlDialect::PostgreSQL => {
                 let query = "SELECT pu.*, u.username, u.name, u.email
-                     FROM project__user pu
+                     FROM project_user pu
                      JOIN \"user\" u ON pu.user_id = u.id
                      WHERE pu.project_id = $1
                      ORDER BY pu.id";
@@ -597,7 +597,7 @@ impl UserManager for SqlStore {
             }
             SqlDialect::MySQL => {
                 let query = "SELECT pu.*, u.username, u.name, u.email
-                     FROM project__user pu
+                     FROM project_user pu
                      JOIN `user` u ON pu.user_id = u.id
                      WHERE pu.project_id = ?
                      ORDER BY pu.id";

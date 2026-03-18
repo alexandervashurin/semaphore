@@ -39,16 +39,20 @@ CREATE TABLE IF NOT EXISTS project (
 
 -- Таблица связей пользователей с проектами
 CREATE TABLE IF NOT EXISTS project_user (
-    project_id BIGINT REFERENCES project(id) ON DELETE CASCADE,
-    user_id BIGINT REFERENCES "user"(id) ON DELETE CASCADE,
-    admin BOOLEAN DEFAULT FALSE,
-    PRIMARY KEY (project_id, user_id)
+    id SERIAL PRIMARY KEY,
+    project_id BIGINT NOT NULL REFERENCES project(id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+    role VARCHAR(50) NOT NULL,
+    created TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(project_id, user_id)
 );
 
 -- Индексы для производительности
 CREATE INDEX IF NOT EXISTS idx_user_email ON "user"(email);
 CREATE INDEX IF NOT EXISTS idx_user_username ON "user"(username);
 CREATE INDEX IF NOT EXISTS idx_project_name ON project(name);
+CREATE INDEX IF NOT EXISTS idx_project_user_project ON project_user(project_id);
+CREATE INDEX IF NOT EXISTS idx_project_user_user ON project_user(user_id);
 
 -- ============================================================================
 -- Webhook таблицы (добавлено в Q1 2027)

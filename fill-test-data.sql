@@ -17,7 +17,7 @@ INSERT INTO user (username, name, email, password, admin, external, alert, pro, 
     ('devops', 'DevOps User', 'devops@localhost', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYzS3MebAJu', 0, 0, 0, 0, datetime('now'));
 
 -- Связи пользователей с проектами (для всех проектов)
-INSERT INTO project__user (project_id, user_id, role, created) VALUES
+INSERT INTO project_user (project_id, user_id, role, created) VALUES
     -- Проект 1: Demo Project
     (1, 1, 'owner', datetime('now')),
     (1, 2, 'manager', datetime('now')),

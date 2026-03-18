@@ -14,7 +14,7 @@ impl ProjectStore for SqlStore {
         match self.get_dialect() {
             SqlDialect::SQLite => {
                 let (query, bind_user_id) = if let Some(uid) = user_id {
-                    ("SELECT p.* FROM project p JOIN project__user pu ON p.id = pu.project_id WHERE pu.user_id = ?", Some(uid))
+                    ("SELECT p.* FROM project p JOIN project_user pu ON p.id = pu.project_id WHERE pu.user_id = ?", Some(uid))
                 } else {
                     ("SELECT * FROM project", None)
                 };
@@ -42,7 +42,7 @@ impl ProjectStore for SqlStore {
             }
             SqlDialect::PostgreSQL => {
                 let (query, bind_user_id) = if let Some(uid) = user_id {
-                    ("SELECT p.* FROM project p JOIN project__user pu ON p.id = pu.project_id WHERE pu.user_id = $1", Some(uid))
+                    ("SELECT p.* FROM project p JOIN project_user pu ON p.id = pu.project_id WHERE pu.user_id = $1", Some(uid))
                 } else {
                     ("SELECT * FROM project", None)
                 };
@@ -70,7 +70,7 @@ impl ProjectStore for SqlStore {
             }
             SqlDialect::MySQL => {
                 let (query, bind_user_id) = if let Some(uid) = user_id {
-                    ("SELECT p.* FROM project p JOIN project__user pu ON p.id = pu.project_id WHERE pu.user_id = ?", Some(uid))
+                    ("SELECT p.* FROM project p JOIN project_user pu ON p.id = pu.project_id WHERE pu.user_id = ?", Some(uid))
                 } else {
                     ("SELECT * FROM project", None)
                 };
@@ -314,7 +314,7 @@ impl ProjectStore for SqlStore {
         let role_str = project_user.role.to_string();
         match self.get_dialect() {
             SqlDialect::SQLite => {
-                sqlx::query("INSERT INTO project__user (project_id, user_id, role, created) VALUES (?, ?, ?, ?)")
+                sqlx::query("INSERT INTO project_user (project_id, user_id, role, created) VALUES (?, ?, ?, ?)")
                     .bind(project_user.project_id)
                     .bind(project_user.user_id)
                     .bind(&role_str)
@@ -324,7 +324,7 @@ impl ProjectStore for SqlStore {
                     .map_err(Error::Database)?;
             }
             SqlDialect::PostgreSQL => {
-                sqlx::query("INSERT INTO project__user (project_id, user_id, role, created) VALUES ($1, $2, $3, $4)")
+                sqlx::query("INSERT INTO project_user (project_id, user_id, role, created) VALUES ($1, $2, $3, $4)")
                     .bind(project_user.project_id)
                     .bind(project_user.user_id)
                     .bind(&role_str)
@@ -334,7 +334,7 @@ impl ProjectStore for SqlStore {
                     .map_err(Error::Database)?;
             }
             SqlDialect::MySQL => {
-                sqlx::query("INSERT INTO project__user (project_id, user_id, `role`, created) VALUES (?, ?, ?, ?)")
+                sqlx::query("INSERT INTO project_user (project_id, user_id, `role`, created) VALUES (?, ?, ?, ?)")
                     .bind(project_user.project_id)
                     .bind(project_user.user_id)
                     .bind(&role_str)
@@ -350,7 +350,7 @@ impl ProjectStore for SqlStore {
     async fn delete_project_user(&self, project_id: i32, user_id: i32) -> Result<()> {
         match self.get_dialect() {
             SqlDialect::SQLite => {
-                sqlx::query("DELETE FROM project__user WHERE project_id = ? AND user_id = ?")
+                sqlx::query("DELETE FROM project_user WHERE project_id = ? AND user_id = ?")
                     .bind(project_id)
                     .bind(user_id)
                     .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
@@ -358,7 +358,7 @@ impl ProjectStore for SqlStore {
                     .map_err(Error::Database)?;
             }
             SqlDialect::PostgreSQL => {
-                sqlx::query("DELETE FROM project__user WHERE project_id = $1 AND user_id = $2")
+                sqlx::query("DELETE FROM project_user WHERE project_id = $1 AND user_id = $2")
                     .bind(project_id)
                     .bind(user_id)
                     .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
@@ -366,7 +366,7 @@ impl ProjectStore for SqlStore {
                     .map_err(Error::Database)?;
             }
             SqlDialect::MySQL => {
-                sqlx::query("DELETE FROM project__user WHERE project_id = ? AND user_id = ?")
+                sqlx::query("DELETE FROM project_user WHERE project_id = ? AND user_id = ?")
                     .bind(project_id)
                     .bind(user_id)
                     .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)

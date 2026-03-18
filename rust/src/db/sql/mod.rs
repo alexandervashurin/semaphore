@@ -181,9 +181,9 @@ impl SqlStore {
         .await
         .map_err(Error::Database)?;
 
-        // project__user для связи пользователей с проектами
+        // project_user для связи пользователей с проектами
         sqlx::query(
-            "CREATE TABLE IF NOT EXISTS project__user (
+            "CREATE TABLE IF NOT EXISTS project_user (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 project_id INTEGER NOT NULL REFERENCES project(id) ON DELETE CASCADE,
                 user_id INTEGER NOT NULL REFERENCES user(id) ON DELETE CASCADE,
@@ -513,10 +513,10 @@ impl SqlStore {
         Ok(())
     }
 
-    /// Миграция: добавить колонку created в project__user, если её нет
+    /// Миграция: добавить колонку created в project_user, если её нет
     async fn migrate_project_user_created(pool: &SqlitePool) -> Result<()> {
         let table_exists: Option<String> = sqlx::query_scalar(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='project__user'",
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='project_user'",
         )
         .fetch_optional(pool)
         .await
@@ -527,7 +527,7 @@ impl SqlStore {
         }
 
         let has_created: Option<i64> = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM pragma_table_info('project__user') WHERE name='created'",
+            "SELECT COUNT(*) FROM pragma_table_info('project_user') WHERE name='created'",
         )
         .fetch_optional(pool)
         .await
@@ -535,12 +535,12 @@ impl SqlStore {
 
         if has_created.unwrap_or(0) == 0 {
             sqlx::query(
-                "ALTER TABLE project__user ADD COLUMN created DATETIME NOT NULL DEFAULT '2020-01-01 00:00:00'",
+                "ALTER TABLE project_user ADD COLUMN created DATETIME NOT NULL DEFAULT '2020-01-01 00:00:00'",
             )
             .execute(pool)
             .await
             .map_err(Error::Database)?;
-            tracing::info!("Миграция: добавлена колонка created в project__user");
+            tracing::info!("Миграция: добавлена колонка created в project_user");
         }
 
         // Миграции для таблицы schedule — добавление run_at полей
@@ -700,17 +700,14 @@ impl SqlStore {
         .await
         .map_err(Error::Database)?;
 
-        // Таблица project__user
+        // Таблица project_user
         sqlx::query(
-            "CREATE TABLE IF NOT EXISTS project__user (
+            "CREATE TABLE IF NOT EXISTS project_user (
                 id SERIAL PRIMARY KEY,
                 project_id INTEGER NOT NULL REFERENCES project(id) ON DELETE CASCADE,
                 user_id INTEGER NOT NULL REFERENCES \"user\"(id) ON DELETE CASCADE,
-                owner BOOLEAN NOT NULL DEFAULT false,
-                admin BOOLEAN NOT NULL DEFAULT false,
-                manager BOOLEAN NOT NULL DEFAULT false,
-                task_runner BOOLEAN NOT NULL DEFAULT false,
-                viewer BOOLEAN NOT NULL DEFAULT false
+                role VARCHAR(50) NOT NULL,
+                created TIMESTAMP WITH TIME ZONE DEFAULT NOW()
             )",
         )
         .execute(pool)

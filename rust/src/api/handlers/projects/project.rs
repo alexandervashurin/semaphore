@@ -86,7 +86,7 @@ pub async fn add_project(
             Json(ErrorResponse::new(e.to_string())),
         ))?;
 
-    // Добавляем создателя в project__user с ролью owner (как в Go upstream)
+    // Добавляем создателя в project_user с ролью owner (как в Go upstream)
     let project_user = ProjectUser::new(created.id, user_id, ProjectUserRole::Owner);
     state.store.create_project_user(project_user).await.map_err(|e| (
         StatusCode::INTERNAL_SERVER_ERROR,
@@ -244,7 +244,7 @@ pub async fn get_user_role(
         return Ok(Json(project_user.role.to_string()));
     }
 
-    // Админы и создатели проектов (до фикса) могут не быть в project__user — возвращаем owner
+    // Админы и создатели проектов (до фикса) могут не быть в project_user — возвращаем owner
     if admin {
         return Ok(Json("owner".to_string()));
     }
