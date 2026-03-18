@@ -26,7 +26,7 @@ impl TaskRunner {
         });
 
         // Отправка статуса через WebSocket (broadcast всем подписчикам)
-        let _ = self.pool.ws_manager.send_status(
+        self.pool.ws_manager.send_status(
             self.task.id,
             self.task.status.to_string(),
             Utc::now(),
@@ -56,7 +56,7 @@ impl TaskRunner {
 
         // Отправка лога через WebSocket
         let now = Utc::now();
-        let _ = self.pool.ws_manager.send_log(self.task.id, msg.to_string(), now);
+        self.pool.ws_manager.send_log(self.task.id, msg.to_string(), now);
 
         // Сохранение в БД — fire-and-forget через spawn
         let store = Arc::clone(&self.pool.store);

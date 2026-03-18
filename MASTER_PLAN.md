@@ -3,9 +3,9 @@
 > **Назначение документа:** Живой план разработки. Читается людьми и AI-агентами (Claude, Cursor и др.).
 > Обновляй статус задач по мере выполнения. Добавляй заметки в секцию `## Журнал решений`.
 >
-> **Репозиторий:** https://github.com/tnl-o/rust_semaphore
+> **Репозиторий:** https://github.com/tnl-o/velum
 > **Upstream (Go оригинал):** https://github.com/velum/velum
-> **Последнее обновление:** 2026-03-18 (обновление 36 — AutoBackupService подключён к серверу; security_headers middleware в router; 665 unit-тестов зелёные; merge upstream/main + origin/main)
+> **Последнее обновление:** 2026-03-18 (обновление 37 — T-BE-15 закрыт: exporter_entities реализован через block_in_place; scheduler_pool.rs удалён (дубликат); README.md обновлён (671 тест, Vanilla JS); все T-BE-01..15 и T-FE-01..10 закрыты; merge upstream/main + origin/main)
 
 ---
 
@@ -1640,7 +1640,7 @@ web/vanilla/
 
 ---
 
-### 🔴 T-BE-01 — Шифрование ключей доступа (AccessKey encrypt/decrypt)
+### ✅ T-BE-01 — Шифрование ключей доступа (AccessKey encrypt/decrypt)
 
 **Приоритет:** 🔴 Критично — ключи хранятся plaintext
 **Файлы:** `rust/src/services/access_key_installation_service.rs`, `rust/src/utils/encryption.rs`
@@ -1689,7 +1689,7 @@ web/vanilla/
 
 ---
 
-### 🔴 T-BE-03 — Парсинг secrets_json в LocalJob (args, environment, vault)
+### ✅ T-BE-03 — Парсинг secrets_json в LocalJob (args, environment, vault)
 
 **Приоритет:** 🔴 Критично — секретные переменные из Environment не попадают в задачу
 **Файлы:** `rust/src/services/local_job/args.rs:27,85`, `rust/src/services/local_job/environment.rs:117`, `rust/src/services/local_job/vault.rs:18`
@@ -1955,7 +1955,7 @@ web/vanilla/
 
 ---
 
-### 🟡 T-BE-14 — Session: реальная инвалидация при logout
+### ✅ T-BE-14 — Session: реальная инвалидация при logout
 
 **Приоритет:** 🟡 Средний
 **Файлы:** `rust/src/api/auth.rs:45`, `rust/src/db/sql/managers/session.rs:154`
@@ -1976,11 +1976,11 @@ web/vanilla/
 
 ---
 
-### 🟡 T-BE-15 — Exporter entities: restore пользователей и проектов
+### ✅ T-BE-15 — Exporter entities: restore пользователей и проектов
 
 **Приоритет:** 🟡 Средний
-**Файл:** `rust/src/services/exporter_entities.rs:37,80`
-**Статус:** ⏸ Заблокирован (async/sync mismatch)
+**Файл:** `rust/src/services/exporter_entities.rs`
+**Статус:** ✅ Закрыт 2026-03-18 — реализован через `tokio::task::block_in_place` (async→sync bridge), 671 тест
 
 **Что сделать:**
 
@@ -2204,7 +2204,7 @@ web/vanilla/
 | T-BE-12 | Repository branches — git ls-remote | 🟡 | ✅ Закрыт 2026-03-16 |
 | T-BE-13 | TOTP recovery code → disable TOTP | 🟡 | ✅ Закрыт 2026-03-16 |
 | T-BE-14 | Session invalidation при logout | 🟡 | ✅ Закрыт 2026-03-16 |
-| T-BE-15 | Exporter entities — restore users/projects | 🟡 | ⏸ Заблокирован (async/sync mismatch — файл не компилируется) |
+| T-BE-15 | Exporter entities — restore users/projects | 🟡 | ✅ Закрыт 2026-03-18 (block_in_place bridge, 671 тест) |
 
 ### Фронтенд
 
