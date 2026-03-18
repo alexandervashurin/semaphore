@@ -1,6 +1,6 @@
 # Semaphore Desktop Application
 
-> **Нативное desktop приложение для Semaphore UI на базе Tauri**
+> **Нативное desktop приложение для СЕМАФОРЪ на базе Tauri**
 
 ## 📖 Оглавление
 
@@ -15,7 +15,7 @@
 
 ## 📋 Обзор
 
-Semaphore Desktop — это нативное desktop приложение для управления Semaphore UI, построенное на базе фреймворка Tauri.
+Semaphore Desktop — это нативное desktop приложение для управления СЕМАФОРЪ, построенное на базе фреймворка Tauri.
 
 **Преимущества:**
 
@@ -250,7 +250,7 @@ desktop/
 {
   "app": {
     "windows": [{
-      "title": "Semaphore UI",
+      "title": "СЕМАФОРЪ",
       "width": 1200,
       "height": 800,
       "minWidth": 800,
@@ -320,7 +320,7 @@ curl http://localhost:3000/api/health
 sudo apt-get install libnotify-dev
 
 # macOS: проверьте разрешения
-System Preferences → Notifications → Semaphore UI
+System Preferences → Notifications → СЕМАФОРЪ
 
 # Windows: проверьте настройки уведомлений
 Settings → System → Notifications
@@ -345,7 +345,7 @@ npm run tauri build
 - [Tauri Documentation](https://tauri.app/)
 - [Vue.js Documentation](https://vuejs.org/)
 - [Vite Documentation](https://vitejs.dev/)
-- [Semaphore UI](https://github.com/alexandervashurin/semaphore)
+- [СЕМАФОРЪ](https://github.com/alexandervashurin/semaphore)
 
 ---
 

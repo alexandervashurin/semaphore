@@ -1,6 +1,6 @@
 # 📊 GraphQL API
 
-> **GraphQL альтернатива REST API для Semaphore UI**
+> **GraphQL альтернатива REST API для СЕМАФОРЪ**
 
 ---
 

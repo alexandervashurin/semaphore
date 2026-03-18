@@ -1,4 +1,4 @@
-# Semaphore UI Test Plan
+# СЕМАФОРЪ Test Plan
 
 > For LLM/MCP execution instructions, safety rules, and reporting templates, see `AGENT.md`.
 

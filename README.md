@@ -1,4 +1,4 @@
-# 🦀 Semaphore UI на Rust
+# 🦀 СЕМАФОРЪ на Rust
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/Rust-1.80+-blue.svg)](https://www.rust-lang.org)
@@ -8,7 +8,7 @@
 [![Frontend](https://img.shields.io/badge/frontend-Vue%202-brightgreen.svg)]()
 [![Production Ready](https://img.shields.io/badge/status-production%20ready-brightgreen.svg)]()
 
-**Полная миграция Semaphore UI на Rust** - высокопроизводительная, безопасная и надёжная система автоматизации для Ansible, Terraform, OpenTofu, Terragrunt, PowerShell и других DevOps-инструментов.
+**Полная миграция СЕМАФОРЪ на Rust** - высокопроизводительная, безопасная и надёжная система автоматизации для Ansible, Terraform, OpenTofu, Terragrunt, PowerShell и других DevOps-инструментов.
 
 ## 🎯 Демо-режим
 

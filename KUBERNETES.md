@@ -1,4 +1,4 @@
-# Kubernetes Integration в Semaphore UI
+# Kubernetes Integration в СЕМАФОРЪ
 
 > **Интеграция с Kubernetes для запуска задач в контейнерах**
 
@@ -16,7 +16,7 @@
 
 ## 📋 Обзор
 
-Semaphore UI поддерживает запуск задач в Kubernetes кластерах через:
+СЕМАФОРЪ поддерживает запуск задач в Kubernetes кластерах через:
 
 - **Kubernetes Jobs** - запуск задач в изолированных контейнерах
 - **Helm Charts** - управление приложениями через Helm

@@ -1,6 +1,6 @@
-# API документация Semaphore UI (Rust)
+# API документация СЕМАФОРЪ (Rust)
 
-REST API для управления Semaphore UI.
+REST API для управления СЕМАФОРЪ.
 
 ## 🎯 CRUD Демо
 

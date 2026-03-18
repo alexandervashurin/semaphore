@@ -1,9 +1,9 @@
-# 🗺️ Дорожная карта проекта Semaphore UI (Rust)
+# 🗺️ Дорожная карта проекта СЕМАФОРЪ (Rust)
 
 > **Репозиторий:** https://github.com/tnl-o/rust_semaphore
 > **Upstream (Go-оригинал — эталон фич):** https://github.com/semaphoreui/semaphore
 > **Последнее обновление:** 14 марта 2026 г.
-> **Цель:** Полная миграция Semaphore UI с Go на Rust + замена Vue 2 на Vanilla JS, feature parity с Go-оригиналом.
+> **Цель:** Полная миграция СЕМАФОРЪ с Go на Rust + замена Vue 2 на Vanilla JS, feature parity с Go-оригиналом.
 
 ---
 
@@ -20,7 +20,7 @@
 
 ## 🎯 Цель проекта
 
-**Semaphore UI** — open-source веб-интерфейс для Ansible, Terraform, OpenTofu, PowerShell и других DevOps-инструментов. Оригинал написан на Go + Gin + Vue 2.
+**СЕМАФОРЪ** — open-source веб-интерфейс для Ansible, Terraform, OpenTofu, PowerShell и других DevOps-инструментов. Оригинал написан на Go + Gin + Vue 2.
 
 Этот форк:
 - **Мигрирует бэкенд** с Go на Rust (Axum + SQLx + Tokio) — производительнее, безопаснее, меньше памяти
@@ -94,7 +94,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    Semaphore UI (Rust)                   │
+│                    СЕМАФОРЪ (Rust)                   │
 ├─────────────────────────────────────────────────────────┤
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐  │
 │  │  Frontend   │    │   Backend   │    │  Database   │  │

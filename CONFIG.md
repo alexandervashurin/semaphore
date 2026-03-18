@@ -1,4 +1,4 @@
-# Конфигурация Semaphore UI
+# Конфигурация СЕМАФОРЪ
 
 ## 🎯 Демонстрационное окружение
 
@@ -129,7 +129,7 @@ docker run -p 3000:3000 \
 
 ```ini
 [Unit]
-Description=Semaphore UI (Rust)
+Description=СЕМАФОРЪ (Rust)
 After=network.target
 
 [Service]

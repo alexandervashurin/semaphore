@@ -1,4 +1,4 @@
-# 🐳 Semaphore UI - Запуск одним Docker-контейнером
+# 🐳 СЕМАФОРЪ - Запуск одним Docker-контейнером
 
 > **All-in-One решение:** Backend + Frontend + Nginx + SQLite в одном контейнере
 

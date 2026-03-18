@@ -2,7 +2,7 @@
 
 ## Обзор
 
-Реализован полный цикл управления Playbook в Semaphore UI на Rust - аналог Ansible Tower/AWX.
+Реализован полный цикл управления Playbook в СЕМАФОРЪ на Rust - аналог Ansible Tower/AWX.
 
 **Версия:** 0.4.3  
 **Дата:** 2026-03-12  
@@ -338,4 +338,4 @@ curl -X POST http://localhost:3000/api/project/1/playbooks/1/run \
 
 **Авторы:** Alexander Vashurin  
 **Лицензия:** MIT  
-**Проект:** [Semaphore UI на Rust](https://github.com/alexandervashurin/semaphore)
+**Проект:** [СЕМАФОРЪ на Rust](https://github.com/alexandervashurin/semaphore)

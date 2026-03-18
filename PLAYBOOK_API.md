@@ -2,7 +2,7 @@
 
 ## Обзор
 
-Реализован полный CRUD API для управления Playbook (Ansible, Terraform, Shell) в Semaphore UI.
+Реализован полный CRUD API для управления Playbook (Ansible, Terraform, Shell) в СЕМАФОРЪ.
 
 ## Изменения
 

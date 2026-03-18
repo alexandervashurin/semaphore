@@ -1,6 +1,6 @@
 # 📊 Prometheus Metrics - Документация
 
-> **Мониторинг Semaphore UI с помощью Prometheus**
+> **Мониторинг СЕМАФОРЪ с помощью Prometheus**
 
 ---
 
@@ -17,7 +17,7 @@
 
 ## 📖 Обзор
 
-Semaphore UI предоставляет встроенную поддержку Prometheus метрик для мониторинга:
+СЕМАФОРЪ предоставляет встроенную поддержку Prometheus метрик для мониторинга:
 
 - **Задачи**: количество, длительность, статусы
 - **Раннеры**: активные раннеры
@@ -210,7 +210,7 @@ semaphore_system_uptime_seconds
 
 ### 3. Пример дашборда
 
-**Semaphore UI Overview:**
+**СЕМАФОРЪ Overview:**
 
 - **Panel 1**: Tasks Total (Stat)
 - **Panel 2**: Success Rate (Gauge)

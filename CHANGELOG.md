@@ -628,7 +628,7 @@ curl -X POST http://localhost:3000/api/project/1/playbooks \
 
 #### Добавлено
 - Последняя версия на Go перед миграцией на Rust
-- Полная функциональность Semaphore UI
+- Полная функциональность СЕМАФОРЪ
 - Поддержка Ansible, Terraform, OpenTofu, Terragrunt, PowerShell
 - REST API для управления проектами, задачами, шаблонами
 - CLI для администрирования
