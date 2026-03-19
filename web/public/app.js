@@ -727,7 +727,7 @@ function renderSidebar() {
 
     sidebar.innerHTML = `
         <div class="sidebar-logo">
-            <div class="sidebar-logo-dot"><img src="/logo.svg" alt=""></div>
+            <div class="sidebar-logo-dot"><img src="/logo.png" alt=""></div>
             <h2>Velum</h2>
         </div>
         <div class="sidebar-section">
