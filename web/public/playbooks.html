@@ -18,7 +18,7 @@
 
             <div class="main-body">
                 <div class="page-header">
-                    <h1>📜 Playbooks</h1>
+                    <h1><i class="fa-solid fa-book"></i> Playbooks</h1>
                     <button class="btn btn-primary" onclick="openPlaybookModal()">+ Новый Playbook</button>
                 </div>
 
@@ -70,7 +70,7 @@
             api.getPlaybooks(projectId)
                 .then(playbooks => {
                     if (playbooks.length === 0) {
-                        ui.showEmpty(container, '📜', 'Нет playbook\'ов', 'Создайте первый playbook чтобы начать работу');
+                        ui.showEmpty(container, '<i class="fa-solid fa-book fa-2x"></i>', 'Нет playbook\'ов', 'Создайте первый playbook чтобы начать работу');
                     } else {
                         container.innerHTML = `
                             <table class="table">
@@ -94,10 +94,10 @@
                                             <td>${formatDate(pb.updated)}</td>
                                             <td>
                                                 <a href="run.html?id=${projectId}&playbook=${pb.id}" class="btn btn-success btn-sm" title="Запустить">▶</a>
-                                                <button class="btn btn-sm" onclick="showRunHistory(${pb.id}, ${JSON.stringify(escapeHtml(pb.name))})" title="История запусков">📋</button>
-                                                <button class="btn btn-sm" onclick="editPlaybook(${pb.id})" title="Редактировать">✏️</button>
-                                                <button class="btn btn-sm" onclick="syncPlaybook(${pb.id})" title="Синхронизировать из Git">🔄</button>
-                                                <button class="btn btn-danger btn-sm" onclick="deletePlaybook(${pb.id})" title="Удалить">🗑️</button>
+                                                <button class="btn btn-sm" onclick="showRunHistory(${pb.id}, ${JSON.stringify(escapeHtml(pb.name))})" title="История запусков"><i class="fa-solid fa-list"></i></button>
+                                                <button class="btn btn-sm" onclick="editPlaybook(${pb.id})" title="Редактировать"><i class="fa-solid fa-pen"></i></button>
+                                                <button class="btn btn-sm" onclick="syncPlaybook(${pb.id})" title="Синхронизировать из Git"><i class="fa-solid fa-arrows-rotate"></i></button>
+                                                <button class="btn btn-danger btn-sm" onclick="deletePlaybook(${pb.id})" title="Удалить"><i class="fa-solid fa-trash"></i></button>
                                             </td>
                                         </tr>
                                     `).join('')}
@@ -295,7 +295,7 @@
                 .then(runs => {
                     if (!runs || runs.length === 0) {
                         container.innerHTML = `<div class="card" style="text-align:center;padding:24px;">
-                            <div style="font-size:32px;margin-bottom:8px;">📋</div>
+                            <div style="font-size:32px;margin-bottom:8px;"><i class="fa-solid fa-list"></i></div>
                             <p style="color:var(--text-light);">Нет истории запусков для этого playbook</p>
                         </div>`;
                         return;
@@ -335,7 +335,7 @@
                                     <td>${r.finished ? formatDate(r.finished) : '—'}</td>
                                     <td>
                                         ${r.task_id ? `<a href="task.html?id=${projectId}&task=${r.task_id}" class="btn btn-sm">📄 Задача</a>` : '—'}
-                                        <button class="btn btn-danger btn-sm" onclick="deleteRun(${r.id})">🗑️</button>
+                                        <button class="btn btn-danger btn-sm" onclick="deleteRun(${r.id})"><i class="fa-solid fa-trash"></i></button>
                                     </td>
                                 </tr>`).join('')}
                             </tbody>

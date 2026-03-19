@@ -16,7 +16,7 @@
             </div>
             <div class="main-body">
                 <div class="page-header">
-                    <h1>📋 Активность проекта</h1>
+                    <h1><i class="fa-solid fa-chart-line"></i> Активность проекта</h1>
                     <button class="btn btn-sm" onclick="loadActivity()">↺ Обновить</button>
                 </div>
                 <div id="activity-content">
@@ -47,7 +47,7 @@
             api.request('/project/' + projectId + '/events')
                 .then(events => {
                     if (!events || events.length === 0) {
-                        ui.showEmpty(container, '📋', 'Нет событий', 'События появятся по мере работы с проектом');
+                        ui.showEmpty(container, '<i class="fa-solid fa-list-check fa-2x"></i>', 'Нет событий', 'События появятся по мере работы с проектом');
                         return;
                     }
                     container.innerHTML = `
@@ -75,7 +75,7 @@
                     // Fallback: show tasks as activity
                     api.getTasks(projectId).then(tasks => {
                         if (!tasks || tasks.length === 0) {
-                            ui.showEmpty(container, '📋', 'Нет событий', 'События появятся по мере работы с проектом');
+                            ui.showEmpty(container, '<i class="fa-solid fa-list-check fa-2x"></i>', 'Нет событий', 'События появятся по мере работы с проектом');
                             return;
                         }
                         tasks.sort((a, b) => new Date(b.created) - new Date(a.created));

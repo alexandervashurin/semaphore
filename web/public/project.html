@@ -114,7 +114,7 @@
             } catch (err) {
                 ui.showAlert('Ошибка резервного копирования: ' + err.message, 'danger');
             } finally {
-                if (btn) { btn.disabled = false; btn.textContent = '📥 Скачать резервную копию'; }
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-download"></i> Резервная копия'; }
             }
         }
 
@@ -290,21 +290,21 @@
                     <hr style="border:none; border-top:1px solid var(--border); margin:20px 0;">
 
                     <div style="margin-bottom:20px;">
-                        <h4 style="margin-bottom:10px;">🔔 Тест и обслуживание</h4>
+                        <h4 style="margin-bottom:10px;"><i class="fa-solid fa-bell" style="color:var(--text-muted); margin-right:6px;"></i>Тест и обслуживание</h4>
                         <p style="color:var(--text-light); font-size:13px; margin-bottom:10px;">
                             Эти действия помогают проверить настройки уведомлений и очистить внутренний кэш.
                         </p>
                         <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                            <button id="btn-test-notify" class="btn btn-sm" onclick="testProjectNotifications()">🔔 Тест уведомлений</button>
-                            <button id="btn-clear-cache" class="btn btn-sm" onclick="clearGlobalCache()">🧹 Очистить кэш</button>
+                            <button id="btn-test-notify" class="btn btn-sm" onclick="testProjectNotifications()"><i class="fa-solid fa-bell"></i> Тест уведомлений</button>
+                            <button id="btn-clear-cache" class="btn btn-sm" onclick="clearGlobalCache()"><i class="fa-solid fa-broom"></i> Очистить кэш</button>
                         </div>
                     </div>
 
                     <hr style="border:none; border-top:1px solid var(--border); margin:20px 0;">
                     <div>
-                        <h4 style="color:#c53030; margin-bottom:10px;">⚠️ Опасная зона</h4>
+                        <h4 style="color:#c53030; margin-bottom:10px;"><i class="fa-solid fa-triangle-exclamation" style="margin-right:6px;"></i>Опасная зона</h4>
                         <p style="color:var(--text-light); font-size:14px; margin-bottom:12px;">Удаление проекта необратимо. Все шаблоны, задачи, ключи и настройки будут удалены.</p>
-                        <button class="btn" style="background:#c53030; color:#fff;" onclick="confirmDeleteProject()">🗑️ Удалить проект</button>
+                        <button class="btn" style="background:#c53030; color:#fff;" onclick="confirmDeleteProject()"><i class="fa-solid fa-trash"></i> Удалить проект</button>
                     </div>
                 </div>
             `;

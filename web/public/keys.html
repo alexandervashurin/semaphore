@@ -18,7 +18,7 @@
 
             <div class="main-body">
                 <div class="page-header">
-                    <h1>🔐 Ключи доступа</h1>
+                    <h1><i class="fa-solid fa-key"></i> Ключи доступа</h1>
                     <button class="btn btn-primary" onclick="openKeyModal()">+ Новый Ключ</button>
                 </div>
 
@@ -56,7 +56,7 @@
         function getKeySecurityStatus(key) {
             const srcType = key.source_storage_type || 'db';
             if (srcType !== 'db') {
-                return { cls: 'badge-success', icon: '🔗', label: 'Внешний' };
+                return { cls: 'badge-success', icon: '<i class="fa-solid fa-link fa-2x"></i>', label: 'Внешний' };
             }
             // Local key — check if plaintext content present (no encryption configured)
             const hasPlaintext = !!(key.ssh_key || key.login_password_password);
@@ -72,7 +72,7 @@
             api.getKeys(projectId)
                 .then(keys => {
                     if (keys.length === 0) {
-                        ui.showEmpty(container, '🔐', 'Нет ключей', 'Создайте первый ключ доступа');
+                        ui.showEmpty(container, '<i class="fa-solid fa-key fa-2x"></i>', 'Нет ключей', 'Создайте первый ключ доступа');
                         return;
                     }
 
@@ -130,8 +130,8 @@
                                         <td><span class="badge ${sec.cls}" title="${sec.label}">${sec.icon} ${sec.label}</span></td>
                                         <td>${escapeHtml(details || '—')}</td>
                                         <td>
-                                            <button class="btn btn-sm" onclick="editKey(${key.id})">✏️</button>
-                                            <button class="btn btn-danger btn-sm" onclick="deleteKey(${key.id})">🗑️</button>
+                                            <button class="btn btn-sm" onclick="editKey(${key.id})"><i class="fa-solid fa-pen"></i></button>
+                                            <button class="btn btn-danger btn-sm" onclick="deleteKey(${key.id})"><i class="fa-solid fa-trash"></i></button>
                                         </td>
                                     </tr>`;
                                 }).join('')}

@@ -18,7 +18,7 @@
 
             <div class="main-body">
                 <div class="page-header">
-                    <h1>🗂️ Репозитории</h1>
+                    <h1><i class="fa-solid fa-code-branch"></i> Репозитории</h1>
                     <button class="btn btn-primary" onclick="openRepositoryModal()">+ Новый Репозиторий</button>
                 </div>
 
@@ -58,7 +58,7 @@
             api.getRepositories(projectId)
                 .then(repos => {
                     if (repos.length === 0) {
-                        ui.showEmpty(container, '🗂️', 'Нет репозиториев', 'Создайте первый репозиторий');
+                        ui.showEmpty(container, '<i class="fa-solid fa-code-branch fa-2x"></i>', 'Нет репозиториев', 'Создайте первый репозиторий');
                     } else {
                         container.innerHTML = `
                             <table class="table">
@@ -79,8 +79,8 @@
                                             <td><span class="badge">${repo.git_branch || 'main'}</span></td>
                                             <td>🔐 ID: ${repo.key_id || '—'}</td>
                                             <td>
-                                                <button class="btn btn-sm" onclick="editRepository(${repo.id})">✏️</button>
-                                                <button class="btn btn-danger btn-sm" onclick="deleteRepository(${repo.id})">🗑️</button>
+                                                <button class="btn btn-sm" onclick="editRepository(${repo.id})"><i class="fa-solid fa-pen"></i></button>
+                                                <button class="btn btn-danger btn-sm" onclick="deleteRepository(${repo.id})"><i class="fa-solid fa-trash"></i></button>
                                             </td>
                                         </tr>
                                     `).join('')}

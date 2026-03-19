@@ -113,7 +113,7 @@
             if (!runners.length) {
                 el.innerHTML = `
                     <div class="card text-center">
-                        <div style="font-size:48px;margin-bottom:15px">⚡</div>
+                        <div style="font-size:48px;margin-bottom:15px"><i class="fa-solid fa-bolt" style="color:var(--primary-dark);"></i></div>
                         <h3>Нет Runners</h3>
                         <p style="color:var(--text-light)">Добавьте runner для выполнения задач</p>
                         <button class="btn btn-primary mt-3" onclick="openModal()">Добавить Runner</button>
@@ -155,7 +155,7 @@
                                     <td>
                                         <button class="btn btn-sm btn-secondary" onclick="editRunner(${r.id})" title="Редактировать">✎</button>
                                         <button class="btn btn-sm btn-${r.active ? 'warning' : 'success'}" onclick="toggleRunner(${r.id}, ${!r.active})" title="${r.active ? 'Выключить' : 'Включить'}">${r.active ? '⏸' : '▶'}</button>
-                                        <button class="btn btn-sm btn-danger" onclick="deleteRunner(${r.id})" title="Удалить">🗑</button>
+                                        <button class="btn btn-sm btn-danger" onclick="deleteRunner(${r.id})" title="Удалить"><i class="fa-solid fa-trash"></i></button>
                                     </td>
                                 </tr>`;
                             }).join('')}

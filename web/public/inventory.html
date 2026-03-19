@@ -18,7 +18,7 @@
 
             <div class="main-body">
                 <div class="page-header">
-                    <h1>📦 Инвентари</h1>
+                    <h1><i class="fa-solid fa-boxes-stacked"></i> Инвентари</h1>
                     <button class="btn btn-primary" onclick="openInventoryModal()">+ Новый Инвентарь</button>
                 </div>
 
@@ -58,7 +58,7 @@
             api.getInventories(projectId)
                 .then(inventories => {
                     if (inventories.length === 0) {
-                        ui.showEmpty(container, '📦', 'Нет инвентарей', 'Создайте первый инвентарь');
+                        ui.showEmpty(container, '<i class="fa-solid fa-boxes-stacked fa-2x"></i>', 'Нет инвентарей', 'Создайте первый инвентарь');
                     } else {
                         container.innerHTML = `
                             <table class="table">
@@ -79,8 +79,8 @@
                                             <td>${escapeHtml(inv.runner_tag || '—')}</td>
                                             <td>${inv.ssh_key_id ? '🔐 ID: ' + inv.ssh_key_id : '—'}</td>
                                             <td>
-                                                <button class="btn btn-sm" onclick="editInventory(${inv.id})">✏️</button>
-                                                <button class="btn btn-danger btn-sm" onclick="deleteInventory(${inv.id})">🗑️</button>
+                                                <button class="btn btn-sm" onclick="editInventory(${inv.id})"><i class="fa-solid fa-pen"></i></button>
+                                                <button class="btn btn-danger btn-sm" onclick="deleteInventory(${inv.id})"><i class="fa-solid fa-trash"></i></button>
                                             </td>
                                         </tr>
                                     `).join('')}

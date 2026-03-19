@@ -91,8 +91,8 @@
                                             <td>${escapeHtml(m.name || '—')}</td>
                                             <td>${getRoleBadge(m.role)}</td>
                                             <td>
-                                                <button class="btn btn-sm" onclick="editMember(${m.id}, '${escapeHtml(m.username)}', '${escapeHtml(m.role)}')" title="Изменить роль">✏️</button>
-                                                <button class="btn btn-danger btn-sm" onclick="removeMember(${m.id}, '${escapeHtml(m.username)}')" title="Удалить из проекта">🗑️</button>
+                                                <button class="btn btn-sm" onclick="editMember(${m.id}, '${escapeHtml(m.username)}', '${escapeHtml(m.role)}')" title="Изменить роль"><i class="fa-solid fa-pen"></i></button>
+                                                <button class="btn btn-danger btn-sm" onclick="removeMember(${m.id}, '${escapeHtml(m.username)}')" title="Удалить из проекта"><i class="fa-solid fa-trash"></i></button>
                                             </td>
                                         </tr>
                                     `).join('')}
@@ -365,8 +365,8 @@
                                     <td><code>${escapeHtml(r.slug || '')}</code></td>
                                     <td>${permLabels.join(', ') || '—'}</td>
                                     <td>
-                                        <button class="btn btn-sm" onclick="openRoleModal(${r.id})">✏️</button>
-                                        <button class="btn btn-danger btn-sm" onclick="deleteRole(${r.id})">🗑️</button>
+                                        <button class="btn btn-sm" onclick="openRoleModal(${r.id})"><i class="fa-solid fa-pen"></i></button>
+                                        <button class="btn btn-danger btn-sm" onclick="deleteRole(${r.id})"><i class="fa-solid fa-trash"></i></button>
                                     </td>
                                 </tr>
                                 `;
@@ -525,7 +525,7 @@
             api.get('/project/' + projectId + '/invites')
                 .then(invites => {
                     if (!invites || invites.length === 0) {
-                        ui.showEmpty(container, '✉️', 'Нет приглашений', 'Создайте приглашение чтобы добавить пользователя в проект');
+                        ui.showEmpty(container, '<i class="fa-solid fa-envelope fa-2x"></i>', 'Нет приглашений', 'Создайте приглашение чтобы добавить пользователя в проект');
                         return;
                     }
                     const baseUrl = window.location.origin;
@@ -548,12 +548,12 @@
                                         <td>
                                             <div style="display:flex; align-items:center; gap:6px;">
                                                 <code style="font-size:11px; background:#f5f5f5; padding:2px 6px; border-radius:4px; overflow:hidden; text-overflow:ellipsis; max-width:200px; display:inline-block;">${baseUrl}/accept_invite.html?token=${escapeHtml(inv.token)}</code>
-                                                <button class="btn btn-sm" onclick="copyInviteLink('${escapeHtml(inv.token)}')" title="Копировать ссылку">📋</button>
+                                                <button class="btn btn-sm" onclick="copyInviteLink('${escapeHtml(inv.token)}')" title="Копировать ссылку"><i class="fa-solid fa-list"></i></button>
                                             </div>
                                         </td>
                                         <td style="font-size:12px; color:var(--text-light);">${formatDate(inv.created)}</td>
                                         <td>
-                                            <button class="btn btn-danger btn-sm" onclick="deleteInvite(${inv.id})" title="Удалить">🗑️</button>
+                                            <button class="btn btn-danger btn-sm" onclick="deleteInvite(${inv.id})" title="Удалить"><i class="fa-solid fa-trash"></i></button>
                                         </td>
                                     </tr>
                                 `).join('')}

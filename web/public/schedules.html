@@ -236,7 +236,7 @@
             if (!schedules.length) {
                 el.innerHTML = `
                     <div class="card text-center">
-                        <div style="font-size:48px;margin-bottom:15px">⏰</div>
+                        <div style="font-size:48px;margin-bottom:15px"><i class="fa-solid fa-clock" style="color:var(--primary-dark);"></i></div>
                         <h3>Нет расписаний</h3>
                         <p style="color:var(--text-light)">Создайте расписание для автоматического запуска задач</p>
                         <button class="btn btn-primary mt-3" onclick="openScheduleModal()">Создать расписание</button>
@@ -271,7 +271,7 @@
                                     <td>
                                         <button class="btn btn-sm btn-secondary" onclick="editSchedule(${s.id})" title="Редактировать">✎</button>
                                         <button class="btn btn-sm btn-${s.active ? 'warning' : 'success'}" onclick="toggleSchedule(${s.id}, ${!s.active})" title="${s.active ? 'Выключить' : 'Включить'}">${s.active ? '⏸' : '▶'}</button>
-                                        <button class="btn btn-sm btn-danger" onclick="deleteSchedule(${s.id})" title="Удалить">🗑</button>
+                                        <button class="btn btn-sm btn-danger" onclick="deleteSchedule(${s.id})" title="Удалить"><i class="fa-solid fa-trash"></i></button>
                                     </td>
                                 </tr>`;
                             }).join('')}
