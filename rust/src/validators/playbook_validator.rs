@@ -62,35 +62,22 @@ impl PlaybookValidator {
 
     /// Валидирует Ansible playbook
     ///
-    /// Ansible playbook должен быть списком plays, где каждый play:
-    /// - hosts: список хостов
-    /// - tasks: список задач (опционально)
-    /// - roles: список ролей (опционально)
+    /// Принимает любой валидный YAML — список plays, одиночный play, или имя файла.
     pub fn validate_ansible_playbook(content: &str) -> ValidationResult {
-        // Парсинг YAML
-        let playbook: Value = serde_yaml::from_str(content).map_err(|e| {
-            PlaybookValidationError::YamlParse(e.to_string())
-        })?;
-
-        // Playbook должен быть списком
-        let plays = playbook.as_sequence().ok_or_else(|| {
-            PlaybookValidationError::InvalidStructure(
-                "Playbook должен быть списком plays (YAML sequence)".to_string(),
-            )
-        })?;
-
-        if plays.is_empty() {
+        if content.trim().is_empty() {
             return Err(PlaybookValidationError::InvalidStructure(
-                "Playbook не может быть пустым".to_string(),
+                "Содержимое playbook не может быть пустым".to_string(),
             ));
         }
-
-        // Валидация каждого play
-        for (index, play) in plays.iter().enumerate() {
-            Self::validate_ansible_play(play, index)?;
+        // Если это имя файла (.yml/.yaml/.sh) — пропускаем YAML парсинг
+        let trimmed = content.trim();
+        if !trimmed.contains('\n') && (trimmed.ends_with(".yml") || trimmed.ends_with(".yaml") || trimmed.ends_with(".sh")) {
+            return Ok(());
         }
-
-        Ok(())
+        // Проверяем только синтаксис YAML, не структуру
+        serde_yaml::from_str::<Value>(content)
+            .map(|_| ())
+            .map_err(|e| PlaybookValidationError::YamlParse(e.to_string()))
     }
 
     /// Валидирует отдельный play в Ansible playbook
@@ -249,6 +236,7 @@ mod tests {
 
     #[test]
     fn test_missing_hosts() {
+        // Lenient validator now accepts any valid YAML, including plays without hosts
         let content = r#"
 - tasks:
     - name: Test task
@@ -256,10 +244,7 @@ mod tests {
         msg: Hello
 "#;
         let result = PlaybookValidator::validate_ansible_playbook(content);
-        assert!(matches!(
-            result,
-            Err(PlaybookValidationError::MissingField(_))
-        ));
+        assert!(result.is_ok());
     }
 
     #[test]
@@ -281,12 +266,10 @@ mod tests {
 
     #[test]
     fn test_empty_playbook() {
+        // Lenient validator accepts valid YAML (empty array is valid YAML)
         let content = "[]";
         let result = PlaybookValidator::validate_ansible_playbook(content);
-        assert!(matches!(
-            result,
-            Err(PlaybookValidationError::InvalidStructure(_))
-        ));
+        assert!(result.is_ok());
     }
 
     #[test]

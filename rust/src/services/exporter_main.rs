@@ -274,11 +274,16 @@ impl<T> ValueMap<T> {
         Ok(())
     }
     
+    /// Возвращает все значения для scope (клонирует)
+    pub fn get_values(&self, scope: &str) -> Vec<T> where T: Clone {
+        self.values.get(scope).cloned().unwrap_or_default()
+    }
+
     /// Получает ошибки
     pub fn get_errors(&self) -> Vec<String> {
         self.errors.clone()
     }
-    
+
     /// Очищает
     pub fn clear(&mut self) {
         self.values.clear();

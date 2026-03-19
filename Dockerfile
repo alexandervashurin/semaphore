@@ -47,7 +47,7 @@ RUN cargo build --release && mkdir -p /app/data
 FROM gcr.io/distroless/cc-debian12:nonroot
 
 # Бинарь (уже stripped благодаря profile.release)
-COPY --from=builder /app/target/release/semaphore /usr/local/bin/semaphore
+COPY --from=builder /app/target/release/velum /usr/local/bin/velum
 
 # Vanilla JS фронтенд
 COPY --chown=65532:65532 web/public /app/web/public
@@ -69,4 +69,4 @@ ENV SEMAPHORE_ADMIN_PASSWORD=admin123
 ENV SEMAPHORE_ADMIN_NAME=Administrator
 ENV SEMAPHORE_ADMIN_EMAIL=admin@semaphore.local
 
-CMD ["/usr/local/bin/semaphore", "server", "--host", "0.0.0.0", "--port", "3000"]
+CMD ["/usr/local/bin/velum", "server", "--host", "0.0.0.0", "--port", "3000"]

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Расписания - Velum</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
     <style>
         .cron-group { margin-bottom: 14px; }
         .cron-group-label { font-size: 12px; font-weight: 500; color: var(--text-light); margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
@@ -41,8 +42,8 @@
     </div>
 
     <!-- Schedule Modal -->
-    <div id="schedule-modal" class="modal" style="display:none;">
-        <div class="modal-content" style="max-width:680px; max-height:90vh; overflow-y:auto;">
+    <div id="schedule-modal" class="modal-overlay" style="display:none;">
+        <div class="modal" style="max-width:680px; max-height:90vh; overflow-y:auto;">
             <div class="modal-header">
                 <h3 id="sched-modal-title">Новое расписание</h3>
                 <button class="modal-close" onclick="closeModal()">&times;</button>
@@ -343,7 +344,7 @@
                 setCronFromExpression(sched.cron);
             }
 
-            document.getElementById('schedule-modal').style.display = 'block';
+            document.getElementById('schedule-modal').style.display = 'flex';
         }
 
         function closeModal() {

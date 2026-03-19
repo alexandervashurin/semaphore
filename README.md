@@ -1,138 +1,35 @@
-# 🦀 Velum на Rust
+# 🦀 Velum — Rust Edition
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/Rust-1.80+-blue.svg)](https://www.rust-lang.org)
-[![Tests](https://img.shields.io/badge/tests-655%20passed-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-667%20passed-brightgreen.svg)]()
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
 [![Migration](https://img.shields.io/badge/migration-100%25-brightgreen.svg)]()
-[![Frontend](https://img.shields.io/badge/frontend-Vue%202-brightgreen.svg)]()
+[![Frontend](https://img.shields.io/badge/frontend-Vanilla%20JS-brightgreen.svg)]()
 [![Production Ready](https://img.shields.io/badge/status-production%20ready-brightgreen.svg)]()
 
-**Полная миграция Velum на Rust** - высокопроизводительная, безопасная и надёжная система автоматизации для Ansible, Terraform, OpenTofu, Terragrunt, PowerShell и других DevOps-инструментов.
+**Полная миграция [Velum](https://github.com/velum/velum) с Go на Rust** — высокопроизводительная, безопасная и надёжная система автоматизации для Ansible, Terraform, OpenTofu, Terragrunt, PowerShell и других DevOps-инструментов.
 
-## 🎯 Демо-режим
+---
 
-> **Попробуйте прямо сейчас!** Полноценное демо-окружение с готовыми данными.
+## 🎯 Быстрый старт (Docker Demo)
+
+> **Запустить прямо сейчас!** SQLite + автосид admin/admin123, порт 8088.
 
 ```bash
-# Быстрый старт демо-режима
-./semaphore.sh init hybrid
-./semaphore.sh start hybrid
+docker compose -f docker-compose.demo.yml up --build -d
 
 # Откройте в браузере
-http://localhost:3000
+http://localhost:8088
 ```
-
-**Учётные данные (пароль для всех: demo123):**
-- `admin` / `demo123` (администратор)
-- `john.doe` / `demo123` (менеджер)
-- `jane.smith` / `demo123` (менеджер)
-- `devops` / `demo123` (исполнитель)
-
-**Демо-данные:** 4 проекта, 12 шаблонов, 4 расписания, 6 задач
-
-📖 **Подробная документация**: [db/postgres/DEMO_MODE.md](db/postgres/DEMO_MODE.md)
-
----
-
-## 🚀 Быстрый Старт
-
-### Требования
-
-- Rust 1.80 или новее
-- Cargo
-- Docker (опционально, для Docker-режимов)
-
----
-
-### 📋 Режимы запуска
-
-#### Режим 1: Native (чистый запуск на хосте) ⭐ Для разработки
-
-SQLite + Backend + Frontend на хосте. Минимальные зависимости.
-
-```bash
-# Первый запуск с инициализацией
-./semaphore.sh init native
-
-# Запуск сервера
-./semaphore.sh start native
-```
-
-**Доступ:** http://localhost:3000
 
 **Учётные данные:**
 - `admin` / `admin123`
 
-**Полезные команды:**
-```bash
-./semaphore.sh stop              # Остановить backend
-./semaphore.sh logs              # Просмотр логов
-./semaphore.sh clean             # Удалить БД
-./semaphore.sh status            # Показать статус
-```
-
 ---
 
-#### Режим 2: Hybrid (PostgreSQL в Docker, остальное на хосте) ⭐ Рекомендуется для продакшена
+## 🚀 Запуск для разработки (SQLite, без Docker)
 
-PostgreSQL в Docker, Backend и Frontend на хосте.
-
-```bash
-# Первый запуск с инициализацией
-./semaphore.sh init hybrid
-
-# Запуск сервера
-./semaphore.sh start hybrid
-```
-
-**Доступ:** http://localhost:3000
-
-**Учётные данные (демо):**
-- `admin` / `demo123`
-
-**Полезные команды:**
-```bash
-./semaphore.sh stop              # Остановить сервисы
-./semaphore.sh logs              # Просмотр логов
-./semaphore.sh clean             # Очистить данные БД
-./semaphore.sh status            # Показать статус
-```
-
----
-
-#### Режим 3: Docker (всё в Docker)
-
-Frontend + PostgreSQL + Backend в Docker контейнерах.
-
-```bash
-# Запуск всех сервисов
-./semaphore.sh start docker
-```
-
-**Доступ:** http://localhost
-
-**Учётные данные (демо):**
-- `admin` / `demo123`
-
-**Полезные команды:**
-```bash
-./semaphore.sh stop              # Остановить сервисы
-./semaphore.sh logs              # Просмотр логов
-./semaphore.sh clean             # Очистить volumes
-./semaphore.sh status            # Показать статус
-```
-
----
-
-### 🔧 Ручной запуск (для разработки)
-
-#### Сборка frontend
-```bash
-./web/build.sh
-```
-
-#### Запуск backend напрямую
 ```bash
 cd rust
 
@@ -140,14 +37,9 @@ cd rust
 export SEMAPHORE_DB_DIALECT=sqlite
 export SEMAPHORE_DB_PATH=/tmp/semaphore.db
 cargo run -- server --host 0.0.0.0 --port 3000
-
-# С PostgreSQL
-export SEMAPHORE_DB_DIALECT=postgres
-export SEMAPHORE_DB_URL=postgres://semaphore:semaphore_pass@localhost:5432/semaphore
-cargo run -- server --host 0.0.0.0 --port 3000
 ```
 
-#### Создание администратора
+**Создание администратора:**
 ```bash
 cd rust
 cargo run -- user add \
@@ -157,30 +49,56 @@ cargo run -- user add \
   --password admin123 \
   --admin
 ```
-cd rust
-export SEMAPHORE_DB_URL="postgres://semaphore:semaphore_pass@localhost:5432/semaphore"
-cargo run -- server --host 0.0.0.0 --port 3000
-```
 
 **Доступ:** http://localhost:3000
 
 ---
 
-## 📚 Основные команды
+## 🐘 Запуск с PostgreSQL
 
 ```bash
-# Запуск сервера
-cargo run -- server --host 0.0.0.0 --port 3000
+# Полный стек через Docker (PostgreSQL + backend)
+docker compose up -d
+
+# Или вручную
+export SEMAPHORE_DB_DIALECT=postgres
+export SEMAPHORE_DB_URL=postgres://semaphore:semaphore123@localhost:5432/semaphore
+cd rust && cargo run -- server --host 0.0.0.0 --port 3000
+```
+
+---
+
+## 📚 Основные команды разработки
+
+```bash
+# Проверка компиляции
+cd rust && cargo check
+
+# Линтер (0 warnings)
+cd rust && cargo clippy -- -D warnings
+
+# Тесты (667 тестов)
+cd rust && cargo test
+
+# Запуск сервера (SQLite)
+cd rust && SEMAPHORE_DB_PATH=/tmp/semaphore.db cargo run -- server
 
 # Создание пользователя
 cargo run -- user add --username <name> --email <email> --password <pwd> --admin
 
 # Версия
 cargo run -- version
-
-# Тесты
-cargo test
 ```
+
+---
+
+## 🔐 Шифрование ключей доступа (опционально)
+
+```bash
+export SEMAPHORE_ACCESS_KEY_ENCRYPTION="your-secret-passphrase"
+```
+
+Если переменная задана — все SSH/API ключи в БД шифруются AES-256-GCM. Без неё — хранятся в plaintext (как в оригинальном Go Velum).
 
 ---
 
@@ -188,35 +106,74 @@ cargo test
 
 | Документ | Описание |
 |----------|----------|
-| [CRUD_DEMO.md](CRUD_DEMO.md) | 🎯 CRUD Демо - полное руководство |
+| [MASTER_PLAN.md](MASTER_PLAN.md) | 📋 Живой план миграции и статус задач |
 | [CONFIG.md](CONFIG.md) | Переменные окружения и конфигурация |
-| [API.md](API.md) | REST API документация |
-| [AUTH.md](AUTH.md) | Аутентификация и авторизация |
+| [API.md](API.md) | REST API документация (75+ эндпоинтов) |
+| [AUTH.md](AUTH.md) | Аутентификация: JWT, TOTP, LDAP, OIDC |
 | [DOCKER_DEMO.md](DOCKER_DEMO.md) | Docker демонстрация |
-| [PLAYBOOK_API.md](PLAYBOOK_API.md) | 📚 Playbook API (Ansible/Terraform) |
-| [scripts/README.md](scripts/README.md) | Скрипты запуска |
+| [PLAYBOOK_API.md](PLAYBOOK_API.md) | Playbook API (Ansible/Terraform) |
 
 ---
 
-## 🛠 Технологический Стек
+## 🛠 Технологический стек
 
-- **Backend:** Rust + Axum + SQLx
-- **Frontend:** Vue 2
-- **Базы данных:** SQLite, PostgreSQL, MySQL
-- **Аутентификация:** JWT + bcrypt
-- **Автоматизация:** Ansible, Terraform, OpenTofu, Terragrunt, PowerShell
+| Компонент | Технология |
+|---|---|
+| Backend | Rust, Axum 0.8, SQLx 0.8, Tokio 1 |
+| Frontend | Vanilla JS (без фреймворков), Roboto font |
+| Дизайн | Material Design (teal `#005057` sidebar) |
+| Базы данных | SQLite (dev/demo) / PostgreSQL / MySQL |
+| Аутентификация | JWT, bcrypt, TOTP, LDAP, OIDC |
+| Шифрование | AES-256-GCM (ключи доступа) |
+| CI | GitHub Actions (build + clippy + test) |
 
-## ✨ Возможности
+---
 
-- ✅ **Управление проектами** - мультипроектная архитектура с ролевой моделью
-- ✅ **Шаблоны задач** - настройка параметров запуска для Ansible/Terraform
-- ✅ **Инвентари** - динамические и статические инвентари Ansible
-- ✅ **Расписания** - автоматический запуск задач по cron
-- ✅ **Playbook API** - CRUD для Playbook (Ansible, Terraform, Shell) 🆕
-- ✅ **Аудит логирование** - полный аудит всех действий
-- ✅ **Webhooks** - интеграция с внешними системами
-- ✅ **Terraform State** - управление состоянием Terraform
-- ✅ **Хранилище секретов** - безопасное хранение чувствительных данных
+## ✨ Возможности (feature parity с Go-оригиналом)
+
+- ✅ **Управление проектами** — мультипроектная архитектура с ролевой моделью
+- ✅ **Шаблоны задач** — Ansible / Terraform / OpenTofu / Shell, Views/Tabs
+- ✅ **Task Runner** — реальный запуск с WebSocket live-логами
+- ✅ **Инвентари** — статические, динамические, Terraform workspace, файловые
+- ✅ **Репозитории** — git checkout по ветке/тегу/коммиту
+- ✅ **Расписания** — cron планировщик с визуальным редактором
+- ✅ **Webhooks + Integration Matchers** — фильтрация входящих событий
+- ✅ **Backup / Restore** — полный экспорт/импорт проекта в JSON
+- ✅ **Auth** — JWT, bcrypt, TOTP (2FA + recovery codes), LDAP, OIDC
+- ✅ **Secret Storages** — Vault/DVLS интеграция
+- ✅ **Custom Roles** — permissions bitmask
+- ✅ **Runners** — self-registration, heartbeat, per-project runner tags
+- ✅ **Analytics** — статистика задач с Chart.js
+- ✅ **Audit Log** — полный лог действий
+- ✅ **Playbooks** — CRUD + история запусков
+- ✅ **Apps** — управление типами исполнителей (ansible/terraform/bash/tofu)
+- ✅ **Шифрование ключей** — AES-256-GCM + маскировка в API
+
+---
+
+## 📊 Статус миграции
+
+| Компонент | Статус |
+|---|---|
+| Backend API (75+ эндпоинтов) | ✅ 100% |
+| Тесты | ✅ 667 passed |
+| Frontend (28+ страниц) | ✅ 100% |
+| Аутентификация | ✅ 100% |
+| Task Runner | ✅ 100% |
+| Scheduler (cron) | ✅ 100% |
+| Docker (demo + prod) | ✅ 100% |
+| PostgreSQL схема | ✅ 100% |
+| MySQL схема | ✅ 100% |
+
+---
+
+## 🔗 Репозитории
+
+| | URL |
+|---|---|
+| Этот проект | https://github.com/tnl-o/velum |
+| Go-оригинал (эталон) | https://github.com/velum/velum |
+| Upstream (alexandervashurin) | https://github.com/alexandervashurin/semaphore |
 
 ---
 
@@ -224,4 +181,4 @@ cargo test
 
 MIT © [Alexander Vashurin](https://github.com/alexandervashurin)
 
-Оригинальный проект [Velum](https://github.com/velum/velum) на Go.
+Оригинальный проект [Velum](https://github.com/velum/velum) на Go — используется как эталон feature parity.

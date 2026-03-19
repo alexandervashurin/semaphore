@@ -44,7 +44,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Бинарь
-COPY --from=builder /app/target/release/semaphore /usr/local/bin/semaphore
+COPY --from=builder /app/target/release/velum /usr/local/bin/velum
 
 # Vanilla JS фронтенд
 COPY web/public /app/web/public
@@ -68,4 +68,4 @@ ENV SEMAPHORE_ADMIN_PASSWORD=admin123
 ENV SEMAPHORE_ADMIN_NAME=Administrator
 ENV SEMAPHORE_ADMIN_EMAIL=admin@semaphore.local
 
-CMD ["/usr/local/bin/semaphore", "server", "--host", "0.0.0.0", "--port", "3000"]
+CMD ["/usr/local/bin/velum", "server", "--host", "0.0.0.0", "--port", "3000"]

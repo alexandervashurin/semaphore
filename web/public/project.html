@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Проект - Velum</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
 </head>
 <body>
     <div class="layout">
@@ -99,24 +100,14 @@
             const btn = document.getElementById('btn-backup');
             try {
                 if (btn) { btn.disabled = true; btn.textContent = '⏳ Подготовка...'; }
-                const [project, templates, inventories, environments, repositories, keys] = await Promise.all([
-                    api.getProject(projectId),
-                    api.getTemplates(projectId).catch(() => []),
-                    api.getInventories(projectId).catch(() => []),
-                    api.getEnvironments(projectId).catch(() => []),
-                    api.getRepositories(projectId).catch(() => []),
-                    api.getKeys(projectId).catch(() => [])
-                ]);
-                const backup = {
-                    exported_at: new Date().toISOString(),
-                    project, templates, inventories, environments, repositories, keys
-                };
+                // Используем бэкенд endpoint для полного бэкапа
+                const backup = await api.request(`/project/${projectId}/backup`, { method: 'GET' });
                 const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
                 const url  = URL.createObjectURL(blob);
                 const a    = document.createElement('a');
                 const ts   = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
                 a.href = url;
-                a.download = 'semaphore-backup-' + projectId + '-' + ts + '.json';
+                a.download = 'velum-backup-' + projectId + '-' + ts + '.json';
                 a.click();
                 URL.revokeObjectURL(url);
                 ui.showAlert('Резервная копия скачана', 'success');
@@ -125,6 +116,37 @@
             } finally {
                 if (btn) { btn.disabled = false; btn.textContent = '📥 Скачать резервную копию'; }
             }
+        }
+
+        async function restoreProject() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const text = await file.text();
+                let backup;
+                try { backup = JSON.parse(text); } catch { ui.showAlert('Ошибка: файл не является JSON', 'danger'); return; }
+
+                if (!confirm(`Восстановить проект из "${file.name}"?\nЭто добавит все сущности из бэкапа в текущий проект.`)) return;
+
+                try {
+                    const result = await api.request(`/project/${projectId}/backup`, {
+                        method: 'POST',
+                        body: JSON.stringify(backup)
+                    });
+                    const msg = `Восстановлено: ${result.templates || 0} шаблонов, ${result.inventories || 0} инвентарей, ${result.repositories || 0} репозиториев, ${result.environments || 0} окружений`;
+                    if (result.errors && result.errors.length > 0) {
+                        ui.showAlert(msg + ` (ошибки: ${result.errors.length})`, 'warning');
+                    } else {
+                        ui.showAlert(msg, 'success');
+                    }
+                } catch (err) {
+                    ui.showAlert('Ошибка восстановления: ' + err.message, 'danger');
+                }
+            };
+            input.click();
         }
 
         async function testProjectNotifications() {
@@ -261,6 +283,7 @@
                         <h4 style="margin-bottom:10px;">📦 Управление</h4>
                         <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
                             <button id="btn-backup" class="btn btn-sm" onclick="backupProject()">📥 Скачать резервную копию</button>
+                            <button class="btn btn-sm" onclick="restoreProject()">📤 Восстановить из файла</button>
                         </div>
                     </div>
 

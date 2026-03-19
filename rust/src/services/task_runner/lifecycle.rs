@@ -40,9 +40,10 @@ impl TaskRunner {
             self.environment.clone(),
             logger,
             crate::db_lib::AccessKeyInstallerImpl::new(),
-            std::path::PathBuf::from("/tmp/work"),
-            std::path::PathBuf::from("/tmp/tmp"),
+            std::path::PathBuf::from(format!("/tmp/semaphore/task_{}", self.task.id)),
+            std::path::PathBuf::from(format!("/tmp/semaphore/task_{}_tmp", self.task.id)),
         );
+        local_job.store = Some(Arc::clone(&self.pool.store) as Arc<dyn crate::db::store::Store + Send + Sync>);
         local_job.set_run_params(
             self.username.clone(),
             self.incoming_version.clone(),
