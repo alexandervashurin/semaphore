@@ -173,9 +173,7 @@
                     notify('App обновлён', 'success');
                 })
                 .catch(err => {
-                    // API might not support PUT — show info
-                    notify('Изменение пути App не поддерживается в этой версии', 'info');
-                    closeModal();
+                    notify('Ошибка: ' + err.message, 'danger');
                 });
         }
 

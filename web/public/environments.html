@@ -317,8 +317,8 @@
 
             const method = id ? 'PUT' : 'POST';
             const url = id
-                ? `${API_BASE}/project/${projectId}/environments/${id}`
-                : `${API_BASE}/project/${projectId}/environments`;
+                ? `${API_BASE}/project/${projectId}/environment/${id}`
+                : `${API_BASE}/project/${projectId}/environment`;
 
             api.request(method, url, payload)
                 .then(() => {

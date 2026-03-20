@@ -9,7 +9,7 @@
 </head>
 <body>
     <div class="header">
-        <h1><img src="logo.png" alt="">Velum</h1>
+        <h1><img src="logo.svg" alt="">Velum</h1>
         <div class="user-menu">
             <a href="/users.html" class="btn btn-ghost btn-sm" style="border-color:rgba(255,255,255,0.12);color:var(--gray-400);">
                 Пользователи
@@ -51,7 +51,7 @@
                         grid.innerHTML = projects.map(p => `
                             <div class="card card-interactive" onclick="location.href='/project.html?id=${p.id}'">
                                 <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-                                    <div style="width:36px;height:36px;background:var(--primary-subtle);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">⬡</div>
+                                    <div style="width:36px;height:36px;background:var(--primary-sub);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">⬡</div>
                                     <div style="min-width:0;">
                                         <div style="font-weight:600;color:var(--text);font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(p.name)}</div>
                                         <div style="font-size:12px;color:var(--text-muted);">ID: ${p.id}</div>
