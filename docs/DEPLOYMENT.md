@@ -1,38 +1,156 @@
 # Deployment Guide for Velum (Rust)
 
-**Версия:** v2.1.0  
-**Дата:** 17 марта 2026 г.
+**Версия:** v2.1.0
+**Дата:** 20 марта 2026 г.
 
 ---
 
 ## Содержание
 
 1. [Варианты деплоя](#1-варианты-деплоя)
-2. [Docker (рекомендуется)](#2-docker-рекомендуется)
-3. [Systemd (Linux)](#3-systemd-linux)
-4. [Kubernetes](#4-kubernetes)
-5. [Ручная установка](#5-ручная-установка)
-6. [Конфигурация](#6-конфигурация)
-7. [Миграции БД](#7-миграции-бд)
-8. [Backup и восстановление](#8-backup-и-восстановление)
-9. [Мониторинг](#9-мониторинг)
-10. [Troubleshooting](#10-troubleshooting)
+2. [DEB пакет (рекомендуется для Debian/Ubuntu)](#2-deb-пакет-рекомендуется-для-debianubuntu)
+3. [Docker](#3-docker-рекомендуется)
+4. [Docker Compose](#4-docker-compose-с-postgresql)
+5. [Systemd (Linux)](#5-systemd-linux)
+6. [Kubernetes](#6-kubernetes)
+7. [Ручная установка](#7-ручная-установка)
+8. [Конфигурация](#8-конфигурация)
+9. [Миграции БД](#9-миграции-бд)
+10. [Backup и восстановление](#10-backup-и-восстановление)
+11. [Мониторинг](#11-мониторинг)
+12. [Troubleshooting](#12-troubleshooting)
 
 ---
 
 ## 1. Варианты деплоя
 
-| Метод | Сложность | Production | Описание |
-|-------|-----------|------------|----------|
-| **Docker** | 🟢 Низкая | ✅ Да | Рекомендуется для большинства случаев |
-| **Docker Compose** | 🟢 Низкая | ✅ Да | Для локальной разработки и тестирования |
-| **Systemd** | 🟡 Средняя | ✅ Да | Для bare-metal серверов |
-| **Kubernetes** | 🔴 Высокая | ✅ Да | Для масштабирования и HA |
-| **Ручная** | 🔴 Высокая | ⚠️ Ограниченно | Для отладки и разработки |
+| Метод | Сложность | Production | ОС | Описание |
+|-------|-----------|------------|-----|----------|
+| **DEB пакет** | 🟢 Низкая | ✅ Да | Debian/Ubuntu | Рекомендуется для production |
+| **Docker** | 🟢 Низкая | ✅ Да | Любая | Контейнер с приложением |
+| **Docker Compose** | 🟢 Низкая | ✅ Да | Любая | Для локальной разработки и тестирования |
+| **Systemd** | 🟡 Средняя | ✅ Да | Linux | Для bare-metal серверов |
+| **Kubernetes** | 🔴 Высокая | ✅ Да | Любая | Для масштабирования и HA |
+| **Ручная** | 🔴 Высокая | ⚠️ Ограниченно | Любая | Для отладки и разработки |
 
 ---
 
-## 2. Docker (рекомендуется)
+## 2. DEB пакет (рекомендуется для Debian/Ubuntu)
+
+### Требования
+
+- **ОС:** Debian 10+ / Ubuntu 20.04+
+- **Зависимости:** systemd, postgresql-client (или mysql-client), ansible >= 2.9
+
+### Установка
+
+```bash
+# Скачать пакет
+wget https://github.com/tnl-o/semarust/releases/download/v2.1.0/velum-2.1.0.deb
+
+# Установить
+sudo dpkg -i velum-2.1.0.deb
+
+# Установить зависимости (если есть ошибки)
+sudo apt install -f
+```
+
+### Быстрый старт
+
+```bash
+# Создать admin пользователя
+sudo velum user add \
+  --username admin \
+  --email admin@example.com \
+  --password admin123 \
+  --admin
+
+# Запустить сервис
+sudo systemctl start velum
+sudo systemctl enable velum
+
+# Проверить статус
+systemctl status velum
+
+# Открыть в браузере
+# http://localhost:3000
+```
+
+### Конфигурация
+
+Файл конфигурации: `/etc/velum/config.json`
+
+```json
+{
+  "dialect": "sqlite",
+  "path": "/var/lib/velum/database.db",
+  "addr": ":3000",
+  "web_host": "/usr/share/velum/web"
+}
+```
+
+Для PostgreSQL:
+
+```json
+{
+  "dialect": "postgres",
+  "host": "localhost",
+  "port": 5432,
+  "name": "velum",
+  "user": "semaphore",
+  "pass": "semaphore_pass"
+}
+```
+
+### Управление сервисом
+
+```bash
+# Статус
+systemctl status velum
+
+# Журнал
+journalctl -u velum -f
+
+# Перезапуск
+sudo systemctl restart velum
+
+# Остановка
+sudo systemctl stop velum
+
+# Автозагрузка
+sudo systemctl enable velum
+```
+
+### Удаление
+
+```bash
+# Удалить пакет (данные сохраняются)
+sudo apt remove velum
+
+# Полное удаление (с данными)
+sudo apt purge velum
+sudo rm -rf /var/lib/velum /var/log/velum /etc/velum
+```
+
+### Сборка DEB пакета из исходников
+
+```bash
+# Клонировать репозиторий
+git clone https://github.com/tnl-o/semarust.git
+cd semarust
+
+# Собрать пакет
+./scripts/build-deb.sh 2.1.0
+
+# Установить
+sudo dpkg -i build/deb/velum-2.1.0.deb
+```
+
+📚 **Подробная документация:** [docs/DEB_PACKAGE.md](DEB_PACKAGE.md)
+
+---
+
+## 3. Docker (рекомендуется)
 
 ### Быстрый старт
 
@@ -123,7 +241,7 @@ curl http://localhost:3000/api/health
 
 ---
 
-## 3. Systemd (Linux)
+## 5. Systemd (Linux)
 
 ### Установка
 
@@ -200,7 +318,7 @@ systemctl status semaphore
 
 ---
 
-## 4. Kubernetes
+## 6. Kubernetes
 
 ### Helm Chart
 
@@ -274,7 +392,7 @@ spec:
 
 ---
 
-## 5. Ручная установка
+## 7. Ручная установка
 
 ### Требования
 
@@ -303,7 +421,7 @@ semaphore server
 
 ---
 
-## 6. Конфигурация
+## 8. Конфигурация
 
 ### Файл конфигурации
 
@@ -366,7 +484,7 @@ server {
 
 ---
 
-## 7. Миграции БД
+## 9. Миграции БД
 
 ### Автоматические миграции
 
@@ -397,7 +515,7 @@ semaphore migrate --down --version 20240101000000
 
 ---
 
-## 8. Backup и восстановление
+## 10. Backup и восстановление
 
 ### Автоматический backup
 
@@ -439,7 +557,7 @@ systemctl start semaphore
 
 ---
 
-## 9. Мониторинг
+## 11. Мониторинг
 
 ### Health Checks
 
@@ -479,7 +597,7 @@ curl -X POST \
 
 ---
 
-## 10. Troubleshooting
+## 12. Troubleshooting
 
 ### Проблема: Сервис не запускается
 
