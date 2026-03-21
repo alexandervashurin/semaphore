@@ -14,6 +14,9 @@
         .status-waiting { background:#f0f0f0; color:#555; }
         .status-waiting_confirmation { background:#fff3cd; color:#856404; }
         .status-cancelled,.status-stopped { background:#e9ecef; color:#495057; }
+        .compare-bar { display:none; align-items:center; gap:10px; background:#e8f4fd; border:1px solid #bee3f8; border-radius:8px; padding:10px 16px; margin-bottom:12px; }
+        .compare-bar.visible { display:flex; }
+        .compare-bar .compare-info { font-size:13px; color:#2b6cb0; flex:1; }
         .filter-bar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:16px; }
         .filter-bar select, .filter-bar input { padding:6px 10px; border:1px solid var(--border); border-radius:6px; font-size:13px; }
         .duration-cell { font-size:12px; color:var(--text-light); white-space:nowrap; }
@@ -41,8 +44,19 @@
                             <input type="checkbox" id="auto-refresh" checked>
                             Авто-обновление
                         </label>
+                        <button class="btn btn-sm" onclick="toggleCompareMode()"><i class="fa-solid fa-code-compare"></i> Сравнить</button>
                         <button class="btn btn-sm" onclick="loadHistory()"><i class="fa-solid fa-rotate-right"></i> Обновить</button>
                     </div>
+                </div>
+
+                <!-- Compare toolbar -->
+                <div class="compare-bar" id="compare-bar">
+                    <i class="fa-solid fa-code-compare" style="color:#3182ce;"></i>
+                    <span class="compare-info" id="compare-info">Выберите ровно 2 задачи для сравнения</span>
+                    <button class="btn btn-primary btn-sm" id="compare-btn" onclick="openDiff()" disabled>
+                        <i class="fa-solid fa-code-compare"></i> Сравнить
+                    </button>
+                    <button class="btn btn-sm" onclick="clearCompare()">Отмена</button>
                 </div>
 
                 <div class="filter-bar">
@@ -85,6 +99,8 @@
         let currentPage = 0;
         const PAGE_SIZE = 25;
         let refreshTimer = null;
+        let compareMode = false;
+        let compareSelected = new Set();
 
         // Load project name
         api.getProject(projectId).then(p => {
@@ -185,6 +201,7 @@
             container.innerHTML = `
                 <table class="table">
                     <thead><tr>
+                        ${compareMode ? '<th style="width:36px;"></th>' : ''}
                         <th>#</th>
                         <th>Шаблон</th>
                         <th>Статус</th>
@@ -198,8 +215,10 @@
                         ${pageTasks.map(t => {
                             const dur = calcDuration(t.start, t.end);
                             const tplName = templates[t.template_id] || ('Шаблон #' + t.template_id);
+                            const isChecked = compareSelected.has(t.id);
                             return `
-                            <tr class="task-row" onclick="openTask(${t.id})">
+                            <tr class="task-row" onclick="${compareMode ? 'toggleCompare(event,' + t.id + ')' : 'openTask(' + t.id + ')'}">
+                                ${compareMode ? `<td onclick="event.stopPropagation()"><input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleCompare(event,${t.id})"></td>` : ''}
                                 <td style="font-size:13px; color:var(--text-light);">#${t.id}</td>
                                 <td><strong>${escapeHtml(tplName)}</strong></td>
                                 <td><span class="status-badge status-${t.status}">${statusLabel(t.status)}</span></td>
@@ -296,6 +315,59 @@
                 stopped: 'Остановлено',
                 waiting_confirmation: 'Подтверждение'
             }[s] || s;
+        }
+
+        function toggleCompareMode() {
+            compareMode = !compareMode;
+            compareSelected.clear();
+            const bar = $('#compare-bar');
+            bar.classList.toggle('visible', compareMode);
+            updateCompareBar();
+            renderPage();
+        }
+
+        function clearCompare() {
+            compareMode = false;
+            compareSelected.clear();
+            $('#compare-bar').classList.remove('visible');
+            renderPage();
+        }
+
+        function toggleCompare(event, taskId) {
+            if (event) event.stopPropagation();
+            if (compareSelected.has(taskId)) {
+                compareSelected.delete(taskId);
+            } else {
+                if (compareSelected.size >= 2) {
+                    // Replace oldest selection
+                    const first = [...compareSelected][0];
+                    compareSelected.delete(first);
+                }
+                compareSelected.add(taskId);
+            }
+            updateCompareBar();
+            renderPage();
+        }
+
+        function updateCompareBar() {
+            const count = compareSelected.size;
+            const info = $('#compare-info');
+            const btn = $('#compare-btn');
+            if (count === 0) {
+                info.textContent = 'Кликните на задачи чтобы выбрать (нужно 2)';
+            } else if (count === 1) {
+                info.textContent = 'Выбрана 1 задача — выберите ещё одну';
+            } else {
+                const ids = [...compareSelected];
+                info.textContent = `Сравнить задачу #${ids[0]} и #${ids[1]}`;
+            }
+            btn.disabled = count !== 2;
+        }
+
+        function openDiff() {
+            if (compareSelected.size !== 2) return;
+            const [id1, id2] = [...compareSelected].sort((a, b) => a - b);
+            window.location.href = `diff.html?id=${projectId}&task1=${id1}&task2=${id2}`;
         }
 
         function formatRelativeTime(dateStr) {
