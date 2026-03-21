@@ -46,6 +46,7 @@ pub mod notification;
 pub mod credential_type;
 pub mod drift;
 pub mod ldap_group;
+pub mod snapshot;
 
 #[cfg(test)]
 mod tests;
@@ -94,6 +95,7 @@ pub use webhook::{Webhook, WebhookType, CreateWebhook, UpdateWebhook, TestWebhoo
 pub use analytics::{TaskStats, UserActivity, PerformanceMetrics, ResourceUsage, ChartData, TimeSeries, SystemStatus, TopItem, TopSlowTask, TopUser, AnalyticsQueryParams, ProjectAnalytics, RunnerMetrics, SystemMetrics};
 pub use credential_type::{CredentialType, CredentialTypeCreate, CredentialTypeUpdate, CredentialInstance, CredentialInstanceCreate, CredentialField, CredentialInjector};
 pub use ldap_group::{LdapGroupMapping, LdapGroupMappingCreate};
+pub use snapshot::{TaskSnapshot, TaskSnapshotCreate, RollbackRequest};
 
 // Ре-экспорт RetrieveQueryParams из db::store
 pub use crate::db::store::RetrieveQueryParams;

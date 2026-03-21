@@ -450,6 +450,13 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/api/project/{project_id}/credentials", post(handlers::credential_type::create_credential_instance))
         .route("/api/project/{project_id}/credentials/{id}", delete(handlers::credential_type::delete_credential_instance))
 
+        // Snapshots & Rollback
+        .route("/api/project/{project_id}/snapshots", get(handlers::snapshot::list_snapshots))
+        .route("/api/project/{project_id}/snapshots", post(handlers::snapshot::create_snapshot))
+        .route("/api/project/{project_id}/snapshots/{id}", delete(handlers::snapshot::delete_snapshot))
+        .route("/api/project/{project_id}/snapshots/{id}/rollback", post(handlers::snapshot::rollback_snapshot))
+        .route("/api/project/{project_id}/tasks/{task_id}/snapshot", post(handlers::snapshot::snapshot_from_task))
+
         // LDAP Group → Teams mapping (admin)
         .route("/api/admin/ldap/group-mappings", get(handlers::ldap_groups::list_ldap_group_mappings))
         .route("/api/admin/ldap/group-mappings", post(handlers::ldap_groups::create_ldap_group_mapping))

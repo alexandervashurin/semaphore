@@ -138,6 +138,7 @@
                     <button class="btn btn-sm" id="modal-reject-btn" style="display:none; background:#c53030; color:#fff;" onclick="rejectCurrentTask()"><i class="fa-solid fa-xmark"></i> Отклонить</button>
                     <button class="btn btn-sm" id="modal-stop-btn" style="display:none; color:#c53030;" onclick="stopCurrentTask()"><i class="fa-solid fa-stop"></i> Остановить</button>
                     <button class="btn btn-sm" id="modal-rerun-btn" style="display:none;" onclick="rerunCurrentTask()" title="Повторить запуск"><i class="fa-solid fa-rotate-right"></i> Повторить</button>
+                    <button class="btn btn-sm" id="modal-snapshot-btn" style="display:none; background:#e8f5e9; color:#276749;" onclick="saveCurrentSnapshot()" title="Сохранить снапшот для Rollback"><i class="fa-solid fa-camera"></i> Снапшот</button>
                     <button class="btn btn-sm" id="modal-ai-btn" style="display:none; background:#f0f4ff; color:#3730a3;" onclick="analyzeFailureWithAI()" title="Анализ ошибки с помощью AI"><i class="fa-solid fa-wand-magic-sparkles"></i> AI анализ</button>
                     <button class="btn btn-sm" onclick="downloadCurrentLog()"><i class="fa-solid fa-download"></i> Лог</button>
                     <button class="btn btn-sm" onclick="closeTaskDetailModal()">✕</button>
@@ -429,9 +430,13 @@
             const badge = $('#modal-status-badge');
             if (!badge) return;
             const isFailed = badge.classList.contains('status-error') || badge.classList.contains('status-failed');
+            const isSuccess = badge.classList.contains('status-success');
             // Show AI analyze button for failed tasks
             const aiBtn = document.getElementById('modal-ai-btn');
             if (aiBtn) aiBtn.style.display = isFailed ? 'inline-block' : 'none';
+            // Show Snapshot button for successful tasks
+            const snapBtn = document.getElementById('modal-snapshot-btn');
+            if (snapBtn) snapBtn.style.display = isSuccess ? 'inline-block' : 'none';
             if (!isFailed) return;
 
             // Find last error/fatal line in output
@@ -697,6 +702,22 @@
                         .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
                 });
             });
+        }
+
+        function saveCurrentSnapshot() {
+            if (!currentTaskId) return;
+            const label = prompt('Метка снапшота (необязательно, например: "v2.3.1 release"):') ?? '';
+            const snapBtn = document.getElementById('modal-snapshot-btn');
+            if (snapBtn) { snapBtn.disabled = true; snapBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; }
+            api.post('/project/' + projectId + '/tasks/' + currentTaskId + '/snapshot', { label: label || null })
+                .then(s => {
+                    if (snapBtn) { snapBtn.disabled = false; snapBtn.innerHTML = '<i class="fa-solid fa-camera"></i> Снапшот'; }
+                    ui.showAlert(`✅ Снапшот #${s.id} сохранён! <a href="snapshots.html?id=${projectId}" style="color:inherit;text-decoration:underline;">Просмотр</a>`, 'success');
+                })
+                .catch(err => {
+                    if (snapBtn) { snapBtn.disabled = false; snapBtn.innerHTML = '<i class="fa-solid fa-camera"></i> Снапшот'; }
+                    ui.showAlert('Ошибка создания снапшота: ' + err.message, 'danger');
+                });
         }
 
         function analyzeFailureWithAI() {

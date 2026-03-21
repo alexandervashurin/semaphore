@@ -11,6 +11,7 @@ use crate::models::notification::{NotificationPolicy, NotificationPolicyCreate, 
 use crate::models::credential_type::{CredentialType, CredentialTypeCreate, CredentialTypeUpdate, CredentialInstance, CredentialInstanceCreate};
 use crate::models::drift::{DriftConfig, DriftConfigCreate, DriftResult};
 use crate::models::ldap_group::{LdapGroupMapping, LdapGroupMappingCreate};
+use crate::models::snapshot::{TaskSnapshot, TaskSnapshotCreate};
 use crate::models::Hook;
 use crate::error::Result;
 use crate::services::task_logger::TaskStatus;
@@ -487,6 +488,7 @@ pub trait Store:
     + CredentialTypeManager
     + DriftManager
     + LdapGroupMappingManager
+    + SnapshotManager
 {
 }
 
@@ -510,4 +512,13 @@ pub trait LdapGroupMappingManager: Send + Sync {
     async fn create_ldap_group_mapping(&self, payload: LdapGroupMappingCreate) -> Result<LdapGroupMapping>;
     async fn delete_ldap_group_mapping(&self, id: i32) -> Result<()>;
     async fn get_mappings_for_groups(&self, group_dns: &[String]) -> Result<Vec<LdapGroupMapping>>;
+}
+
+/// Менеджер снапшотов задач (для Rollback)
+#[async_trait]
+pub trait SnapshotManager: Send + Sync {
+    async fn get_snapshots(&self, project_id: i32, template_id: Option<i32>, limit: i64) -> Result<Vec<TaskSnapshot>>;
+    async fn get_snapshot(&self, id: i32, project_id: i32) -> Result<TaskSnapshot>;
+    async fn create_snapshot(&self, project_id: i32, payload: TaskSnapshotCreate) -> Result<TaskSnapshot>;
+    async fn delete_snapshot(&self, id: i32, project_id: i32) -> Result<()>;
 }

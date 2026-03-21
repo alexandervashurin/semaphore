@@ -950,4 +950,20 @@ impl crate::db::store::LdapGroupMappingManager for StoreWrapper {
 }
 
 #[async_trait]
+impl crate::db::store::SnapshotManager for StoreWrapper {
+    async fn get_snapshots(&self, project_id: i32, template_id: Option<i32>, limit: i64) -> crate::error::Result<Vec<crate::models::snapshot::TaskSnapshot>> {
+        self.inner.as_ref().get_snapshots(project_id, template_id, limit).await
+    }
+    async fn get_snapshot(&self, id: i32, project_id: i32) -> crate::error::Result<crate::models::snapshot::TaskSnapshot> {
+        self.inner.as_ref().get_snapshot(id, project_id).await
+    }
+    async fn create_snapshot(&self, project_id: i32, payload: crate::models::snapshot::TaskSnapshotCreate) -> crate::error::Result<crate::models::snapshot::TaskSnapshot> {
+        self.inner.as_ref().create_snapshot(project_id, payload).await
+    }
+    async fn delete_snapshot(&self, id: i32, project_id: i32) -> crate::error::Result<()> {
+        self.inner.as_ref().delete_snapshot(id, project_id).await
+    }
+}
+
+#[async_trait]
 impl Store for StoreWrapper {}

@@ -929,3 +929,11 @@ impl crate::db::store::CredentialTypeManager for MockStore {
         Ok(())
     }
 }
+
+#[async_trait]
+impl crate::db::store::SnapshotManager for MockStore {
+    async fn get_snapshots(&self, _project_id: i32, _template_id: Option<i32>, _limit: i64) -> Result<Vec<crate::models::snapshot::TaskSnapshot>> { Ok(Vec::new()) }
+    async fn get_snapshot(&self, _id: i32, _project_id: i32) -> Result<crate::models::snapshot::TaskSnapshot> { Err(Error::NotFound("Snapshot not found".to_string())) }
+    async fn create_snapshot(&self, _project_id: i32, _payload: crate::models::snapshot::TaskSnapshotCreate) -> Result<crate::models::snapshot::TaskSnapshot> { Err(Error::Other("not implemented".to_string())) }
+    async fn delete_snapshot(&self, _id: i32, _project_id: i32) -> Result<()> { Ok(()) }
+}

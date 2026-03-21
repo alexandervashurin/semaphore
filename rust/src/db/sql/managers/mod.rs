@@ -64,6 +64,7 @@ pub mod notification;
 pub mod credential_type;
 pub mod drift;
 pub mod ldap_group;
+pub mod snapshot;
 
 // Ре-экспорт трейтов для удобства
 pub use connection::*;

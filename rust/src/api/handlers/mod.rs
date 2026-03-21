@@ -27,6 +27,7 @@ pub mod ai;
 pub mod credential_type;
 pub mod drift;
 pub mod ldap_groups;
+pub mod snapshot;
 
 // Ре-экспорт всех handlers для удобства
 pub use auth::*;
