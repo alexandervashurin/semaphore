@@ -1,0 +1,71 @@
+# ============================================================
+# Velum — Development (PostgreSQL + hot-reload backend)
+# ============================================================
+# Запуск:
+#   cp .env.example .env
+#   docker compose up -d
+#
+# Backend перекомпилируется автоматически при изменении Rust-кода.
+# Frontend (web/public/) монтируется напрямую — правки видны сразу.
+#
+# URL:   http://localhost:3000
+# DB:    localhost:5432 (semaphore / semaphore_dev_pass)
+# ============================================================
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: semaphore-db-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-semaphore}
+      POSTGRES_USER: ${POSTGRES_USER:-semaphore}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-semaphore_dev_pass}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - semaphore_dev_db:/var/lib/postgresql/data
+      - ../../db/postgres/init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-semaphore}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      target: builder        # только сборочный этап
+    image: velum-dev-backend
+    container_name: semaphore-backend-dev
+    restart: unless-stopped
+    working_dir: /app/rust
+    command: >
+      bash -c "cargo install cargo-watch --quiet 2>/dev/null;
+               cargo watch -x 'run -- server --host 0.0.0.0 --port 3000'"
+    environment:
+      SEMAPHORE_DB_DIALECT: postgres
+      SEMAPHORE_DB_URL: "postgres://${POSTGRES_USER:-semaphore}:${POSTGRES_PASSWORD:-semaphore_dev_pass}@db:5432/${POSTGRES_DB:-semaphore}"
+      SEMAPHORE_WEB_PATH: /app/web/public
+      SEMAPHORE_JWT_SECRET: ${SEMAPHORE_JWT_SECRET:-dev-jwt-secret}
+      SEMAPHORE_ADMIN: ${SEMAPHORE_ADMIN:-admin}
+      SEMAPHORE_ADMIN_PASSWORD: ${SEMAPHORE_ADMIN_PASSWORD:-admin123}
+      SEMAPHORE_ADMIN_EMAIL: ${SEMAPHORE_ADMIN_EMAIL:-dev@localhost}
+      RUST_LOG: ${RUST_LOG:-semaphore=debug,tower_http=debug,sqlx=warn}
+      RUST_BACKTRACE: ${RUST_BACKTRACE:-1}
+    ports:
+      - "${BACKEND_PORT:-3000}:3000"
+    volumes:
+      - ../../rust:/app/rust         # исходники для hot-reload
+      - ../../web/public:/app/web/public:ro  # статика фронтенда
+      - cargo_registry:/usr/local/cargo/registry
+      - cargo_target:/app/rust/target
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  semaphore_dev_db:
+  cargo_registry:
+  cargo_target:

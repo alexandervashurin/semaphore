@@ -1,0 +1,104 @@
+# ============================================================
+# Velum — Production (PostgreSQL + Nginx + Backend)
+# ============================================================
+# Подготовка:
+#   cp .env.example .env
+#   nano .env          # ОБЯЗАТЕЛЬНО сменить пароли!
+#
+# Запуск:
+#   docker compose pull && docker compose up -d
+#
+# Обновление:
+#   git pull && docker compose up --build -d
+#
+# Логи:
+#   docker compose logs -f backend
+# ============================================================
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: semaphore-db
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-semaphore}
+      POSTGRES_USER: ${POSTGRES_USER:-semaphore}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?DB password must be set in .env}
+    volumes:
+      - semaphore_db:/var/lib/postgresql/data
+      - ../../db/postgres/init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-semaphore}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    # Не экспонировать порт наружу в продакшене!
+    # ports: - "5432:5432"
+
+  backend:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    container_name: semaphore-backend
+    restart: always
+    environment:
+      SEMAPHORE_DB_DIALECT: postgres
+      SEMAPHORE_DB_URL: "postgres://${POSTGRES_USER:-semaphore}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-semaphore}"
+      SEMAPHORE_WEB_PATH: /app/web/public
+      SEMAPHORE_TMP_PATH: ${SEMAPHORE_TMP_PATH:-/tmp/semaphore}
+      SEMAPHORE_JWT_SECRET: ${SEMAPHORE_JWT_SECRET:?JWT secret must be set in .env}
+      SEMAPHORE_ADMIN: ${SEMAPHORE_ADMIN:-admin}
+      SEMAPHORE_ADMIN_PASSWORD: ${SEMAPHORE_ADMIN_PASSWORD:?Admin password must be set in .env}
+      SEMAPHORE_ADMIN_NAME: ${SEMAPHORE_ADMIN_NAME:-Administrator}
+      SEMAPHORE_ADMIN_EMAIL: ${SEMAPHORE_ADMIN_EMAIL:-admin@localhost}
+      RUST_LOG: ${RUST_LOG:-info}
+    volumes:
+      - ../../web/public:/app/web/public:ro
+      - semaphore_tmp:/tmp/semaphore
+    networks:
+      - internal
+      - external
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  nginx:
+    image: nginx:alpine
+    container_name: semaphore-nginx
+    restart: always
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      # Для HTTPS раскомментировать:
+      # - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - ../../web/public:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # Для HTTPS — SSL сертификаты:
+      # - /etc/letsencrypt:/etc/letsencrypt:ro
+    networks:
+      - external
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  semaphore_db:
+    driver: local
+  semaphore_tmp:
+    driver: local
+
+networks:
+  internal:
+    driver: bridge
+    internal: true    # PostgreSQL не доступен снаружи
+  external:
+    driver: bridge

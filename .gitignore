@@ -46,6 +46,24 @@ coverage/
 test_output*.txt
 test_errors.txt
 
+# Локальные данные (SQLite база, data/)
+data/
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Build logs
+build_log.txt
+build_log*.txt
+
+# Temp/one-off scripts
+fix_symbols.py
+$null
+
+# Backup files
+*.backup
+*.bak
+
 # IDE
 .idea/
 .vscode/
@@ -67,3 +85,6 @@ rust/semaphore-upstream/
 
 # Rust temp files
 rust/tmp/.tmp*
+web/public/app.css
+web/public/chunk-vendors.css
+web/public/chunk-vendors.js

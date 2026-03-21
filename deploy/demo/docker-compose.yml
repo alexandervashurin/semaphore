@@ -1,0 +1,70 @@
+# ============================================================
+# Velum — Demo (одна команда, SQLite, без настройки)
+# ============================================================
+# Быстрый старт:
+#   cp .env.example .env
+#   docker compose up --build -d
+#
+# Логин: admin / admin123
+# URL:   http://localhost:8088
+#
+# Для наполнения тестовыми данными:
+#   bash ../../fill-sqlite-demo-data.sh
+# ============================================================
+
+services:
+  semaphore:
+    build:
+      context: ../..
+      dockerfile: Dockerfile.demo
+    container_name: semaphore-demo
+    restart: unless-stopped
+    ports:
+      - "${VELUM_PORT:-8088}:3000"
+    environment:
+      SEMAPHORE_DB_DIALECT: sqlite
+      SEMAPHORE_DB_PATH: /app/data/semaphore.db
+      SEMAPHORE_WEB_PATH: /app/web/public
+      SEMAPHORE_ADMIN: ${SEMAPHORE_ADMIN:-admin}
+      SEMAPHORE_ADMIN_PASSWORD: ${SEMAPHORE_ADMIN_PASSWORD:-admin123}
+      SEMAPHORE_ADMIN_NAME: ${SEMAPHORE_ADMIN_NAME:-Administrator}
+      SEMAPHORE_ADMIN_EMAIL: ${SEMAPHORE_ADMIN_EMAIL:-admin@semaphore.local}
+      SEMAPHORE_JWT_SECRET: ${SEMAPHORE_JWT_SECRET:-demo-jwt-secret}
+      RUST_LOG: info
+    volumes:
+      - semaphore_demo_data:/app/data
+    networks:
+      - demo-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # SSH-цель для демо ansible плейбуков
+  ansible-target:
+    image: debian:12-slim
+    container_name: semaphore-ansible-target
+    hostname: ansible-target
+    command: >
+      bash -c "
+        apt-get update -qq &&
+        apt-get install -y --no-install-recommends openssh-server python3 sudo &&
+        useradd -m -s /bin/bash demo && echo 'demo:demo123' | chpasswd &&
+        mkdir -p /run/sshd &&
+        sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config &&
+        echo 'demo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers &&
+        ssh-keygen -A && exec /usr/sbin/sshd -D -e
+      "
+    networks:
+      - demo-net
+    expose:
+      - "22"
+
+volumes:
+  semaphore_demo_data:
+
+networks:
+  demo-net:
+    driver: bridge
