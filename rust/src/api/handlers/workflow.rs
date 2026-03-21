@@ -231,6 +231,7 @@ pub async fn delete_workflow_edge(
 }
 
 /// POST /api/project/{project_id}/workflows/{id}/run
+/// Запускает workflow DAG execution
 pub async fn run_workflow(
     State(state): State<Arc<AppState>>,
     Path((project_id, id)): Path<(i32, i32)>,
@@ -242,12 +243,19 @@ pub async fn run_workflow(
             Json(ErrorResponse::new(e.to_string())),
         )
     })?;
-    let run = state.store.create_workflow_run(id, project_id).await.map_err(|e| {
+    
+    // Запустить workflow executor
+    let run = crate::services::workflow_executor::run_workflow(
+        state.clone(),
+        id,
+        project_id,
+    ).await.map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse::new(e.to_string())),
         )
     })?;
+    
     Ok((StatusCode::ACCEPTED, Json(run)))
 }
 
