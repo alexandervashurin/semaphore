@@ -6,6 +6,11 @@ build/
 # Dependencies
 node_modules/
 
+# gstack build artifacts (rebuild with: cd .claude/skills/gstack && ./setup)
+.claude/skills/gstack/browse/dist/
+.claude/skills/gstack/node_modules/
+.claude/skills/gstack/.agents/
+
 # Editors
 .vscode/
 
