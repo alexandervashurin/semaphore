@@ -223,7 +223,7 @@ web/public/
 
 For all web browsing tasks use the `/browse` skill from gstack. Do **not** use `mcp__Claude_in_Chrome__*` tools directly.
 
-> **Если skills не работают:** запусти `cd .claude/skills/gstack && ./setup` чтобы пересобрать бинарник и зарегистрировать skills.
+> **Если skills не работают:** нужен [Bun](https://bun.sh/install) (`curl -fsSL https://bun.sh/install | bash`), затем запусти `cd .claude/skills/gstack && ./setup` чтобы пересобрать бинарник и зарегистрировать skills.
 
 **Available gstack skills:**
 
