@@ -42,6 +42,7 @@ impl TemplateManager for SqlStore {
                 allow_inventory_in_task: row.try_get("allow_inventory_in_task").ok().unwrap_or(false),
                 allow_parallel_tasks: row.try_get("allow_parallel_tasks").ok().unwrap_or(false),
                 suppress_success_alerts: row.try_get("suppress_success_alerts").ok().unwrap_or(false),
+                require_approval: row.try_get("require_approval").ok().unwrap_or(false),
                 task_params: row.try_get("task_params").ok().flatten(),
                 survey_vars: row.try_get("survey_vars").ok().flatten(),
                 vaults: row.try_get("vaults").ok().flatten(),
@@ -83,6 +84,7 @@ impl TemplateManager for SqlStore {
                 allow_inventory_in_task: row.try_get("allow_inventory_in_task").ok().unwrap_or(false),
                 allow_parallel_tasks: row.try_get("allow_parallel_tasks").ok().unwrap_or(false),
                 suppress_success_alerts: row.try_get("suppress_success_alerts").ok().unwrap_or(false),
+                require_approval: row.try_get("require_approval").ok().unwrap_or(false),
                 task_params: row.try_get("task_params").ok().flatten(),
                 survey_vars: row.try_get("survey_vars").ok().flatten(),
                 vaults: row.try_get("vaults").ok().flatten(),
@@ -90,7 +92,7 @@ impl TemplateManager for SqlStore {
     }
 
     async fn create_template(&self, mut template: Template) -> Result<Template> {
-        let query = "INSERT INTO template (project_id, name, playbook, description, inventory_id, repository_id, environment_id, type, app, git_branch, created, arguments, vault_key_id, view_id, build_template_id, autorun, allow_override_args_vars, allow_override_branch_in_task, allow_inventory_in_task, allow_parallel_tasks, suppress_success_alerts, task_params, survey_vars, vaults) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24) RETURNING id";
+        let query = "INSERT INTO template (project_id, name, playbook, description, inventory_id, repository_id, environment_id, type, app, git_branch, created, arguments, vault_key_id, view_id, build_template_id, autorun, allow_override_args_vars, allow_override_branch_in_task, allow_inventory_in_task, allow_parallel_tasks, suppress_success_alerts, require_approval, task_params, survey_vars, vaults) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25) RETURNING id";
             let id: i32 = sqlx::query_scalar(query)
                 .bind(template.project_id)
                 .bind(&template.name)
@@ -113,6 +115,7 @@ impl TemplateManager for SqlStore {
                 .bind(template.allow_inventory_in_task)
                 .bind(template.allow_parallel_tasks)
                 .bind(template.suppress_success_alerts)
+                .bind(template.require_approval)
                 .bind(&template.task_params)
                 .bind(&template.survey_vars)
                 .bind(&template.vaults)
@@ -125,7 +128,7 @@ impl TemplateManager for SqlStore {
     }
 
     async fn update_template(&self, template: Template) -> Result<()> {
-        let query = "UPDATE template SET name = $1, playbook = $2, description = $3, inventory_id = $4, repository_id = $5, environment_id = $6, type = $7, app = $8, git_branch = $9, arguments = $10, vault_key_id = $11, view_id = $12, build_template_id = $13, autorun = $14, allow_override_args_vars = $15, allow_override_branch_in_task = $16, allow_inventory_in_task = $17, allow_parallel_tasks = $18, suppress_success_alerts = $19, task_params = $20, survey_vars = $21, vaults = $22 WHERE id = $23 AND project_id = $24";
+        let query = "UPDATE template SET name = $1, playbook = $2, description = $3, inventory_id = $4, repository_id = $5, environment_id = $6, type = $7, app = $8, git_branch = $9, arguments = $10, vault_key_id = $11, view_id = $12, build_template_id = $13, autorun = $14, allow_override_args_vars = $15, allow_override_branch_in_task = $16, allow_inventory_in_task = $17, allow_parallel_tasks = $18, suppress_success_alerts = $19, require_approval = $20, task_params = $21, survey_vars = $22, vaults = $23 WHERE id = $24 AND project_id = $25";
             sqlx::query(query)
                 .bind(&template.name)
                 .bind(&template.playbook)
@@ -146,6 +149,7 @@ impl TemplateManager for SqlStore {
                 .bind(template.allow_inventory_in_task)
                 .bind(template.allow_parallel_tasks)
                 .bind(template.suppress_success_alerts)
+                .bind(template.require_approval)
                 .bind(&template.task_params)
                 .bind(&template.survey_vars)
                 .bind(&template.vaults)
