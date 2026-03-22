@@ -216,3 +216,41 @@ web/public/
 - При merge-конфликтах: HEAD (наш код) имеет приоритет если сомневаешься
 - Смотри на Go-оригинал (`velum/velum`) как эталон API и поведения
 - Образец CRUD форм на фронтенде — `web/public/users.html`
+
+---
+
+## gstack
+
+For all web browsing tasks use the `/browse` skill from gstack. Do **not** use `mcp__Claude_in_Chrome__*` tools directly.
+
+> **Если skills не работают:** запусти `cd .claude/skills/gstack && ./setup` чтобы пересобрать бинарник и зарегистрировать skills.
+
+**Available gstack skills:**
+
+| Skill | Purpose |
+|---|---|
+| `/browse` | Web browsing — open URLs, click, fill forms, screenshot |
+| `/review` | Code review |
+| `/qa` | QA pass — full quality check |
+| `/qa-only` | QA without implementing fixes |
+| `/ship` | Ship a feature end-to-end |
+| `/land-and-deploy` | Land PR and deploy |
+| `/canary` | Canary deploy |
+| `/benchmark` | Performance benchmark |
+| `/investigate` | Investigate a bug or incident |
+| `/plan-eng-review` | Engineering plan review |
+| `/plan-ceo-review` | CEO plan review |
+| `/plan-design-review` | Design plan review |
+| `/design-consultation` | Design consultation |
+| `/design-review` | Design review |
+| `/office-hours` | Office hours discussion |
+| `/retro` | Retrospective |
+| `/document-release` | Document a release |
+| `/codex` | Codex task |
+| `/careful` | Extra-careful mode for risky changes |
+| `/freeze` | Freeze a service/deployment |
+| `/unfreeze` | Unfreeze a service/deployment |
+| `/guard` | Guard — watch for regressions |
+| `/setup-browser-cookies` | Set up browser cookies for auth |
+| `/setup-deploy` | Set up deployment config |
+| `/gstack-upgrade` | Upgrade gstack to latest |
