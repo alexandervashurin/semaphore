@@ -717,6 +717,104 @@ impl SqlStore {
         .await
         .map_err(Error::Database)?;
 
+        // terraform_state — Terraform Remote State Backend (Phase 1)
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS terraform_state (
+                id          BIGSERIAL PRIMARY KEY,
+                project_id  INTEGER NOT NULL REFERENCES project(id) ON DELETE CASCADE,
+                workspace   TEXT NOT NULL DEFAULT 'default',
+                serial      INTEGER NOT NULL,
+                lineage     TEXT NOT NULL DEFAULT '',
+                state_data  BYTEA NOT NULL,
+                encrypted   BOOLEAN NOT NULL DEFAULT FALSE,
+                md5         TEXT NOT NULL DEFAULT '',
+                created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                UNIQUE (project_id, workspace, serial)
+            )",
+        )
+        .execute(pool)
+        .await
+        .map_err(Error::Database)?;
+
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_tf_state_project_ws
+             ON terraform_state(project_id, workspace, serial DESC)",
+        )
+        .execute(pool)
+        .await
+        .map_err(Error::Database)?;
+
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS terraform_state_lock (
+                project_id  INTEGER NOT NULL REFERENCES project(id) ON DELETE CASCADE,
+                workspace   TEXT NOT NULL DEFAULT 'default',
+                lock_id     TEXT NOT NULL,
+                operation   TEXT NOT NULL DEFAULT '',
+                info        TEXT NOT NULL DEFAULT '',
+                who         TEXT NOT NULL DEFAULT '',
+                version     TEXT NOT NULL DEFAULT '',
+                path        TEXT NOT NULL DEFAULT '',
+                created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                expires_at  TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '2 hours',
+                PRIMARY KEY (project_id, workspace)
+            )",
+        )
+        .execute(pool)
+        .await
+        .map_err(Error::Database)?;
+
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_tf_state_lock_expires
+             ON terraform_state_lock(expires_at)",
+        )
+        .execute(pool)
+        .await
+        .map_err(Error::Database)?;
+
+        // require_approval column for template (Phase 2)
+        sqlx::query(
+            "ALTER TABLE template ADD COLUMN IF NOT EXISTS require_approval BOOLEAN NOT NULL DEFAULT FALSE",
+        )
+        .execute(pool)
+        .await
+        .map_err(Error::Database)?;
+
+        // terraform_plan — Plan Approval Workflow (Phase 2)
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS terraform_plan (
+                id                BIGSERIAL PRIMARY KEY,
+                task_id           INTEGER NOT NULL REFERENCES task(id) ON DELETE CASCADE,
+                project_id        INTEGER NOT NULL REFERENCES project(id) ON DELETE CASCADE,
+                plan_output       TEXT NOT NULL DEFAULT '',
+                plan_json         TEXT,
+                resources_added   INTEGER NOT NULL DEFAULT 0,
+                resources_changed INTEGER NOT NULL DEFAULT 0,
+                resources_removed INTEGER NOT NULL DEFAULT 0,
+                status            TEXT NOT NULL DEFAULT 'pending',
+                created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                reviewed_at       TIMESTAMPTZ,
+                reviewed_by       INTEGER REFERENCES \"user\"(id) ON DELETE SET NULL,
+                review_comment    TEXT
+            )",
+        )
+        .execute(pool)
+        .await
+        .map_err(Error::Database)?;
+
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_tf_plan_task_id ON terraform_plan(task_id)",
+        )
+        .execute(pool)
+        .await
+        .map_err(Error::Database)?;
+
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_tf_plan_project_status ON terraform_plan(project_id, status)",
+        )
+        .execute(pool)
+        .await
+        .map_err(Error::Database)?;
+
         tracing::info!("Схема БД инициализирована");
         Ok(())
     }

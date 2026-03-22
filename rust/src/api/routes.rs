@@ -467,6 +467,23 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/api/project/{project_id}/costs/summary", get(handlers::cost_estimate::cost_summary))
         .route("/api/project/{project_id}/tasks/{task_id}/cost", get(handlers::cost_estimate::get_task_cost))
         .route("/api/project/{project_id}/tasks/{task_id}/cost", post(handlers::cost_estimate::create_task_cost))
+
+        // Terraform Remote State Backend (Phase 1)
+        // axum::routing::any() handles non-standard LOCK/UNLOCK methods
+        .route(
+            "/api/project/{project_id}/terraform/state/{workspace}",
+            axum::routing::any(handlers::state_backend::state_dispatch),
+        )
+        .route("/api/project/{project_id}/terraform/workspaces", get(handlers::state_backend::list_workspaces))
+        .route("/api/project/{project_id}/terraform/state/{workspace}/history", get(handlers::state_backend::list_state_history))
+        .route("/api/project/{project_id}/terraform/state/{workspace}/lock", get(handlers::state_backend::get_lock_info))
+        .route("/api/project/{project_id}/terraform/state/{workspace}/lock", delete(handlers::state_backend::force_unlock))
+
+        // Plan Approval (Phase 2)
+        .route("/api/project/{project_id}/terraform/plans", get(handlers::plan_approval::list_pending_plans))
+        .route("/api/project/{project_id}/terraform/plans/{plan_id}/approve", post(handlers::plan_approval::approve_plan))
+        .route("/api/project/{project_id}/terraform/plans/{plan_id}/reject", post(handlers::plan_approval::reject_plan))
+        .route("/api/project/{project_id}/tasks/{task_id}/plan", get(handlers::plan_approval::get_task_plan))
 }
 
 /// Создаёт маршруты для статических файлов

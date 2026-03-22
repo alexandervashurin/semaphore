@@ -66,6 +66,7 @@ pub async fn create_template(
         allow_inventory_in_task: payload.allow_inventory_in_task,
         allow_parallel_tasks: payload.allow_parallel_tasks,
         suppress_success_alerts: payload.suppress_success_alerts,
+        require_approval: payload.require_approval.unwrap_or(false),
         task_params: payload.task_params,
         survey_vars: payload.survey_vars,
         vaults: payload.vaults,
@@ -145,6 +146,7 @@ pub async fn update_template(
     if let Some(v) = payload.allow_inventory_in_task { template.allow_inventory_in_task = v; }
     if let Some(v) = payload.allow_parallel_tasks { template.allow_parallel_tasks = v; }
     if let Some(v) = payload.suppress_success_alerts { template.suppress_success_alerts = v; }
+    if let Some(v) = payload.require_approval { template.require_approval = v; }
     if let Some(v) = payload.task_params { template.task_params = Some(v); }
     if let Some(v) = payload.survey_vars { template.survey_vars = Some(v); }
     if let Some(v) = payload.vaults { template.vaults = Some(v); }
@@ -250,6 +252,8 @@ pub struct TemplateCreatePayload {
     #[serde(default)]
     pub suppress_success_alerts: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub require_approval: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub task_params: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub survey_vars: Option<serde_json::Value>,
@@ -298,6 +302,8 @@ pub struct TemplateUpdatePayload {
     pub allow_parallel_tasks: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub suppress_success_alerts: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub require_approval: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub task_params: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -945,3 +945,32 @@ impl crate::db::store::CostEstimateManager for MockStore {
     async fn create_cost_estimate(&self, _payload: crate::models::cost_estimate::CostEstimateCreate) -> Result<crate::models::cost_estimate::CostEstimate> { Err(crate::error::Error::Other("not implemented".to_string())) }
     async fn get_cost_summaries(&self, _project_id: i32) -> Result<Vec<crate::models::cost_estimate::CostSummary>> { Ok(Vec::new()) }
 }
+
+#[async_trait]
+#[allow(clippy::too_many_arguments)]
+impl crate::db::store::TerraformStateManager for MockStore {
+    async fn save_terraform_state(&self, _project_id: i32, _workspace: &str, _serial: i32, _lineage: &str, _data: Vec<u8>, _md5: &str) -> Result<crate::models::TerraformState> {
+        Err(crate::error::Error::Other("not implemented".to_string()))
+    }
+    async fn get_terraform_state(&self, _project_id: i32, _workspace: &str) -> Result<Option<crate::models::TerraformState>> { Ok(None) }
+    async fn delete_terraform_state(&self, _project_id: i32, _workspace: &str) -> Result<()> { Ok(()) }
+    async fn lock_terraform_state(&self, _project_id: i32, _workspace: &str, _lock_id: &str, _operation: &str, _info: &str, _who: &str, _version: &str, _path: &str) -> Result<()> { Ok(()) }
+    async fn unlock_terraform_state(&self, _project_id: i32, _workspace: &str, _lock_id: &str) -> Result<()> { Ok(()) }
+    async fn get_terraform_lock(&self, _project_id: i32, _workspace: &str) -> Result<Option<crate::models::TerraformStateLock>> { Ok(None) }
+    async fn list_terraform_workspaces(&self, _project_id: i32) -> Result<Vec<String>> { Ok(Vec::new()) }
+    async fn list_terraform_state_history(&self, _project_id: i32, _workspace: &str, _limit: i64) -> Result<Vec<crate::models::TerraformStateSummary>> { Ok(Vec::new()) }
+    async fn get_terraform_state_by_serial(&self, _project_id: i32, _workspace: &str, _serial: i32) -> Result<Option<crate::models::TerraformState>> { Ok(None) }
+    async fn purge_expired_terraform_locks(&self) -> Result<u64> { Ok(0) }
+}
+
+#[async_trait]
+impl crate::db::store::PlanApprovalManager for MockStore {
+    async fn create_plan(&self, _plan: crate::models::TerraformPlan) -> Result<crate::models::TerraformPlan> {
+        Err(crate::error::Error::Other("not implemented".to_string()))
+    }
+    async fn get_plan_by_task(&self, _project_id: i32, _task_id: i32) -> Result<Option<crate::models::TerraformPlan>> { Ok(None) }
+    async fn list_pending_plans(&self, _project_id: i32) -> Result<Vec<crate::models::TerraformPlan>> { Ok(Vec::new()) }
+    async fn approve_plan(&self, _id: i64, _reviewed_by: i32, _comment: Option<String>) -> Result<()> { Ok(()) }
+    async fn reject_plan(&self, _id: i64, _reviewed_by: i32, _comment: Option<String>) -> Result<()> { Ok(()) }
+    async fn update_plan_output(&self, _task_id: i32, _output: String, _json: Option<String>, _added: i32, _changed: i32, _removed: i32) -> Result<()> { Ok(()) }
+}

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plan Approval — Semaphore</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+.plan-card { border:1px solid #e0e0e0; border-radius:8px; margin-bottom:16px; overflow:hidden; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.08); }
+.plan-header { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid #f0f0f0; background:#fafafa; }
+.plan-meta { display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+.plan-meta span { font-size:13px; color:#666; }
+.plan-meta strong { color:#333; }
+.resource-badges { display:flex; gap:8px; }
+.badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600; }
+.badge-added   { background:#e8f5e9; color:#2e7d32; }
+.badge-changed { background:#fff3e0; color:#e65100; }
+.badge-removed { background:#ffebee; color:#c62828; }
+.plan-output { padding:16px 18px; }
+.plan-output pre { background:#1e1e1e; color:#d4d4d4; border-radius:6px; padding:14px; font-size:12px; font-family:'Courier New',monospace; overflow-x:auto; max-height:400px; overflow-y:auto; margin:0; }
+.plan-actions { display:flex; gap:10px; padding:12px 18px; background:#f9f9f9; border-top:1px solid #f0f0f0; align-items:center; }
+.comment-input { flex:1; padding:8px 12px; border:1px solid #ddd; border-radius:4px; font-size:14px; }
+.btn-approve { background:#2e7d32; color:#fff; border:none; padding:8px 20px; border-radius:4px; cursor:pointer; font-weight:500; }
+.btn-approve:hover { background:#1b5e20; }
+.btn-reject { background:#c62828; color:#fff; border:none; padding:8px 20px; border-radius:4px; cursor:pointer; font-weight:500; }
+.btn-reject:hover { background:#7f0000; }
+.status-badge { padding:4px 12px; border-radius:12px; font-size:12px; font-weight:600; }
+.status-pending  { background:#fff3e0; color:#e65100; }
+.status-approved { background:#e8f5e9; color:#2e7d32; }
+.status-rejected { background:#ffebee; color:#c62828; }
+.empty-state { text-align:center; padding:64px; color:#9e9e9e; }
+.empty-icon { font-size:48px; margin-bottom:16px; }
+.task-link { font-size:13px; color:var(--primary-color,#005057); text-decoration:none; }
+.task-link:hover { text-decoration:underline; }
+</style>
+</head>
+<body>
+<div id="sidebar"></div>
+<div class="main-content" id="main">
+<div class="page-header">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <h1 class="page-title">Plan Approval</h1>
+    <button class="btn btn-secondary btn-sm" onclick="loadPlans()" style="margin-left:8px;">↻ Refresh</button>
+  </div>
+  <p style="color:#666;margin:4px 0 0;">Terraform plans awaiting human review before <code>apply</code>.</p>
+</div>
+
+<div id="plansContainer">
+  <div class="empty-state">
+    <div class="empty-icon">📋</div>
+    <div>Loading plans…</div>
+  </div>
+</div>
+
+<script src="/app.js"></script>
+<script>
+const params = new URLSearchParams(location.search);
+const projectId = params.get('project_id') || params.get('projectId');
+
+async function apiFetch(url, opts = {}) {
+  const token = localStorage.getItem('token');
+  const headers = { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}), ...(opts.headers || {}) };
+  const res = await fetch(url, { ...opts, headers });
+  if (!res.ok) throw new Error(await res.text());
+  return res.status === 204 ? null : res.json();
+}
+
+async function loadPlans() {
+  const c = document.getElementById('plansContainer');
+  if (!projectId) {
+    c.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><div>No project_id in URL</div></div>';
+    return;
+  }
+  try {
+    const plans = await apiFetch(`/api/project/${projectId}/terraform/plans`);
+    if (!plans || plans.length === 0) {
+      c.innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><div><strong>No pending plans</strong></div><div style="margin-top:8px;color:#bbb;">All Terraform plans have been reviewed.</div></div>';
+      return;
+    }
+    c.innerHTML = plans.map(p => renderPlan(p)).join('');
+  } catch(e) {
+    c.innerHTML = `<div class="empty-state"><div class="empty-icon">❌</div><div>${e.message}</div></div>`;
+  }
+}
+
+function renderPlan(p) {
+  const created = p.created_at ? new Date(p.created_at).toLocaleString() : '—';
+  const isPending = p.status === 'pending';
+  return `
+  <div class="plan-card" id="plan-${p.id}">
+    <div class="plan-header">
+      <div class="plan-meta">
+        <span>Task <a class="task-link" href="/task.html?task_id=${p.task_id}&project_id=${projectId}">#${p.task_id}</a></span>
+        <span>Created <strong>${created}</strong></span>
+        <div class="resource-badges">
+          <span class="badge badge-added">+${p.resources_added || 0} added</span>
+          <span class="badge badge-changed">~${p.resources_changed || 0} changed</span>
+          <span class="badge badge-removed">-${p.resources_removed || 0} destroyed</span>
+        </div>
+      </div>
+      <span class="status-badge status-${p.status}">${p.status.toUpperCase()}</span>
+    </div>
+    <div class="plan-output">
+      ${p.plan_output
+        ? `<pre>${escapeHtml(p.plan_output)}</pre>`
+        : `<div style="color:#9e9e9e;font-style:italic;padding:8px 0;">Plan output not yet available — task is still running the plan phase.</div>`}
+    </div>
+    ${isPending ? `
+    <div class="plan-actions">
+      <input class="comment-input" id="comment-${p.id}" placeholder="Optional review comment…" type="text">
+      <button class="btn-approve" onclick="reviewPlan(${p.id}, 'approve')">✓ Approve</button>
+      <button class="btn-reject"  onclick="reviewPlan(${p.id}, 'reject')">✗ Reject</button>
+    </div>` : `
+    <div class="plan-actions" style="color:#666;font-size:13px;">
+      ${p.reviewed_by ? `Reviewed by user #${p.reviewed_by}` : ''}
+      ${p.review_comment ? ` — "${escapeHtml(p.review_comment)}"` : ''}
+    </div>`}
+  </div>`;
+}
+
+async function reviewPlan(planId, action) {
+  const comment = document.getElementById(`comment-${planId}`)?.value || '';
+  const label = action === 'approve' ? 'approve' : 'reject';
+  if (!confirm(`${label.charAt(0).toUpperCase()+label.slice(1)} this plan?`)) return;
+  try {
+    await apiFetch(`/api/project/${projectId}/terraform/plans/${planId}/${label}`, {
+      method: 'POST',
+      body: JSON.stringify({ comment: comment || null }),
+    });
+    // Refresh after action
+    await loadPlans();
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+if (typeof renderSidebar === 'function') renderSidebar();
+loadPlans();
+// Auto-refresh every 30s while page is open
+setInterval(loadPlans, 30000);
+</script>
+</body>
+</html>

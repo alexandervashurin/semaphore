@@ -982,4 +982,61 @@ impl crate::db::store::CostEstimateManager for StoreWrapper {
 }
 
 #[async_trait]
+#[allow(clippy::too_many_arguments)]
+impl crate::db::store::TerraformStateManager for StoreWrapper {
+    async fn save_terraform_state(&self, project_id: i32, workspace: &str, serial: i32, lineage: &str, data: Vec<u8>, md5: &str) -> crate::error::Result<crate::models::TerraformState> {
+        self.inner.as_ref().save_terraform_state(project_id, workspace, serial, lineage, data, md5).await
+    }
+    async fn get_terraform_state(&self, project_id: i32, workspace: &str) -> crate::error::Result<Option<crate::models::TerraformState>> {
+        self.inner.as_ref().get_terraform_state(project_id, workspace).await
+    }
+    async fn delete_terraform_state(&self, project_id: i32, workspace: &str) -> crate::error::Result<()> {
+        self.inner.as_ref().delete_terraform_state(project_id, workspace).await
+    }
+    async fn lock_terraform_state(&self, project_id: i32, workspace: &str, lock_id: &str, operation: &str, info: &str, who: &str, version: &str, path: &str) -> crate::error::Result<()> {
+        self.inner.as_ref().lock_terraform_state(project_id, workspace, lock_id, operation, info, who, version, path).await
+    }
+    async fn unlock_terraform_state(&self, project_id: i32, workspace: &str, lock_id: &str) -> crate::error::Result<()> {
+        self.inner.as_ref().unlock_terraform_state(project_id, workspace, lock_id).await
+    }
+    async fn get_terraform_lock(&self, project_id: i32, workspace: &str) -> crate::error::Result<Option<crate::models::TerraformStateLock>> {
+        self.inner.as_ref().get_terraform_lock(project_id, workspace).await
+    }
+    async fn list_terraform_workspaces(&self, project_id: i32) -> crate::error::Result<Vec<String>> {
+        self.inner.as_ref().list_terraform_workspaces(project_id).await
+    }
+    async fn list_terraform_state_history(&self, project_id: i32, workspace: &str, limit: i64) -> crate::error::Result<Vec<crate::models::TerraformStateSummary>> {
+        self.inner.as_ref().list_terraform_state_history(project_id, workspace, limit).await
+    }
+    async fn get_terraform_state_by_serial(&self, project_id: i32, workspace: &str, serial: i32) -> crate::error::Result<Option<crate::models::TerraformState>> {
+        self.inner.as_ref().get_terraform_state_by_serial(project_id, workspace, serial).await
+    }
+    async fn purge_expired_terraform_locks(&self) -> crate::error::Result<u64> {
+        self.inner.as_ref().purge_expired_terraform_locks().await
+    }
+}
+
+#[async_trait]
+impl crate::db::store::PlanApprovalManager for StoreWrapper {
+    async fn create_plan(&self, plan: crate::models::TerraformPlan) -> crate::error::Result<crate::models::TerraformPlan> {
+        self.inner.as_ref().create_plan(plan).await
+    }
+    async fn get_plan_by_task(&self, project_id: i32, task_id: i32) -> crate::error::Result<Option<crate::models::TerraformPlan>> {
+        self.inner.as_ref().get_plan_by_task(project_id, task_id).await
+    }
+    async fn list_pending_plans(&self, project_id: i32) -> crate::error::Result<Vec<crate::models::TerraformPlan>> {
+        self.inner.as_ref().list_pending_plans(project_id).await
+    }
+    async fn approve_plan(&self, id: i64, reviewed_by: i32, comment: Option<String>) -> crate::error::Result<()> {
+        self.inner.as_ref().approve_plan(id, reviewed_by, comment).await
+    }
+    async fn reject_plan(&self, id: i64, reviewed_by: i32, comment: Option<String>) -> crate::error::Result<()> {
+        self.inner.as_ref().reject_plan(id, reviewed_by, comment).await
+    }
+    async fn update_plan_output(&self, task_id: i32, output: String, json: Option<String>, added: i32, changed: i32, removed: i32) -> crate::error::Result<()> {
+        self.inner.as_ref().update_plan_output(task_id, output, json, added, changed, removed).await
+    }
+}
+
+#[async_trait]
 impl Store for StoreWrapper {}

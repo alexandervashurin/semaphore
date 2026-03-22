@@ -140,6 +140,7 @@ impl MutationRoot {
             allow_inventory_in_task: false,
             allow_parallel_tasks: false,
             suppress_success_alerts: false,
+            require_approval: false,
             task_params: None,
             survey_vars: None,
             vaults: None,

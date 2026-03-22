@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Terraform State — Semaphore</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+.state-header { display:flex; align-items:center; gap:12px; margin-bottom:20px; }
+.workspace-tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; }
+.workspace-tab { padding:6px 16px; border:1px solid #ccc; border-radius:20px; cursor:pointer; background:#fff; font-size:14px; }
+.workspace-tab.active { background:var(--primary-color,#005057); color:#fff; border-color:var(--primary-color,#005057); }
+.lock-banner { background:#fff3cd; border:1px solid #ffc107; border-radius:4px; padding:12px 16px; margin-bottom:16px; display:flex; align-items:center; justify-content:space-between; }
+.lock-banner.none { display:none; }
+.serial-badge { display:inline-block; background:#e8f5e9; color:#2e7d32; border-radius:4px; padding:2px 8px; font-size:12px; font-weight:bold; }
+.serial-badge.latest { background:#005057; color:#fff; }
+.state-table { width:100%; border-collapse:collapse; font-size:14px; }
+.state-table th { background:#f5f5f5; text-align:left; padding:10px 12px; border-bottom:2px solid #e0e0e0; font-weight:500; }
+.state-table td { padding:10px 12px; border-bottom:1px solid #f0f0f0; }
+.state-table tr:hover td { background:#fafafa; }
+.config-snippet { background:#263238; color:#eceff1; border-radius:6px; padding:16px; font-family:monospace; font-size:13px; position:relative; }
+.copy-btn { position:absolute; top:8px; right:8px; background:rgba(255,255,255,0.15); color:#fff; border:none; border-radius:4px; padding:4px 10px; cursor:pointer; font-size:12px; }
+.diff-viewer { background:#fafafa; border:1px solid #e0e0e0; border-radius:6px; padding:12px; margin-top:12px; font-family:monospace; font-size:13px; }
+.diff-added { color:#2e7d32; }
+.diff-removed { color:#c62828; }
+.diff-changed { color:#f57c00; }
+.empty-state { text-align:center; color:#9e9e9e; padding:48px; }
+</style>
+</head>
+<body>
+<div id="sidebar"></div>
+<div class="main-content" id="main">
+<div class="page-header">
+  <div class="state-header">
+    <h1 class="page-title">Terraform State</h1>
+    <span id="projectName" style="color:#9e9e9e;font-size:14px;"></span>
+  </div>
+</div>
+
+<!-- Lock banner -->
+<div class="lock-banner none" id="lockBanner">
+  <div>
+    <strong>🔒 Locked</strong>
+    <span id="lockWho" style="margin-left:8px;color:#666;"></span>
+    <span id="lockOp" style="margin-left:8px;color:#888;font-size:13px;"></span>
+  </div>
+  <button class="btn btn-danger btn-sm" onclick="forceUnlock()">Force Unlock</button>
+</div>
+
+<!-- Workspace tabs -->
+<div class="workspace-tabs" id="workspaceTabs"></div>
+
+<!-- Config snippet -->
+<div style="margin-bottom:24px;">
+  <div style="font-weight:500;margin-bottom:8px;">Backend Configuration</div>
+  <div class="config-snippet" id="configSnippet">
+    <button class="copy-btn" onclick="copyConfig()">Copy</button>
+    <pre id="configText" style="margin:0;white-space:pre-wrap;"></pre>
+  </div>
+</div>
+
+<!-- State history -->
+<div class="card">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+    <h3 style="margin:0;">State History</h3>
+    <span id="currentWorkspace" style="font-size:13px;color:#666;"></span>
+  </div>
+  <table class="state-table" id="historyTable">
+    <thead>
+      <tr>
+        <th>Serial</th>
+        <th>Lineage</th>
+        <th>MD5</th>
+        <th>Created</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="historyBody">
+      <tr><td colspan="5" class="empty-state">Select a workspace</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Diff viewer -->
+<div class="card" id="diffCard" style="display:none;margin-top:16px;">
+  <h3>State Diff</h3>
+  <div class="diff-viewer" id="diffContent"></div>
+</div>
+
+<script src="/app.js"></script>
+<script>
+const params = new URLSearchParams(location.search);
+const projectId = params.get('project_id') || params.get('projectId');
+let currentWorkspace = 'default';
+let workspaces = [];
+let stateHistory = [];
+
+async function apiFetch(url, opts = {}) {
+  const token = localStorage.getItem('token');
+  const headers = { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}), ...(opts.headers || {}) };
+  const res = await fetch(url, { ...opts, headers });
+  if (!res.ok) throw new Error(await res.text());
+  return res.status === 204 ? null : res.json();
+}
+
+async function init() {
+  if (!projectId) { document.getElementById('main').innerHTML = '<div class="empty-state">No project_id specified</div>'; return; }
+  if (typeof renderSidebar === 'function') renderSidebar();
+  try {
+    workspaces = await apiFetch(`/api/project/${projectId}/terraform/workspaces`);
+    if (!workspaces || workspaces.length === 0) workspaces = ['default'];
+    renderWorkspaceTabs();
+    await loadWorkspace(workspaces[0]);
+  } catch(e) {
+    renderWorkspaceTabs();
+    await loadWorkspace('default');
+  }
+}
+
+function renderWorkspaceTabs() {
+  const c = document.getElementById('workspaceTabs');
+  const ws = workspaces.length > 0 ? workspaces : ['default'];
+  c.innerHTML = ws.map(w =>
+    `<button class="workspace-tab${w===currentWorkspace?' active':''}" onclick="loadWorkspace('${w}')">${w}</button>`
+  ).join('');
+}
+
+async function loadWorkspace(ws) {
+  currentWorkspace = ws;
+  renderWorkspaceTabs();
+  document.getElementById('currentWorkspace').textContent = `Workspace: ${ws}`;
+  updateConfigSnippet(ws);
+  await Promise.all([loadHistory(ws), loadLock(ws)]);
+}
+
+function updateConfigSnippet(ws) {
+  const host = location.origin;
+  document.getElementById('configText').textContent =
+`terraform {
+  backend "http" {
+    address        = "${host}/api/project/${projectId}/terraform/state/${ws}"
+    lock_address   = "${host}/api/project/${projectId}/terraform/state/${ws}"
+    unlock_address = "${host}/api/project/${projectId}/terraform/state/${ws}"
+    username       = "semaphore"
+    password       = "<your-api-token>"
+  }
+}`;
+}
+
+function copyConfig() {
+  navigator.clipboard.writeText(document.getElementById('configText').textContent);
+  const btn = document.querySelector('.copy-btn');
+  btn.textContent = 'Copied!';
+  setTimeout(() => btn.textContent = 'Copy', 2000);
+}
+
+async function loadHistory(ws) {
+  const tbody = document.getElementById('historyBody');
+  try {
+    stateHistory = await apiFetch(`/api/project/${projectId}/terraform/state/${ws}/history?limit=50`);
+    if (!stateHistory || stateHistory.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No state versions found</td></tr>';
+      return;
+    }
+    tbody.innerHTML = stateHistory.map((s, i) => `
+      <tr>
+        <td><span class="serial-badge${i===0?' latest':''}">${s.serial}</span></td>
+        <td style="font-family:monospace;font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;">${s.lineage || '—'}</td>
+        <td style="font-family:monospace;font-size:12px;">${(s.md5||'').substring(0,12)}…</td>
+        <td>${formatDate(s.created_at)}</td>
+        <td>
+          <button class="btn btn-sm" onclick="downloadState(${s.serial})">Download</button>
+          ${i < stateHistory.length-1 ? `<button class="btn btn-sm" onclick="showDiff(${stateHistory[i+1].serial},${s.serial})" style="margin-left:4px;">Diff ↑</button>` : ''}
+        </td>
+      </tr>
+    `).join('');
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-state">${e.message}</td></tr>`;
+  }
+}
+
+async function loadLock(ws) {
+  const banner = document.getElementById('lockBanner');
+  try {
+    const lock = await apiFetch(`/api/project/${projectId}/terraform/state/${ws}/lock`);
+    if (lock && lock.ID) {
+      document.getElementById('lockWho').textContent = lock.Who || '';
+      document.getElementById('lockOp').textContent = lock.Operation || '';
+      banner.classList.remove('none');
+    } else {
+      banner.classList.add('none');
+    }
+  } catch(e) {
+    banner.classList.add('none');
+  }
+}
+
+async function forceUnlock() {
+  if (!confirm('Force unlock this workspace?')) return;
+  try {
+    await apiFetch(`/api/project/${projectId}/terraform/state/${currentWorkspace}/lock`, { method: 'DELETE' });
+    await loadLock(currentWorkspace);
+  } catch(e) { alert('Failed: ' + e.message); }
+}
+
+async function downloadState(serial) {
+  const token = localStorage.getItem('token');
+  const url = `/api/project/${projectId}/terraform/state/${currentWorkspace}`;
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `terraform-${currentWorkspace}-${serial}.tfstate`;
+  a.click();
+}
+
+async function showDiff(fromSerial, toSerial) {
+  const card = document.getElementById('diffCard');
+  const content = document.getElementById('diffContent');
+  content.innerHTML = 'Loading diff...';
+  card.style.display = 'block';
+  content.innerHTML = `<div class="diff-changed">Serial ${fromSerial} → ${toSerial}</div><div style="margin-top:8px;color:#666;">Download both versions to compare locally with: <code>terraform show -json</code></div>`;
+  card.scrollIntoView({ behavior: 'smooth' });
+}
+
+function formatDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleString();
+}
+
+init();
+</script>
+</body>
+</html>

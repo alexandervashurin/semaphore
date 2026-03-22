@@ -6,8 +6,8 @@
 use std::sync::{Arc, Mutex};
 use tracing::{error, info};
 
-use crate::db::store::Store;
-use crate::models::{Task, TaskOutput, Inventory, Repository, Environment};
+use crate::db::store::{Store, PlanApprovalManager};
+use crate::models::{Task, TaskOutput, Inventory, Repository, Environment, TerraformPlan};
 use crate::services::task_logger::{TaskStatus, BasicLogger, TaskLogger, LogListener};
 use crate::services::local_job::LocalJob;
 use crate::db_lib::AccessKeyInstallerImpl;
@@ -34,6 +34,52 @@ pub async fn execute_task(store: Arc<dyn Store + Send + Sync>, task: Task) {
             return;
         }
     };
+
+    // Phase 2: Plan Approval gate — if template requires approval, pause before executing
+    if template.require_approval {
+        // Check if there's already an approved plan for this task
+        let existing_plan = store.get_plan_by_task(task.project_id, task.id).await.unwrap_or(None);
+        match existing_plan {
+            Some(ref plan) if plan.status == "approved" => {
+                // Plan was approved — proceed with execution
+                info!("[task_runner] task {}: plan approved, proceeding with execution", task.id);
+            }
+            Some(ref plan) if plan.status == "rejected" => {
+                // Plan was rejected — stop task
+                info!("[task_runner] task {}: plan rejected, stopping task", task.id);
+                let _ = store.update_task_status(task.project_id, task.id, TaskStatus::Error).await;
+                return;
+            }
+            None => {
+                // No plan yet — create pending record and set WaitingConfirmation
+                info!("[task_runner] task {}: require_approval=true, creating pending plan", task.id);
+                let pending_plan = TerraformPlan {
+                    id: 0,
+                    task_id: task.id,
+                    project_id: task.project_id,
+                    plan_output: String::new(),
+                    plan_json: None,
+                    resources_added: 0,
+                    resources_changed: 0,
+                    resources_removed: 0,
+                    status: "pending".to_string(),
+                    created_at: chrono::Utc::now(),
+                    reviewed_at: None,
+                    reviewed_by: None,
+                    review_comment: None,
+                };
+                let _ = store.create_plan(pending_plan).await;
+                let _ = store.update_task_status(task.project_id, task.id, TaskStatus::WaitingConfirmation).await;
+                return;
+            }
+            _ => {
+                // Plan pending — still waiting for review
+                info!("[task_runner] task {}: plan still pending review", task.id);
+                let _ = store.update_task_status(task.project_id, task.id, TaskStatus::WaitingConfirmation).await;
+                return;
+            }
+        }
+    }
 
     // Загружаем инвентарь, репозиторий, окружение
     let inventory_id = task.inventory_id.or(template.inventory_id);

@@ -490,6 +490,8 @@ pub trait Store:
     + LdapGroupMappingManager
     + SnapshotManager
     + CostEstimateManager
+    + TerraformStateManager
+    + PlanApprovalManager
 {
 }
 
@@ -531,4 +533,100 @@ pub trait CostEstimateManager: Send + Sync {
     async fn get_cost_estimate_for_task(&self, project_id: i32, task_id: i32) -> Result<Option<CostEstimate>>;
     async fn create_cost_estimate(&self, payload: CostEstimateCreate) -> Result<CostEstimate>;
     async fn get_cost_summaries(&self, project_id: i32) -> Result<Vec<CostSummary>>;
+}
+
+/// Менеджер Terraform Remote State (Phase 1)
+#[async_trait]
+#[allow(clippy::too_many_arguments)]
+pub trait TerraformStateManager: Send + Sync {
+    /// Save a new state version; returns existing if serial+md5 match (idempotent).
+    /// Returns Err("already exists with different content") on serial conflict.
+    async fn save_terraform_state(
+        &self,
+        project_id: i32,
+        workspace:  &str,
+        serial:     i32,
+        lineage:    &str,
+        data:       Vec<u8>,
+        md5:        &str,
+    ) -> Result<crate::models::TerraformState>;
+
+    /// Return the latest state for a workspace (or None).
+    async fn get_terraform_state(
+        &self,
+        project_id: i32,
+        workspace:  &str,
+    ) -> Result<Option<crate::models::TerraformState>>;
+
+    /// Delete all state for a workspace.
+    async fn delete_terraform_state(&self, project_id: i32, workspace: &str) -> Result<()>;
+
+    /// Acquire lock atomically. Returns Err("locked:{json}") when already locked.
+    async fn lock_terraform_state(
+        &self,
+        project_id: i32,
+        workspace:  &str,
+        lock_id:    &str,
+        operation:  &str,
+        info:       &str,
+        who:        &str,
+        version:    &str,
+        path:       &str,
+    ) -> Result<()>;
+
+    /// Release lock. If lock_id is empty, force-unlock.
+    async fn unlock_terraform_state(
+        &self,
+        project_id: i32,
+        workspace:  &str,
+        lock_id:    &str,
+    ) -> Result<()>;
+
+    /// Return current lock or None.
+    async fn get_terraform_lock(
+        &self,
+        project_id: i32,
+        workspace:  &str,
+    ) -> Result<Option<crate::models::TerraformStateLock>>;
+
+    /// List distinct workspaces for a project.
+    async fn list_terraform_workspaces(&self, project_id: i32) -> Result<Vec<String>>;
+
+    /// State version history for a workspace (newest first).
+    async fn list_terraform_state_history(
+        &self,
+        project_id: i32,
+        workspace:  &str,
+        limit:      i64,
+    ) -> Result<Vec<crate::models::TerraformStateSummary>>;
+
+    /// Fetch a specific state version by serial.
+    async fn get_terraform_state_by_serial(
+        &self,
+        project_id: i32,
+        workspace:  &str,
+        serial:     i32,
+    ) -> Result<Option<crate::models::TerraformState>>;
+
+    /// Remove locks that have passed their expires_at.
+    async fn purge_expired_terraform_locks(&self) -> Result<u64>;
+}
+
+/// Менеджер Plan Approval (Phase 2)
+#[async_trait]
+pub trait PlanApprovalManager: Send + Sync {
+    async fn create_plan(&self, plan: crate::models::TerraformPlan) -> Result<crate::models::TerraformPlan>;
+    async fn get_plan_by_task(&self, project_id: i32, task_id: i32) -> Result<Option<crate::models::TerraformPlan>>;
+    async fn list_pending_plans(&self, project_id: i32) -> Result<Vec<crate::models::TerraformPlan>>;
+    async fn approve_plan(&self, id: i64, reviewed_by: i32, comment: Option<String>) -> Result<()>;
+    async fn reject_plan(&self, id: i64, reviewed_by: i32, comment: Option<String>) -> Result<()>;
+    async fn update_plan_output(
+        &self,
+        task_id:  i32,
+        output:   String,
+        json:     Option<String>,
+        added:    i32,
+        changed:  i32,
+        removed:  i32,
+    ) -> Result<()>;
 }
