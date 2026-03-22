@@ -2,7 +2,8 @@
 
 use crate::api::extractors::AuthUser;
 use crate::api::state::AppState;
-use crate::db::store::{PlanApprovalManager, TaskManager};
+use crate::db::store::{PlanApprovalManager, RetrieveQueryParams, TaskManager, UserManager};
+use crate::models::ProjectUserRole;
 use crate::models::PlanReviewPayload;
 use crate::services::task_logger::TaskStatus;
 use axum::{
@@ -52,21 +53,30 @@ pub async fn approve_plan(
 ) -> impl IntoResponse {
     let store = state.store.store();
 
-    // Get plan to find task_id before approving
-    let plan = match store.get_plan_by_task(project_id, plan_id as i32).await {
-        Ok(Some(p)) => p,
-        _ => {
-            // Try direct fetch by plan_id from pending plans
-            match store.list_pending_plans(project_id).await {
-                Ok(plans) => {
-                    match plans.into_iter().find(|p| p.id == plan_id) {
-                        Some(p) => p,
-                        None => return (StatusCode::NOT_FOUND, Json(json!({"error": "Plan not found"}))).into_response(),
-                    }
-                }
-                Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+    // Require Manager or Owner role to approve plans
+    match state.store.get_project_users(project_id, RetrieveQueryParams::default()).await {
+        Ok(users) => {
+            let role = users.into_iter()
+                .find(|u| u.user_id == auth.user_id)
+                .map(|u| u.role)
+                .unwrap_or(ProjectUserRole::None);
+            match role {
+                ProjectUserRole::Owner | ProjectUserRole::Manager => {},
+                _ => return (StatusCode::FORBIDDEN, Json(json!({"error": "Manager or Owner role required"}))).into_response(),
             }
         }
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+    }
+
+    // Get plan by plan_id from pending plans list
+    let plan = match store.list_pending_plans(project_id).await {
+        Ok(plans) => {
+            match plans.into_iter().find(|p| p.id == plan_id) {
+                Some(p) => p,
+                None => return (StatusCode::NOT_FOUND, Json(json!({"error": "Plan not found"}))).into_response(),
+            }
+        }
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
     };
 
     let task_id = plan.task_id;
@@ -95,6 +105,21 @@ pub async fn reject_plan(
     Json(body): Json<PlanReviewPayload>,
 ) -> impl IntoResponse {
     let store = state.store.store();
+
+    // Require Manager or Owner role to reject plans
+    match state.store.get_project_users(project_id, RetrieveQueryParams::default()).await {
+        Ok(users) => {
+            let role = users.into_iter()
+                .find(|u| u.user_id == auth.user_id)
+                .map(|u| u.role)
+                .unwrap_or(ProjectUserRole::None);
+            match role {
+                ProjectUserRole::Owner | ProjectUserRole::Manager => {},
+                _ => return (StatusCode::FORBIDDEN, Json(json!({"error": "Manager or Owner role required"}))).into_response(),
+            }
+        }
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+    }
 
     // Find the task_id from plan
     let task_id = {

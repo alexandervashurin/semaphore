@@ -22,7 +22,13 @@ impl LocalJob {
 
         // Загружаем vault-ключи из шаблона (приоритет) или инвентаря
         let vault_refs: Vec<VaultRef> = if let Some(ref vaults_val) = self.template.vaults {
-            serde_json::from_value(vaults_val.clone()).unwrap_or_default()
+            match serde_json::from_value(vaults_val.clone()) {
+                Ok(v) => v,
+                Err(e) => {
+                    self.log(&format!("Warning: failed to parse template vault refs: {}", e));
+                    return Ok(());
+                }
+            }
         } else if let Some(ref vaults_json) = self.inventory.vaults {
             if vaults_json.is_empty() {
                 return Ok(());
