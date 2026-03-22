@@ -714,6 +714,26 @@ impl ProjectRoleManager for MockStore {
 impl Store for MockStore {}
 
 #[async_trait]
+impl crate::db::store::DriftManager for MockStore {
+    async fn get_drift_configs(&self, _project_id: i32) -> Result<Vec<crate::models::drift::DriftConfig>> { Ok(Vec::new()) }
+    async fn get_drift_config(&self, _id: i32, _project_id: i32) -> Result<crate::models::drift::DriftConfig> { Err(Error::NotFound("DriftConfig not found".to_string())) }
+    async fn create_drift_config(&self, _project_id: i32, _payload: crate::models::drift::DriftConfigCreate) -> Result<crate::models::drift::DriftConfig> { Err(Error::Other("not implemented".to_string())) }
+    async fn update_drift_config_enabled(&self, _id: i32, _project_id: i32, _enabled: bool) -> Result<()> { Ok(()) }
+    async fn delete_drift_config(&self, _id: i32, _project_id: i32) -> Result<()> { Ok(()) }
+    async fn get_drift_results(&self, _drift_config_id: i32, _limit: i64) -> Result<Vec<crate::models::drift::DriftResult>> { Ok(Vec::new()) }
+    async fn create_drift_result(&self, _project_id: i32, _drift_config_id: i32, _template_id: i32, _status: &str, _summary: Option<String>, _task_id: Option<i32>) -> Result<crate::models::drift::DriftResult> { Err(Error::Other("not implemented".to_string())) }
+    async fn get_latest_drift_results(&self, _project_id: i32) -> Result<Vec<crate::models::drift::DriftResult>> { Ok(Vec::new()) }
+}
+
+#[async_trait]
+impl crate::db::store::LdapGroupMappingManager for MockStore {
+    async fn get_ldap_group_mappings(&self) -> Result<Vec<crate::models::ldap_group::LdapGroupMapping>> { Ok(Vec::new()) }
+    async fn create_ldap_group_mapping(&self, _payload: crate::models::ldap_group::LdapGroupMappingCreate) -> Result<crate::models::ldap_group::LdapGroupMapping> { Err(Error::Other("not implemented".to_string())) }
+    async fn delete_ldap_group_mapping(&self, _id: i32) -> Result<()> { Ok(()) }
+    async fn get_mappings_for_groups(&self, _group_dns: &[String]) -> Result<Vec<crate::models::ldap_group::LdapGroupMapping>> { Ok(Vec::new()) }
+}
+
+#[async_trait]
 impl WebhookManager for MockStore {
     async fn get_webhook(&self, _webhook_id: i64) -> Result<crate::models::webhook::Webhook> {
         Err(Error::NotFound("Webhook not found".to_string()))
@@ -806,4 +826,122 @@ impl PlaybookRunManager for MockStore {
             last_run: None,
         })
     }
+}
+
+#[async_trait]
+impl crate::db::store::WorkflowManager for MockStore {
+    async fn get_workflows(&self, _project_id: i32) -> Result<Vec<crate::models::workflow::Workflow>> {
+        Ok(Vec::new())
+    }
+    async fn get_workflow(&self, _id: i32, _project_id: i32) -> Result<crate::models::workflow::Workflow> {
+        Err(Error::NotFound("Workflow not found".to_string()))
+    }
+    async fn create_workflow(&self, _project_id: i32, _payload: crate::models::workflow::WorkflowCreate) -> Result<crate::models::workflow::Workflow> {
+        Err(Error::Other("not implemented".to_string()))
+    }
+    async fn update_workflow(&self, _id: i32, _project_id: i32, _payload: crate::models::workflow::WorkflowUpdate) -> Result<crate::models::workflow::Workflow> {
+        Err(Error::Other("not implemented".to_string()))
+    }
+    async fn delete_workflow(&self, _id: i32, _project_id: i32) -> Result<()> {
+        Ok(())
+    }
+    async fn get_workflow_nodes(&self, _workflow_id: i32) -> Result<Vec<crate::models::workflow::WorkflowNode>> {
+        Ok(Vec::new())
+    }
+    async fn create_workflow_node(&self, _workflow_id: i32, _payload: crate::models::workflow::WorkflowNodeCreate) -> Result<crate::models::workflow::WorkflowNode> {
+        Err(Error::Other("not implemented".to_string()))
+    }
+    async fn update_workflow_node(&self, _id: i32, _workflow_id: i32, _payload: crate::models::workflow::WorkflowNodeUpdate) -> Result<crate::models::workflow::WorkflowNode> {
+        Err(Error::Other("not implemented".to_string()))
+    }
+    async fn delete_workflow_node(&self, _id: i32, _workflow_id: i32) -> Result<()> {
+        Ok(())
+    }
+    async fn get_workflow_edges(&self, _workflow_id: i32) -> Result<Vec<crate::models::workflow::WorkflowEdge>> {
+        Ok(Vec::new())
+    }
+    async fn create_workflow_edge(&self, _workflow_id: i32, _payload: crate::models::workflow::WorkflowEdgeCreate) -> Result<crate::models::workflow::WorkflowEdge> {
+        Err(Error::Other("not implemented".to_string()))
+    }
+    async fn delete_workflow_edge(&self, _id: i32, _workflow_id: i32) -> Result<()> {
+        Ok(())
+    }
+    async fn get_workflow_runs(&self, _workflow_id: i32, _project_id: i32) -> Result<Vec<crate::models::workflow::WorkflowRun>> {
+        Ok(Vec::new())
+    }
+    async fn create_workflow_run(&self, _workflow_id: i32, _project_id: i32) -> Result<crate::models::workflow::WorkflowRun> {
+        Err(Error::Other("not implemented".to_string()))
+    }
+    async fn update_workflow_run_status(&self, _id: i32, _status: &str, _message: Option<String>) -> Result<()> {
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl crate::db::store::NotificationPolicyManager for MockStore {
+    async fn get_notification_policies(&self, _project_id: i32) -> Result<Vec<crate::models::notification::NotificationPolicy>> {
+        Ok(Vec::new())
+    }
+    async fn get_notification_policy(&self, _id: i32, _project_id: i32) -> Result<crate::models::notification::NotificationPolicy> {
+        Err(Error::NotFound("NotificationPolicy not found".to_string()))
+    }
+    async fn create_notification_policy(&self, _project_id: i32, _payload: crate::models::notification::NotificationPolicyCreate) -> Result<crate::models::notification::NotificationPolicy> {
+        Err(Error::Other("not implemented".to_string()))
+    }
+    async fn update_notification_policy(&self, _id: i32, _project_id: i32, _payload: crate::models::notification::NotificationPolicyUpdate) -> Result<crate::models::notification::NotificationPolicy> {
+        Err(Error::Other("not implemented".to_string()))
+    }
+    async fn delete_notification_policy(&self, _id: i32, _project_id: i32) -> Result<()> {
+        Ok(())
+    }
+    async fn get_matching_policies(&self, _project_id: i32, _trigger: &str, _template_id: Option<i32>) -> Result<Vec<crate::models::notification::NotificationPolicy>> {
+        Ok(Vec::new())
+    }
+}
+
+#[async_trait]
+impl crate::db::store::CredentialTypeManager for MockStore {
+    async fn get_credential_types(&self) -> Result<Vec<crate::models::credential_type::CredentialType>> {
+        Ok(Vec::new())
+    }
+    async fn get_credential_type(&self, _id: i32) -> Result<crate::models::credential_type::CredentialType> {
+        Err(Error::NotFound("CredentialType not found".to_string()))
+    }
+    async fn create_credential_type(&self, _payload: crate::models::credential_type::CredentialTypeCreate) -> Result<crate::models::credential_type::CredentialType> {
+        Err(Error::Other("not implemented".to_string()))
+    }
+    async fn update_credential_type(&self, _id: i32, _payload: crate::models::credential_type::CredentialTypeUpdate) -> Result<crate::models::credential_type::CredentialType> {
+        Err(Error::Other("not implemented".to_string()))
+    }
+    async fn delete_credential_type(&self, _id: i32) -> Result<()> {
+        Ok(())
+    }
+    async fn get_credential_instances(&self, _project_id: i32) -> Result<Vec<crate::models::credential_type::CredentialInstance>> {
+        Ok(Vec::new())
+    }
+    async fn get_credential_instance(&self, _id: i32, _project_id: i32) -> Result<crate::models::credential_type::CredentialInstance> {
+        Err(Error::NotFound("CredentialInstance not found".to_string()))
+    }
+    async fn create_credential_instance(&self, _project_id: i32, _payload: crate::models::credential_type::CredentialInstanceCreate) -> Result<crate::models::credential_type::CredentialInstance> {
+        Err(Error::Other("not implemented".to_string()))
+    }
+    async fn delete_credential_instance(&self, _id: i32, _project_id: i32) -> Result<()> {
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl crate::db::store::SnapshotManager for MockStore {
+    async fn get_snapshots(&self, _project_id: i32, _template_id: Option<i32>, _limit: i64) -> Result<Vec<crate::models::snapshot::TaskSnapshot>> { Ok(Vec::new()) }
+    async fn get_snapshot(&self, _id: i32, _project_id: i32) -> Result<crate::models::snapshot::TaskSnapshot> { Err(Error::NotFound("Snapshot not found".to_string())) }
+    async fn create_snapshot(&self, _project_id: i32, _payload: crate::models::snapshot::TaskSnapshotCreate) -> Result<crate::models::snapshot::TaskSnapshot> { Err(Error::Other("not implemented".to_string())) }
+    async fn delete_snapshot(&self, _id: i32, _project_id: i32) -> Result<()> { Ok(()) }
+}
+
+#[async_trait]
+impl crate::db::store::CostEstimateManager for MockStore {
+    async fn get_cost_estimates(&self, _project_id: i32, _limit: i64) -> Result<Vec<crate::models::cost_estimate::CostEstimate>> { Ok(Vec::new()) }
+    async fn get_cost_estimate_for_task(&self, _project_id: i32, _task_id: i32) -> Result<Option<crate::models::cost_estimate::CostEstimate>> { Ok(None) }
+    async fn create_cost_estimate(&self, _payload: crate::models::cost_estimate::CostEstimateCreate) -> Result<crate::models::cost_estimate::CostEstimate> { Err(crate::error::Error::Other("not implemented".to_string())) }
+    async fn get_cost_summaries(&self, _project_id: i32) -> Result<Vec<crate::models::cost_estimate::CostSummary>> { Ok(Vec::new()) }
 }

@@ -8,106 +8,105 @@ use crate::models::*;
 use sqlx::Row;
 
 impl SqlDb {
+    fn pg_pool_integration(&self) -> Result<&sqlx::PgPool> {
+        self.get_postgres_pool()
+            .ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))
+    }
+
     /// Получает все интеграции проекта
     pub async fn get_integrations(&self, project_id: i32) -> Result<Vec<Integration>> {
-        match self.get_dialect() {
-            crate::db::sql::types::SqlDialect::SQLite => {
-                let integrations = sqlx::query_as::<_, Integration>(
-                    "SELECT * FROM integration WHERE project_id = ?"
-                )
-                .bind(project_id)
-                .fetch_all(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-                .await
-                .map_err(Error::Database)?;
-                
-                Ok(integrations)
-            }
-            _ => Err(Error::Other("Only SQLite supported for now".to_string()))
-        }
+        let rows = sqlx::query(
+            "SELECT * FROM integration WHERE project_id = $1 ORDER BY name"
+        )
+        .bind(project_id)
+        .fetch_all(self.pg_pool_integration()?)
+        .await
+        .map_err(Error::Database)?;
+
+        Ok(rows.into_iter().map(|row| Integration {
+            id: row.get("id"),
+            project_id: row.get("project_id"),
+            name: row.get("name"),
+            template_id: row.get("template_id"),
+            auth_method: row.try_get("auth_method").ok().unwrap_or_default(),
+            auth_header: row.try_get("auth_header").ok().flatten(),
+            auth_secret_id: row.try_get("auth_secret_id").ok().flatten(),
+        }).collect())
     }
-    
+
     /// Получает интеграцию по ID
     pub async fn get_integration(&self, project_id: i32, integration_id: i32) -> Result<Integration> {
-        match self.get_dialect() {
-            crate::db::sql::types::SqlDialect::SQLite => {
-                let integration = sqlx::query_as::<_, Integration>(
-                    "SELECT * FROM integration WHERE project_id = ? AND id = ?"
-                )
-                .bind(project_id)
-                .bind(integration_id)
-                .fetch_one(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-                .await
-                .map_err(Error::Database)?;
-                
-                Ok(integration)
-            }
-            _ => Err(Error::Other("Only SQLite supported for now".to_string()))
-        }
+        let row = sqlx::query(
+            "SELECT * FROM integration WHERE id = $1 AND project_id = $2"
+        )
+        .bind(integration_id)
+        .bind(project_id)
+        .fetch_one(self.pg_pool_integration()?)
+        .await
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => Error::NotFound("Интеграция не найдена".to_string()),
+            _ => Error::Database(e),
+        })?;
+
+        Ok(Integration {
+            id: row.get("id"),
+            project_id: row.get("project_id"),
+            name: row.get("name"),
+            template_id: row.get("template_id"),
+            auth_method: row.try_get("auth_method").ok().unwrap_or_default(),
+            auth_header: row.try_get("auth_header").ok().flatten(),
+            auth_secret_id: row.try_get("auth_secret_id").ok().flatten(),
+        })
     }
-    
+
     /// Создаёт новую интеграцию
     pub async fn create_integration(&self, mut integration: Integration) -> Result<Integration> {
-        match self.get_dialect() {
-            crate::db::sql::types::SqlDialect::SQLite => {
-                let result = sqlx::query(
-                    "INSERT INTO integration (project_id, name, template_id, auth_method, auth_header, auth_secret_id) VALUES (?, ?, ?, ?, ?, ?)"
-                )
-                .bind(integration.project_id)
-                .bind(&integration.name)
-                .bind(integration.template_id)
-                .bind(&integration.auth_method)
-                .bind(&integration.auth_header)
-                .bind(integration.auth_secret_id)
-                .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-                .await
-                .map_err(Error::Database)?;
+        let id: i32 = sqlx::query_scalar(
+            "INSERT INTO integration (project_id, name, template_id, auth_method, auth_header, auth_secret_id) \
+             VALUES ($1, $2, $3, $4, $5, $6) RETURNING id"
+        )
+        .bind(integration.project_id)
+        .bind(&integration.name)
+        .bind(integration.template_id)
+        .bind(&integration.auth_method)
+        .bind(&integration.auth_header)
+        .bind(integration.auth_secret_id)
+        .fetch_one(self.pg_pool_integration()?)
+        .await
+        .map_err(Error::Database)?;
 
-                integration.id = result.last_insert_rowid() as i32;
-                Ok(integration)
-            }
-            _ => Err(Error::Other("Only SQLite supported for now".to_string()))
-        }
+        integration.id = id;
+        Ok(integration)
     }
 
     /// Обновляет интеграцию
     pub async fn update_integration(&self, integration: Integration) -> Result<()> {
-        match self.get_dialect() {
-            crate::db::sql::types::SqlDialect::SQLite => {
-                sqlx::query(
-                    "UPDATE integration SET name = ?, template_id = ?, auth_method = ?, auth_header = ?, auth_secret_id = ? WHERE id = ? AND project_id = ?"
-                )
-                .bind(&integration.name)
-                .bind(integration.template_id)
-                .bind(&integration.auth_method)
-                .bind(&integration.auth_header)
-                .bind(integration.auth_secret_id)
-                .bind(integration.id)
-                .bind(integration.project_id)
-                .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-                .await
-                .map_err(Error::Database)?;
-
-                Ok(())
-            }
-            _ => Err(Error::Other("Only SQLite supported for now".to_string()))
-        }
+        sqlx::query(
+            "UPDATE integration SET name = $1, template_id = $2, auth_method = $3, \
+             auth_header = $4, auth_secret_id = $5 WHERE id = $6 AND project_id = $7"
+        )
+        .bind(&integration.name)
+        .bind(integration.template_id)
+        .bind(&integration.auth_method)
+        .bind(&integration.auth_header)
+        .bind(integration.auth_secret_id)
+        .bind(integration.id)
+        .bind(integration.project_id)
+        .execute(self.pg_pool_integration()?)
+        .await
+        .map_err(Error::Database)?;
+        Ok(())
     }
-    
+
     /// Удаляет интеграцию
     pub async fn delete_integration(&self, project_id: i32, integration_id: i32) -> Result<()> {
-        match self.get_dialect() {
-            crate::db::sql::types::SqlDialect::SQLite => {
-                sqlx::query("DELETE FROM integration WHERE id = ? AND project_id = ?")
-                    .bind(integration_id)
-                    .bind(project_id)
-                    .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-                    .await
-                    .map_err(Error::Database)?;
-                
-                Ok(())
-            }
-            _ => Err(Error::Other("Only SQLite supported for now".to_string()))
-        }
+        sqlx::query("DELETE FROM integration WHERE id = $1 AND project_id = $2")
+            .bind(integration_id)
+            .bind(project_id)
+            .execute(self.pg_pool_integration()?)
+            .await
+            .map_err(Error::Database)?;
+        Ok(())
     }
 }
 
@@ -147,7 +146,7 @@ mod tests {
     #[tokio::test]
     async fn test_create_and_get_integration() {
         let TestDb { db, _temp } = create_test_db().await;
-        
+
         let integration = Integration {
             id: 0,
             project_id: 1,
@@ -157,13 +156,13 @@ mod tests {
             auth_header: None,
             auth_secret_id: None,
         };
-        
+
         let created = db.create_integration(integration.clone()).await.unwrap();
         assert!(created.id > 0);
-        
+
         let retrieved = db.get_integration(1, created.id).await.unwrap();
         assert_eq!(retrieved.name, "Test Integration");
-        
+
         // Cleanup
         let _ = db.close().await;
     }
@@ -171,7 +170,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_integrations() {
         let TestDb { db, _temp } = create_test_db().await;
-        
+
         // Создаём несколько интеграций
         for i in 0..5 {
             let integration = Integration {
@@ -185,10 +184,10 @@ mod tests {
             };
             db.create_integration(integration).await.unwrap();
         }
-        
+
         let integrations = db.get_integrations(1).await.unwrap();
         assert!(integrations.len() >= 5);
-        
+
         // Cleanup
         let _ = db.close().await;
     }
@@ -196,7 +195,7 @@ mod tests {
     #[tokio::test]
     async fn test_update_integration() {
         let TestDb { db, _temp } = create_test_db().await;
-        
+
         let integration = Integration {
             id: 0,
             project_id: 1,
@@ -206,17 +205,17 @@ mod tests {
             auth_header: None,
             auth_secret_id: None,
         };
-        
+
         let created = db.create_integration(integration).await.unwrap();
-        
+
         let mut updated = created.clone();
         updated.name = "Updated Integration".to_string();
-        
+
         db.update_integration(updated).await.unwrap();
-        
+
         let retrieved = db.get_integration(1, created.id).await.unwrap();
         assert_eq!(retrieved.name, "Updated Integration");
-        
+
         // Cleanup
         let _ = db.close().await;
     }
@@ -224,7 +223,7 @@ mod tests {
     #[tokio::test]
     async fn test_delete_integration() {
         let TestDb { db, _temp } = create_test_db().await;
-        
+
         let integration = Integration {
             id: 0,
             project_id: 1,
@@ -234,14 +233,14 @@ mod tests {
             auth_header: None,
             auth_secret_id: None,
         };
-        
+
         let created = db.create_integration(integration).await.unwrap();
-        
+
         db.delete_integration(1, created.id).await.unwrap();
-        
+
         let result = db.get_integration(1, created.id).await;
         assert!(result.is_err());
-        
+
         // Cleanup
         let _ = db.close().await;
     }

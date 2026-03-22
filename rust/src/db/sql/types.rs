@@ -1,65 +1,26 @@
 //! SQL DB Types - типы для SQL хранилища
 //!
-//! Аналог db/sql/SqlDb.go из Go версии (часть 1: типы)
+//! PostgreSQL-only implementation
 
-use sqlx::{SqlitePool, MySqlPool, PgPool};
-
-/// Тип SQL диалекта
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum SqlDialect {
-    SQLite,
-    MySQL,
-    PostgreSQL,
-}
+use sqlx::PgPool;
 
 /// SQL хранилище данных
 pub struct SqlDb {
-    /// SQL диалект
-    pub dialect: SqlDialect,
-
-    /// Connection pool для SQLite
-    pub sqlite_pool: Option<SqlitePool>,
-
-    /// Connection pool для MySQL
-    pub mysql_pool: Option<MySqlPool>,
-
     /// Connection pool для PostgreSQL
     pub postgres_pool: Option<PgPool>,
 }
 
 impl SqlDb {
     /// Создаёт новое SQL хранилище
-    pub fn new(dialect: SqlDialect) -> Self {
+    pub fn new() -> Self {
         Self {
-            dialect,
-            sqlite_pool: None,
-            mysql_pool: None,
             postgres_pool: None,
         }
     }
 
-    /// Получает SQL диалект
-    pub fn get_dialect(&self) -> SqlDialect {
-        self.dialect
-    }
-
     /// Проверяет подключено ли хранилище
     pub fn is_connected(&self) -> bool {
-        match self.dialect {
-            SqlDialect::SQLite => self.sqlite_pool.is_some(),
-            SqlDialect::MySQL => self.mysql_pool.is_some(),
-            SqlDialect::PostgreSQL => self.postgres_pool.is_some(),
-        }
-    }
-
-    /// Получает SQLite pool
-    pub fn get_sqlite_pool(&self) -> Option<&SqlitePool> {
-        self.sqlite_pool.as_ref()
-    }
-
-    /// Получает MySQL pool
-    pub fn get_mysql_pool(&self) -> Option<&MySqlPool> {
-        self.mysql_pool.as_ref()
+        self.postgres_pool.is_some()
     }
 
     /// Получает PostgreSQL pool
@@ -69,7 +30,6 @@ impl SqlDb {
 }
 
 /// Конфигурация подключения к БД
-/// TODO: Удалить после реализации MySQL/PostgreSQL через URL
 #[derive(Debug, Clone)]
 pub struct DbConnectionConfig {
     /// Хост
@@ -110,19 +70,6 @@ impl DbConnectionConfig {
         Self::default()
     }
 
-    /// Создаёт connection string для MySQL
-    pub fn mysql_connection_string(&self) -> String {
-        format!(
-            "mysql://{}:{}@{}:{}/{}?{}",
-            self.username,
-            self.password,
-            self.host,
-            self.port,
-            self.db_name,
-            self.options_to_query_string()
-        )
-    }
-
     /// Создаёт connection string для PostgreSQL
     pub fn postgres_connection_string(&self) -> String {
         format!(
@@ -148,102 +95,41 @@ impl DbConnectionConfig {
 
 /// Транзакция SQL
 pub struct SqlTransaction {
-    /// Диалект
-    pub dialect: SqlDialect,
-
-    /// SQLite транзакция
-    pub sqlite_txn: Option<sqlx::Transaction<'static, sqlx::Sqlite>>,
-
-    /// MySQL транзакция
-    pub mysql_txn: Option<sqlx::Transaction<'static, sqlx::MySql>>,
-
     /// PostgreSQL транзакция
     pub postgres_txn: Option<sqlx::Transaction<'static, sqlx::Postgres>>,
 }
 
 impl SqlTransaction {
     /// Создаёт новую транзакцию
-    pub fn new(dialect: SqlDialect) -> Self {
+    pub fn new() -> Self {
         Self {
-            dialect,
-            sqlite_txn: None,
-            mysql_txn: None,
             postgres_txn: None,
         }
     }
 
     /// Начинает транзакцию
     pub async fn begin(&mut self, db: &SqlDb) -> Result<(), crate::error::Error> {
-        match self.dialect {
-            SqlDialect::SQLite => {
-                let pool = db.get_sqlite_pool()
-                    .ok_or_else(|| crate::error::Error::Other("SQLite pool not found".to_string()))?;
-                // В SQLx транзакции начинаются автоматически при первом запросе
-                self.sqlite_txn = Some(pool.begin().await
-                    .map_err(crate::error::Error::Database)?);
-            }
-            SqlDialect::MySQL => {
-                let pool = db.get_mysql_pool()
-                    .ok_or_else(|| crate::error::Error::Other("MySQL pool not found".to_string()))?;
-                self.mysql_txn = Some(pool.begin().await
-                    .map_err(crate::error::Error::Database)?);
-            }
-            SqlDialect::PostgreSQL => {
-                let pool = db.get_postgres_pool()
-                    .ok_or_else(|| crate::error::Error::Other("PostgreSQL pool not found".to_string()))?;
-                self.postgres_txn = Some(pool.begin().await
-                    .map_err(crate::error::Error::Database)?);
-            }
-        }
+        let pool = db.get_postgres_pool()
+            .ok_or_else(|| crate::error::Error::Other("PostgreSQL pool not found".to_string()))?;
+        self.postgres_txn = Some(pool.begin().await
+            .map_err(crate::error::Error::Database)?);
         Ok(())
     }
 
     /// Фиксирует транзакцию
     pub async fn commit(&mut self) -> Result<(), crate::error::Error> {
-        match self.dialect {
-            SqlDialect::SQLite => {
-                if let Some(txn) = self.sqlite_txn.take() {
-                    txn.commit().await
-                        .map_err(crate::error::Error::Database)?;
-                }
-            }
-            SqlDialect::MySQL => {
-                if let Some(txn) = self.mysql_txn.take() {
-                    txn.commit().await
-                        .map_err(crate::error::Error::Database)?;
-                }
-            }
-            SqlDialect::PostgreSQL => {
-                if let Some(txn) = self.postgres_txn.take() {
-                    txn.commit().await
-                        .map_err(crate::error::Error::Database)?;
-                }
-            }
+        if let Some(txn) = self.postgres_txn.take() {
+            txn.commit().await
+                .map_err(crate::error::Error::Database)?;
         }
         Ok(())
     }
 
     /// Откатывает транзакцию
     pub async fn rollback(&mut self) -> Result<(), crate::error::Error> {
-        match self.dialect {
-            SqlDialect::SQLite => {
-                if let Some(txn) = self.sqlite_txn.take() {
-                    txn.rollback().await
-                        .map_err(crate::error::Error::Database)?;
-                }
-            }
-            SqlDialect::MySQL => {
-                if let Some(txn) = self.mysql_txn.take() {
-                    txn.rollback().await
-                        .map_err(crate::error::Error::Database)?;
-                }
-            }
-            SqlDialect::PostgreSQL => {
-                if let Some(txn) = self.postgres_txn.take() {
-                    txn.rollback().await
-                        .map_err(crate::error::Error::Database)?;
-                }
-            }
+        if let Some(txn) = self.postgres_txn.take() {
+            txn.rollback().await
+                .map_err(crate::error::Error::Database)?;
         }
         Ok(())
     }
@@ -255,8 +141,7 @@ mod tests {
 
     #[test]
     fn test_sql_db_creation() {
-        let db = SqlDb::new(SqlDialect::SQLite);
-        assert_eq!(db.get_dialect(), SqlDialect::SQLite);
+        let db = SqlDb::new();
         assert!(!db.is_connected());
     }
 
@@ -266,23 +151,6 @@ mod tests {
         assert_eq!(config.host, "localhost");
         assert_eq!(config.db_name, "semaphore");
         assert_eq!(config.port, 0);
-    }
-
-    #[test]
-    fn test_mysql_connection_string() {
-        let config = DbConnectionConfig {
-            host: "localhost".to_string(),
-            port: 3306,
-            username: "user".to_string(),
-            password: "pass".to_string(),
-            db_name: "test".to_string(),
-            options: std::collections::HashMap::new(),
-        };
-
-        let conn_str = config.mysql_connection_string();
-        assert!(conn_str.starts_with("mysql://"));
-        assert!(conn_str.contains("localhost"));
-        assert!(conn_str.contains("3306"));
     }
 
     #[test]
@@ -304,7 +172,7 @@ mod tests {
 
     #[test]
     fn test_sql_transaction_creation() {
-        let txn = SqlTransaction::new(SqlDialect::SQLite);
-        assert_eq!(txn.dialect, SqlDialect::SQLite);
+        let txn = SqlTransaction::new();
+        assert!(txn.postgres_txn.is_none());
     }
 }

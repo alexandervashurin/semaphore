@@ -19,23 +19,10 @@ WORKDIR /app
 # Копируем только манифесты, чтобы слой зависимостей кэшировался
 COPY rust/Cargo.toml rust/Cargo.lock ./
 
-# «Пустая» сборка для прогрева кэша зависимостей
-# Создаём заглушки для всех бинарей и бенчей указанных в Cargo.toml
-RUN mkdir -p src benches \
-    && echo "fn main() {}" > src/main.rs \
-    && echo "" > src/lib.rs \
-    && echo "fn main() {}" > benches/cache_bench.rs \
-    && echo "fn main() {}" > benches/db_bench.rs \
-    && cargo build --release \
-    && rm -rf src benches
-
 # ── Основная сборка ───────────────────────────────────────────────────────
 FROM deps AS builder
 
 COPY rust/ ./
-
-# Инвалидируем кэш зависимостей если изменились исходники
-RUN touch src/main.rs
 
 # profile.release уже содержит: strip=true, lto=true, opt-level="z", panic=abort
 RUN cargo build --release && mkdir -p /app/data

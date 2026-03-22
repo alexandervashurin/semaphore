@@ -44,29 +44,11 @@ struct WebhookLogRow {
 impl SqlDb {
     /// Получает webhook по ID
     pub async fn get_webhook(&self, webhook_id: i64) -> Result<Webhook> {
-        let row = match self.get_dialect() {
-            super::SqlDialect::SQLite => {
-                sqlx::query_as::<_, WebhookRow>("SELECT * FROM webhook WHERE id = ?")
-                    .bind(webhook_id)
-                    .fetch_optional(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-                    .await
-                    .map_err(Error::Database)?
-            }
-            super::SqlDialect::PostgreSQL => {
-                sqlx::query_as::<_, WebhookRow>("SELECT * FROM webhook WHERE id = $1")
+        let row = sqlx::query_as::<_, WebhookRow>("SELECT * FROM webhook WHERE id = $1")
                     .bind(webhook_id)
                     .fetch_optional(self.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(Error::Database)?
-            }
-            super::SqlDialect::MySQL => {
-                sqlx::query_as::<_, WebhookRow>("SELECT * FROM webhook WHERE id = ?")
-                    .bind(webhook_id)
-                    .fetch_optional(self.get_mysql_pool().ok_or(Error::Other("MySQL pool not found".to_string()))?)
-                    .await
-                    .map_err(Error::Database)?
-            }
-        };
+                    .map_err(Error::Database)?;
 
         let row = row.ok_or_else(|| Error::NotFound(format!("Webhook {} not found", webhook_id)))?;
         Ok(self.row_to_webhook(row))
@@ -74,29 +56,11 @@ impl SqlDb {
 
     /// Получает webhook проекта
     pub async fn get_webhooks_by_project(&self, project_id: i64) -> Result<Vec<Webhook>> {
-        let rows = match self.get_dialect() {
-            super::SqlDialect::SQLite => {
-                sqlx::query_as::<_, WebhookRow>("SELECT * FROM webhook WHERE project_id = ? ORDER BY created_at DESC")
-                    .bind(project_id)
-                    .fetch_all(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-                    .await
-                    .map_err(Error::Database)?
-            }
-            super::SqlDialect::PostgreSQL => {
-                sqlx::query_as::<_, WebhookRow>("SELECT * FROM webhook WHERE project_id = $1 ORDER BY created_at DESC")
+        let rows = sqlx::query_as::<_, WebhookRow>("SELECT * FROM webhook WHERE project_id = $1 ORDER BY created_at DESC")
                     .bind(project_id)
                     .fetch_all(self.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(Error::Database)?
-            }
-            super::SqlDialect::MySQL => {
-                sqlx::query_as::<_, WebhookRow>("SELECT * FROM webhook WHERE project_id = ? ORDER BY created_at DESC")
-                    .bind(project_id)
-                    .fetch_all(self.get_mysql_pool().ok_or(Error::Other("MySQL pool not found".to_string()))?)
-                    .await
-                    .map_err(Error::Database)?
-            }
-        };
+                    .map_err(Error::Database)?;
 
         Ok(rows.into_iter().map(|r| self.row_to_webhook(r)).collect())
     }
@@ -106,35 +70,7 @@ impl SqlDb {
         let now = Utc::now();
         let type_str = self.webhook_type_to_string(&webhook.r#type);
         
-        match self.get_dialect() {
-            super::SqlDialect::SQLite => {
-                let id = sqlx::query_scalar::<_, i64>(
-                    "INSERT INTO webhook (project_id, name, type, url, secret, headers, active, events, retry_count, timeout_secs, created_at, updated_at)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id"
-                )
-                .bind(webhook.project_id)
-                .bind(&webhook.name)
-                .bind(&type_str)
-                .bind(&webhook.url)
-                .bind(&webhook.secret)
-                .bind(&webhook.headers)
-                .bind(webhook.active)
-                .bind(&webhook.events)
-                .bind(webhook.retry_count)
-                .bind(webhook.timeout_secs)
-                .bind(now)
-                .bind(now)
-                .fetch_one(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-                .await
-                .map_err(Error::Database)?;
-
-                webhook.id = id;
-                webhook.created = now;
-                webhook.updated = now;
-                Ok(webhook)
-            }
-            super::SqlDialect::PostgreSQL => {
-                let id = sqlx::query_scalar::<_, i64>(
+        let id = sqlx::query_scalar::<_, i64>(
                     "INSERT INTO webhook (project_id, name, type, url, secret, headers, active, events, retry_count, timeout_secs, created_at, updated_at)
                      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id"
                 )
@@ -158,34 +94,6 @@ impl SqlDb {
                 webhook.created = now;
                 webhook.updated = now;
                 Ok(webhook)
-            }
-            super::SqlDialect::MySQL => {
-                let result = sqlx::query(
-                    "INSERT INTO webhook (project_id, name, type, url, secret, headers, active, events, retry_count, timeout_secs, created_at, updated_at)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-                )
-                .bind(webhook.project_id)
-                .bind(&webhook.name)
-                .bind(&type_str)
-                .bind(&webhook.url)
-                .bind(&webhook.secret)
-                .bind(&webhook.headers)
-                .bind(webhook.active)
-                .bind(&webhook.events)
-                .bind(webhook.retry_count)
-                .bind(webhook.timeout_secs)
-                .bind(now)
-                .bind(now)
-                .execute(self.get_mysql_pool().ok_or(Error::Other("MySQL pool not found".to_string()))?)
-                .await
-                .map_err(Error::Database)?;
-
-                webhook.id = result.last_insert_id() as i64;
-                webhook.created = now;
-                webhook.updated = now;
-                Ok(webhook)
-            }
-        }
     }
 
     /// Обновляет webhook
@@ -209,22 +117,7 @@ impl SqlDb {
 
         let type_str = self.webhook_type_to_string(&current.r#type);
 
-        match self.get_dialect() {
-            super::SqlDialect::SQLite => {
-                sqlx::query(
-                    "UPDATE webhook SET name=?, type=?, url=?, secret=?, headers=?, active=?, events=?, retry_count=?, timeout_secs=?, updated_at=? WHERE id=?"
-                )
-                .bind(&current.name).bind(&type_str).bind(&current.url)
-                .bind(&current.secret).bind(&current.headers)
-                .bind(current.active).bind(&current.events)
-                .bind(current.retry_count).bind(current.timeout_secs)
-                .bind(now).bind(webhook_id)
-                .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-                .await
-                .map_err(Error::Database)?;
-            }
-            super::SqlDialect::PostgreSQL => {
-                sqlx::query(
+        sqlx::query(
                     "UPDATE webhook SET name=$1, type=$2, url=$3, secret=$4, headers=$5, active=$6, events=$7, retry_count=$8, timeout_secs=$9, updated_at=$10 WHERE id=$11"
                 )
                 .bind(&current.name).bind(&type_str).bind(&current.url)
@@ -235,77 +128,26 @@ impl SqlDb {
                 .execute(self.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?)
                 .await
                 .map_err(Error::Database)?;
-            }
-            super::SqlDialect::MySQL => {
-                sqlx::query(
-                    "UPDATE webhook SET name=?, type=?, url=?, secret=?, headers=?, active=?, events=?, retry_count=?, timeout_secs=?, updated_at=? WHERE id=?"
-                )
-                .bind(&current.name).bind(&type_str).bind(&current.url)
-                .bind(&current.secret).bind(&current.headers)
-                .bind(current.active).bind(&current.events)
-                .bind(current.retry_count).bind(current.timeout_secs)
-                .bind(now).bind(webhook_id)
-                .execute(self.get_mysql_pool().ok_or(Error::Other("MySQL pool not found".to_string()))?)
-                .await
-                .map_err(Error::Database)?;
-            }
-        }
         Ok(current)
     }
 
     /// Удаляет webhook
     pub async fn delete_webhook(&self, webhook_id: i64) -> Result<()> {
-        match self.get_dialect() {
-            super::SqlDialect::SQLite => {
-                sqlx::query("DELETE FROM webhook WHERE id = ?")
-                    .bind(webhook_id)
-                    .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-                    .await
-                    .map_err(Error::Database)?;
-            }
-            super::SqlDialect::PostgreSQL => {
-                sqlx::query("DELETE FROM webhook WHERE id = $1")
+        sqlx::query("DELETE FROM webhook WHERE id = $1")
                     .bind(webhook_id)
                     .execute(self.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
                     .map_err(Error::Database)?;
-            }
-            super::SqlDialect::MySQL => {
-                sqlx::query("DELETE FROM webhook WHERE id = ?")
-                    .bind(webhook_id)
-                    .execute(self.get_mysql_pool().ok_or(Error::Other("MySQL pool not found".to_string()))?)
-                    .await
-                    .map_err(Error::Database)?;
-            }
-        }
         Ok(())
     }
 
     /// Получает логи webhook
     pub async fn get_webhook_logs(&self, webhook_id: i64) -> Result<Vec<WebhookLog>> {
-        let rows = match self.get_dialect() {
-            super::SqlDialect::SQLite => {
-                sqlx::query_as::<_, WebhookLogRow>("SELECT * FROM webhook_log WHERE webhook_id = ? ORDER BY created_at DESC")
-                    .bind(webhook_id)
-                    .fetch_all(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-                    .await
-                    .map_err(Error::Database)?
-            }
-            super::SqlDialect::PostgreSQL => {
-                sqlx::query_as::<_, WebhookLogRow>("SELECT * FROM webhook_log WHERE webhook_id = $1 ORDER BY created_at DESC")
+        let rows = sqlx::query_as::<_, WebhookLogRow>("SELECT * FROM webhook_log WHERE webhook_id = $1 ORDER BY created_at DESC")
                     .bind(webhook_id)
                     .fetch_all(self.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?)
                     .await
-                    .map_err(Error::Database)?
-            }
-            super::SqlDialect::MySQL => {
-                sqlx::query_as::<_, WebhookLogRow>("SELECT * FROM webhook_log WHERE webhook_id = ? ORDER BY created_at DESC")
-                    .bind(webhook_id)
-                    .fetch_all(self.get_mysql_pool().ok_or(Error::Other("MySQL pool not found".to_string()))?)
-                    .await
-                    .map_err(Error::Database)?
-            }
-        };
+                    .map_err(Error::Database)?;
 
         Ok(rows.into_iter().map(|r| self.row_to_webhook_log(r)).collect())
     }
@@ -314,31 +156,7 @@ impl SqlDb {
     pub async fn create_webhook_log(&self, mut log: WebhookLog) -> Result<WebhookLog> {
         let now = Utc::now();
         
-        match self.get_dialect() {
-            super::SqlDialect::SQLite => {
-                let id = sqlx::query_scalar::<_, i64>(
-                    "INSERT INTO webhook_log (webhook_id, event_type, status_code, success, error, attempts, payload, response, created_at)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id"
-                )
-                .bind(log.webhook_id)
-                .bind(&log.event_type)
-                .bind(log.status_code)
-                .bind(log.success)
-                .bind(&log.error)
-                .bind(log.attempts)
-                .bind(&log.payload)
-                .bind(&log.response)
-                .bind(now)
-                .fetch_one(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-                .await
-                .map_err(Error::Database)?;
-
-                log.id = id;
-                log.created = now;
-                Ok(log)
-            }
-            super::SqlDialect::PostgreSQL => {
-                let id = sqlx::query_scalar::<_, i64>(
+        let id = sqlx::query_scalar::<_, i64>(
                     "INSERT INTO webhook_log (webhook_id, event_type, status_code, success, error, attempts, payload, response, created_at)
                      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id"
                 )
@@ -358,30 +176,6 @@ impl SqlDb {
                 log.id = id;
                 log.created = now;
                 Ok(log)
-            }
-            super::SqlDialect::MySQL => {
-                let result = sqlx::query(
-                    "INSERT INTO webhook_log (webhook_id, event_type, status_code, success, error, attempts, payload, response, created_at)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-                )
-                .bind(log.webhook_id)
-                .bind(&log.event_type)
-                .bind(log.status_code)
-                .bind(log.success)
-                .bind(&log.error)
-                .bind(log.attempts)
-                .bind(&log.payload)
-                .bind(&log.response)
-                .bind(now)
-                .execute(self.get_mysql_pool().ok_or(Error::Other("MySQL pool not found".to_string()))?)
-                .await
-                .map_err(Error::Database)?;
-
-                log.id = result.last_insert_id() as i64;
-                log.created = now;
-                Ok(log)
-            }
-        }
     }
 
     // === Helper методы ===

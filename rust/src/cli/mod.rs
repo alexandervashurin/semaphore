@@ -114,17 +114,6 @@ enum Commands {
     Version(VersionCommand),
 }
 
-#[derive(Parser, Debug, Clone)]
-struct ServerArgs {
-    /// Хост для прослушивания
-    #[arg(long, default_value = "0.0.0.0")]
-    host: String,
-
-    /// Порт HTTP
-    #[arg(short = 'p', long, default_value = "3000")]
-    port: u16,
-}
-
 #[derive(Parser, Debug)]
 struct RunnerArgs {
     /// Токен раннера
@@ -357,40 +346,6 @@ impl Cli {
             Commands::Version(cmd) => cmd.run(),
         }
     }
-}
-
-/// Команда: запуск сервера
-fn cmd_server(args: ServerArgs, config: Config) -> anyhow::Result<()> {
-    use crate::api::create_app;
-    use std::net::SocketAddr;
-
-    tracing::info!("Запуск сервера Velum...");
-
-    // Создание хранилища
-    let store: std::sync::Arc<dyn crate::db::Store + Send + Sync> =
-        std::sync::Arc::from(create_store(&config).map_err(|e| anyhow::anyhow!(e))?);
-
-    // Создание приложения Axum
-    let app = create_app(store);
-
-    // Адрес для прослушивания
-    let addr: SocketAddr = format!("{}:{}", args.host, args.port)
-        .parse()
-        .expect("Неверный адрес");
-
-    tracing::info!("Сервер слушает на {}", addr);
-
-    // Запуск сервера
-    tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()?
-        .block_on(async {
-            let listener = tokio::net::TcpListener::bind(addr).await?;
-            axum::serve(listener, app).await?;
-            Ok::<_, anyhow::Error>(())
-        })?;
-
-    Ok(())
 }
 
 /// Команда: запуск раннера

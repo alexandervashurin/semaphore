@@ -8,33 +8,31 @@ use crate::models::*;
 use bcrypt::{hash, verify, DEFAULT_COST};
 
 impl SqlDb {
+    fn pg_pool_user_auth(&self) -> Result<&sqlx::PgPool> {
+        self.get_postgres_pool()
+            .ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))
+    }
+
     /// Устанавливает пароль пользователя
     pub async fn set_user_password(&self, user_id: i32, password: &str) -> Result<()> {
-        // Хешируем пароль
         let hashed_password = hash_password(password)?;
-        
-        match self.get_dialect() {
-            crate::db::sql::types::SqlDialect::SQLite => {
-                sqlx::query("UPDATE user SET password = ? WHERE id = ?")
-                    .bind(&hashed_password)
-                    .bind(user_id)
-                    .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-                    .await
-                    .map_err(Error::Database)?;
-                
-                Ok(())
-            }
-            _ => Err(Error::Other("Only SQLite supported for now".to_string()))
-        }
+
+        sqlx::query("UPDATE \"user\" SET password = $1 WHERE id = $2")
+            .bind(&hashed_password)
+            .bind(user_id)
+            .execute(self.pg_pool_user_auth()?)
+            .await
+            .map_err(Error::Database)?;
+
+        Ok(())
     }
-    
+
     /// Проверяет пароль пользователя
     pub async fn verify_user_password(&self, user_id: i32, password: &str) -> Result<bool> {
         let user = self.get_user(user_id).await?;
-        
-        // Проверяем пароль
+
         let is_valid = verify_password(password, &user.password)?;
-        
+
         Ok(is_valid)
     }
 }
@@ -120,7 +118,7 @@ mod tests {
     #[tokio::test]
     async fn test_set_user_password() {
         let TestDb { db, _temp } = create_test_db().await;
-        
+
         let user = User {
             id: 0,
             created: Utc::now(),
@@ -135,19 +133,19 @@ mod tests {
             totp: None,
             email_otp: None,
         };
-        
+
         let created = db.create_user(user).await.unwrap();
-        
+
         // Устанавливаем новый пароль
         db.set_user_password(created.id, "new_password123").await.unwrap();
-        
+
         // Проверяем что пароль обновился
         let is_valid = db.verify_user_password(created.id, "new_password123").await.unwrap();
         assert!(is_valid);
-        
+
         let is_valid = db.verify_user_password(created.id, "old_password").await.unwrap();
         assert!(!is_valid);
-        
+
         // Cleanup
         let _ = db.close().await;
     }
@@ -155,7 +153,7 @@ mod tests {
     #[tokio::test]
     async fn test_verify_user_password() {
         let TestDb { db, _temp } = create_test_db().await;
-        
+
         let user = User {
             id: 0,
             created: Utc::now(),
@@ -170,17 +168,17 @@ mod tests {
             totp: None,
             email_otp: None,
         };
-        
+
         let created = db.create_user(user).await.unwrap();
-        
+
         // Проверяем правильный пароль
         let is_valid = db.verify_user_password(created.id, "correct_password").await.unwrap();
         assert!(is_valid);
-        
+
         // Проверяем неправильный пароль
         let is_valid = db.verify_user_password(created.id, "wrong_password").await.unwrap();
         assert!(!is_valid);
-        
+
         // Cleanup
         let _ = db.close().await;
     }

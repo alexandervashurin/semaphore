@@ -6,6 +6,12 @@ use crate::models::*;
 use crate::models::audit_log::{AuditAction, AuditObjectType, AuditLevel, AuditLog, AuditLogResult};
 use crate::models::playbook::{Playbook, PlaybookCreate, PlaybookUpdate};
 use crate::models::playbook_run_history::{PlaybookRun, PlaybookRunCreate, PlaybookRunUpdate, PlaybookRunStatus, PlaybookRunStats, PlaybookRunFilter};
+use crate::models::workflow::{Workflow, WorkflowCreate, WorkflowUpdate, WorkflowNode, WorkflowNodeCreate, WorkflowNodeUpdate, WorkflowEdge, WorkflowEdgeCreate, WorkflowRun};
+use crate::models::notification::{NotificationPolicy, NotificationPolicyCreate, NotificationPolicyUpdate};
+use crate::models::credential_type::{CredentialType, CredentialTypeCreate, CredentialTypeUpdate, CredentialInstance, CredentialInstanceCreate};
+use crate::models::drift::{DriftConfig, DriftConfigCreate, DriftResult};
+use crate::models::ldap_group::{LdapGroupMapping, LdapGroupMappingCreate};
+use crate::models::snapshot::{TaskSnapshot, TaskSnapshotCreate};
 use crate::models::Hook;
 use crate::error::Result;
 use crate::services::task_logger::TaskStatus;
@@ -401,6 +407,51 @@ pub trait ProjectRoleManager: Send + Sync {
     async fn delete_project_role(&self, project_id: i32, role_id: i32) -> Result<()>;
 }
 
+/// Менеджер Workflow (DAG)
+#[async_trait]
+pub trait WorkflowManager: Send + Sync {
+    async fn get_workflows(&self, project_id: i32) -> Result<Vec<Workflow>>;
+    async fn get_workflow(&self, id: i32, project_id: i32) -> Result<Workflow>;
+    async fn create_workflow(&self, project_id: i32, payload: WorkflowCreate) -> Result<Workflow>;
+    async fn update_workflow(&self, id: i32, project_id: i32, payload: WorkflowUpdate) -> Result<Workflow>;
+    async fn delete_workflow(&self, id: i32, project_id: i32) -> Result<()>;
+    async fn get_workflow_nodes(&self, workflow_id: i32) -> Result<Vec<WorkflowNode>>;
+    async fn create_workflow_node(&self, workflow_id: i32, payload: WorkflowNodeCreate) -> Result<WorkflowNode>;
+    async fn update_workflow_node(&self, id: i32, workflow_id: i32, payload: WorkflowNodeUpdate) -> Result<WorkflowNode>;
+    async fn delete_workflow_node(&self, id: i32, workflow_id: i32) -> Result<()>;
+    async fn get_workflow_edges(&self, workflow_id: i32) -> Result<Vec<WorkflowEdge>>;
+    async fn create_workflow_edge(&self, workflow_id: i32, payload: WorkflowEdgeCreate) -> Result<WorkflowEdge>;
+    async fn delete_workflow_edge(&self, id: i32, workflow_id: i32) -> Result<()>;
+    async fn get_workflow_runs(&self, workflow_id: i32, project_id: i32) -> Result<Vec<WorkflowRun>>;
+    async fn create_workflow_run(&self, workflow_id: i32, project_id: i32) -> Result<WorkflowRun>;
+    async fn update_workflow_run_status(&self, id: i32, status: &str, message: Option<String>) -> Result<()>;
+}
+
+/// Менеджер политик уведомлений
+#[async_trait]
+pub trait NotificationPolicyManager: Send + Sync {
+    async fn get_notification_policies(&self, project_id: i32) -> Result<Vec<NotificationPolicy>>;
+    async fn get_notification_policy(&self, id: i32, project_id: i32) -> Result<NotificationPolicy>;
+    async fn create_notification_policy(&self, project_id: i32, payload: NotificationPolicyCreate) -> Result<NotificationPolicy>;
+    async fn update_notification_policy(&self, id: i32, project_id: i32, payload: NotificationPolicyUpdate) -> Result<NotificationPolicy>;
+    async fn delete_notification_policy(&self, id: i32, project_id: i32) -> Result<()>;
+    async fn get_matching_policies(&self, project_id: i32, trigger: &str, template_id: Option<i32>) -> Result<Vec<NotificationPolicy>>;
+}
+
+/// Менеджер пользовательских типов учётных данных
+#[async_trait]
+pub trait CredentialTypeManager: Send + Sync {
+    async fn get_credential_types(&self) -> Result<Vec<CredentialType>>;
+    async fn get_credential_type(&self, id: i32) -> Result<CredentialType>;
+    async fn create_credential_type(&self, payload: CredentialTypeCreate) -> Result<CredentialType>;
+    async fn update_credential_type(&self, id: i32, payload: CredentialTypeUpdate) -> Result<CredentialType>;
+    async fn delete_credential_type(&self, id: i32) -> Result<()>;
+    async fn get_credential_instances(&self, project_id: i32) -> Result<Vec<CredentialInstance>>;
+    async fn get_credential_instance(&self, id: i32, project_id: i32) -> Result<CredentialInstance>;
+    async fn create_credential_instance(&self, project_id: i32, payload: CredentialInstanceCreate) -> Result<CredentialInstance>;
+    async fn delete_credential_instance(&self, id: i32, project_id: i32) -> Result<()>;
+}
+
 /// Менеджер Playbook
 pub trait Store:
     ConnectionManager
@@ -432,5 +483,52 @@ pub trait Store:
     + IntegrationMatcherManager
     + IntegrationExtractValueManager
     + ProjectRoleManager
+    + WorkflowManager
+    + NotificationPolicyManager
+    + CredentialTypeManager
+    + DriftManager
+    + LdapGroupMappingManager
+    + SnapshotManager
+    + CostEstimateManager
 {
+}
+
+/// Менеджер Drift Detection (GitOps)
+#[async_trait]
+pub trait DriftManager: Send + Sync {
+    async fn get_drift_configs(&self, project_id: i32) -> Result<Vec<DriftConfig>>;
+    async fn get_drift_config(&self, id: i32, project_id: i32) -> Result<DriftConfig>;
+    async fn create_drift_config(&self, project_id: i32, payload: DriftConfigCreate) -> Result<DriftConfig>;
+    async fn update_drift_config_enabled(&self, id: i32, project_id: i32, enabled: bool) -> Result<()>;
+    async fn delete_drift_config(&self, id: i32, project_id: i32) -> Result<()>;
+    async fn get_drift_results(&self, drift_config_id: i32, limit: i64) -> Result<Vec<DriftResult>>;
+    async fn create_drift_result(&self, project_id: i32, drift_config_id: i32, template_id: i32, status: &str, summary: Option<String>, task_id: Option<i32>) -> Result<DriftResult>;
+    async fn get_latest_drift_results(&self, project_id: i32) -> Result<Vec<DriftResult>>;
+}
+
+/// Менеджер LDAP Group → Team маппингов
+#[async_trait]
+pub trait LdapGroupMappingManager: Send + Sync {
+    async fn get_ldap_group_mappings(&self) -> Result<Vec<LdapGroupMapping>>;
+    async fn create_ldap_group_mapping(&self, payload: LdapGroupMappingCreate) -> Result<LdapGroupMapping>;
+    async fn delete_ldap_group_mapping(&self, id: i32) -> Result<()>;
+    async fn get_mappings_for_groups(&self, group_dns: &[String]) -> Result<Vec<LdapGroupMapping>>;
+}
+
+/// Менеджер снапшотов задач (для Rollback)
+#[async_trait]
+pub trait SnapshotManager: Send + Sync {
+    async fn get_snapshots(&self, project_id: i32, template_id: Option<i32>, limit: i64) -> Result<Vec<TaskSnapshot>>;
+    async fn get_snapshot(&self, id: i32, project_id: i32) -> Result<TaskSnapshot>;
+    async fn create_snapshot(&self, project_id: i32, payload: TaskSnapshotCreate) -> Result<TaskSnapshot>;
+    async fn delete_snapshot(&self, id: i32, project_id: i32) -> Result<()>;
+}
+
+/// Менеджер оценок стоимости Terraform (Infracost)
+#[async_trait]
+pub trait CostEstimateManager: Send + Sync {
+    async fn get_cost_estimates(&self, project_id: i32, limit: i64) -> Result<Vec<CostEstimate>>;
+    async fn get_cost_estimate_for_task(&self, project_id: i32, task_id: i32) -> Result<Option<CostEstimate>>;
+    async fn create_cost_estimate(&self, payload: CostEstimateCreate) -> Result<CostEstimate>;
+    async fn get_cost_summaries(&self, project_id: i32) -> Result<Vec<CostSummary>>;
 }

@@ -43,11 +43,24 @@
             overflow-y: auto;
         }
         .log-line { margin-bottom: 3px; white-space: pre-wrap; word-break: break-all; }
-        .log-info    { color: #d4d4d4; }
-        .log-success { color: #4ec9b0; }
-        .log-warning { color: #ce9178; }
-        .log-error   { color: #f48771; }
-        .log-debug   { color: #808080; }
+        .log-info      { color: #d4d4d4; }
+        .log-success   { color: #4ec9b0; }
+        .log-changed   { color: #dcdcaa; font-weight: 600; }  /* ansible changed */
+        .log-ok        { color: #6a9955; }                    /* ansible ok */
+        .log-skipped   { color: #808080; }                    /* ansible skipped */
+        .log-warning   { color: #ce9178; }
+        .log-error     { color: #f48771; }
+        .log-fatal     { color: #f44747; font-weight: 700; background: rgba(244,71,71,.08); }
+        .log-recap     { color: #569cd6; font-weight: 700; border-top: 1px solid #333; margin-top: 4px; padding-top: 4px; }
+        .log-task-hdr  { color: #9cdcfe; font-weight: 600; }  /* TASK [xxx] */
+        .log-play-hdr  { color: #c586c0; font-weight: 700; }  /* PLAY [xxx] */
+        .log-tf-plan   { color: #dcdcaa; }                    /* terraform plan lines */
+        .log-tf-add    { color: #4ec9b0; }                    /* + resource */
+        .log-tf-remove { color: #f48771; }                    /* - resource */
+        .log-tf-change { color: #ce9178; }                    /* ~ resource */
+        .log-diff-add  { color: #73c991; }                    /* diff +line */
+        .log-diff-del  { color: #f48771; }                    /* diff -line */
+        .log-debug     { color: #808080; }
 
         .progress-bar { height: 4px; background: #e0e0e0; border-radius: 2px; overflow: hidden; margin-bottom: 8px; }
         .progress-bar-fill {
@@ -125,6 +138,8 @@
                     <button class="btn btn-sm" id="modal-reject-btn" style="display:none; background:#c53030; color:#fff;" onclick="rejectCurrentTask()"><i class="fa-solid fa-xmark"></i> Отклонить</button>
                     <button class="btn btn-sm" id="modal-stop-btn" style="display:none; color:#c53030;" onclick="stopCurrentTask()"><i class="fa-solid fa-stop"></i> Остановить</button>
                     <button class="btn btn-sm" id="modal-rerun-btn" style="display:none;" onclick="rerunCurrentTask()" title="Повторить запуск"><i class="fa-solid fa-rotate-right"></i> Повторить</button>
+                    <button class="btn btn-sm" id="modal-snapshot-btn" style="display:none; background:#e8f5e9; color:#276749;" onclick="saveCurrentSnapshot()" title="Сохранить снапшот для Rollback"><i class="fa-solid fa-camera"></i> Снапшот</button>
+                    <button class="btn btn-sm" id="modal-ai-btn" style="display:none; background:#f0f4ff; color:#3730a3;" onclick="analyzeFailureWithAI()" title="Анализ ошибки с помощью AI"><i class="fa-solid fa-wand-magic-sparkles"></i> AI анализ</button>
                     <button class="btn btn-sm" onclick="downloadCurrentLog()"><i class="fa-solid fa-download"></i> Лог</button>
                     <button class="btn btn-sm" onclick="closeTaskDetailModal()">✕</button>
                 </div>
@@ -134,6 +149,25 @@
                     <div class="progress-bar"><div class="progress-bar-fill"></div></div>
                 </div>
                 <div id="modal-stages" style="display:none;"></div>
+                <!-- Terraform Plan Preview banner (shown only for dry_run tasks) -->
+                <div id="tf-plan-banner-meta" style="display:none; padding:10px 14px; background:#e8f5e9; border:1px solid #a5d6a7; border-radius:6px; margin-bottom:12px; font-size:13px;">
+                    <i class="fa-solid fa-magnifying-glass" style="color:#388e3c;"></i>
+                    <strong style="color:#388e3c;">Terraform Plan Preview</strong> — это предпросмотр изменений, реальные ресурсы не изменялись.
+                    Зелёный (+) = создать, Красный (−) = удалить, Жёлтый (~) = изменить.
+                </div>
+                <!-- Cost Estimate banner (shown when infracost data is available) -->
+                <div id="cost-estimate-banner" style="display:none; padding:12px 16px; background:#fff8e1; border:1px solid #ffe082; border-radius:6px; margin-bottom:12px;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <i class="fa-solid fa-dollar-sign" style="color:#f59e0b; font-size:18px;"></i>
+                        <div style="flex:1;">
+                            <strong style="color:#92400e;">Оценка стоимости Terraform</strong>
+                            <div id="cost-estimate-content" style="font-size:13px; color:#78350f; margin-top:2px;"></div>
+                        </div>
+                        <a id="cost-estimate-link" href="#" class="btn btn-sm" style="background:#f59e0b; color:#fff; border-color:#d97706;">
+                            <i class="fa-solid fa-chart-line"></i> Детали
+                        </a>
+                    </div>
+                </div>
                 <div class="task-meta-grid" id="modal-meta"></div>
                 <div>
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
@@ -344,6 +378,39 @@
             if (task.commit_hash) extra.push(`<div class="task-meta-item"><div class="task-meta-label">Коммит</div><div class="task-meta-value"><code style="font-size:12px;">${escapeHtml(task.commit_hash.substring(0,8))}</code></div></div>`);
             if (task.version) extra.push(`<div class="task-meta-item"><div class="task-meta-label">Версия</div><div class="task-meta-value">${escapeHtml(task.version)}</div></div>`);
 
+            // Show Terraform Plan Preview banner
+            const dryRunBannerEl = $('#tf-plan-banner-meta');
+            if (dryRunBannerEl) {
+                if (task.dry_run) {
+                    dryRunBannerEl.style.display = '';
+                } else {
+                    dryRunBannerEl.style.display = 'none';
+                }
+            }
+
+            // Load cost estimate for this task (non-blocking)
+            if (task.status === 'success' || task.status === 'error') {
+                api.request('/project/' + projectId + '/tasks/' + task.id + '/cost')
+                    .then(cost => {
+                        const banner = $('#cost-estimate-banner');
+                        const content = $('#cost-estimate-content');
+                        const link = $('#cost-estimate-link');
+                        if (!banner || !cost) return;
+                        const costStr = cost.monthly_cost != null ? `$${parseFloat(cost.monthly_cost).toFixed(2)}/месяц` : 'Расчёт выполнен';
+                        const diffStr = cost.monthly_cost_diff != null
+                            ? (cost.monthly_cost_diff > 0
+                                ? ` <span style="color:#dc2626;">↑ +$${cost.monthly_cost_diff.toFixed(2)}</span>`
+                                : cost.monthly_cost_diff < 0
+                                    ? ` <span style="color:#16a34a;">↓ $${cost.monthly_cost_diff.toFixed(2)}</span>`
+                                    : '')
+                            : '';
+                        content.innerHTML = `Оценка: <strong>${costStr}</strong>${diffStr} · ${cost.resources_added}+ ${cost.resources_changed}~ ${cost.resources_deleted}- ресурсов`;
+                        if (link) link.href = 'costs.html?id=' + projectId;
+                        banner.style.display = '';
+                    })
+                    .catch(() => { /* no cost estimate, hide banner */ });
+            }
+
             $('#modal-meta').innerHTML = `
                 <div class="task-meta-item">
                     <div class="task-meta-label">Шаблон</div>
@@ -399,6 +466,13 @@
             const badge = $('#modal-status-badge');
             if (!badge) return;
             const isFailed = badge.classList.contains('status-error') || badge.classList.contains('status-failed');
+            const isSuccess = badge.classList.contains('status-success');
+            // Show AI analyze button for failed tasks
+            const aiBtn = document.getElementById('modal-ai-btn');
+            if (aiBtn) aiBtn.style.display = isFailed ? 'inline-block' : 'none';
+            // Show Snapshot button for successful tasks
+            const snapBtn = document.getElementById('modal-snapshot-btn');
+            if (snapBtn) snapBtn.style.display = isSuccess ? 'inline-block' : 'none';
             if (!isFailed) return;
 
             // Find last error/fatal line in output
@@ -666,6 +740,65 @@
             });
         }
 
+        function saveCurrentSnapshot() {
+            if (!currentTaskId) return;
+            const label = prompt('Метка снапшота (необязательно, например: "v2.3.1 release"):') ?? '';
+            const snapBtn = document.getElementById('modal-snapshot-btn');
+            if (snapBtn) { snapBtn.disabled = true; snapBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; }
+            api.post('/project/' + projectId + '/tasks/' + currentTaskId + '/snapshot', { label: label || null })
+                .then(s => {
+                    if (snapBtn) { snapBtn.disabled = false; snapBtn.innerHTML = '<i class="fa-solid fa-camera"></i> Снапшот'; }
+                    ui.showAlert(`✅ Снапшот #${s.id} сохранён! <a href="snapshots.html?id=${projectId}" style="color:inherit;text-decoration:underline;">Просмотр</a>`, 'success');
+                })
+                .catch(err => {
+                    if (snapBtn) { snapBtn.disabled = false; snapBtn.innerHTML = '<i class="fa-solid fa-camera"></i> Снапшот'; }
+                    ui.showAlert('Ошибка создания снапшота: ' + err.message, 'danger');
+                });
+        }
+
+        function analyzeFailureWithAI() {
+            if (!currentTaskId) return;
+            const aiBtn = document.getElementById('modal-ai-btn');
+            if (aiBtn) { aiBtn.disabled = true; aiBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Анализ...'; }
+
+            // Remove old result if any
+            const oldResult = document.getElementById('ai-analysis-result');
+            if (oldResult) oldResult.remove();
+
+            api.getTaskOutput(projectId, currentTaskId).then(output => {
+                const log = output.map(item => typeof item === 'string' ? item : (item.output || '')).join('\n');
+                return api.post('/ai/analyze', {
+                    log,
+                    context: 'Ansible/Terraform task #' + currentTaskId,
+                    lang: 'ru'
+                });
+            }).then(result => {
+                if (aiBtn) { aiBtn.disabled = false; aiBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> AI анализ'; }
+                const div = document.createElement('div');
+                div.id = 'ai-analysis-result';
+                div.style.cssText = 'background:linear-gradient(135deg,#f0f4ff,#e8f5e9);border:1px solid #a5b4fc;border-radius:8px;padding:16px;margin-bottom:12px;font-size:13px;';
+                const suggestionsHtml = result.suggestions && result.suggestions.length
+                    ? '<ul style="margin:8px 0 0 16px; padding:0;">' + result.suggestions.map(s => `<li style="margin-bottom:4px;">${escapeHtml(s)}</li>`).join('') + '</ul>'
+                    : '';
+                div.innerHTML = `
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+                        <span style="font-size:18px;">🤖</span>
+                        <strong>AI Анализ ошибки</strong>
+                        <span style="font-size:11px; color:#666; margin-left:auto;">${escapeHtml(result.provider)} / ${escapeHtml(result.model)}</span>
+                        <button style="background:none;border:none;cursor:pointer;font-size:16px;" onclick="this.closest('#ai-analysis-result').remove()">✕</button>
+                    </div>
+                    <div style="white-space:pre-wrap; line-height:1.5; color:#1e293b;">${escapeHtml(result.analysis)}</div>
+                    ${suggestionsHtml}
+                `;
+                const logSection = $('#modal-log')?.parentElement;
+                if (logSection) logSection.insertBefore(div, $('#modal-log'));
+                else document.getElementById('modal-meta')?.after(div);
+            }).catch(err => {
+                if (aiBtn) { aiBtn.disabled = false; aiBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> AI анализ'; }
+                ui.showAlert('AI ошибка: ' + err.message + '. Настройте AI в разделе MCP/AI.', 'warning');
+            });
+        }
+
         function downloadCurrentLog() {
             if (!currentTaskId) return;
             api.getTaskOutput(projectId, currentTaskId).then(output => {
@@ -685,10 +818,45 @@
         }
 
         function getLogClass(line) {
-            const lower = (line || '').toLowerCase();
-            if (lower.includes('ok=') || lower.includes('changed=') || lower.includes('successfully')) return 'log-success';
-            if (lower.includes('failed=') || lower.includes('fatal') || lower.includes('error')) return 'log-error';
+            const s = line || '';
+            const t = s.trim();
+
+            // Ansible: PLAY RECAP summary line
+            if (/^PLAY RECAP\s*[\*]+/.test(t)) return 'log-recap';
+            // Ansible: PLAY [name] header
+            if (/^PLAY\s*\[/.test(t)) return 'log-play-hdr';
+            // Ansible: TASK [name] header
+            if (/^TASK\s*\[/.test(t)) return 'log-task-hdr';
+            // Ansible: fatal/unreachable
+            if (/^fatal\s*:/.test(t) || /UNREACHABLE/.test(t)) return 'log-fatal';
+            // Ansible: failed result
+            if (/^failed\s*:/.test(t)) return 'log-error';
+            // Ansible: changed result
+            if (/^changed\s*:/.test(t)) return 'log-changed';
+            // Ansible: ok result
+            if (/^ok\s*:/.test(t)) return 'log-ok';
+            // Ansible: skipping
+            if (/^skipping\s*:/.test(t) || /^skipped\s*:/.test(t)) return 'log-skipped';
+            // Ansible: recap stats line (host: ok=N changed=M unreachable=X failed=Y)
+            if (/ok=\d+/.test(t) && /changed=\d+/.test(t)) return 'log-recap';
+
+            // Terraform: plan lines
+            if (/^\s*#\s/.test(t) && /(will be|must be|has been)/.test(t)) return 'log-tf-plan';
+            if (/^\s*\+/.test(t)) return 'log-tf-add';
+            if (/^\s*-\s/.test(t) && !/^\s*---/.test(t)) return 'log-tf-remove';
+            if (/^\s*~\s/.test(t)) return 'log-tf-change';
+
+            // Diff output
+            if (/^\+\+\+/.test(t) || t.startsWith('+++')) return 'log-diff-add';
+            if (/^---/.test(t)) return 'log-diff-del';
+            if (t.startsWith('+') && !t.startsWith('+++')) return 'log-diff-add';
+            if (t.startsWith('-') && !t.startsWith('---')) return 'log-diff-del';
+
+            // Generic
+            const lower = s.toLowerCase();
+            if (lower.includes('error') || lower.includes('failed')) return 'log-error';
             if (lower.includes('warning') || lower.includes('warn')) return 'log-warning';
+            if (lower.includes('successfully') || lower.includes('success')) return 'log-success';
             if (lower.includes('debug')) return 'log-debug';
             return 'log-info';
         }

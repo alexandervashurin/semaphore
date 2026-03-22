@@ -5,114 +5,148 @@
 use crate::db::sql::types::SqlDb;
 use crate::error::{Error, Result};
 use crate::models::AccessKey;
+use sqlx::Row;
 
 impl SqlDb {
+    fn pg_pool_access_key(&self) -> Result<&sqlx::PgPool> {
+        self.get_postgres_pool()
+            .ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))
+    }
+
     /// Получает ключи доступа проекта
     pub async fn get_access_keys(&self, project_id: i32) -> Result<Vec<AccessKey>> {
-        match self.get_dialect() {
-            crate::db::sql::types::SqlDialect::SQLite => {
-                let keys = sqlx::query_as::<_, AccessKey>(
-                    "SELECT * FROM access_key WHERE project_id = ? ORDER BY name"
-                )
-                .bind(project_id)
-                .fetch_all(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-                .await
-                .map_err(Error::Database)?;
+        let rows = sqlx::query(
+            "SELECT * FROM access_key WHERE project_id = $1 ORDER BY name"
+        )
+        .bind(project_id)
+        .fetch_all(self.pg_pool_access_key()?)
+        .await
+        .map_err(Error::Database)?;
 
-                Ok(keys)
-            }
-            _ => Err(Error::Other("Only SQLite supported for now".to_string()))
-        }
+        Ok(rows.into_iter().map(|row| AccessKey {
+            id: row.get("id"),
+            project_id: row.get("project_id"),
+            name: row.get("name"),
+            r#type: row.get("type"),
+            user_id: row.get("user_id"),
+            login_password_login: row.get("login_password_login"),
+            login_password_password: row.get("login_password_password"),
+            ssh_key: row.get("ssh_key"),
+            ssh_passphrase: row.get("ssh_passphrase"),
+            access_key_access_key: row.get("access_key_access_key"),
+            access_key_secret_key: row.get("access_key_secret_key"),
+            secret_storage_id: row.get("secret_storage_id"),
+            source_storage_type: row.try_get("source_storage_type").ok().flatten(),
+            source_storage_id: row.try_get("source_storage_id").ok().flatten(),
+            source_key: row.try_get("source_key").ok().flatten(),
+            owner: row.get("owner"),
+            environment_id: row.get("environment_id"),
+            created: row.get("created"),
+        }).collect())
     }
 
     /// Получает ключ доступа по ID
     pub async fn get_access_key(&self, project_id: i32, key_id: i32) -> Result<AccessKey> {
-        match self.get_dialect() {
-            crate::db::sql::types::SqlDialect::SQLite => {
-                let key = sqlx::query_as::<_, AccessKey>(
-                    "SELECT * FROM access_key WHERE id = ? AND project_id = ?"
-                )
-                .bind(key_id)
-                .bind(project_id)
-                .fetch_optional(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-                .await
-                .map_err(Error::Database)?;
+        let row = sqlx::query(
+            "SELECT * FROM access_key WHERE id = $1 AND project_id = $2"
+        )
+        .bind(key_id)
+        .bind(project_id)
+        .fetch_one(self.pg_pool_access_key()?)
+        .await
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => Error::NotFound("Ключ доступа не найден".to_string()),
+            _ => Error::Database(e),
+        })?;
 
-                key.ok_or(Error::NotFound("Access key not found".to_string()))
-            }
-            _ => Err(Error::Other("Only SQLite supported for now".to_string()))
-        }
+        Ok(AccessKey {
+            id: row.get("id"),
+            project_id: row.get("project_id"),
+            name: row.get("name"),
+            r#type: row.get("type"),
+            user_id: row.get("user_id"),
+            login_password_login: row.get("login_password_login"),
+            login_password_password: row.get("login_password_password"),
+            ssh_key: row.get("ssh_key"),
+            ssh_passphrase: row.get("ssh_passphrase"),
+            access_key_access_key: row.get("access_key_access_key"),
+            access_key_secret_key: row.get("access_key_secret_key"),
+            secret_storage_id: row.get("secret_storage_id"),
+            source_storage_type: row.try_get("source_storage_type").ok().flatten(),
+            source_storage_id: row.try_get("source_storage_id").ok().flatten(),
+            source_key: row.try_get("source_key").ok().flatten(),
+            owner: row.get("owner"),
+            environment_id: row.get("environment_id"),
+            created: row.get("created"),
+        })
     }
 
     /// Создаёт ключ доступа
     pub async fn create_access_key(&self, mut key: AccessKey) -> Result<AccessKey> {
-        match self.get_dialect() {
-            crate::db::sql::types::SqlDialect::SQLite => {
-                let result = sqlx::query(
-                    "INSERT INTO access_key (project_id, name, type, user_id, login_password_login, login_password_password, ssh_key, access_key_access_key, environment_id)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-                )
-                .bind(key.project_id)
-                .bind(&key.name)
-                .bind(&key.r#type)
-                .bind(key.user_id)
-                .bind(&key.login_password_login)
-                .bind(&key.ssh_key)
-                .bind(&key.access_key_access_key)
-                .bind(key.environment_id)
-                .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-                .await
-                .map_err(Error::Database)?;
+        let id: i32 = sqlx::query_scalar(
+            "INSERT INTO access_key (project_id, name, type, user_id, login_password_login, \
+             login_password_password, ssh_key, ssh_passphrase, access_key_access_key, \
+             access_key_secret_key, secret_storage_id, owner, environment_id) \
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id"
+        )
+        .bind(key.project_id)
+        .bind(&key.name)
+        .bind(&key.r#type)
+        .bind(key.user_id)
+        .bind(&key.login_password_login)
+        .bind(&key.login_password_password)
+        .bind(&key.ssh_key)
+        .bind(&key.ssh_passphrase)
+        .bind(&key.access_key_access_key)
+        .bind(&key.access_key_secret_key)
+        .bind(key.secret_storage_id)
+        .bind(key.owner.as_ref().map(|o| o.to_string()))
+        .bind(key.environment_id)
+        .fetch_one(self.pg_pool_access_key()?)
+        .await
+        .map_err(Error::Database)?;
 
-                key.id = result.last_insert_rowid() as i32;
-                Ok(key)
-            }
-            _ => Err(Error::Other("Only SQLite supported for now".to_string()))
-        }
+        key.id = id;
+        Ok(key)
     }
 
     /// Обновляет ключ доступа
     pub async fn update_access_key(&self, key: AccessKey) -> Result<()> {
-        match self.get_dialect() {
-            crate::db::sql::types::SqlDialect::SQLite => {
-                sqlx::query(
-                    "UPDATE access_key SET name = ?, type = ?, user_id = ?, login_password_login = ?, login_password_password = ?, ssh_key = ?, access_key_access_key = ?, environment_id = ?
-                     WHERE id = ? AND project_id = ?"
-                )
-                .bind(&key.name)
-                .bind(&key.r#type)
-                .bind(key.user_id)
-                .bind(&key.login_password_login)
-                .bind(&key.login_password_password)
-                .bind(&key.ssh_key)
-                .bind(&key.access_key_access_key)
-                .bind(key.environment_id)
-                .bind(key.id)
-                .bind(key.project_id.unwrap_or(0))
-                .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-                .await
-                .map_err(Error::Database)?;
-
-                Ok(())
-            }
-            _ => Err(Error::Other("Only SQLite supported for now".to_string()))
-        }
+        sqlx::query(
+            "UPDATE access_key SET name = $1, type = $2, user_id = $3, \
+             login_password_login = $4, login_password_password = $5, ssh_key = $6, \
+             ssh_passphrase = $7, access_key_access_key = $8, access_key_secret_key = $9, \
+             secret_storage_id = $10, owner = $11, environment_id = $12 \
+             WHERE id = $13 AND project_id = $14"
+        )
+        .bind(&key.name)
+        .bind(&key.r#type)
+        .bind(key.user_id)
+        .bind(&key.login_password_login)
+        .bind(&key.login_password_password)
+        .bind(&key.ssh_key)
+        .bind(&key.ssh_passphrase)
+        .bind(&key.access_key_access_key)
+        .bind(&key.access_key_secret_key)
+        .bind(key.secret_storage_id)
+        .bind(key.owner.as_ref().map(|o| o.to_string()))
+        .bind(key.environment_id)
+        .bind(key.id)
+        .bind(key.project_id)
+        .execute(self.pg_pool_access_key()?)
+        .await
+        .map_err(Error::Database)?;
+        Ok(())
     }
 
     /// Удаляет ключ доступа
     pub async fn delete_access_key(&self, project_id: i32, key_id: i32) -> Result<()> {
-        match self.get_dialect() {
-            crate::db::sql::types::SqlDialect::SQLite => {
-                sqlx::query("DELETE FROM access_key WHERE id = ? AND project_id = ?")
-                    .bind(key_id)
-                    .bind(project_id)
-                    .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-                    .await
-                    .map_err(Error::Database)?;
-
-                Ok(())
-            }
-            _ => Err(Error::Other("Only SQLite supported for now".to_string()))
-        }
+        sqlx::query("DELETE FROM access_key WHERE id = $1 AND project_id = $2")
+            .bind(key_id)
+            .bind(project_id)
+            .execute(self.pg_pool_access_key()?)
+            .await
+            .map_err(Error::Database)?;
+        Ok(())
     }
 }

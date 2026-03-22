@@ -2,7 +2,6 @@
 
 use crate::db::sql::SqlStore;
 use crate::db::store::*;
-use crate::db::sql::SqlDialect;
 use crate::error::{Error, Result};
 use crate::models::View;
 use async_trait::async_trait;
@@ -18,38 +17,14 @@ impl ViewManager for SqlStore {
     async fn set_view_positions(&self, project_id: i32, positions: Vec<(i32, i32)>) -> Result<()> {
         // positions: Vec<(view_id, position)>
         for (view_id, position) in positions {
-            match self.get_dialect() {
-                SqlDialect::SQLite => {
-                    let query = "UPDATE view SET position = ? WHERE id = ? AND project_id = ?";
-                    sqlx::query(query)
-                        .bind(position)
-                        .bind(view_id)
-                        .bind(project_id)
-                        .execute(self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?)
-                        .await
-                        .map_err(Error::Database)?;
-                }
-                SqlDialect::PostgreSQL => {
-                    let query = "UPDATE view SET position = $1 WHERE id = $2 AND project_id = $3";
-                    sqlx::query(query)
-                        .bind(position)
-                        .bind(view_id)
-                        .bind(project_id)
-                        .execute(self.get_postgres_pool().ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))?)
-                        .await
-                        .map_err(Error::Database)?;
-                }
-                SqlDialect::MySQL => {
-                    let query = "UPDATE `view` SET position = ? WHERE id = ? AND project_id = ?";
-                    sqlx::query(query)
-                        .bind(position)
-                        .bind(view_id)
-                        .bind(project_id)
-                        .execute(self.get_mysql_pool().ok_or_else(|| Error::Other("MySQL pool not found".to_string()))?)
-                        .await
-                        .map_err(Error::Database)?;
-                }
-            }
+            let query = "UPDATE view SET position = $1 WHERE id = $2 AND project_id = $3";
+                sqlx::query(query)
+                    .bind(position)
+                    .bind(view_id)
+                    .bind(project_id)
+                    .execute(self.get_postgres_pool()?)
+                    .await
+                    .map_err(Error::Database)?;
         }
         Ok(())
     }

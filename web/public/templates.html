@@ -370,10 +370,90 @@
         }
 
         function runTemplate(templateId, tplName, allowArgs) {
-            openNewTaskDialog(templateId, tplName || ('Шаблон #' + templateId), allowArgs);
+            // Check for survey vars first — if present, show survey dialog before run dialog
+            api.getTemplate(projectId, templateId).then(tpl => {
+                const sv = Array.isArray(tpl.survey_vars) ? tpl.survey_vars.filter(v => v.name) : [];
+                if (sv.length > 0) {
+                    openSurveyLaunchDialog(tpl, (extra_vars) => {
+                        openNewTaskDialog(templateId, tplName || tpl.name, allowArgs, extra_vars);
+                    });
+                } else {
+                    openNewTaskDialog(templateId, tplName || tpl.name, allowArgs, null);
+                }
+            }).catch(() => openNewTaskDialog(templateId, tplName || ('Шаблон #' + templateId), allowArgs, null));
         }
 
-        function openNewTaskDialog(templateId, tplName, allowArgs) {
+        function openSurveyLaunchDialog(tpl, onLaunch) {
+            const vars = (tpl.survey_vars || []).filter(v => v.name);
+            const existing = document.getElementById('survey-launch-dialog');
+            if (existing) existing.remove();
+
+            const fields = vars.map((v, i) => {
+                const req = v.required ? ' <span style="color:#c62828">*</span>' : '';
+                if (v.type === 'enum') {
+                    return `<div class="form-group">
+                        <label>${escapeHtml(v.title || v.name)}${req}</label>
+                        <select id="sv_${i}" class="form-control">
+                            ${(v.enum_values || []).map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('')}
+                        </select></div>`;
+                } else if (v.type === 'boolean') {
+                    return `<div class="form-group" style="display:flex;align-items:center;gap:10px;">
+                        <input type="checkbox" id="sv_${i}">
+                        <label for="sv_${i}" style="margin:0;">${escapeHtml(v.title || v.name)}</label></div>`;
+                } else {
+                    const t = v.type === 'secret' ? 'password' : v.type === 'integer' ? 'number' : 'text';
+                    return `<div class="form-group">
+                        <label>${escapeHtml(v.title || v.name)}${req}</label>
+                        <input type="${t}" id="sv_${i}" class="form-control" ${v.required ? 'required' : ''} placeholder="${escapeHtml(v.default || '')}">
+                        </div>`;
+                }
+            }).join('');
+
+            const modal = document.createElement('div');
+            modal.id = 'survey-launch-dialog';
+            modal.className = 'modal-overlay';
+            modal.innerHTML = `
+                <div class="modal" style="max-width:560px;">
+                    <div class="modal-header">
+                        <h2><i class="fa-solid fa-list-check"></i> ${escapeHtml(tpl.name)}</h2>
+                    </div>
+                    <p style="margin:0 0 16px;color:var(--text-secondary);font-size:13px;">Заполните переменные перед запуском:</p>
+                    <form id="survey-launch-form">
+                        <div style="max-height:60vh;overflow-y:auto;padding-right:4px;">${fields}</div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn" onclick="document.getElementById('survey-launch-dialog').remove()">Отмена</button>
+                            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-play"></i> Запустить</button>
+                        </div>
+                    </form>
+                </div>`;
+            document.body.appendChild(modal);
+            modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+            document.getElementById('survey-launch-form').addEventListener('submit', e => {
+                e.preventDefault();
+                const extra_vars = {};
+                let valid = true;
+                vars.forEach((v, i) => {
+                    const el = document.getElementById('sv_' + i);
+                    if (!el) return;
+                    const val = v.type === 'boolean' ? el.checked
+                              : v.type === 'integer' ? (el.value !== '' ? parseInt(el.value) : '')
+                              : el.value;
+                    if (v.required && (val === '' || val == null)) {
+                        el.style.borderColor = '#c62828';
+                        valid = false;
+                    } else {
+                        el.style.borderColor = '';
+                        extra_vars[v.name] = val;
+                    }
+                });
+                if (!valid) return;
+                modal.remove();
+                onLaunch(extra_vars);
+            });
+        }
+
+        function openNewTaskDialog(templateId, tplName, allowArgs, surveyExtraVars) {
             const existing = document.getElementById('new-task-dialog');
             if (existing) existing.remove();
 
@@ -455,6 +535,51 @@
                                     <option value="5" ${tp.debug_level === 5 ? 'selected' : ''}>Уровень 5</option>
                                 </select>
                             </div>` : ''}
+                            <div style="border-top:1px solid var(--border); margin:12px 0 8px; padding-top:12px;">
+                                <strong style="font-size:13px; color:var(--text-light);">Режим запуска</strong>
+                                ${(tpl.app === 'terraform' || tpl.app === 'tofu') ? `
+                                <div style="margin-top:10px;">
+                                    <div style="display:flex; gap:8px;">
+                                        <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; flex:1; padding:8px 12px; border:2px solid var(--border); border-radius:6px; background:var(--surface);" id="mode-apply-label">
+                                            <input type="radio" name="tf-mode" id="tf-mode-apply" value="apply" checked onchange="updateTfModeUI()">
+                                            <div>
+                                                <div style="font-weight:600;">▶ Apply</div>
+                                                <div style="font-size:11px; color:var(--text-light);">Применить изменения</div>
+                                            </div>
+                                        </label>
+                                        <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; flex:1; padding:8px 12px; border:2px solid var(--border); border-radius:6px; background:var(--surface);" id="mode-plan-label">
+                                            <input type="radio" name="tf-mode" id="tf-mode-plan" value="plan" onchange="updateTfModeUI()">
+                                            <div>
+                                                <div style="font-weight:600;">🔍 Plan Preview</div>
+                                                <div style="font-size:11px; color:var(--text-light);">Только план — без изменений</div>
+                                            </div>
+                                        </label>
+                                    </div>
+                                    <div id="tf-plan-banner" style="display:none; margin-top:8px; padding:8px 12px; background:#e8f5e9; border-radius:6px; border:1px solid #a5d6a7; font-size:12px;">
+                                        <i class="fa-solid fa-circle-info" style="color:#388e3c;"></i>
+                                        Terraform Plan — безопасный предпросмотр изменений. Задача выполнит <code>terraform plan</code> и покажет что изменится (зелёный = добавить, красный = удалить, жёлтый = изменить).
+                                    </div>
+                                </div>
+                                ` : `
+                                <div style="display:flex; gap:20px; margin-top:8px; flex-wrap:wrap;">
+                                    <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;">
+                                        <input type="checkbox" id="task-dry-run">
+                                        <span title="Запускает ansible-playbook --check — не вносит реальных изменений">
+                                            🔍 Dry Run (<code>--check</code>)
+                                        </span>
+                                    </label>
+                                    <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;">
+                                        <input type="checkbox" id="task-diff-mode">
+                                        <span title="Запускает ansible-playbook --diff — показывает diff изменений в файлах">
+                                            📄 Diff Mode (<code>--diff</code>)
+                                        </span>
+                                    </label>
+                                </div>
+                                <div style="font-size:11px; color:var(--text-light); margin-top:4px;">
+                                    Dry Run — пробный прогон без реальных изменений. Diff — показывает изменения в файлах.
+                                </div>
+                                `}
+                            </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn" onclick="document.getElementById('new-task-dialog').remove()">Отмена</button>
                                 <button type="submit" class="btn btn-primary"><i class="fa-solid fa-play"></i> Запустить</button>
@@ -465,11 +590,33 @@
                 document.body.appendChild(modal);
                 modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 
+                // Terraform Plan mode UI toggle
+                window.updateTfModeUI = function() {
+                    const planMode = document.getElementById('tf-mode-plan')?.checked;
+                    const planBanner = document.getElementById('tf-plan-banner');
+                    const planLabel = document.getElementById('mode-plan-label');
+                    const applyLabel = document.getElementById('mode-apply-label');
+                    if (planBanner) planBanner.style.display = planMode ? '' : 'none';
+                    if (planLabel) planLabel.style.borderColor = planMode ? '#388e3c' : 'var(--border)';
+                    if (applyLabel) applyLabel.style.borderColor = !planMode ? '#1976d2' : 'var(--border)';
+                };
+                // Initialize on mount
+                setTimeout(() => { if (typeof updateTfModeUI === 'function') updateTfModeUI(); }, 50);
+
                 document.getElementById('new-task-form').addEventListener('submit', e => {
                     e.preventDefault();
                     const message = document.getElementById('task-message').value.trim() || null;
                     const branch = showBranch ? (document.getElementById('task-branch').value.trim() || null) : null;
-                    const args = showArgs ? (document.getElementById('task-args').value.trim() || null) : null;
+                    const isTerraform = (tpl.app === 'terraform' || tpl.app === 'tofu');
+                    const tfPlanMode = isTerraform && document.getElementById('tf-mode-plan')?.checked;
+                    const dryRun = !isTerraform && document.getElementById('task-dry-run')?.checked;
+                    const diffMode = !isTerraform && document.getElementById('task-diff-mode')?.checked;
+                    let args = showArgs ? (document.getElementById('task-args').value.trim() || '') : (tpl.arguments || '');
+                    // Append --check / --diff flags for Ansible
+                    if (dryRun && !args.includes('--check')) args = (args + ' --check').trim();
+                    if (diffMode && !args.includes('--diff')) args = (args + ' --diff').trim();
+                    // For Terraform plan mode: set plan subcommand via dry_run flag
+                    const effectiveDryRun = dryRun || tfPlanMode;
                     const invSelect = showInventory ? document.getElementById('task-inventory') : null;
                     const inventory_id = invSelect && invSelect.value ? parseInt(invSelect.value) : null;
                     modal.remove();
@@ -477,6 +624,7 @@
                     if (branch) params.git_branch = branch;
                     if (args) params.arguments = args;
                     if (inventory_id) params.inventory_id = inventory_id;
+                    if (effectiveDryRun) params.dry_run = true;
                     const taskParams = {};
                     if (showLimit) {
                         const v = document.getElementById('task-limit').value.trim();
@@ -496,6 +644,10 @@
                     }
                     if (Object.keys(taskParams).length > 0) {
                         params.task_params = taskParams;
+                    }
+                    // Merge survey extra_vars (passed from survey dialog)
+                    if (surveyExtraVars && Object.keys(surveyExtraVars).length > 0) {
+                        params.environment = JSON.stringify(surveyExtraVars);
                     }
                     launchTask(templateId, tplName, params);
                 });
@@ -876,6 +1028,15 @@
                                 <div class="form-hint">Используется для Terraform/OpenTofu; оставьте пустым, если используется стандартный backend.</div>
                             </div>
 
+                            <div style="border-top:1px solid var(--border); margin:20px 0 8px; padding-top:12px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                                    <strong style="font-size:13px;"><i class="fa-solid fa-list-check" style="color:#005057;margin-right:6px;"></i>Survey — Форма перед запуском</strong>
+                                    <button type="button" class="btn btn-sm" onclick="addSurveyVar()" style="font-size:12px;">+ Добавить вопрос</button>
+                                </div>
+                                <div id="survey-vars-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+                                <p id="survey-empty" style="font-size:12px;color:var(--text-light);margin:4px 0 0;">Нет вопросов. Нажмите «+ Добавить вопрос» чтобы создать форму перед запуском.</p>
+                            </div>
+
                             <div class="modal-footer" style="margin-top:20px;">
                                 <button type="button" class="btn" onclick="closeTemplateModal()">Отмена</button>
                                 <button type="submit" class="btn btn-primary">${isEdit ? 'Сохранить' : 'Создать'}</button>
@@ -888,6 +1049,7 @@
                 // Initialize dynamic sections on modal open
                 onAppChange();   // show/hide terraform section
                 onTypeChange();  // show/hide build-template-row + populate build templates for deploy
+                initSurveyVars(tpl?.survey_vars || []);  // populate survey builder
 
                 // Load branch suggestions if repository is already selected
                 if (tpl?.repository_id) {
@@ -1022,6 +1184,9 @@
                 backend_filename: document.getElementById('backend_filename') ? (document.getElementById('backend_filename').value.trim() || null) : null,
             };
 
+            // Survey vars
+            data.survey_vars = collectSurveyVars();
+
             // Inline schedule (B-FE-51) — create schedule after template save
             const createSchedule = document.getElementById('create_schedule') && document.getElementById('create_schedule').checked;
             const scheduleCron = createSchedule && document.getElementById('schedule_cron') ? document.getElementById('schedule_cron').value.trim() : null;
@@ -1114,6 +1279,81 @@
             if (!row) return;
             row.style.display = row.style.display === 'none' || row.style.display === '' ? 'table-row' : 'none';
         }
+
+        // ── Survey Builder ─────────────────────────────────────────────────────
+        let _surveyVars = [];
+
+        function initSurveyVars(vars) {
+            _surveyVars = Array.isArray(vars) ? JSON.parse(JSON.stringify(vars)) : [];
+            renderSurveyVarsList();
+        }
+
+        function renderSurveyVarsList() {
+            const list = document.getElementById('survey-vars-list');
+            const empty = document.getElementById('survey-empty');
+            if (!list) return;
+            const active = _surveyVars.filter(v => !v._del);
+            if (active.length === 0) {
+                list.innerHTML = '';
+                if (empty) empty.style.display = '';
+                return;
+            }
+            if (empty) empty.style.display = 'none';
+            list.innerHTML = active.map((v, i) => `
+                <div style="display:grid;grid-template-columns:1fr 1fr auto auto auto;gap:8px;align-items:center;
+                            background:var(--bg,#f9f9f9);padding:10px 12px;border-radius:8px;border:1px solid var(--border,#e0e0e0);">
+                    <input type="text" class="form-control" style="font-size:13px;" placeholder="variable_name"
+                        value="${escapeHtml(v.name || '')}" onchange="updateSurveyVar(${i},'name',this.value)">
+                    <input type="text" class="form-control" style="font-size:13px;" placeholder="Метка для пользователя"
+                        value="${escapeHtml(v.title || '')}" onchange="updateSurveyVar(${i},'title',this.value)">
+                    <select class="form-control" style="font-size:13px;width:110px;"
+                        onchange="updateSurveyVar(${i},'type',this.value);renderSurveyVarsList()">
+                        <option value="string" ${(!v.type||v.type==='string')?'selected':''}>Текст</option>
+                        <option value="integer" ${v.type==='integer'?'selected':''}>Число</option>
+                        <option value="enum" ${v.type==='enum'?'selected':''}>Список</option>
+                        <option value="secret" ${v.type==='secret'?'selected':''}>Пароль</option>
+                        <option value="boolean" ${v.type==='boolean'?'selected':''}>Да/Нет</option>
+                    </select>
+                    ${v.type === 'enum' ? `<input type="text" class="form-control" style="font-size:13px;width:140px;" placeholder="opt1,opt2,opt3"
+                        value="${escapeHtml((v.enum_values||[]).join(','))}"
+                        onchange="updateSurveyVar(${i},'enum_values',this.value.split(',').map(s=>s.trim()).filter(Boolean))">` : '<div></div>'}
+                    <label style="display:flex;align-items:center;gap:4px;font-size:12px;white-space:nowrap;cursor:pointer;">
+                        <input type="checkbox" ${v.required?'checked':''} onchange="updateSurveyVar(${i},'required',this.checked)"> Обяз.
+                    </label>
+                    <button type="button" onclick="removeSurveyVar(${i})"
+                        style="background:none;border:none;cursor:pointer;color:#c62828;font-size:18px;padding:2px 6px;line-height:1;">✕</button>
+                </div>`).join('');
+        }
+
+        function updateSurveyVar(i, field, value) {
+            const active = _surveyVars.filter(v => !v._del);
+            if (active[i]) active[i][field] = value;
+        }
+
+        function addSurveyVar() {
+            _surveyVars.push({ name: '', title: '', type: 'string', required: false, enum_values: [] });
+            renderSurveyVarsList();
+        }
+
+        function removeSurveyVar(i) {
+            const active = _surveyVars.filter(v => !v._del);
+            if (active[i]) active[i]._del = true;
+            renderSurveyVarsList();
+        }
+
+        function collectSurveyVars() {
+            return _surveyVars.filter(v => !v._del && v.name && v.name.trim()).map(v => ({
+                name: v.name.trim(),
+                title: (v.title || v.name).trim(),
+                type: v.type || 'string',
+                required: !!v.required,
+                ...(v.type === 'enum' ? { enum_values: v.enum_values || [] } : {}),
+            }));
+        }
+
+        window.addSurveyVar = addSurveyVar;
+        window.removeSurveyVar = removeSurveyVar;
+        window.updateSurveyVar = updateSurveyVar;
 
         window.editTemplate = editTemplate;
         window.deleteTemplate = deleteTemplate;

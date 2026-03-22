@@ -304,6 +304,47 @@
             </div>
 
         </div>
+
+        <!-- AI Direct Integration Section -->
+        <div class="mcp-card" style="margin-top:20px;">
+            <h3><i class="fa-solid fa-wand-magic-sparkles"></i> AI Интеграция — Прямые вызовы</h3>
+            <p style="color:var(--text-light); font-size:13px; margin-bottom:16px;">
+                Настройте AI-провайдер для анализа ошибок задач и генерации playbook-кода прямо из интерфейса.
+            </p>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+                <div class="form-group">
+                    <label style="font-size:13px; font-weight:500;">Провайдер</label>
+                    <select id="ai-provider" class="form-control" onchange="onAiProviderChange()">
+                        <option value="openai">OpenAI (GPT-4o, GPT-4o-mini...)</option>
+                        <option value="anthropic">Anthropic (Claude 3.5, Claude 3...)</option>
+                        <option value="ollama">Ollama (локальный, Llama3, Mistral...)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label style="font-size:13px; font-weight:500;">Модель</label>
+                    <input type="text" id="ai-model" class="form-control" placeholder="gpt-4o-mini">
+                </div>
+            </div>
+            <div class="form-group" style="margin-bottom:12px;">
+                <label style="font-size:13px; font-weight:500;">API Key <span id="ai-key-status" style="font-weight:400; color:var(--text-light);"></span></label>
+                <input type="password" id="ai-api-key" class="form-control" placeholder="Введите новый ключ (оставьте пустым, чтобы не менять)">
+            </div>
+            <div class="form-group" style="margin-bottom:12px;" id="ai-base-url-row">
+                <label style="font-size:13px; font-weight:500;">Base URL <span style="font-weight:400; color:var(--text-light);">(для Ollama или прокси)</span></label>
+                <input type="url" id="ai-base-url" class="form-control" placeholder="http://localhost:11434">
+            </div>
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px;">
+                    <input type="checkbox" id="ai-enabled"> AI интеграция включена
+                </label>
+            </div>
+            <button class="btn btn-primary" onclick="saveAiSettings()"><i class="fa-solid fa-floppy-disk"></i> Сохранить AI настройки</button>
+            <button class="btn btn-sm" style="margin-left:8px;" onclick="testAiSettings()"><i class="fa-solid fa-flask"></i> Тест</button>
+
+            <div id="ai-test-result" style="margin-top:12px; display:none; font-size:13px;"></div>
+        </div>
+
     </main>
 </div>
 
@@ -402,10 +443,80 @@ function openTokenPage() {
     window.location.href = 'tokens.html';
 }
 
+// ---- AI Integration settings ----
+async function loadAiSettings() {
+    try {
+        const s = await api.get('/ai/settings');
+        document.getElementById('ai-provider').value = s.provider || 'openai';
+        document.getElementById('ai-model').value = s.model || '';
+        document.getElementById('ai-enabled').checked = !!s.enabled;
+        document.getElementById('ai-base-url').value = s.base_url || '';
+        document.getElementById('ai-key-status').textContent = s.has_api_key ? '✅ ключ сохранён' : '⚠ не задан';
+        onAiProviderChange();
+    } catch (e) {
+        // AI settings endpoint may not be available yet
+    }
+}
+
+function onAiProviderChange() {
+    const prov = document.getElementById('ai-provider')?.value;
+    const baseRow = document.getElementById('ai-base-url-row');
+    const modelEl = document.getElementById('ai-model');
+    if (!prov) return;
+    if (prov === 'ollama') {
+        baseRow.style.display = '';
+        if (!modelEl.value) modelEl.value = 'llama3.2';
+    } else {
+        baseRow.style.display = 'none';
+        if (prov === 'anthropic' && !modelEl.value) modelEl.value = 'claude-3-5-sonnet-20241022';
+        else if (prov === 'openai' && !modelEl.value) modelEl.value = 'gpt-4o-mini';
+    }
+}
+
+async function saveAiSettings() {
+    const body = {
+        provider: document.getElementById('ai-provider').value,
+        model: document.getElementById('ai-model').value.trim(),
+        enabled: document.getElementById('ai-enabled').checked,
+        base_url: document.getElementById('ai-base-url').value.trim() || null
+    };
+    const key = document.getElementById('ai-api-key').value.trim();
+    if (key) body.api_key = key;
+    try {
+        await api.put('/ai/settings', body);
+        ui.showAlert('AI настройки сохранены', 'success');
+        document.getElementById('ai-api-key').value = '';
+        loadAiSettings();
+    } catch (e) {
+        ui.showAlert('Ошибка: ' + e.message, 'danger');
+    }
+}
+
+async function testAiSettings() {
+    const resultEl = document.getElementById('ai-test-result');
+    resultEl.style.display = '';
+    resultEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Отправка тестового запроса...';
+    try {
+        const r = await api.post('/ai/analyze', {
+            log: 'TASK [Gathering Facts] *****\nfatal: [192.168.1.1]: UNREACHABLE! => {"changed": false, "msg": "Failed to connect to the host via ssh: Connection refused"}\nPLAY RECAP *****\n192.168.1.1 : ok=0  changed=0  unreachable=1  failed=0',
+            context: 'Ansible connectivity test',
+            lang: 'ru'
+        });
+        resultEl.innerHTML = '<div style="background:#f0fff4; border:1px solid #68d391; border-radius:6px; padding:12px;">' +
+            '<strong>✅ AI ответил:</strong><br>' +
+            escapeHtml(r.analysis).substring(0, 300) + '...' +
+            '<br><small style="color:#666;">Провайдер: ' + escapeHtml(r.provider) + ' / Модель: ' + escapeHtml(r.model) + '</small>' +
+            '</div>';
+    } catch (e) {
+        resultEl.innerHTML = '<div style="background:#fff5f5; border:1px solid #fc8181; border-radius:6px; padding:12px; color:#c53030;">❌ ' + escapeHtml(e.message) + '</div>';
+    }
+}
+
 // Init
 renderSidebar();
 loadMcpSettings();
 loadMcpTools();
+loadAiSettings();
 </script>
 </body>
 </html>

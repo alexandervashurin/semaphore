@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Уведомления - Velum</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+    <style>
+        .channel-icon { width: 32px; height: 32px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 16px; }
+        .ch-slack     { background: #4a154b; color: #fff; }
+        .ch-teams     { background: #6264a7; color: #fff; }
+        .ch-pagerduty { background: #06ac38; color: #fff; }
+        .ch-generic   { background: #555; color: #fff; }
+
+        .trigger-badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        .trig-on_failure { background: #fed7d7; color: #c53030; }
+        .trig-on_success { background: #c6f6d5; color: #276749; }
+        .trig-on_start   { background: #e3f2fd; color: #1976d2; }
+        .trig-always     { background: #fef3c7; color: #92400e; }
+
+        .toggle-enabled { cursor: pointer; }
+        .policy-url { font-family: monospace; font-size: 12px; color: var(--text-light); max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    </style>
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar"></aside>
+    <div class="main-content">
+        <div class="main-header">
+            <h2 id="page-title">Уведомления</h2>
+        </div>
+        <div class="main-body">
+            <div class="page-header">
+                <div>
+                    <h1><i class="fa-solid fa-bell"></i> Политики уведомлений</h1>
+                    <p style="color:var(--text-light); margin-top:4px; font-size:13px;">
+                        Отправляйте уведомления в Slack, Teams, PagerDuty или любой webhook при изменении статуса задач
+                    </p>
+                </div>
+                <button class="btn btn-primary" onclick="openPolicyDialog()">
+                    <i class="fa-solid fa-plus"></i> Новая политика
+                </button>
+            </div>
+
+            <!-- Info cards -->
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap:12px; margin-bottom:20px;">
+                <div class="card" style="text-align:center; padding:16px;">
+                    <div style="font-size:28px; color:#4a154b;"><i class="fa-brands fa-slack"></i></div>
+                    <div style="font-weight:700; margin-top:6px;">Slack</div>
+                    <div style="font-size:12px; color:var(--text-light);">Incoming Webhooks</div>
+                </div>
+                <div class="card" style="text-align:center; padding:16px;">
+                    <div style="font-size:28px; color:#6264a7;"><i class="fa-brands fa-microsoft"></i></div>
+                    <div style="font-weight:700; margin-top:6px;">MS Teams</div>
+                    <div style="font-size:12px; color:var(--text-light);">Connector Webhook</div>
+                </div>
+                <div class="card" style="text-align:center; padding:16px;">
+                    <div style="font-size:28px; color:#06ac38;"><i class="fa-solid fa-pager"></i></div>
+                    <div style="font-weight:700; margin-top:6px;">PagerDuty</div>
+                    <div style="font-size:12px; color:var(--text-light);">Events API v2</div>
+                </div>
+                <div class="card" style="text-align:center; padding:16px;">
+                    <div style="font-size:28px; color:#555;"><i class="fa-solid fa-plug"></i></div>
+                    <div style="font-weight:700; margin-top:6px;">Generic</div>
+                    <div style="font-size:12px; color:var(--text-light);">любой HTTP webhook</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div id="policies-container">
+                    <div class="loading"><div class="loading-spinner"></div><p>Загрузка политик...</p></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+checkAuth();
+const urlParams = new URLSearchParams(window.location.search);
+const projectId = urlParams.get('id');
+if (!projectId) window.location.href = 'index.html';
+
+let templates = [];
+
+api.getProject(projectId).then(p => {
+    document.title = p.name + ' → Уведомления - Velum';
+    $('#page-title').textContent = p.name + ' → Уведомления';
+}).catch(() => {});
+
+api.getTemplates(projectId).then(t => { templates = t || []; }).catch(() => {});
+
+loadPolicies();
+
+function loadPolicies() {
+    const c = document.getElementById('policies-container');
+    ui.showLoading(c);
+    api.get('/project/' + projectId + '/notifications').then(list => {
+        if (!list || !list.length) {
+            ui.showEmpty(c,
+                '<i class="fa-solid fa-bell-slash fa-2x"></i>',
+                'Нет политик уведомлений',
+                'Создайте политику, чтобы получать уведомления о результатах задач в Slack, Teams или PagerDuty.'
+            );
+            return;
+        }
+        c.innerHTML = `
+            <table class="table">
+                <thead><tr>
+                    <th>Канал</th>
+                    <th>Название</th>
+                    <th>Триггер</th>
+                    <th>Шаблон</th>
+                    <th>URL</th>
+                    <th>Вкл</th>
+                    <th style="width:140px;">Действия</th>
+                </tr></thead>
+                <tbody>
+                    ${list.map(p => `
+                        <tr>
+                            <td>
+                                <span class="channel-icon ch-${p.channel_type}" title="${escapeHtml(p.channel_type)}">
+                                    ${channelIcon(p.channel_type)}
+                                </span>
+                                <span style="font-size:12px; margin-left:6px;">${escapeHtml(p.channel_type)}</span>
+                            </td>
+                            <td><strong>${escapeHtml(p.name)}</strong></td>
+                            <td><span class="trigger-badge trig-${p.trigger}">${triggerLabel(p.trigger)}</span></td>
+                            <td style="font-size:13px;">${p.template_id ? templateName(p.template_id) : '<span style="color:var(--text-light);">Все шаблоны</span>'}</td>
+                            <td><div class="policy-url" title="${escapeHtml(p.webhook_url)}">${escapeHtml(p.webhook_url)}</div></td>
+                            <td>
+                                <label class="toggle-enabled" title="${p.enabled ? 'Отключить' : 'Включить'}">
+                                    <input type="checkbox" ${p.enabled ? 'checked' : ''} onchange="togglePolicy(${p.id}, this.checked)" style="cursor:pointer;">
+                                </label>
+                            </td>
+                            <td>
+                                <button class="btn btn-sm" onclick="testPolicy(${p.id}, '${escapeHtml(p.name)}')" title="Тест"><i class="fa-solid fa-paper-plane"></i></button>
+                                <button class="btn btn-sm" onclick="openPolicyDialog(${p.id})" title="Редактировать"><i class="fa-solid fa-pen"></i></button>
+                                <button class="btn btn-danger btn-sm" onclick="deletePolicy(${p.id}, '${escapeHtml(p.name)}')" title="Удалить"><i class="fa-solid fa-trash"></i></button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    }).catch(err => ui.showError(c, err.message));
+}
+
+function channelIcon(type) {
+    return {
+        slack:     '<i class="fa-brands fa-slack"></i>',
+        teams:     '<i class="fa-brands fa-microsoft"></i>',
+        pagerduty: '<i class="fa-solid fa-pager"></i>',
+        generic:   '<i class="fa-solid fa-plug"></i>'
+    }[type] || '<i class="fa-solid fa-plug"></i>';
+}
+
+function triggerLabel(t) {
+    return {
+        on_failure: '❌ Ошибка',
+        on_success: '✅ Успех',
+        on_start:   '▶ Старт',
+        always:     '🔄 Всегда'
+    }[t] || t;
+}
+
+function templateName(id) {
+    const t = templates.find(t => t.id === id);
+    return t ? escapeHtml(t.name) : 'Шаблон #' + id;
+}
+
+function togglePolicy(id, enabled) {
+    api.get('/project/' + projectId + '/notifications/' + id).then(p => {
+        return api.put('/project/' + projectId + '/notifications/' + id, {
+            name: p.name, channel_type: p.channel_type, webhook_url: p.webhook_url,
+            trigger: p.trigger, template_id: p.template_id, enabled
+        });
+    }).then(() => {
+        ui.showAlert(enabled ? 'Политика включена' : 'Политика отключена', 'success');
+    }).catch(err => {
+        ui.showAlert('Ошибка: ' + err.message, 'danger');
+        loadPolicies();
+    });
+}
+
+function testPolicy(id, name) {
+    ui.showAlert('Отправка тестового уведомления для "' + name + '"...', 'info');
+    api.post('/project/' + projectId + '/notifications/' + id + '/test', {})
+        .then(() => ui.showAlert('Тест отправлен! Проверьте канал.', 'success'))
+        .catch(err => ui.showAlert('Ошибка теста: ' + err.message, 'danger'));
+}
+
+function deletePolicy(id, name) {
+    ui.confirm('Удалить политику?', 'Политика "' + name + '" будет удалена.')
+        .then(confirmed => {
+            if (!confirmed) return;
+            api.delete('/project/' + projectId + '/notifications/' + id)
+                .then(() => { ui.showAlert('Политика удалена', 'success'); loadPolicies(); })
+                .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+        });
+}
+
+function openPolicyDialog(id = null) {
+    const isEdit = !!id;
+    const load = isEdit
+        ? api.get('/project/' + projectId + '/notifications/' + id)
+        : Promise.resolve(null);
+
+    load.then(existing => {
+        const p = existing || {};
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal" style="max-width:520px;">
+                <div class="modal-header">
+                    <h3><i class="fa-solid fa-bell"></i> ${isEdit ? 'Редактировать' : 'Новая'} политика уведомлений</h3>
+                    <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="policy-form">
+                        <div class="form-group">
+                            <label>Название *</label>
+                            <input type="text" id="pol-name" class="form-control" required value="${escapeHtml(p.name || '')}" placeholder="Slack — ошибки продакшена">
+                        </div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                            <div class="form-group">
+                                <label>Канал *</label>
+                                <select id="pol-type" class="form-control" onchange="updateChannelHelp()">
+                                    <option value="slack"     ${p.channel_type === 'slack'     ? 'selected' : ''}>Slack</option>
+                                    <option value="teams"     ${p.channel_type === 'teams'     ? 'selected' : ''}>MS Teams</option>
+                                    <option value="pagerduty" ${p.channel_type === 'pagerduty' ? 'selected' : ''}>PagerDuty</option>
+                                    <option value="generic"   ${p.channel_type === 'generic'   ? 'selected' : ''}>Generic webhook</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Триггер *</label>
+                                <select id="pol-trigger" class="form-control">
+                                    <option value="on_failure" ${p.trigger === 'on_failure' ? 'selected' : ''}>❌ При ошибке</option>
+                                    <option value="on_success" ${p.trigger === 'on_success' ? 'selected' : ''}>✅ При успехе</option>
+                                    <option value="on_start"   ${p.trigger === 'on_start'   ? 'selected' : ''}>▶ При старте</option>
+                                    <option value="always"     ${p.trigger === 'always'     ? 'selected' : ''}>🔄 Всегда</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Webhook URL *</label>
+                            <input type="url" id="pol-url" class="form-control" required value="${escapeHtml(p.webhook_url || '')}" placeholder="https://hooks.slack.com/services/...">
+                            <div id="pol-url-help" style="font-size:12px; color:var(--text-light); margin-top:4px;"></div>
+                        </div>
+                        <div class="form-group">
+                            <label>Шаблон <span style="color:var(--text-light); font-size:12px;">(оставьте пустым — для всех)</span></label>
+                            <select id="pol-tpl" class="form-control">
+                                <option value="">— Все шаблоны —</option>
+                                ${templates.map(t => `<option value="${t.id}" ${p.template_id === t.id ? 'selected' : ''}>${escapeHtml(t.name)}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="pol-enabled" ${p.enabled !== false ? 'checked' : ''}>
+                                Политика включена
+                            </label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn" onclick="this.closest('.modal-overlay').remove()">Отмена</button>
+                    <button class="btn btn-primary" onclick="submitPolicyForm(${id || 'null'}, this.closest('.modal-overlay'))">
+                        ${isEdit ? 'Сохранить' : 'Создать'}
+                    </button>
+                </div>
+            </div>`;
+        document.body.appendChild(modal);
+        modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+        updateChannelHelp();
+        setTimeout(() => document.getElementById('pol-name').focus(), 50);
+    }).catch(err => ui.showAlert('Ошибка загрузки: ' + err.message, 'danger'));
+}
+
+function updateChannelHelp() {
+    const type = document.getElementById('pol-type')?.value;
+    const help = {
+        slack:     'Создайте Incoming Webhook в настройках вашего Slack — Settings → Integrations → Incoming Webhooks',
+        teams:     'В Teams: Connector → Incoming Webhook → URL скопируйте сюда',
+        pagerduty: 'PagerDuty Events API v2: используйте Integration Key в URL формата https://events.pagerduty.com/v2/enqueue',
+        generic:   'Любой HTTP endpoint, принимающий POST JSON'
+    }[type] || '';
+    const el = document.getElementById('pol-url-help');
+    if (el) el.textContent = help;
+}
+
+function submitPolicyForm(id, modal) {
+    const name        = document.getElementById('pol-name').value.trim();
+    const channel_type = document.getElementById('pol-type').value;
+    const webhook_url = document.getElementById('pol-url').value.trim();
+    const trigger     = document.getElementById('pol-trigger').value;
+    const tplVal      = document.getElementById('pol-tpl').value;
+    const enabled     = document.getElementById('pol-enabled').checked;
+
+    if (!name || !webhook_url) { ui.showAlert('Заполните обязательные поля', 'warning'); return; }
+
+    const payload = {
+        name, channel_type, webhook_url, trigger,
+        template_id: tplVal ? parseInt(tplVal) : null,
+        enabled
+    };
+
+    const req = id
+        ? api.put('/project/' + projectId + '/notifications/' + id, payload)
+        : api.post('/project/' + projectId + '/notifications', payload);
+
+    req.then(() => {
+        modal.remove();
+        loadPolicies();
+        ui.showAlert(id ? 'Политика обновлена' : 'Политика создана', 'success');
+    }).catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+}
+</script>
+</body>
+</html>

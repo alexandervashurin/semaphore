@@ -2,7 +2,7 @@
 //!
 //! Команда для запуска сервера
 
-use clap::Args;
+use clap::Parser;
 use std::sync::Arc;
 use crate::cli::CliResult;
 use crate::config::Config;
@@ -10,7 +10,7 @@ use crate::db::SqlStore;
 use crate::api;
 
 /// Команда server
-#[derive(Debug, Args)]
+#[derive(Debug, Parser)]
 pub struct ServerCommand {
     /// Хост для прослушивания
     #[arg(long, default_value = "0.0.0.0")]

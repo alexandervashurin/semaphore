@@ -685,10 +685,18 @@ const SIDEBAR_ITEMS = [
     { href: 'schedules.html',    icon: 'fa-solid fa-calendar-days',  label: 'Расписания' },
     { href: 'analytics.html',    icon: 'fa-solid fa-chart-bar',      label: 'Аналитика' },
     { href: 'webhooks.html',     icon: 'fa-solid fa-plug',           label: 'Webhooks' },
+    { href: 'notifications.html',   icon: 'fa-solid fa-bell',           label: 'Уведомления' },
+    { href: 'credential_types.html', icon: 'fa-solid fa-id-card',      label: 'Типы ключей',  noId: true },
     { href: 'playbooks.html',    icon: 'fa-solid fa-scroll',         label: 'Playbooks' },
+    { href: 'workflow.html',     icon: 'fa-solid fa-diagram-project', label: 'Workflows' },
+    { href: 'drift.html',        icon: 'fa-solid fa-radar',           label: 'Drift Detection' },
+    { href: 'snapshots.html',    icon: 'fa-solid fa-clock-rotate-left', label: 'Rollback' },
+    { href: 'marketplace.html',  icon: 'fa-solid fa-store',           label: 'Marketplace', noId: true },
+    { href: 'costs.html',        icon: 'fa-solid fa-dollar-sign',    label: 'Стоимость TF' },
     { href: 'team.html',         icon: 'fa-solid fa-users',          label: 'Команда' },
     { href: 'runners.html',      icon: 'fa-solid fa-bolt',           label: 'Runners',    noId: true },
     { href: 'apps.html',         icon: 'fa-solid fa-puzzle-piece',   label: 'Apps',       noId: true },
+    { href: 'ldap_groups.html',  icon: 'fa-solid fa-sitemap',        label: 'LDAP Groups', noId: true },
     { href: 'mcp.html',          icon: 'fa-solid fa-robot',          label: 'MCP / AI',   noId: true },
 ];
 

@@ -14,7 +14,8 @@ use crate::api::state::AppState;
 use crate::api::extractors::AuthUser;
 use crate::error::Error;
 use crate::api::middleware::ErrorResponse;
-use crate::db::store::UserManager;
+use crate::db::store::{UserManager, LdapGroupMappingManager, ProjectStore};
+use crate::models::ProjectUser;
 
 /// Health check endpoint
 pub async fn health() -> &'static str {
@@ -123,7 +124,7 @@ pub async fn login(
                 ).await {
                     Ok(ldap_user) => {
                         // LDAP auth прошла — найти или создать пользователя локально
-                        match state.store
+                        let ldap_local_user = match state.store
                             .get_user_by_login_or_email(&ldap_user.username, &ldap_user.email)
                             .await
                         {
@@ -161,7 +162,27 @@ pub async fn login(
                                     }
                                 }
                             }
+                        };
+                        // Синхронизируем LDAP-группы → команды проектов
+                        if !ldap_user.groups.is_empty() {
+                            if let Ok(mappings) = state.store.get_mappings_for_groups(&ldap_user.groups).await {
+                                for mapping in mappings {
+                                    let role = match mapping.role.as_str() {
+                                        "owner" => crate::models::ProjectUserRole::Owner,
+                                        "manager" => crate::models::ProjectUserRole::Manager,
+                                        "guest" => crate::models::ProjectUserRole::Guest,
+                                        _ => crate::models::ProjectUserRole::TaskRunner,
+                                    };
+                                    let pu = ProjectUser::new(mapping.project_id, ldap_local_user.id, role);
+                                    let _ = state.store.create_project_user(pu).await;
+                                    tracing::debug!(
+                                        "LDAP sync: user {} → project {} ({})",
+                                        ldap_local_user.username, mapping.project_id, mapping.role
+                                    );
+                                }
+                            }
                         }
+                        ldap_local_user
                     }
                     Err(e) => {
                         tracing::warn!("LDAP auth failed for {}: {}", payload.username, e);

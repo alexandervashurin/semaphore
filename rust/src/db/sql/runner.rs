@@ -1,22 +1,25 @@
-//! Runner - операции с раннерами в SQL
-//!
-//! Аналог db/sql/global_runner.go из Go версии
+//! Runner - операции с раннерами в SQL (PostgreSQL)
 
-use sqlx::FromRow;
 use crate::error::{Error, Result};
 use crate::models::Runner;
 use crate::db::sql::types::SqlDb;
 use chrono::Utc;
 
 impl SqlDb {
+    fn runner_pg_pool(&self) -> Result<&sqlx::PgPool> {
+        self.get_postgres_pool()
+            .ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))
+    }
+
     /// Получает раннера по токену
     pub async fn get_runner_by_token(&self, token: &str) -> Result<Runner> {
         let runner = sqlx::query_as::<_, Runner>(
-            r#"SELECT * FROM runner WHERE token = ?"#
+            "SELECT * FROM runner WHERE token = $1"
         )
         .bind(token)
-        .fetch_optional(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-        .await?;
+        .fetch_optional(self.runner_pg_pool()?)
+        .await
+        .map_err(Error::Database)?;
 
         runner.ok_or(Error::NotFound("Runner not found".to_string()))
     }
@@ -24,11 +27,12 @@ impl SqlDb {
     /// Получает глобального раннера по ID
     pub async fn get_global_runner(&self, runner_id: i32) -> Result<Runner> {
         let runner = sqlx::query_as::<_, Runner>(
-            r#"SELECT * FROM runner WHERE id = ? AND project_id IS NULL"#
+            "SELECT * FROM runner WHERE id = $1 AND project_id IS NULL"
         )
         .bind(runner_id)
-        .fetch_optional(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-        .await?;
+        .fetch_optional(self.runner_pg_pool()?)
+        .await
+        .map_err(Error::Database)?;
 
         runner.ok_or(Error::NotFound("Global runner not found".to_string()))
     }
@@ -46,8 +50,9 @@ impl SqlDb {
         }
 
         let runners = sqlx::query_as::<_, Runner>(&query)
-            .fetch_all(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-            .await?;
+            .fetch_all(self.runner_pg_pool()?)
+            .await
+            .map_err(Error::Database)?;
 
         Ok(runners)
     }
@@ -55,11 +60,12 @@ impl SqlDb {
     /// Удаляет глобального раннера
     pub async fn delete_global_runner(&self, runner_id: i32) -> Result<()> {
         let result = sqlx::query(
-            r#"DELETE FROM runner WHERE id = ? AND project_id IS NULL"#
+            "DELETE FROM runner WHERE id = $1 AND project_id IS NULL"
         )
         .bind(runner_id)
-        .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-        .await?;
+        .execute(self.runner_pg_pool()?)
+        .await
+        .map_err(Error::Database)?;
 
         if result.rows_affected() == 0 {
             return Err(Error::NotFound("Global runner not found".to_string()));
@@ -70,20 +76,22 @@ impl SqlDb {
 
     /// Очищает кэш раннера
     pub async fn clear_runner_cache(&self, runner: &Runner) -> Result<()> {
-        let pool = self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?;
+        let pool = self.runner_pg_pool()?;
         if let Some(project_id) = runner.project_id {
-            sqlx::query(r#"UPDATE runner SET cleaning_requested = ? WHERE id = ? AND project_id = ?"#)
+            sqlx::query("UPDATE runner SET cleaning_requested = $1 WHERE id = $2 AND project_id = $3")
                 .bind(Utc::now())
                 .bind(runner.id)
                 .bind(project_id)
                 .execute(pool)
-                .await?;
+                .await
+                .map_err(Error::Database)?;
         } else {
-            sqlx::query(r#"UPDATE runner SET cleaning_requested = ? WHERE id = ?"#)
+            sqlx::query("UPDATE runner SET cleaning_requested = $1 WHERE id = $2")
                 .bind(Utc::now())
                 .bind(runner.id)
                 .execute(pool)
-                .await?;
+                .await
+                .map_err(Error::Database)?;
         }
 
         Ok(())
@@ -91,29 +99,31 @@ impl SqlDb {
 
     /// Обновляет время активности раннера
     pub async fn touch_runner(&self, runner: &Runner) -> Result<()> {
-        let pool = self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?;
+        let pool = self.runner_pg_pool()?;
         if let Some(project_id) = runner.project_id {
-            sqlx::query(r#"UPDATE runner SET touched = ? WHERE id = ? AND project_id = ?"#)
+            sqlx::query("UPDATE runner SET touched = $1 WHERE id = $2 AND project_id = $3")
                 .bind(Utc::now())
                 .bind(runner.id)
                 .bind(project_id)
                 .execute(pool)
-                .await?;
+                .await
+                .map_err(Error::Database)?;
         } else {
-            sqlx::query(r#"UPDATE runner SET touched = ? WHERE id = ?"#)
+            sqlx::query("UPDATE runner SET touched = $1 WHERE id = $2")
                 .bind(Utc::now())
                 .bind(runner.id)
                 .execute(pool)
-                .await?;
+                .await
+                .map_err(Error::Database)?;
         }
 
         Ok(())
     }
 
     /// Обновляет раннера
-    pub async fn update_runner(&self, runner: &Runner) -> Result<()> {
+    pub async fn update_runner_record(&self, runner: &Runner) -> Result<()> {
         sqlx::query(
-            r#"UPDATE runner SET name = ?, active = ?, webhook = ?, max_parallel_tasks = ?, tag = ? WHERE id = ?"#
+            "UPDATE runner SET name = $1, active = $2, webhook = $3, max_parallel_tasks = $4, tag = $5 WHERE id = $6"
         )
         .bind(&runner.name)
         .bind(runner.active)
@@ -121,17 +131,18 @@ impl SqlDb {
         .bind(runner.max_parallel_tasks)
         .bind(&runner.tag)
         .bind(runner.id)
-        .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-        .await?;
+        .execute(self.runner_pg_pool()?)
+        .await
+        .map_err(Error::Database)?;
 
         Ok(())
     }
 
     /// Создаёт раннера
-    pub async fn create_runner(&self, runner: &Runner) -> Result<Runner> {
-        let result = sqlx::query(
-            r#"INSERT INTO runner (name, active, webhook, max_parallel_tasks, tag, token, project_id)
-               VALUES (?, ?, ?, ?, ?, ?, ?)"#
+    pub async fn create_runner_record(&self, runner: &Runner) -> Result<Runner> {
+        let id: i32 = sqlx::query_scalar(
+            "INSERT INTO runner (name, active, webhook, max_parallel_tasks, tag, token, project_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id"
         )
         .bind(&runner.name)
         .bind(runner.active)
@@ -140,11 +151,12 @@ impl SqlDb {
         .bind(&runner.tag)
         .bind(&runner.token)
         .bind(runner.project_id)
-        .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-        .await?;
+        .fetch_one(self.runner_pg_pool()?)
+        .await
+        .map_err(Error::Database)?;
 
         let mut new_runner = runner.clone();
-        new_runner.id = result.last_insert_rowid() as i32;
+        new_runner.id = id;
 
         Ok(new_runner)
     }
@@ -184,6 +196,6 @@ mod tests {
     fn test_runner_token_generation() {
         let runner = create_test_runner();
         assert!(!runner.token.is_empty());
-        assert!(runner.token.len() > 32); // UUID format
+        assert!(runner.token.len() > 32);
     }
 }

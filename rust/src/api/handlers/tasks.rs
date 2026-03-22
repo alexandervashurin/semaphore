@@ -289,6 +289,90 @@ async fn execute_task_background(state: Arc<AppState>, task: Task) {
     }
 }
 
+/// Выполняет задачу с переданными параметрами и возвращает результат
+/// Используется workflow executor для выполнения узлов DAG
+pub async fn execute_task_background_with_template(
+    state: Arc<AppState>,
+    task: Task,
+    template: crate::models::template::Template,
+    inventory: Inventory,
+    repository: Repository,
+    environment: Environment,
+) -> TaskStatus {
+    use std::sync::Mutex;
+    use crate::services::task_logger::BasicLogger;
+    use crate::db_lib::AccessKeyInstallerImpl;
+    use crate::services::local_job::LocalJob;
+    
+    println!("[workflow_task] Starting task {} (template {})", task.id, task.template_id);
+    let store = &state.store;
+
+    match store.update_task_status(task.project_id, task.id, TaskStatus::Running).await {
+        Ok(()) => println!("[workflow_task] task {} status → Running", task.id),
+        Err(e) => println!("[workflow_task] task {} failed to set Running: {e}", task.id),
+    }
+
+    let log_buffer: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+    let buf_clone = log_buffer.clone();
+    let logger = Arc::new(BasicLogger::new());
+    logger.add_log_listener(Box::new(move |_time, msg| {
+        let _ = buf_clone.lock().map(|mut v| v.push(msg));
+    }));
+
+    let work_dir = std::env::temp_dir().join(format!("semaphore_task_{}_{}", task.project_id, task.id));
+    let tmp_dir = work_dir.join("tmp");
+
+    if let Err(e) = tokio::fs::create_dir_all(&tmp_dir).await {
+        eprintln!("[workflow_task] task {}: failed to create workdir: {e}", task.id);
+        let _ = store.update_task_status(task.project_id, task.id, TaskStatus::Error).await;
+        return TaskStatus::Error;
+    }
+
+    let key_installer = AccessKeyInstallerImpl::new();
+    let mut job = LocalJob::new(
+        task.clone(),
+        template,
+        inventory,
+        repository,
+        environment,
+        logger,
+        key_installer,
+        work_dir,
+        tmp_dir,
+    );
+
+    job.store = Some(Arc::new(state.store.clone()) as Arc<dyn crate::db::store::Store + Send + Sync>);
+    let result = job.run("runner", None, "default").await;
+    job.cleanup();
+
+    // Сохранить логи
+    let log_lines: Vec<String> = log_buffer.lock().map(|v| v.clone()).unwrap_or_default();
+    for line in log_lines {
+        let output = crate::models::task::TaskOutput {
+            id: 0,
+            task_id: task.id,
+            project_id: task.project_id,
+            time: Utc::now(),
+            output: line,
+            stage_id: None,
+        };
+        let _ = store.create_task_output(output).await;
+    }
+
+    match result {
+        Ok(()) => {
+            let _ = store.update_task_status(task.project_id, task.id, TaskStatus::Success).await;
+            println!("[workflow_task] task {} completed successfully", task.id);
+            TaskStatus::Success
+        }
+        Err(e) => {
+            eprintln!("[workflow_task] task {} failed: {e}", task.id);
+            let _ = store.update_task_status(task.project_id, task.id, TaskStatus::Error).await;
+            TaskStatus::Error
+        }
+    }
+}
+
 // ============================================================================
 // Types
 // ============================================================================

@@ -1,14 +1,13 @@
 //! RunnerManager - управление раннерами
 
 use crate::db::sql::SqlStore;
-use crate::db::sql::types::SqlDialect;
 use crate::db::store::*;
 use crate::error::{Error, Result};
 use crate::models::Runner;
 use async_trait::async_trait;
 use sqlx::Row;
 
-fn row_to_runner(row: sqlx::sqlite::SqliteRow) -> Runner {
+fn row_to_runner(row: sqlx::postgres::PgRow) -> Runner {
     Runner {
         id: row.get("id"),
         project_id: row.try_get("project_id").ok().flatten(),
@@ -28,102 +27,77 @@ fn row_to_runner(row: sqlx::sqlite::SqliteRow) -> Runner {
 #[async_trait]
 impl RunnerManager for SqlStore {
     async fn get_runners(&self, project_id: Option<i32>) -> Result<Vec<Runner>> {
-        match self.get_dialect() {
-            SqlDialect::SQLite => {
-                let pool = self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?;
-                let rows = if let Some(pid) = project_id {
-                    sqlx::query("SELECT * FROM runner WHERE project_id = ? OR project_id IS NULL ORDER BY name")
-                        .bind(pid)
-                        .fetch_all(pool)
-                        .await
-                        .map_err(Error::Database)?
-                } else {
-                    sqlx::query("SELECT * FROM runner ORDER BY name")
-                        .fetch_all(pool)
-                        .await
-                        .map_err(Error::Database)?
-                };
-                Ok(rows.into_iter().map(row_to_runner).collect())
-            }
-            _ => Ok(vec![]),
-        }
+        let pool = self.get_postgres_pool()?;
+        let rows = if let Some(pid) = project_id {
+            sqlx::query("SELECT * FROM runner WHERE project_id = $1 OR project_id IS NULL ORDER BY name")
+                .bind(pid)
+                .fetch_all(pool)
+                .await
+                .map_err(Error::Database)?
+        } else {
+            sqlx::query("SELECT * FROM runner ORDER BY name")
+                .fetch_all(pool)
+                .await
+                .map_err(Error::Database)?
+        };
+        Ok(rows.into_iter().map(row_to_runner).collect())
     }
 
     async fn get_runner(&self, runner_id: i32) -> Result<Runner> {
-        match self.get_dialect() {
-            SqlDialect::SQLite => {
-                let pool = self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?;
-                let row = sqlx::query("SELECT * FROM runner WHERE id = ?")
-                    .bind(runner_id)
-                    .fetch_optional(pool)
-                    .await
-                    .map_err(Error::Database)?
-                    .ok_or_else(|| Error::NotFound("Раннер не найден".to_string()))?;
-                Ok(row_to_runner(row))
-            }
-            _ => Err(Error::NotFound("Раннер не найден".to_string())),
-        }
+        let pool = self.get_postgres_pool()?;
+        let row = sqlx::query("SELECT * FROM runner WHERE id = $1")
+            .bind(runner_id)
+            .fetch_optional(pool)
+            .await
+            .map_err(Error::Database)?
+            .ok_or_else(|| Error::NotFound("Раннер не найден".to_string()))?;
+        Ok(row_to_runner(row))
     }
 
     async fn create_runner(&self, mut runner: Runner) -> Result<Runner> {
-        match self.get_dialect() {
-            SqlDialect::SQLite => {
-                let pool = self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?;
-                let result = sqlx::query(
-                    "INSERT INTO runner (project_id, token, name, active, webhook, max_parallel_tasks, tag) VALUES (?, ?, ?, ?, ?, ?, ?)"
-                )
-                .bind(runner.project_id)
-                .bind(&runner.token)
-                .bind(&runner.name)
-                .bind(runner.active)
-                .bind(&runner.webhook)
-                .bind(runner.max_parallel_tasks)
-                .bind(&runner.tag)
-                .execute(pool)
-                .await
-                .map_err(Error::Database)?;
+        let pool = self.get_postgres_pool()?;
+        let id: i32 = sqlx::query_scalar(
+            "INSERT INTO runner (project_id, token, name, active, webhook, max_parallel_tasks, tag) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id"
+        )
+        .bind(runner.project_id)
+        .bind(&runner.token)
+        .bind(&runner.name)
+        .bind(runner.active)
+        .bind(&runner.webhook)
+        .bind(runner.max_parallel_tasks)
+        .bind(&runner.tag)
+        .fetch_one(pool)
+        .await
+        .map_err(Error::Database)?;
 
-                runner.id = result.last_insert_rowid() as i32;
-                Ok(runner)
-            }
-            _ => Err(Error::Other("Only SQLite supported for now".to_string())),
-        }
+        runner.id = id;
+        Ok(runner)
     }
 
     async fn update_runner(&self, runner: Runner) -> Result<()> {
-        match self.get_dialect() {
-            SqlDialect::SQLite => {
-                let pool = self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?;
-                sqlx::query(
-                    "UPDATE runner SET name = ?, active = ?, webhook = ?, max_parallel_tasks = ?, tag = ? WHERE id = ?"
-                )
-                .bind(&runner.name)
-                .bind(runner.active)
-                .bind(&runner.webhook)
-                .bind(runner.max_parallel_tasks)
-                .bind(&runner.tag)
-                .bind(runner.id)
-                .execute(pool)
-                .await
-                .map_err(Error::Database)?;
-                Ok(())
-            }
-            _ => Err(Error::Other("Only SQLite supported for now".to_string())),
-        }
+        let pool = self.get_postgres_pool()?;
+        sqlx::query(
+            "UPDATE runner SET name = $1, active = $2, webhook = $3, max_parallel_tasks = $4, tag = $5 WHERE id = $6"
+        )
+        .bind(&runner.name)
+        .bind(runner.active)
+        .bind(&runner.webhook)
+        .bind(runner.max_parallel_tasks)
+        .bind(&runner.tag)
+        .bind(runner.id)
+        .execute(pool)
+        .await
+        .map_err(Error::Database)?;
+        Ok(())
     }
 
     async fn delete_runner(&self, runner_id: i32) -> Result<()> {
-        match self.get_dialect() {
-            SqlDialect::SQLite => {
-                let pool = self.get_sqlite_pool().ok_or_else(|| Error::Other("SQLite pool not found".to_string()))?;
-                sqlx::query("DELETE FROM runner WHERE id = ?")
-                    .bind(runner_id)
-                    .execute(pool)
-                    .await
-                    .map_err(Error::Database)?;
-                Ok(())
-            }
-            _ => Err(Error::Other("Only SQLite supported for now".to_string())),
-        }
+        let pool = self.get_postgres_pool()?;
+        sqlx::query("DELETE FROM runner WHERE id = $1")
+            .bind(runner_id)
+            .execute(pool)
+            .await
+            .map_err(Error::Database)?;
+        Ok(())
     }
 }

@@ -12,6 +12,14 @@ name = "velum_ffi"
 crate-type = ["cdylib", "staticlib", "rlib"]
 path = "src/lib.rs"
 
+[[bin]]
+name = "velum"
+path = "src/main.rs"
+
+[[bin]]
+name = "velum-cli"
+path = "src/bin/velum.rs"
+
 [dependencies]
 # Веб-фреймворк и HTTP
 axum = { version = "0.8", features = ["macros", "ws"] }
@@ -20,7 +28,7 @@ tower-http = { version = "0.6", features = ["cors", "trace", "fs"] }
 hyper = { version = "1", features = ["full"] }
 hyper-util = { version = "0.1", features = ["full"] }
 tokio = { version = "1", features = ["full"] }
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.12", features = ["json", "blocking"] }
 
 # GraphQL
 async-graphql = { version = "7.0", features = ["chrono", "uuid"] }
@@ -148,8 +156,6 @@ version = "0.8"
 features = [
     "runtime-tokio",
     "tls-native-tls",
-    "sqlite",
-    "mysql",
     "postgres",
     "chrono",
     "uuid"
@@ -230,8 +236,6 @@ debug = true
 
 # Флаги для разных баз данных
 [features]
-default = ["sqlite", "mysql", "postgres"]
-sqlite = ["sqlx/sqlite"]
-mysql = ["sqlx/mysql"]
+default = ["postgres"]
 postgres = ["sqlx/postgres"]
 bolt = []  # Sled для BoltDB-подобного режима

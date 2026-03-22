@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workflows - Velum</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+    <style>
+        /* ---- Layout ---- */
+        .wf-layout { display: flex; gap: 0; height: calc(100vh - 56px); overflow: hidden; }
+        .wf-sidebar { width: 280px; min-width: 220px; border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; background: #fafafa; }
+        .wf-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+        /* ---- Sidebar list ---- */
+        .wf-list-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+        .wf-list-header h3 { margin: 0; font-size: 15px; flex: 1; }
+        .wf-list { flex: 1; overflow-y: auto; }
+        .wf-item { padding: 10px 16px; cursor: pointer; border-bottom: 1px solid var(--border); transition: background .15s; }
+        .wf-item:hover { background: rgba(0,80,87,.06); }
+        .wf-item.active { background: rgba(0,80,87,.12); border-left: 3px solid var(--primary); }
+        .wf-item-name { font-weight: 600; font-size: 14px; margin-bottom: 2px; }
+        .wf-item-meta { font-size: 12px; color: var(--text-light); }
+        .wf-empty-list { padding: 32px 16px; text-align: center; color: var(--text-light); font-size: 13px; }
+
+        /* ---- Toolbar ---- */
+        .wf-toolbar { padding: 8px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: #fff; }
+        .wf-toolbar-title { font-weight: 700; font-size: 15px; flex: 1; min-width: 120px; }
+
+        /* ---- Canvas ---- */
+        .wf-canvas-wrap { flex: 1; position: relative; overflow: hidden; background: #f0f4f8;
+            background-image: radial-gradient(circle, #c8d0d8 1px, transparent 1px);
+            background-size: 24px 24px; }
+        .wf-canvas-wrap.drag-over { background-color: #e8f4f8; }
+        #wf-canvas { width: 100%; height: 100%; cursor: default; user-select: none; }
+
+        /* ---- SVG nodes ---- */
+        .wf-node { cursor: move; }
+        .wf-node rect { rx: 8; ry: 8; filter: drop-shadow(0 2px 4px rgba(0,0,0,.15)); }
+        .wf-node.selected rect { stroke: #005057 !important; stroke-width: 2.5; }
+        .wf-node text { font-family: 'Roboto', sans-serif; pointer-events: none; }
+        .wf-edge { pointer-events: none; }
+        .wf-edge-hit { cursor: pointer; pointer-events: stroke; }
+
+        /* ---- Edge colour by condition ---- */
+        .edge-success { stroke: #276749; }
+        .edge-failure { stroke: #c53030; }
+        .edge-always  { stroke: #1976d2; }
+
+        /* ---- Panels ---- */
+        .wf-props-panel { width: 260px; border-left: 1px solid var(--border); overflow-y: auto; background: #fff; padding: 16px; display: none; }
+        .wf-props-panel.visible { display: block; }
+        .wf-props-title { font-weight: 700; margin: 0 0 12px; font-size: 14px; display: flex; align-items: center; justify-content: space-between; }
+
+        /* ---- Runs panel ---- */
+        .wf-runs-panel { border-top: 1px solid var(--border); max-height: 220px; overflow-y: auto; background: #fff; }
+        .wf-runs-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .wf-runs-table th { background: #f5f5f5; padding: 6px 12px; text-align: left; border-bottom: 1px solid var(--border); position: sticky; top: 0; }
+        .wf-runs-table td { padding: 6px 12px; border-bottom: 1px solid var(--border); }
+
+        /* ---- Status badges ---- */
+        .sb { display: inline-block; padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+        .sb-pending   { background: #f0f0f0; color: #666; }
+        .sb-running   { background: #e3f2fd; color: #1976d2; }
+        .sb-success   { background: #c6f6d5; color: #276749; }
+        .sb-failed    { background: #fed7d7; color: #c53030; }
+        .sb-cancelled { background: #e0e0e0; color: #424242; }
+
+        /* ---- Legend ---- */
+        .wf-legend { position: absolute; bottom: 12px; left: 12px; background: rgba(255,255,255,.92); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 12px; display: flex; gap: 14px; align-items: center; }
+        .legend-dot { width: 18px; height: 3px; border-radius: 2px; display: inline-block; vertical-align: middle; margin-right: 4px; }
+
+        /* ---- Zoom controls ---- */
+        .wf-zoom { position: absolute; bottom: 12px; right: 12px; display: flex; flex-direction: column; gap: 4px; }
+        .wf-zoom button { width: 32px; height: 32px; border: 1px solid var(--border); background: #fff; border-radius: 6px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+        .wf-zoom button:hover { background: #f5f5f5; }
+
+        /* ---- Drop hint ---- */
+        .wf-drop-hint { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center; color: #aaa; pointer-events: none; }
+        .wf-drop-hint i { font-size: 48px; display: block; margin-bottom: 12px; }
+
+        .form-group label { font-size: 13px; font-weight: 500; display: block; margin-bottom: 4px; }
+        .form-group { margin-bottom: 12px; }
+    </style>
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar"></aside>
+    <div class="main-content" style="padding:0; overflow:hidden;">
+        <div class="main-header">
+            <h2 id="page-title">Workflows</h2>
+        </div>
+
+        <div class="wf-layout">
+            <!-- LEFT: workflow list -->
+            <div class="wf-sidebar">
+                <div class="wf-list-header">
+                    <h3><i class="fa-solid fa-diagram-project"></i> Workflows</h3>
+                    <button class="btn btn-primary btn-sm" onclick="openCreateWorkflowDialog()" title="Создать workflow"><i class="fa-solid fa-plus"></i></button>
+                </div>
+                <div class="wf-list" id="wf-list">
+                    <div class="wf-empty-list"><div class="loading-spinner"></div></div>
+                </div>
+            </div>
+
+            <!-- RIGHT: canvas + properties -->
+            <div class="wf-main">
+                <div class="wf-toolbar" id="wf-toolbar" style="display:none;">
+                    <div class="wf-toolbar-title" id="wf-toolbar-title">—</div>
+                    <button class="btn btn-sm" onclick="openAddNodeDialog()" title="Добавить шаблон на канвас"><i class="fa-solid fa-plus"></i> Добавить шаблон</button>
+                    <button class="btn btn-sm" onclick="autoLayout()" title="Авторазметка узлов"><i class="fa-solid fa-wand-magic-sparkles"></i> Авторазметка</button>
+                    <button class="btn btn-primary btn-sm" onclick="runWorkflow()" title="Запустить workflow"><i class="fa-solid fa-play"></i> Запустить</button>
+                    <button class="btn btn-sm" onclick="openEditWorkflowDialog()" title="Настройки workflow"><i class="fa-solid fa-gear"></i></button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteWorkflow()" title="Удалить workflow"><i class="fa-solid fa-trash"></i></button>
+                </div>
+
+                <div style="flex:1; display:flex; overflow:hidden;">
+                    <!-- Canvas area -->
+                    <div style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
+                        <div class="wf-canvas-wrap" id="wf-canvas-wrap">
+                            <div class="wf-drop-hint" id="wf-drop-hint">
+                                <i class="fa-solid fa-diagram-project"></i>
+                                <div style="font-size:16px; font-weight:600;">Выберите Workflow слева</div>
+                                <div style="font-size:13px; margin-top:6px;">или создайте новый</div>
+                            </div>
+                            <svg id="wf-canvas" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <marker id="arrow-success" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                                        <polygon points="0 0, 10 3.5, 0 7" fill="#276749"/>
+                                    </marker>
+                                    <marker id="arrow-failure" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                                        <polygon points="0 0, 10 3.5, 0 7" fill="#c53030"/>
+                                    </marker>
+                                    <marker id="arrow-always" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                                        <polygon points="0 0, 10 3.5, 0 7" fill="#1976d2"/>
+                                    </marker>
+                                </defs>
+                                <g id="wf-graph-group" transform="translate(0,0) scale(1)"></g>
+                            </svg>
+
+                            <div class="wf-legend">
+                                <span><span class="legend-dot" style="background:#276749;"></span>Success</span>
+                                <span><span class="legend-dot" style="background:#c53030;"></span>Failure</span>
+                                <span><span class="legend-dot" style="background:#1976d2;"></span>Always</span>
+                                <span style="color:#aaa; font-size:11px;">Drag nodes • Click to select</span>
+                            </div>
+                            <div class="wf-zoom">
+                                <button onclick="zoomIn()" title="Приблизить">+</button>
+                                <button onclick="zoomReset()" title="Сбросить масштаб" style="font-size:11px;">⊙</button>
+                                <button onclick="zoomOut()" title="Отдалить">−</button>
+                            </div>
+                        </div>
+
+                        <!-- Runs history -->
+                        <div class="wf-runs-panel" id="wf-runs-panel" style="display:none;">
+                            <table class="wf-runs-table">
+                                <thead><tr>
+                                    <th>Запуск</th><th>Статус</th><th>Создан</th><th>Длительность</th>
+                                </tr></thead>
+                                <tbody id="wf-runs-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Properties panel -->
+                    <div class="wf-props-panel" id="wf-props-panel">
+                        <div class="wf-props-title">
+                            <span id="wf-props-title-text">Свойства</span>
+                            <button style="background:none;border:none;cursor:pointer;font-size:16px;" onclick="closePropsPanel()">✕</button>
+                        </div>
+                        <div id="wf-props-body"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+checkAuth();
+
+const urlParams = new URLSearchParams(window.location.search);
+const projectId = urlParams.get('id');
+if (!projectId) { window.location.href = 'index.html'; }
+
+// ============================================================
+// State
+// ============================================================
+let workflows = [];
+let currentWorkflow = null;  // { workflow, nodes, edges }
+let selectedNodeId = null;
+let selectedEdgeId = null;
+let connectingFrom = null;   // node id when drawing edge
+
+// SVG viewport state
+let svgScale = 1;
+let svgOffsetX = 0;
+let svgOffsetY = 0;
+
+// Dragging state
+let draggingNode = null;
+let dragStartX = 0;
+let dragStartY = 0;
+let dragNodeOrigX = 0;
+let dragNodeOrigY = 0;
+let isPanning = false;
+let panStartX = 0;
+let panStartY = 0;
+let panStartOffX = 0;
+let panStartOffY = 0;
+
+// Templates cache
+let templatesCache = [];
+
+// ============================================================
+// Init
+// ============================================================
+api.getProject(projectId).then(p => {
+    document.title = p.name + ' → Workflows - Velum';
+    $('#page-title').textContent = p.name + ' → Workflows';
+}).catch(() => {});
+
+loadWorkflows();
+loadTemplates();
+
+function loadTemplates() {
+    api.getTemplates(projectId).then(tpls => {
+        templatesCache = tpls || [];
+    }).catch(() => {});
+}
+
+function loadWorkflows() {
+    api.get('/project/' + projectId + '/workflows').then(list => {
+        workflows = list || [];
+        renderWorkflowList();
+    }).catch(err => {
+        document.getElementById('wf-list').innerHTML = '<div class="wf-empty-list" style="color:#c53030;">' + escapeHtml(err.message) + '</div>';
+    });
+}
+
+function renderWorkflowList() {
+    const el = document.getElementById('wf-list');
+    if (!workflows.length) {
+        el.innerHTML = `<div class="wf-empty-list">
+            <div style="font-size:32px; margin-bottom:8px;"><i class="fa-solid fa-diagram-project"></i></div>
+            <div>Нет workflows</div>
+            <button class="btn btn-primary btn-sm" style="margin-top:12px;" onclick="openCreateWorkflowDialog()"><i class="fa-solid fa-plus"></i> Создать</button>
+        </div>`;
+        return;
+    }
+    el.innerHTML = workflows.map(w => `
+        <div class="wf-item ${currentWorkflow && currentWorkflow.workflow.id === w.id ? 'active' : ''}" onclick="selectWorkflow(${w.id})">
+            <div class="wf-item-name"><i class="fa-solid fa-diagram-project" style="color:var(--primary); margin-right:6px;"></i>${escapeHtml(w.name)}</div>
+            <div class="wf-item-meta">${w.description ? escapeHtml(w.description) : 'Без описания'}</div>
+        </div>
+    `).join('');
+}
+
+// ============================================================
+// Select and load workflow
+// ============================================================
+function selectWorkflow(id) {
+    api.get('/project/' + projectId + '/workflows/' + id).then(full => {
+        currentWorkflow = full;
+        selectedNodeId = null;
+        selectedEdgeId = null;
+        connectingFrom = null;
+        renderWorkflowList();
+        document.getElementById('wf-toolbar').style.display = '';
+        document.getElementById('wf-toolbar-title').textContent = full.name || full.workflow?.name || 'Workflow';
+        document.getElementById('wf-drop-hint').style.display = 'none';
+        document.getElementById('wf-runs-panel').style.display = '';
+        closePropsPanel();
+        renderGraph();
+        loadRuns(id);
+    }).catch(err => ui.showAlert('Ошибка загрузки: ' + err.message, 'danger'));
+}
+
+function loadRuns(workflowId) {
+    api.get('/project/' + projectId + '/workflows/' + workflowId + '/runs').then(runs => {
+        const tbody = document.getElementById('wf-runs-body');
+        if (!runs || !runs.length) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-light); padding:16px;">Нет запусков</td></tr>';
+            return;
+        }
+        runs.sort((a, b) => new Date(b.created) - new Date(a.created));
+        tbody.innerHTML = runs.map(r => `
+            <tr>
+                <td>#${r.id}</td>
+                <td><span class="sb sb-${r.status}">${statusLabel(r.status)}</span></td>
+                <td>${formatRelativeTime(r.created)}</td>
+                <td>${runDuration(r)}</td>
+            </tr>
+        `).join('');
+    }).catch(() => {});
+}
+
+function statusLabel(s) {
+    return {pending:'Ожидание',running:'Выполняется',success:'Успешно',failed:'Ошибка',cancelled:'Отменено'}[s] || s;
+}
+function runDuration(r) {
+    if (!r.started) return '—';
+    const end = r.finished ? new Date(r.finished) : new Date();
+    const sec = Math.floor((end - new Date(r.started)) / 1000);
+    if (sec < 60) return sec + 'с';
+    return Math.floor(sec/60) + 'м ' + (sec%60) + 'с';
+}
+
+// ============================================================
+// Graph rendering (SVG)
+// ============================================================
+const NODE_W = 180;
+const NODE_H = 56;
+
+function renderGraph() {
+    const group = document.getElementById('wf-graph-group');
+    group.innerHTML = '';
+    if (!currentWorkflow) return;
+
+    const nodes = currentWorkflow.nodes || [];
+    const edges = currentWorkflow.edges || [];
+
+    // Draw edges first (behind nodes)
+    edges.forEach(e => drawEdge(group, e, nodes));
+
+    // Draw nodes
+    nodes.forEach(n => drawNode(group, n));
+
+    applyTransform();
+}
+
+function applyTransform() {
+    const g = document.getElementById('wf-graph-group');
+    g.setAttribute('transform', `translate(${svgOffsetX},${svgOffsetY}) scale(${svgScale})`);
+}
+
+function nodeCenter(n) {
+    return { x: (n.pos_x || 0) + NODE_W / 2, y: (n.pos_y || 0) + NODE_H / 2 };
+}
+
+function drawEdge(group, edge, nodes) {
+    const from = nodes.find(n => n.id === edge.from_node_id);
+    const to   = nodes.find(n => n.id === edge.to_node_id);
+    if (!from || !to) return;
+
+    const fx = (from.pos_x || 0) + NODE_W;
+    const fy = (from.pos_y || 0) + NODE_H / 2;
+    const tx = to.pos_x || 0;
+    const ty = (to.pos_y || 0) + NODE_H / 2;
+    const mx = (fx + tx) / 2;
+
+    const cond = edge.condition || 'success';
+    const cls  = 'edge-' + cond;
+    const marker = 'url(#arrow-' + cond + ')';
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', `M${fx},${fy} C${mx},${fy} ${mx},${ty} ${tx},${ty}`);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke-width', '2');
+    path.setAttribute('marker-end', marker);
+    path.classList.add('wf-edge', cls);
+    group.appendChild(path);
+
+    // Hit area for selecting/deleting edges
+    const hit = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    hit.setAttribute('d', `M${fx},${fy} C${mx},${fy} ${mx},${ty} ${tx},${ty}`);
+    hit.setAttribute('fill', 'none');
+    hit.setAttribute('stroke', 'transparent');
+    hit.setAttribute('stroke-width', '12');
+    hit.classList.add('wf-edge-hit');
+    hit.addEventListener('click', (e) => { e.stopPropagation(); selectEdge(edge); });
+    group.appendChild(hit);
+
+    // Condition label
+    const lx = mx;
+    const ly = (fy + ty) / 2 - 4;
+    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    label.setAttribute('x', lx);
+    label.setAttribute('y', ly);
+    label.setAttribute('text-anchor', 'middle');
+    label.setAttribute('font-size', '11');
+    label.setAttribute('fill', cond === 'success' ? '#276749' : cond === 'failure' ? '#c53030' : '#1976d2');
+    label.textContent = cond;
+    label.style.pointerEvents = 'none';
+    group.appendChild(label);
+}
+
+function drawNode(group, node) {
+    const x = node.pos_x || 0;
+    const y = node.pos_y || 0;
+    const isSelected = node.id === selectedNodeId;
+    const isConnecting = connectingFrom !== null;
+
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.classList.add('wf-node');
+    if (isSelected) g.classList.add('selected');
+    g.setAttribute('data-node-id', node.id);
+
+    const tpl = templatesCache.find(t => t.id === node.template_id);
+
+    // Background rect
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', x);
+    rect.setAttribute('y', y);
+    rect.setAttribute('width', NODE_W);
+    rect.setAttribute('height', NODE_H);
+    rect.setAttribute('rx', '8');
+    rect.setAttribute('ry', '8');
+    rect.setAttribute('fill', '#fff');
+    rect.setAttribute('stroke', isSelected ? '#005057' : '#ddd');
+    rect.setAttribute('stroke-width', isSelected ? '2.5' : '1.5');
+    g.appendChild(rect);
+
+    // Top accent bar
+    const bar = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    bar.setAttribute('x', x);
+    bar.setAttribute('y', y);
+    bar.setAttribute('width', NODE_W);
+    bar.setAttribute('height', '4');
+    bar.setAttribute('rx', '8');
+    bar.setAttribute('fill', '#005057');
+    g.appendChild(bar);
+
+    // Icon
+    const icon = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    icon.setAttribute('x', x + 14);
+    icon.setAttribute('y', y + 32);
+    icon.setAttribute('font-size', '16');
+    icon.setAttribute('fill', '#005057');
+    icon.setAttribute('font-family', 'FontAwesome');
+    icon.textContent = '▦';
+    g.appendChild(icon);
+
+    // Node name
+    const nameText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    nameText.setAttribute('x', x + 34);
+    nameText.setAttribute('y', y + 24);
+    nameText.setAttribute('font-size', '13');
+    nameText.setAttribute('font-weight', '600');
+    nameText.setAttribute('fill', '#333');
+    nameText.textContent = truncate(node.name || tpl?.name || 'Шаблон #' + node.template_id, 18);
+    g.appendChild(nameText);
+
+    // Template subtitle
+    const subText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    subText.setAttribute('x', x + 34);
+    subText.setAttribute('y', y + 40);
+    subText.setAttribute('font-size', '10');
+    subText.setAttribute('fill', '#888');
+    subText.textContent = tpl ? truncate(tpl.playbook || tpl.name, 24) : ('template_id=' + node.template_id);
+    g.appendChild(subText);
+
+    // Connect button (right side port)
+    const port = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    port.setAttribute('cx', x + NODE_W);
+    port.setAttribute('cy', y + NODE_H / 2);
+    port.setAttribute('r', '7');
+    port.setAttribute('fill', connectingFrom === node.id ? '#c53030' : '#005057');
+    port.setAttribute('stroke', '#fff');
+    port.setAttribute('stroke-width', '2');
+    port.style.cursor = 'crosshair';
+    port.addEventListener('click', (e) => { e.stopPropagation(); startConnect(node.id); });
+    port.title = 'Соединить с другим узлом';
+    g.appendChild(port);
+
+    // If we're connecting, clicking on node body completes the connection
+    if (connectingFrom !== null && connectingFrom !== node.id) {
+        g.style.cursor = 'crosshair';
+    }
+
+    // Events
+    g.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        if (connectingFrom !== null && connectingFrom !== node.id) {
+            completeConnect(node.id);
+            return;
+        }
+        startDrag(e, node);
+    });
+    g.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (connectingFrom !== null && connectingFrom !== node.id) return;
+        selectNode(node);
+    });
+
+    group.appendChild(g);
+}
+
+function truncate(str, max) {
+    if (!str) return '';
+    return str.length > max ? str.substring(0, max - 1) + '…' : str;
+}
+
+// ============================================================
+// Selection
+// ============================================================
+function selectNode(node) {
+    selectedNodeId = node.id;
+    selectedEdgeId = null;
+    renderGraph();
+    showNodeProps(node);
+}
+
+function selectEdge(edge) {
+    selectedEdgeId = edge.id;
+    selectedNodeId = null;
+    renderGraph();
+    showEdgeProps(edge);
+}
+
+function showNodeProps(node) {
+    const tpl = templatesCache.find(t => t.id === node.template_id);
+    document.getElementById('wf-props-title-text').textContent = 'Узел: ' + (node.name || tpl?.name || '#' + node.id);
+    document.getElementById('wf-props-body').innerHTML = `
+        <div class="form-group">
+            <label>Название узла</label>
+            <input type="text" class="form-control" id="prop-node-name" value="${escapeHtml(node.name || '')}" oninput="debouncedUpdateNode()">
+        </div>
+        <div class="form-group">
+            <label>Шаблон</label>
+            <div style="font-weight:600; font-size:13px;">${escapeHtml(tpl?.name || 'Template #' + node.template_id)}</div>
+            ${tpl?.playbook ? `<div style="font-size:12px; color:var(--text-light);">${escapeHtml(tpl.playbook)}</div>` : ''}
+        </div>
+        <div class="form-group">
+            <label>Позиция</label>
+            <div style="font-size:12px; color:var(--text-light);">X: ${Math.round(node.pos_x)} Y: ${Math.round(node.pos_y)}</div>
+        </div>
+        <hr>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+            <button class="btn btn-sm btn-primary" onclick="startConnect(${node.id})" style="text-align:left;">
+                <i class="fa-solid fa-arrow-right"></i> Соединить → (условие)
+            </button>
+            <button class="btn btn-sm btn-danger" onclick="deleteNode(${node.id})" style="text-align:left;">
+                <i class="fa-solid fa-trash"></i> Удалить узел
+            </button>
+        </div>
+    `;
+    document.getElementById('wf-props-panel').classList.add('visible');
+    window._propsNodeId = node.id;
+}
+
+let _nodeUpdateTimer = null;
+function debouncedUpdateNode() {
+    clearTimeout(_nodeUpdateTimer);
+    _nodeUpdateTimer = setTimeout(() => {
+        if (!window._propsNodeId || !currentWorkflow) return;
+        const name = document.getElementById('prop-node-name')?.value?.trim();
+        if (!name) return;
+        const node = currentWorkflow.nodes.find(n => n.id === window._propsNodeId);
+        if (!node) return;
+        api.put('/project/' + projectId + '/workflows/' + currentWorkflow.id + '/nodes/' + node.id, {
+            name, pos_x: node.pos_x, pos_y: node.pos_y
+        }).then(() => {
+            node.name = name;
+            renderGraph();
+        }).catch(() => {});
+    }, 800);
+}
+
+function showEdgeProps(edge) {
+    const nodes = currentWorkflow?.nodes || [];
+    const from = nodes.find(n => n.id === edge.from_node_id);
+    const to   = nodes.find(n => n.id === edge.to_node_id);
+    document.getElementById('wf-props-title-text').textContent = 'Связь';
+    document.getElementById('wf-props-body').innerHTML = `
+        <div class="form-group">
+            <label>Откуда</label>
+            <div style="font-weight:600;">${escapeHtml(from?.name || '#' + edge.from_node_id)}</div>
+        </div>
+        <div class="form-group">
+            <label>Куда</label>
+            <div style="font-weight:600;">${escapeHtml(to?.name || '#' + edge.to_node_id)}</div>
+        </div>
+        <div class="form-group">
+            <label>Условие</label>
+            <div>
+                <span class="sb" style="background:${condColor(edge.condition)}20; color:${condColor(edge.condition)};">${edge.condition || 'success'}</span>
+            </div>
+        </div>
+        <hr>
+        <button class="btn btn-sm btn-danger" onclick="deleteEdge(${edge.id})">
+            <i class="fa-solid fa-trash"></i> Удалить связь
+        </button>
+    `;
+    document.getElementById('wf-props-panel').classList.add('visible');
+}
+
+function condColor(c) {
+    return c === 'failure' ? '#c53030' : c === 'always' ? '#1976d2' : '#276749';
+}
+
+function closePropsPanel() {
+    document.getElementById('wf-props-panel').classList.remove('visible');
+    selectedNodeId = null;
+    selectedEdgeId = null;
+    connectingFrom = null;
+    renderGraph();
+}
+
+// ============================================================
+// Connect (draw edge)
+// ============================================================
+function startConnect(fromNodeId) {
+    connectingFrom = fromNodeId;
+    renderGraph();
+    ui.showAlert('Кликните на целевой узел для соединения', 'info');
+}
+
+function completeConnect(toNodeId) {
+    if (!connectingFrom || !currentWorkflow) return;
+    const from = connectingFrom;
+    connectingFrom = null;
+
+    // Ask condition
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+        <div class="modal" style="max-width:340px;">
+            <div class="modal-header"><h3><i class="fa-solid fa-arrow-right"></i> Условие перехода</h3></div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Перейти к следующему шагу если:</label>
+                    <select id="edge-cond" class="form-control">
+                        <option value="success" selected>✅ Success — предыдущий шаг завершился успешно</option>
+                        <option value="failure">❌ Failure — предыдущий шаг завершился с ошибкой</option>
+                        <option value="always">🔄 Always — всегда (независимо от результата)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="this.closest('.modal-overlay').remove(); renderGraph();">Отмена</button>
+                <button class="btn btn-primary" onclick="confirmConnect(${from}, ${toNodeId}, document.getElementById('edge-cond').value, this.closest('.modal-overlay'))">Добавить</button>
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) { modal.remove(); renderGraph(); } });
+}
+
+function confirmConnect(fromId, toId, condition, modal) {
+    if (!currentWorkflow) return;
+    api.post('/project/' + projectId + '/workflows/' + currentWorkflow.id + '/edges', {
+        from_node_id: fromId,
+        to_node_id: toId,
+        condition
+    }).then(edge => {
+        currentWorkflow.edges = currentWorkflow.edges || [];
+        currentWorkflow.edges.push(edge);
+        modal.remove();
+        renderGraph();
+    }).catch(err => {
+        ui.showAlert('Ошибка: ' + err.message, 'danger');
+        modal.remove();
+        renderGraph();
+    });
+}
+
+// ============================================================
+// Drag nodes
+// ============================================================
+function startDrag(e, node) {
+    e.stopPropagation();
+    draggingNode = node;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    dragNodeOrigX = node.pos_x || 0;
+    dragNodeOrigY = node.pos_y || 0;
+
+    const onMove = (ev) => {
+        if (!draggingNode) return;
+        const dx = (ev.clientX - dragStartX) / svgScale;
+        const dy = (ev.clientY - dragStartY) / svgScale;
+        draggingNode.pos_x = Math.max(0, dragNodeOrigX + dx);
+        draggingNode.pos_y = Math.max(0, dragNodeOrigY + dy);
+        renderGraph();
+    };
+    const onUp = (ev) => {
+        if (!draggingNode) return;
+        const node = draggingNode;
+        draggingNode = null;
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        // Save position
+        api.put('/project/' + projectId + '/workflows/' + currentWorkflow.id + '/nodes/' + node.id, {
+            name: node.name,
+            pos_x: node.pos_x,
+            pos_y: node.pos_y
+        }).catch(() => {});
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+}
+
+// ============================================================
+// Canvas pan
+// ============================================================
+const canvasWrap = document.getElementById('wf-canvas-wrap');
+const svgEl = document.getElementById('wf-canvas');
+
+svgEl.addEventListener('mousedown', (e) => {
+    if (e.button !== 1 && !(e.button === 0 && e.altKey)) return;
+    isPanning = true;
+    panStartX = e.clientX;
+    panStartY = e.clientY;
+    panStartOffX = svgOffsetX;
+    panStartOffY = svgOffsetY;
+    e.preventDefault();
+});
+
+document.addEventListener('mousemove', (e) => {
+    if (!isPanning) return;
+    svgOffsetX = panStartOffX + (e.clientX - panStartX);
+    svgOffsetY = panStartOffY + (e.clientY - panStartY);
+    applyTransform();
+});
+
+document.addEventListener('mouseup', () => { isPanning = false; });
+
+svgEl.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    svgScale = Math.min(3, Math.max(0.2, svgScale * delta));
+    applyTransform();
+}, { passive: false });
+
+svgEl.addEventListener('click', () => {
+    if (connectingFrom !== null) { connectingFrom = null; renderGraph(); return; }
+    closePropsPanel();
+});
+
+// ============================================================
+// Zoom controls
+// ============================================================
+function zoomIn()    { svgScale = Math.min(3, svgScale * 1.2); applyTransform(); }
+function zoomOut()   { svgScale = Math.max(0.2, svgScale / 1.2); applyTransform(); }
+function zoomReset() { svgScale = 1; svgOffsetX = 40; svgOffsetY = 40; applyTransform(); }
+
+// ============================================================
+// Auto-layout (simple left-to-right topological sort)
+// ============================================================
+function autoLayout() {
+    if (!currentWorkflow) return;
+    const nodes = currentWorkflow.nodes || [];
+    const edges = currentWorkflow.edges || [];
+    if (!nodes.length) return;
+
+    // BFS levels from roots
+    const inDegree = {};
+    const children = {};
+    nodes.forEach(n => { inDegree[n.id] = 0; children[n.id] = []; });
+    edges.forEach(e => {
+        inDegree[e.to_node_id] = (inDegree[e.to_node_id] || 0) + 1;
+        children[e.from_node_id] = children[e.from_node_id] || [];
+        children[e.from_node_id].push(e.to_node_id);
+    });
+    const levels = {};
+    const queue = nodes.filter(n => !inDegree[n.id]).map(n => n.id);
+    queue.forEach(id => { levels[id] = 0; });
+    const visited = new Set(queue);
+    let qi = 0;
+    while (qi < queue.length) {
+        const cur = queue[qi++];
+        (children[cur] || []).forEach(cid => {
+            levels[cid] = Math.max(levels[cid] || 0, (levels[cur] || 0) + 1);
+            if (!visited.has(cid)) { visited.add(cid); queue.push(cid); }
+        });
+    }
+
+    // Position
+    const levelCounts = {};
+    nodes.forEach(n => {
+        const lv = levels[n.id] || 0;
+        levelCounts[lv] = (levelCounts[lv] || 0) + 1;
+    });
+    const levelCurrentRow = {};
+    nodes.forEach(n => {
+        const lv = levels[n.id] || 0;
+        const row = levelCurrentRow[lv] || 0;
+        levelCurrentRow[lv] = row + 1;
+        n.pos_x = 60 + lv * (NODE_W + 80);
+        n.pos_y = 60 + row * (NODE_H + 40);
+    });
+
+    // Save all positions
+    nodes.forEach(n => {
+        api.put('/project/' + projectId + '/workflows/' + currentWorkflow.id + '/nodes/' + n.id, {
+            name: n.name, pos_x: n.pos_x, pos_y: n.pos_y
+        }).catch(() => {});
+    });
+
+    svgOffsetX = 40; svgOffsetY = 40; svgScale = 1;
+    renderGraph();
+}
+
+// ============================================================
+// CRUD: Workflows
+// ============================================================
+function openCreateWorkflowDialog() {
+    openWorkflowDialog(null);
+}
+function openEditWorkflowDialog() {
+    if (!currentWorkflow) return;
+    openWorkflowDialog(currentWorkflow);
+}
+
+function openWorkflowDialog(wf) {
+    const isEdit = !!wf;
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+        <div class="modal" style="max-width:440px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-diagram-project"></i> ${isEdit ? 'Редактировать' : 'Новый'} Workflow</h3>
+                <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="wf-form">
+                    <div class="form-group">
+                        <label>Название *</label>
+                        <input type="text" id="wf-name" class="form-control" required value="${escapeHtml(wf?.name || '')}">
+                    </div>
+                    <div class="form-group">
+                        <label>Описание</label>
+                        <input type="text" id="wf-desc" class="form-control" value="${escapeHtml(wf?.description || '')}">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="this.closest('.modal-overlay').remove()">Отмена</button>
+                <button class="btn btn-primary" onclick="submitWorkflowForm(${wf?.id || 'null'}, this.closest('.modal-overlay'))">
+                    ${isEdit ? 'Сохранить' : 'Создать'}
+                </button>
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    setTimeout(() => document.getElementById('wf-name').focus(), 50);
+}
+
+function submitWorkflowForm(id, modal) {
+    const name = document.getElementById('wf-name').value.trim();
+    const description = document.getElementById('wf-desc').value.trim() || null;
+    if (!name) { ui.showAlert('Введите название', 'warning'); return; }
+
+    const payload = { name, description };
+    const req = id
+        ? api.put('/project/' + projectId + '/workflows/' + id, payload)
+        : api.post('/project/' + projectId + '/workflows', payload);
+
+    req.then(saved => {
+        modal.remove();
+        loadWorkflows();
+        if (!id) {
+            // Select newly created workflow
+            setTimeout(() => selectWorkflow(saved.id), 200);
+        } else {
+            currentWorkflow.name = saved.name;
+            currentWorkflow.description = saved.description;
+            document.getElementById('wf-toolbar-title').textContent = saved.name;
+        }
+        ui.showAlert(id ? 'Workflow обновлён' : 'Workflow создан', 'success');
+    }).catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+}
+
+function deleteWorkflow() {
+    if (!currentWorkflow) return;
+    ui.confirm('Удалить Workflow?', 'Вы уверены? Workflow "' + currentWorkflow.name + '" и все его узлы будут удалены.')
+        .then(confirmed => {
+            if (!confirmed) return;
+            api.delete('/project/' + projectId + '/workflows/' + currentWorkflow.id)
+                .then(() => {
+                    currentWorkflow = null;
+                    selectedNodeId = null;
+                    document.getElementById('wf-toolbar').style.display = 'none';
+                    document.getElementById('wf-drop-hint').style.display = '';
+                    document.getElementById('wf-runs-panel').style.display = 'none';
+                    document.getElementById('wf-graph-group').innerHTML = '';
+                    closePropsPanel();
+                    loadWorkflows();
+                    ui.showAlert('Workflow удалён', 'success');
+                })
+                .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+        });
+}
+
+// ============================================================
+// CRUD: Nodes
+// ============================================================
+function openAddNodeDialog() {
+    if (!currentWorkflow) return;
+    if (!templatesCache.length) {
+        ui.showAlert('Нет доступных шаблонов в проекте', 'warning');
+        return;
+    }
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+        <div class="modal" style="max-width:480px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-plus"></i> Добавить шаблон в Workflow</h3>
+                <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Шаблон *</label>
+                    <select id="node-tpl-id" class="form-control" required>
+                        <option value="">— выберите шаблон —</option>
+                        ${templatesCache.map(t => `<option value="${t.id}">${escapeHtml(t.name)} (${escapeHtml(t.playbook || t.app || 'ansible')})</option>`).join('')}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Метка узла</label>
+                    <input type="text" id="node-label" class="form-control" placeholder="Оставьте пустым — будет использовано название шаблона">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="this.closest('.modal-overlay').remove()">Отмена</button>
+                <button class="btn btn-primary" onclick="submitAddNode(this.closest('.modal-overlay'))"><i class="fa-solid fa-plus"></i> Добавить</button>
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+function submitAddNode(modal) {
+    const tplId = parseInt(document.getElementById('node-tpl-id').value);
+    if (!tplId) { ui.showAlert('Выберите шаблон', 'warning'); return; }
+    const label = document.getElementById('node-label').value.trim();
+    const tpl = templatesCache.find(t => t.id === tplId);
+
+    // Place new node in a good position
+    const existingNodes = currentWorkflow.nodes || [];
+    const maxX = existingNodes.length ? Math.max(...existingNodes.map(n => n.pos_x || 0)) : 0;
+    const pos_x = maxX > 0 ? maxX + NODE_W + 80 : 60;
+    const pos_y = 60;
+
+    api.post('/project/' + projectId + '/workflows/' + currentWorkflow.id + '/nodes', {
+        template_id: tplId,
+        name: label || tpl?.name || 'Шаблон #' + tplId,
+        pos_x,
+        pos_y
+    }).then(node => {
+        currentWorkflow.nodes = currentWorkflow.nodes || [];
+        currentWorkflow.nodes.push(node);
+        modal.remove();
+        renderGraph();
+        selectNode(node);
+    }).catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+}
+
+function deleteNode(nodeId) {
+    if (!currentWorkflow) return;
+    ui.confirm('Удалить узел?', 'Узел и все его связи будут удалены.')
+        .then(confirmed => {
+            if (!confirmed) return;
+            api.delete('/project/' + projectId + '/workflows/' + currentWorkflow.id + '/nodes/' + nodeId)
+                .then(() => {
+                    currentWorkflow.nodes = currentWorkflow.nodes.filter(n => n.id !== nodeId);
+                    currentWorkflow.edges = currentWorkflow.edges.filter(e => e.from_node_id !== nodeId && e.to_node_id !== nodeId);
+                    selectedNodeId = null;
+                    closePropsPanel();
+                    renderGraph();
+                })
+                .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+        });
+}
+
+function deleteEdge(edgeId) {
+    if (!currentWorkflow) return;
+    api.delete('/project/' + projectId + '/workflows/' + currentWorkflow.id + '/edges/' + edgeId)
+        .then(() => {
+            currentWorkflow.edges = currentWorkflow.edges.filter(e => e.id !== edgeId);
+            selectedEdgeId = null;
+            closePropsPanel();
+            renderGraph();
+        })
+        .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+}
+
+// ============================================================
+// Run workflow
+// ============================================================
+function runWorkflow() {
+    if (!currentWorkflow) return;
+    const nodes = currentWorkflow.nodes || [];
+    if (!nodes.length) {
+        ui.showAlert('Добавьте хотя бы один шаблон в workflow', 'warning');
+        return;
+    }
+
+    ui.confirm('Запустить Workflow?',
+        'Workflow "' + (currentWorkflow.name || 'Workflow') + '" будет запущен (' + nodes.length + ' шаблонов).')
+        .then(confirmed => {
+            if (!confirmed) return;
+            api.post('/project/' + projectId + '/workflows/' + currentWorkflow.id + '/run', {})
+                .then(run => {
+                    ui.showAlert('Workflow запущен! Run #' + run.id, 'success');
+                    loadRuns(currentWorkflow.id);
+                })
+                .catch(err => ui.showAlert('Ошибка запуска: ' + err.message, 'danger'));
+        });
+}
+</script>
+</body>
+</html>

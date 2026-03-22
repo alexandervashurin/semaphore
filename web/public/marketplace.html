@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Template Marketplace - Velum</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+    <style>
+        .mkt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+        .mkt-card { border: 1px solid var(--border); border-radius: 10px; padding: 16px; cursor: pointer; transition: box-shadow 0.2s; background: var(--surface); }
+        .mkt-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.12); border-color: var(--primary); }
+        .mkt-icon { font-size: 28px; margin-bottom: 8px; }
+        .mkt-name { font-weight: 700; font-size: 15px; margin-bottom: 4px; }
+        .mkt-desc { font-size: 13px; color: var(--text-light); margin-bottom: 10px; line-height: 1.4; }
+        .mkt-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
+        .mkt-tag { padding: 2px 8px; border-radius: 10px; font-size: 11px; background: var(--bg); border: 1px solid var(--border); color: var(--text-light); }
+        .mkt-footer { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text-light); }
+        .mkt-badge { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+        .badge-ansible { background: #e8f5e9; color: #276749; }
+        .badge-terraform { background: #ede7f6; color: #4a148c; }
+        .badge-shell { background: #fff8e1; color: #f57f17; }
+        .mkt-stars { color: #f59e0b; }
+        .filter-pills { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+        .filter-pill { padding: 5px 14px; border-radius: 20px; font-size: 13px; border: 1px solid var(--border); cursor: pointer; background: var(--surface); color: var(--text); }
+        .filter-pill.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .search-bar { display: flex; gap: 10px; margin-bottom: 16px; }
+    </style>
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar"></aside>
+    <div class="main-content">
+        <div class="main-header">
+            <h2>Template Marketplace</h2>
+        </div>
+        <div class="main-body">
+
+            <div class="page-header">
+                <div>
+                    <h1><i class="fa-solid fa-store"></i> Template Marketplace</h1>
+                    <p style="color:var(--text-light); font-size:13px; margin-top:4px;">
+                        Готовые шаблоны для Ansible, Terraform и Shell — импортируйте и запускайте сразу
+                    </p>
+                </div>
+            </div>
+
+            <!-- Search -->
+            <div class="search-bar">
+                <input type="text" id="mkt-search" class="form-control" placeholder="🔍 Поиск шаблонов..." oninput="renderMarketplace()" style="flex:1;">
+            </div>
+
+            <!-- Filter pills -->
+            <div class="filter-pills">
+                <span class="filter-pill active" data-type="" onclick="setTypeFilter(this, '')">Все</span>
+                <span class="filter-pill" data-type="ansible" onclick="setTypeFilter(this, 'ansible')">
+                    <i class="fa-solid fa-a"></i> Ansible
+                </span>
+                <span class="filter-pill" data-type="terraform" onclick="setTypeFilter(this, 'terraform')">
+                    <i class="fa-solid fa-cubes"></i> Terraform
+                </span>
+                <span class="filter-pill" data-type="shell" onclick="setTypeFilter(this, 'shell')">
+                    <i class="fa-solid fa-terminal"></i> Shell
+                </span>
+            </div>
+
+            <div id="mkt-grid" class="mkt-grid">
+                <!-- filled by JS -->
+            </div>
+
+            <!-- Import modal container -->
+        </div>
+    </div>
+</div>
+
+<!-- Import Dialog -->
+<div id="import-modal" class="modal-overlay" style="display:none;">
+    <div class="modal" style="max-width:560px;">
+        <div class="modal-header">
+            <h3 id="import-title"><i class="fa-solid fa-download"></i> Импорт шаблона</h3>
+            <button class="modal-close" onclick="closeImport()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="import-preview"></div>
+            <div class="form-group" style="margin-top:16px;">
+                <label>Проект назначения *</label>
+                <select id="import-project" class="form-control"></select>
+            </div>
+            <div class="form-group">
+                <label>Название (можно изменить)</label>
+                <input type="text" id="import-name" class="form-control">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn" onclick="closeImport()">Отмена</button>
+            <button class="btn btn-primary" onclick="doImport()">
+                <i class="fa-solid fa-download"></i> Импортировать
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+checkAuth();
+
+let typeFilter = '';
+let projects = [];
+let importItem = null;
+
+// Load projects for the import dialog
+api.get('/projects').then(p => {
+    projects = p || [];
+    const sel = document.getElementById('import-project');
+    projects.forEach(proj => {
+        const opt = document.createElement('option');
+        opt.value = proj.id;
+        opt.textContent = proj.name;
+        sel.appendChild(opt);
+    });
+}).catch(() => {});
+
+// ─── Community Template Catalog ───────────────────────────────────────────
+
+const MARKETPLACE_TEMPLATES = [
+    // ─── Ansible ──────────────────────────────────────────────────────────
+    {
+        id: 'nginx-ubuntu',
+        icon: '🌐',
+        name: 'Nginx на Ubuntu 22.04',
+        description: 'Устанавливает Nginx, настраивает virtualhost, включает HTTPS через Let\'s Encrypt',
+        type: 'ansible',
+        tags: ['web', 'nginx', 'https', 'ubuntu'],
+        stars: 248,
+        playbook: 'nginx.yml',
+        arguments: '',
+        template: {
+            name: 'Nginx на Ubuntu 22.04',
+            app: 'ansible',
+            playbook: 'nginx.yml',
+            description: 'Устанавливает и настраивает Nginx с SSL',
+        },
+        preview: `---
+- name: Install Nginx
+  hosts: webservers
+  become: yes
+  tasks:
+    - name: Install nginx
+      apt:
+        name: nginx
+        state: present
+    - name: Enable and start nginx
+      service:
+        name: nginx
+        state: started
+        enabled: yes`,
+    },
+    {
+        id: 'docker-compose-deploy',
+        icon: '🐳',
+        name: 'Docker Compose Deploy',
+        description: 'Деплой приложения через Docker Compose — обновляет образы, рестартует сервисы',
+        type: 'ansible',
+        tags: ['docker', 'compose', 'deploy', 'ci/cd'],
+        stars: 312,
+        template: {
+            name: 'Docker Compose Deploy',
+            app: 'ansible',
+            playbook: 'docker-deploy.yml',
+            description: 'Pull & restart Docker Compose services',
+        },
+        preview: `---
+- name: Deploy with Docker Compose
+  hosts: app_servers
+  become: yes
+  vars:
+    compose_dir: /opt/app
+  tasks:
+    - name: Pull latest images
+      shell: docker compose pull
+      args:
+        chdir: "{{ compose_dir }}"
+    - name: Restart services
+      shell: docker compose up -d
+      args:
+        chdir: "{{ compose_dir }}"`,
+    },
+    {
+        id: 'postgresql-backup',
+        icon: '🗄️',
+        name: 'PostgreSQL Backup',
+        description: 'Создаёт дамп PostgreSQL, сжимает и загружает в S3 / локальное хранилище',
+        type: 'ansible',
+        tags: ['postgresql', 'backup', 's3', 'database'],
+        stars: 185,
+        template: {
+            name: 'PostgreSQL Backup',
+            app: 'ansible',
+            playbook: 'pg-backup.yml',
+            description: 'PostgreSQL backup to S3',
+        },
+        preview: `---
+- name: PostgreSQL backup
+  hosts: db_servers
+  become_user: postgres
+  tasks:
+    - name: Create dump
+      shell: >
+        pg_dump {{ db_name }} |
+        gzip > /tmp/{{ db_name }}-{{ ansible_date_time.date }}.sql.gz`,
+    },
+    {
+        id: 'certbot-renew',
+        icon: '🔐',
+        name: 'SSL Certificate Renewal',
+        description: 'Обновляет SSL-сертификаты Certbot / Let\'s Encrypt на всех серверах',
+        type: 'ansible',
+        tags: ['ssl', 'certbot', 'letsencrypt', 'security'],
+        stars: 156,
+        template: {
+            name: 'SSL Certificate Renewal',
+            app: 'ansible',
+            playbook: 'certbot-renew.yml',
+            description: 'Renew Let\'s Encrypt certificates',
+        },
+        preview: `---
+- name: Renew SSL Certificates
+  hosts: webservers
+  become: yes
+  tasks:
+    - name: Renew certbot certificates
+      command: certbot renew --quiet
+    - name: Reload nginx
+      service: name=nginx state=reloaded`,
+    },
+    {
+        id: 'system-update',
+        icon: '🔄',
+        name: 'System Update (apt/yum)',
+        description: 'Обновляет все пакеты ОС, опционально перезагружает если нужно (kernel update)',
+        type: 'ansible',
+        tags: ['update', 'security', 'maintenance', 'ubuntu', 'centos'],
+        stars: 421,
+        template: {
+            name: 'System Update',
+            app: 'ansible',
+            playbook: 'system-update.yml',
+            description: 'Full system package update',
+        },
+        preview: `---
+- name: System Updates
+  hosts: all
+  become: yes
+  tasks:
+    - name: Update apt cache
+      apt: update_cache=yes
+      when: ansible_os_family == "Debian"
+    - name: Upgrade all packages
+      apt: upgrade=dist
+      when: ansible_os_family == "Debian"`,
+    },
+    // ─── Terraform ────────────────────────────────────────────────────────
+    {
+        id: 'aws-ec2-basic',
+        icon: '☁️',
+        name: 'AWS EC2 Instance',
+        description: 'Создаёт EC2 инстанс с security group, key pair и elastic IP',
+        type: 'terraform',
+        tags: ['aws', 'ec2', 'cloud', 'terraform'],
+        stars: 534,
+        template: {
+            name: 'AWS EC2 Instance',
+            app: 'terraform',
+            playbook: 'aws-ec2/',
+            description: 'Deploy EC2 instance on AWS',
+        },
+        preview: `resource "aws_instance" "app" {
+  ami           = var.ami_id
+  instance_type = var.instance_type
+  key_name      = var.key_name
+
+  vpc_security_group_ids = [aws_security_group.app.id]
+
+  tags = {
+    Name = var.instance_name
+    Env  = var.environment
+  }
+}`,
+    },
+    {
+        id: 'k8s-namespace',
+        icon: '⚙️',
+        name: 'Kubernetes Namespace & RBAC',
+        description: 'Создаёт namespace, ServiceAccount, Role и RoleBinding в Kubernetes',
+        type: 'terraform',
+        tags: ['kubernetes', 'k8s', 'rbac', 'helm'],
+        stars: 198,
+        template: {
+            name: 'Kubernetes Namespace & RBAC',
+            app: 'terraform',
+            playbook: 'k8s-namespace/',
+            description: 'K8s namespace with RBAC setup',
+        },
+        preview: `resource "kubernetes_namespace" "app" {
+  metadata {
+    name = var.namespace_name
+    labels = {
+      environment = var.environment
+    }
+  }
+}
+
+resource "kubernetes_service_account" "app" {
+  metadata {
+    name      = "\${var.namespace_name}-sa"
+    namespace = kubernetes_namespace.app.metadata[0].name
+  }
+}`,
+    },
+    {
+        id: 'vpc-basic',
+        icon: '🕸️',
+        name: 'AWS VPC + Subnets',
+        description: 'Базовая VPC с публичными и приватными подсетями, NAT Gateway, Route Tables',
+        type: 'terraform',
+        tags: ['aws', 'vpc', 'networking', 'terraform'],
+        stars: 389,
+        template: {
+            name: 'AWS VPC + Subnets',
+            app: 'terraform',
+            playbook: 'aws-vpc/',
+            description: 'VPC with public/private subnets',
+        },
+        preview: `resource "aws_vpc" "main" {
+  cidr_block = var.vpc_cidr
+  enable_dns_hostnames = true
+  tags = { Name = "\${var.project_name}-vpc" }
+}
+
+resource "aws_subnet" "public" {
+  count             = length(var.availability_zones)
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = cidrsubnet(var.vpc_cidr, 8, count.index)
+  availability_zone = var.availability_zones[count.index]
+}`,
+    },
+    // ─── Shell ────────────────────────────────────────────────────────────
+    {
+        id: 'disk-cleanup',
+        icon: '🧹',
+        name: 'Disk Cleanup',
+        description: 'Очищает /tmp, старые логи, docker-образы и завершённые контейнеры',
+        type: 'shell',
+        tags: ['cleanup', 'maintenance', 'disk', 'docker'],
+        stars: 267,
+        template: {
+            name: 'Disk Cleanup',
+            app: 'shell',
+            playbook: 'cleanup.sh',
+            description: 'Clean disk space on servers',
+        },
+        preview: `#!/bin/bash
+set -e
+
+echo "Cleaning /tmp..."
+find /tmp -mtime +7 -delete 2>/dev/null || true
+
+echo "Cleaning old logs..."
+find /var/log -name "*.gz" -mtime +30 -delete 2>/dev/null || true
+
+echo "Cleaning Docker..."
+docker system prune -f 2>/dev/null || true
+
+echo "Done! Disk usage:"
+df -h /`,
+    },
+    {
+        id: 'git-deploy',
+        icon: '🚀',
+        name: 'Git Pull Deploy',
+        description: 'Простой деплой через git pull + systemctl restart на удалённом сервере',
+        type: 'shell',
+        tags: ['git', 'deploy', 'simple', 'systemd'],
+        stars: 312,
+        template: {
+            name: 'Git Pull Deploy',
+            app: 'shell',
+            playbook: 'git-deploy.sh',
+            description: 'Deploy via git pull + service restart',
+        },
+        preview: `#!/bin/bash
+APP_DIR="\${APP_DIR:-/opt/app}"
+SERVICE="\${SERVICE:-app}"
+
+cd "$APP_DIR"
+git pull origin main
+npm install --production
+systemctl restart "$SERVICE"
+echo "Deployed successfully"`,
+    },
+    {
+        id: 'health-check',
+        icon: '❤️',
+        name: 'HTTP Health Check',
+        description: 'Проверяет доступность URL-ов и отправляет уведомление при сбое',
+        type: 'shell',
+        tags: ['monitoring', 'health', 'http', 'alert'],
+        stars: 143,
+        template: {
+            name: 'HTTP Health Check',
+            app: 'shell',
+            playbook: 'health-check.sh',
+            description: 'Check HTTP endpoints availability',
+        },
+        preview: `#!/bin/bash
+URLS="\${URLS:-http://localhost}"
+TIMEOUT="\${TIMEOUT:-10}"
+
+for url in $URLS; do
+  code=$(curl -s -o /dev/null -w "%{http_code}" --max-time $TIMEOUT "$url")
+  if [ "$code" = "200" ]; then
+    echo "✅ $url — OK ($code)"
+  else
+    echo "❌ $url — FAILED ($code)"
+    exit 1
+  fi
+done`,
+    },
+];
+
+// ─── Render ────────────────────────────────────────────────────────────────
+
+function setTypeFilter(el, type) {
+    typeFilter = type;
+    document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+    el.classList.add('active');
+    renderMarketplace();
+}
+
+function renderMarketplace() {
+    const search = document.getElementById('mkt-search').value.toLowerCase();
+    const items = MARKETPLACE_TEMPLATES.filter(t => {
+        if (typeFilter && t.type !== typeFilter) return false;
+        if (search) {
+            return t.name.toLowerCase().includes(search) ||
+                   t.description.toLowerCase().includes(search) ||
+                   t.tags.some(tag => tag.includes(search));
+        }
+        return true;
+    });
+
+    const grid = document.getElementById('mkt-grid');
+    if (!items.length) {
+        grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--text-light);">Ничего не найдено</div>';
+        return;
+    }
+
+    grid.innerHTML = items.map(t => `
+    <div class="mkt-card" onclick="openImport(${JSON.stringify(t).replace(/"/g,'&quot;')})">
+        <div class="mkt-icon">${t.icon}</div>
+        <div class="mkt-name">${escapeHtml(t.name)}</div>
+        <div class="mkt-desc">${escapeHtml(t.description)}</div>
+        <div class="mkt-tags">${t.tags.map(tag => `<span class="mkt-tag">${escapeHtml(tag)}</span>`).join('')}</div>
+        <div class="mkt-footer">
+            <span class="mkt-badge badge-${t.type}">${t.type}</span>
+            <span class="mkt-stars">★ ${t.stars}</span>
+        </div>
+    </div>`).join('');
+}
+
+function openImport(tpl) {
+    importItem = tpl;
+    document.getElementById('import-title').innerHTML = `<i class="fa-solid fa-download"></i> Импорт: ${escapeHtml(tpl.name)}`;
+    document.getElementById('import-name').value = tpl.name;
+    document.getElementById('import-preview').innerHTML = `
+        <div style="background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:12px; margin-bottom:8px;">
+            <div style="font-size:13px; color:var(--text-light); margin-bottom:8px;">${escapeHtml(tpl.description)}</div>
+            <pre style="font-size:11px; font-family:monospace; overflow-x:auto; white-space:pre-wrap; max-height:200px; overflow-y:auto; color:var(--text);">${escapeHtml(tpl.preview || '')}</pre>
+        </div>`;
+    document.getElementById('import-modal').style.display = '';
+}
+
+function closeImport() {
+    document.getElementById('import-modal').style.display = 'none';
+    importItem = null;
+}
+
+function doImport() {
+    if (!importItem) return;
+    const projectId = document.getElementById('import-project').value;
+    const name = document.getElementById('import-name').value.trim();
+
+    if (!projectId) { ui.showAlert('Выберите проект', 'warning'); return; }
+    if (!name) { ui.showAlert('Введите название', 'warning'); return; }
+
+    const payload = {
+        ...importItem.template,
+        name,
+    };
+
+    api.post('/project/' + projectId + '/templates', payload)
+        .then(t => {
+            closeImport();
+            ui.showAlert(`✅ Шаблон "${name}" импортирован в проект!`, 'success');
+        })
+        .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+}
+
+// Initialize
+renderMarketplace();
+</script>
+</body>
+</html>

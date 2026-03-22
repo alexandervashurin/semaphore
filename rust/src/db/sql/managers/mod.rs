@@ -59,6 +59,13 @@ pub mod webhook;
 pub mod playbook;
 pub mod playbook_run;
 pub mod integration_matcher;
+pub mod workflow;
+pub mod notification;
+pub mod credential_type;
+pub mod drift;
+pub mod ldap_group;
+pub mod snapshot;
+pub mod cost_estimate;
 
 // Ре-экспорт трейтов для удобства
 pub use connection::*;

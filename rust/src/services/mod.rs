@@ -32,6 +32,7 @@ pub mod task_runner;
 pub mod telegram_bot;
 pub mod totp;
 pub mod webhook;
+pub mod workflow_executor;
 
 pub use access_key_installation_service::{
     AccessKeyEncryptionService, AccessKeyInstallationServiceTrait,
@@ -49,6 +50,7 @@ pub use task_pool_status::TaskStatusMessage;
 pub use task_runner::TaskRunner;
 pub use webhook::{WebhookService, WebhookConfig, WebhookEvent, WebhookResult, WebhookType, WebhookMetadata};
 pub use metrics::{MetricsManager, TaskCounters, ProjectTaskCounters, TemplateTaskCounters, UserTaskCounters};
+pub use workflow_executor::{WorkflowExecutor, run_workflow as execute_workflow};
 
 #[cfg(test)]
 mod webhook_tests;

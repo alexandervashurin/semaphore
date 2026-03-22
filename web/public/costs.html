@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Оценка стоимости Terraform - Velum</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+    <style>
+        .cost-hero {
+            background: linear-gradient(135deg, #1a365d 0%, #2d3748 100%);
+            color: #fff;
+            border-radius: 12px;
+            padding: 24px 28px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .cost-hero-icon { font-size: 40px; opacity: 0.9; }
+        .cost-hero h2 { margin: 0 0 4px; font-size: 20px; font-weight: 700; }
+        .cost-hero p { margin: 0; opacity: 0.75; font-size: 13px; }
+        .cost-hero .hero-actions { margin-left: auto; display: flex; gap: 8px; }
+
+        /* Setup banner */
+        .setup-banner {
+            background: #f0fff4;
+            border: 1px solid #9ae6b4;
+            border-radius: 10px;
+            padding: 18px 22px;
+            margin-bottom: 20px;
+        }
+        .setup-banner h3 { margin: 0 0 8px; color: #276749; font-size: 15px; }
+        .setup-banner code {
+            display: block;
+            background: #e6ffed;
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #22543d;
+            margin: 6px 0;
+        }
+
+        /* Summary cards */
+        .cost-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+        .cost-summary-card {
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 18px 20px;
+            transition: box-shadow 0.2s;
+        }
+        .cost-summary-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .cost-summary-card .template-name {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .cost-big {
+            font-size: 28px;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 4px;
+        }
+        .cost-big .currency { font-size: 16px; font-weight: 400; color: var(--text-light); }
+        .cost-period { font-size: 12px; color: var(--text-light); margin-bottom: 10px; }
+        .cost-meta { font-size: 12px; color: var(--text-light); }
+
+        /* History table */
+        .cost-badge-up { color: #e53e3e; font-size: 12px; font-weight: 600; }
+        .cost-badge-down { color: #38a169; font-size: 12px; font-weight: 600; }
+        .cost-badge-same { color: var(--text-light); font-size: 12px; }
+        .resource-chips { display: flex; gap: 4px; flex-wrap: wrap; }
+        .resource-chip {
+            padding: 1px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .chip-added { background: #c6f6d5; color: #276749; }
+        .chip-changed { background: #fefcbf; color: #744210; }
+        .chip-deleted { background: #fed7d7; color: #c53030; }
+
+        /* Breakdown modal */
+        .breakdown-modal { max-width: 700px; }
+        .breakdown-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .breakdown-table th, .breakdown-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); text-align: left; }
+        .breakdown-table th { background: #f9fafb; font-weight: 600; font-size: 12px; color: var(--text-light); }
+        .breakdown-table tr:hover { background: #f9fafb; }
+        .cost-positive { color: #e53e3e; }
+        .cost-negative { color: #38a169; }
+
+        /* Empty / no infracost state */
+        .infracost-cta {
+            background: #ebf8ff;
+            border: 1px solid #bee3f8;
+            border-radius: 10px;
+            padding: 24px;
+            text-align: center;
+            margin-top: 16px;
+        }
+        .infracost-cta h3 { margin: 12px 0 6px; color: #2b6cb0; }
+        .infracost-cta p { color: #2c5282; font-size: 13px; margin: 0 0 16px; }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar"></aside>
+        <div class="main-content">
+            <div class="main-header">
+                <h2 id="project-title">Стоимость Terraform</h2>
+            </div>
+            <div class="main-body">
+
+                <!-- Hero -->
+                <div class="cost-hero">
+                    <div class="cost-hero-icon"><i class="fa-solid fa-dollar-sign"></i></div>
+                    <div>
+                        <h2>Terraform Cost Tracking</h2>
+                        <p>Интеграция с Infracost — видьте стоимость изменений ДО применения terraform apply</p>
+                    </div>
+                    <div class="hero-actions">
+                        <button class="btn btn-sm" style="background:rgba(255,255,255,0.2); color:#fff; border-color:rgba(255,255,255,0.3);" onclick="loadData()">
+                            <i class="fa-solid fa-rotate-right"></i> Обновить
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Infracost setup instructions -->
+                <div class="setup-banner" id="setup-banner" style="display:none;">
+                    <h3><i class="fa-solid fa-circle-info"></i> Настройка Infracost</h3>
+                    <p>Для автоматического расчёта стоимости установите Infracost и добавьте хук в ваш Terraform шаблон:</p>
+                    <code>curl -fsSL https://raw.githubusercontent.com/infracost/infracost/master/scripts/install.sh | sh</code>
+                    <code>infracost configure set api_key &lt;YOUR_KEY&gt;</code>
+                    <p style="margin-top:10px; font-size:13px; color:#276749;">После планирования Velum автоматически вызовет <strong>infracost breakdown</strong> и сохранит оценку стоимости.</p>
+                </div>
+
+                <!-- Summary cards -->
+                <div id="summary-section" style="display:none;">
+                    <h3 style="margin-bottom:12px; font-size:16px;"><i class="fa-solid fa-layer-group"></i> Стоимость по шаблонам</h3>
+                    <div class="cost-summary-grid" id="summary-grid"></div>
+                </div>
+
+                <!-- History table -->
+                <div id="history-section">
+                    <h3 style="margin-bottom:12px; font-size:16px;"><i class="fa-solid fa-clock-rotate-left"></i> История оценок</h3>
+                    <div id="history-content">
+                        <div class="loading"><div class="loading-spinner"></div><p>Загрузка...</p></div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Breakdown modal -->
+    <div id="breakdown-modal" class="modal" style="display:none;">
+        <div class="modal-overlay" onclick="closeBreakdown()"></div>
+        <div class="modal-container breakdown-modal">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-list-ul"></i> Детализация ресурсов</h3>
+                <button class="modal-close" onclick="closeBreakdown()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" id="breakdown-body">
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeBreakdown()">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        checkAuth();
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = urlParams.get('id');
+        if (!projectId) { window.location.href = 'index.html'; }
+
+        let costHistory = [];
+        let summaries   = [];
+
+        // Load project title
+        api.getProject(projectId).then(p => {
+            $('#project-title').innerHTML = escapeHtml(p.name) + ' <span style="color:var(--text-light)">→</span> <i class="fa-solid fa-dollar-sign"></i> Стоимость';
+            document.title = 'Стоимость — ' + p.name;
+        }).catch(() => {});
+
+        function loadData() {
+            Promise.all([
+                api.request('/project/' + projectId + '/costs'),
+                api.request('/project/' + projectId + '/costs/summary'),
+            ]).then(([history, summary]) => {
+                costHistory = Array.isArray(history) ? history : [];
+                summaries   = Array.isArray(summary)  ? summary  : [];
+                renderSummary();
+                renderHistory();
+            }).catch(err => {
+                $('#history-content').innerHTML = `<div class="alert alert-danger">Ошибка загрузки: ${escapeHtml(err.message)}</div>`;
+            });
+        }
+
+        function renderSummary() {
+            if (!summaries.length) {
+                $('#summary-section').style.display = 'none';
+                return;
+            }
+            $('#summary-section').style.display = 'block';
+            const grid = $('#summary-grid');
+            grid.innerHTML = summaries.map(s => {
+                const cost = s.latest_monthly_cost;
+                const costStr = cost != null ? cost.toFixed(2) : '—';
+                return `
+                <div class="cost-summary-card">
+                    <div class="template-name"><i class="fa-brands fa-hashnode" style="color:#0f62fe; margin-right:6px;"></i>${escapeHtml(s.template_name)}</div>
+                    <div class="cost-big"><span class="currency">$</span>${costStr}</div>
+                    <div class="cost-period">/ месяц (оценка)</div>
+                    <div class="cost-meta">
+                        <i class="fa-solid fa-play fa-xs"></i> ${s.runs_with_cost} расчётов
+                        · Последний: ${formatDate(s.last_run_at)}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function renderHistory() {
+            const container = $('#history-content');
+            if (!costHistory.length) {
+                container.innerHTML = '';
+                $('#setup-banner').style.display = 'block';
+                container.innerHTML = `
+                <div class="infracost-cta">
+                    <i class="fa-solid fa-dollar-sign fa-3x" style="color:#4299e1;"></i>
+                    <h3>Нет данных о стоимости</h3>
+                    <p>Запустите Terraform Plan с включённым Infracost — оценка появится здесь автоматически.</p>
+                    <a href="https://www.infracost.io/docs/" target="_blank" class="btn btn-primary">
+                        <i class="fa-solid fa-external-link"></i> Документация Infracost
+                    </a>
+                </div>`;
+                return;
+            }
+
+            container.innerHTML = `
+            <table class="table">
+                <thead><tr>
+                    <th>Задача</th>
+                    <th>Шаблон</th>
+                    <th>Стоимость/мес</th>
+                    <th>Изменение</th>
+                    <th>Ресурсы</th>
+                    <th>Дата</th>
+                    <th></th>
+                </tr></thead>
+                <tbody>
+                ${costHistory.map(c => {
+                    const cost = c.monthly_cost != null ? '$' + c.monthly_cost.toFixed(2) : '—';
+                    const diffHtml = formatDiff(c.monthly_cost_diff);
+                    return `<tr>
+                        <td><a href="task.html?id=${projectId}&task=${c.task_id}" style="font-size:13px; color:var(--primary);">#${c.task_id}</a></td>
+                        <td style="font-size:13px;">${escapeHtml(c.template_name || ('Шаблон #' + c.template_id))}</td>
+                        <td style="font-weight:600;">${cost}</td>
+                        <td>${diffHtml}</td>
+                        <td>
+                            <div class="resource-chips">
+                                ${c.resources_added   > 0 ? `<span class="resource-chip chip-added">+${c.resources_added}</span>` : ''}
+                                ${c.resources_changed > 0 ? `<span class="resource-chip chip-changed">~${c.resources_changed}</span>` : ''}
+                                ${c.resources_deleted > 0 ? `<span class="resource-chip chip-deleted">-${c.resources_deleted}</span>` : ''}
+                                ${(c.resources_added + c.resources_changed + c.resources_deleted === 0)
+                                    ? `<span class="resource-chip" style="background:#e9ecef;color:#555;">${c.resource_count} ресурсов</span>`
+                                    : ''}
+                            </div>
+                        </td>
+                        <td style="font-size:12px; color:var(--text-light);">${formatDate(c.created_at)}</td>
+                        <td>
+                            ${c.breakdown_json
+                                ? `<button class="btn btn-sm" onclick="showBreakdown(${c.id})"><i class="fa-solid fa-list-ul"></i></button>`
+                                : ''}
+                        </td>
+                    </tr>`;
+                }).join('')}
+                </tbody>
+            </table>`;
+        }
+
+        function formatDiff(diff) {
+            if (diff == null) return '<span class="cost-badge-same">—</span>';
+            const sign = diff > 0 ? '+' : '';
+            if (diff > 0) return `<span class="cost-badge-up"><i class="fa-solid fa-arrow-up"></i> $${diff.toFixed(2)}</span>`;
+            if (diff < 0) return `<span class="cost-badge-down"><i class="fa-solid fa-arrow-down"></i> $${Math.abs(diff).toFixed(2)}</span>`;
+            return `<span class="cost-badge-same">= $0.00</span>`;
+        }
+
+        function showBreakdown(costId) {
+            const c = costHistory.find(x => x.id === costId);
+            if (!c || !c.breakdown_json) return;
+
+            let resources = [];
+            try {
+                const data = JSON.parse(c.breakdown_json);
+                resources = Array.isArray(data) ? data : (data.resources || []);
+            } catch(e) {
+                resources = [];
+            }
+
+            const body = $('#breakdown-body');
+            if (!resources.length) {
+                body.innerHTML = '<p style="color:var(--text-light); text-align:center;">Нет детализации</p>';
+            } else {
+                body.innerHTML = `
+                <table class="breakdown-table">
+                    <thead><tr>
+                        <th>Ресурс</th>
+                        <th>Тип</th>
+                        <th style="text-align:right;">Стоимость/мес</th>
+                        <th style="text-align:right;">Изменение</th>
+                    </tr></thead>
+                    <tbody>
+                    ${resources.map(r => `
+                        <tr>
+                            <td>${escapeHtml(r.name || '—')}</td>
+                            <td style="font-size:12px; color:var(--text-light);">${escapeHtml(r.resource_type || r.type || '—')}</td>
+                            <td style="text-align:right; font-weight:600;">
+                                ${r.monthly_cost != null ? '$' + parseFloat(r.monthly_cost).toFixed(2) : '—'}
+                            </td>
+                            <td style="text-align:right;">
+                                ${r.monthly_cost_diff != null
+                                    ? `<span class="${r.monthly_cost_diff >= 0 ? 'cost-positive' : 'cost-negative'}">
+                                         ${r.monthly_cost_diff > 0 ? '+' : ''}$${parseFloat(r.monthly_cost_diff).toFixed(2)}
+                                       </span>`
+                                    : '—'}
+                            </td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>`;
+            }
+
+            $('#breakdown-modal').style.display = 'flex';
+        }
+
+        function closeBreakdown() {
+            $('#breakdown-modal').style.display = 'none';
+        }
+
+        function formatDate(d) {
+            if (!d) return '—';
+            return new Date(d).toLocaleString('ru-RU', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
+        }
+
+        loadData();
+    </script>
+</body>
+</html>

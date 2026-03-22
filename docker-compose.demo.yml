@@ -3,17 +3,35 @@
 # ============================================================================
 # Запуск:
 #   docker compose -f docker-compose.demo.yml up --build -d
-#   bash fill-demo-data.sh
 #
 # Учётные данные:  admin / admin123
 # URL:             http://localhost:8088
 #
 # Сервисы:
+#   postgres       — PostgreSQL 16
 #   semaphore      — UI + API (порт 8088), включает ansible
 #   ansible-target — SSH-цель для демо плейбуков (user: demo / demo123)
 # ============================================================================
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: semaphore-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: semaphore
+      POSTGRES_PASSWORD: semaphore
+      POSTGRES_DB: semaphore
+    volumes:
+      - semaphore_demo_pgdata:/var/lib/postgresql/data
+    networks:
+      - demo-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U semaphore"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   semaphore:
     build:
       context: .
@@ -23,17 +41,17 @@ services:
     ports:
       - "8088:3000"
     environment:
-      SEMAPHORE_DB_DIALECT: sqlite
-      SEMAPHORE_DB_PATH: /app/data/semaphore.db
+      SEMAPHORE_DB_DIALECT: postgres
+      SEMAPHORE_DB_URL: postgres://semaphore:semaphore@postgres:5432/semaphore
       SEMAPHORE_WEB_PATH: /app/web/public
       SEMAPHORE_ADMIN: admin
       SEMAPHORE_ADMIN_PASSWORD: admin123
       SEMAPHORE_ADMIN_NAME: Administrator
       SEMAPHORE_ADMIN_EMAIL: admin@semaphore.local
       RUST_LOG: info
-    volumes:
-      - semaphore_demo_data:/app/data
     depends_on:
+      postgres:
+        condition: service_healthy
       ansible-target:
         condition: service_started
     networks:
@@ -46,7 +64,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 15s
+      start_period: 20s
 
   ansible-target:
     image: debian:12-slim
@@ -73,7 +91,7 @@ services:
       - "22"
 
 volumes:
-  semaphore_demo_data:
+  semaphore_demo_pgdata:
     driver: local
 
 networks:

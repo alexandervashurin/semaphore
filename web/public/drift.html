@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drift Detection - Velum</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+    <style>
+        .drift-card { border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+        .drift-status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; }
+        .ds-clean    { background: #c6f6d5; color: #276749; }
+        .ds-drifted  { background: #fed7d7; color: #c53030; }
+        .ds-error    { background: #feebc8; color: #c05621; }
+        .ds-pending  { background: #e3f2fd; color: #1976d2; }
+        .ds-unknown  { background: #f0f0f0; color: #666; }
+        .drift-pulse { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+        .history-row { display: flex; align-items: center; gap: 12px; padding: 6px 0; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+        .history-row:last-child { border-bottom: none; }
+    </style>
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar"></aside>
+    <div class="main-content">
+        <div class="main-header">
+            <h2 id="page-title">Drift Detection</h2>
+        </div>
+        <div class="main-body">
+
+            <div class="page-header">
+                <div>
+                    <h1><i class="fa-solid fa-radar"></i> GitOps Drift Detection</h1>
+                    <p style="color:var(--text-light); font-size:13px; margin-top:4px;">
+                        Мониторинг расхождений между желаемым состоянием (IaC) и реальным состоянием инфраструктуры
+                    </p>
+                </div>
+                <button class="btn btn-primary" onclick="openAddDialog()">
+                    <i class="fa-solid fa-plus"></i> Добавить мониторинг
+                </button>
+            </div>
+
+            <!-- How it works banner -->
+            <div class="card" style="background:linear-gradient(135deg,#fef3c7,#fff8e1); border:1px solid #fcd34d; margin-bottom:20px;">
+                <div style="display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap;">
+                    <div style="font-size:32px;">📡</div>
+                    <div style="flex:1; font-size:13px;">
+                        <strong>Как работает Drift Detection:</strong>
+                        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:8px; margin-top:6px;">
+                            <div>1. Выберите шаблон для мониторинга (Ansible/Terraform)</div>
+                            <div>2. Нажмите «Проверить» — запустится задача с <code>--check --diff</code></div>
+                            <div>3. Результат сохраняется: clean / drifted / error</div>
+                            <div>4. Настройте расписание для автоматических проверок</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard grid -->
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(100px,1fr)); gap:12px; margin-bottom:20px;" id="drift-summary">
+            </div>
+
+            <div class="card">
+                <div id="drift-container">
+                    <div class="loading"><div class="loading-spinner"></div><p>Загрузка...</p></div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+checkAuth();
+const urlParams = new URLSearchParams(window.location.search);
+const projectId = urlParams.get('id');
+if (!projectId) window.location.href = 'index.html';
+
+let templates = [];
+
+api.getProject(projectId).then(p => {
+    document.title = p.name + ' → Drift Detection - Velum';
+    $('#page-title').textContent = p.name + ' → Drift Detection';
+}).catch(() => {});
+
+api.getTemplates(projectId).then(t => { templates = t || []; }).catch(() => {});
+
+loadDriftConfigs();
+
+function loadDriftConfigs() {
+    const c = document.getElementById('drift-container');
+    ui.showLoading(c);
+    api.get('/project/' + projectId + '/drift').then(list => {
+        renderSummary(list || []);
+        if (!list || !list.length) {
+            ui.showEmpty(c,
+                '<i class="fa-solid fa-radar fa-2x"></i>',
+                'Нет мониторинга дрейфа',
+                'Добавьте шаблон для отслеживания расхождений инфраструктуры.'
+            );
+            return;
+        }
+        c.innerHTML = list.map(item => renderDriftCard(item)).join('');
+    }).catch(err => ui.showError(c, err.message));
+}
+
+function renderSummary(list) {
+    const counts = { clean: 0, drifted: 0, error: 0, pending: 0, unknown: 0 };
+    list.forEach(item => {
+        const s = item.latest_result?.status || 'unknown';
+        counts[s] = (counts[s] || 0) + 1;
+    });
+    const total = list.length;
+    document.getElementById('drift-summary').innerHTML = `
+        <div class="card" style="text-align:center; padding:12px;">
+            <div style="font-size:24px; font-weight:700;">${total}</div>
+            <div style="font-size:12px; color:var(--text-light);">Всего</div>
+        </div>
+        <div class="card" style="text-align:center; padding:12px; background:#f0fff4;">
+            <div style="font-size:24px; font-weight:700; color:#276749;">${counts.clean}</div>
+            <div style="font-size:12px; color:#276749;">✅ Clean</div>
+        </div>
+        <div class="card" style="text-align:center; padding:12px; background:#fff5f5;">
+            <div style="font-size:24px; font-weight:700; color:#c53030;">${counts.drifted}</div>
+            <div style="font-size:12px; color:#c53030;">🚨 Drifted</div>
+        </div>
+        <div class="card" style="text-align:center; padding:12px; background:#fefce8;">
+            <div style="font-size:24px; font-weight:700; color:#c05621;">${counts.error}</div>
+            <div style="font-size:12px; color:#c05621;">⚠ Error</div>
+        </div>
+    `;
+}
+
+function renderDriftCard(item) {
+    const cfg = item;  // flattened
+    const lr = item.latest_result;
+    const status = lr?.status || 'unknown';
+    const tpl = templates.find(t => t.id === cfg.template_id);
+    const tplName = tpl?.name || 'Шаблон #' + cfg.template_id;
+
+    const statusHtml = {
+        clean:   '<span class="drift-status ds-clean"><i class="fa-solid fa-check"></i> Clean</span>',
+        drifted: '<span class="drift-status ds-drifted"><i class="fa-solid fa-triangle-exclamation"></i> Drifted!</span>',
+        error:   '<span class="drift-status ds-error"><i class="fa-solid fa-xmark"></i> Error</span>',
+        pending: '<span class="drift-status ds-pending drift-pulse"><i class="fa-solid fa-spinner fa-spin"></i> Checking...</span>',
+        unknown: '<span class="drift-status ds-unknown"><i class="fa-solid fa-circle-question"></i> Never checked</span>',
+    }[status] || '<span class="drift-status ds-unknown">—</span>';
+
+    return `
+    <div class="drift-card">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+            <div style="flex:1;">
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <strong style="font-size:15px;">${escapeHtml(tplName)}</strong>
+                    ${statusHtml}
+                    ${cfg.enabled
+                        ? '<span style="font-size:11px; background:#e8f5e9; color:#388e3c; padding:2px 8px; border-radius:10px;">Мониторинг включён</span>'
+                        : '<span style="font-size:11px; background:#f0f0f0; color:#999; padding:2px 8px; border-radius:10px;">Отключён</span>'}
+                </div>
+                ${cfg.schedule ? `<div style="font-size:12px; color:var(--text-light); margin-top:4px;"><i class="fa-solid fa-clock"></i> Расписание: <code>${escapeHtml(cfg.schedule)}</code></div>` : ''}
+                ${lr ? `<div style="font-size:12px; color:var(--text-light); margin-top:4px;">Последняя проверка: ${formatRelativeTime(lr.checked_at)}</div>` : ''}
+                ${lr?.summary ? `<div style="font-size:12px; color:#555; margin-top:4px; font-style:italic;">${escapeHtml(lr.summary)}</div>` : ''}
+            </div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                <button class="btn btn-primary btn-sm" onclick="checkDrift(${cfg.id})" title="Запустить проверку">
+                    <i class="fa-solid fa-radar"></i> Проверить
+                </button>
+                <button class="btn btn-sm" onclick="toggleDrift(${cfg.id}, ${!cfg.enabled})" title="${cfg.enabled ? 'Отключить' : 'Включить'}">
+                    <i class="fa-solid fa-${cfg.enabled ? 'pause' : 'play'}"></i>
+                </button>
+                <button class="btn btn-sm" onclick="showHistory(${cfg.id})" title="История проверок">
+                    <i class="fa-solid fa-history"></i>
+                </button>
+                <button class="btn btn-danger btn-sm" onclick="deleteDrift(${cfg.id})" title="Удалить">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    </div>`;
+}
+
+function checkDrift(configId) {
+    ui.showAlert('Запуск проверки дрейфа...', 'info');
+    api.post('/project/' + projectId + '/drift/' + configId + '/check', {})
+        .then(r => {
+            ui.showAlert('Проверка запущена! Template #' + r.template_id + '. Запустите задачу вручную с --check --diff для полной проверки.', 'success');
+            loadDriftConfigs();
+        })
+        .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+}
+
+function toggleDrift(configId, enabled) {
+    api.put('/project/' + projectId + '/drift/' + configId, { enabled })
+        .then(() => { ui.showAlert(enabled ? 'Мониторинг включён' : 'Мониторинг отключён', 'success'); loadDriftConfigs(); })
+        .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+}
+
+function showHistory(configId) {
+    api.get('/project/' + projectId + '/drift/' + configId + '/results').then(results => {
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal" style="max-width:580px;">
+                <div class="modal-header">
+                    <h3><i class="fa-solid fa-history"></i> История проверок</h3>
+                    <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+                </div>
+                <div class="modal-body" style="max-height:400px; overflow-y:auto;">
+                    ${results && results.length ? results.map(r => `
+                        <div class="history-row">
+                            <span class="drift-status ds-${r.status}" style="font-size:11px; padding:2px 8px;">${r.status}</span>
+                            <span style="color:var(--text-light);">${formatRelativeTime(r.checked_at)}</span>
+                            ${r.task_id ? `<a href="task.html?id=${projectId}&task=${r.task_id}" style="font-size:12px;">#${r.task_id}</a>` : ''}
+                            <span style="flex:1; color:#555; font-size:12px;">${r.summary ? escapeHtml(r.summary) : '—'}</span>
+                        </div>
+                    `).join('') : '<div style="text-align:center; padding:32px; color:var(--text-light);">Нет истории проверок</div>'}
+                </div>
+                <div class="modal-footer">
+                    <button class="btn" onclick="this.closest('.modal-overlay').remove()">Закрыть</button>
+                </div>
+            </div>`;
+        document.body.appendChild(modal);
+        modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    }).catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+}
+
+function deleteDrift(configId) {
+    ui.confirm('Удалить мониторинг?', 'Конфигурация и вся история проверок будут удалены.')
+        .then(confirmed => {
+            if (!confirmed) return;
+            api.delete('/project/' + projectId + '/drift/' + configId)
+                .then(() => { ui.showAlert('Мониторинг удалён', 'success'); loadDriftConfigs(); })
+                .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+        });
+}
+
+function openAddDialog() {
+    if (!templates.length) {
+        ui.showAlert('В проекте нет шаблонов', 'warning');
+        return;
+    }
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+        <div class="modal" style="max-width:480px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-radar"></i> Добавить мониторинг дрейфа</h3>
+                <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Шаблон для мониторинга *</label>
+                    <select id="drift-tpl" class="form-control" required>
+                        <option value="">— выберите шаблон —</option>
+                        ${templates.map(t => `<option value="${t.id}">${escapeHtml(t.name)} (${escapeHtml(t.app || t.type || 'ansible')})</option>`).join('')}
+                    </select>
+                    <small style="color:var(--text-light);">Для проверки дрейфа запускается задача с --check --diff (Ansible) или plan (Terraform)</small>
+                </div>
+                <div class="form-group">
+                    <label>Расписание <span style="color:var(--text-light);">(cron, необязательно)</span></label>
+                    <input type="text" id="drift-schedule" class="form-control" placeholder="0 */6 * * * — каждые 6 часов">
+                    <small style="color:var(--text-light);">Оставьте пустым для ручных проверок</small>
+                </div>
+                <div class="form-group">
+                    <label><input type="checkbox" id="drift-enabled" checked> Мониторинг сразу включён</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="this.closest('.modal-overlay').remove()">Отмена</button>
+                <button class="btn btn-primary" onclick="submitAddDrift(this.closest('.modal-overlay'))">
+                    <i class="fa-solid fa-radar"></i> Добавить
+                </button>
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+function submitAddDrift(modal) {
+    const tplId = parseInt(document.getElementById('drift-tpl').value);
+    const schedule = document.getElementById('drift-schedule').value.trim() || null;
+    const enabled = document.getElementById('drift-enabled').checked;
+    if (!tplId) { ui.showAlert('Выберите шаблон', 'warning'); return; }
+
+    api.post('/project/' + projectId + '/drift', { template_id: tplId, schedule, enabled })
+        .then(() => {
+            modal.remove();
+            loadDriftConfigs();
+            ui.showAlert('Мониторинг добавлен', 'success');
+        })
+        .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+}
+</script>
+</body>
+</html>

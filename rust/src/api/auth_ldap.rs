@@ -12,6 +12,8 @@ pub struct LdapUserInfo {
     pub username: String,
     pub email: String,
     pub name: String,
+    /// Список DN групп, в которых состоит пользователь (из атрибута memberOf)
+    pub groups: Vec<String>,
 }
 
 /// Аутентифицирует пользователя через LDAP.
@@ -69,7 +71,7 @@ pub async fn ldap_authenticate(
     let uid_attr = if config.mappings.uid.is_empty() { "uid" } else { &config.mappings.uid };
     let cn_attr = if config.mappings.cn.is_empty() { "cn" } else { &config.mappings.cn };
 
-    let attrs = vec![dn_attr, mail_attr, uid_attr, cn_attr];
+    let attrs = vec![dn_attr, mail_attr, uid_attr, cn_attr, "memberOf"];
 
     let search_base = config.full_search_dn();
     let (results, _res) = ldap
@@ -116,6 +118,13 @@ pub async fn ldap_authenticate(
         .cloned()
         .unwrap_or_else(|| username.to_string());
 
+    // Извлекаем группы из атрибута memberOf (Active Directory / openLDAP с memberOf overlay)
+    let groups = entry
+        .attrs
+        .get("memberOf")
+        .cloned()
+        .unwrap_or_default();
+
     ldap.unbind()
         .await
         .map_err(|e| Error::Other(format!("LDAP unbind error: {}", e)))?;
@@ -124,6 +133,7 @@ pub async fn ldap_authenticate(
         username: resolved_username,
         email,
         name,
+        groups,
     })
 }
 

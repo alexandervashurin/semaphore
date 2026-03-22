@@ -124,7 +124,27 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/api/project/{project_id}/playbook-runs/{id}", get(handlers::playbook_runs::get_playbook_run))
         .route("/api/project/{project_id}/playbook-runs/{id}", delete(handlers::playbook_runs::delete_playbook_run))
         .route("/api/project/{project_id}/playbooks/{playbook_id}/runs/stats", get(handlers::playbook_runs::get_playbook_run_stats))
-        
+
+        // Workflows (DAG)
+        .route("/api/project/{project_id}/workflows", get(handlers::workflow::get_workflows))
+        .route("/api/project/{project_id}/workflows", post(handlers::workflow::create_workflow))
+        .route("/api/project/{project_id}/workflows/{id}", get(handlers::workflow::get_workflow))
+        .route("/api/project/{project_id}/workflows/{id}", put(handlers::workflow::update_workflow))
+        .route("/api/project/{project_id}/workflows/{id}", delete(handlers::workflow::delete_workflow))
+        .route("/api/project/{project_id}/workflows/{id}/nodes", post(handlers::workflow::add_workflow_node))
+        .route("/api/project/{project_id}/workflows/{id}/nodes/{node_id}", put(handlers::workflow::update_workflow_node))
+        .route("/api/project/{project_id}/workflows/{id}/nodes/{node_id}", delete(handlers::workflow::delete_workflow_node))
+        .route("/api/project/{project_id}/workflows/{id}/edges", post(handlers::workflow::add_workflow_edge))
+        .route("/api/project/{project_id}/workflows/{id}/edges/{edge_id}", delete(handlers::workflow::delete_workflow_edge))
+        .route("/api/project/{project_id}/workflows/{id}/run", post(handlers::workflow::run_workflow))
+        .route("/api/project/{project_id}/workflows/{id}/runs", get(handlers::workflow::get_workflow_runs))
+
+        // AI Integration
+        .route("/api/ai/settings", get(handlers::ai::get_ai_settings))
+        .route("/api/ai/settings", put(handlers::ai::update_ai_settings))
+        .route("/api/ai/analyze", post(handlers::ai::analyze_failure))
+        .route("/api/ai/generate", post(handlers::ai::generate_playbook))
+
         // Репозитории
         .route("/api/projects/{project_id}/repositories", get(handlers::get_repositories))
         .route("/api/projects/{project_id}/repositories", post(handlers::create_repository))
@@ -401,6 +421,52 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/api/mcp/settings", get(mcp::get_mcp_settings))
         .route("/api/mcp/settings", put(mcp::update_mcp_settings))
         .route("/api/mcp/tools", get(mcp::get_mcp_tools))
+
+        // Notification Policies
+        .route("/api/project/{project_id}/notifications", get(handlers::notification::list_notification_policies))
+        .route("/api/project/{project_id}/notifications", post(handlers::notification::create_notification_policy))
+        .route("/api/project/{project_id}/notifications/{id}", get(handlers::notification::get_notification_policy))
+        .route("/api/project/{project_id}/notifications/{id}", put(handlers::notification::update_notification_policy))
+        .route("/api/project/{project_id}/notifications/{id}", delete(handlers::notification::delete_notification_policy))
+        .route("/api/project/{project_id}/notifications/{id}/test", post(handlers::notification::test_notification_policy))
+
+        // GitOps Drift Detection
+        .route("/api/project/{project_id}/drift", get(handlers::drift::list_drift_configs))
+        .route("/api/project/{project_id}/drift", post(handlers::drift::create_drift_config))
+        .route("/api/project/{project_id}/drift/{id}", put(handlers::drift::update_drift_config))
+        .route("/api/project/{project_id}/drift/{id}", delete(handlers::drift::delete_drift_config))
+        .route("/api/project/{project_id}/drift/{id}/check", post(handlers::drift::trigger_drift_check))
+        .route("/api/project/{project_id}/drift/{id}/results", get(handlers::drift::get_drift_results))
+
+        // Custom Credential Types (global)
+        .route("/api/credential-types", get(handlers::credential_type::list_credential_types))
+        .route("/api/credential-types", post(handlers::credential_type::create_credential_type))
+        .route("/api/credential-types/{id}", get(handlers::credential_type::get_credential_type))
+        .route("/api/credential-types/{id}", put(handlers::credential_type::update_credential_type))
+        .route("/api/credential-types/{id}", delete(handlers::credential_type::delete_credential_type))
+
+        // Credential Instances (per-project)
+        .route("/api/project/{project_id}/credentials", get(handlers::credential_type::list_credential_instances))
+        .route("/api/project/{project_id}/credentials", post(handlers::credential_type::create_credential_instance))
+        .route("/api/project/{project_id}/credentials/{id}", delete(handlers::credential_type::delete_credential_instance))
+
+        // Snapshots & Rollback
+        .route("/api/project/{project_id}/snapshots", get(handlers::snapshot::list_snapshots))
+        .route("/api/project/{project_id}/snapshots", post(handlers::snapshot::create_snapshot))
+        .route("/api/project/{project_id}/snapshots/{id}", delete(handlers::snapshot::delete_snapshot))
+        .route("/api/project/{project_id}/snapshots/{id}/rollback", post(handlers::snapshot::rollback_snapshot))
+        .route("/api/project/{project_id}/tasks/{task_id}/snapshot", post(handlers::snapshot::snapshot_from_task))
+
+        // LDAP Group → Teams mapping (admin)
+        .route("/api/admin/ldap/group-mappings", get(handlers::ldap_groups::list_ldap_group_mappings))
+        .route("/api/admin/ldap/group-mappings", post(handlers::ldap_groups::create_ldap_group_mapping))
+        .route("/api/admin/ldap/group-mappings/{id}", delete(handlers::ldap_groups::delete_ldap_group_mapping))
+
+        // Terraform Cost Estimates (Infracost)
+        .route("/api/project/{project_id}/costs", get(handlers::cost_estimate::list_cost_estimates))
+        .route("/api/project/{project_id}/costs/summary", get(handlers::cost_estimate::cost_summary))
+        .route("/api/project/{project_id}/tasks/{task_id}/cost", get(handlers::cost_estimate::get_task_cost))
+        .route("/api/project/{project_id}/tasks/{task_id}/cost", post(handlers::cost_estimate::create_task_cost))
 }
 
 /// Создаёт маршруты для статических файлов

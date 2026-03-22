@@ -13,8 +13,9 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 COPY rust/Cargo.toml rust/Cargo.lock ./
-RUN mkdir -p src benches \
+RUN mkdir -p src/bin benches \
     && echo "fn main() {}" > src/main.rs \
+    && echo "fn main() {}" > src/bin/velum.rs \
     && echo "" > src/lib.rs \
     && echo "fn main() {}" > benches/cache_bench.rs \
     && echo "fn main() {}" > benches/db_bench.rs \

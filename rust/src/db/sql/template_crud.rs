@@ -12,92 +12,32 @@ use sqlx::Row;
 impl SqlDb {
     /// Получает все шаблоны проекта
     pub async fn get_templates(&self, project_id: i32) -> Result<Vec<Template>> {
-        match self.get_dialect() {
-            crate::db::sql::types::SqlDialect::SQLite => {
-                let pool = self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?;
-                crate::db::sql::sqlite::template::get_templates(pool, project_id).await
-            }
-            crate::db::sql::types::SqlDialect::PostgreSQL => {
-                let pool = self.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?;
+        let pool = self.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?;
                 crate::db::sql::postgres::template::get_templates(pool, project_id).await
-            }
-            crate::db::sql::types::SqlDialect::MySQL => {
-                let pool = self.get_mysql_pool().ok_or(Error::Other("MySQL pool not found".to_string()))?;
-                crate::db::sql::mysql::template::get_templates(pool, project_id).await
-            }
-        }
     }
 
     /// Получает шаблон по ID
     pub async fn get_template(&self, project_id: i32, template_id: i32) -> Result<Template> {
-        match self.get_dialect() {
-            crate::db::sql::types::SqlDialect::SQLite => {
-                let pool = self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?;
-                crate::db::sql::sqlite::template::get_template(pool, project_id, template_id).await
-            }
-            crate::db::sql::types::SqlDialect::PostgreSQL => {
-                let pool = self.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?;
+        let pool = self.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?;
                 crate::db::sql::postgres::template::get_template(pool, project_id, template_id).await
-            }
-            crate::db::sql::types::SqlDialect::MySQL => {
-                let pool = self.get_mysql_pool().ok_or(Error::Other("MySQL pool not found".to_string()))?;
-                crate::db::sql::mysql::template::get_template(pool, project_id, template_id).await
-            }
-        }
     }
 
     /// Создаёт новый шаблон
     pub async fn create_template(&self, mut template: Template) -> Result<Template> {
-        match self.get_dialect() {
-            crate::db::sql::types::SqlDialect::SQLite => {
-                let pool = self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?;
-                crate::db::sql::sqlite::template::create_template(pool, template).await
-            }
-            crate::db::sql::types::SqlDialect::PostgreSQL => {
-                let pool = self.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?;
+        let pool = self.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?;
                 crate::db::sql::postgres::template::create_template(pool, template).await
-            }
-            crate::db::sql::types::SqlDialect::MySQL => {
-                let pool = self.get_mysql_pool().ok_or(Error::Other("MySQL pool not found".to_string()))?;
-                crate::db::sql::mysql::template::create_template(pool, template).await
-            }
-        }
     }
 
     /// Обновляет шаблон
     pub async fn update_template(&self, template: Template) -> Result<()> {
-        match self.get_dialect() {
-            crate::db::sql::types::SqlDialect::SQLite => {
-                let pool = self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?;
-                crate::db::sql::sqlite::template::update_template(pool, template).await
-            }
-            crate::db::sql::types::SqlDialect::PostgreSQL => {
-                let pool = self.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?;
+        let pool = self.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?;
                 crate::db::sql::postgres::template::update_template(pool, template).await
-            }
-            crate::db::sql::types::SqlDialect::MySQL => {
-                let pool = self.get_mysql_pool().ok_or(Error::Other("MySQL pool not found".to_string()))?;
-                crate::db::sql::mysql::template::update_template(pool, template).await
-            }
-        }
     }
 
     /// Удаляет шаблон
     pub async fn delete_template(&self, project_id: i32, template_id: i32) -> Result<()> {
-        match self.get_dialect() {
-            crate::db::sql::types::SqlDialect::SQLite => {
-                let pool = self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?;
-                crate::db::sql::sqlite::template::delete_template(pool, project_id, template_id).await
-            }
-            crate::db::sql::types::SqlDialect::PostgreSQL => {
-                let pool = self.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?;
+        let pool = self.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?;
                 crate::db::sql::postgres::template::delete_template(pool, project_id, template_id).await
-            }
-            crate::db::sql::types::SqlDialect::MySQL => {
-                let pool = self.get_mysql_pool().ok_or(Error::Other("MySQL pool not found".to_string()))?;
-                crate::db::sql::mysql::template::delete_template(pool, project_id, template_id).await
-            }
-        }
     }
 }
 

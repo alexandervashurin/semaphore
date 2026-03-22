@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rollback & Snapshots - Velum</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+    <style>
+        .snap-card { border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 10px; display: flex; align-items: flex-start; gap: 14px; }
+        .snap-id { font-size: 11px; color: var(--text-light); min-width: 32px; text-align: right; padding-top: 2px; }
+        .snap-body { flex: 1; }
+        .snap-title { font-weight: 600; font-size: 14px; }
+        .snap-meta { font-size: 12px; color: var(--text-light); margin-top: 4px; display: flex; flex-wrap: wrap; gap: 10px; }
+        .snap-label { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; background: #e8f4fd; color: #1565c0; margin-left: 8px; }
+        .snap-actions { display: flex; gap: 6px; align-items: center; }
+        .rollback-btn { background: linear-gradient(135deg, #1976d2, #1565c0); color: white; border: none; border-radius: 6px; padding: 6px 14px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+        .rollback-btn:hover { opacity: 0.9; }
+        .filter-bar { display: flex; gap: 10px; margin-bottom: 16px; align-items: center; flex-wrap: wrap; }
+    </style>
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar"></aside>
+    <div class="main-content">
+        <div class="main-header">
+            <h2 id="page-title">Rollback & Snapshots</h2>
+        </div>
+        <div class="main-body">
+
+            <div class="page-header">
+                <div>
+                    <h1><i class="fa-solid fa-clock-rotate-left"></i> Rollback & Snapshots</h1>
+                    <p style="color:var(--text-light); font-size:13px; margin-top:4px;">
+                        История успешных деплоев — откатитесь к любой предыдущей версии одним кликом
+                    </p>
+                </div>
+            </div>
+
+            <!-- How it works banner -->
+            <div class="card" style="background:linear-gradient(135deg,#e8f5e9,#f1f8e9); border:1px solid #a5d6a7; margin-bottom:20px;">
+                <div style="display:flex; gap:16px; align-items:flex-start;">
+                    <div style="font-size:32px;">⏪</div>
+                    <div style="font-size:13px; flex:1;">
+                        <strong>Как работает Rollback:</strong>
+                        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:8px; margin-top:6px;">
+                            <div>1. После успешной задачи нажмите <strong>«Сохранить снапшот»</strong> в просмотре задачи</div>
+                            <div>2. Снапшот фиксирует: git-ветку, аргументы CLI, инвентарь, окружение</div>
+                            <div>3. Чтобы откатиться — нажмите кнопку <strong>Rollback</strong> у любого снапшота</div>
+                            <div>4. Создаётся новая задача с теми же параметрами — надёжно и воспроизводимо</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter bar -->
+            <div class="filter-bar">
+                <label style="font-size:13px; font-weight:600;">Фильтр по шаблону:</label>
+                <select id="filter-template" class="form-control" style="max-width:280px;" onchange="loadSnapshots()">
+                    <option value="">— все шаблоны —</option>
+                </select>
+                <span id="snap-count" style="font-size:13px; color:var(--text-light);"></span>
+            </div>
+
+            <div class="card">
+                <div id="snap-container">
+                    <div class="loading"><div class="loading-spinner"></div><p>Загрузка...</p></div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+checkAuth();
+
+const urlParams = new URLSearchParams(window.location.search);
+const projectId = urlParams.get('id');
+if (!projectId) window.location.href = 'index.html';
+
+let templates = [];
+
+// Load project name and templates
+Promise.all([
+    api.getProject(projectId),
+    api.getTemplates(projectId),
+]).then(([p, t]) => {
+    document.title = p.name + ' → Snapshots - Velum';
+    $('#page-title').textContent = p.name + ' → Rollback & Snapshots';
+    templates = t || [];
+    const sel = document.getElementById('filter-template');
+    templates.forEach(tpl => {
+        const opt = document.createElement('option');
+        opt.value = tpl.id;
+        opt.textContent = tpl.name;
+        sel.appendChild(opt);
+    });
+}).catch(() => {});
+
+loadSnapshots();
+
+function loadSnapshots() {
+    const c = document.getElementById('snap-container');
+    ui.showLoading(c);
+    const templateFilter = document.getElementById('filter-template')?.value;
+    const url = '/project/' + projectId + '/snapshots' + (templateFilter ? '?template_id=' + templateFilter : '');
+    api.get(url).then(list => {
+        document.getElementById('snap-count').textContent = list ? `${list.length} снапшотов` : '';
+        if (!list || !list.length) {
+            ui.showEmpty(c,
+                '<i class="fa-solid fa-clock-rotate-left fa-2x"></i>',
+                'Нет снапшотов',
+                'Создайте снапшот после успешного запуска шаблона.'
+            );
+            return;
+        }
+        c.innerHTML = list.map(s => renderSnapshot(s)).join('');
+    }).catch(err => ui.showError(c, err.message));
+}
+
+function templateName(id) {
+    const t = templates.find(t => t.id === id);
+    return t ? t.name : ('Шаблон #' + id);
+}
+
+function renderSnapshot(s) {
+    const meta = [];
+    if (s.git_branch) meta.push(`<span><i class="fa-brands fa-git-alt"></i> ${escapeHtml(s.git_branch)}</span>`);
+    if (s.git_commit) meta.push(`<span><i class="fa-solid fa-code-commit"></i> <code>${escapeHtml(s.git_commit.substring(0,8))}</code></span>`);
+    if (s.arguments) meta.push(`<span><i class="fa-solid fa-terminal"></i> <code style="font-size:11px;">${escapeHtml(s.arguments)}</code></span>`);
+    if (s.inventory_id) meta.push(`<span><i class="fa-solid fa-server"></i> Инвентарь #${s.inventory_id}</span>`);
+    meta.push(`<span><i class="fa-regular fa-clock"></i> ${formatRelativeTime(s.created_at)}</span>`);
+    if (s.task_id) meta.push(`<span><a href="task.html?id=${projectId}&task=${s.task_id}" style="font-size:12px;">Задача #${s.task_id}</a></span>`);
+
+    const tplName = s.template_name || templateName(s.template_id);
+
+    return `
+    <div class="snap-card">
+        <div class="snap-id">#${s.id}</div>
+        <div class="snap-body">
+            <div class="snap-title">
+                ${escapeHtml(tplName)}
+                ${s.label ? `<span class="snap-label">${escapeHtml(s.label)}</span>` : ''}
+            </div>
+            ${s.message ? `<div style="font-size:13px; color:var(--text); margin-top:4px;">${escapeHtml(s.message)}</div>` : ''}
+            <div class="snap-meta">${meta.join('')}</div>
+        </div>
+        <div class="snap-actions">
+            <button class="rollback-btn" onclick="rollback(${s.id})">
+                <i class="fa-solid fa-rotate-left"></i> Rollback
+            </button>
+            <button class="btn btn-sm" onclick="labelSnapshot(${s.id})" title="Добавить метку">
+                <i class="fa-solid fa-tag"></i>
+            </button>
+            <button class="btn btn-danger btn-sm" onclick="deleteSnapshot(${s.id})" title="Удалить">
+                <i class="fa-solid fa-trash"></i>
+            </button>
+        </div>
+    </div>`;
+}
+
+function rollback(snapshotId) {
+    const msg = prompt('Сообщение для задачи отката (необязательно):') || null;
+    ui.showAlert('Запуск отката...', 'info');
+    api.post('/project/' + projectId + '/snapshots/' + snapshotId + '/rollback', { message: msg })
+        .then(r => {
+            ui.showAlert(`✅ Откат запущен: задача #${r.task_id}`, 'success');
+            // Redirect to the new task after a moment
+            setTimeout(() => {
+                window.location.href = `task.html?id=${projectId}&task=${r.task_id}`;
+            }, 1500);
+        })
+        .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+}
+
+function labelSnapshot(snapshotId) {
+    const label = prompt('Метка для снапшота (например: "v2.3.1 release"):');
+    if (label === null) return;
+    // We don't have an update endpoint, so just show info
+    ui.showAlert('Метка будет добавлена в следующей версии. Пока что создайте новый снапшот с меткой.', 'info');
+}
+
+function deleteSnapshot(id) {
+    ui.confirm('Удалить снапшот?', 'Откатиться к этой версии будет невозможно.')
+        .then(confirmed => {
+            if (!confirmed) return;
+            api.delete('/project/' + projectId + '/snapshots/' + id)
+                .then(() => { ui.showAlert('Снапшот удалён', 'success'); loadSnapshots(); })
+                .catch(err => ui.showAlert('Ошибка: ' + err.message, 'danger'));
+        });
+}
+</script>
+</body>
+</html>

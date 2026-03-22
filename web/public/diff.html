@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Сравнение запусков - Velum</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+    <style>
+        .diff-header {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .diff-task-card {
+            flex: 1;
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px 18px;
+        }
+        .diff-task-card.left { border-left: 4px solid #e53e3e; }
+        .diff-task-card.right { border-left: 4px solid #38a169; }
+        .diff-task-card .task-id { font-size: 12px; color: var(--text-light); }
+        .diff-task-card .task-name { font-weight: 600; font-size: 15px; margin: 2px 0; }
+        .diff-task-card .task-meta { font-size: 12px; color: var(--text-light); }
+        .diff-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .diff-controls label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .diff-stats {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 12px;
+        }
+        .diff-stat {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .diff-stat.added { color: #38a169; }
+        .diff-stat.removed { color: #e53e3e; }
+        .diff-stat.unchanged { color: var(--text-light); }
+        /* Unified diff view */
+        .diff-container {
+            background: #1a1a2e;
+            border-radius: 8px;
+            overflow: hidden;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        .diff-line {
+            display: flex;
+            align-items: flex-start;
+        }
+        .diff-line:hover { filter: brightness(1.15); }
+        .diff-line .line-num {
+            width: 60px;
+            min-width: 60px;
+            text-align: right;
+            padding: 1px 8px;
+            color: #666;
+            user-select: none;
+            font-size: 11px;
+            border-right: 1px solid #333;
+        }
+        .diff-line .line-sign {
+            width: 20px;
+            min-width: 20px;
+            text-align: center;
+            padding: 1px 2px;
+            font-weight: bold;
+            user-select: none;
+        }
+        .diff-line .line-content {
+            flex: 1;
+            padding: 1px 8px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            color: #d4d4d4;
+        }
+        .diff-line.added {
+            background: rgba(56, 161, 105, 0.15);
+        }
+        .diff-line.added .line-sign { color: #68d391; }
+        .diff-line.added .line-content { color: #9ae6b4; }
+        .diff-line.removed {
+            background: rgba(229, 62, 62, 0.15);
+        }
+        .diff-line.removed .line-sign { color: #fc8181; }
+        .diff-line.removed .line-content { color: #feb2b2; }
+        .diff-line.context {
+            background: #1a1a2e;
+        }
+        .diff-line.context .line-sign { color: #555; }
+        .diff-hunk {
+            background: #0d1117;
+            color: #8b949e;
+            padding: 3px 8px;
+            font-size: 11px;
+            border-top: 1px solid #30363d;
+            border-bottom: 1px solid #30363d;
+        }
+        /* Side-by-side view */
+        .diff-split {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+            background: #1a1a2e;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .diff-split-header {
+            background: #0d1117;
+            padding: 8px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            border-bottom: 1px solid #30363d;
+        }
+        .diff-split-header.left { color: #fc8181; border-right: 1px solid #30363d; }
+        .diff-split-header.right { color: #68d391; }
+        .diff-split-col { overflow: hidden; }
+        .diff-split-col.left { border-right: 1px solid #30363d; }
+        .split-line {
+            display: flex;
+            align-items: flex-start;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        .split-line .line-num {
+            width: 40px;
+            min-width: 40px;
+            text-align: right;
+            padding: 1px 6px;
+            color: #555;
+            border-right: 1px solid #333;
+            font-size: 11px;
+            user-select: none;
+        }
+        .split-line .line-text {
+            flex: 1;
+            padding: 1px 8px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            color: #d4d4d4;
+        }
+        .split-line.added { background: rgba(56, 161, 105, 0.15); }
+        .split-line.added .line-text { color: #9ae6b4; }
+        .split-line.removed { background: rgba(229, 62, 62, 0.15); }
+        .split-line.removed .line-text { color: #feb2b2; }
+        .split-line.empty { background: #111; }
+        .split-line.empty .line-text { color: transparent; }
+        /* Mode selector */
+        .view-mode-tabs {
+            display: flex;
+            gap: 0;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .view-mode-tabs button {
+            padding: 5px 14px;
+            border: none;
+            background: #fff;
+            cursor: pointer;
+            font-size: 13px;
+            border-right: 1px solid var(--border);
+        }
+        .view-mode-tabs button:last-child { border-right: none; }
+        .view-mode-tabs button.active { background: var(--primary); color: #fff; }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar"></aside>
+        <div class="main-content">
+            <div class="main-header">
+                <h2>Сравнение запусков</h2>
+            </div>
+            <div class="main-body">
+                <div class="page-header">
+                    <h1><i class="fa-solid fa-code-compare"></i> Сравнение запусков</h1>
+                    <a id="back-link" href="#" class="btn btn-sm"><i class="fa-solid fa-arrow-left"></i> Назад к истории</a>
+                </div>
+
+                <!-- Task info cards -->
+                <div class="diff-header">
+                    <div class="diff-task-card left">
+                        <div class="task-id" id="task1-id">Задача #—</div>
+                        <div class="task-name" id="task1-name">Загрузка...</div>
+                        <div class="task-meta" id="task1-meta"></div>
+                    </div>
+                    <div style="display:flex; align-items:center; font-size:20px; color:var(--text-light);">
+                        <i class="fa-solid fa-arrows-left-right"></i>
+                    </div>
+                    <div class="diff-task-card right">
+                        <div class="task-id" id="task2-id">Задача #—</div>
+                        <div class="task-name" id="task2-name">Загрузка...</div>
+                        <div class="task-meta" id="task2-meta"></div>
+                    </div>
+                </div>
+
+                <!-- Controls -->
+                <div class="diff-controls">
+                    <div class="view-mode-tabs">
+                        <button class="active" onclick="setView('unified')" id="btn-unified">Unified</button>
+                        <button onclick="setView('split')" id="btn-split">Split</button>
+                    </div>
+                    <label>
+                        <input type="checkbox" id="show-context" checked onchange="renderDiff()">
+                        Показать контекст (±3 строки)
+                    </label>
+                    <label>
+                        <input type="checkbox" id="ignore-whitespace" onchange="computeAndRender()">
+                        Игнорировать пробелы
+                    </label>
+                </div>
+
+                <!-- Stats -->
+                <div class="diff-stats" id="diff-stats" style="display:none;">
+                    <div class="diff-stat added"><i class="fa-solid fa-plus"></i> <span id="stat-added">0</span> добавлено</div>
+                    <div class="diff-stat removed"><i class="fa-solid fa-minus"></i> <span id="stat-removed">0</span> удалено</div>
+                    <div class="diff-stat unchanged"><i class="fa-solid fa-equals"></i> <span id="stat-unchanged">0</span> без изменений</div>
+                </div>
+
+                <!-- Diff output -->
+                <div id="diff-output">
+                    <div class="loading"><div class="loading-spinner"></div><p>Загрузка логов...</p></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        checkAuth();
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = urlParams.get('id');
+        const task1Id   = urlParams.get('task1');
+        const task2Id   = urlParams.get('task2');
+
+        if (!projectId || !task1Id || !task2Id) {
+            window.location.href = 'index.html';
+        }
+
+        $('#back-link').href = 'history.html?id=' + projectId;
+
+        let lines1 = [];
+        let lines2 = [];
+        let diffResult = [];
+        let currentView = 'unified';
+
+        // ── Load tasks ──────────────────────────────────────────────────
+        Promise.all([
+            api.getTask(projectId, task1Id),
+            api.getTask(projectId, task2Id),
+            fetchTaskOutput(projectId, task1Id),
+            fetchTaskOutput(projectId, task2Id)
+        ]).then(([t1, t2, out1, out2]) => {
+            // Fill cards
+            $('#task1-id').textContent = 'Задача #' + t1.id;
+            $('#task1-name').textContent = t1.message || ('Задача #' + t1.id);
+            $('#task1-meta').textContent = formatDate(t1.created) + ' · ' + statusLabel(t1.status);
+
+            $('#task2-id').textContent = 'Задача #' + t2.id;
+            $('#task2-name').textContent = t2.message || ('Задача #' + t2.id);
+            $('#task2-meta').textContent = formatDate(t2.created) + ' · ' + statusLabel(t2.status);
+
+            lines1 = out1;
+            lines2 = out2;
+            computeAndRender();
+        }).catch(err => {
+            $('#diff-output').innerHTML = `<div class="alert alert-danger">Ошибка загрузки: ${escapeHtml(err.message)}</div>`;
+        });
+
+        async function fetchTaskOutput(projectId, taskId) {
+            const outputs = await api.getTaskOutput(projectId, taskId);
+            return (outputs || []).map(o => o.output || '');
+        }
+
+        // ── Diff algorithm (Myers / LCS) ─────────────────────────────────
+        function computeAndRender() {
+            const ignoreWs = $('#ignore-whitespace').checked;
+            const l1 = ignoreWs ? lines1.map(l => l.trim()) : lines1;
+            const l2 = ignoreWs ? lines2.map(l => l.trim()) : lines2;
+            diffResult = computeDiff(l1, l2);
+            renderDiff();
+        }
+
+        function computeDiff(a, b) {
+            // Standard LCS-based diff
+            const m = a.length, n = b.length;
+            // DP table
+            const dp = Array.from({length: m + 1}, () => new Array(n + 1).fill(0));
+            for (let i = m - 1; i >= 0; i--) {
+                for (let j = n - 1; j >= 0; j--) {
+                    if (a[i] === b[j]) {
+                        dp[i][j] = dp[i+1][j+1] + 1;
+                    } else {
+                        dp[i][j] = Math.max(dp[i+1][j], dp[i][j+1]);
+                    }
+                }
+            }
+            // Backtrack
+            const result = [];
+            let i = 0, j = 0;
+            while (i < m || j < n) {
+                if (i < m && j < n && a[i] === b[j]) {
+                    result.push({ type: 'context', text: lines1[i], lineA: i+1, lineB: j+1 });
+                    i++; j++;
+                } else if (j < n && (i >= m || dp[i][j+1] >= dp[i+1][j])) {
+                    result.push({ type: 'added', text: lines2[j], lineB: j+1 });
+                    j++;
+                } else {
+                    result.push({ type: 'removed', text: lines1[i], lineA: i+1 });
+                    i++;
+                }
+            }
+            return result;
+        }
+
+        // ── Render ──────────────────────────────────────────────────────
+        function setView(mode) {
+            currentView = mode;
+            $('#btn-unified').classList.toggle('active', mode === 'unified');
+            $('#btn-split').classList.toggle('active', mode === 'split');
+            renderDiff();
+        }
+
+        function renderDiff() {
+            if (!diffResult.length && !lines1.length && !lines2.length) return;
+
+            // Stats
+            const added     = diffResult.filter(d => d.type === 'added').length;
+            const removed   = diffResult.filter(d => d.type === 'removed').length;
+            const unchanged = diffResult.filter(d => d.type === 'context').length;
+
+            $('#stat-added').textContent   = added;
+            $('#stat-removed').textContent = removed;
+            $('#stat-unchanged').textContent = unchanged;
+            $('#diff-stats').style.display = 'flex';
+
+            if (added === 0 && removed === 0) {
+                $('#diff-output').innerHTML = `
+                    <div class="card" style="text-align:center; padding:40px; color:var(--text-light);">
+                        <i class="fa-solid fa-circle-check fa-3x" style="color:#38a169; margin-bottom:12px;"></i>
+                        <h3>Идентичные выводы</h3>
+                        <p>Оба запуска произвели одинаковый результат (${unchanged} строк)</p>
+                    </div>`;
+                return;
+            }
+
+            if (currentView === 'split') {
+                renderSplit();
+            } else {
+                renderUnified();
+            }
+        }
+
+        function getHunks() {
+            // Group diffResult into hunks with context lines
+            const showCtx = $('#show-context').checked;
+            const CTX = showCtx ? 3 : 0;
+
+            const n = diffResult.length;
+            const changed = new Set();
+            diffResult.forEach((d, i) => {
+                if (d.type !== 'context') changed.add(i);
+            });
+
+            // Mark lines within CTX of a change
+            const visible = new Set();
+            changed.forEach(i => {
+                for (let k = Math.max(0, i - CTX); k <= Math.min(n - 1, i + CTX); k++) {
+                    visible.add(k);
+                }
+            });
+
+            // Build hunks (groups of consecutive visible lines)
+            const hunks = [];
+            let hunk = null;
+            let prevIdx = -2;
+
+            for (let i = 0; i < n; i++) {
+                if (!visible.has(i)) {
+                    if (hunk) { hunks.push(hunk); hunk = null; }
+                    prevIdx = -2;
+                    continue;
+                }
+                if (i !== prevIdx + 1 && hunk) {
+                    hunks.push(hunk); hunk = null;
+                }
+                if (!hunk) hunk = [];
+                hunk.push(i);
+                prevIdx = i;
+            }
+            if (hunk) hunks.push(hunk);
+            return hunks;
+        }
+
+        function renderUnified() {
+            const hunks = getHunks();
+            const html = ['<div class="diff-container">'];
+
+            for (const hunk of hunks) {
+                const first = diffResult[hunk[0]];
+                const last  = diffResult[hunk[hunk.length - 1]];
+                const aStart = first.lineA || first.lineB || 1;
+                const bStart = first.lineB || first.lineA || 1;
+                html.push(`<div class="diff-hunk">@@ -${aStart} +${bStart} @@ ${hunk.length} строк</div>`);
+
+                for (const idx of hunk) {
+                    const d = diffResult[idx];
+                    const sign = d.type === 'added' ? '+' : d.type === 'removed' ? '-' : ' ';
+                    const lineNum = d.type === 'added' ? (d.lineB || '') : (d.lineA || '');
+                    html.push(`<div class="diff-line ${d.type}">
+                        <span class="line-num">${lineNum}</span>
+                        <span class="line-sign">${sign}</span>
+                        <span class="line-content">${escapeHtml(d.text)}</span>
+                    </div>`);
+                }
+            }
+
+            if (hunks.length === 0) {
+                html.push('<div style="padding:16px; color:#666; text-align:center;">Все изменения скрыты (снимите "Показать контекст")</div>');
+            }
+
+            html.push('</div>');
+            $('#diff-output').innerHTML = html.join('');
+        }
+
+        function renderSplit() {
+            // Build side-by-side pairs
+            const pairs = [];
+            for (const d of diffResult) {
+                if (d.type === 'context') {
+                    pairs.push({ left: d, right: d });
+                } else if (d.type === 'removed') {
+                    pairs.push({ left: d, right: null });
+                } else {
+                    pairs.push({ left: null, right: d });
+                }
+            }
+
+            const showCtx = $('#show-context').checked;
+            const CTX = showCtx ? 3 : 0;
+
+            // Filter context if needed
+            const filteredPairs = [];
+            const changedIdxs = new Set();
+            pairs.forEach((p, i) => {
+                if (p.left?.type !== 'context' || p.right?.type !== 'context') changedIdxs.add(i);
+            });
+            const visibleIdxs = new Set();
+            changedIdxs.forEach(i => {
+                for (let k = Math.max(0, i - CTX); k <= Math.min(pairs.length - 1, i + CTX); k++) visibleIdxs.add(k);
+            });
+
+            const html = ['<div class="diff-split">'];
+            // Headers
+            html.push(`<div class="diff-split-col left">
+                <div class="diff-split-header left"><i class="fa-solid fa-minus"></i> Задача #${task1Id}</div>`);
+            const rightCol = [`<div class="diff-split-col right">
+                <div class="diff-split-header right"><i class="fa-solid fa-plus"></i> Задача #${task2Id}</div>`];
+
+            let prevVisible = true;
+            let gap = false;
+
+            for (let i = 0; i < pairs.length; i++) {
+                if (!visibleIdxs.has(i)) { gap = true; continue; }
+                if (gap) {
+                    html.push('<div style="background:#0d1117; color:#555; padding:2px 8px; font-size:11px; font-family:monospace;">...</div>');
+                    rightCol.push('<div style="background:#0d1117; color:#555; padding:2px 8px; font-size:11px; font-family:monospace;">...</div>');
+                    gap = false;
+                }
+                const p = pairs[i];
+                const lClass = p.left ? p.left.type : 'empty';
+                const rClass = p.right ? p.right.type : 'empty';
+                const lNum = p.left?.lineA || p.left?.lineB || '';
+                const rNum = p.right?.lineB || p.right?.lineA || '';
+                const lText = p.left ? escapeHtml(p.left.text) : '';
+                const rText = p.right ? escapeHtml(p.right.text) : '';
+
+                html.push(`<div class="split-line ${lClass}">
+                    <span class="line-num">${lNum}</span>
+                    <span class="line-text">${lText || '&nbsp;'}</span>
+                </div>`);
+                rightCol.push(`<div class="split-line ${rClass}">
+                    <span class="line-num">${rNum}</span>
+                    <span class="line-text">${rText || '&nbsp;'}</span>
+                </div>`);
+            }
+
+            html.push('</div>');
+            rightCol.push('</div>');
+            html.push(rightCol.join(''));
+            html.push('</div>');
+            $('#diff-output').innerHTML = html.join('');
+        }
+
+        // ── Helpers ──────────────────────────────────────────────────────
+        function statusLabel(s) {
+            return { waiting:'Ожидание', running:'Выполняется', success:'Успешно',
+                     error:'Ошибка', failed:'Ошибка', cancelled:'Отменено' }[s] || s;
+        }
+
+        function formatDate(d) {
+            if (!d) return '';
+            return new Date(d).toLocaleString('ru-RU', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
+        }
+    </script>
+</body>
+</html>

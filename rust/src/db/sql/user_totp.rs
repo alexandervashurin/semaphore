@@ -8,71 +8,61 @@ use crate::models::*;
 use sqlx::Row;
 
 impl SqlDb {
+    fn pg_pool_totp(&self) -> Result<&sqlx::PgPool> {
+        self.get_postgres_pool()
+            .ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))
+    }
+
     /// Получает TOTP пользователя
     pub async fn get_user_totp(&self, user_id: i32) -> Result<Option<TotpVerification>> {
-        match self.get_dialect() {
-            crate::db::sql::types::SqlDialect::SQLite => {
-                let user = sqlx::query("SELECT totp FROM user WHERE id = ?")
-                    .bind(user_id)
-                    .fetch_one(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-                    .await
-                    .map_err(Error::Database)?;
-                
-                let totp_json: Option<String> = user.get(0);
-                
-                if let Some(totp_str) = totp_json {
-                    if totp_str.is_empty() {
-                        return Ok(None);
-                    }
-                    
-                    let totp: TotpVerification = serde_json::from_str(&totp_str)
-                        .map_err(|e| Error::Other(format!("Failed to parse TOTP: {}", e)))?;
-                    
-                    Ok(Some(totp))
-                } else {
-                    Ok(None)
-                }
+        let row = sqlx::query("SELECT totp FROM \"user\" WHERE id = $1")
+            .bind(user_id)
+            .fetch_one(self.pg_pool_totp()?)
+            .await
+            .map_err(Error::Database)?;
+
+        let totp_json: Option<String> = row.try_get("totp").ok().flatten();
+
+        if let Some(totp_str) = totp_json {
+            if totp_str.is_empty() {
+                return Ok(None);
             }
-            _ => Err(Error::Other("Only SQLite supported for now".to_string()))
+
+            let totp: TotpVerification = serde_json::from_str(&totp_str)
+                .map_err(|e| Error::Other(format!("Failed to parse TOTP: {}", e)))?;
+
+            Ok(Some(totp))
+        } else {
+            Ok(None)
         }
     }
-    
+
     /// Устанавливает TOTP для пользователя
     pub async fn set_user_totp(&self, user_id: i32, totp: &TotpVerification) -> Result<()> {
         let totp_json = serde_json::to_string(totp)
             .map_err(|e| Error::Other(format!("Failed to serialize TOTP: {}", e)))?;
-        
-        match self.get_dialect() {
-            crate::db::sql::types::SqlDialect::SQLite => {
-                sqlx::query("UPDATE user SET totp = ? WHERE id = ?")
-                    .bind(&totp_json)
-                    .bind(user_id)
-                    .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-                    .await
-                    .map_err(Error::Database)?;
-                
-                Ok(())
-            }
-            _ => Err(Error::Other("Only SQLite supported for now".to_string()))
-        }
+
+        sqlx::query("UPDATE \"user\" SET totp = $1 WHERE id = $2")
+            .bind(&totp_json)
+            .bind(user_id)
+            .execute(self.pg_pool_totp()?)
+            .await
+            .map_err(Error::Database)?;
+
+        Ok(())
     }
-    
+
     /// Удаляет TOTP у пользователя
     pub async fn delete_user_totp(&self, user_id: i32) -> Result<()> {
-        match self.get_dialect() {
-            crate::db::sql::types::SqlDialect::SQLite => {
-                sqlx::query("UPDATE user SET totp = NULL WHERE id = ?")
-                    .bind(user_id)
-                    .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-                    .await
-                    .map_err(Error::Database)?;
-                
-                Ok(())
-            }
-            _ => Err(Error::Other("Only SQLite supported for now".to_string()))
-        }
+        sqlx::query("UPDATE \"user\" SET totp = NULL WHERE id = $1")
+            .bind(user_id)
+            .execute(self.pg_pool_totp()?)
+            .await
+            .map_err(Error::Database)?;
+
+        Ok(())
     }
-    
+
     /// Проверяет TOTP код
     pub async fn verify_totp_code(&self, user_id: i32, code: &str) -> Result<bool> {
         use crate::services::totp;
@@ -154,23 +144,23 @@ mod tests {
             totp: None,
             email_otp: None,
         };
-        
+
         let created = db.create_user(user).await.unwrap();
-        
+
         // Создаём TOTP
         let totp = TotpVerification {
             secret: "test_secret".to_string(),
             recovery_hash: "test_hash".to_string(),
             recovery_codes: None,
         };
-        
+
         db.set_user_totp(created.id, &totp).await.unwrap();
-        
+
         // Получаем TOTP
         let retrieved = db.get_user_totp(created.id).await.unwrap();
         assert!(retrieved.is_some());
         assert_eq!(retrieved.unwrap().secret, "test_secret");
-        
+
         // Cleanup
         let _ = db.close().await;
     }
@@ -221,7 +211,7 @@ mod tests {
         use crate::services::totp;
         use crate::models::User;
         use chrono::Utc;
-        
+
         // Создаём тестового пользователя
         let user = User {
             id: 1,
@@ -237,15 +227,15 @@ mod tests {
             totp: None,
             email_otp: None,
         };
-        
+
         // Генерируем секрет
         let totp_secret = totp::generate_totp_secret(&user, "Velum").unwrap();
         assert!(!totp_secret.secret.is_empty());
-        
+
         // Генерируем код
         let code = totp::generate_totp_code(&totp_secret.secret).unwrap();
         assert!(!code.is_empty());
-        
+
         // Проверяем код
         let is_valid = totp::verify_totp(&totp_secret.secret, &code);
         assert!(is_valid);
@@ -254,16 +244,16 @@ mod tests {
     #[test]
     fn test_recovery_code_verification() {
         use crate::services::totp;
-        
+
         // Генерируем recovery code
         let (code, hash) = totp::generate_recovery_code().unwrap();
         assert!(!code.is_empty());
         assert!(!hash.is_empty());
-        
+
         // Проверяем код
         let is_valid = totp::verify_recovery_code(&code, &hash);
         assert!(is_valid);
-        
+
         // Проверяем неправильный код
         let is_valid = totp::verify_recovery_code("wrong_code", &hash);
         assert!(!is_valid);

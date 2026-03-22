@@ -437,17 +437,25 @@
                 <div class="tpl-tabs">
                     <div class="tpl-tab active" id="tab-tasks" onclick="switchTab('tasks')">Задачи</div>
                     <div class="tpl-tab" id="tab-details" onclick="switchTab('details')">Детали</div>
+                    <div class="tpl-tab" id="tab-survey" onclick="switchTab('survey')">
+                        <i class="fa-solid fa-list-check"></i> Опрос
+                        ${(Array.isArray(tpl.survey_vars) && tpl.survey_vars.filter(v=>v&&v.name).length > 0)
+                            ? '<span style="background:#005057;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:5px;">' + tpl.survey_vars.filter(v=>v&&v.name).length + '</span>'
+                            : ''}
+                    </div>
                     <div class="tpl-tab" id="tab-perms" onclick="switchTab('perms')">Права</div>
                     <div class="tpl-tab" id="tab-workspaces" onclick="switchTab('workspaces')">Terraform Workspaces</div>
                 </div>
 
                 <div id="tab-content-tasks"></div>
                 <div id="tab-content-details" style="display:none;"></div>
+                <div id="tab-content-survey" style="display:none;"></div>
                 <div id="tab-content-perms" style="display:none;"></div>
                 <div id="tab-content-workspaces" style="display:none;"></div>
             `;
             loadTasksTab();
             renderDetailsTab();
+            renderSurveyTab();
             renderPermissionsTab();
             renderWorkspacesTab();
         }
@@ -1031,6 +1039,102 @@
                         })
                         .catch(err => ui.showAlert('Ошибка при остановке задач: ' + err.message, 'danger'));
                 });
+        }
+
+        // =====================================================================
+        // Survey Tab (read-only view of survey_vars)
+        // =====================================================================
+
+        function renderSurveyTab() {
+            const container = $('#tab-content-survey');
+            if (!container) return;
+
+            const vars = Array.isArray(tpl.survey_vars) ? tpl.survey_vars.filter(v => v && v.name) : [];
+
+            if (vars.length === 0) {
+                container.innerHTML = `
+                    <div class="card text-center" style="max-width:520px; margin:40px auto;">
+                        <div style="font-size:48px; margin-bottom:16px; color:#ccc;"><i class="fa-solid fa-list-check"></i></div>
+                        <h3 style="margin:0 0 8px;">Опрос не настроен</h3>
+                        <p style="color:var(--text-light); margin-bottom:16px;">
+                            Для этого шаблона не заданы переменные опроса.<br>
+                            Перейдите в <a href="templates.html?id=${projectId}">редактор шаблонов</a> чтобы добавить переменные.
+                        </p>
+                        <div style="background:#f8f8f8; border-radius:8px; padding:16px; text-align:left; font-size:13px; color:var(--text-light);">
+                            <strong>Что такое Survey (Опрос)?</strong><br>
+                            Survey — это форма, которая появляется перед запуском задачи.<br>
+                            Пользователь заполняет переменные (строки, числа, пароли, списки),<br>
+                            и они передаются в Ansible/Terraform как <code>extra_vars</code>.
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            const typeLabel = {
+                string: '<i class="fa-solid fa-font"></i> Текст',
+                integer: '<i class="fa-solid fa-hashtag"></i> Число',
+                secret: '<i class="fa-solid fa-lock"></i> Секрет',
+                boolean: '<i class="fa-solid fa-toggle-on"></i> Да/Нет',
+                enum: '<i class="fa-solid fa-list"></i> Выбор'
+            };
+
+            container.innerHTML = `
+                <div class="card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                        <div>
+                            <h3 style="margin:0;"><i class="fa-solid fa-list-check"></i> Переменные опроса</h3>
+                            <p style="margin:4px 0 0; color:var(--text-light); font-size:13px;">
+                                Пользователь заполняет эти поля перед каждым запуском шаблона
+                            </p>
+                        </div>
+                        <a href="templates.html?id=${projectId}" class="btn btn-sm">
+                            <i class="fa-solid fa-pen"></i> Редактировать
+                        </a>
+                    </div>
+
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Переменная</th>
+                                <th>Заголовок для пользователя</th>
+                                <th>Тип</th>
+                                <th>Обязательная</th>
+                                <th>Значение по умолчанию / варианты</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${vars.map((v, i) => `
+                                <tr>
+                                    <td style="color:var(--text-light); font-size:13px;">${i + 1}</td>
+                                    <td><code style="font-size:13px;">${escapeHtml(v.name || '')}</code></td>
+                                    <td style="font-size:13px;">${escapeHtml(v.title || v.name || '')}</td>
+                                    <td style="font-size:13px; white-space:nowrap;">${typeLabel[v.type] || escapeHtml(v.type || 'string')}</td>
+                                    <td style="text-align:center;">
+                                        ${v.required
+                                            ? '<span style="color:#276749;"><i class="fa-solid fa-check"></i></span>'
+                                            : '<span style="color:#ccc;"><i class="fa-solid fa-xmark"></i></span>'}
+                                    </td>
+                                    <td style="font-size:13px; color:var(--text-light);">
+                                        ${v.type === 'enum' && Array.isArray(v.enum_values) && v.enum_values.length
+                                            ? v.enum_values.map(e => '<code style="margin-right:4px;">' + escapeHtml(e) + '</code>').join(' ')
+                                            : v.type === 'secret'
+                                                ? '<span style="color:#999;">••••••</span>'
+                                                : escapeHtml(v.default_value != null ? String(v.default_value) : '—')}
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+
+                    <div style="margin-top:16px; padding:12px; background:#f0f9f5; border-radius:6px; border-left:3px solid #005057; font-size:13px;">
+                        <i class="fa-solid fa-circle-info" style="color:#005057;"></i>
+                        При запуске шаблона появится форма с этими ${vars.length} переменными.
+                        Они будут переданы как <code>extra_vars</code> в Ansible/Terraform.
+                    </div>
+                </div>
+            `;
         }
 
         // =====================================================================

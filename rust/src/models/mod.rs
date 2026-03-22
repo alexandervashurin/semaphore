@@ -41,6 +41,13 @@ pub mod analytics;
 pub mod playbook;
 pub mod playbook_run;
 pub mod playbook_run_history;
+pub mod workflow;
+pub mod notification;
+pub mod credential_type;
+pub mod drift;
+pub mod ldap_group;
+pub mod snapshot;
+pub mod cost_estimate;
 
 #[cfg(test)]
 mod tests;
@@ -54,6 +61,8 @@ pub use template_vault::TemplateVault;
 pub use playbook::{Playbook, PlaybookCreate, PlaybookUpdate};
 pub use playbook_run::{PlaybookRunRequest, PlaybookRunResult, AnsiblePlaybookParams};
 pub use playbook_run_history::{PlaybookRun, PlaybookRunCreate, PlaybookRunUpdate, PlaybookRunStatus, PlaybookRunStats, PlaybookRunFilter};
+pub use workflow::{Workflow, WorkflowCreate, WorkflowUpdate, WorkflowNode, WorkflowNodeCreate, WorkflowNodeUpdate, WorkflowEdge, WorkflowEdgeCreate, WorkflowRun as WorkflowRunModel, WorkflowFull, EdgeCondition};
+pub use notification::{NotificationPolicy, NotificationPolicyCreate, NotificationPolicyUpdate, NotificationChannelType};
 pub use totp_verification::TotpVerification;
 pub use inventory::{Inventory, InventoryType};
 pub use repository::{Repository, RepositoryType};
@@ -85,6 +94,10 @@ pub use task_params::{AnsibleTaskParams as AnsibleTaskParamsStruct, TerraformTas
 pub use audit_log::{AuditLog, AuditAction, AuditObjectType, AuditLevel, AuditDetails, AuditLogFilter, AuditLogResult};
 pub use webhook::{Webhook, WebhookType, CreateWebhook, UpdateWebhook, TestWebhook, WebhookLog};
 pub use analytics::{TaskStats, UserActivity, PerformanceMetrics, ResourceUsage, ChartData, TimeSeries, SystemStatus, TopItem, TopSlowTask, TopUser, AnalyticsQueryParams, ProjectAnalytics, RunnerMetrics, SystemMetrics};
+pub use credential_type::{CredentialType, CredentialTypeCreate, CredentialTypeUpdate, CredentialInstance, CredentialInstanceCreate, CredentialField, CredentialInjector};
+pub use ldap_group::{LdapGroupMapping, LdapGroupMappingCreate};
+pub use snapshot::{TaskSnapshot, TaskSnapshotCreate, RollbackRequest};
+pub use cost_estimate::{CostEstimate, CostEstimateCreate, CostSummary};
 
 // Ре-экспорт RetrieveQueryParams из db::store
 pub use crate::db::store::RetrieveQueryParams;

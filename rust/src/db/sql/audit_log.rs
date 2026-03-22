@@ -1,6 +1,4 @@
-//! Audit Log - операции с журналом аудита в SQL
-//!
-//! Расширенное логирование всех значимых действий в системе
+//! Audit Log - операции с журналом аудита в SQL (PostgreSQL)
 
 use sqlx::FromRow;
 use crate::error::{Error, Result};
@@ -29,6 +27,11 @@ pub struct SqlAuditLog {
 }
 
 impl SqlDb {
+    fn audit_pg_pool(&self) -> Result<&sqlx::PgPool> {
+        self.get_postgres_pool()
+            .ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))
+    }
+
     /// Создаёт новую запись audit log
     #[allow(clippy::too_many_arguments)]
     pub async fn create_audit_log(
@@ -48,10 +51,10 @@ impl SqlDb {
     ) -> Result<AuditLog> {
         let row = sqlx::query_as::<_, SqlAuditLog>(
             r#"
-            INSERT INTO audit_log 
-                (project_id, user_id, username, action, object_type, object_id, object_name, 
+            INSERT INTO audit_log
+                (project_id, user_id, username, action, object_type, object_id, object_name,
                  description, level, ip_address, user_agent, details, created)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
             RETURNING *
             "#
         )
@@ -68,8 +71,9 @@ impl SqlDb {
         .bind(user_agent)
         .bind(details)
         .bind(Utc::now())
-        .fetch_one(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-        .await?;
+        .fetch_one(self.audit_pg_pool()?)
+        .await
+        .map_err(Error::Database)?;
 
         Ok(self.convert_sql_audit_log(row))
     }
@@ -77,11 +81,12 @@ impl SqlDb {
     /// Получает запись audit log по ID
     pub async fn get_audit_log(&self, id: i64) -> Result<AuditLog> {
         let row = sqlx::query_as::<_, SqlAuditLog>(
-            r#"SELECT * FROM audit_log WHERE id = ?"#
+            r#"SELECT * FROM audit_log WHERE id = $1"#
         )
         .bind(id)
-        .fetch_one(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-        .await?;
+        .fetch_one(self.audit_pg_pool()?)
+        .await
+        .map_err(Error::Database)?;
 
         Ok(self.convert_sql_audit_log(row))
     }
@@ -89,53 +94,34 @@ impl SqlDb {
     /// Поиск записей audit log с фильтрацией и пагинацией
     pub async fn search_audit_logs(&self, filter: &AuditLogFilter) -> Result<AuditLogResult> {
         let mut where_clauses = Vec::new();
-        
-        // Фильтр по project_id
+
         if let Some(project_id) = filter.project_id {
             where_clauses.push(format!("project_id = {}", project_id));
         }
-
-        // Фильтр по user_id
         if let Some(user_id) = filter.user_id {
             where_clauses.push(format!("user_id = {}", user_id));
         }
-
-        // Фильтр по username (LIKE)
         if let Some(ref username) = filter.username {
             where_clauses.push(format!("username LIKE '{}'", username.replace('\'', "''")));
         }
-
-        // Фильтр по action
         if let Some(ref action) = filter.action {
             where_clauses.push(format!("action = '{}'", action.to_string().replace('\'', "''")));
         }
-
-        // Фильтр по object_type
         if let Some(ref object_type) = filter.object_type {
             where_clauses.push(format!("object_type = '{}'", object_type.to_string().replace('\'', "''")));
         }
-
-        // Фильтр по object_id
         if let Some(object_id) = filter.object_id {
             where_clauses.push(format!("object_id = {}", object_id));
         }
-
-        // Фильтр по level
         if let Some(ref level) = filter.level {
             where_clauses.push(format!("level = '{}'", level.to_string().replace('\'', "''")));
         }
-
-        // Поиск по описанию (LIKE)
         if let Some(ref search) = filter.search {
             where_clauses.push(format!("description LIKE '{}'", search.replace('\'', "''")));
         }
-
-        // Фильтр по дате (date_from)
         if let Some(date_from) = filter.date_from {
             where_clauses.push(format!("created >= '{}'", date_from.naive_utc().format("%Y-%m-%d %H:%M:%S")));
         }
-
-        // Фильтр по дате (date_to)
         if let Some(date_to) = filter.date_to {
             where_clauses.push(format!("created <= '{}'", date_to.naive_utc().format("%Y-%m-%d %H:%M:%S")));
         }
@@ -146,7 +132,6 @@ impl SqlDb {
             format!("WHERE {}", where_clauses.join(" AND "))
         };
 
-        // Валидация sort поля
         let sort = match filter.sort.as_str() {
             "created" | "user_id" | "project_id" | "action" | "object_type" | "level" => filter.sort.clone(),
             _ => "created".to_string(),
@@ -154,27 +139,24 @@ impl SqlDb {
 
         let order = if filter.order.to_lowercase() == "asc" { "ASC" } else { "DESC" };
 
-        // Получение общего количества записей
-        let count_query = format!(
-            r#"SELECT COUNT(*) FROM audit_log {}"#,
-            where_clause
-        );
+        let count_query = format!("SELECT COUNT(*) FROM audit_log {}", where_clause);
 
         let total = sqlx::query_scalar::<_, i64>(&count_query)
-            .fetch_one(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-            .await?;
+            .fetch_one(self.audit_pg_pool()?)
+            .await
+            .map_err(Error::Database)?;
 
-        // Получение записей с пагинацией
         let data_query = format!(
-            r#"SELECT * FROM audit_log {} ORDER BY {} {} LIMIT ? OFFSET ?"#,
+            "SELECT * FROM audit_log {} ORDER BY {} {} LIMIT $1 OFFSET $2",
             where_clause, sort, order
         );
 
         let rows = sqlx::query_as::<_, SqlAuditLog>(&data_query)
             .bind(filter.limit)
             .bind(filter.offset)
-            .fetch_all(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-            .await?;
+            .fetch_all(self.audit_pg_pool()?)
+            .await
+            .map_err(Error::Database)?;
 
         let records = rows.into_iter().map(|row| self.convert_sql_audit_log(row)).collect();
 
@@ -194,18 +176,14 @@ impl SqlDb {
         offset: i64,
     ) -> Result<Vec<AuditLog>> {
         let rows = sqlx::query_as::<_, SqlAuditLog>(
-            r#"
-            SELECT * FROM audit_log 
-            WHERE project_id = ? 
-            ORDER BY created DESC 
-            LIMIT ? OFFSET ?
-            "#
+            "SELECT * FROM audit_log WHERE project_id = $1 ORDER BY created DESC LIMIT $2 OFFSET $3"
         )
         .bind(project_id)
         .bind(limit)
         .bind(offset)
-        .fetch_all(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-        .await?;
+        .fetch_all(self.audit_pg_pool()?)
+        .await
+        .map_err(Error::Database)?;
 
         Ok(rows.into_iter().map(|row| self.convert_sql_audit_log(row)).collect())
     }
@@ -218,18 +196,14 @@ impl SqlDb {
         offset: i64,
     ) -> Result<Vec<AuditLog>> {
         let rows = sqlx::query_as::<_, SqlAuditLog>(
-            r#"
-            SELECT * FROM audit_log 
-            WHERE user_id = ? 
-            ORDER BY created DESC 
-            LIMIT ? OFFSET ?
-            "#
+            "SELECT * FROM audit_log WHERE user_id = $1 ORDER BY created DESC LIMIT $2 OFFSET $3"
         )
         .bind(user_id)
         .bind(limit)
         .bind(offset)
-        .fetch_all(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-        .await?;
+        .fetch_all(self.audit_pg_pool()?)
+        .await
+        .map_err(Error::Database)?;
 
         Ok(rows.into_iter().map(|row| self.convert_sql_audit_log(row)).collect())
     }
@@ -242,39 +216,35 @@ impl SqlDb {
         offset: i64,
     ) -> Result<Vec<AuditLog>> {
         let rows = sqlx::query_as::<_, SqlAuditLog>(
-            r#"
-            SELECT * FROM audit_log 
-            WHERE action = ? 
-            ORDER BY created DESC 
-            LIMIT ? OFFSET ?
-            "#
+            "SELECT * FROM audit_log WHERE action = $1 ORDER BY created DESC LIMIT $2 OFFSET $3"
         )
         .bind(action.to_string())
         .bind(limit)
         .bind(offset)
-        .fetch_all(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-        .await?;
+        .fetch_all(self.audit_pg_pool()?)
+        .await
+        .map_err(Error::Database)?;
 
         Ok(rows.into_iter().map(|row| self.convert_sql_audit_log(row)).collect())
     }
 
     /// Удаляет старые записи audit log (до указанной даты)
     pub async fn delete_audit_logs_before(&self, before: chrono::DateTime<Utc>) -> Result<u64> {
-        let result = sqlx::query(
-            r#"DELETE FROM audit_log WHERE created < ?"#
-        )
-        .bind(before.naive_utc())
-        .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-        .await?;
+        let result = sqlx::query("DELETE FROM audit_log WHERE created < $1")
+            .bind(before)
+            .execute(self.audit_pg_pool()?)
+            .await
+            .map_err(Error::Database)?;
 
         Ok(result.rows_affected())
     }
 
     /// Очищает весь audit log
     pub async fn clear_audit_log(&self) -> Result<u64> {
-        let result = sqlx::query(r#"DELETE FROM audit_log"#)
-            .execute(self.get_sqlite_pool().ok_or(Error::Other("SQLite pool not found".to_string()))?)
-            .await?;
+        let result = sqlx::query("DELETE FROM audit_log")
+            .execute(self.audit_pg_pool()?)
+            .await
+            .map_err(Error::Database)?;
 
         Ok(result.rows_affected())
     }

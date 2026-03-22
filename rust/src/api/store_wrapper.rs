@@ -5,6 +5,8 @@ use crate::models::*;
 use crate::models::audit_log::{AuditAction, AuditObjectType, AuditLevel, AuditLog, AuditLogFilter, AuditLogResult};
 use crate::models::webhook::{Webhook, UpdateWebhook, WebhookLog};
 use crate::models::playbook_run_history::{PlaybookRun, PlaybookRunCreate, PlaybookRunUpdate, PlaybookRunStatus, PlaybookRunStats, PlaybookRunFilter};
+use crate::models::workflow::{Workflow, WorkflowCreate, WorkflowUpdate, WorkflowNode, WorkflowNodeCreate, WorkflowNodeUpdate, WorkflowEdge, WorkflowEdgeCreate, WorkflowRun};
+use crate::models::notification::{NotificationPolicy, NotificationPolicyCreate, NotificationPolicyUpdate};
 use crate::error::Result;
 use crate::services::task_logger::TaskStatus;
 use async_trait::async_trait;
@@ -798,6 +800,184 @@ impl ProjectRoleManager for StoreWrapper {
     }
     async fn delete_project_role(&self, project_id: i32, role_id: i32) -> Result<()> {
         self.inner.as_ref().delete_project_role(project_id, role_id).await
+    }
+}
+
+#[async_trait]
+impl crate::db::store::WorkflowManager for StoreWrapper {
+    async fn get_workflows(&self, project_id: i32) -> crate::error::Result<Vec<Workflow>> {
+        self.inner.as_ref().get_workflows(project_id).await
+    }
+    async fn get_workflow(&self, id: i32, project_id: i32) -> crate::error::Result<Workflow> {
+        self.inner.as_ref().get_workflow(id, project_id).await
+    }
+    async fn create_workflow(&self, project_id: i32, payload: WorkflowCreate) -> crate::error::Result<Workflow> {
+        self.inner.as_ref().create_workflow(project_id, payload).await
+    }
+    async fn update_workflow(&self, id: i32, project_id: i32, payload: WorkflowUpdate) -> crate::error::Result<Workflow> {
+        self.inner.as_ref().update_workflow(id, project_id, payload).await
+    }
+    async fn delete_workflow(&self, id: i32, project_id: i32) -> crate::error::Result<()> {
+        self.inner.as_ref().delete_workflow(id, project_id).await
+    }
+    async fn get_workflow_nodes(&self, workflow_id: i32) -> crate::error::Result<Vec<WorkflowNode>> {
+        self.inner.as_ref().get_workflow_nodes(workflow_id).await
+    }
+    async fn create_workflow_node(&self, workflow_id: i32, payload: WorkflowNodeCreate) -> crate::error::Result<WorkflowNode> {
+        self.inner.as_ref().create_workflow_node(workflow_id, payload).await
+    }
+    async fn update_workflow_node(&self, id: i32, workflow_id: i32, payload: WorkflowNodeUpdate) -> crate::error::Result<WorkflowNode> {
+        self.inner.as_ref().update_workflow_node(id, workflow_id, payload).await
+    }
+    async fn delete_workflow_node(&self, id: i32, workflow_id: i32) -> crate::error::Result<()> {
+        self.inner.as_ref().delete_workflow_node(id, workflow_id).await
+    }
+    async fn get_workflow_edges(&self, workflow_id: i32) -> crate::error::Result<Vec<WorkflowEdge>> {
+        self.inner.as_ref().get_workflow_edges(workflow_id).await
+    }
+    async fn create_workflow_edge(&self, workflow_id: i32, payload: WorkflowEdgeCreate) -> crate::error::Result<WorkflowEdge> {
+        self.inner.as_ref().create_workflow_edge(workflow_id, payload).await
+    }
+    async fn delete_workflow_edge(&self, id: i32, workflow_id: i32) -> crate::error::Result<()> {
+        self.inner.as_ref().delete_workflow_edge(id, workflow_id).await
+    }
+    async fn get_workflow_runs(&self, workflow_id: i32, project_id: i32) -> crate::error::Result<Vec<WorkflowRun>> {
+        self.inner.as_ref().get_workflow_runs(workflow_id, project_id).await
+    }
+    async fn create_workflow_run(&self, workflow_id: i32, project_id: i32) -> crate::error::Result<WorkflowRun> {
+        self.inner.as_ref().create_workflow_run(workflow_id, project_id).await
+    }
+    async fn update_workflow_run_status(&self, id: i32, status: &str, message: Option<String>) -> crate::error::Result<()> {
+        self.inner.as_ref().update_workflow_run_status(id, status, message).await
+    }
+}
+
+#[async_trait]
+impl crate::db::store::NotificationPolicyManager for StoreWrapper {
+    async fn get_notification_policies(&self, project_id: i32) -> crate::error::Result<Vec<NotificationPolicy>> {
+        self.inner.as_ref().get_notification_policies(project_id).await
+    }
+    async fn get_notification_policy(&self, id: i32, project_id: i32) -> crate::error::Result<NotificationPolicy> {
+        self.inner.as_ref().get_notification_policy(id, project_id).await
+    }
+    async fn create_notification_policy(&self, project_id: i32, payload: NotificationPolicyCreate) -> crate::error::Result<NotificationPolicy> {
+        self.inner.as_ref().create_notification_policy(project_id, payload).await
+    }
+    async fn update_notification_policy(&self, id: i32, project_id: i32, payload: NotificationPolicyUpdate) -> crate::error::Result<NotificationPolicy> {
+        self.inner.as_ref().update_notification_policy(id, project_id, payload).await
+    }
+    async fn delete_notification_policy(&self, id: i32, project_id: i32) -> crate::error::Result<()> {
+        self.inner.as_ref().delete_notification_policy(id, project_id).await
+    }
+    async fn get_matching_policies(&self, project_id: i32, trigger: &str, template_id: Option<i32>) -> crate::error::Result<Vec<NotificationPolicy>> {
+        self.inner.as_ref().get_matching_policies(project_id, trigger, template_id).await
+    }
+}
+
+#[async_trait]
+impl crate::db::store::CredentialTypeManager for StoreWrapper {
+    async fn get_credential_types(&self) -> crate::error::Result<Vec<crate::models::credential_type::CredentialType>> {
+        self.inner.as_ref().get_credential_types().await
+    }
+    async fn get_credential_type(&self, id: i32) -> crate::error::Result<crate::models::credential_type::CredentialType> {
+        self.inner.as_ref().get_credential_type(id).await
+    }
+    async fn create_credential_type(&self, payload: crate::models::credential_type::CredentialTypeCreate) -> crate::error::Result<crate::models::credential_type::CredentialType> {
+        self.inner.as_ref().create_credential_type(payload).await
+    }
+    async fn update_credential_type(&self, id: i32, payload: crate::models::credential_type::CredentialTypeUpdate) -> crate::error::Result<crate::models::credential_type::CredentialType> {
+        self.inner.as_ref().update_credential_type(id, payload).await
+    }
+    async fn delete_credential_type(&self, id: i32) -> crate::error::Result<()> {
+        self.inner.as_ref().delete_credential_type(id).await
+    }
+    async fn get_credential_instances(&self, project_id: i32) -> crate::error::Result<Vec<crate::models::credential_type::CredentialInstance>> {
+        self.inner.as_ref().get_credential_instances(project_id).await
+    }
+    async fn get_credential_instance(&self, id: i32, project_id: i32) -> crate::error::Result<crate::models::credential_type::CredentialInstance> {
+        self.inner.as_ref().get_credential_instance(id, project_id).await
+    }
+    async fn create_credential_instance(&self, project_id: i32, payload: crate::models::credential_type::CredentialInstanceCreate) -> crate::error::Result<crate::models::credential_type::CredentialInstance> {
+        self.inner.as_ref().create_credential_instance(project_id, payload).await
+    }
+    async fn delete_credential_instance(&self, id: i32, project_id: i32) -> crate::error::Result<()> {
+        self.inner.as_ref().delete_credential_instance(id, project_id).await
+    }
+}
+
+#[async_trait]
+impl crate::db::store::DriftManager for StoreWrapper {
+    async fn get_drift_configs(&self, project_id: i32) -> crate::error::Result<Vec<crate::models::drift::DriftConfig>> {
+        self.inner.as_ref().get_drift_configs(project_id).await
+    }
+    async fn get_drift_config(&self, id: i32, project_id: i32) -> crate::error::Result<crate::models::drift::DriftConfig> {
+        self.inner.as_ref().get_drift_config(id, project_id).await
+    }
+    async fn create_drift_config(&self, project_id: i32, payload: crate::models::drift::DriftConfigCreate) -> crate::error::Result<crate::models::drift::DriftConfig> {
+        self.inner.as_ref().create_drift_config(project_id, payload).await
+    }
+    async fn update_drift_config_enabled(&self, id: i32, project_id: i32, enabled: bool) -> crate::error::Result<()> {
+        self.inner.as_ref().update_drift_config_enabled(id, project_id, enabled).await
+    }
+    async fn delete_drift_config(&self, id: i32, project_id: i32) -> crate::error::Result<()> {
+        self.inner.as_ref().delete_drift_config(id, project_id).await
+    }
+    async fn get_drift_results(&self, drift_config_id: i32, limit: i64) -> crate::error::Result<Vec<crate::models::drift::DriftResult>> {
+        self.inner.as_ref().get_drift_results(drift_config_id, limit).await
+    }
+    async fn create_drift_result(&self, project_id: i32, drift_config_id: i32, template_id: i32, status: &str, summary: Option<String>, task_id: Option<i32>) -> crate::error::Result<crate::models::drift::DriftResult> {
+        self.inner.as_ref().create_drift_result(project_id, drift_config_id, template_id, status, summary, task_id).await
+    }
+    async fn get_latest_drift_results(&self, project_id: i32) -> crate::error::Result<Vec<crate::models::drift::DriftResult>> {
+        self.inner.as_ref().get_latest_drift_results(project_id).await
+    }
+}
+
+#[async_trait]
+impl crate::db::store::LdapGroupMappingManager for StoreWrapper {
+    async fn get_ldap_group_mappings(&self) -> crate::error::Result<Vec<crate::models::ldap_group::LdapGroupMapping>> {
+        self.inner.as_ref().get_ldap_group_mappings().await
+    }
+    async fn create_ldap_group_mapping(&self, payload: crate::models::ldap_group::LdapGroupMappingCreate) -> crate::error::Result<crate::models::ldap_group::LdapGroupMapping> {
+        self.inner.as_ref().create_ldap_group_mapping(payload).await
+    }
+    async fn delete_ldap_group_mapping(&self, id: i32) -> crate::error::Result<()> {
+        self.inner.as_ref().delete_ldap_group_mapping(id).await
+    }
+    async fn get_mappings_for_groups(&self, group_dns: &[String]) -> crate::error::Result<Vec<crate::models::ldap_group::LdapGroupMapping>> {
+        self.inner.as_ref().get_mappings_for_groups(group_dns).await
+    }
+}
+
+#[async_trait]
+impl crate::db::store::SnapshotManager for StoreWrapper {
+    async fn get_snapshots(&self, project_id: i32, template_id: Option<i32>, limit: i64) -> crate::error::Result<Vec<crate::models::snapshot::TaskSnapshot>> {
+        self.inner.as_ref().get_snapshots(project_id, template_id, limit).await
+    }
+    async fn get_snapshot(&self, id: i32, project_id: i32) -> crate::error::Result<crate::models::snapshot::TaskSnapshot> {
+        self.inner.as_ref().get_snapshot(id, project_id).await
+    }
+    async fn create_snapshot(&self, project_id: i32, payload: crate::models::snapshot::TaskSnapshotCreate) -> crate::error::Result<crate::models::snapshot::TaskSnapshot> {
+        self.inner.as_ref().create_snapshot(project_id, payload).await
+    }
+    async fn delete_snapshot(&self, id: i32, project_id: i32) -> crate::error::Result<()> {
+        self.inner.as_ref().delete_snapshot(id, project_id).await
+    }
+}
+
+#[async_trait]
+impl crate::db::store::CostEstimateManager for StoreWrapper {
+    async fn get_cost_estimates(&self, project_id: i32, limit: i64) -> crate::error::Result<Vec<crate::models::cost_estimate::CostEstimate>> {
+        self.inner.as_ref().get_cost_estimates(project_id, limit).await
+    }
+    async fn get_cost_estimate_for_task(&self, project_id: i32, task_id: i32) -> crate::error::Result<Option<crate::models::cost_estimate::CostEstimate>> {
+        self.inner.as_ref().get_cost_estimate_for_task(project_id, task_id).await
+    }
+    async fn create_cost_estimate(&self, payload: crate::models::cost_estimate::CostEstimateCreate) -> crate::error::Result<crate::models::cost_estimate::CostEstimate> {
+        self.inner.as_ref().create_cost_estimate(payload).await
+    }
+    async fn get_cost_summaries(&self, project_id: i32) -> crate::error::Result<Vec<crate::models::cost_estimate::CostSummary>> {
+        self.inner.as_ref().get_cost_summaries(project_id).await
     }
 }
 
