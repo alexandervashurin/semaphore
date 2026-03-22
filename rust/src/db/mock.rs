@@ -945,3 +945,21 @@ impl crate::db::store::CostEstimateManager for MockStore {
     async fn create_cost_estimate(&self, _payload: crate::models::cost_estimate::CostEstimateCreate) -> Result<crate::models::cost_estimate::CostEstimate> { Err(crate::error::Error::Other("not implemented".to_string())) }
     async fn get_cost_summaries(&self, _project_id: i32) -> Result<Vec<crate::models::cost_estimate::CostSummary>> { Ok(Vec::new()) }
 }
+
+#[async_trait]
+impl crate::db::store::TerraformStateManager for MockStore {
+    async fn get_terraform_state(&self, _pid: i32, _ws: &str) -> Result<Option<crate::models::TerraformState>> { Ok(None) }
+    async fn list_terraform_states(&self, _pid: i32, _ws: &str) -> Result<Vec<crate::models::TerraformStateSummary>> { Ok(Vec::new()) }
+    async fn get_terraform_state_by_serial(&self, _pid: i32, _ws: &str, _serial: i32) -> Result<Option<crate::models::TerraformState>> { Ok(None) }
+    async fn create_terraform_state(&self, state: crate::models::TerraformState) -> Result<crate::models::TerraformState> { Ok(state) }
+    async fn delete_terraform_state(&self, _pid: i32, _ws: &str) -> Result<()> { Ok(()) }
+    async fn delete_all_terraform_states(&self, _pid: i32, _ws: &str) -> Result<()> { Ok(()) }
+    async fn lock_terraform_state(&self, pid: i32, ws: &str, lock: crate::models::TerraformStateLock) -> Result<crate::models::TerraformStateLock> {
+        let _ = (pid, ws);
+        Ok(lock)
+    }
+    async fn unlock_terraform_state(&self, _pid: i32, _ws: &str, _lock_id: &str) -> Result<()> { Ok(()) }
+    async fn get_terraform_lock(&self, _pid: i32, _ws: &str) -> Result<Option<crate::models::TerraformStateLock>> { Ok(None) }
+    async fn list_terraform_workspaces(&self, _pid: i32) -> Result<Vec<String>> { Ok(Vec::new()) }
+    async fn purge_expired_terraform_locks(&self) -> Result<u64> { Ok(0) }
+}

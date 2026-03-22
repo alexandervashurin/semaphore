@@ -98,6 +98,8 @@ pub use credential_type::{CredentialType, CredentialTypeCreate, CredentialTypeUp
 pub use ldap_group::{LdapGroupMapping, LdapGroupMappingCreate};
 pub use snapshot::{TaskSnapshot, TaskSnapshotCreate, RollbackRequest};
 pub use cost_estimate::{CostEstimate, CostEstimateCreate, CostSummary};
+pub mod terraform_state;
+pub use terraform_state::{TerraformState, TerraformStateSummary, TerraformStateLock, LockInfo, StateDiff, StateDiffResource};
 
 // Ре-экспорт RetrieveQueryParams из db::store
 pub use crate::db::store::RetrieveQueryParams;

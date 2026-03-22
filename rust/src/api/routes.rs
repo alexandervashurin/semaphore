@@ -467,6 +467,23 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/api/project/{project_id}/costs/summary", get(handlers::cost_estimate::cost_summary))
         .route("/api/project/{project_id}/tasks/{task_id}/cost", get(handlers::cost_estimate::get_task_cost))
         .route("/api/project/{project_id}/tasks/{task_id}/cost", post(handlers::cost_estimate::create_task_cost))
+
+        // ── Phase 1: Terraform Remote State Backend ──────────────────────────
+        // Terraform HTTP backend protocol — configured in:
+        //   terraform { backend "http" { address = ".../api/project/1/terraform/state/default" } }
+        //
+        // LOCK and UNLOCK are non-standard HTTP methods used by Terraform.
+        // We use axum::routing::any() so all methods reach state_dispatch,
+        // which re-routes based on Method internally.
+        .route(
+            "/api/project/{project_id}/terraform/state/{workspace}",
+            axum::routing::any(handlers::state_backend::state_dispatch),
+        )
+        // UI-friendly endpoints (no standard-method conflict)
+        .route("/api/project/{project_id}/terraform/workspaces", get(handlers::state_backend::list_workspaces))
+        .route("/api/project/{project_id}/terraform/state/{workspace}/history", get(handlers::state_backend::list_state_history))
+        .route("/api/project/{project_id}/terraform/state/{workspace}/lock", get(handlers::state_backend::get_lock_info))
+        .route("/api/project/{project_id}/terraform/state/{workspace}/{serial}", get(handlers::state_backend::get_state_by_serial))
 }
 
 /// Создаёт маршруты для статических файлов

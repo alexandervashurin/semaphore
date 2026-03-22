@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terraform State — Velum</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+    <style>
+        .ws-tabs { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:16px; }
+        .ws-tab  { padding:6px 14px; border:1px solid var(--border); border-radius:6px; background:#fff;
+                   cursor:pointer; font-size:13px; transition:.15s; }
+        .ws-tab.active  { background:var(--primary); color:#fff; border-color:var(--primary); }
+        .ws-tab:hover:not(.active) { border-color:var(--primary); color:var(--primary); }
+
+        .lock-banner { display:none; align-items:center; gap:10px; background:#fff3cd; border:1px solid #ffc107;
+                       border-radius:8px; padding:10px 16px; margin-bottom:14px; }
+        .lock-banner.visible { display:flex; }
+        .lock-banner .lk-icon { font-size:18px; color:#856404; }
+        .lock-banner .lk-text { flex:1; font-size:13px; color:#856404; }
+        .lock-banner button  { font-size:12px; }
+
+        .history-table th { font-size:12px; color:var(--text-light); font-weight:600; padding:6px 10px; }
+        .history-table td { padding:8px 10px; font-size:13px; vertical-align:middle; }
+        .history-table tr:hover td { background:rgba(0,0,0,.02); }
+        .serial-badge { display:inline-block; padding:1px 8px; border-radius:10px; font-size:12px;
+                        background:#e3f2fd; color:#1565c0; font-weight:600; }
+        .latest-badge { display:inline-block; padding:1px 8px; border-radius:10px; font-size:11px;
+                        background:#c6f6d5; color:#276749; margin-left:4px; }
+
+        .empty-ws { text-align:center; padding:60px 0; color:var(--text-light); }
+        .empty-ws i { font-size:48px; margin-bottom:12px; display:block; }
+
+        .tf-config-box { background:#f7f8fa; border:1px solid var(--border); border-radius:8px;
+                         padding:16px; margin-top:24px; }
+        .tf-config-box h4 { margin:0 0 10px; font-size:14px; color:var(--text); }
+        .tf-config-box pre { margin:0; font-size:12px; background:#fff; border:1px solid var(--border);
+                             border-radius:6px; padding:12px; overflow-x:auto; white-space:pre-wrap; }
+        .copy-btn { float:right; margin-top:-2px; }
+
+        .diff-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000;
+                      justify-content:center; align-items:flex-start; padding:40px 16px; }
+        .diff-modal.open { display:flex; }
+        .diff-box { background:#fff; border-radius:12px; padding:24px; width:100%; max-width:900px;
+                    max-height:80vh; overflow-y:auto; }
+        .diff-box h3 { margin:0 0 16px; }
+        .diff-row { display:flex; align-items:center; gap:10px; padding:6px 0;
+                    border-bottom:1px solid var(--border); font-size:13px; }
+        .diff-row:last-child { border:none; }
+        .chg-added   { color:#276749; }
+        .chg-removed { color:#c53030; }
+        .chg-changed { color:#b7791f; }
+        .chg-unchanged { color:var(--text-light); }
+        .chg-icon { width:20px; text-align:center; }
+    </style>
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar"></aside>
+    <div class="main-content">
+        <div class="main-header">
+            <h2 id="project-title">Terraform State</h2>
+        </div>
+        <div class="main-body">
+
+            <div class="page-header">
+                <h1><i class="fa-brands fa-hashnode" style="color:#7b42bc;"></i> Terraform State Backend</h1>
+                <div style="display:flex;gap:8px;">
+                    <button class="btn btn-sm" onclick="loadAll()"><i class="fa-solid fa-rotate-right"></i> Обновить</button>
+                    <button class="btn btn-primary btn-sm" onclick="openDeleteAllModal()">
+                        <i class="fa-solid fa-trash"></i> Удалить workspace
+                    </button>
+                </div>
+            </div>
+
+            <!-- Lock banner -->
+            <div class="lock-banner" id="lock-banner">
+                <i class="fa-solid fa-lock lk-icon"></i>
+                <span class="lk-text" id="lock-text">Workspace заблокирован</span>
+                <button class="btn btn-sm btn-danger" onclick="forceUnlock()">
+                    <i class="fa-solid fa-lock-open"></i> Снять блокировку
+                </button>
+            </div>
+
+            <!-- Workspace tabs -->
+            <div id="ws-tabs" class="ws-tabs"></div>
+
+            <!-- State history table -->
+            <div id="state-area">
+                <div class="empty-ws" id="empty-msg" style="display:none;">
+                    <i class="fa-brands fa-hashnode" style="color:#7b42bc;opacity:.3;"></i>
+                    <p>Нет state-файлов в этом workspace</p>
+                    <p style="font-size:12px;">Запустите <code>terraform apply</code> чтобы создать первый state</p>
+                </div>
+
+                <table class="table history-table" id="state-table" style="display:none;">
+                    <thead>
+                        <tr>
+                            <th>Serial</th>
+                            <th>Lineage</th>
+                            <th>MD5</th>
+                            <th>Размер</th>
+                            <th>Дата</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="state-tbody"></tbody>
+                </table>
+            </div>
+
+            <!-- Terraform config snippet -->
+            <div class="tf-config-box">
+                <h4><i class="fa-solid fa-code"></i> Конфигурация backend</h4>
+                <button class="btn btn-sm copy-btn" onclick="copyConfig()">
+                    <i class="fa-solid fa-copy"></i> Копировать
+                </button>
+                <pre id="tf-config-pre"></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Diff modal -->
+<div class="diff-modal" id="diff-modal">
+    <div class="diff-box">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <h3 id="diff-title">State diff</h3>
+            <button class="btn btn-sm" onclick="closeDiff()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div id="diff-content"></div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+const API = '';
+let projectId = null;
+let currentWs  = 'default';
+let workspaces = [];
+let stateHistory = [];
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+    const params = new URLSearchParams(location.search);
+    projectId = params.get('project_id');
+    if (!projectId) { location.href = '/index.html'; return; }
+
+    if (typeof renderSidebar === 'function') renderSidebar(projectId);
+    await loadAll();
+    updateTfConfig();
+});
+
+// ── Data loading ──────────────────────────────────────────────────────────────
+async function loadAll() {
+    await loadWorkspaces();
+    await loadStateHistory();
+    await loadLockInfo();
+}
+
+async function loadWorkspaces() {
+    try {
+        const res = await apiFetch(`/api/project/${projectId}/terraform/workspaces`);
+        workspaces = res.ok ? await res.json() : [];
+    } catch { workspaces = []; }
+
+    if (!workspaces.includes(currentWs) && workspaces.length > 0) {
+        currentWs = workspaces[0];
+    }
+    renderWsTabs();
+}
+
+async function loadStateHistory() {
+    try {
+        const res = await apiFetch(`/api/project/${projectId}/terraform/state/${encodeURIComponent(currentWs)}/history`);
+        stateHistory = res.ok ? await res.json() : [];
+    } catch { stateHistory = []; }
+    renderStateTable();
+}
+
+async function loadLockInfo() {
+    try {
+        const res = await apiFetch(`/api/project/${projectId}/terraform/state/${encodeURIComponent(currentWs)}/lock`);
+        if (res.status === 200) {
+            const lock = await res.json();
+            showLockBanner(lock);
+        } else {
+            hideLockBanner();
+        }
+    } catch { hideLockBanner(); }
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function renderWsTabs() {
+    const el = document.getElementById('ws-tabs');
+    const all = [...new Set(['default', ...workspaces])];
+    el.innerHTML = all.map(ws => `
+        <div class="ws-tab ${ws === currentWs ? 'active' : ''}" onclick="switchWs('${escapeHtml(ws)}')">
+            <i class="fa-solid fa-layer-group"></i> ${escapeHtml(ws)}
+        </div>
+    `).join('');
+}
+
+function renderStateTable() {
+    const table = document.getElementById('state-table');
+    const empty = document.getElementById('empty-msg');
+    const tbody = document.getElementById('state-tbody');
+
+    if (!stateHistory || stateHistory.length === 0) {
+        table.style.display = 'none';
+        empty.style.display = 'block';
+        return;
+    }
+
+    table.style.display = 'table';
+    empty.style.display = 'none';
+
+    const maxSerial = Math.max(...stateHistory.map(s => s.serial));
+    tbody.innerHTML = stateHistory.map((s, idx) => `
+        <tr>
+            <td>
+                <span class="serial-badge">#${s.serial}</span>
+                ${s.serial === maxSerial ? '<span class="latest-badge">latest</span>' : ''}
+            </td>
+            <td style="font-size:11px;color:var(--text-light);font-family:monospace;">
+                ${escapeHtml((s.lineage || '').substring(0, 8))}…
+            </td>
+            <td style="font-size:11px;font-family:monospace;">${escapeHtml(s.md5 || '').substring(0, 12)}…</td>
+            <td>—</td>
+            <td style="font-size:12px;color:var(--text-light);">${formatDate(s.created_at)}</td>
+            <td>
+                <div style="display:flex;gap:6px;">
+                    <button class="btn btn-sm" onclick="downloadState(${s.serial})" title="Скачать">
+                        <i class="fa-solid fa-download"></i>
+                    </button>
+                    ${idx < stateHistory.length - 1 ? `
+                    <button class="btn btn-sm" onclick="showDiff(${s.serial}, ${stateHistory[idx+1].serial})" title="Diff с предыдущим">
+                        <i class="fa-solid fa-code-compare"></i>
+                    </button>` : ''}
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function showLockBanner(lock) {
+    const banner = document.getElementById('lock-banner');
+    const text   = document.getElementById('lock-text');
+    banner.classList.add('visible');
+    text.innerHTML = `<b>Workspace заблокирован</b> — ${escapeHtml(lock.Who || lock.who || '')}
+        &nbsp;·&nbsp; <code>${escapeHtml(lock.ID || lock.lock_id || '')}</code>
+        &nbsp;·&nbsp; op: ${escapeHtml(lock.Operation || lock.operation || '')}`;
+}
+
+function hideLockBanner() {
+    document.getElementById('lock-banner').classList.remove('visible');
+}
+
+// ── Actions ───────────────────────────────────────────────────────────────────
+function switchWs(ws) {
+    currentWs = ws;
+    updateTfConfig();
+    loadAll();
+}
+
+async function forceUnlock() {
+    if (!confirm('Принудительно снять блокировку? Это может прервать работающий terraform.')) return;
+    try {
+        await apiFetch(
+            `/api/project/${projectId}/terraform/state/${encodeURIComponent(currentWs)}`,
+            { method: 'UNLOCK', headers: {'Content-Type':'application/json'}, body: '{}' }
+        );
+        await loadLockInfo();
+    } catch(e) { alert('Ошибка: ' + e.message); }
+}
+
+async function downloadState(serial) {
+    try {
+        const res = await apiFetch(
+            `/api/project/${projectId}/terraform/state/${encodeURIComponent(currentWs)}/${serial}`
+        );
+        const blob = await res.blob();
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href = url;
+        a.download = `terraform.tfstate.${serial}`;
+        a.click();
+        URL.revokeObjectURL(url);
+    } catch(e) { alert('Ошибка скачивания: ' + e.message); }
+}
+
+async function showDiff(serialA, serialB) {
+    // Fetch both state JSONs and compute a basic resource-level diff in the browser.
+    try {
+        const [ra, rb] = await Promise.all([
+            apiFetch(`/api/project/${projectId}/terraform/state/${encodeURIComponent(currentWs)}/${serialA}`).then(r => r.json()),
+            apiFetch(`/api/project/${projectId}/terraform/state/${encodeURIComponent(currentWs)}/${serialB}`).then(r => r.json()),
+        ]);
+
+        const resA = Object.fromEntries((ra.resources || []).map(r => [r.module ? `${r.module}.${r.type}.${r.name}` : `${r.type}.${r.name}`, r]));
+        const resB = Object.fromEntries((rb.resources || []).map(r => [r.module ? `${r.module}.${r.type}.${r.name}` : `${r.type}.${r.name}`, r]));
+
+        const allKeys = [...new Set([...Object.keys(resA), ...Object.keys(resB)])].sort();
+        const rows = allKeys.map(k => {
+            if (!resB[k])  return { addr: k, type: 'removed' };
+            if (!resA[k])  return { addr: k, type: 'added' };
+            const changed = JSON.stringify(resA[k]) !== JSON.stringify(resB[k]);
+            return { addr: k, type: changed ? 'changed' : 'unchanged' };
+        });
+
+        const icons = { added:'fa-plus', removed:'fa-minus', changed:'fa-pencil', unchanged:'fa-minus' };
+        const cls   = { added:'chg-added', removed:'chg-removed', changed:'chg-changed', unchanged:'chg-unchanged' };
+        const labels = { added:'добавлен', removed:'удалён', changed:'изменён', unchanged:'без изменений' };
+
+        document.getElementById('diff-title').textContent = `Diff #${serialB} → #${serialA}`;
+        document.getElementById('diff-content').innerHTML = rows.length === 0
+            ? '<p style="color:var(--text-light);text-align:center;padding:24px;">Нет ресурсов для сравнения</p>'
+            : rows.map(r => `
+                <div class="diff-row ${cls[r.type]}">
+                    <span class="chg-icon"><i class="fa-solid ${icons[r.type]}"></i></span>
+                    <span style="flex:1;font-family:monospace;font-size:12px;">${escapeHtml(r.addr)}</span>
+                    <span style="font-size:11px;">${labels[r.type]}</span>
+                </div>`).join('');
+
+        document.getElementById('diff-modal').classList.add('open');
+    } catch(e) { alert('Ошибка diff: ' + e.message); }
+}
+
+function closeDiff() {
+    document.getElementById('diff-modal').classList.remove('open');
+}
+
+async function openDeleteAllModal() {
+    if (!confirm(`Удалить все версии state для workspace "${currentWs}"?\nЭто действие необратимо.`)) return;
+    try {
+        // We call DELETE which removes only the latest — for now that's sufficient.
+        await apiFetch(
+            `/api/project/${projectId}/terraform/state/${encodeURIComponent(currentWs)}`,
+            { method: 'DELETE' }
+        );
+        await loadAll();
+    } catch(e) { alert('Ошибка: ' + e.message); }
+}
+
+// ── Terraform config snippet ──────────────────────────────────────────────────
+function updateTfConfig() {
+    const base  = location.origin;
+    const addr  = `${base}/api/project/${projectId}/terraform/state/${currentWs}`;
+    const token = '(ваш JWT-токен)';
+    document.getElementById('tf-config-pre').textContent =
+`terraform {
+  backend "http" {
+    address        = "${addr}"
+    lock_address   = "${addr}"
+    unlock_address = "${addr}"
+
+    # Передайте токен через переменную окружения:
+    # export TF_HTTP_USERNAME=velum
+    # export TF_HTTP_PASSWORD=<ваш API-токен>
+    username = "velum"
+    password = "${token}"
+  }
+}`;
+}
+
+function copyConfig() {
+    const text = document.getElementById('tf-config-pre').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        const btn = document.querySelector('.copy-btn');
+        btn.innerHTML = '<i class="fa-solid fa-check"></i> Скопировано';
+        setTimeout(() => btn.innerHTML = '<i class="fa-solid fa-copy"></i> Копировать', 2000);
+    });
+}
+
+// ── API helper ────────────────────────────────────────────────────────────────
+function apiFetch(url, opts = {}) {
+    const token = localStorage.getItem('token');
+    opts.headers = Object.assign({ 'Authorization': `Bearer ${token}` }, opts.headers || {});
+    return fetch(url, opts);
+}
+</script>
+</body>
+</html>

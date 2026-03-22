@@ -490,6 +490,7 @@ pub trait Store:
     + LdapGroupMappingManager
     + SnapshotManager
     + CostEstimateManager
+    + TerraformStateManager
 {
 }
 
@@ -531,4 +532,31 @@ pub trait CostEstimateManager: Send + Sync {
     async fn get_cost_estimate_for_task(&self, project_id: i32, task_id: i32) -> Result<Option<CostEstimate>>;
     async fn create_cost_estimate(&self, payload: CostEstimateCreate) -> Result<CostEstimate>;
     async fn get_cost_summaries(&self, project_id: i32) -> Result<Vec<CostSummary>>;
+}
+
+/// Менеджер Terraform Remote State Backend (Phase 1)
+#[async_trait]
+pub trait TerraformStateManager: Send + Sync {
+    /// Fetch the latest state for a workspace (returns raw bytes).
+    async fn get_terraform_state(&self, project_id: i32, workspace: &str) -> Result<Option<crate::models::TerraformState>>;
+    /// Fetch all state versions for a workspace (summaries, no bytes).
+    async fn list_terraform_states(&self, project_id: i32, workspace: &str) -> Result<Vec<crate::models::TerraformStateSummary>>;
+    /// Fetch a specific state version by serial.
+    async fn get_terraform_state_by_serial(&self, project_id: i32, workspace: &str, serial: i32) -> Result<Option<crate::models::TerraformState>>;
+    /// Store a new state version. Returns existing record if same serial+md5 (idempotent).
+    async fn create_terraform_state(&self, state: crate::models::TerraformState) -> Result<crate::models::TerraformState>;
+    /// Delete the latest state for a workspace.
+    async fn delete_terraform_state(&self, project_id: i32, workspace: &str) -> Result<()>;
+    /// Delete all state versions for a workspace.
+    async fn delete_all_terraform_states(&self, project_id: i32, workspace: &str) -> Result<()>;
+    /// Try to acquire a lock. Returns Ok(lock) on success, Err with existing lock info on 423.
+    async fn lock_terraform_state(&self, project_id: i32, workspace: &str, lock: crate::models::TerraformStateLock) -> Result<crate::models::TerraformStateLock>;
+    /// Release a lock (by lock_id). Returns Err if lock not found or wrong ID.
+    async fn unlock_terraform_state(&self, project_id: i32, workspace: &str, lock_id: &str) -> Result<()>;
+    /// Get the current lock info for a workspace (None if unlocked).
+    async fn get_terraform_lock(&self, project_id: i32, workspace: &str) -> Result<Option<crate::models::TerraformStateLock>>;
+    /// List all workspaces for a project.
+    async fn list_terraform_workspaces(&self, project_id: i32) -> Result<Vec<String>>;
+    /// Purge expired locks (called by SchedulePool every 5 min).
+    async fn purge_expired_terraform_locks(&self) -> Result<u64>;
 }
