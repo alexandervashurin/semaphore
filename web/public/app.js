@@ -671,35 +671,64 @@ function checkAuth() {
 
 // ==================== Sidebar ====================
 
-const SIDEBAR_ITEMS = [
-    { href: 'index.html',        icon: 'fa-solid fa-house',          label: 'Dashboard',    noId: true },
-    { href: 'global_tasks.html', icon: 'fa-solid fa-list-check',     label: 'Все задачи',   noId: true },
-    { href: 'project.html',      icon: 'fa-solid fa-folder-open',    label: 'Обзор' },
-    { href: 'templates.html',    icon: 'fa-solid fa-file-code',      label: 'Шаблоны' },
-    { href: 'history.html',      icon: 'fa-solid fa-clock-rotate-left', label: 'История задач' },
-    { href: 'activity.html',     icon: 'fa-solid fa-chart-line',     label: 'Активность' },
-    { href: 'inventory.html',    icon: 'fa-solid fa-server',         label: 'Инвентарь' },
-    { href: 'environments.html', icon: 'fa-solid fa-leaf',           label: 'Окружения' },
-    { href: 'repositories.html', icon: 'fa-brands fa-git-alt',       label: 'Репозитории' },
-    { href: 'keys.html',         icon: 'fa-solid fa-key',            label: 'Ключи' },
-    { href: 'schedules.html',    icon: 'fa-solid fa-calendar-days',  label: 'Расписания' },
-    { href: 'analytics.html',    icon: 'fa-solid fa-chart-bar',      label: 'Аналитика' },
-    { href: 'webhooks.html',     icon: 'fa-solid fa-plug',           label: 'Webhooks' },
-    { href: 'notifications.html',   icon: 'fa-solid fa-bell',           label: 'Уведомления' },
-    { href: 'credential_types.html', icon: 'fa-solid fa-id-card',      label: 'Типы ключей',  noId: true },
-    { href: 'playbooks.html',    icon: 'fa-solid fa-scroll',         label: 'Playbooks' },
-    { href: 'workflow.html',     icon: 'fa-solid fa-diagram-project', label: 'Workflows' },
-    { href: 'drift.html',        icon: 'fa-solid fa-radar',           label: 'Drift Detection' },
-    { href: 'snapshots.html',    icon: 'fa-solid fa-clock-rotate-left', label: 'Rollback' },
-    { href: 'marketplace.html',  icon: 'fa-solid fa-store',           label: 'Marketplace', noId: true },
-    { href: 'state.html',        icon: 'fa-solid fa-database',       label: 'TF State' },
-    { href: 'plan_approval.html', icon: 'fa-solid fa-check-to-slot', label: 'Plan Approval' },
-    { href: 'costs.html',        icon: 'fa-solid fa-dollar-sign',    label: 'Стоимость TF' },
-    { href: 'team.html',         icon: 'fa-solid fa-users',          label: 'Команда' },
-    { href: 'runners.html',      icon: 'fa-solid fa-bolt',           label: 'Runners',    noId: true },
-    { href: 'apps.html',         icon: 'fa-solid fa-puzzle-piece',   label: 'Apps',       noId: true },
-    { href: 'ldap_groups.html',  icon: 'fa-solid fa-sitemap',        label: 'LDAP Groups', noId: true },
-    { href: 'mcp.html',          icon: 'fa-solid fa-robot',          label: 'MCP / AI',   noId: true },
+const SIDEBAR_SECTIONS = [
+    {
+        label: null,
+        items: [
+            { href: 'index.html',        icon: 'fa-solid fa-house',       label: 'Dashboard',  noId: true },
+            { href: 'global_tasks.html', icon: 'fa-solid fa-list-check',  label: 'Все задачи', noId: true },
+        ]
+    },
+    {
+        label: 'Проект',
+        collapsible: true,
+        items: [
+            { href: 'project.html',   icon: 'fa-solid fa-folder-open',        label: 'Обзор' },
+            { href: 'history.html',   icon: 'fa-solid fa-clock-rotate-left',  label: 'История задач' },
+            { href: 'activity.html',  icon: 'fa-solid fa-chart-line',         label: 'Активность' },
+            { href: 'analytics.html', icon: 'fa-solid fa-chart-bar',          label: 'Аналитика' },
+        ]
+    },
+    {
+        label: 'Ansible',
+        collapsible: true,
+        items: [
+            { href: 'templates.html',    icon: 'fa-solid fa-file-code',        label: 'Шаблоны' },
+            { href: 'inventory.html',    icon: 'fa-solid fa-server',           label: 'Инвентарь' },
+            { href: 'repositories.html', icon: 'fa-brands fa-git-alt',         label: 'Репозитории' },
+            { href: 'keys.html',         icon: 'fa-solid fa-key',              label: 'Ключи' },
+            { href: 'environments.html', icon: 'fa-solid fa-leaf',             label: 'Окружения' },
+            { href: 'playbooks.html',    icon: 'fa-solid fa-scroll',           label: 'Playbooks' },
+            { href: 'schedules.html',    icon: 'fa-solid fa-calendar-days',    label: 'Расписания' },
+            { href: 'webhooks.html',     icon: 'fa-solid fa-plug',             label: 'Webhooks' },
+            { href: 'workflow.html',     icon: 'fa-solid fa-diagram-project',  label: 'Workflows' },
+            { href: 'drift.html',        icon: 'fa-solid fa-radar',            label: 'Drift Detection' },
+        ]
+    },
+    {
+        label: 'Terraform',
+        collapsible: true,
+        items: [
+            { href: 'state.html',         icon: 'fa-solid fa-database',       label: 'TF State' },
+            { href: 'plan_approval.html', icon: 'fa-solid fa-check-to-slot',  label: 'Plan Approval' },
+            { href: 'costs.html',         icon: 'fa-solid fa-dollar-sign',    label: 'Стоимость' },
+            { href: 'snapshots.html',     icon: 'fa-solid fa-rotate-left',    label: 'Rollback' },
+        ]
+    },
+    {
+        label: 'Настройки',
+        collapsible: true,
+        items: [
+            { href: 'team.html',             icon: 'fa-solid fa-users',        label: 'Команда' },
+            { href: 'notifications.html',    icon: 'fa-solid fa-bell',         label: 'Уведомления',  noId: true },
+            { href: 'credential_types.html', icon: 'fa-solid fa-id-card',      label: 'Типы ключей',  noId: true },
+            { href: 'runners.html',          icon: 'fa-solid fa-bolt',         label: 'Runners',      noId: true },
+            { href: 'apps.html',             icon: 'fa-solid fa-puzzle-piece', label: 'Apps',         noId: true },
+            { href: 'ldap_groups.html',      icon: 'fa-solid fa-sitemap',      label: 'LDAP Groups',  noId: true },
+            { href: 'mcp.html',              icon: 'fa-solid fa-robot',        label: 'MCP / AI',     noId: true },
+            { href: 'marketplace.html',      icon: 'fa-solid fa-store',        label: 'Marketplace',  noId: true },
+        ]
+    },
 ];
 
 function renderSidebar() {
@@ -728,12 +757,37 @@ function renderSidebar() {
 
     const projectIdForLinks = urlProjectId || storedProjectId;
 
-    const navItems = SIDEBAR_ITEMS.map(item => {
-        const href = (item.noId || !projectIdForLinks)
-            ? item.href
-            : item.href + '?id=' + projectIdForLinks;
-        const isActive = currentPage === item.href ? 'class="active"' : '';
-        return `<li><a href="${href}" ${isActive}><i class="nav-icon ${item.icon}"></i>${item.label}</a></li>`;
+    // Build sectioned nav with collapsible support
+    const SECT_KEY = 'sidebar-sections-open';
+    let sectOpen = {};
+    try { sectOpen = JSON.parse(localStorage.getItem(SECT_KEY) || '{}'); } catch {}
+
+    const navHtml = SIDEBAR_SECTIONS.map((section, si) => {
+        const isActiveSection = section.items.some(item => currentPage === item.href);
+        // Determine open state: active section always open, others from localStorage (default open)
+        const isOpen = isActiveSection || (sectOpen[si] !== false);
+
+        const itemsHtml = section.items.map(item => {
+            const href = (item.noId || !projectIdForLinks)
+                ? item.href
+                : item.href + '?id=' + projectIdForLinks;
+            const isActive = currentPage === item.href ? 'class="active"' : '';
+            return `<li><a href="${href}" ${isActive}><i class="nav-icon ${item.icon}"></i>${item.label}</a></li>`;
+        }).join('');
+
+        if (!section.label) {
+            return `<ul class="sidebar-nav sidebar-nav-flat">${itemsHtml}</ul>`;
+        }
+        if (!section.collapsible) {
+            return `<div class="sidebar-section"><span>${section.label}</span></div><ul class="sidebar-nav">${itemsHtml}</ul>`;
+        }
+        return `
+            <div class="sidebar-section sidebar-section-toggle ${isOpen ? 'open' : ''}" data-section="${si}">
+                <span>${section.label}</span>
+                <i class="fa-solid fa-chevron-down sidebar-chevron"></i>
+            </div>
+            <ul class="sidebar-nav sidebar-nav-collapsible ${isOpen ? '' : 'collapsed'}" data-section="${si}">${itemsHtml}</ul>
+        `;
     }).join('');
 
     sidebar.innerHTML = `
@@ -749,8 +803,7 @@ function renderSidebar() {
                 <option value="">Загрузка проектов...</option>
             </select>
         </div>
-        <div class="sidebar-section">Навигация</div>
-        <ul class="sidebar-nav">${navItems}</ul>
+        ${navHtml}
         <div class="sidebar-footer">
             ${userName ? `
             <div class="sidebar-user">
@@ -793,6 +846,21 @@ function renderSidebar() {
         btn.addEventListener('click', openSidebar);
         overlay.addEventListener('click', closeSidebar);
     }
+
+    // Wire up collapsible section toggles
+    sidebar.querySelectorAll('.sidebar-section-toggle').forEach(toggleEl => {
+        toggleEl.addEventListener('click', () => {
+            const si = toggleEl.dataset.section;
+            const nav = sidebar.querySelector(`.sidebar-nav-collapsible[data-section="${si}"]`);
+            const isNowOpen = toggleEl.classList.toggle('open');
+            if (nav) nav.classList.toggle('collapsed', !isNowOpen);
+            try {
+                const state = JSON.parse(localStorage.getItem(SECT_KEY) || '{}');
+                state[si] = isNowOpen;
+                localStorage.setItem(SECT_KEY, JSON.stringify(state));
+            } catch {}
+        });
+    });
 
     const projectSelect = sidebar.querySelector('.sidebar-project-select');
     if (projectSelect) {

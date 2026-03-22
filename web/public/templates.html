@@ -808,10 +808,11 @@
                     api.getEnvironments(projectId).catch(() => []),
                     api.getRepositories(projectId).catch(() => []),
                     loadViews(),
-                    api.getTemplates(projectId).catch(() => [])
+                    api.getTemplates(projectId).catch(() => []),
+                    api.getKeys(projectId).catch(() => [])
                 ])
-                .then(([playbooks, inventories, environments, repositories, views, allTemplates]) => {
-                    renderModal(template, { playbooks, inventories, environments, repositories, views, allTemplates });
+                .then(([playbooks, inventories, environments, repositories, views, allTemplates, keys]) => {
+                    renderModal(template, { playbooks, inventories, environments, repositories, views, allTemplates, keys });
                 })
                 .catch(console.error);
             } else {
@@ -819,7 +820,7 @@
             }
 
             function renderModal(tpl, data) {
-                const { playbooks, inventories, environments, repositories, views, allTemplates } = data;
+                const { playbooks, inventories, environments, repositories, views, allTemplates, keys } = data;
                 const buildTemplates = (allTemplates || []).filter(t => t.type === 'build');
                 
                 const modal = document.createElement('div');
@@ -929,6 +930,112 @@
                                         `).join('')}
                                     </select>
                                     <div class="form-hint">Используется только для deploy-шаблонов: этот шаблон будет запускаться после успешной сборки.</div>
+                                </div>
+                            </div>
+
+                            <!-- Ansible Parameters Section -->
+                            <div id="ansible-params-section" style="display:none; border-top:1px solid var(--border); margin:16px 0 0; padding-top:12px;">
+                                <strong style="font-size:13px; color:var(--text-light); text-transform:uppercase; letter-spacing:.5px;"><i class="fa-solid fa-terminal" style="margin-right:6px;"></i>Параметры Ansible</strong>
+
+                                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-top:10px;">
+                                    <div class="form-group" style="margin-bottom:0;">
+                                        <label for="ans_forks">Forks (-f)</label>
+                                        <input type="number" id="ans_forks" class="form-control" min="1" max="500"
+                                            value="${tpl?.task_params?.forks ?? 5}" placeholder="5">
+                                        <small style="color:var(--text-light);">Параллельных хостов</small>
+                                    </div>
+                                    <div class="form-group" style="margin-bottom:0;">
+                                        <label for="ans_connection">Тип соединения (-c)</label>
+                                        <select id="ans_connection" class="form-control">
+                                            <option value="ssh" ${(tpl?.task_params?.connection||'ssh')==='ssh'?'selected':''}>ssh</option>
+                                            <option value="local" ${tpl?.task_params?.connection==='local'?'selected':''}>local</option>
+                                            <option value="winrm" ${tpl?.task_params?.connection==='winrm'?'selected':''}>winrm</option>
+                                            <option value="docker" ${tpl?.task_params?.connection==='docker'?'selected':''}>docker</option>
+                                            <option value="paramiko" ${tpl?.task_params?.connection==='paramiko'?'selected':''}>paramiko</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin-bottom:0;">
+                                        <label for="ans_verbosity">Уровень вывода (-v)</label>
+                                        <select id="ans_verbosity" class="form-control">
+                                            <option value="0" ${(tpl?.task_params?.verbosity??0)===0?'selected':''}>0 — нормальный</option>
+                                            <option value="1" ${tpl?.task_params?.verbosity===1?'selected':''}>1 — verbose (-v)</option>
+                                            <option value="2" ${tpl?.task_params?.verbosity===2?'selected':''}>2 — более подробно (-vv)</option>
+                                            <option value="3" ${tpl?.task_params?.verbosity===3?'selected':''}>3 — debug (-vvv)</option>
+                                            <option value="4" ${tpl?.task_params?.verbosity===4?'selected':''}>4 — connection debug (-vvvv)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin-bottom:0;">
+                                        <label for="ans_remote_user">Пользователь подключения (-u)</label>
+                                        <input type="text" id="ans_remote_user" class="form-control"
+                                            value="${escapeHtml(tpl?.task_params?.remote_user || '')}" placeholder="ubuntu">
+                                    </div>
+                                    <div class="form-group" style="margin-bottom:0;">
+                                        <label for="ans_timeout">Таймаут соединения (сек)</label>
+                                        <input type="number" id="ans_timeout" class="form-control" min="1" max="3600"
+                                            value="${tpl?.task_params?.timeout ?? ''}" placeholder="10">
+                                    </div>
+                                </div>
+
+                                <!-- Become -->
+                                <div style="margin-top:14px;">
+                                    <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer; font-weight:600;">
+                                        <input type="checkbox" id="ans_become" ${tpl?.task_params?.become ? 'checked' : ''}
+                                            onchange="document.getElementById('ans-become-opts').style.display=this.checked?'':'none'">
+                                        Повышение привилегий (--become)
+                                    </label>
+                                    <div id="ans-become-opts" style="${tpl?.task_params?.become ? '' : 'display:none;'} display-grid: grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:8px; padding-left:24px;">
+                                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                                            <div class="form-group" style="margin-bottom:0;">
+                                                <label for="ans_become_method">Метод (--become-method)</label>
+                                                <select id="ans_become_method" class="form-control">
+                                                    <option value="sudo" ${(tpl?.task_params?.become_method||'sudo')==='sudo'?'selected':''}>sudo</option>
+                                                    <option value="su" ${tpl?.task_params?.become_method==='su'?'selected':''}>su</option>
+                                                    <option value="pbrun" ${tpl?.task_params?.become_method==='pbrun'?'selected':''}>pbrun</option>
+                                                    <option value="pfexec" ${tpl?.task_params?.become_method==='pfexec'?'selected':''}>pfexec</option>
+                                                    <option value="runas" ${tpl?.task_params?.become_method==='runas'?'selected':''}>runas (Windows)</option>
+                                                    <option value="doas" ${tpl?.task_params?.become_method==='doas'?'selected':''}>doas</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group" style="margin-bottom:0;">
+                                                <label for="ans_become_user">Стать пользователем (--become-user)</label>
+                                                <input type="text" id="ans_become_user" class="form-control"
+                                                    value="${escapeHtml(tpl?.task_params?.become_user || 'root')}" placeholder="root">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Allow-override at launch -->
+                                <div style="border-top:1px solid var(--border); margin:14px 0 8px; padding-top:10px;">
+                                    <strong style="font-size:12px; color:var(--text-light); text-transform:uppercase; letter-spacing:.5px;">Разрешить переопределять при запуске</strong>
+                                </div>
+                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:6px;">
+                                    <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+                                        <input type="checkbox" id="ans_override_limit" ${tpl?.task_params?.allow_override_limit ? 'checked' : ''}>
+                                        Limit (--limit)
+                                    </label>
+                                    <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+                                        <input type="checkbox" id="ans_override_tags" ${tpl?.task_params?.allow_override_tags ? 'checked' : ''}>
+                                        Tags (--tags)
+                                    </label>
+                                    <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+                                        <input type="checkbox" id="ans_override_skip_tags" ${tpl?.task_params?.allow_override_skip_tags ? 'checked' : ''}>
+                                        Skip-tags (--skip-tags)
+                                    </label>
+                                    <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+                                        <input type="checkbox" id="ans_override_debug" ${tpl?.task_params?.allow_override_debug ? 'checked' : ''}>
+                                        Verbosity (-v)
+                                    </label>
+                                </div>
+
+                                <!-- Multi-vault -->
+                                <div style="border-top:1px solid var(--border); margin:14px 0 8px; padding-top:10px;">
+                                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                        <strong style="font-size:12px; color:var(--text-light); text-transform:uppercase; letter-spacing:.5px;">Vault-ключи (--vault-id)</strong>
+                                        <button type="button" class="btn btn-sm" onclick="addVaultEntry()" style="font-size:12px;">+ Добавить vault</button>
+                                    </div>
+                                    <div id="vault-list" style="display:flex; flex-direction:column; gap:6px;"></div>
+                                    <p id="vault-empty" style="font-size:12px; color:var(--text-light); margin:4px 0 0;">Нет vault-ключей. Нажмите «+ Добавить vault» для добавления.</p>
                                 </div>
                             </div>
 
@@ -1047,9 +1154,10 @@
                 document.body.appendChild(modal);
 
                 // Initialize dynamic sections on modal open
-                onAppChange();   // show/hide terraform section
+                onAppChange();   // show/hide terraform/ansible sections
                 onTypeChange();  // show/hide build-template-row + populate build templates for deploy
                 initSurveyVars(tpl?.survey_vars || []);  // populate survey builder
+                initVaultEntries(tpl?.vaults || [], keys || []);  // populate multi-vault builder
 
                 // Load branch suggestions if repository is already selected
                 if (tpl?.repository_id) {
@@ -1100,6 +1208,11 @@
                 if (app.value === 'terraform' || app.value === 'tofu') playbook.placeholder = 'main.tf (путь к директории)';
                 else if (app.value === 'bash') playbook.placeholder = 'script.sh';
                 else playbook.placeholder = 'site.yml';
+            }
+            // Show/hide Ansible params section
+            const ansibleSection = document.getElementById('ansible-params-section');
+            if (ansibleSection) {
+                ansibleSection.style.display = (app.value === 'ansible' || !app.value) ? '' : 'none';
             }
             // Show/hide Terraform params section (B-FE-50)
             const terraformSection = document.getElementById('terraform-params-section');
@@ -1193,8 +1306,43 @@
             const scheduleRepoId = createSchedule && document.getElementById('schedule_repo_id') && document.getElementById('schedule_repo_id').value
                 ? parseInt(document.getElementById('schedule_repo_id').value) : null;
 
+            // Ansible task_params
+            const taskParams = Object.assign({}, (tpl && tpl.task_params) || {});
+            const ansSection = document.getElementById('ansible-params-section');
+            if (ansSection && ansSection.style.display !== 'none') {
+                const ansForks = document.getElementById('ans_forks');
+                if (ansForks && ansForks.value) taskParams.forks = parseInt(ansForks.value) || 5;
+                const ansConn = document.getElementById('ans_connection');
+                if (ansConn) taskParams.connection = ansConn.value || 'ssh';
+                const ansVerb = document.getElementById('ans_verbosity');
+                if (ansVerb) taskParams.verbosity = parseInt(ansVerb.value) || 0;
+                const ansUser = document.getElementById('ans_remote_user');
+                if (ansUser) taskParams.remote_user = ansUser.value.trim() || null;
+                const ansTimeout = document.getElementById('ans_timeout');
+                if (ansTimeout && ansTimeout.value) taskParams.timeout = parseInt(ansTimeout.value);
+                const ansBecome = document.getElementById('ans_become');
+                if (ansBecome) {
+                    taskParams.become = ansBecome.checked;
+                    if (ansBecome.checked) {
+                        const bMethod = document.getElementById('ans_become_method');
+                        if (bMethod) taskParams.become_method = bMethod.value || 'sudo';
+                        const bUser = document.getElementById('ans_become_user');
+                        if (bUser) taskParams.become_user = bUser.value.trim() || 'root';
+                    }
+                }
+                const ansOverrideLimit = document.getElementById('ans_override_limit');
+                if (ansOverrideLimit) taskParams.allow_override_limit = ansOverrideLimit.checked;
+                const ansOverrideTags = document.getElementById('ans_override_tags');
+                if (ansOverrideTags) taskParams.allow_override_tags = ansOverrideTags.checked;
+                const ansOverrideSkipTags = document.getElementById('ans_override_skip_tags');
+                if (ansOverrideSkipTags) taskParams.allow_override_skip_tags = ansOverrideSkipTags.checked;
+                const ansOverrideDebug = document.getElementById('ans_override_debug');
+                if (ansOverrideDebug) taskParams.allow_override_debug = ansOverrideDebug.checked;
+                // Multi-vault
+                data.vaults = collectVaultEntries();
+            }
+
             // Terraform task_params (B-FE-50)
-            const taskParams = {};
             const tfAutoApprove = document.getElementById('tf_auto_approve');
             const tfAllowAutoApprove = document.getElementById('tf_allow_auto_approve');
             const tfOverrideBackend = document.getElementById('tf_override_backend');
@@ -1214,7 +1362,7 @@
                 if (v) taskParams.backend_filename = v;
             }
             if (Object.keys(taskParams).length > 0) {
-                data.task_params = Object.assign({}, (tpl && tpl.task_params) || {}, taskParams);
+                data.task_params = taskParams;
             }
 
             if (!data.name) {
@@ -1354,6 +1502,71 @@
         window.addSurveyVar = addSurveyVar;
         window.removeSurveyVar = removeSurveyVar;
         window.updateSurveyVar = updateSurveyVar;
+
+        // ── Multi-Vault Builder ──────────────────────────────────────────────
+        let _vaultEntries = [];
+        let _vaultKeys = [];
+
+        function initVaultEntries(vaults, availableKeys) {
+            _vaultKeys = Array.isArray(availableKeys) ? availableKeys : [];
+            _vaultEntries = Array.isArray(vaults) ? JSON.parse(JSON.stringify(vaults)) : [];
+            renderVaultList();
+        }
+
+        function renderVaultList() {
+            const list = document.getElementById('vault-list');
+            const empty = document.getElementById('vault-empty');
+            if (!list) return;
+            const active = _vaultEntries.filter(v => !v._del);
+            if (active.length === 0) {
+                list.innerHTML = '';
+                if (empty) empty.style.display = '';
+                return;
+            }
+            if (empty) empty.style.display = 'none';
+            const keyOptions = _vaultKeys.map(k => `<option value="${k.id}">${escapeHtml(k.name)}</option>`).join('');
+            list.innerHTML = active.map((v, i) => `
+                <div style="display:grid;grid-template-columns:1fr 120px auto;gap:8px;align-items:center;
+                            background:var(--bg,#f9f9f9);padding:8px 12px;border-radius:6px;border:1px solid var(--border,#e0e0e0);">
+                    <select class="form-control" style="font-size:13px;" onchange="updateVaultEntry(${i},'vault_key_id',parseInt(this.value)||null)">
+                        <option value="">— выберите ключ vault —</option>
+                        ${_vaultKeys.map(k => `<option value="${k.id}" ${v.vault_key_id===k.id?'selected':''}>${escapeHtml(k.name)}</option>`).join('')}
+                    </select>
+                    <input type="text" class="form-control" style="font-size:13px;" placeholder="Vault ID (optional)"
+                        value="${escapeHtml(v.type || '')}"
+                        title="Vault ID (для --vault-id). Можно оставить пустым."
+                        onchange="updateVaultEntry(${i},'type',this.value.trim())">
+                    <button type="button" onclick="removeVaultEntry(${i})"
+                        style="background:none;border:none;cursor:pointer;color:#c62828;font-size:18px;padding:2px 6px;line-height:1;">✕</button>
+                </div>`).join('');
+        }
+
+        function addVaultEntry() {
+            _vaultEntries.push({ vault_key_id: null, type: '' });
+            renderVaultList();
+        }
+
+        function removeVaultEntry(i) {
+            const active = _vaultEntries.filter(v => !v._del);
+            if (active[i]) active[i]._del = true;
+            renderVaultList();
+        }
+
+        function updateVaultEntry(i, field, value) {
+            const active = _vaultEntries.filter(v => !v._del);
+            if (active[i]) active[i][field] = value;
+        }
+
+        function collectVaultEntries() {
+            return _vaultEntries.filter(v => !v._del && v.vault_key_id).map(v => ({
+                vault_key_id: v.vault_key_id,
+                type: v.type || '',
+            }));
+        }
+
+        window.addVaultEntry = addVaultEntry;
+        window.removeVaultEntry = removeVaultEntry;
+        window.updateVaultEntry = updateVaultEntry;
 
         window.editTemplate = editTemplate;
         window.deleteTemplate = deleteTemplate;

@@ -218,6 +218,52 @@ body {
     opacity: 0.85;
 }
 
+/* Collapsible sidebar sections */
+.sidebar-section-toggle {
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-right: 14px;
+    transition: color var(--transition);
+}
+
+.sidebar-section-toggle:hover {
+    color: rgba(255,255,255,0.7);
+}
+
+.sidebar-chevron {
+    font-size: 10px;
+    opacity: 0.5;
+    transition: transform 0.2s ease;
+}
+
+.sidebar-section-toggle.open .sidebar-chevron {
+    transform: rotate(0deg);
+}
+
+.sidebar-section-toggle:not(.open) .sidebar-chevron {
+    transform: rotate(-90deg);
+}
+
+.sidebar-nav-collapsible {
+    overflow: hidden;
+    max-height: 600px;
+    transition: max-height 0.25s ease, opacity 0.2s ease;
+    opacity: 1;
+}
+
+.sidebar-nav-collapsible.collapsed {
+    max-height: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.sidebar-nav-flat {
+    padding-bottom: 0;
+}
+
 .sidebar-footer {
     padding: 12px 16px;
     border-top: 1px solid rgba(255,255,255,0.1);
