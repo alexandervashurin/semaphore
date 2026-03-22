@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(cargo build:*)",
-      "Bash(cargo test:*)"
+      "Bash(cargo test:*)",
+      "Skill(telegram:access)",
+      "Skill(telegram:access:*)",
+      "Skill(browse)",
+      "Skill(browse:*)"
     ]
   }
 }
