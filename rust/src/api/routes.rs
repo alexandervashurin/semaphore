@@ -507,6 +507,28 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/api/organizations/{id}/branding", get(handlers::organization::get_organization_branding))
         .route("/api/organizations/{id}/branding", put(handlers::organization::update_organization_branding))
         .route("/api/user/organizations", get(handlers::organization::get_my_organizations))
+
+        // Deployment Environments (FI-GL-1 — GitLab Environments)
+        .route("/api/project/{project_id}/deploy-environments",
+            get(handlers::deployment_environment::list_deploy_environments)
+            .post(handlers::deployment_environment::create_deploy_environment))
+        .route("/api/project/{project_id}/deploy-environments/{id}",
+            get(handlers::deployment_environment::get_deploy_environment)
+            .put(handlers::deployment_environment::update_deploy_environment)
+            .delete(handlers::deployment_environment::delete_deploy_environment))
+        .route("/api/project/{project_id}/deploy-environments/{id}/history",
+            get(handlers::deployment_environment::get_deploy_history))
+
+        // Task Structured Outputs (FI-PUL-1 — Pulumi Outputs)
+        .route("/api/project/{project_id}/tasks/{task_id}/outputs",
+            get(handlers::task_structured_output::get_task_outputs)
+            .post(handlers::task_structured_output::create_task_output))
+        .route("/api/project/{project_id}/tasks/{task_id}/outputs/map",
+            get(handlers::task_structured_output::get_task_outputs_map))
+        .route("/api/project/{project_id}/tasks/{task_id}/outputs/batch",
+            post(handlers::task_structured_output::create_task_outputs_batch))
+        .route("/api/project/{project_id}/templates/{template_id}/last-outputs",
+            get(handlers::task_structured_output::get_template_last_outputs))
 }
 
 /// Создаёт маршруты для статических файлов

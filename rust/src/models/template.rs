@@ -299,6 +299,33 @@ pub struct Template {
     /// Vault ключи - JSON массив
     #[serde(skip_serializing_if = "Option::is_none")]
     pub vaults: Option<serde_json::Value>,
+
+    // ── Template Inheritance (Jenkins) ──────────────────────────────────────
+    /// Родительский шаблон — наследовать его extra_vars как базу
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parent_template_id: Option<i32>,
+
+    // ── Execution Environments (AWX) ────────────────────────────────────────
+    /// Docker-образ для запуска задачи (Execution Environment).
+    /// Если задан — задача запускается внутри `docker run --rm <image>`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub execution_image: Option<String>,
+
+    // ── Sync Hooks (Argo CD) ────────────────────────────────────────────────
+    /// Шаблон, запускаемый ДО основной задачи (pre-hook)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pre_template_id: Option<i32>,
+    /// Шаблон, запускаемый ПОСЛЕ успеха (post-hook)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub post_template_id: Option<i32>,
+    /// Шаблон, запускаемый при ОШИБКЕ (fail-hook / rollback)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fail_template_id: Option<i32>,
+
+    // ── Deployment Environment (GitLab Environments) ────────────────────────
+    /// ID deployment environment (production/staging/dev) — обновляется при запуске
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deploy_environment_id: Option<i32>,
 }
 
 /// Шаблон с правами доступа
@@ -391,6 +418,12 @@ impl Template {
             task_params: None,
             survey_vars: None,
             vaults: None,
+            parent_template_id: None,
+            execution_image: None,
+            pre_template_id: None,
+            post_template_id: None,
+            fail_template_id: None,
+            deploy_environment_id: None,
         }
     }
 }

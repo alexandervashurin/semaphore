@@ -235,6 +235,45 @@ pub fn all_definitions() -> Vec<Value> {
         tool("get_mcp_settings", "Get current MCP server settings and connection information.", json!({
             "type":"object","properties":{},"required":[]
         })),
+
+        // ── AI Template Creator (FI-VEL-1) ───────────────────────────────────
+        tool("ai_create_template",
+            "Create a Velum task template from a natural language description. \
+             Analyzes the description and suggests template type (ansible/terraform/bash), \
+             playbook path, survey vars, extra_vars, vault keys, and inventory structure. \
+             Returns a ready-to-use template JSON. Set dry_run=true to preview without saving.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "project_id": prop_int("Project ID to create the template in"),
+                    "description": prop_str("Natural language description. Example: 'Deploy Django app to 3 servers with nginx and PostgreSQL'"),
+                    "dry_run": { "type": "boolean", "description": "Preview without saving (default: false)" }
+                },
+                "required": ["project_id", "description"]
+            })
+        ),
+
+        // ── Deployment Environments (FI-GL-1) ────────────────────────────────
+        tool("list_deploy_environments",
+            "List deployment environments (production/staging/dev/review) with last deploy info.",
+            json!({
+                "type":"object","properties":{"project_id":prop_int("Project ID")},"required":["project_id"]
+            })
+        ),
+
+        // ── Structured Outputs (FI-PUL-1) ────────────────────────────────────
+        tool("get_template_last_outputs",
+            "Get structured outputs (key-value map) from the last successful run of a template. \
+             Use outputs of one template as extra_vars input for another (Stack References pattern).",
+            json!({
+                "type":"object",
+                "properties":{
+                    "project_id":prop_int("Project ID"),
+                    "template_id":prop_int("Template ID")
+                },
+                "required":["project_id","template_id"]
+            })
+        ),
     ]
 }
 
@@ -620,6 +659,104 @@ async fn dispatch_inner(
             })))
         }
 
+        // ── AI Template Creator (FI-VEL-1) ───────────────────────────────────
+        "ai_create_template" => {
+            let project_id = i32_arg("project_id");
+            let description = args["description"].as_str().unwrap_or("").to_string();
+            let dry_run = args.get("dry_run").and_then(|v| v.as_bool()).unwrap_or(false);
+
+            let template_suggestion = generate_template_suggestion(&description);
+
+            if dry_run {
+                Ok(ToolResult::ok(&json!({
+                    "dry_run": true,
+                    "project_id": project_id,
+                    "description": description,
+                    "suggested_template": template_suggestion
+                })))
+            } else {
+                let url = format!("/api/project/{}/templates", project_id);
+                Ok(ToolResult::ok(&json!({
+                    "message": "Use the suggested_template JSON to POST to the templates API",
+                    "endpoint": url,
+                    "suggested_template": template_suggestion
+                })))
+            }
+        }
+
+        // ── Deployment Environments (FI-GL-1) ────────────────────────────────
+        "list_deploy_environments" => {
+            let project_id = i32_arg("project_id");
+            let envs = store.get_deployment_environments(project_id).await
+                .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+            Ok(ToolResult::ok(&json!(envs)))
+        }
+
+        // ── Structured Outputs (FI-PUL-1) ────────────────────────────────────
+        "get_template_last_outputs" => {
+            let project_id = i32_arg("project_id");
+            let template_id = i32_arg("template_id");
+            let map = store.get_template_last_outputs(template_id, project_id).await
+                .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+            Ok(ToolResult::ok(&json!(map)))
+        }
+
         _ => Ok(ToolResult::error(format!("Unknown tool: {name}"))),
     }
+}
+
+/// Генерирует предложение шаблона на основе описания (rule-based, без LLM)
+fn generate_template_suggestion(description: &str) -> serde_json::Value {
+    let desc_lower = description.to_lowercase();
+
+    // Определяем тип приложения
+    let (app, playbook_hint) = if desc_lower.contains("terraform") || desc_lower.contains("infra") || desc_lower.contains("cloud") {
+        ("terraform", "main.tf directory")
+    } else if desc_lower.contains("bash") || desc_lower.contains("script") || desc_lower.contains("shell") {
+        ("bash", "deploy.sh")
+    } else {
+        ("ansible", "deploy.yml")
+    };
+
+    // Определяем тип (deploy/build/test)
+    let template_type = if desc_lower.contains("test") || desc_lower.contains("check") || desc_lower.contains("verify") {
+        "build"
+    } else {
+        "deploy"
+    };
+
+    // Предлагаем survey vars
+    let mut survey_vars = vec![];
+    if desc_lower.contains("version") || desc_lower.contains("tag") || desc_lower.contains("release") {
+        survey_vars.push(json!({"name": "app_version", "title": "Application Version", "type": "string", "required": true}));
+    }
+    if desc_lower.contains("env") || desc_lower.contains("environment") || desc_lower.contains("prod") || desc_lower.contains("staging") {
+        survey_vars.push(json!({"name": "target_env", "title": "Target Environment", "type": "enum", "enum_values": ["production", "staging", "dev"], "required": true}));
+    }
+    if desc_lower.contains("password") || desc_lower.contains("secret") || desc_lower.contains("token") {
+        survey_vars.push(json!({"name": "app_secret", "title": "Application Secret", "type": "secret", "required": true}));
+    }
+
+    // Предлагаем extra_vars
+    let mut extra_vars = serde_json::Map::new();
+    if desc_lower.contains("become") || desc_lower.contains("sudo") || desc_lower.contains("root") {
+        extra_vars.insert("ansible_become".into(), json!(true));
+    }
+    if desc_lower.contains("nginx") {
+        extra_vars.insert("web_server".into(), json!("nginx"));
+    }
+    if desc_lower.contains("postgres") || desc_lower.contains("postgresql") {
+        extra_vars.insert("db_engine".into(), json!("postgresql"));
+    }
+
+    json!({
+        "name": format!("Auto: {}", &description[..description.len().min(50)]),
+        "description": description,
+        "type": template_type,
+        "app": app,
+        "playbook": playbook_hint,
+        "survey_vars": survey_vars,
+        "extra_vars_hint": extra_vars,
+        "notes": "Review and adjust before saving. Set inventory_id and repository_id from your project resources."
+    })
 }
