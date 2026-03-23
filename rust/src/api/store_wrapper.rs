@@ -1056,4 +1056,44 @@ impl crate::db::store::PlanApprovalManager for StoreWrapper {
     }
 }
 
+#[async_trait]
+impl crate::db::store::OrganizationManager for StoreWrapper {
+    async fn get_organizations(&self) -> crate::error::Result<Vec<crate::models::Organization>> {
+        self.inner.as_ref().get_organizations().await
+    }
+    async fn get_organization(&self, id: i32) -> crate::error::Result<crate::models::Organization> {
+        self.inner.as_ref().get_organization(id).await
+    }
+    async fn get_organization_by_slug(&self, slug: &str) -> crate::error::Result<crate::models::Organization> {
+        self.inner.as_ref().get_organization_by_slug(slug).await
+    }
+    async fn create_organization(&self, payload: crate::models::OrganizationCreate) -> crate::error::Result<crate::models::Organization> {
+        self.inner.as_ref().create_organization(payload).await
+    }
+    async fn update_organization(&self, id: i32, payload: crate::models::OrganizationUpdate) -> crate::error::Result<crate::models::Organization> {
+        self.inner.as_ref().update_organization(id, payload).await
+    }
+    async fn delete_organization(&self, id: i32) -> crate::error::Result<()> {
+        self.inner.as_ref().delete_organization(id).await
+    }
+    async fn get_organization_users(&self, org_id: i32) -> crate::error::Result<Vec<crate::models::OrganizationUser>> {
+        self.inner.as_ref().get_organization_users(org_id).await
+    }
+    async fn add_user_to_organization(&self, payload: crate::models::OrganizationUserCreate) -> crate::error::Result<crate::models::OrganizationUser> {
+        self.inner.as_ref().add_user_to_organization(payload).await
+    }
+    async fn remove_user_from_organization(&self, org_id: i32, user_id: i32) -> crate::error::Result<()> {
+        self.inner.as_ref().remove_user_from_organization(org_id, user_id).await
+    }
+    async fn update_user_organization_role(&self, org_id: i32, user_id: i32, role: &str) -> crate::error::Result<()> {
+        self.inner.as_ref().update_user_organization_role(org_id, user_id, role).await
+    }
+    async fn get_user_organizations(&self, user_id: i32) -> crate::error::Result<Vec<crate::models::Organization>> {
+        self.inner.as_ref().get_user_organizations(user_id).await
+    }
+    async fn check_organization_quota(&self, org_id: i32, quota_type: &str) -> crate::error::Result<bool> {
+        self.inner.as_ref().check_organization_quota(org_id, quota_type).await
+    }
+}
+
 impl Store for StoreWrapper {}

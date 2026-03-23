@@ -496,6 +496,7 @@ pub trait Store:
     + CostEstimateManager
     + TerraformStateManager
     + PlanApprovalManager
+    + OrganizationManager
 {
 }
 
@@ -575,4 +576,21 @@ pub trait PlanApprovalManager: Send + Sync {
     async fn approve_plan(&self, id: i64, reviewed_by: i32, comment: Option<String>) -> Result<()>;
     async fn reject_plan(&self, id: i64, reviewed_by: i32, comment: Option<String>) -> Result<()>;
     async fn update_plan_output(&self, task_id: i32, output: String, json: Option<String>, added: i32, changed: i32, removed: i32) -> Result<()>;
+}
+
+/// Менеджер организаций (Multi-Tenancy v4.0)
+#[async_trait]
+pub trait OrganizationManager: Send + Sync {
+    async fn get_organizations(&self) -> Result<Vec<Organization>>;
+    async fn get_organization(&self, id: i32) -> Result<Organization>;
+    async fn get_organization_by_slug(&self, slug: &str) -> Result<Organization>;
+    async fn create_organization(&self, payload: OrganizationCreate) -> Result<Organization>;
+    async fn update_organization(&self, id: i32, payload: OrganizationUpdate) -> Result<Organization>;
+    async fn delete_organization(&self, id: i32) -> Result<()>;
+    async fn get_organization_users(&self, org_id: i32) -> Result<Vec<OrganizationUser>>;
+    async fn add_user_to_organization(&self, payload: OrganizationUserCreate) -> Result<OrganizationUser>;
+    async fn remove_user_from_organization(&self, org_id: i32, user_id: i32) -> Result<()>;
+    async fn update_user_organization_role(&self, org_id: i32, user_id: i32, role: &str) -> Result<()>;
+    async fn get_user_organizations(&self, user_id: i32) -> Result<Vec<Organization>>;
+    async fn check_organization_quota(&self, org_id: i32, quota_type: &str) -> Result<bool>;
 }

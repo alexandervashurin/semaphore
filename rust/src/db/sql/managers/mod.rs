@@ -48,6 +48,7 @@ pub mod access_key;
 pub mod schedule;
 pub mod session;
 pub mod token;
+pub mod organization;
 pub mod event;
 pub mod hook;
 pub mod runner;

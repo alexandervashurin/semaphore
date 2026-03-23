@@ -807,6 +807,56 @@ impl SqlStore {
         .await
         .map_err(Error::Database)?;
 
+        // organization — Multi-Tenancy организации (v4.0)
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS organization (
+                id SERIAL PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE,
+                slug TEXT NOT NULL UNIQUE,
+                description TEXT,
+                settings JSONB,
+                quota_max_projects INTEGER,
+                quota_max_users INTEGER,
+                quota_max_tasks_per_month INTEGER,
+                active BOOLEAN NOT NULL DEFAULT true,
+                created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated TIMESTAMPTZ
+            )",
+        )
+        .execute(pool)
+        .await
+        .map_err(Error::Database)?;
+
+        // organization_user — связь пользователей с организациями
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS organization_user (
+                id SERIAL PRIMARY KEY,
+                org_id INTEGER NOT NULL REFERENCES organization(id) ON DELETE CASCADE,
+                user_id INTEGER NOT NULL REFERENCES \"user\"(id) ON DELETE CASCADE,
+                role TEXT NOT NULL DEFAULT 'member',
+                created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                UNIQUE(org_id, user_id)
+            )",
+        )
+        .execute(pool)
+        .await
+        .map_err(Error::Database)?;
+
+        // project.org_id — связь проектов с организациями
+        sqlx::query(
+            "ALTER TABLE project ADD COLUMN IF NOT EXISTS org_id INTEGER REFERENCES organization(id) ON DELETE SET NULL",
+        )
+        .execute(pool)
+        .await
+        .map_err(Error::Database)?;
+
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_project_org_id ON project(org_id)",
+        )
+        .execute(pool)
+        .await
+        .map_err(Error::Database)?;
+
         sqlx::query(
             "CREATE INDEX IF NOT EXISTS idx_tf_plan_project_status ON terraform_plan(project_id, status)",
         )
