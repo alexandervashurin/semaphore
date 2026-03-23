@@ -491,6 +491,19 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/api/project/{project_id}/terraform/plans/{plan_id}/approve", post(handlers::plan_approval::approve_plan))
         .route("/api/project/{project_id}/terraform/plans/{plan_id}/reject", post(handlers::plan_approval::reject_plan))
         .route("/api/project/{project_id}/tasks/{task_id}/plan", get(handlers::plan_approval::get_task_plan))
+
+        // Organizations (Multi-Tenancy, v4.0)
+        .route("/api/organizations", get(handlers::organization::get_organizations))
+        .route("/api/organizations", post(handlers::organization::create_organization))
+        .route("/api/organizations/{id}", get(handlers::organization::get_organization))
+        .route("/api/organizations/{id}", put(handlers::organization::update_organization))
+        .route("/api/organizations/{id}", delete(handlers::organization::delete_organization))
+        .route("/api/organizations/{id}/users", get(handlers::organization::get_organization_users))
+        .route("/api/organizations/{id}/users", post(handlers::organization::add_organization_user))
+        .route("/api/organizations/{id}/users/{user_id}", delete(handlers::organization::remove_organization_user))
+        .route("/api/organizations/{id}/users/{user_id}/role", put(handlers::organization::update_organization_user_role))
+        .route("/api/organizations/{id}/quota/{quota_type}", get(handlers::organization::check_organization_quota))
+        .route("/api/user/organizations", get(handlers::organization::get_my_organizations))
 }
 
 /// Создаёт маршруты для статических файлов
