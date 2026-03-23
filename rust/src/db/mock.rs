@@ -975,3 +975,24 @@ impl crate::db::store::PlanApprovalManager for MockStore {
     async fn reject_plan(&self, _id: i64, _reviewed_by: i32, _comment: Option<String>) -> Result<()> { Ok(()) }
     async fn update_plan_output(&self, _task_id: i32, _output: String, _json: Option<String>, _added: i32, _changed: i32, _removed: i32) -> Result<()> { Ok(()) }
 }
+
+#[async_trait::async_trait]
+impl crate::db::store::DeploymentEnvironmentManager for MockStore {
+    async fn get_deployment_environments(&self, _project_id: i32) -> Result<Vec<crate::models::DeploymentEnvironment>> { Ok(Vec::new()) }
+    async fn get_deployment_environment(&self, _id: i32, _project_id: i32) -> Result<crate::models::DeploymentEnvironment> { Err(crate::error::Error::NotFound("not found".into())) }
+    async fn create_deployment_environment(&self, _project_id: i32, _payload: crate::models::DeploymentEnvironmentCreate) -> Result<crate::models::DeploymentEnvironment> { Err(crate::error::Error::Other("not implemented".into())) }
+    async fn update_deployment_environment(&self, _id: i32, _project_id: i32, _payload: crate::models::DeploymentEnvironmentUpdate) -> Result<crate::models::DeploymentEnvironment> { Err(crate::error::Error::Other("not implemented".into())) }
+    async fn delete_deployment_environment(&self, _id: i32, _project_id: i32) -> Result<()> { Ok(()) }
+    async fn get_deployment_history(&self, _env_id: i32, _project_id: i32) -> Result<Vec<crate::models::DeploymentRecord>> { Ok(Vec::new()) }
+    async fn record_deployment(&self, _env_id: i32, _task_id: i32, _project_id: i32, _version: Option<String>, _deployed_by: Option<i32>, _status: &str) -> Result<()> { Ok(()) }
+}
+
+#[async_trait::async_trait]
+impl crate::db::store::StructuredOutputManager for MockStore {
+    async fn get_task_structured_outputs(&self, _task_id: i32, _project_id: i32) -> Result<Vec<crate::models::TaskStructuredOutput>> { Ok(Vec::new()) }
+    async fn get_task_outputs_map(&self, task_id: i32, _project_id: i32) -> Result<crate::models::TaskOutputsMap> { Ok(crate::models::TaskOutputsMap { task_id, outputs: Default::default() }) }
+    async fn create_task_structured_output(&self, _task_id: i32, _project_id: i32, _payload: crate::models::TaskStructuredOutputCreate) -> Result<crate::models::TaskStructuredOutput> { Err(crate::error::Error::Other("not implemented".into())) }
+    async fn create_task_structured_outputs_batch(&self, _task_id: i32, _project_id: i32, _outputs: Vec<crate::models::TaskStructuredOutputCreate>) -> Result<()> { Ok(()) }
+    async fn delete_task_structured_outputs(&self, _task_id: i32, _project_id: i32) -> Result<()> { Ok(()) }
+    async fn get_template_last_outputs(&self, _template_id: i32, _project_id: i32) -> Result<crate::models::TaskOutputsMap> { Ok(crate::models::TaskOutputsMap { task_id: 0, outputs: Default::default() }) }
+}

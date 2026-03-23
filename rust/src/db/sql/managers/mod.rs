@@ -69,6 +69,8 @@ pub mod snapshot;
 pub mod cost_estimate;
 pub mod state_backend;
 pub mod plan_approval;
+pub mod deployment_environment;
+pub mod task_structured_output;
 
 // Ре-экспорт трейтов для удобства
 pub use connection::*;

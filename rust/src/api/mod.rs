@@ -78,15 +78,32 @@ pub fn create_app(store: Arc<dyn crate::db::Store + Send + Sync>) -> Router {
         .allow_methods(Any)
         .allow_headers(Any);
 
+    // Auth роуты с жёстким rate limiting (5 попыток/мин per IP)
+    let auth_routes = Router::new()
+        .route("/api/auth/login", axum::routing::post(handlers::login))
+        .route("/api/auth/login", axum::routing::get(handlers::get_login_metadata))
+        .route("/api/auth/logout", axum::routing::post(handlers::logout))
+        .route("/api/auth/refresh", axum::routing::post(handlers::refresh_token))
+        .layer(axum_middleware::from_fn_with_state(
+            Arc::clone(&state),
+            middleware::rate_limiter::app_auth_rate_limit,
+        ));
+
     Router::new()
         // GraphQL API
         .merge(graphql::graphql_routes())
-        // API routes (должны быть перед static для корректной обработки)
-        .merge(routes::api_routes())
+        // Auth с отдельным строгим rate limiter
+        .merge(auth_routes)
+        // Остальные API с мягким rate limiting (100 req/min per IP)
+        .merge(routes::api_routes().layer(axum_middleware::from_fn_with_state(
+            Arc::clone(&state),
+            middleware::rate_limiter::app_api_rate_limit,
+        )))
         // Static files с fallback
         .merge(routes::static_routes())
         // Middleware (порядок: последний layer применяется первым)
         .layer(axum_middleware::from_fn(middleware::security_headers))
+        .layer(axum_middleware::from_fn(middleware::trace_id_middleware))
         .layer(TraceLayer::new_for_http())
         .layer(cors)
         .with_state(state)

@@ -144,6 +144,12 @@ impl MutationRoot {
             task_params: None,
             survey_vars: None,
             vaults: None,
+            parent_template_id: None,
+            execution_image: None,
+            pre_template_id: None,
+            post_template_id: None,
+            fail_template_id: None,
+            deploy_environment_id: None,
         };
 
         let created = store.create_template(new_template).await?;
