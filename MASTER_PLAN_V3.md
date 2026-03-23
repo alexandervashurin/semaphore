@@ -1,8 +1,8 @@
 # MASTER_PLAN V3 — Velum: Стать лучше AWX и Ansible Tower
 
-> **Последнее обновление:** 2026-03-23 (сессия 11 — добавлен план v5.0)
+> **Последнее обновление:** 2026-03-23 (сессия 12 — добавлен БЛОК 12: Future Ideas v5+)
 > **Версия:** 5.0-plan
-> **Статус:** ✅ v4.2 COMPLETE | 🗺️ v5.0 PLAN READY
+> **Статус:** ✅ v4.2 COMPLETE | 🗺️ v5.0 PLAN READY | 💡 v5+ FUTURE IDEAS ADDED
 
 ---
 
@@ -1164,6 +1164,258 @@ velum_auth_failures_total{ip, reason}
 
 ---
 
+## 💡 БЛОК 12 — Future Ideas v5+ (Идеи для дальнейшего развития)
+
+> Этот блок — **банк идей**, собранных в сессии 12 (2026-03-23).
+> Это не план с обязательствами, а список направлений для обсуждения и приоритизации.
+> Идеи **не дублируют** уже запланированные задачи в БЛОКАХ 7–11.
+
+---
+
+### 🌐 FI-1 — GitHub / GitLab / Gitea нативная интеграция
+
+| Идея | Описание | Сложность |
+|------|----------|-----------|
+| **PR Status Checks** | Публиковать результат задачи как GitHub Check Run — блокировать merge до успеха deploy | 🟡 Средняя |
+| **PR Auto-комментарии** | Вставлять Terraform plan diff прямо в комментарий Pull Request | 🟡 Средняя |
+| **GitHub Actions ↔ Velum** | Двусторонняя триггеризация: Action → Velum template → результат обратно | 🟠 Высокая |
+| **GitLab CI пайплайны** | Артефакты CI как Inventory; автопередача `CI_COMMIT_SHA` в extra_vars | 🟡 Средняя |
+
+**Файлы:** `rust/src/services/github_status.rs`, `rust/src/services/gitlab_ci.rs`
+
+---
+
+### ☁️ FI-2 — Облачные исполнители задач (Serverless Execution)
+
+| Идея | Описание | Сложность |
+|------|----------|-----------|
+| **AWS Lambda Executor** | `executor: aws_lambda` — каждая задача = Lambda function, sub-second billing | 🔴 Высокая |
+| **Azure Container Instances** | `executor: azure_aci` — без управления инфраструктурой, Managed Identity | 🔴 Высокая |
+| **Google Cloud Run** | `executor: gcloud_run` — автомасштабирование 0→N, Knative-совместимость | 🔴 Высокая |
+| **Умный выбор исполнителя** | Авто-роутинг: задача <30 сек → Lambda, большая → Kubernetes | 🟠 Средняя |
+
+**Файлы:** `rust/src/services/lambda_executor.rs`, `rust/src/services/executor_selector.rs`
+
+---
+
+### 🔑 FI-3 — Продвинутое управление секретами
+
+| Идея | Описание | Сложность |
+|------|----------|-----------|
+| **AWS Secrets Manager** | Нативный клиент (aws-sdk-secretsmanager), авторотация, TTL-кеш | 🟠 Средняя |
+| **GCP Secret Manager** | Service Account JSON / Workload Identity (`google-secretmanager1` crate) | 🟡 Средняя |
+| **Azure Key Vault** | Managed Identity без хардкода — `azure_security_keyvault` crate | 🟡 Средняя |
+| **HSM / PKCS#11** | Подпись SSH ключей через YubiKey / Thales Luna HSM (`pkcs11` crate) | 🔴 Высокая |
+
+**Файлы:** `rust/src/services/aws_secrets_manager.rs`, `rust/src/services/pkcs11_provider.rs`
+
+---
+
+### 📋 FI-4 — Compliance & Аудит (SOC2 / ISO27001 / GDPR)
+
+| Идея | Описание | Сложность |
+|------|----------|-----------|
+| **Иммутабельный аудит-лог** | Hash chain (каждая запись подписывает предыдущую), WORM-хранение, export в SIEM | 🟠 Средняя |
+| **PII маскировка в логах** | Авто-редактирование email/IP/ключей regex-паттернами (GDPR/CCPA) | 🟡 Низкая |
+| **SBOM генерация** | Опись зависимостей Ansible Galaxy / Terraform modules перед apply | 🟡 Средняя |
+| **Field-level шифрование + ротация ключей** | FIPS 140-2, `age` или `tink` crates, auto-rotation N дней | 🔴 Высокая |
+| **Data Export для GDPR** | `GET /api/user/{id}/data-export` → полный JSON всех данных пользователя | 🟡 Низкая |
+
+**Файлы:** `rust/src/services/immutable_log.rs`, `rust/src/services/pii_scrubber.rs`, `rust/src/services/sbom_generator.rs`
+
+---
+
+### 🗓️ FI-5 — Умное планирование задач
+
+| Идея | Описание | Сложность |
+|------|----------|-----------|
+| **Рабочие часы и праздники** | "Запускать только Пн–Пт 9–18, не в праздники US/EU/RU/JP" | 🟡 Средняя |
+| **Blackout windows** | Запрет деплоев в указанные временные периоды (настраивается per-project) | 🟡 Низкая |
+| **Cost-Optimized Scheduling** | Откладывать задачи до дешёвых AWS Spot-часов | 🟠 Высокая |
+| **Resource-aware scheduler** | Теги `gpu=required`, `memory=16gb` — выбор раннера по capabilities | 🟡 Средняя |
+| **Иерархический Resource Scheduler** | GPU/FPGA очереди, приоритизация по доступности ресурсов | 🔴 Высокая |
+
+**Файлы:** `rust/src/services/advanced_scheduler.rs`, `rust/src/services/resource_scheduler.rs`
+
+---
+
+### 📊 FI-6 — Продвинутая аналитика и ML
+
+| Идея | Описание | Сложность |
+|------|----------|-----------|
+| **Anomaly Detection** | Статистическое обнаружение: задача вдруг стала на 47% медленнее (`linfa` crate) | 🟠 Высокая |
+| **Failure Prediction** | "73% вероятность падения (исторический паттерн)" — alert до запуска | 🔴 Высокая |
+| **Cost Attribution / Chargeback** | Внутренний биллинг: стоимость облака по проектам/командам/департаментам | 🟡 Средняя |
+| **Auto-scale рекомендации** | "У вас 40% раннеров простаивает" — ML recommendation engine | 🟠 Высокая |
+| **Task Performance Baseline** | Авто-установка SLA из исторических p50/p95/p99 данных | 🟡 Низкая |
+
+**Файлы:** `rust/src/services/anomaly_detection.rs`, `rust/src/services/failure_predictor.rs`, `rust/src/services/cost_attribution.rs`
+
+---
+
+### 🛡️ FI-7 — Безопасность & Zero-Trust
+
+| Идея | Описание | Сложность |
+|------|----------|-----------|
+| **Secrets Scanning в логах** | Авто-детект утечек AWS ключей/GitHub токенов в output задач + авто-ротация | 🟡 Средняя |
+| **Runtime Security** | Интеграция Crowdstrike/Wiz/Snyk: блокировать задачи при детекте аномалии | 🔴 Высокая |
+| **Supply Chain SBOM Check** | CVE-проверка Ansible roles/Terraform modules перед apply | 🟡 Средняя |
+| **Device Trust / MDM** | Блокировать логин с неуправляемых устройств (Okta/Intune Device Compliance) | 🔴 Высокая |
+| **Continuous CWPP** | Detect malicious task execution в реальном времени (regex на stderr pattern) | 🟠 Средняя |
+
+**Файлы:** `rust/src/services/secrets_scanner.rs`, `rust/src/services/runtime_security.rs`
+
+---
+
+### 📜 FI-8 — Policy-as-Code (OPA / Rego)
+
+| Идея | Описание | Сложность |
+|------|----------|-----------|
+| **OPA / Rego Policy Engine** | `regorus` crate (Rust OPA); политики: "только бизнес-часы", "approval если >100 ресурсов" | 🟠 Средняя |
+| **Cost Policy Enforcement** | Блокировать задачу если estimated_cost > лимит проекта | 🟡 Средняя |
+| **Security Policy** | "Terraform apply только на раннерах в private VPC", "no plaintext secrets" | 🟡 Средняя |
+| **Compliance Policies** | PCI-DSS, HIPAA, ISO27001 predefined policy bundles | 🔴 Высокая |
+
+**Файлы:** `rust/src/services/opa_engine.rs`, `rust/src/services/policy_enforcer.rs`
+
+---
+
+### 💬 FI-9 — Мессенджеры & Управление инцидентами
+
+| Идея | Описание | Сложность |
+|------|----------|-----------|
+| **Slack App (официальный Bot)** | Интерактивные кнопки approve/reject прямо в Slack, `/velum run deploy` slash-команды | 🟠 Средняя |
+| **Microsoft Teams App** | Adaptive Cards с результатами задач, bot commands + message extensions | 🟠 Средняя |
+| **PagerDuty интеграция** | Авто-создание инцидента при падении задачи, авто-резолв при успехе ретрая | 🟡 Низкая |
+| **Jira + Confluence** | Создавать тикеты при ошибках, линковать runbooks к шаблонам | 🟡 Средняя |
+| **OpsGenie / AlertManager** | Multi-channel алерты с дедупликацией (1 алерт/час) и политиками эскалации | 🟡 Средняя |
+
+**Файлы:** `rust/src/services/slack_app.rs`, `rust/src/services/pagerduty.rs`, `rust/src/services/atlassian.rs`
+
+---
+
+### 🔀 FI-10 — Расширенные Workflow
+
+| Идея | Описание | Сложность |
+|------|----------|-----------|
+| **Conditional DAG Branches** | Ветки по результату задачи: `if output['status'] == 'critical' → rollback` | 🟠 Средняя |
+| **Fan-Out / Fan-In** | Параллельный деплой на 100 серверов → агрегированный отчёт | 🟠 Средняя |
+| **Multi-level Approval + Escalation** | Таймаут 2 часа → эскалация выше, SLA-метрики по approval time | 🟡 Средняя |
+| **Loop nodes в DAG** | `for each item in inventory_hosts` — итерация через ноды графа | 🔴 Высокая |
+| **DAG Snapshot & Replay** | Воспроизвести прошлый run с теми же параметрами | 🟡 Средняя |
+
+---
+
+### 🏪 FI-11 — SaaS, Monetization & Multi-Tenancy Extended
+
+| Идея | Описание | Сложность |
+|------|----------|-----------|
+| **Usage-Based Billing** | Stripe Metering API, тарификация по количеству запусков задач | 🔴 Высокая |
+| **Template Marketplace с рейтингом** | Community contrib + premium templates от вендоров (Hashicorp, CloudBees) | 🟠 Высокая |
+| **Tenant Network Isolation** | Отдельный Redis cache per org, row-level security в БД | 🔴 Высокая |
+| **SaaS Trial Mode** | 14-дневный trial с авто-downgrade; onboarding wizard | 🟡 Средняя |
+
+**Файлы:** `rust/src/services/billing.rs`, `rust/src/services/tenant_isolation.rs`
+
+---
+
+### 🔄 FI-12 — Template & GitOps Advanced
+
+| Идея | Описание | Сложность |
+|------|----------|-----------|
+| **Template Git Sync** | Источник правды в Git: pull repo → parse playbooks → создать шаблоны авто | 🟡 Средняя |
+| **Template Versioning** | Полный diff между версиями шаблона, rollback к любой версии | 🟡 Средняя |
+| **Export as Helm Chart** | Velum template → Helm chart package одной кнопкой | 🟠 Средняя |
+| **IntelliSense для Ansible/Terraform** | Авто-дополнение переменных из playbook в survey form | 🟠 Высокая |
+
+---
+
+### 🌍 FI-13 — Федеративное развёртывание (Multi-Region)
+
+| Идея | Описание | Сложность |
+|------|----------|-----------|
+| **Multi-Region Routing** | Авто-маршрут задачи на ближайший раннер (us-east / eu-west / ap-south) | 🔴 Высокая |
+| **Data Residency Enforcement** | Данные не покидают регион (GDPR), шифрование per-region | 🔴 Высокая |
+| **Federated Control Plane** | Центральный control plane + edge execution nodes | 🔴 Очень высокая |
+
+---
+
+### ⚡ FI-14 — Быстрые улучшения (< 1 дня каждое)
+
+| ID | Идея | Приоритет |
+|----|------|-----------|
+| FI-14-1 | **GitHub Commit Status** — публиковать статус задачи как commit status в PR | 🟡 |
+| FI-14-2 | **Slack Webhook Test button** — кнопка "Проверить" прямо в settings/notifications UI | 🟢 |
+| FI-14-3 | **Task Deduplication** — авто-слияние одинаковых задач в очереди, предупреждение | 🟡 |
+| FI-14-4 | **Batch Approvals** — одобрить N Terraform планов одним кликом в UI | 🟡 |
+| FI-14-5 | **Query Language для задач** — JMESPath фильтр: `?filter=status==failed&&duration>300` | 🟡 |
+| FI-14-6 | **Estimated Cost в превью задачи** — показывать стоимость до запуска (Infracost) | 🟡 |
+| FI-14-7 | **Keyboard shortcut `?`** — help modal со всеми шорткатами (как в GitHub) | 🟢 |
+| FI-14-8 | **Task Dry-Run Mode** — показать что выполнится без реального запуска (для Ansible) | 🟡 |
+| FI-14-9 | **CLI Plugin System** — `velum plugin install <repo>` для кастомных команд | 🟠 |
+| FI-14-10 | **PLAY RECAP таблица** — парсить Ansible PLAY RECAP в красивую таблицу в task.html | 🟢 |
+
+---
+
+### 🎯 FI-15 — Конкурентное позиционирование
+
+| Конкурент | Преимущество Velum | Что реализовать |
+|-----------|-------------------|-----------------|
+| **AWX/Tower** | 100x меньший footprint, SaaS-ready | Container image <50MB, $0 core cost |
+| **Jenkins** | Native Terraform + GitOps, no plugins | Built-in drift detection, cost tracking |
+| **Rundeck** | Лучший UX + Rust performance | Material Design, WebSocket live-logs |
+| **Argo CD / Flux** | Hybrid (declarative + imperative) | DAG + GitOps combo, cost visibility |
+| **Ansible Semaphore** | AI analysis + cost tracking + MCP | Claude/OpenAI built-in |
+
+---
+
+### 📊 Сводная таблица Future Ideas
+
+| ID | Категория | Идея | Сложность | Версия |
+|----|-----------|------|-----------|--------|
+| FI-1-1 | Git | PR Status Checks (GitHub) | 🟡 Средняя | v6.0 |
+| FI-1-2 | Git | PR Auto-комментарии с Terraform diff | 🟡 Средняя | v6.0 |
+| FI-1-3 | Git | GitHub Actions ↔ Velum bidirectional | 🟠 Высокая | v6.1 |
+| FI-2-1 | Cloud | AWS Lambda Executor | 🔴 Высокая | v6.1 |
+| FI-2-2 | Cloud | Azure Container Instances Executor | 🔴 Высокая | v6.1 |
+| FI-2-3 | Cloud | Умный выбор исполнителя | 🟠 Средняя | v6.1 |
+| FI-3-1 | Secrets | AWS Secrets Manager нативный | 🟠 Средняя | v6.0 |
+| FI-3-2 | Secrets | Azure Key Vault нативный | 🟡 Средняя | v6.0 |
+| FI-3-3 | Secrets | HSM / PKCS#11 | 🔴 Высокая | v6.2 |
+| FI-4-1 | Compliance | Иммутабельный аудит-лог (hash chain) | 🟠 Средняя | v6.0 |
+| FI-4-2 | Compliance | PII маскировка в логах | 🟡 Низкая | v5.1 |
+| FI-4-3 | Compliance | SBOM генерация | 🟡 Средняя | v6.0 |
+| FI-4-5 | Compliance | GDPR Data Export endpoint | 🟡 Низкая | v5.1 |
+| FI-5-1 | Scheduler | Рабочие часы + праздники | 🟡 Средняя | v5.1 |
+| FI-5-2 | Scheduler | Blackout windows | 🟡 Низкая | v5.1 |
+| FI-5-3 | Scheduler | Cost-Optimized Scheduling | 🟠 Высокая | v6.1 |
+| FI-6-1 | ML/Analytics | Anomaly Detection | 🟠 Высокая | v6.1 |
+| FI-6-2 | ML/Analytics | Failure Prediction | 🔴 Высокая | v6.2 |
+| FI-6-3 | ML/Analytics | Cost Attribution / Chargeback | 🟡 Средняя | v6.0 |
+| FI-6-5 | ML/Analytics | Task Performance Baseline (SLA) | 🟡 Низкая | v5.1 |
+| FI-7-1 | Security | Secrets Scanning в логах | 🟡 Средняя | v5.0 |
+| FI-7-3 | Security | Supply Chain SBOM Check | 🟡 Средняя | v6.0 |
+| FI-8-1 | Policy | OPA / Rego Policy Engine | 🟠 Средняя | v6.0 |
+| FI-8-2 | Policy | Cost Policy Enforcement | 🟡 Средняя | v6.0 |
+| FI-9-1 | Messaging | Slack App (официальный Bot) | 🟠 Средняя | v5.1 |
+| FI-9-2 | Messaging | Microsoft Teams App | 🟠 Средняя | v6.0 |
+| FI-9-3 | Messaging | PagerDuty интеграция | 🟡 Низкая | v5.1 |
+| FI-9-4 | Messaging | Jira + Confluence | 🟡 Средняя | v6.0 |
+| FI-10-1 | Workflow | Conditional DAG Branches | 🟠 Средняя | v5.1 |
+| FI-10-2 | Workflow | Fan-Out / Fan-In patterns | 🟠 Средняя | v5.1 |
+| FI-10-3 | Workflow | Multi-level Approval + Escalation | 🟡 Средняя | v5.1 |
+| FI-11-1 | SaaS | Usage-Based Billing (Stripe) | 🔴 Высокая | v6.2 |
+| FI-11-2 | SaaS | Template Marketplace с рейтингом | 🟠 Высокая | v6.1 |
+| FI-12-1 | GitOps | Template Git Sync | 🟡 Средняя | v5.1 |
+| FI-12-2 | GitOps | Template Versioning | 🟡 Средняя | v5.1 |
+| FI-12-3 | GitOps | Export as Helm Chart | 🟠 Средняя | v6.0 |
+| FI-13-1 | Multi-Region | Multi-Region Routing | 🔴 Высокая | v6.2 |
+| FI-14-1..10 | Quick Wins | 10 быстрых улучшений | 🟢 Низкая | v5.0–v5.1 |
+
+**Итого: 40+ направлений** | 🔴 10 высоких | 🟠 14 средне-высоких | 🟡 16 средних/низких | 🟢 5 быстрых
+
+---
+
 ## Ссылки
 
 | Репозиторий | URL |
@@ -1179,6 +1431,7 @@ velum_auth_failures_total{ip, reason}
 
 | Версия | Дата | Изменения |
 |--------|------|-----------|
+| 5.0-plan+ideas | 2026-03-23 | 💡 БЛОК 12: Future Ideas — 40+ направлений развития v5+ (15 категорий) |
 | 5.0-plan | 2026-03-23 | 🗺️ Добавлен план v5.0: Security, Remote Runners, Testing, DX, Infra (42 задачи) |
 | 4.0 | 2026-03-23 | ✅ HA Cluster, 🔄 Multi-Tenancy (База) |
 | 3.3 | 2026-03-23 | ✅ v3.2 Feature Complete, добавлен план v4.0 |
