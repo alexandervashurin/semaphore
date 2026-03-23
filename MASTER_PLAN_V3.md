@@ -1,8 +1,8 @@
 # MASTER_PLAN V3 — Velum: Стать лучше AWX и Ansible Tower
 
-> **Последнее обновление:** 2026-03-23 (сессия 10 — v4.2 White-labeling + Trace ID + Multi-Tenancy полная)
-> **Версия:** 4.0
-> **Статус:** ✅ v3.2 FEATURE COMPLETE | ✅ v4.0 HA CLUSTER | ✅ v4.0 MULTI-TENANCY
+> **Последнее обновление:** 2026-03-23 (сессия 11 — добавлен план v5.0)
+> **Версия:** 5.0-plan
+> **Статус:** ✅ v4.2 COMPLETE | 🗺️ v5.0 PLAN READY
 
 ---
 
@@ -678,6 +678,404 @@ pub fn init_tracing() -> Result<()> {
 
 ---
 
+---
+
+## 🎯 ПЛАН РАЗРАБОТКИ v5.0 — Production-Ready & Developer-First
+
+> Velum v4.x feature complete. v5.0 — hardening, ecosystem, developer experience.
+
+---
+
+### БЛОК 7 — Security Hardening (v5.0) 🔴
+
+#### Приоритет 1: JWT Logout Blacklist
+
+**Проблема:** Токены остаются валидными после logout до истечения TTL. Украденный токен работает.
+
+**Что реализовать:**
+- Redis-backed blacklist: при logout → `SET revoked:{jti} 1 EX {ttl_remaining}`
+- При каждом запросе: проверить `EXISTS revoked:{jti}` → 401 если есть
+- Fallback без Redis: in-memory `Arc<DashMap<String, Instant>>` с фоновой очисткой
+
+**Backend:** `rust/src/api/extractors.rs` — добавить проверку в `AuthUser` extractor
+**Конфиг:** `SEMAPHORE_JWT_BLACKLIST_BACKEND=redis|memory` (default: memory)
+
+---
+
+#### Приоритет 2: Webhook HMAC Подпись
+
+**Проблема:** Исходящие webhook-уведомления не подписаны — получатель не может верифицировать источник.
+
+**Что реализовать:**
+```
+X-Velum-Signature: sha256=<HMAC-SHA256(secret, body)>
+X-Velum-Timestamp: <unix_timestamp>
+```
+- Секрет задаётся при создании webhook (хранится зашифрованным)
+- Пример верификации на стороне получателя (Python/Node) в документации
+- UI: поле "Webhook Secret" в форме создания webhook
+
+---
+
+#### Приоритет 3: Cargo Audit в CI
+
+**Файл:** `.github/workflows/rust.yml`
+
+```yaml
+- name: Security audit
+  run: cargo audit --deny warnings
+
+- name: Dependency licenses
+  run: cargo deny check
+```
+
+**Зависимости для обновления (критично):**
+- `quinn-proto 0.11.13` → 0.11.14+ (CVSS 8.7, memory safety)
+- `rsa 0.9.x` → мигрировать на ECDSA там где возможно
+
+---
+
+#### Приоритет 4: Dependabot
+
+**Файл:** `.github/dependabot.yml`
+
+```yaml
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: "/rust"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    ignore:
+      - dependency-name: wasmtime   # Major updates требуют ручного review
+        update-types: ["version-update:semver-major"]
+```
+
+---
+
+### БЛОК 8 — Незавершённые Фичи (v5.1) 🟠
+
+#### Приоритет 1: Telegram Bot — Уведомления
+
+**Файл:** `rust/src/services/telegram_bot/mod.rs` — 4 заглушки
+**Статус:** Зависимость `teloxide 0.13` уже в `Cargo.toml`
+
+**Что реализовать:**
+- Алерт при падении задачи: `❌ [prod] Deploy Backend — FAILED (2m 34s)`
+- Уведомление об успехе: `✅ [prod] Deploy Backend — OK`
+- Команды: `/status` (running tasks), `/run <template>`, `/stop <task_id>`, `/approve <plan_id>`
+- Inline кнопки для approve/reject Terraform plans прямо в Telegram
+
+**Конфиг:** `SEMAPHORE_TELEGRAM_TOKEN=...`, `SEMAPHORE_TELEGRAM_CHAT_ID=...`
+
+---
+
+#### Приоритет 2: SSH Key Installation
+
+**Файл:** `rust/src/services/access_key_installation_service.rs` — 5 заглушек
+
+**Что реализовать:**
+- Запись SSH-ключа во временный файл с `chmod 600`
+- Интеграция с `ssh-agent` через Unix socket (только Linux/Mac)
+- Passphrase поддержка через `ssh2` crate
+- Очистка после завершения задачи (cleanup hook)
+- Поддержка ECDSA, Ed25519, RSA ключей
+
+---
+
+#### Приоритет 3: Remote Runners — Distributed Execution
+
+**Цель:** Запуск задач на удалённых машинах без прямого доступа к БД
+
+**Архитектура:**
+```
+Velum Server ──REST──> Runner Agent ──exec──> ansible-playbook
+     ^                      │
+     └──── WebSocket ───────┘  (live logs streaming)
+```
+
+**Что реализовать:**
+- Runner регистрация: `POST /api/internal/runners` с токеном
+- Heartbeat: `POST /api/internal/runners/{id}` каждые 30 сек
+- Task assignment: `GET /api/internal/runners/{id}/task` (long polling)
+- Log streaming: WebSocket туннель от runner к серверу
+- Runner binary: отдельный `velum-runner` бинарник
+
+**БД:** Таблица `runner_task_assignment(runner_id, task_id, assigned_at)`
+
+---
+
+#### Приоритет 4: Kubernetes-Native Runner
+
+**Статус:** `k8s-openapi 0.24`, `kube 0.98` уже в `Cargo.toml`
+
+**Что реализовать:**
+- Каждая задача = отдельный Kubernetes Job
+- Логи через `kubectl logs -f` → WebSocket к UI
+- Namespace изоляция по проекту: `velum-project-{id}`
+- ConfigMap для передачи переменных задачи
+- Auto-cleanup завершённых Jobs
+
+**Конфиг:**
+```bash
+SEMAPHORE_K8S_ENABLE=true
+SEMAPHORE_K8S_NAMESPACE=velum-runners
+SEMAPHORE_K8S_IMAGE=velum-runner:latest
+```
+
+---
+
+#### Приоритет 5: GraphQL Mutations & Subscriptions
+
+**Статус:** `async-graphql 7.0` уже в `Cargo.toml`
+
+**Что добавить:**
+```graphql
+# Subscriptions (WebSocket)
+subscription {
+  taskOutput(taskId: 123) { line, timestamp, level }
+  taskStatus(projectId: 1) { taskId, status, updatedAt }
+}
+
+# Mutations
+mutation {
+  runTemplate(projectId: 1, templateId: 5, extraVars: "{}") { taskId }
+  stopTask(projectId: 1, taskId: 123) { success }
+  approveplan(projectId: 1, planId: 7, comment: "LGTM") { success }
+}
+```
+
+---
+
+### БЛОК 9 — Developer Experience (v5.2) 🟡
+
+#### Приоритет 1: Dark Mode
+
+**Статус:** CSS переменные частично готовы
+
+**Что реализовать:**
+- CSS: полный набор `--dark-*` переменных для всех компонентов
+- JS: `localStorage.setItem('theme', 'dark')` + `data-theme="dark"` на `<html>`
+- Toggle: иконка луны/солнца в header
+- OS preference: `prefers-color-scheme: dark` автодетект
+
+---
+
+#### Приоритет 2: Progressive Web App (PWA)
+
+**Что реализовать:**
+- `manifest.json` с иконками (192x192, 512x512)
+- Service Worker: кэш статики + API responses для offline read
+- Web Push API: уведомления о завершении задач без открытого браузера
+- Install prompt для Chrome/Edge
+
+---
+
+#### Приоритет 3: Интернационализация (i18n)
+
+**Что реализовать:**
+- JSON файлы переводов: `web/public/locales/ru.json`, `en.json`, `de.json`, `zh.json`
+- `t('key')` функция в `app.js` с fallback на `ru`
+- Language switcher в header + сохранение в `localStorage`
+- Поддержка: 🇷🇺 RU, 🇺🇸 EN, 🇩🇪 DE, 🇨🇳 ZH, 🇪🇸 ES
+
+---
+
+#### Приоритет 4: Keyboard Shortcuts
+
+```
+/ — глобальный поиск
+g p — перейти к проектам
+g t — перейти к шаблонам
+j / k — навигация по списку
+Enter — открыть/запустить выбранный элемент
+? — показать справку по shortcuts
+```
+
+---
+
+#### Приоритет 5: VS Code Extension
+
+**Репозиторий:** `velum-vscode/` (отдельный)
+**Технологии:** TypeScript + VS Code Extension API
+
+**Фичи:**
+- Tree view: проекты → шаблоны → последние задачи
+- Run template из палитры команд (`Ctrl+Shift+P → Velum: Run`)
+- Live logs в Output panel
+- IntelliSense для `extra_vars` (подсказки из survey)
+- Статус в status bar: 🟢 3 running / 🔴 1 failed
+
+---
+
+#### Приоритет 6: Terraform Provider
+
+**Репозиторий:** `velum-terraform-provider/` (отдельный, Go)
+
+```hcl
+terraform {
+  required_providers {
+    velum = {
+      source  = "tnl-o/velum"
+      version = "~> 1.0"
+    }
+  }
+}
+
+resource "velum_project"   "infra"   { name = "Infrastructure" }
+resource "velum_template"  "deploy"  { project_id = velum_project.infra.id; playbook = "deploy.yml" }
+resource "velum_schedule"  "nightly" { template_id = velum_template.deploy.id; cron = "0 2 * * *" }
+resource "velum_inventory" "prod"    { project_id = velum_project.infra.id; content = file("hosts.ini") }
+```
+
+---
+
+### БЛОК 10 — Infrastructure & Observability (v5.3) 🟢
+
+#### Приоритет 1: Helm Chart
+
+**Путь:** `charts/velum/`
+
+```
+charts/velum/
+├── Chart.yaml
+├── values.yaml          # defaults: replicas=1, db=sqlite
+├── values.prod.yaml     # PostgreSQL, Redis, 3 replicas
+└── templates/
+    ├── deployment.yaml
+    ├── service.yaml
+    ├── ingress.yaml
+    ├── configmap.yaml
+    ├── secret.yaml
+    └── hpa.yaml         # HorizontalPodAutoscaler
+```
+
+**Поддерживаемые конфигурации:**
+- Single node (SQLite) — для dev/small teams
+- HA (PostgreSQL + Redis + 3 replicas) — для enterprise
+
+---
+
+#### Приоритет 2: Multi-Platform Builds
+
+**CI Matrix:**
+
+| Platform | Target | Artifact |
+|---|---|---|
+| Linux x64 | `x86_64-unknown-linux-musl` | `velum-linux-amd64` |
+| Linux ARM64 | `aarch64-unknown-linux-musl` | `velum-linux-arm64` |
+| macOS x64 | `x86_64-apple-darwin` | `velum-macos-amd64` |
+| macOS ARM64 | `aarch64-apple-darwin` | `velum-macos-arm64` |
+| Windows x64 | `x86_64-pc-windows-msvc` | `velum-windows-amd64.exe` |
+| Docker | multi-arch | `ghcr.io/tnl-o/velum:latest` |
+
+**Docker образ:** оптимизировать с ~1.5GB до <50MB через `FROM scratch`
+
+---
+
+#### Приоритет 3: Grafana Dashboards
+
+**Дашборды (JSON в `deployment/grafana/`):**
+
+1. **Task Execution Overview** — success rate, duration heatmap, failures by project
+2. **System Health** — CPU, memory, DB latency, connection pool, HTTP p99
+3. **Queue Depth** — задачи в очереди по проектам, runner utilization
+4. **Security** — failed logins, rate limit hits, audit events
+
+**Prometheus метрики (добавить):**
+```
+velum_tasks_total{project, template, status}
+velum_task_duration_seconds{project, template}
+velum_queue_depth{project}
+velum_runner_tasks{runner, status}
+velum_http_requests_total{endpoint, method, status_code}
+velum_rate_limit_hits_total{ip, endpoint}
+velum_auth_failures_total{ip, reason}
+```
+
+---
+
+#### Приоритет 4: OpenAPI / Swagger
+
+**Что реализовать:**
+- Crate: `utoipa` или `aide` для auto-generation из handler сигнатур
+- Endpoints: `GET /api/openapi.json`, `GET /api/swagger`
+- Аннотации: `#[utoipa::path(...)]` на все публичные handlers
+- Польза: автогенерация SDK клиентов (Python, JS, Go)
+
+---
+
+### БЛОК 11 — Testing (v5.0 сквозной приоритет) 🧪
+
+#### Цель: Покрытие 80%+ (сейчас ~67%)
+
+| Область | Текущее | Цель | Файлы |
+|---|---|---|---|
+| Task Runner | ~40% | 80% | `services/task_runner/` |
+| DB Managers | ~55% | 85% | `db/sql/managers/` |
+| API Handlers | ~70% | 90% | `api/handlers/` |
+| Auth/Security | ~60% | 95% | `api/extractors.rs`, `auth.rs` |
+
+**Что добавить:**
+
+1. **Integration tests** — `tests/api_integration.rs` с axum TestServer
+2. **E2E Docker tests** — `docker-compose.test.yml` с PostgreSQL + тестовые сценарии
+3. **Mutation testing** — `cargo mutants` на критические пути
+4. **Security tests** — SQLi/XSS/CSRF suite в `tests/security/`
+5. **Benchmark suite** — `benches/api_throughput.rs` с Criterion
+
+---
+
+### БЛОК 12 — Quick Wins (можно сделать за <1 дня) ⚡
+
+| # | Задача | Файл | Impact |
+|---|---|---|---|
+| QW-1 | Валидация cron перед сохранением | `scheduler_pool.rs:57,68` | Prevent crashes |
+| QW-2 | HMAC подпись в webhook уведомлениях | `alert.rs` | Security |
+| QW-3 | `cargo audit` в CI | `.github/workflows/rust.yml` | Security |
+| QW-4 | `.github/dependabot.yml` | — | Automation |
+| QW-5 | Dark mode toggle (localStorage) | `styles.css`, `app.js` | UX |
+| QW-6 | Virtual scroll для task history | `history.html`, `task.html` | Performance |
+| QW-7 | Linux ARM64 в CI release matrix | GitHub Actions | Distribution |
+| QW-8 | `manifest.json` + SW для PWA | `web/public/` | UX |
+| QW-9 | `GET /api/openapi.json` заглушка | `routes.rs` | DX |
+| QW-10 | Keyboard shortcut `?` — help modal | `app.js` | UX |
+
+---
+
+### Сводная таблица v5 задач
+
+| ID | Блок | Задача | Приоритет | Версия | Статус |
+|---|---|---|---|---|---|
+| S-01 | Security | JWT logout blacklist | 🔴 | v5.0 | ⏳ |
+| S-02 | Security | Webhook HMAC signature | 🔴 | v5.0 | ⏳ |
+| S-03 | Security | cargo audit в CI | 🔴 | v5.0 | ⏳ |
+| S-04 | Security | Dependabot | 🟠 | v5.0 | ⏳ |
+| S-05 | Security | Уязвимые зависимости (quinn, rsa) | 🔴 | v5.0 | ⏳ |
+| F-01 | Features | Telegram Bot уведомления | 🟠 | v5.1 | ⏳ |
+| F-02 | Features | SSH Key Installation | 🟠 | v5.1 | ⏳ |
+| F-03 | Features | Remote Runners | 🟠 | v5.1 | ⏳ |
+| F-04 | Features | Kubernetes Runner | 🟡 | v5.1 | ⏳ |
+| F-05 | Features | GraphQL mutations + subscriptions | 🟡 | v5.1 | ⏳ |
+| DX-01 | Dev UX | Dark Mode | 🟡 | v5.2 | ⏳ |
+| DX-02 | Dev UX | PWA + Service Worker | 🟡 | v5.2 | ⏳ |
+| DX-03 | Dev UX | i18n (RU/EN/DE/ZH/ES) | 🟡 | v5.2 | ⏳ |
+| DX-04 | Dev UX | Keyboard Shortcuts | 🟡 | v5.2 | ⏳ |
+| DX-05 | Dev UX | VS Code Extension | 🟡 | v5.2 | ⏳ |
+| DX-06 | Dev UX | Terraform Provider (Go) | 🟡 | v5.2 | ⏳ |
+| I-01 | Infra | Helm Chart | 🟢 | v5.3 | ⏳ |
+| I-02 | Infra | Multi-platform builds | 🟢 | v5.3 | ⏳ |
+| I-03 | Infra | Grafana Dashboards | 🟢 | v5.3 | ⏳ |
+| I-04 | Infra | OpenAPI/Swagger | 🟢 | v5.3 | ⏳ |
+| T-01 | Testing | Integration tests (axum TestServer) | 🔴 | v5.0 | ⏳ |
+| T-02 | Testing | E2E Docker tests | 🟠 | v5.0 | ⏳ |
+| T-03 | Testing | Mutation testing (cargo mutants) | 🟡 | v5.1 | ⏳ |
+| T-04 | Testing | Security test suite | 🔴 | v5.0 | ⏳ |
+| T-05 | Testing | Benchmark suite (Criterion) | 🟢 | v5.3 | ⏳ |
+
+---
+
 ## 📊 Дорожная карта
 
 | Квартал | Версия | Фокус | Ключевые фичи | Статус |
@@ -686,8 +1084,11 @@ pub fn init_tracing() -> Result<()> {
 | Q2 2026 | v4.0 | ✅ HA Cluster | Redis session store, Health checks, Graceful shutdown | ✅ Готово |
 | Q2 2026 | v4.0 | ✅ Multi-Tenancy | Организации, квоты, API + UI | ✅ Готово |
 | Q3 2026 | v4.1 | ✅ Готово | Audit Log Export (CSV/NDJSON), Rate Limiting (5/100 req/min) | ✅ Готово |
-| Q3 2026 | v4.1 | 📅 План | VS Code Extension, Terraform Provider | ⏳ Ожидает |
 | Q4 2026 | v4.2 | ✅ Готово | Prometheus Metrics, Trace ID middleware (X-Trace-ID), White-labeling | ✅ Готово |
+| Q1 2027 | v5.0 | 🗺️ План | Security hardening, Remote Runners, Testing 80%+ | ⏳ Ожидает |
+| Q2 2027 | v5.1 | 🗺️ План | Telegram Bot, SSH keys, Kubernetes Runner, GraphQL mutations | ⏳ Ожидает |
+| Q3 2027 | v5.2 | 🗺️ План | Dark Mode, PWA, i18n, VS Code Extension | ⏳ Ожидает |
+| Q4 2027 | v5.3 | 🗺️ План | Helm chart, Multi-platform builds, Grafana dashboards | ⏳ Ожидает |
 
 ---
 
@@ -778,6 +1179,7 @@ pub fn init_tracing() -> Result<()> {
 
 | Версия | Дата | Изменения |
 |--------|------|-----------|
+| 5.0-plan | 2026-03-23 | 🗺️ Добавлен план v5.0: Security, Remote Runners, Testing, DX, Infra (42 задачи) |
 | 4.0 | 2026-03-23 | ✅ HA Cluster, 🔄 Multi-Tenancy (База) |
 | 3.3 | 2026-03-23 | ✅ v3.2 Feature Complete, добавлен план v4.0 |
 | 3.2 | 2026-03-21 | MCP встроенный, AI Analysis |
