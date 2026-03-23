@@ -469,10 +469,10 @@ impl Config {
     /// Загружает конфигурацию из переменных окружения
     pub fn from_env() -> Result<Self, crate::error::Error> {
         use std::env;
-        
-        let dialect_str = env::var("SEMAPHORE_DB_DIALECT")
+
+        let dialect_str = env::var("VELUM_DB_DIALECT")
             .unwrap_or_else(|_| "sqlite".to_string());
-        
+
         let dialect = match dialect_str.as_str() {
             "postgres" | "postgresql" => DbDialect::Postgres,
             "mysql" => DbDialect::MySQL,
@@ -482,14 +482,14 @@ impl Config {
 
         let mut config = Self::default();
         config.database.dialect = Some(dialect);
-        
+
         // Загрузка пути к БД для SQLite
-        if let Ok(db_path) = env::var("SEMAPHORE_DB_PATH") {
+        if let Ok(db_path) = env::var("VELUM_DB_PATH") {
             config.database.path = Some(db_path);
         }
-        
+
         // Загрузка URL для PostgreSQL/MySQL
-        if let Ok(db_url) = env::var("SEMAPHORE_DB_URL") {
+        if let Ok(db_url) = env::var("VELUM_DB_URL") {
             config.database.connection_string = Some(db_url);
         }
 
