@@ -1,7 +1,7 @@
 # MASTER_PLAN V3 — Velum: Стать лучше AWX и Ansible Tower
 
-> **Последнее обновление:** 2026-03-23 (сессия 12 — добавлен БЛОК 12: Future Ideas v5+)
-> **Версия:** 5.0-plan
+> **Последнее обновление:** 2026-03-23 (сессия 13 — реализованы FI-GL-1, FI-AWX-1, FI-JEN-1, FI-ARGO-1, FI-PUL-1, FI-VEL-1 из БЛОК 14)
+> **Версия:** 5.1-impl
 > **Статус:** ✅ v4.2 COMPLETE | 🗺️ v5.0 PLAN READY | 💡 v5+ FUTURE IDEAS ADDED
 
 ---
@@ -1989,20 +1989,20 @@ AI возвращает:
 
 | ID | Источник | Фича | Суть | Сложность | Версия |
 |----|---------|------|------|-----------|--------|
-| FI-AWX-1 | AWX | **Execution Environments** | Docker-образ для каждого запуска | 🟡 | v5.1 |
+| FI-AWX-1 | AWX | **Execution Environments** | Docker-образ для каждого запуска | ✅ 2026-03-23 | v5.1 |
 | FI-SEM-1 | Semaphore | **App Gallery** | 10+ готовых App-конфигов (GitHub, Gitea...) | 🟢 | v5.0 |
-| FI-JEN-1 | Jenkins | **Template Inheritance** | `parent_template` + merge extra_vars | 🟡 | v5.1 |
+| FI-JEN-1 | Jenkins | **Template Inheritance** | `parent_template` + merge extra_vars | ✅ 2026-03-23 | v5.1 |
 | FI-RUN-1 | Rundeck | **Node Health Preflight** | Проверка хостов до старта задачи | 🟡 | v5.1 |
-| FI-ARGO-1 | Argo CD | **Sync Waves + Hooks** | Волны + pre/post/fail хуки | 🟠 | v5.1 |
+| FI-ARGO-1 | Argo CD | **Sync Waves + Hooks** | Волны + pre/post/fail хуки | ✅ 2026-03-23 | v5.1 |
 | FI-FLUX-1 | Flux CD | **Image Watcher** | Auto-trigger при новом Docker-теге | 🟠 | v6.0 |
 | FI-SPI-1 | Spinnaker | **Canary Analysis** | Авто-анализ метрик canary vs baseline | 🔴 | v6.1 |
 | FI-TFC-1 | TF Cloud | **State Browser + Lock UI** | Просмотр state, force unlock | 🟡 | v5.1 |
 | FI-SPA-1 | Spacelift | **Stack Trigger Chains** | Output одного → Input следующего | 🟠 | v5.1 |
 | FI-ATL-1 | Atlantis | **PR Plan→Comment→Apply** | GitHub PR comment workflow | 🟠 | v6.0 |
-| FI-PUL-1 | Pulumi | **Structured Outputs** | Именованные outputs → доступны другим шаблонам | 🟡 | v5.1 |
+| FI-PUL-1 | Pulumi | **Structured Outputs** | Именованные outputs → доступны другим шаблонам | ✅ 2026-03-23 | v5.1 |
 | FI-HAR-1 | Harness | **YAML ↔ Visual dual-mode** | Переключение редактора DAG | 🟡 | v5.1 |
-| FI-GL-1 | GitLab CI | **Environments Registry** | Реестр окружений + история деплоев | 🟡 | v5.1 |
-| FI-VEL-1 | Velum | **AI Template Creator** | Описание → готовый шаблон | 🟡 | v5.0 |
+| FI-GL-1 | GitLab CI | **Environments Registry** | Реестр окружений + история деплоев | ✅ 2026-03-23 | v5.1 |
+| FI-VEL-1 | Velum | **AI Template Creator** | Описание → готовый шаблон | ✅ 2026-03-23 | v5.0 |
 
 ---
 
