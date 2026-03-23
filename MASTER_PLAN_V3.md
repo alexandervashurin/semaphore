@@ -1676,6 +1676,348 @@ velum_auth_failures_total{ip, reason}
 
 ---
 
+## 🧬 БЛОК 14 — Лучшее от каждого конкурента: что взять в Velum
+
+> Анализ: какую **одну лучшую идею** взять из каждого инструмента, адаптировать под Velum и реализовать лучше оригинала.
+
+---
+
+### 🔴 AWX / Ansible Tower → **Execution Environments (EE)**
+
+**Что это:** AWX запускает каждую задачу в изолированном OCI-контейнере (`ee-minimal-rhel8`), где заранее собраны нужные версии Ansible, коллекций, Python-зависимостей. Playbook никогда не ломается из-за "у меня работало" — окружение воспроизводимо.
+
+**Как адаптировать для Velum:**
+```
+Шаблон → поле "execution_image": "ghcr.io/myorg/ee-network:2.15"
+Velum запускает задачу внутри docker run --rm <image> ansible-playbook ...
+Логи стримятся через WebSocket как обычно
+```
+
+**Почему лучше AWX:** в AWX EE обязательны и сложно настраиваются. В Velum — опциональное поле, по умолчанию локальный ansible, но если указан образ — задача идёт в контейнере.
+
+**Реализация:** `rust/src/services/local_job/run.rs` — добавить ветку `if let Some(ee) = template.execution_image`.
+**Сложность:** 🟡 Средняя | **Версия:** v5.1 | **ID:** `FI-AWX-1`
+
+---
+
+### 🔵 Ansible Semaphore → **App Runner (интеграция приложений)**
+
+**Что это:** Semaphore v2.10+ ввёл Apps — возможность подключить внешние системы (GitLab, GitHub, Telegram) как источники триггеров, получать данные и реагировать на события. Каждый App имеет свой webhook и конфиг.
+
+**Что уже есть в Velum:** Apps страница (`apps.html`) реализована.
+
+**Что взять дополнительно:** механизм **App Templates** из Semaphore — пре-конфигурированные шаблоны интеграций для популярных сервисов (GitHub, Bitbucket, Azure DevOps, Gitea) с автозаполнением webhook URL и валидацией секретов.
+
+**Реализация:** галерея из 10+ готовых App-конфигураций в `apps.html` — кнопка "Добавить из галереи" → выбор GitHub/Gitea/etc → автозаполнение полей.
+**Сложность:** 🟢 Низкая | **Версия:** v5.0 | **ID:** `FI-SEM-1`
+
+---
+
+### ☕ Jenkins → **Shared Libraries / Reusable Pipeline Code**
+
+**Что это:** Jenkins Shared Libraries — возможность вынести повторяющийся Groovy-код в отдельный Git репозиторий и импортировать: `@Library('my-pipeline-lib') _`. Тысячи команд используют это для стандартизации пайплайнов.
+
+**Как адаптировать для Velum:**
+```
+"Template Includes" — шаблон может наследовать переменные, vault-файлы
+и параметры из другого шаблона (родительского).
+
+parent_template: "base-deploy"   # наследуем переменные
+extra_vars: { env: "prod" }       # переопределяем только нужное
+```
+**Результат:** базовый шаблон `base-deploy` хранит общие переменные (AWS region, become_user и т.д.), дочерние шаблоны только переопределяют специфику.
+
+**Реализация:** поле `parent_template_id` в таблице `project_template` + merge extra_vars при запуске.
+**Сложность:** 🟡 Средняя | **Версия:** v5.1 | **ID:** `FI-JEN-1`
+
+---
+
+### 🔧 Rundeck → **Node Health Checks + Auto-disable**
+
+**Что это:** Rundeck умеет проверять доступность нод перед запуском задачи (`node health check`). Если нода недоступна — задача автоматически пропускает её или выдаёт понятную ошибку, а не зависает на SSH timeout.
+
+**Как адаптировать для Velum:**
+```
+Inventory → настройка "health check command": "ping -c1 {host} || echo UNREACHABLE"
+Перед запуском задачи Velum проверяет все целевые хосты параллельно (timeout 5с)
+Недоступные хосты: warn + skip или fail fast (настраивается)
+Результат health check виден в UI задачи до начала основного лога
+```
+
+**Реализация:** `rust/src/services/local_job/preflight.rs` — новый модуль предстартовых проверок.
+**Сложность:** 🟡 Средняя | **Версия:** v5.1 | **ID:** `FI-RUN-1`
+
+---
+
+### 🐙 Argo CD → **Sync Waves + Sync Hooks**
+
+**Что это:** Argo CD позволяет задать порядок применения ресурсов через аннотацию `argocd.argoproj.io/sync-wave: "5"`. Ресурсы с меньшим числом применяются первыми. Hook'и (`PreSync`, `PostSync`, `SyncFail`) — запускают задачи до/после/при ошибке синхронизации.
+
+**Как адаптировать для Velum:**
+```
+DAG Workflow → атрибут "wave": 1, 2, 3 для нод графа
+Все ноды одной волны запускаются параллельно
+Следующая волна стартует только после успеха предыдущей
+
+Hooks в шаблоне:
+  pre_run:  "check-disk-space"    # шаблон, выполняемый перед основным
+  post_run: "send-report"         # после успеха
+  on_fail:  "rollback-snapshot"   # при ошибке
+```
+
+**Реализация:** расширить `workflow_nodes` полем `wave INT`, расширить `project_template` полями `pre_template_id`, `post_template_id`, `fail_template_id`.
+**Сложность:** 🟠 Средняя | **Версия:** v5.1 | **ID:** `FI-ARGO-1`
+
+---
+
+### 🌊 Flux CD → **Image Automation Controller**
+
+**Что это:** Flux CD отслеживает OCI registry на появление новых тегов образов и автоматически обновляет Git-репозиторий (меняет тег в YAML), что запускает новый деплой. Полностью автоматизированный GitOps без кнопки "Deploy".
+
+**Как адаптировать для Velum:**
+```
+Repository → настройка "image watch":
+  registry: "ghcr.io/myorg/myapp"
+  tag_pattern: "^v[0-9]+\.[0-9]+\.[0-9]+$"  # только semver
+  on_new_tag: запустить шаблон "deploy-production"
+  auto_approve: false  # требовать подтверждение в UI
+
+Velum polling каждые N минут → новый тег найден → создать pending task
+```
+
+**Реализация:** `rust/src/services/image_watcher.rs` — периодический poll registry API, интеграция с cron scheduler.
+**Сложность:** 🟠 Средняя | **Версия:** v6.0 | **ID:** `FI-FLUX-1`
+
+---
+
+### 🎡 Spinnaker → **Canary Analysis (Automated Canary)**
+
+**Что это:** Spinnaker Kayenta — автоматический анализ канареечного деплоя. Сравнивает метрики canary vs baseline через Prometheus/Datadog/Stackdriver и автоматически принимает решение: продвигать или откатывать.
+
+**Как адаптировать для Velum:**
+```
+Шаблон типа "Canary Deploy":
+  1. Деплоить на 10% трафика (canary)
+  2. Ждать N минут (настраивается)
+  3. Запросить метрики из Prometheus: error_rate, p99_latency, cpu
+  4. Сравнить canary vs baseline (статистический тест)
+  5. Если OK → approval request для 100% (или auto-promote)
+  6. Если хуже → auto-rollback + уведомление
+
+Велум показывает: score, графики метрик, decision log
+```
+
+**Реализация:** `rust/src/services/canary_analysis.rs` + новый тип шаблона `TemplateApp::Canary` + Prometheus query в scheduler.
+**Сложность:** 🔴 Высокая | **Версия:** v6.1 | **ID:** `FI-SPI-1`
+
+---
+
+### 🏗️ Terraform Cloud (HCP) → **State Locking UI + Remote State Browser**
+
+**Что это:** TFC показывает кто и когда заблокировал Terraform state, позволяет принудительно разблокировать через UI. State browser — просмотр всех ресурсов в state прямо в веб-интерфейсе без `terraform show`.
+
+**Как адаптировать для Velum:**
+```
+Task view → раздел "Terraform State":
+  - Locked by: user@example.com  [Force Unlock]
+  - Resources: 47 managed, 3 added, 1 destroyed
+  - State version: #23 (2026-03-23 14:52)
+  - Browser: список ресурсов с типом, именем, атрибутами
+
+GET /api/projects/{id}/terraform/state        → parse state JSON
+GET /api/projects/{id}/terraform/state/lock   → проверить лок
+DELETE /api/projects/{id}/terraform/state/lock → разблокировать
+```
+
+**Реализация:** `rust/src/api/handlers/terraform_state.rs` + `web/public/terraform-state.html`.
+**Сложность:** 🟡 Средняя | **Версия:** v5.1 | **ID:** `FI-TFC-1`
+
+---
+
+### 🚀 Spacelift → **Stack Dependencies + Trigger Chains**
+
+**Что это:** Spacelift Stacks могут зависеть друг от друга. Stack `network` → Stack `database` → Stack `app`. При изменении `network` автоматически запускается цепочка зависимых стеков. Output одного стека становится Input следующего.
+
+**Как адаптировать для Velum:**
+```
+Шаблон → поле "triggers":
+  - after: "network-deploy"   # запускаться после успеха этого шаблона
+    pass_outputs: true          # передать output как extra_vars
+
+network-deploy завершился → output: { vpc_id: "vpc-123", subnet: "10.0.0.0/24" }
+  → auto-trigger database-deploy с extra_vars: { vpc_id: "vpc-123", ... }
+  → auto-trigger app-deploy с extra_vars: { ... }
+```
+
+**Реализация:** расширить `project_template` полями `trigger_on_template_id`, `pass_outputs_as_vars BOOL`.
+**Сложность:** 🟠 Средняя | **Версия:** v5.1 | **ID:** `FI-SPA-1`
+
+---
+
+### 🌊 Atlantis → **PR Plan → Comment → Apply Workflow**
+
+**Что это:** Atlantis реализует классический GitOps для Terraform через PR-комментарии: `atlantis plan` в PR → автокомментарий с diff → `atlantis apply` → merge разблокирован. Прост как гвоздь, работает везен.
+
+**Как адаптировать для Velum:**
+```
+Webhook от GitHub PR → Velum:
+  1. PR opened/updated → auto-run terraform plan
+  2. Результат plan → comment в PR с diff (через GitHub API)
+     "## Velum Terraform Plan
+      + aws_instance.web (create)
+      ~ aws_security_group.main (update)
+      Plan: 2 to add, 1 to change, 0 to destroy
+      Cost delta: +$45/month
+      [✅ Approve in Velum](https://velum.example.com/...)"
+  3. Approval в Velum UI → terraform apply → PR comment обновляется
+  4. Apply успех → GitHub status check ✅ → merge разблокирован
+
+```
+
+**Реализация:** `rust/src/services/github_pr.rs` — GitHub API client для комментариев и status checks.
+**Сложность:** 🟠 Средняя | **Версия:** v6.0 | **ID:** `FI-ATL-1`
+
+---
+
+### 🌐 Pulumi Cloud → **Structured Outputs + Stack References**
+
+**Что это:** Pulumi экспортирует именованные выходные значения стека (`pulumi.export("bucket_name", bucket.name)`), которые другие стеки могут читать как `StackReference`. Это создаёт граф зависимостей между инфраструктурными компонентами.
+
+**Как адаптировать для Velum:**
+```
+После завершения задачи Velum парсит структурированный output:
+  - Terraform: terraform output -json → сохранить в БД
+  - Ansible: зарегистрированные факты через callback plugin
+  - Bash: JSON строки из stdout (convention: "VELUM_OUTPUT: {...}")
+
+Сохранить в таблицу task_outputs (task_id, key, value, type)
+UI: вкладка "Outputs" в task view
+API: GET /api/tasks/{id}/outputs
+Другие шаблоны могут ссылаться: extra_vars: { vpc_id: "{{outputs.network-deploy.vpc_id}}" }
+```
+
+**Реализация:** `rust/src/services/output_extractor.rs` + таблица `task_outputs` в миграции.
+**Сложность:** 🟡 Средняя | **Версия:** v5.1 | **ID:** `FI-PUL-1`
+
+---
+
+### ⚙️ Harness → **Pipeline Studio (Visual + YAML dual-mode)**
+
+**Что это:** Harness Pipeline Studio — лучший в индустрии редактор пайплайнов. Переключение между визуальным drag-and-drop и raw YAML в реальном времени, с валидацией и автодополнением. Изменил в визуальном — YAML обновился, изменил в YAML — граф обновился.
+
+**Как адаптировать для Velum:**
+```
+DAG Workflow Editor → добавить кнопку "YAML" рядом с "Visual":
+
+# workflow.yaml
+name: Deploy Production
+nodes:
+  - id: plan
+    template: terraform-plan
+    wave: 1
+  - id: approve
+    type: approval
+    approvers: [managers]
+    wave: 2
+  - id: apply
+    template: terraform-apply
+    depends_on: [approve]
+    wave: 3
+  - id: notify
+    template: slack-notify
+    on: always
+    wave: 4
+
+Двустороннее редактирование: визуальный ↔ YAML через serde
+```
+
+**Реализация:** добавить YAML import/export в `web/public/workflows.html` + `rust/src/api/handlers/workflows.rs` endpoint `POST /workflows/from-yaml`.
+**Сложность:** 🟡 Средняя | **Версия:** v5.1 | **ID:** `FI-HAR-1`
+
+---
+
+### 🦊 GitLab CI → **Environments + Deployment Tracking**
+
+**Что это:** GitLab Environments — центральный реестр окружений (production, staging, dev), где видна история деплоев: кто, когда, какой коммит, статус. Кнопка "Rollback" прямо в списке окружений. Ссылка на живое окружение (`environment_url`).
+
+**Как адаптировать для Velum:**
+```
+Новая сущность "Environment" (отдельно от Inventory):
+  name: "production"
+  url: "https://app.example.com"
+  template: "deploy-prod"       # какой шаблон деплоит
+  tier: production|staging|dev|review
+
+Страница /environments:
+  ┌─────────────┬──────────┬────────────────┬──────────────┬──────────┐
+  │ Environment │ Status   │ Last Deploy    │ Deployed By  │ Actions  │
+  ├─────────────┼──────────┼────────────────┼──────────────┼──────────┤
+  │ production  │ ✅ Active │ v2.3.1 (2ч назад)│ alice      │ 🚀 🔄 ⏪ │
+  │ staging     │ ✅ Active │ v2.4.0-rc1     │ ci-bot      │ 🚀 🔄 ⏪ │
+  │ dev         │ 🔶 Stale  │ v2.4.0-dev     │ bob         │ 🚀 🔄 ⏪ │
+  └─────────────┴──────────┴────────────────┴──────────────┴──────────┘
+
+Интеграция: шаблон помечает свой environment → history группируется по env
+```
+
+**Реализация:** таблица `environments`, `rust/src/api/handlers/environments.rs`, `web/public/environments.html`.
+**Сложность:** 🟡 Средняя | **Версия:** v5.1 | **ID:** `FI-GL-1`
+
+---
+
+### ✨ Velum → **AI-assisted Template Creation (уникальная фича)**
+
+**Что это:** Единственная фича которой нет **нигде**. Пользователь описывает задачу на естественном языке, AI генерирует шаблон, extra_vars, survey form и inventory.
+
+```
+Пользователь пишет: "Хочу деплоить Django app на 3 сервера с nginx и PostgreSQL"
+AI возвращает:
+  - Заполненный шаблон с playbook path
+  - Survey form: db_password, app_version, domain_name
+  - Suggested inventory structure
+  - Extra vars: become=true, python_version=3.11
+  - Рекомендованные vault keys для секретов
+  - Ссылки на 2 похожих шаблона из Marketplace
+```
+
+**Реализация:** MCP tool `create_template_from_description` → Claude API → structured output → шаблон создаётся в один клик.
+**Сложность:** 🟡 Средняя | **Версия:** v5.0 | **ID:** `FI-VEL-1`
+
+---
+
+### 📊 Сводная таблица "Взять лучшее"
+
+| ID | Источник | Фича | Суть | Сложность | Версия |
+|----|---------|------|------|-----------|--------|
+| FI-AWX-1 | AWX | **Execution Environments** | Docker-образ для каждого запуска | 🟡 | v5.1 |
+| FI-SEM-1 | Semaphore | **App Gallery** | 10+ готовых App-конфигов (GitHub, Gitea...) | 🟢 | v5.0 |
+| FI-JEN-1 | Jenkins | **Template Inheritance** | `parent_template` + merge extra_vars | 🟡 | v5.1 |
+| FI-RUN-1 | Rundeck | **Node Health Preflight** | Проверка хостов до старта задачи | 🟡 | v5.1 |
+| FI-ARGO-1 | Argo CD | **Sync Waves + Hooks** | Волны + pre/post/fail хуки | 🟠 | v5.1 |
+| FI-FLUX-1 | Flux CD | **Image Watcher** | Auto-trigger при новом Docker-теге | 🟠 | v6.0 |
+| FI-SPI-1 | Spinnaker | **Canary Analysis** | Авто-анализ метрик canary vs baseline | 🔴 | v6.1 |
+| FI-TFC-1 | TF Cloud | **State Browser + Lock UI** | Просмотр state, force unlock | 🟡 | v5.1 |
+| FI-SPA-1 | Spacelift | **Stack Trigger Chains** | Output одного → Input следующего | 🟠 | v5.1 |
+| FI-ATL-1 | Atlantis | **PR Plan→Comment→Apply** | GitHub PR comment workflow | 🟠 | v6.0 |
+| FI-PUL-1 | Pulumi | **Structured Outputs** | Именованные outputs → доступны другим шаблонам | 🟡 | v5.1 |
+| FI-HAR-1 | Harness | **YAML ↔ Visual dual-mode** | Переключение редактора DAG | 🟡 | v5.1 |
+| FI-GL-1 | GitLab CI | **Environments Registry** | Реестр окружений + история деплоев | 🟡 | v5.1 |
+| FI-VEL-1 | Velum | **AI Template Creator** | Описание → готовый шаблон | 🟡 | v5.0 |
+
+---
+
+### 🎯 Топ-5 приоритетов по impact/effort
+
+| # | Фича | Почему важно | Effort |
+|---|------|-------------|--------|
+| 1 | **Environments Registry** (GitLab) | Самая запрашиваемая фича у Semaphore-пользователей | 3 дня |
+| 2 | **AI Template Creator** (Velum) | Уникальный дифференциатор, MCP уже есть | 2 дня |
+| 3 | **Template Inheritance** (Jenkins) | Устраняет дублирование у 90% команд | 2 дня |
+| 4 | **Structured Outputs** (Pulumi) | Разблокирует Stack Trigger Chains | 3 дня |
+| 5 | **Sync Waves + Hooks** (Argo CD) | Делает DAG значительно мощнее | 4 дня |
+
+---
+
 ## Ссылки
 
 | Репозиторий | URL |
