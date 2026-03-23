@@ -504,6 +504,8 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/api/organizations/{id}/users/{user_id}", delete(handlers::organization::remove_organization_user))
         .route("/api/organizations/{id}/users/{user_id}/role", put(handlers::organization::update_organization_user_role))
         .route("/api/organizations/{id}/quota/{quota_type}", get(handlers::organization::check_organization_quota))
+        .route("/api/organizations/{id}/branding", get(handlers::organization::get_organization_branding))
+        .route("/api/organizations/{id}/branding", put(handlers::organization::update_organization_branding))
         .route("/api/user/organizations", get(handlers::organization::get_my_organizations))
 }
 

@@ -77,6 +77,47 @@
         </div>
     </div>
 
+    <!-- Модальное окно White-labeling / Branding -->
+    <div class="modal-overlay" id="branding-modal" style="display:none">
+        <div class="modal" style="max-width:600px">
+            <div class="modal-header">
+                <h3>Branding: <span id="branding-modal-org-name"></span></h3>
+                <button class="modal-close" onclick="closeBrandingModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="branding-form" onsubmit="saveBranding(event)">
+                    <div class="form-group">
+                        <label>Название приложения</label>
+                        <input type="text" id="b-app-name" class="form-control" placeholder="Velum">
+                    </div>
+                    <div class="form-group">
+                        <label>Основной цвет (hex)</label>
+                        <div style="display:flex;gap:8px;align-items:center">
+                            <input type="color" id="b-color-picker" value="#005057" style="width:44px;height:36px;padding:2px;border:1px solid #ccc;border-radius:4px;cursor:pointer">
+                            <input type="text" id="b-primary-color" class="form-control" placeholder="#005057" style="flex:1">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>URL логотипа</label>
+                        <input type="url" id="b-logo-url" class="form-control" placeholder="https://example.com/logo.svg">
+                    </div>
+                    <div class="form-group">
+                        <label>URL favicon</label>
+                        <input type="url" id="b-favicon-url" class="form-control" placeholder="https://example.com/favicon.ico">
+                    </div>
+                    <div class="form-group">
+                        <label>Дополнительный CSS</label>
+                        <textarea id="b-custom-css" class="form-control" rows="4" placeholder=":root { --sidebar-color: #1a1a2e; }"></textarea>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" onclick="closeBrandingModal()">Отмена</button>
+                        <button type="submit" class="btn btn-primary">Сохранить Branding</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Модальное окно управления пользователями организации -->
     <div class="modal-overlay" id="users-modal" style="display:none">
         <div class="modal" style="max-width:700px">
@@ -158,6 +199,9 @@
                                         <td>
                                             <button class="btn btn-sm btn-secondary" onclick="openUsersModal(${org.id}, '${escapeHtml(org.name)}')" title="Пользователи">
                                                 <i class="fa-solid fa-users"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-secondary" onclick="openBrandingModal(${org.id}, '${escapeHtml(org.name)}')" title="Branding">
+                                                <i class="fa-solid fa-palette"></i>
                                             </button>
                                             <button class="btn btn-sm btn-secondary" onclick="openOrgModal(${org.id})" title="Редактировать">
                                                 <i class="fa-solid fa-pen"></i>
@@ -341,6 +385,65 @@
                 headers: authHeaders(),
             })
             .then(() => loadOrgUsers())
+            .catch(e => alert(e.message));
+        }
+
+        // --- Branding modal ---
+        let currentBrandingOrgId = null;
+
+        function openBrandingModal(orgId, orgName) {
+            currentBrandingOrgId = orgId;
+            $('#branding-modal-org-name').textContent = orgName;
+            // Сбрасываем поля
+            $('#b-app-name').value = '';
+            $('#b-primary-color').value = '#005057';
+            $('#b-color-picker').value = '#005057';
+            $('#b-logo-url').value = '';
+            $('#b-favicon-url').value = '';
+            $('#b-custom-css').value = '';
+
+            fetch(`/api/organizations/${orgId}/branding`, { headers: authHeaders() })
+                .then(r => r.json())
+                .then(b => {
+                    $('#b-app-name').value = b.app_name || '';
+                    $('#b-primary-color').value = b.primary_color || '#005057';
+                    $('#b-color-picker').value = b.primary_color || '#005057';
+                    $('#b-logo-url').value = b.logo_url || '';
+                    $('#b-favicon-url').value = b.favicon_url || '';
+                    $('#b-custom-css').value = b.custom_css || '';
+                }).catch(() => {});
+
+            // Синхронизация color picker с text input
+            $('#b-color-picker').oninput = (e) => { $('#b-primary-color').value = e.target.value; };
+            $('#b-primary-color').oninput = (e) => {
+                if (/^#[0-9a-fA-F]{6}$/.test(e.target.value)) {
+                    $('#b-color-picker').value = e.target.value;
+                }
+            };
+
+            $('#branding-modal').style.display = 'flex';
+        }
+
+        function closeBrandingModal() {
+            $('#branding-modal').style.display = 'none';
+        }
+
+        function saveBranding(e) {
+            e.preventDefault();
+            const payload = {
+                app_name: $('#b-app-name').value || undefined,
+                primary_color: $('#b-primary-color').value || undefined,
+                logo_url: $('#b-logo-url').value || undefined,
+                favicon_url: $('#b-favicon-url').value || undefined,
+                custom_css: $('#b-custom-css').value || undefined,
+            };
+            fetch(`/api/organizations/${currentBrandingOrgId}/branding`, {
+                method: 'PUT',
+                headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            })
+            .then(r => { if (!r.ok) return r.json().then(d => { throw new Error(d.error); }); })
+            .then(() => { closeBrandingModal(); alert('Branding сохранён'); })
             .catch(e => alert(e.message));
         }
 

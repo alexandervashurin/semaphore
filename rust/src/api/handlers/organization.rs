@@ -174,6 +174,51 @@ pub async fn get_my_organizations(
     }
 }
 
+/// GET /api/organizations/:id/branding — получить branding организации (публичный, без auth)
+/// Используется на login page для кастомизации UI под организацию
+pub async fn get_organization_branding(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<i32>,
+) -> impl IntoResponse {
+    match state.store.get_organization(id).await {
+        Ok(org) => {
+            let branding = org.settings.unwrap_or_else(|| serde_json::json!({}));
+            Json(serde_json::json!({
+                "org_id": org.id,
+                "org_name": org.name,
+                "slug": org.slug,
+                "logo_url": branding.get("logo_url").and_then(|v| v.as_str()),
+                "primary_color": branding.get("primary_color").and_then(|v| v.as_str()).unwrap_or("#005057"),
+                "app_name": branding.get("app_name").and_then(|v| v.as_str()).unwrap_or("Velum"),
+                "favicon_url": branding.get("favicon_url").and_then(|v| v.as_str()),
+                "custom_css": branding.get("custom_css").and_then(|v| v.as_str()),
+            })).into_response()
+        }
+        Err(e) => (StatusCode::NOT_FOUND, Json(json!({"error": e.to_string()}))).into_response(),
+    }
+}
+
+/// PUT /api/organizations/:id/branding — обновить branding (только admin)
+pub async fn update_organization_branding(
+    State(state): State<Arc<AppState>>,
+    auth: AuthUser,
+    Path(id): Path<i32>,
+    Json(branding): Json<serde_json::Value>,
+) -> impl IntoResponse {
+    if !auth.admin {
+        return (StatusCode::FORBIDDEN, Json(json!({"error": "Admin required"}))).into_response();
+    }
+    // Обновляем поле settings через OrganizationUpdate
+    let payload = crate::models::OrganizationUpdate {
+        settings: Some(branding),
+        ..Default::default()
+    };
+    match state.store.update_organization(id, payload).await {
+        Ok(org) => Json(org).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+    }
+}
+
 /// GET /api/organizations/:id/quota — проверить квоты организации
 pub async fn check_organization_quota(
     State(state): State<Arc<AppState>>,

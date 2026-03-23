@@ -9,10 +9,12 @@
 pub mod cache;
 pub mod rate_limiter;
 pub mod security_headers;
+pub mod trace_id;
 
 pub use cache::CacheMiddleware;
 pub use rate_limiter::*;
 pub use security_headers::*;
+pub use trace_id::{trace_id_middleware, TraceId};
 
 // Ре-экспорт ErrorResponse для обратной совместимости
 use axum::{http::StatusCode, response::IntoResponse, Json};
