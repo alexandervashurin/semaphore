@@ -17,6 +17,7 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/api/health", get(handlers::health))
         .route("/api/health/live", get(handlers::health_live))
         .route("/api/health/ready", get(handlers::health_ready))
+        .route("/api/health/full", get(handlers::health_full))
 
         // Аутентификация
         .route("/api/auth/login", post(handlers::login))
@@ -355,6 +356,7 @@ pub fn api_routes() -> Router<Arc<AppState>> {
 
         // Audit Log - admin only
         .route("/api/audit-log", get(handlers::audit_log::get_audit_logs))
+        .route("/api/audit-log/export", get(handlers::audit_log::export_audit_logs))
         .route("/api/audit-log/clear", delete(handlers::audit_log::clear_audit_log))
         .route("/api/audit-log/expiry", delete(handlers::audit_log::delete_old_audit_logs))
         .route("/api/audit-log/{id}", get(handlers::audit_log::get_audit_log))
@@ -490,6 +492,43 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/api/project/{project_id}/terraform/plans/{plan_id}/approve", post(handlers::plan_approval::approve_plan))
         .route("/api/project/{project_id}/terraform/plans/{plan_id}/reject", post(handlers::plan_approval::reject_plan))
         .route("/api/project/{project_id}/tasks/{task_id}/plan", get(handlers::plan_approval::get_task_plan))
+
+        // Organizations (Multi-Tenancy, v4.0)
+        .route("/api/organizations", get(handlers::organization::get_organizations))
+        .route("/api/organizations", post(handlers::organization::create_organization))
+        .route("/api/organizations/{id}", get(handlers::organization::get_organization))
+        .route("/api/organizations/{id}", put(handlers::organization::update_organization))
+        .route("/api/organizations/{id}", delete(handlers::organization::delete_organization))
+        .route("/api/organizations/{id}/users", get(handlers::organization::get_organization_users))
+        .route("/api/organizations/{id}/users", post(handlers::organization::add_organization_user))
+        .route("/api/organizations/{id}/users/{user_id}", delete(handlers::organization::remove_organization_user))
+        .route("/api/organizations/{id}/users/{user_id}/role", put(handlers::organization::update_organization_user_role))
+        .route("/api/organizations/{id}/quota/{quota_type}", get(handlers::organization::check_organization_quota))
+        .route("/api/organizations/{id}/branding", get(handlers::organization::get_organization_branding))
+        .route("/api/organizations/{id}/branding", put(handlers::organization::update_organization_branding))
+        .route("/api/user/organizations", get(handlers::organization::get_my_organizations))
+
+        // Deployment Environments (FI-GL-1 — GitLab Environments)
+        .route("/api/project/{project_id}/deploy-environments",
+            get(handlers::deployment_environment::list_deploy_environments)
+            .post(handlers::deployment_environment::create_deploy_environment))
+        .route("/api/project/{project_id}/deploy-environments/{id}",
+            get(handlers::deployment_environment::get_deploy_environment)
+            .put(handlers::deployment_environment::update_deploy_environment)
+            .delete(handlers::deployment_environment::delete_deploy_environment))
+        .route("/api/project/{project_id}/deploy-environments/{id}/history",
+            get(handlers::deployment_environment::get_deploy_history))
+
+        // Task Structured Outputs (FI-PUL-1 — Pulumi Outputs)
+        .route("/api/project/{project_id}/tasks/{task_id}/outputs",
+            get(handlers::task_structured_output::get_task_outputs)
+            .post(handlers::task_structured_output::create_task_output))
+        .route("/api/project/{project_id}/tasks/{task_id}/outputs/map",
+            get(handlers::task_structured_output::get_task_outputs_map))
+        .route("/api/project/{project_id}/tasks/{task_id}/outputs/batch",
+            post(handlers::task_structured_output::create_task_outputs_batch))
+        .route("/api/project/{project_id}/templates/{template_id}/last-outputs",
+            get(handlers::task_structured_output::get_template_last_outputs))
 }
 
 /// Создаёт маршруты для статических файлов

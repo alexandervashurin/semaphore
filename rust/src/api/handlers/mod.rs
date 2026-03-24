@@ -31,6 +31,9 @@ pub mod snapshot;
 pub mod cost_estimate;
 pub mod state_backend;
 pub mod plan_approval;
+pub mod organization;
+pub mod deployment_environment;
+pub mod task_structured_output;
 
 // Ре-экспорт всех handlers для удобства
 pub use auth::*;

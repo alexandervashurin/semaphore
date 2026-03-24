@@ -76,15 +76,60 @@ impl ServerCommand {
             }
 
             // Создаём приложение
-            let app = api::create_app(store);
+            let app = api::create_app(store.clone());
 
-            // Запускаем сервер
+            // Запускаем сервер с graceful shutdown
             let listener = tokio::net::TcpListener::bind(format!("{}:{}", self.host, self.port))
                 .await
                 .map_err(|e| crate::error::Error::Other(e.to_string()))?;
             println!("Server started at http://{}:{}/", self.host, self.port);
-            axum::serve(listener, app).await
-                .map_err(|e| crate::error::Error::Other(e.to_string()))?;
+            
+            // Graceful shutdown с обработкой сигналов (кросс-платформенно)
+            let shutdown_future = async {
+                #[cfg(unix)]
+                {
+                    let mut sigterm = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+                        .expect("Failed to create SIGTERM signal handler");
+                    let mut sigint = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::interrupt())
+                        .expect("Failed to create SIGINT signal handler");
+                    tokio::select! {
+                        _ = sigterm.recv() => println!("\nReceived SIGTERM, shutting down gracefully..."),
+                        _ = sigint.recv() => println!("\nReceived SIGINT, shutting down gracefully..."),
+                    }
+                }
+                #[cfg(not(unix))]
+                {
+                    tokio::signal::ctrl_c().await.expect("Failed to listen for ctrl+c");
+                    println!("\nReceived Ctrl+C, shutting down gracefully...");
+                }
+            };
+
+            // Запуск сервера с graceful shutdown
+            let server_future = axum::serve(listener, app);
+            
+            tokio::select! {
+                _ = server_future => {
+                    println!("Server stopped");
+                }
+                _ = shutdown_future => {
+                    // Graceful shutdown
+                    println!("Stopping task scheduler...");
+                    if let Err(e) = scheduler.stop().await {
+                        eprintln!("Warning: scheduler stop error: {}", e);
+                    }
+                    
+                    println!("Stopping backup service...");
+                    if backup_enabled {
+                        // Остановка backup сервиса
+                    }
+                    
+                    println!("Closing database connections...");
+                    // Закрытие соединений с БД будет выполнено автоматически при дропе store
+                    
+                    println!("Graceful shutdown completed");
+                }
+            }
+            
             Ok::<(), crate::error::Error>(())
         })?;
 

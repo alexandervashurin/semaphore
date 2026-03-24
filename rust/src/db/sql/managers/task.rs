@@ -187,5 +187,23 @@ impl TaskManager for SqlStore {
     async fn get_global_tasks(&self, status_filter: Option<Vec<String>>, limit: Option<i32>) -> Result<Vec<TaskWithTpl>> {
         self.db.get_global_tasks(status_filter, limit).await
     }
+
+    async fn get_running_tasks_count(&self) -> Result<usize> {
+        let pool = self.get_postgres_pool()?;
+        let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM task WHERE status = 'Running'")
+            .fetch_one(pool)
+            .await
+            .map_err(Error::Database)?;
+        Ok(count as usize)
+    }
+
+    async fn get_waiting_tasks_count(&self) -> Result<usize> {
+        let pool = self.get_postgres_pool()?;
+        let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM task WHERE status = 'WaitingConfirmation'")
+            .fetch_one(pool)
+            .await
+            .map_err(Error::Database)?;
+        Ok(count as usize)
+    }
 }
 

@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use crate::api::state::AppState;
 use crate::api::extractors::AuthUser;
 use crate::error::Error;
+use crate::db::store::{TaskManager, RunnerManager};
 use crate::api::middleware::ErrorResponse;
 use crate::db::store::{UserManager, LdapGroupMappingManager, ProjectStore};
 use crate::models::ProjectUser;
@@ -23,25 +24,25 @@ pub async fn health() -> &'static str {
 }
 
 /// Расширенная проверка здоровья сервиса
-/// 
+///
 /// GET /api/health/live
 pub async fn health_live(
     State(state): State<Arc<AppState>>,
 ) -> impl IntoResponse {
     use serde_json::json;
-    
+
     // Проверка подключения к БД
     let db_status = match state.store.ping().await {
         Ok(_) => "connected",
         Err(_) => "disconnected",
     };
-    
+
     let status = if db_status == "connected" {
         StatusCode::OK
     } else {
         StatusCode::SERVICE_UNAVAILABLE
     };
-    
+
     (
         status,
         Json(json!({
@@ -52,30 +53,92 @@ pub async fn health_live(
     )
 }
 
-/// Готовность сервиса к приёму запросов
-/// 
+/// Готовность сервиса к приёму запросов (Kubernetes readiness probe)
+///
 /// GET /api/health/ready
 pub async fn health_ready(
     State(state): State<Arc<AppState>>,
 ) -> impl IntoResponse {
     use serde_json::json;
-    
+
     // Проверка подключения к БД
     let db_ready = state.store.ping().await.is_ok();
-    
+
+    // Проверка количества подключённых runners (опционально)
+    let runners_count: usize = state.store.get_runners_count().await.unwrap_or(0);
+
     let status = if db_ready {
         StatusCode::OK
     } else {
         StatusCode::SERVICE_UNAVAILABLE
     };
-    
+
     (
         status,
         Json(json!({
             "ready": db_ready,
             "checks": {
                 "database": db_ready,
-            }
+                "runners_connected": runners_count,
+            },
+            "ha_mode": state.config.ha.enable,
+        }))
+    )
+}
+
+/// Расширенный health check для Kubernetes (liveness + readiness + metrics)
+///
+/// GET /api/health/full
+pub async fn health_full(
+    State(state): State<Arc<AppState>>,
+) -> impl IntoResponse {
+    use serde_json::json;
+    use std::time::Instant;
+
+    let start = Instant::now();
+
+    // Проверка БД с замером времени
+    let db_start = Instant::now();
+    let db_ready = state.store.ping().await.is_ok();
+    let db_latency_ms = db_start.elapsed().as_millis() as u32;
+
+    // Статистика runners
+    let runners_total: usize = state.store.get_runners_count().await.unwrap_or(0);
+    let runners_active: usize = state.store.get_active_runners_count().await.unwrap_or(0);
+
+    // Статистика задач
+    let running_tasks: usize = state.store.get_running_tasks_count().await.unwrap_or(0);
+    let waiting_tasks: usize = state.store.get_waiting_tasks_count().await.unwrap_or(0);
+
+    let all_healthy = db_ready;
+
+    let status = if all_healthy {
+        StatusCode::OK
+    } else {
+        StatusCode::SERVICE_UNAVAILABLE
+    };
+
+    (
+        status,
+        Json(json!({
+            "status": if status == StatusCode::OK { "healthy" } else { "unhealthy" },
+            "version": env!("CARGO_PKG_VERSION"),
+            "ha_mode": state.config.ha.enable,
+            "node_id": state.config.ha.node_id,
+            "checks": {
+                "database": {
+                    "ready": db_ready,
+                    "latency_ms": db_latency_ms,
+                },
+            },
+            "runners": {
+                "total": runners_total,
+                "active": runners_active,
+            },
+            "tasks": {
+                "running": running_tasks,
+                "waiting": waiting_tasks,
+            },
         }))
     )
 }

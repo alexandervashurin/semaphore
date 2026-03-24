@@ -339,6 +339,14 @@ impl TaskManager for StoreWrapper {
     async fn get_global_tasks(&self, status_filter: Option<Vec<String>>, limit: Option<i32>) -> Result<Vec<TaskWithTpl>> {
         self.inner.as_ref().get_global_tasks(status_filter, limit).await
     }
+
+    async fn get_running_tasks_count(&self) -> Result<usize> {
+        self.inner.as_ref().get_running_tasks_count().await
+    }
+
+    async fn get_waiting_tasks_count(&self) -> Result<usize> {
+        self.inner.as_ref().get_waiting_tasks_count().await
+    }
 }
 
 #[async_trait]
@@ -453,6 +461,14 @@ impl RunnerManager for StoreWrapper {
 
     async fn delete_runner(&self, runner_id: i32) -> Result<()> {
         self.inner.as_ref().delete_runner(runner_id).await
+    }
+
+    async fn get_runners_count(&self) -> Result<usize> {
+        self.inner.as_ref().get_runners_count().await
+    }
+
+    async fn get_active_runners_count(&self) -> Result<usize> {
+        self.inner.as_ref().get_active_runners_count().await
     }
 }
 
@@ -1037,6 +1053,93 @@ impl crate::db::store::PlanApprovalManager for StoreWrapper {
     }
     async fn update_plan_output(&self, task_id: i32, output: String, json: Option<String>, added: i32, changed: i32, removed: i32) -> crate::error::Result<()> {
         self.inner.as_ref().update_plan_output(task_id, output, json, added, changed, removed).await
+    }
+}
+
+#[async_trait]
+impl crate::db::store::OrganizationManager for StoreWrapper {
+    async fn get_organizations(&self) -> crate::error::Result<Vec<crate::models::Organization>> {
+        self.inner.as_ref().get_organizations().await
+    }
+    async fn get_organization(&self, id: i32) -> crate::error::Result<crate::models::Organization> {
+        self.inner.as_ref().get_organization(id).await
+    }
+    async fn get_organization_by_slug(&self, slug: &str) -> crate::error::Result<crate::models::Organization> {
+        self.inner.as_ref().get_organization_by_slug(slug).await
+    }
+    async fn create_organization(&self, payload: crate::models::OrganizationCreate) -> crate::error::Result<crate::models::Organization> {
+        self.inner.as_ref().create_organization(payload).await
+    }
+    async fn update_organization(&self, id: i32, payload: crate::models::OrganizationUpdate) -> crate::error::Result<crate::models::Organization> {
+        self.inner.as_ref().update_organization(id, payload).await
+    }
+    async fn delete_organization(&self, id: i32) -> crate::error::Result<()> {
+        self.inner.as_ref().delete_organization(id).await
+    }
+    async fn get_organization_users(&self, org_id: i32) -> crate::error::Result<Vec<crate::models::OrganizationUser>> {
+        self.inner.as_ref().get_organization_users(org_id).await
+    }
+    async fn add_user_to_organization(&self, payload: crate::models::OrganizationUserCreate) -> crate::error::Result<crate::models::OrganizationUser> {
+        self.inner.as_ref().add_user_to_organization(payload).await
+    }
+    async fn remove_user_from_organization(&self, org_id: i32, user_id: i32) -> crate::error::Result<()> {
+        self.inner.as_ref().remove_user_from_organization(org_id, user_id).await
+    }
+    async fn update_user_organization_role(&self, org_id: i32, user_id: i32, role: &str) -> crate::error::Result<()> {
+        self.inner.as_ref().update_user_organization_role(org_id, user_id, role).await
+    }
+    async fn get_user_organizations(&self, user_id: i32) -> crate::error::Result<Vec<crate::models::Organization>> {
+        self.inner.as_ref().get_user_organizations(user_id).await
+    }
+    async fn check_organization_quota(&self, org_id: i32, quota_type: &str) -> crate::error::Result<bool> {
+        self.inner.as_ref().check_organization_quota(org_id, quota_type).await
+    }
+}
+
+#[async_trait]
+impl crate::db::store::DeploymentEnvironmentManager for StoreWrapper {
+    async fn get_deployment_environments(&self, project_id: i32) -> Result<Vec<crate::models::DeploymentEnvironment>> {
+        self.inner.as_ref().get_deployment_environments(project_id).await
+    }
+    async fn get_deployment_environment(&self, id: i32, project_id: i32) -> Result<crate::models::DeploymentEnvironment> {
+        self.inner.as_ref().get_deployment_environment(id, project_id).await
+    }
+    async fn create_deployment_environment(&self, project_id: i32, payload: crate::models::DeploymentEnvironmentCreate) -> Result<crate::models::DeploymentEnvironment> {
+        self.inner.as_ref().create_deployment_environment(project_id, payload).await
+    }
+    async fn update_deployment_environment(&self, id: i32, project_id: i32, payload: crate::models::DeploymentEnvironmentUpdate) -> Result<crate::models::DeploymentEnvironment> {
+        self.inner.as_ref().update_deployment_environment(id, project_id, payload).await
+    }
+    async fn delete_deployment_environment(&self, id: i32, project_id: i32) -> Result<()> {
+        self.inner.as_ref().delete_deployment_environment(id, project_id).await
+    }
+    async fn get_deployment_history(&self, env_id: i32, project_id: i32) -> Result<Vec<crate::models::DeploymentRecord>> {
+        self.inner.as_ref().get_deployment_history(env_id, project_id).await
+    }
+    async fn record_deployment(&self, env_id: i32, task_id: i32, project_id: i32, version: Option<String>, deployed_by: Option<i32>, status: &str) -> Result<()> {
+        self.inner.as_ref().record_deployment(env_id, task_id, project_id, version, deployed_by, status).await
+    }
+}
+
+#[async_trait]
+impl crate::db::store::StructuredOutputManager for StoreWrapper {
+    async fn get_task_structured_outputs(&self, task_id: i32, project_id: i32) -> Result<Vec<crate::models::TaskStructuredOutput>> {
+        self.inner.as_ref().get_task_structured_outputs(task_id, project_id).await
+    }
+    async fn get_task_outputs_map(&self, task_id: i32, project_id: i32) -> Result<crate::models::TaskOutputsMap> {
+        self.inner.as_ref().get_task_outputs_map(task_id, project_id).await
+    }
+    async fn create_task_structured_output(&self, task_id: i32, project_id: i32, payload: crate::models::TaskStructuredOutputCreate) -> Result<crate::models::TaskStructuredOutput> {
+        self.inner.as_ref().create_task_structured_output(task_id, project_id, payload).await
+    }
+    async fn create_task_structured_outputs_batch(&self, task_id: i32, project_id: i32, outputs: Vec<crate::models::TaskStructuredOutputCreate>) -> Result<()> {
+        self.inner.as_ref().create_task_structured_outputs_batch(task_id, project_id, outputs).await
+    }
+    async fn delete_task_structured_outputs(&self, task_id: i32, project_id: i32) -> Result<()> {
+        self.inner.as_ref().delete_task_structured_outputs(task_id, project_id).await
+    }
+    async fn get_template_last_outputs(&self, template_id: i32, project_id: i32) -> Result<crate::models::TaskOutputsMap> {
+        self.inner.as_ref().get_template_last_outputs(template_id, project_id).await
     }
 }
 

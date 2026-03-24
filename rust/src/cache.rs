@@ -113,17 +113,17 @@ impl RedisCache {
                 Ok(conn) => {
                     self.client = Some(client);
                     *self.connection.write().await = Some(conn);
-                    
+
                     let mut stats = self.stats.write().await;
                     stats.connections = 1;
-                    
+
                     info!("Successfully connected to Redis");
                     return Ok(());
                 }
                 Err(e) => {
                     warn!("Redis connection attempt {} failed: {}", attempt, e);
                     last_error = Some(e);
-                    
+
                     if attempt < self.config.max_retries {
                         tokio::time::sleep(Duration::from_secs(1)).await;
                     }
@@ -135,8 +135,17 @@ impl RedisCache {
         if let Some(e) = last_error {
             error!("{}: {}", err_msg, e);
         }
-        
+
         Err(Error::Other(err_msg))
+    }
+
+    /// Синхронная инициализация (для использования при старте приложения)
+    pub fn initialize_sync(mut self) -> Result<Self> {
+        let runtime = tokio::runtime::Runtime::new()
+            .map_err(|e| Error::Other(format!("Failed to create tokio runtime: {}", e)))?;
+        
+        runtime.block_on(self.initialize())?;
+        Ok(self)
     }
 
     /// Проверяет доступность Redis

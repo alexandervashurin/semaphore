@@ -48,6 +48,7 @@ pub mod access_key;
 pub mod schedule;
 pub mod session;
 pub mod token;
+pub mod organization;
 pub mod event;
 pub mod hook;
 pub mod runner;
@@ -68,6 +69,8 @@ pub mod snapshot;
 pub mod cost_estimate;
 pub mod state_backend;
 pub mod plan_approval;
+pub mod deployment_environment;
+pub mod task_structured_output;
 
 // Ре-экспорт трейтов для удобства
 pub use connection::*;

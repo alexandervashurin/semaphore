@@ -29,6 +29,12 @@ impl SqlDb {
     }
 }
 
+impl Default for SqlDb {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Конфигурация подключения к БД
 #[derive(Debug, Clone)]
 pub struct DbConnectionConfig {
@@ -132,6 +138,12 @@ impl SqlTransaction {
                 .map_err(crate::error::Error::Database)?;
         }
         Ok(())
+    }
+}
+
+impl Default for SqlTransaction {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

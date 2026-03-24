@@ -7,7 +7,6 @@ pub mod auto_backup;
 pub mod backup;
 pub mod cache_service;
 pub mod exporter;
-pub mod exporter_entities;
 pub mod exporter_main;
 pub mod executor;
 pub mod git_repository;

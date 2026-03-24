@@ -156,8 +156,7 @@ impl SqlDb {
     /// Создаёт новую задачу
     pub async fn create_task(&self, mut task: Task) -> Result<Task> {
         let params_json = task.params.as_ref()
-            .map(|p| serde_json::to_string(p).ok())
-            .flatten();
+            .and_then(|p| serde_json::to_string(p).ok());
 
         let id: i32 = sqlx::query_scalar(
             "INSERT INTO task (project_id, template_id, status, message, commit_hash, commit_message,

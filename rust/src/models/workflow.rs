@@ -39,6 +39,10 @@ pub struct WorkflowNode {
     pub name: String,
     pub pos_x: f64,
     pub pos_y: f64,
+    /// Sync Wave (Argo CD): узлы одной волны выполняются параллельно.
+    /// Волны выполняются по возрастанию: 0, 1, 2, ...
+    #[serde(default)]
+    pub wave: i32,
 }
 
 /// Данные для создания узла
@@ -48,6 +52,8 @@ pub struct WorkflowNodeCreate {
     pub name: String,
     pub pos_x: f64,
     pub pos_y: f64,
+    #[serde(default)]
+    pub wave: i32,
 }
 
 /// Данные для обновления узла
@@ -56,6 +62,8 @@ pub struct WorkflowNodeUpdate {
     pub name: String,
     pub pos_x: f64,
     pub pos_y: f64,
+    #[serde(default)]
+    pub wave: i32,
 }
 
 /// Условие перехода по ребру DAG

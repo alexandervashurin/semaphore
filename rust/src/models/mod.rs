@@ -48,6 +48,7 @@ pub mod drift;
 pub mod ldap_group;
 pub mod snapshot;
 pub mod cost_estimate;
+pub mod organization;
 
 #[cfg(test)]
 mod tests;
@@ -78,30 +79,48 @@ pub use view::View;
 pub use role::Role;
 pub use project_invite::{ProjectInvite, ProjectInviteWithUser};
 pub use object_referrers::ObjectReferrers;
-pub use crate::services::access_key_installation_service::GetAccessKeyOptions;
-pub use option::OptionItem;
 pub use secret_storage::{SecretStorage, SecretStorageType};
 pub use hook::{Hook, HookType};
-pub use terraform_inventory::{TerraformInventoryAlias, TerraformInventoryState, Alias as TerraformAlias};
-pub use alias::Alias;
-pub use ansible::{AnsiblePlaybook, AnsibleGalaxyRequirements, GalaxyRequirement};
+pub use terraform_inventory::{TerraformInventoryAlias, TerraformInventoryState, Alias};
 pub use backup_entity::BackupEntity;
 pub use export_entity_type::ExportEntityType;
 pub use migration::Migration;
 pub use project_stats::ProjectStats;
 pub use project_user::ProjectUser;
-pub use task_params::{AnsibleTaskParams as AnsibleTaskParamsStruct, TerraformTaskParams as TerraformTaskParamsStruct, DefaultTaskParams as DefaultTaskParamsStruct};
 pub use audit_log::{AuditLog, AuditAction, AuditObjectType, AuditLevel, AuditDetails, AuditLogFilter, AuditLogResult};
 pub use webhook::{Webhook, WebhookType, CreateWebhook, UpdateWebhook, TestWebhook, WebhookLog};
-pub use analytics::{TaskStats, UserActivity, PerformanceMetrics, ResourceUsage, ChartData, TimeSeries, SystemStatus, TopItem, TopSlowTask, TopUser, AnalyticsQueryParams, ProjectAnalytics, RunnerMetrics, SystemMetrics};
-pub use credential_type::{CredentialType, CredentialTypeCreate, CredentialTypeUpdate, CredentialInstance, CredentialInstanceCreate, CredentialField, CredentialInjector};
+pub use drift::{DriftConfig, DriftConfigCreate};
 pub use ldap_group::{LdapGroupMapping, LdapGroupMappingCreate};
-pub use snapshot::{TaskSnapshot, TaskSnapshotCreate, RollbackRequest};
+pub use ansible::{AnsiblePlaybook, AnsibleGalaxyRequirements, GalaxyRequirement};
+pub use task_params::{AnsibleTaskParams as AnsibleTaskParamsStruct, TerraformTaskParams as TerraformTaskParamsStruct, DefaultTaskParams as DefaultTaskParamsStruct};
+pub use analytics::{TaskStats, UserActivity, PerformanceMetrics, ResourceUsage, ChartData, TimeSeries, SystemStatus, TopItem, TopSlowTask, TopUser, AnalyticsQueryParams, ProjectAnalytics, RunnerMetrics, SystemMetrics};
+
+// Organization (Multi-Tenancy)
+pub use organization::{Organization, OrganizationCreate, OrganizationUpdate, OrganizationUser, OrganizationUserCreate};
+
+// Cost Estimate
 pub use cost_estimate::{CostEstimate, CostEstimateCreate, CostSummary};
+
+// Option
+pub use option::OptionItem;
+
+// Terraform State и Plan Approval
 pub mod terraform_state;
 pub use terraform_state::{TerraformState, TerraformStateSummary, TerraformStateLock, LockInfo, StateDiff, StateDiffResource};
 pub mod plan_approval;
 pub use plan_approval::{TerraformPlan, PlanReviewPayload, PlanStatus};
+
+pub mod deployment_environment;
+pub use deployment_environment::{
+    DeploymentEnvironment, DeploymentEnvironmentCreate, DeploymentEnvironmentUpdate,
+    DeploymentRecord,
+};
+
+pub mod task_structured_output;
+pub use task_structured_output::{
+    TaskStructuredOutput, TaskStructuredOutputCreate,
+    TaskStructuredOutputBatch, TaskOutputsMap,
+};
 
 // Ре-экспорт RetrieveQueryParams из db::store
 pub use crate::db::store::RetrieveQueryParams;

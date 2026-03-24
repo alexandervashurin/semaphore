@@ -31,7 +31,10 @@ pub async fn list_cost_estimates(
     let limit = q.limit.unwrap_or(100).min(500);
     match store.get_cost_estimates(project_id, limit).await {
         Ok(list) => (StatusCode::OK, Json(json!(list))).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => {
+            let e: crate::error::Error = e;
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response()
+        }
     }
 }
 
@@ -45,7 +48,10 @@ pub async fn cost_summary(
     let store = state.store.store();
     match store.get_cost_summaries(project_id).await {
         Ok(list) => (StatusCode::OK, Json(json!(list))).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => {
+            let e: crate::error::Error = e;
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response()
+        }
     }
 }
 
@@ -60,7 +66,10 @@ pub async fn get_task_cost(
     match store.get_cost_estimate_for_task(project_id, task_id).await {
         Ok(Some(cost)) => (StatusCode::OK, Json(json!(cost))).into_response(),
         Ok(None) => (StatusCode::NOT_FOUND, Json(json!({"error": "No cost estimate for this task"}))).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => {
+            let e: crate::error::Error = e;
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response()
+        }
     }
 }
 
@@ -97,6 +106,9 @@ pub async fn create_task_cost(
 
     match store.create_cost_estimate(payload).await {
         Ok(cost) => (StatusCode::CREATED, Json(json!(cost))).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => {
+            let e: crate::error::Error = e;
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response()
+        }
     }
 }

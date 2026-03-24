@@ -287,6 +287,34 @@ impl Default for HARedisConfig {
     }
 }
 
+impl HAConfig {
+    /// Создаёт Redis URL для подключения
+    pub fn redis_url(&self) -> String {
+        if self.redis.password.is_empty() {
+            format!("redis://{}:{}/0", self.redis.host, self.redis.port)
+        } else {
+            format!("redis://:{}@{}:{}/0", self.redis.password, self.redis.host, self.redis.port)
+        }
+    }
+
+    /// Генерирует случайный Node ID
+    pub fn generate_node_id(&mut self) {
+        use rand::RngCore;
+        let mut rng = rand::thread_rng();
+        let mut bytes = [0u8; 16];
+        rng.fill_bytes(&mut bytes);
+        self.node_id = bytes.iter().map(|b| format!("{:02x}", b)).collect::<String>();
+    }
+
+    /// Получает Node ID или генерирует новый
+    pub fn get_node_id(&mut self) -> &str {
+        if self.node_id.is_empty() {
+            self.generate_node_id();
+        }
+        &self.node_id
+    }
+}
+
 
 /// Основная структура конфигурации
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]

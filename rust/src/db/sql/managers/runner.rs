@@ -100,4 +100,22 @@ impl RunnerManager for SqlStore {
             .map_err(Error::Database)?;
         Ok(())
     }
+
+    async fn get_runners_count(&self) -> Result<usize> {
+        let pool = self.get_postgres_pool()?;
+        let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM runner")
+            .fetch_one(pool)
+            .await
+            .map_err(Error::Database)?;
+        Ok(count as usize)
+    }
+
+    async fn get_active_runners_count(&self) -> Result<usize> {
+        let pool = self.get_postgres_pool()?;
+        let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM runner WHERE active = true")
+            .fetch_one(pool)
+            .await
+            .map_err(Error::Database)?;
+        Ok(count as usize)
+    }
 }
