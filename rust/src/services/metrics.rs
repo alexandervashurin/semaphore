@@ -127,6 +127,76 @@ lazy_static! {
         "semaphore_system_healthy",
         "Статус здоровья системы"
     ).unwrap();
+
+    // ========================================================================
+    // Multi-Tenancy Metrics (v4.0)
+    // ========================================================================
+
+    /// Количество организаций
+    pub static ref ORGANIZATIONS_TOTAL: Gauge = register_gauge!(
+        "semaphore_organizations_total",
+        "Общее количество организаций"
+    ).unwrap();
+
+    /// Количество пользователей в организациях
+    pub static ref ORGANIZATION_USERS_TOTAL: Gauge = register_gauge!(
+        "semaphore_organization_users_total",
+        "Общее количество пользователей в организациях"
+    ).unwrap();
+
+    /// Количество проектов в организациях
+    pub static ref ORGANIZATION_PROJECTS_TOTAL: Gauge = register_gauge!(
+        "semaphore_organization_projects_total",
+        "Общее количество проектов в организациях"
+    ).unwrap();
+
+    // ========================================================================
+    // Audit Log Metrics (v4.0)
+    // ========================================================================
+
+    /// Счётчик audit записей
+    pub static ref AUDIT_LOG_TOTAL: Counter = register_counter!(
+        "semaphore_audit_log_events_total",
+        "Общее количество audit записей"
+    ).unwrap();
+
+    /// Audit записей по уровням
+    pub static ref AUDIT_LOG_BY_LEVEL: prometheus::CounterVec = prometheus::register_counter_vec!(
+        "semaphore_audit_log_events_by_level",
+        "Количество audit записей по уровням",
+        &["level"]
+    ).unwrap();
+
+    /// Audit записей по действиям
+    pub static ref AUDIT_LOG_BY_ACTION: prometheus::CounterVec = prometheus::register_counter_vec!(
+        "semaphore_audit_log_events_by_action",
+        "Количество audit записей по действиям",
+        &["action"]
+    ).unwrap();
+
+    // ========================================================================
+    // HTTP Request Metrics
+    // ========================================================================
+
+    /// Счётчик HTTP запросов
+    pub static ref HTTP_REQUESTS_TOTAL: prometheus::CounterVec = prometheus::register_counter_vec!(
+        "semaphore_http_requests_total",
+        "Общее количество HTTP запросов",
+        &["method", "endpoint", "status"]
+    ).unwrap();
+
+    /// Гистограмма длительности HTTP запросов
+    pub static ref HTTP_REQUEST_DURATION: Histogram = register_histogram!(
+        "semaphore_http_request_duration_seconds",
+        "Длительность HTTP запросов в секундах",
+        vec![0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
+    ).unwrap();
+
+    /// Количество активных сессий
+    pub static ref ACTIVE_SESSIONS: Gauge = register_gauge!(
+        "semaphore_active_sessions",
+        "Количество активных сессий"
+    ).unwrap();
 }
 
 /// Менеджер метрик
@@ -188,6 +258,18 @@ impl MetricsManager {
         lazy_static::initialize(&MEMORY_USAGE);
         lazy_static::initialize(&UPTIME);
         lazy_static::initialize(&SYSTEM_HEALTHY);
+        // Multi-Tenancy metrics
+        lazy_static::initialize(&ORGANIZATIONS_TOTAL);
+        lazy_static::initialize(&ORGANIZATION_USERS_TOTAL);
+        lazy_static::initialize(&ORGANIZATION_PROJECTS_TOTAL);
+        // Audit Log metrics
+        lazy_static::initialize(&AUDIT_LOG_TOTAL);
+        lazy_static::initialize(&AUDIT_LOG_BY_LEVEL);
+        lazy_static::initialize(&AUDIT_LOG_BY_ACTION);
+        // HTTP metrics
+        lazy_static::initialize(&HTTP_REQUESTS_TOTAL);
+        lazy_static::initialize(&HTTP_REQUEST_DURATION);
+        lazy_static::initialize(&ACTIVE_SESSIONS);
         Self {
             start_time: std::time::Instant::now(),
             task_counters: Arc::new(RwLock::new(TaskCounters::default())),
@@ -265,32 +347,88 @@ impl MetricsManager {
     pub fn update_templates(&self, count: i64) {
         TEMPLATES_TOTAL.set(count as f64);
     }
-    
+
     /// Обновляет количество инвентарей
     pub fn update_inventories(&self, count: i64) {
         INVENTORIES_TOTAL.set(count as f64);
     }
-    
+
     /// Обновляет количество репозиториев
     pub fn update_repositories(&self, count: i64) {
         REPOSITORIES_TOTAL.set(count as f64);
     }
-    
+
     /// Обновляет использование CPU
-    pub fn update_cpu_usage(&self, percent: f64) {
-        CPU_USAGE.set(percent);
+    pub fn update_cpu_usage(&self, usage: f64) {
+        CPU_USAGE.set(usage);
     }
-    
+
     /// Обновляет использование памяти
-    pub fn update_memory_usage(&self, mb: f64) {
-        MEMORY_USAGE.set(mb);
+    pub fn update_memory_usage(&self, usage_mb: f64) {
+        MEMORY_USAGE.set(usage_mb);
     }
-    
+
     /// Обновляет статус здоровья
     pub fn update_health(&self, healthy: bool) {
         SYSTEM_HEALTHY.set(if healthy { 1.0 } else { 0.0 });
     }
-    
+
+    // ========================================================================
+    // Multi-Tenancy Metrics
+    // ========================================================================
+
+    /// Обновляет количество организаций
+    pub fn update_organizations(&self, count: i64) {
+        ORGANIZATIONS_TOTAL.set(count as f64);
+    }
+
+    /// Обновляет количество пользователей в организациях
+    pub fn update_organization_users(&self, count: i64) {
+        ORGANIZATION_USERS_TOTAL.set(count as f64);
+    }
+
+    /// Обновляет количество проектов в организациях
+    pub fn update_organization_projects(&self, count: i64) {
+        ORGANIZATION_PROJECTS_TOTAL.set(count as f64);
+    }
+
+    // ========================================================================
+    // Audit Log Metrics
+    // ========================================================================
+
+    /// Отмечает audit событие
+    pub fn audit_event(&self, level: &str, action: &str) {
+        AUDIT_LOG_TOTAL.inc();
+        AUDIT_LOG_BY_LEVEL
+            .with_label_values(&[level])
+            .inc();
+        AUDIT_LOG_BY_ACTION
+            .with_label_values(&[action])
+            .inc();
+    }
+
+    // ========================================================================
+    // HTTP Request Metrics
+    // ========================================================================
+
+    /// Отмечает HTTP запрос
+    pub fn http_request(&self, method: &str, endpoint: &str, status: u16, duration_secs: f64) {
+        HTTP_REQUESTS_TOTAL
+            .with_label_values(&[method, endpoint, &status.to_string()])
+            .inc();
+        HTTP_REQUEST_DURATION.observe(duration_secs);
+    }
+
+    /// Обновляет количество активных сессий
+    pub fn update_active_sessions(&self, count: i64) {
+        ACTIVE_SESSIONS.set(count as f64);
+    }
+
+    /// Получает счётчики задач
+    pub async fn get_task_counters(&self) -> TaskCounters {
+        self.task_counters.read().await.clone()
+    }
+
     /// Инкремент счётчика задач проекта
     pub async fn inc_project_task(&self, project_id: i64, success: bool) {
         let mut counters = self.task_counters.write().await;
@@ -302,7 +440,7 @@ impl MetricsManager {
             project_counters.failed += 1;
         }
     }
-    
+
     /// Инкремент счётчика задач шаблона
     pub async fn inc_template_task(&self, template_id: i64, success: bool) {
         let mut counters = self.task_counters.write().await;
@@ -314,7 +452,7 @@ impl MetricsManager {
             template_counters.failed += 1;
         }
     }
-    
+
     /// Инкремент счётчика задач пользователя
     pub async fn inc_user_task(&self, user_id: i64, success: bool) {
         let mut counters = self.task_counters.write().await;
@@ -325,11 +463,6 @@ impl MetricsManager {
         } else {
             user_counters.failed += 1;
         }
-    }
-    
-    /// Получает счётчики задач
-    pub async fn get_task_counters(&self) -> TaskCounters {
-        self.task_counters.read().await.clone()
     }
 }
 
