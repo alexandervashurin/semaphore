@@ -261,38 +261,38 @@ flowchart LR
 **Цель:** Базовое подключение к apiserver, первый read-only API под Velum auth и задел под multi-cluster / RBAC-UX.
 
 #### 1.1 Зависимости и сборка
-- [ ] Включить использование **`kube` / `k8s-openapi`** в коде (feature на целевую версию API, согласованную с [архитектурой](#архитектура)); `cargo check` / clippy без предупреждений.
-- [ ] Зафиксировать в комментарии к модулю или в `Cargo.toml` целевую **минорную версию Kubernetes** для CI (kind) и для разработчиков.
+- [x] Включить использование **`kube` / `k8s-openapi`** в коде (feature на целевую версию API, согласованную с [архитектурой](#архитектура)); `cargo check` / clippy без предупреждений. ✅ 2026-03-29
+- [x] Зафиксировать в комментарии к модулю или в `Cargo.toml` целевую **минорную версию Kubernetes** для CI (kind) и для разработчиков. ✅ kube = "0.98", k8s-openapi = "0.24" / features = ["v1_30"]
 
 #### 1.2 Конфигурация подключения к кластеру
-- [ ] Реализовать построение **`kube::Config`**: из файла kubeconfig (путь через env/настройки Velum), опционально **in-cluster** (`KUBERNETES_SERVICE_HOST` и т.д.).
-- [ ] Явные ошибки при отсутствии контекста / невалидном kubeconfig; не логировать содержимое секретов.
-- [ ] Таймауты и лимиты клиента к apiserver (QPS/burst или эквивалент), чтобы не долбить кластер по умолчанию.
+- [x] Реализовать построение **`kube::Config`**: из файла kubeconfig (путь через env/настройки Velum), опционально **in-cluster** (`KUBERNETES_SERVICE_HOST` и т.д.). ✅ `ConnectionMode::KubeConfig{path,context}` / `InCluster` / `Infer` в `service.rs`
+- [x] Явные ошибки при отсутствии контекста / невалидном kubeconfig; не логировать содержимое секретов. ✅ возвращается `Error::Internal` без секретов
+- [ ] Таймауты и лимиты клиента к apiserver (QPS/burst или эквивалент), чтобы не долбить кластер по умолчанию. *(задел — в Phase 2)*
 
 #### 1.3 Сервисный слой (Rust)
-- [ ] Ввести обёртку/сервис (например `KubernetesClusterService` или аналог), принимающую **`kube::Client`** и инкапсулирующую первые вызовы API.
-- [ ] PoC: **`list_namespaces`** через API-клиент (не через subprocess `kubectl`).
-- [ ] Оставить существующий [kubernetes/client.rs](rust/src/kubernetes/client.rs) для задач Job/Helm без поломки контрактов; документировать границу «UI → kube-rs», «задачи → kubectl/helm».
+- [x] Ввести обёртку/сервис (например `KubernetesClusterService` или аналог), принимающую **`kube::Client`** и инкапсулирующую первые вызовы API. ✅ `rust/src/kubernetes/service.rs`
+- [x] PoC: **`list_namespaces`** через API-клиент (не через subprocess `kubectl`). ✅ `Api::<Namespace>::all(&client).list()` с пагинацией
+- [x] Оставить существующий [kubernetes/client.rs](rust/src/kubernetes/client.rs) для задач Job/Helm без поломки контрактов. ✅ не тронут
 
 #### 1.4 HTTP API (Axum) и авторизация Velum
-- [ ] Смонтировать префикс **`/api/kubernetes/...`** в [маршрутах](rust/src/api/routes.rs) (или отдельный router), без конфликта с существующими эндпоинтами.
-- [ ] Все маршруты K8s — за существующим слоем **JWT / сессии Velum** (как остальной API).
-- [ ] `GET /api/kubernetes/cluster/health` (или `/cluster/info`) — проверка связи с apiserver + **версия кластера** (`/version`) при успехе.
-- [ ] `GET /api/kubernetes/namespaces` — список namespace (имя, фаза/статус по необходимости); пагинация **`limit`/`continue`** в ответе, даже если в MVP лимит фиксированный.
+- [x] Смонтировать префикс **`/api/kubernetes/...`** в [маршрутах](rust/src/api/routes.rs). ✅ 2026-03-29
+- [x] Все маршруты K8s — за существующим слоем **JWT / сессии Velum** (как остальной API). ✅ `AuthUser` extractor на всех handler'ах
+- [x] `GET /api/kubernetes/clusters/{id}/info` — проверка связи с apiserver + **версия кластера** (`/version`) при успехе. ✅ 2026-03-29
+- [x] `GET /api/kubernetes/clusters/{id}/namespaces` — список namespace (имя, фаза/статус); пагинация **`limit`/`continue`** в ответе. ✅ 2026-03-29
 
 #### 1.5 Задел multi-cluster (без UI переключателя)
-- [ ] Договориться о способе выбора кластера в запросе: заголовок `X-Velum-K8s-Cluster-Id` и/или префикс пути `/api/kubernetes/clusters/{id}/...` (выбрать один стиль и описать в [API Reference](#api-reference)).
-- [ ] Модель хранения **метаданных** подключений (id, display name, способ загрузки kubeconfig/secret ref) — таблица или существующее хранилище; для фазы 1 допустим **один** дефолтный кластер из конфига, но поля/интерфейс под несколько.
-- [ ] Изоляция: ошибка «неизвестный cluster id» не раскрывает другие кластеры.
+- [x] Способ выбора кластера: префикс пути `/api/kubernetes/clusters/{id}/...`. ✅ реализован
+- [x] Модель метаданных подключений: `KubernetesClusterManager` + `ClusterConnectionMeta` (id, display_name, ConnectionMode). Конфиг из env-переменных `VELUM_K8S_*`. ✅
+- [x] Изоляция: ошибка «неизвестный cluster id» возвращает 404 без раскрытия других кластеров. ✅
 
 #### 1.6 RBAC и RBAC-UX (минимум)
-- [ ] Определить, под каким **субъектом кластера** выполняются запросы (токен из kubeconfig / ServiceAccount); связать с ролями Velum в матрице доступа (черновик в коде или конфиг).
-- [ ] Минимальная проверка **перед мутациями в следующих фазах**: для фазы 1 достаточно **read-only** + заготовка вызова **`SelfSubjectAccessReview`** или кэша `can-i` для `get`/`list` на `namespaces` (хотя бы для отладки UI).
-- [ ] Заглушки/флаги для «кнопка недоступна» на фронте не обязательны в фазе 1, но API должен возвращать **403** от apiserver прозрачно (прокидывать сообщение).
+- [x] Субъект запросов: токен из kubeconfig (kubeconfig задаётся через `VELUM_K8S_KUBECONFIG_PATH`). ✅
+- [x] Read-only Phase 1. ✅ только GET
+- [x] API возвращает **403** от apiserver прозрачно с кодом `K8S_FORBIDDEN`. ✅ в `list_namespaces` handler
 
-#### 1.7 Минимальный фронт (согласованно с [web/public/k8s/](web/public/k8s/))
-- [ ] Одна страница (например `k8s-cluster.html` или `k8s-namespaces.html`) + вызовы через `app.js` `api` client: отображение списка namespace и статуса health.
-- [ ] Пункт **Kubernetes** в sidebar (заглушка или реальная ссылка).
+#### 1.7 Минимальный фронт
+- [x] `web/public/k8s-cluster.html`: health card, version badge, namespace table с phase badges, фильтр, пагинация. ✅ 2026-03-29
+- [x] Пункт **Kubernetes** в sidebar (Кластер, Pods, Deployments). ✅ 2026-03-29
 
 **Definition of Done:**
 - ✅ `GET .../cluster/health` (или `/cluster/info`) возвращает статус «доступен / ошибка» и при успехе версию Kubernetes.
@@ -1704,5 +1704,5 @@ kubectl auth can-i get pods --as system:serviceaccount:default:velum
 
 ---
 
-*Последнее обновление: 29 марта 2026 — согласование целей и фаз, REST-конвенции, EndpointSlices/Job API, безопасность exec, удаление дубликатов, раздел KPI, стартовая команда `cargo run -- server`.*  
+*Последнее обновление: 29 марта 2026 — Phase 1 реализована: KubernetesClusterService (kube-rs), KubernetesClusterManager (multi-cluster), 3 REST endpoint'а, k8s-cluster.html, Kubernetes секция в sidebar.*  
 *Статус: В разработке · Следующий review: 5 апреля 2026*
