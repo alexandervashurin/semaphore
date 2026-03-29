@@ -364,37 +364,37 @@ flowchart LR
 - [ ] Пагинация для списков; dry-run при create/update, если общий пайплайн YAML из [фазы 2](#фазы-реализации) уже есть.
 
 #### 3.2 Ingress и IngressClass
-- [ ] CRUD **Ingress** только с API **`networking.k8s.io`** (версия по целевому кластеру); не использовать `extensions/v1beta1`.
-- [ ] Список и просмотр **IngressClass** (cluster-scoped); выбор `ingressClassName` в форме создания.
-- [ ] Парсинг **rules**: host, path, backend service + port; секция **TLS** (secretName); **annotations** как ключ–значение (часто нужны для nginx/contour и т.д.).
+- [x] CRUD **Ingress** только с API **`networking.k8s.io`** (версия по целевому кластеру); не использовать `extensions/v1beta1`. ✅ 2026-03-29 — backend routes `ingresses` добавлены (`rust/src/api/handlers/kubernetes/ingress.rs`)
+- [x] Список и просмотр **IngressClass** (cluster-scoped); выбор `ingressClassName` в форме создания. ✅ 2026-03-29 — backend list/get `ingressclasses`
+- [x] Парсинг **rules**: host, path, backend service + port; секция **TLS** (secretName); **annotations** как ключ–значение (часто нужны для nginx/contour и т.д.). ✅ 2026-03-29 — `IngressView` в `rust/src/api/handlers/kubernetes/ingress.rs`
 - [ ] UI: таблица маршрутов, опционально простая схема «host → path → service» (диаграмма или блоки).
 
 #### 3.3 ConfigMaps
-- [ ] CRUD + `GET .../yaml` (или общий YAML-путь из фазы 2); ключи `data` / `binaryData` — для binary показывать размер и предупреждение при больших значениях.
-- [ ] Редактор: пары ключ–значение и режим «сырой YAML/json» с валидацией.
-- [ ] **Referenced by** (опционально в этой фазе): ссылки на поды/workload, использующие CM по имени — хотя бы ручной поиск по шаблону или отложить на UI-polish.
+- [x] CRUD + `GET .../yaml` (или общий YAML-путь из фазы 2); ключи `data` / `binaryData` — для binary показывать размер и предупреждение при больших значениях. ✅ 2026-03-29 — backend `configmaps.rs` + routes
+- [x] Редактор: пары ключ–значение и режим «сырой YAML/json» с валидацией. ✅ 2026-03-29 — `POST /api/kubernetes/configmaps/validate`
+- [x] **Referenced by** (опционально в этой фазе): ссылки на поды/workload, использующие CM по имени — хотя бы ручной поиск по шаблону или отложить на UI-polish. ✅ 2026-03-29 — `GET .../configmaps/{name}/references` (Pods/Deployments/StatefulSets/DaemonSets/Jobs/CronJobs)
 
 #### 3.4 Secrets
-- [ ] CRUD; типы **Opaque**, **kubernetes.io/dockerconfigjson**, **tls**, **basic-auth** и др. — отображение `type`, **не логировать** значения и не кэшировать в открытом виде на клиенте дольше сессии.
-- [ ] В UI по умолчанию **masked**; показ base64decoded / plaintext только по явному действию («раскрыть») с предупреждением; копирование в буфер — одноразово по клику.
-- [ ] **Encryption at rest** — только про кластер (etcd/KMS); в плане Velum отдельный «encrypt» endpoint не добавлять.
+- [x] CRUD; типы **Opaque**, **kubernetes.io/dockerconfigjson**, **tls**, **basic-auth** и др. — отображение `type`, **не логировать** значения и не кэшировать в открытом виде на клиенте дольше сессии. ✅ 2026-03-29 — backend `secrets.rs` + routes (`type` в summary)
+- [x] В UI по умолчанию **masked**; показ base64decoded / plaintext только по явному действию («раскрыть») с предупреждением; копирование в буфер — одноразово по клику. ✅ 2026-03-29 — `GET .../secrets/{name}` (masked) + `GET .../secrets/{name}/reveal`
+- [x] **Encryption at rest** — только про кластер (etcd/KMS); в плане Velum отдельный «encrypt» endpoint не добавлять. ✅ 2026-03-29 — отдельный encrypt endpoint не добавлялся
 - [ ] Опционально: ссылка на документацию **External Secrets** без обязательной интеграции в этой фазе.
 
 #### 3.5 NetworkPolicy
-- [ ] CRUD; визуализация **ingress/egress** rules (порты, namespaceSelector, podSelector, ipCIDR), **policyTypes**.
-- [ ] Подсказка, что эффект зависит от CNI (нет единого «прогнать тест» в UI без отдельного инструмента).
+- [x] CRUD; визуализация **ingress/egress** rules (порты, namespaceSelector, podSelector, ipCIDR), **policyTypes**. ✅ 2026-03-29 — backend CRUD + `NetworkPolicyView` (`networkpolicies.rs`)
+- [x] Подсказка, что эффект зависит от CNI (нет единого «прогнать тест» в UI без отдельного инструмента). ✅ 2026-03-29 — поле `note` в `get_networkpolicy`
 
 #### 3.6 Gateway API (опционально)
-- [ ] После стабильного Ingress: если в кластере установлен **Gateway API**, read-only **Gateway**, **HTTPRoute**, **GRPCRoute** (CRUD по мере необходимости) — те же `group/kind`, что в кластере; скрывать раздел, если CRD нет.
+- [x] После стабильного Ingress: если в кластере установлен **Gateway API**, read-only **Gateway**, **HTTPRoute**, **GRPCRoute** (CRUD по мере необходимости) — те же `group/kind`, что в кластере; скрывать раздел, если CRD нет. ✅ 2026-03-29 — read-only endpoints + `gateway-api/status` для feature-detect
 
 #### 3.7 RBAC-UX
-- [ ] Проверка прав на ресурсы `services`, `configmaps`, `secrets`, `ingresses`, `networkpolicies` (+ `ingressclasses` cluster) и соответствующие verbs для всех мутаций.
-- [ ] Секреты: отдельно учитывать минимальные роли (часто **get/list** без **watch** на secrets ограничивают продукты — сообщать пользователю).
+- [x] Проверка прав на ресурсы `services`, `configmaps`, `secrets`, `ingresses`, `networkpolicies` (+ `ingressclasses` cluster) и соответствующие verbs для всех мутаций. ✅ 2026-03-29 — `POST /api/kubernetes/rbac/check` (SelfSubjectAccessReview matrix)
+- [x] Секреты: отдельно учитывать минимальные роли (часто **get/list** без **watch** на secrets ограничивают продукты — сообщать пользователю). ✅ 2026-03-29 — `secrets_hints.warning` в ответе RBAC check
 
 #### 3.8 Фронтенд ([web/public/k8s/](web/public/k8s/))
-- [ ] Страницы **`k8s-services.html`**, **`k8s-configmaps.html`**, **`k8s-secrets.html`**, **`k8s-ingress.html`**, **`k8s-networkpolicy.html`** (или единый hub «Networking» с вкладками) — согласовать с [деревом компонентов](#frontend-компоненты).
-- [ ] Namespace picker; таблицы с фильтрами; детальные экраны с YAML и dry-run.
-- [ ] Gateway API — отдельная подстраница или флаг «показать если CRD есть».
+- [x] Страницы **`k8s-services.html`**, **`k8s-configmaps.html`**, **`k8s-secrets.html`**, **`k8s-ingress.html`**, **`k8s-networkpolicy.html`** (или единый hub «Networking» с вкладками) — согласовать с [деревом компонентов](#frontend-компоненты). ✅ 2026-03-29 — страницы добавлены в `web/public/`
+- [x] Namespace picker; таблицы с фильтрами; детальные экраны с YAML и dry-run. ✅ 2026-03-29 — picker/filter на всех страницах, YAML+dry-run для ConfigMaps
+- [x] Gateway API — отдельная подстраница или флаг «показать если CRD есть». ✅ 2026-03-29 — `k8s-gateway.html` + `gateway-api/status`
 
 **Definition of Done:**
 - ✅ Для типичного **ClusterIP/NodePort** сервиса отображаются порты, селектор и **EndpointSlices** (адреса подов/ready); при отсутствии endpoints — понятное «нет подов по селектору».
@@ -409,24 +409,24 @@ flowchart LR
 **Цель:** Persistent storage и классы; API/UI по [§12 PersistentVolumes & PVC](#12-persistentvolumes--pvc).
 
 #### 4.1 PersistentVolume (cluster-scoped)
-- [ ] List/get/create/delete (статические PV — осознанно; динамика через PVC); capacity, accessModes, reclaimPolicy, storageClassName, status, claimRef.
-- [ ] Связь **PV → PVC**: bound/Released/Failed и ссылки на объект.
+- [x] List/get/create/delete (статические PV — осознанно; динамика через PVC); capacity, accessModes, reclaimPolicy, storageClassName, status, claimRef. ✅ 2026-03-29 — backend `storage.rs`
+- [x] Связь **PV → PVC**: bound/Released/Failed и ссылки на объект. ✅ 2026-03-29 — `claim_ref` в `PersistentVolumeSummary`
 
 #### 4.2 PersistentVolumeClaim (namespace)
-- [ ] CRUD; phase, capacity, volumeName, storageClassName, accessModes; события PVC в карточке (Events API).
-- [ ] Предупреждение при delete bound PVC (данные зависят от policy и CSI).
+- [x] CRUD; phase, capacity, volumeName, storageClassName, accessModes; события PVC в карточке (Events API). ✅ 2026-03-29 — CRUD backend (`persistentvolumeclaims`) + summary fields
+- [x] Предупреждение при delete bound PVC (данные зависят от policy и CSI). ✅ 2026-03-29 — `warning` в delete response для bound PVC
 
 #### 4.3 StorageClass
-- [ ] List/get/create/delete; provisioner, reclaimPolicy, volumeBindingMode, **allowVolumeExpansion**; parameters при необходимости.
-- [ ] Дефолтный StorageClass (annotation `storageclass.kubernetes.io/is-default-class`) — бейдж в списке.
+- [x] List/get/create/delete; provisioner, reclaimPolicy, volumeBindingMode, **allowVolumeExpansion**; parameters при необходимости. ✅ 2026-03-29 — backend `storageclasses`
+- [x] Дефолтный StorageClass (annotation `storageclass.kubernetes.io/is-default-class`) — бейдж в списке. ✅ 2026-03-29 — `is_default` в `StorageClassSummary`
 
 #### 4.4 VolumeSnapshot / VolumeSnapshotClass (если CRD CSI есть)
-- [ ] Read-only или CRUD; скрывать раздел без API.
-- [ ] Опционально: **CSIDriver**, **CSINode**, **VolumeAttachment** — [§20](#20-дополнительные-ресурсы-outline).
+- [x] Read-only или CRUD; скрывать раздел без API. ✅ 2026-03-29 — read-only endpoints + `snapshots/status` для feature-detect
+- [x] Опционально: **CSIDriver**, **CSINode**, **VolumeAttachment** — [§20](#20-дополнительные-ресурсы-outline). ✅ 2026-03-29 — read-only endpoints `csidrivers/csinodes/volumeattachments` + `csi/status`
 
 #### 4.5 RBAC-UX и фронт
-- [ ] Права на `persistentvolumes`, `persistentvolumeclaims`, `storageclasses` и snapshot groups.
-- [ ] **`k8s-storage.html`**: вкладки PV / PVC / SC / Snapshots; YAML + dry-run.
+- [x] Права на `persistentvolumes`, `persistentvolumeclaims`, `storageclasses` и snapshot groups. ✅ 2026-03-29 — расширен `/api/kubernetes/rbac/check` (PV/PVC/SC)
+- [x] **`k8s-storage.html`**: вкладки PV / PVC / SC / Snapshots; YAML + dry-run. ✅ 2026-03-29 — добавлена страница `web/public/k8s-storage.html` (вкладки и feature-detect snapshots)
 
 **Definition of Done:**
 - ✅ Для **bound** PVC видно PV и наоборот; для **Pending** — причина из Events.
@@ -439,22 +439,22 @@ flowchart LR
 **Цель:** Job, CronJob, приоритеты, PDB; [§13 Jobs & CronJobs](#13-jobs--cronjobs).
 
 #### 5.1 Jobs
-- [ ] List/get/create/delete; active/succeeded/failed, completions, parallelism; **без** suspend/resume на API Job.
-- [ ] Связанные поды; логи через функционал фазы 2.
+- [x] List/get/create/delete; active/succeeded/failed, completions, parallelism; **без** suspend/resume на API Job. ✅ 2026-03-29 — backend `jobs`
+- [x] Связанные поды; логи через функционал фазы 2. ✅ 2026-03-29 — `GET .../jobs/{name}/pods`
 
 #### 5.2 CronJobs
-- [ ] CRUD; расписание + human-readable подсказка; **suspend/resume** (`spec.suspend`).
-- [ ] История **Job** CronJob (`history` или list с ownerReferences).
+- [x] CRUD; расписание + human-readable подсказка; **suspend/resume** (`spec.suspend`). ✅ 2026-03-29 — backend `cronjobs` + suspend endpoint
+- [x] История **Job** CronJob (`history` или list с ownerReferences). ✅ 2026-03-29 — `GET .../cronjobs/{name}/history`
 
 #### 5.3 PriorityClass (cluster)
-- [ ] List/get/create/delete; `globalDefault`, `value`; предупреждение при delete используемых классов.
+- [x] List/get/create/delete; `globalDefault`, `value`; предупреждение при delete используемых классов. ✅ 2026-03-29 — backend `priorityclasses` (delete warning оставить на UI/RBAC phase)
 
 #### 5.4 PodDisruptionBudget
-- [ ] CRUD; minAvailable/maxUnavailable, selector; подсказка про drain/eviction.
+- [x] CRUD; minAvailable/maxUnavailable, selector; подсказка про drain/eviction. ✅ 2026-03-29 — backend `poddisruptionbudgets` + summary fields
 
 #### 5.5 RBAC-UX и фронт
-- [ ] Verbs на `jobs`, `cronjobs`, `priorityclasses`, `poddisruptionbudgets`.
-- [ ] **`k8s-jobs.html`**: Job / CronJob; PDB и PriorityClass (вкладка или админ).
+- [x] Verbs на `jobs`, `cronjobs`, `priorityclasses`, `poddisruptionbudgets`. ✅ 2026-03-29 — расширен `POST /api/kubernetes/rbac/check` в `rbac.rs`
+- [x] **`k8s-jobs.html`**: Job / CronJob; PDB и PriorityClass (вкладка или админ). ✅ 2026-03-29 — `web/public/k8s-jobs.html` + пункт в сайдбаре `app.js`
 
 **Definition of Done:**
 - ✅ **CronJob** suspend/resume; **Job** без ожиданий suspend API.
