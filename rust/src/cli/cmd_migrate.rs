@@ -64,6 +64,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore = "requires PostgreSQL at VELUM_DB_URL (SqlStore is PostgreSQL-only)"]
     fn test_migrate_command_upgrade() {
         let cmd = MigrateCommand {
             upgrade: true,

@@ -27,7 +27,7 @@ pub async fn trace_id_middleware(mut req: Request<Body>, next: Next) -> Response
 
     // Добавляем в текущий tracing span
     let span = Span::current();
-    span.record("trace_id", &trace_id.as_str());
+    span.record("trace_id", trace_id.as_str());
 
     tracing::debug!(trace_id = %trace_id, method = %req.method(), path = %req.uri().path(), "request");
 

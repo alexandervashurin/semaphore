@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
 /// Tier окружения (уровень)
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, sqlx::Type, PartialEq)]
 #[sqlx(type_name = "text")]
 #[sqlx(rename_all = "lowercase")]
 pub enum EnvironmentTier {
@@ -16,13 +16,8 @@ pub enum EnvironmentTier {
     Staging,
     Development,
     Review,
+    #[default]
     Other,
-}
-
-impl Default for EnvironmentTier {
-    fn default() -> Self {
-        Self::Other
-    }
 }
 
 impl std::fmt::Display for EnvironmentTier {
@@ -38,19 +33,14 @@ impl std::fmt::Display for EnvironmentTier {
 }
 
 /// Статус окружения
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, sqlx::Type, PartialEq)]
 #[sqlx(type_name = "text")]
 #[sqlx(rename_all = "lowercase")]
 pub enum DeployEnvironmentStatus {
     Active,
     Stopped,
+    #[default]
     Unknown,
-}
-
-impl Default for DeployEnvironmentStatus {
-    fn default() -> Self {
-        Self::Unknown
-    }
 }
 
 /// Deployment Environment — запись об окружении (production, staging, dev, etc.)

@@ -6,6 +6,12 @@ authors = ["Alexander Vashurin <alexandervashurin@yandex.ru>"]
 description = "Velum — Rust-port of Semaphore UI. DevOps task management with Ansible, Terraform, PowerShell support."
 license = "MIT"
 repository = "https://github.com/tnl-o/velum"
+autotests = false
+
+[[test]]
+name = "api_integration"
+path = "tests/api_integration.rs"
+required-features = ["integration-api-tests"]
 
 [lib]
 name = "velum_ffi"
@@ -239,3 +245,5 @@ debug = true
 default = ["postgres"]
 postgres = ["sqlx/postgres"]
 bolt = []  # Sled для BoltDB-подобного режима
+# API integration tests (tests/api_integration.rs) — пока требуют доработки под PostgreSQL-only
+integration-api-tests = []

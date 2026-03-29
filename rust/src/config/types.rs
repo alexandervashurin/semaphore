@@ -459,7 +459,7 @@ fn default_tcp_address() -> String {
 }
 
 fn default_tmp_path() -> String {
-    "/tmp/semaphore".to_string()
+    "/tmp/velum".to_string()
 }
 
 impl Default for Config {
@@ -638,7 +638,7 @@ mod tests {
     fn test_db_config_default() {
         let config = DbConfig::default();
         assert_eq!(config.hostname, "0.0.0.0");
-        assert_eq!(config.db_name, "semaphore");
+        assert_eq!(config.db_name, "velum");
     }
 
     #[test]
@@ -668,7 +668,7 @@ mod tests {
     fn test_config_default() {
         let config = Config::default();
         assert_eq!(config.tcp_address, "0.0.0.0:3000");
-        assert_eq!(config.tmp_path, "/tmp/semaphore");
+        assert_eq!(config.tmp_path, "/tmp/velum");
     }
 
     #[test]
@@ -683,6 +683,6 @@ mod tests {
     fn test_config_get_project_tmp_dir() {
         let config = Config::default();
         let dir = config.get_project_tmp_dir(123);
-        assert_eq!(dir, "/tmp/semaphore/project_123");
+        assert_eq!(dir, "/tmp/velum/project_123");
     }
 }

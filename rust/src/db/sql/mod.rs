@@ -4,7 +4,6 @@ pub mod runner;
 pub mod types;
 pub mod init;
 pub mod migrations;
-pub mod queries;
 pub mod utils;
 pub mod audit_log;
 pub mod webhook;

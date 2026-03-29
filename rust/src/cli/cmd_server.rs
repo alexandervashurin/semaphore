@@ -99,7 +99,9 @@ impl ServerCommand {
                 }
                 #[cfg(not(unix))]
                 {
-                    tokio::signal::ctrl_c().await.expect("Failed to listen for ctrl+c");
+                    tokio::signal::ctrl_c()
+                        .await
+                        .expect("Failed to listen for ctrl+c");
                     println!("\nReceived Ctrl+C, shutting down gracefully...");
                 }
             };
