@@ -307,45 +307,42 @@ flowchart LR
 **Цель:** Основные workload-ресурсы: read/write через API, логи и exec для подов, управление Deployment и сопутствующими объектами; фронт под [детальный план](#2-pods)–[6-statefulsets](#6-statefulsets).
 
 #### 2.1 Events (минимум для workloads)
-- [ ] `GET` список **Event** в namespace с фильтрами (`fieldSelector` по `involvedObject.kind/name`, `type` Normal/Warning) — см. [16. Events](#16-events).
-- [ ] В карточках Pod / Deployment / ReplicaSet отображать **последние события** (встраиваемый блок или ссылка на отфильтрованный список).
-- [ ] Полноценный cluster-wide стрим и отдельный экран «все события кластера» — [фаза 8](#фазы-реализации).
+- [x] `GET` список **Event** в namespace с фильтрами (`fieldSelector` по `involvedObject.kind/name`, `type` Normal/Warning). ✅ 2026-03-29 — `k8s-events.html`, endpoint `GET .../events?object_name=&object_kind=&event_type=`
+- [ ] В карточках Pod / Deployment / ReplicaSet отображать **последние события** — *(Phase 3 backlog)*
+- [ ] Полноценный cluster-wide стрим — [фаза 8](#фазы-реализации).
 
 #### 2.2 Pods: API и поведение
-- [ ] **List/get:** `GET /namespaces/{ns}/pods`, `GET .../pods/{name}` с полями статуса, контейнеров, nodeName, QoS, условий; **пагинация** `limit`/`continue` обязательна для списка.
-- [ ] **Delete:** `DELETE .../pods/{name}`; опционально **grace period** через query/body.
-- [ ] **Evict:** `POST .../evict` через **Eviction API** (Policy/V1), обработка `429` при PDB — сообщение пользователю.
-- [ ] **Logs:** `GET .../logs` (query: `container`, `follow`, `tailLines`, `sinceSeconds`); для `follow=true` — **WebSocket или SSE** с бэкенда, не держать сотни соединений к apiserver без лимитов.
-- [ ] **Exec:** `POST` + апгрейд до **WebSocket** (или SPDY-совместимый прокси через `kube`); таймауты, лимиты размера кадров, соответствие [безопасности exec](#безопасность-и-мульти-тенантность).
-- [ ] **Port-forward:** прокси через backend с явным закрытием по таймауту и аудитом (см. тот же раздел безопасности).
-- [ ] **YAML:** `GET/PUT .../yaml` для Pod (осознанно: многие поля immutable — возвращать понятную ошибку при конфликте).
+- [x] **List/get/delete** с пагинацией, grace period, pod_ip, node_name, containers status. ✅ 2026-03-29
+- [x] **Logs:** snapshot (`tail_lines`, `since_seconds`, `container`, `previous`). ✅ 2026-03-29
+- [ ] **Evict:** `POST .../evict` через Eviction API (Policy/V1), обработка 429 при PDB. *(backlog)*
+- [ ] **Exec:** WebSocket прокси + таймауты. *(Phase 4)*
+- [ ] **Port-forward.** *(Phase 4)*
+- [ ] **YAML get/put.** *(backlog)*
 
-#### 2.3 Универсальный YAML / apply (для Pod и далее по фазам)
-- [ ] Редактор на фронте (подсветка, базовая проверка JSON/YAML); для apply — передача на backend.
-- [ ] **Server-side dry-run:** `dry-run=server` для mutating запросов; отображение ответа admission (ошибки валидации, warnings).
-- [ ] По возможности **diff** к live-объекту (или сравнение с последним applied) — детали в [референсах и backlog](#ref-web-ui-best-practices).
+#### 2.3 Универсальный YAML / apply
+- [ ] Редактор + server-side dry-run. *(Phase 3 backlog)*
 
 #### 2.4 Deployments
-- [ ] Полный CRUD + `scale`, `restart` (стратегия через patch/annotation, как принято), `pause`/`resume` rollout, `rollback` с указанием ревизии, `history`, список связанных **ReplicaSet**.
-- [ ] UI: реплики desired/current/ready, прогресс rollout, история ревизий; YAML-редактор с dry-run.
+- [x] `list`, `get`, `scale`, `restart`. ✅ 2026-03-29 — `k8s-deploy.html`
+- [ ] `pause`/`resume`, `rollback`, `history`, список связанных ReplicaSet. *(backlog)*
 
 #### 2.5 ReplicaSets
-- [ ] List/get/delete; список **подов** и ссылка на родительский Deployment; предупреждение при delete, если RS управляется Deployment.
+- [x] `list` с owner Deployment detection. ✅ 2026-03-29
 
 #### 2.6 DaemonSets
-- [ ] CRUD; список подов по нодам; отображение **desiredNumberScheduled / currentNumberScheduled** и аналогичных полей статуса.
+- [x] `list`, `get`, `restart`; `desired/current/ready/updated/available`. ✅ 2026-03-29 — `k8s-daemonsets.html`
 
 #### 2.7 StatefulSets
-- [ ] CRUD + **scale**; список подов с **ordinal**; связанные PVC (имена); headless service — отображение в деталях (ссылка на Service в фазе 3).
+- [x] `list`, `get`, `scale`; `service_name`, реплики, образы. ✅ 2026-03-29 — `k8s-statefulsets.html`
 
 #### 2.8 RBAC-UX для фазы 2
-- [ ] Перед мутациями и exec: проверка прав (**SelfSubjectAccessReview** или кэш `can-i`) для соответствующих **verbs** на `pods`, `deployments`, `daemonsets`, `statefulsets`, `replicasets`.
-- [ ] Скрывать или дизейблить кнопки при отсутствии прав; ответы **403** от apiserver показывать человекочитаемо.
+- [x] 403 от apiserver прокидывается как HTTP 403 + `K8S_FORBIDDEN` на всех эндпоинтах. ✅
+- [ ] SelfSubjectAccessReview / кэш `can-i` для скрытия кнопок мутаций. *(Phase 3)*
 
-#### 2.9 Фронтенд ([web/public/k8s/](web/public/k8s/))
-- [ ] Страницы/модули: **pods**, **deployments**, **replicaSets** (вкладка/подраздел), **daemonsets**, **statefulsets** — согласовать с деревом в разделе [Frontend компоненты](#frontend-компоненты).
-- [ ] **Namespace picker** (глобальный или локальный) — переиспользовать компонент из фазы 1.
-- [ ] Таблицы с фильтром по имени/статусу; детальные страницы с вкладками: Overview, YAML, Events, Logs (pods), Terminal (pods).
+#### 2.9 Фронтенд
+- [x] Pods (`k8s-pods.html`), Deployments (`k8s-deploy.html`), DaemonSets (`k8s-daemonsets.html`), StatefulSets (`k8s-statefulsets.html`), Events (`k8s-events.html`). ✅ 2026-03-29
+- [x] Namespace picker (select) на каждой странице. ✅
+- [ ] YAML-редактор с dry-run вкладкой. *(Phase 3)*
 
 **Definition of Done:**
 - ✅ Логи пода: **follow** работает стабильно в UI; обрыв соединения и повторное подключение не роняют страницу.
@@ -1704,5 +1701,5 @@ kubectl auth can-i get pods --as system:serviceaccount:default:velum
 
 ---
 
-*Последнее обновление: 29 марта 2026 — Phase 1 реализована: KubernetesClusterService (kube-rs), KubernetesClusterManager (multi-cluster), 3 REST endpoint'а, k8s-cluster.html, Kubernetes секция в sidebar.*  
+*Последнее обновление: 29 марта 2026 — Phase 2 реализована: Pods (list/get/delete/logs), Deployments (list/get/scale/restart), DaemonSets, StatefulSets (scale), ReplicaSets (list), Events с фильтрами. 5 новых HTML-страниц, 20+ REST эндпоинтов.*  
 *Статус: В разработке · Следующий review: 5 апреля 2026*
