@@ -19,11 +19,7 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/api/health/ready", get(handlers::health_ready))
         .route("/api/health/full", get(handlers::health_full))
 
-        // Аутентификация
-        .route("/api/auth/login", post(handlers::login))
-        .route("/api/auth/login", get(handlers::get_login_metadata))
-        .route("/api/auth/logout", post(handlers::logout))
-        .route("/api/auth/refresh", post(handlers::refresh_token))
+        // Аутентификация (login/logout/refresh определены в auth_routes с rate limiter)
         .route("/api/auth/verify", post(handlers::verify_session))
         .route("/api/auth/recovery", post(handlers::recovery_session))
         

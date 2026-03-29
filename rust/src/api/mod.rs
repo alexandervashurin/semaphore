@@ -80,8 +80,7 @@ pub fn create_app(store: Arc<dyn crate::db::Store + Send + Sync>) -> Router {
 
     // Auth роуты с жёстким rate limiting (5 попыток/мин per IP)
     let auth_routes = Router::new()
-        .route("/api/auth/login", axum::routing::post(handlers::login))
-        .route("/api/auth/login", axum::routing::get(handlers::get_login_metadata))
+        .route("/api/auth/login", axum::routing::get(handlers::get_login_metadata).post(handlers::login))
         .route("/api/auth/logout", axum::routing::post(handlers::logout))
         .route("/api/auth/refresh", axum::routing::post(handlers::refresh_token))
         .layer(axum_middleware::from_fn_with_state(
