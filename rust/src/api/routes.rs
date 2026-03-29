@@ -492,11 +492,25 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/api/project/{project_id}/terraform/plans/{plan_id}/reject", post(handlers::plan_approval::reject_plan))
         .route("/api/project/{project_id}/tasks/{task_id}/plan", get(handlers::plan_approval::get_task_plan))
 
-        // ── Kubernetes UI API (Фаза 1) ────────────────────────────────────────
+        // ── Kubernetes UI API (Фаза 1: cluster/namespaces) ───────────────────
         // Все маршруты за JWT (AuthUser extractor в каждом handler'е)
         .route("/api/kubernetes/clusters", get(handlers::kubernetes::list_clusters))
         .route("/api/kubernetes/clusters/{cluster_id}/info", get(handlers::kubernetes::cluster_info))
         .route("/api/kubernetes/clusters/{cluster_id}/namespaces", get(handlers::kubernetes::list_namespaces))
+        // ── Kubernetes UI API (Фаза 2: pods) ─────────────────────────────────
+        .route(
+            "/api/kubernetes/clusters/{cluster_id}/namespaces/{namespace}/pods",
+            get(handlers::kubernetes::list_pods),
+        )
+        .route(
+            "/api/kubernetes/clusters/{cluster_id}/namespaces/{namespace}/pods/{name}",
+            get(handlers::kubernetes::get_pod)
+                .delete(handlers::kubernetes::delete_pod),
+        )
+        .route(
+            "/api/kubernetes/clusters/{cluster_id}/namespaces/{namespace}/pods/{name}/logs",
+            get(handlers::kubernetes::pod_logs),
+        )
 }
 
 /// Создаёт маршруты для статических файлов
