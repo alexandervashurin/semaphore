@@ -716,6 +716,15 @@ const SIDEBAR_SECTIONS = [
         ]
     },
     {
+        label: 'Kubernetes',
+        collapsible: true,
+        items: [
+            { href: 'k8s-cluster.html', icon: 'fa-solid fa-dharmachakra', label: 'Кластер',     noId: true },
+            { href: 'k8s-pods.html',    icon: 'fa-solid fa-box',          label: 'Pods',         noId: true },
+            { href: 'k8s-deploy.html',  icon: 'fa-solid fa-rocket',       label: 'Deployments',  noId: true },
+        ]
+    },
+    {
         label: 'Настройки',
         collapsible: true,
         items: [

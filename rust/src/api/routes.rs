@@ -491,6 +491,12 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/api/project/{project_id}/terraform/plans/{plan_id}/approve", post(handlers::plan_approval::approve_plan))
         .route("/api/project/{project_id}/terraform/plans/{plan_id}/reject", post(handlers::plan_approval::reject_plan))
         .route("/api/project/{project_id}/tasks/{task_id}/plan", get(handlers::plan_approval::get_task_plan))
+
+        // ── Kubernetes UI API (Фаза 1) ────────────────────────────────────────
+        // Все маршруты за JWT (AuthUser extractor в каждом handler'е)
+        .route("/api/kubernetes/clusters", get(handlers::kubernetes::list_clusters))
+        .route("/api/kubernetes/clusters/{cluster_id}/info", get(handlers::kubernetes::cluster_info))
+        .route("/api/kubernetes/clusters/{cluster_id}/namespaces", get(handlers::kubernetes::list_namespaces))
 }
 
 /// Создаёт маршруты для статических файлов

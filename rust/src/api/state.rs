@@ -4,6 +4,7 @@ use crate::db::Store;
 use crate::config::Config;
 use crate::services::metrics::MetricsManager;
 use crate::cache::RedisCache;
+use crate::kubernetes::KubernetesClusterManager;
 use std::sync::Arc;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -25,6 +26,8 @@ pub struct AppState {
     pub oidc_state: Arc<Mutex<HashMap<String, OidcState>>>,
     pub metrics: MetricsManager,
     pub cache: Option<Arc<RedisCache>>,
+    /// Менеджер подключений к Kubernetes (None если кластер не сконфигурирован)
+    pub k8s: Option<Arc<KubernetesClusterManager>>,
 }
 
 impl AppState {
@@ -37,6 +40,13 @@ impl AppState {
             oidc_state: Arc::new(Mutex::new(HashMap::new())),
             metrics: MetricsManager::new(),
             cache,
+            k8s: None,
         }
+    }
+
+    /// Создаёт состояние с Kubernetes менеджером
+    pub fn with_kubernetes(mut self, k8s: Option<Arc<KubernetesClusterManager>>) -> Self {
+        self.k8s = k8s;
+        self
     }
 }

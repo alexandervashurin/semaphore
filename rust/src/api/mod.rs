@@ -67,11 +67,26 @@ pub fn create_app(store: Arc<dyn crate::db::Store + Send + Sync>) -> Router {
         None
     };
 
+    // Инициализация Kubernetes менеджера (не блокирует старт если K8s не настроен)
+    let k8s = {
+        let rt_handle = tokio::runtime::Handle::try_current();
+        if rt_handle.is_ok() {
+            // Уже в async контексте — используем block_in_place
+            tokio::task::block_in_place(|| {
+                tokio::runtime::Handle::current().block_on(
+                    crate::kubernetes::KubernetesClusterManager::from_env()
+                )
+            })
+        } else {
+            None
+        }
+    };
+
     let state = Arc::new(AppState::new(
         store,
         config,
         cache,
-    ));
+    ).with_kubernetes(k8s));
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
