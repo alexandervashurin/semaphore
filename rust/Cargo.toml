@@ -39,6 +39,7 @@ reqwest = { version = "0.12", features = ["json", "blocking"] }
 # GraphQL
 async-graphql = { version = "7.0", features = ["chrono", "uuid"] }
 async-graphql-axum = "7.0"
+utoipa = "5"
 
 # Telegram Bot
 teloxide = { version = "0.13", features = ["macros"] }
