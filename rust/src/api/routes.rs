@@ -511,6 +511,23 @@ pub fn api_routes() -> Router<Arc<AppState>> {
             "/api/kubernetes/clusters/{cluster_id}/namespaces/{namespace}/pods/{name}/logs",
             get(handlers::kubernetes::pod_logs),
         )
+        // ── Kubernetes UI API (Фаза 2: deployments) ──────────────────────────
+        .route(
+            "/api/kubernetes/clusters/{cluster_id}/namespaces/{namespace}/deployments",
+            get(handlers::kubernetes::list_deployments),
+        )
+        .route(
+            "/api/kubernetes/clusters/{cluster_id}/namespaces/{namespace}/deployments/{name}",
+            get(handlers::kubernetes::get_deployment),
+        )
+        .route(
+            "/api/kubernetes/clusters/{cluster_id}/namespaces/{namespace}/deployments/{name}/scale",
+            axum::routing::post(handlers::kubernetes::scale_deployment),
+        )
+        .route(
+            "/api/kubernetes/clusters/{cluster_id}/namespaces/{namespace}/deployments/{name}/restart",
+            axum::routing::post(handlers::kubernetes::restart_deployment),
+        )
 }
 
 /// Создаёт маршруты для статических файлов

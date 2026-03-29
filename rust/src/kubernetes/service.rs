@@ -5,7 +5,8 @@
 
 use kube::{Client, Config, config::KubeConfigOptions};
 use k8s_openapi::api::core::v1::{Namespace, Pod};
-use kube::api::{Api, ListParams, LogParams, DeleteParams};
+use k8s_openapi::api::apps::v1::Deployment;
+use kube::api::{Api, ListParams, LogParams, DeleteParams, Patch, PatchParams};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use crate::error::{Error, Result};
@@ -291,6 +292,100 @@ impl KubernetesClusterService {
             }
         })
     }
+
+    // ─── Deployments ─────────────────────────────────────────────────────────
+
+    /// Список Deployment'ов в namespace
+    pub async fn list_deployments(
+        &self,
+        namespace: &str,
+        limit: Option<u32>,
+        continue_token: Option<String>,
+    ) -> Result<DeploymentList> {
+        let api: Api<Deployment> = Api::namespaced(self.client.clone(), namespace);
+        let limit = limit.unwrap_or(100).min(500);
+        let mut lp = ListParams::default().limit(limit);
+        if let Some(ref cont) = continue_token {
+            lp = lp.continue_token(cont.as_str());
+        }
+        let list = api.list(&lp).await.map_err(|e| {
+            let msg = e.to_string();
+            if msg.contains("403") || msg.contains("Forbidden") {
+                Error::Other(format!("FORBIDDEN: {msg}"))
+            } else {
+                Error::Other(format!("Failed to list deployments: {msg}"))
+            }
+        })?;
+        let cont = list.metadata.continue_.filter(|s| !s.is_empty());
+        let items = list.items.into_iter().map(deployment_to_info).collect();
+        Ok(DeploymentList { items, continue_token: cont })
+    }
+
+    /// Детальная информация о Deployment'е
+    pub async fn get_deployment(&self, namespace: &str, name: &str) -> Result<DeploymentInfo> {
+        let api: Api<Deployment> = Api::namespaced(self.client.clone(), namespace);
+        let d = api.get(name).await.map_err(|e| {
+            let msg = e.to_string();
+            if msg.contains("404") || msg.contains("not found") {
+                Error::NotFound(format!("Deployment {name} not found"))
+            } else {
+                Error::Other(format!("Failed to get deployment: {msg}"))
+            }
+        })?;
+        Ok(deployment_to_info(d))
+    }
+
+    /// Масштабировать Deployment (patch replicas)
+    pub async fn scale_deployment(
+        &self,
+        namespace: &str,
+        name: &str,
+        replicas: i32,
+    ) -> Result<()> {
+        let api: Api<Deployment> = Api::namespaced(self.client.clone(), namespace);
+        let patch = serde_json::json!({
+            "spec": { "replicas": replicas }
+        });
+        api.patch(name, &PatchParams::apply("velum").force(), &Patch::Merge(&patch))
+            .await
+            .map_err(|e| {
+                let msg = e.to_string();
+                if msg.contains("403") || msg.contains("Forbidden") {
+                    Error::Other(format!("FORBIDDEN: {msg}"))
+                } else {
+                    Error::Other(format!("Failed to scale deployment: {msg}"))
+                }
+            })?;
+        Ok(())
+    }
+
+    /// Restart Deployment (patch annotation)
+    pub async fn restart_deployment(&self, namespace: &str, name: &str) -> Result<()> {
+        let api: Api<Deployment> = Api::namespaced(self.client.clone(), namespace);
+        let now = chrono::Utc::now().to_rfc3339();
+        let patch = serde_json::json!({
+            "spec": {
+                "template": {
+                    "metadata": {
+                        "annotations": {
+                            "kubectl.kubernetes.io/restartedAt": now
+                        }
+                    }
+                }
+            }
+        });
+        api.patch(name, &PatchParams::apply("velum").force(), &Patch::Merge(&patch))
+            .await
+            .map_err(|e| {
+                let msg = e.to_string();
+                if msg.contains("403") || msg.contains("Forbidden") {
+                    Error::Other(format!("FORBIDDEN: {msg}"))
+                } else {
+                    Error::Other(format!("Failed to restart deployment: {msg}"))
+                }
+            })?;
+        Ok(())
+    }
 }
 
 // ─── Pod DTO helpers ─────────────────────────────────────────────────────────
@@ -406,5 +501,94 @@ fn pod_to_info(pod: Pod) -> PodInfo {
         created_at,
         ready_count,
         total_count,
+    }
+}
+
+// ─── Deployment DTO helpers ───────────────────────────────────────────────────
+
+/// Информация о Deployment'е
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeploymentInfo {
+    pub name: String,
+    pub namespace: String,
+    pub replicas_desired: i32,
+    pub replicas_ready: i32,
+    pub replicas_available: i32,
+    pub replicas_updated: i32,
+    pub labels: BTreeMap<String, String>,
+    pub selector: BTreeMap<String, String>,
+    pub images: Vec<String>,
+    pub created_at: Option<String>,
+    pub conditions: Vec<DeploymentCondition>,
+}
+
+/// Условие состояния Deployment'а
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeploymentCondition {
+    pub type_: String,
+    pub status: String,
+    pub reason: Option<String>,
+    pub message: Option<String>,
+}
+
+/// Список Deployment'ов с пагинацией
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeploymentList {
+    pub items: Vec<DeploymentInfo>,
+    pub continue_token: Option<String>,
+}
+
+fn deployment_to_info(d: Deployment) -> DeploymentInfo {
+    let meta = &d.metadata;
+    let name = meta.name.clone().unwrap_or_default();
+    let namespace = meta.namespace.clone().unwrap_or_default();
+    let labels = meta.labels.clone().unwrap_or_default();
+    let created_at = meta.creation_timestamp.as_ref().map(|t| t.0.to_rfc3339());
+
+    let spec = d.spec.as_ref();
+    let replicas_desired = spec.and_then(|s| s.replicas).unwrap_or(1);
+    let selector = spec
+        .and_then(|s| s.selector.match_labels.clone())
+        .unwrap_or_default();
+
+    let images: Vec<String> = spec
+        .map(|s| {
+            s.template.spec.as_ref().map(|ps| {
+                ps.containers.iter()
+                    .filter_map(|c| c.image.clone())
+                    .collect()
+            }).unwrap_or_default()
+        })
+        .unwrap_or_default();
+
+    let status = d.status.as_ref();
+    let replicas_ready = status.and_then(|s| s.ready_replicas).unwrap_or(0);
+    let replicas_available = status.and_then(|s| s.available_replicas).unwrap_or(0);
+    let replicas_updated = status.and_then(|s| s.updated_replicas).unwrap_or(0);
+
+    let conditions = status
+        .and_then(|s| s.conditions.clone())
+        .unwrap_or_default()
+        .into_iter()
+        .map(|c| DeploymentCondition {
+            type_: c.type_,
+            status: c.status,
+            reason: c.reason,
+            message: c.message,
+        })
+        .collect();
+
+    DeploymentInfo {
+        name,
+        namespace,
+        replicas_desired,
+        replicas_ready,
+        replicas_available,
+        replicas_updated,
+        labels,
+        selector,
+        images,
+        created_at,
+        conditions,
     }
 }

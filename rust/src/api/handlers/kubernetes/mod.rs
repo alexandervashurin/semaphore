@@ -7,6 +7,8 @@
 
 pub mod cluster;
 pub mod pods;
+pub mod deployments;
 
 pub use cluster::{list_clusters, cluster_info, list_namespaces};
 pub use pods::{list_pods, get_pod, delete_pod, pod_logs};
+pub use deployments::{list_deployments, get_deployment, scale_deployment, restart_deployment};

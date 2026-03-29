@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes Deployments — Velum</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+    <style>
+        .k8s-header-icon { color: #326ce5; font-size: 22px; }
+        .deploy-status {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 2px 9px; border-radius: 12px;
+            font-size: 11px; font-weight: 600;
+        }
+        .deploy-ok        { background: #e8f5e9; color: #2e7d32; }
+        .deploy-progress  { background: #fff8e1; color: #f57f17; }
+        .deploy-degraded  { background: #ffebee; color: #c62828; }
+        .deploy-unknown   { background: #f5f5f5; color: #757575; }
+        .replicas-bar {
+            display: flex; align-items: center; gap: 6px;
+        }
+        .replicas-track {
+            width: 80px; height: 6px; border-radius: 3px;
+            background: #e0e0e0; overflow: hidden; flex-shrink: 0;
+        }
+        .replicas-fill {
+            height: 100%; border-radius: 3px; background: #2e7d32;
+            transition: width .3s;
+        }
+        .replicas-fill.partial { background: #f57f17; }
+        .replicas-fill.none   { background: #c62828; }
+        .replicas-label { font-size: 12px; color: var(--text-light); white-space: nowrap; }
+        .image-pill {
+            display: inline-block;
+            background: #f3f4f6; border: 1px solid var(--border);
+            border-radius: 6px; padding: 2px 8px;
+            font-family: monospace; font-size: 11px; word-break: break-all;
+            margin: 2px;
+        }
+        .scale-input {
+            width: 64px; text-align: center;
+            border: 1px solid var(--border); border-radius: 6px;
+            padding: 4px 8px; font-size: 14px;
+        }
+        /* Detail panel */
+        .deploy-detail-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,.45);
+            z-index: 900; display: flex; justify-content: flex-end;
+        }
+        .deploy-detail-panel {
+            width: 520px; max-width: 96vw;
+            background: var(--surface); height: 100vh; overflow-y: auto;
+            box-shadow: -4px 0 20px rgba(0,0,0,.15); padding: 24px;
+            display: flex; flex-direction: column; gap: 16px;
+        }
+        .detail-header { display: flex; align-items: center; justify-content: space-between; }
+        .detail-title  { font-size: 16px; font-weight: 600; word-break: break-all; }
+        .detail-section h4 {
+            font-size: 12px; font-weight: 600; text-transform: uppercase;
+            color: var(--text-light); margin-bottom: 8px;
+        }
+        .kv-table { width: 100%; font-size: 13px; border-collapse: collapse; }
+        .kv-table td { padding: 4px 0; vertical-align: top; }
+        .kv-table td:first-child { color: var(--text-light); width: 40%; padding-right: 8px; }
+        .label-chip {
+            display: inline-block; padding: 1px 8px;
+            background: #e8f0fe; color: #1a56db;
+            border-radius: 10px; font-size: 11px; margin: 2px;
+        }
+        .cond-row { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 6px; font-size: 12px; }
+        .cond-type { font-weight: 600; min-width: 120px; }
+        .cond-true  { color: #2e7d32; }
+        .cond-false { color: #c62828; }
+        .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px; }
+        .tbl-icon-btn {
+            background: none; border: none; cursor: pointer;
+            color: var(--text-light); padding: 4px 6px; border-radius: 4px;
+            font-size: 14px; transition: color .15s;
+        }
+        .tbl-icon-btn:hover { color: var(--primary); }
+    </style>
+</head>
+<body>
+<div class="layout">
+    <nav class="sidebar"></nav>
+    <main class="main-content">
+        <div class="page-header">
+            <div style="display:flex;align-items:center;gap:10px">
+                <i class="fa-solid fa-rocket k8s-header-icon"></i>
+                <div>
+                    <h1 class="page-title">Deployments</h1>
+                    <p class="page-subtitle">Kubernetes — управление Deployment'ами</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="toolbar">
+            <select class="form-control" id="clusterSelect" style="min-width:180px">
+                <option value="">— Кластер —</option>
+            </select>
+            <select class="form-control" id="namespaceSelect" style="min-width:180px" disabled>
+                <option value="">— Namespace —</option>
+            </select>
+            <input type="text" class="form-control" id="deployFilter" placeholder="Фильтр по имени…" style="flex:1;min-width:160px" disabled>
+            <button class="btn btn-secondary" id="refreshBtn" disabled>
+                <i class="fa-solid fa-rotate-right"></i> Обновить
+            </button>
+        </div>
+
+        <!-- States -->
+        <div id="stateNotConfigured" class="empty-state" style="display:none">
+            <i class="fa-solid fa-dharmachakra" style="font-size:48px;color:#326ce5;opacity:.4;margin-bottom:12px"></i>
+            <p>Kubernetes не сконфигурирован.</p>
+        </div>
+        <div id="stateSelectCluster" class="empty-state" style="display:none">
+            <i class="fa-solid fa-circle-info" style="font-size:36px;color:#aaa;margin-bottom:10px"></i>
+            <p>Выберите кластер и namespace.</p>
+        </div>
+        <div id="stateLoading" class="empty-state" style="display:none">
+            <i class="fa-solid fa-circle-notch fa-spin" style="font-size:36px;color:#aaa;margin-bottom:10px"></i>
+            <p>Загрузка…</p>
+        </div>
+        <div id="stateForbidden" class="empty-state" style="display:none">
+            <i class="fa-solid fa-ban" style="font-size:36px;color:#c62828;opacity:.5;margin-bottom:10px"></i>
+            <p>Нет прав на просмотр Deployments.</p>
+        </div>
+        <div id="stateError" class="empty-state" style="display:none">
+            <i class="fa-solid fa-triangle-exclamation" style="font-size:36px;color:#f57f17;opacity:.6;margin-bottom:10px"></i>
+            <p id="stateErrorMsg">Ошибка.</p>
+        </div>
+        <div id="stateEmpty" class="empty-state" style="display:none">
+            <i class="fa-solid fa-rocket" style="font-size:36px;color:#aaa;opacity:.5;margin-bottom:10px"></i>
+            <p>Нет Deployments в этом namespace.</p>
+        </div>
+
+        <!-- Table -->
+        <div id="deployTableWrap" style="display:none">
+            <div class="table-container">
+                <table class="data-table" id="deployTable">
+                    <thead>
+                        <tr>
+                            <th>Имя</th>
+                            <th>Статус</th>
+                            <th>Реплики</th>
+                            <th>Образы</th>
+                            <th>Создан</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="deployTbody"></tbody>
+                </table>
+            </div>
+            <div id="deployPagination" style="display:none;margin-top:12px;display:flex;gap:8px;align-items:center">
+                <button class="btn btn-secondary btn-sm" id="prevBtn" disabled>← Назад</button>
+                <span id="pageInfo" style="font-size:13px;color:var(--text-light)"></span>
+                <button class="btn btn-secondary btn-sm" id="nextBtn" disabled>Вперёд →</button>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Scale modal -->
+<div id="scaleModal" style="display:none" class="modal-overlay">
+    <div class="modal-dialog" style="max-width:360px">
+        <div class="modal-header">
+            <h3 class="modal-title">Масштабировать Deployment</h3>
+            <button class="modal-close" onclick="closeScaleModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <p id="scaleModalName" style="font-weight:600;margin-bottom:12px"></p>
+            <label class="form-label">Количество реплик</label>
+            <input type="number" class="form-control scale-input" id="scaleReplicasInput" min="0" max="100" value="1">
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeScaleModal()">Отмена</button>
+            <button class="btn btn-primary" onclick="doScale()">Применить</button>
+        </div>
+    </div>
+</div>
+
+<!-- Detail panel -->
+<div id="deployDetailOverlay" class="deploy-detail-overlay" style="display:none" onclick="closeDetail(event)">
+    <div class="deploy-detail-panel" onclick="event.stopPropagation()">
+        <div class="detail-header">
+            <span class="detail-title" id="detailName"></span>
+            <button class="btn btn-secondary btn-sm" onclick="closeDetail()">✕</button>
+        </div>
+        <div id="detailContent"></div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let currentClusterId = null;
+let currentNamespace = null;
+let deploymentsCache = [];
+let continueStack = [];
+let nextContinue = null;
+let scaleTarget = null;
+const LIMIT = 100;
+
+// ── Init ───────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadClusters();
+    document.getElementById('clusterSelect').addEventListener('change', onClusterChange);
+    document.getElementById('namespaceSelect').addEventListener('change', onNamespaceChange);
+    document.getElementById('deployFilter').addEventListener('input', renderTable);
+    document.getElementById('refreshBtn').addEventListener('click', () => loadDeployments(null));
+    document.getElementById('prevBtn').addEventListener('click', onPrevPage);
+    document.getElementById('nextBtn').addEventListener('click', onNextPage);
+});
+
+async function loadClusters() {
+    try {
+        const data = await api.get('/kubernetes/clusters');
+        const sel = document.getElementById('clusterSelect');
+        if (!data.clusters || data.clusters.length === 0) { showState('notConfigured'); return; }
+        data.clusters.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id; opt.textContent = c.display_name || c.id;
+            sel.appendChild(opt);
+        });
+        showState('selectCluster');
+    } catch (e) { showState('notConfigured'); }
+}
+
+async function onClusterChange() {
+    currentClusterId = document.getElementById('clusterSelect').value || null;
+    const nsSel = document.getElementById('namespaceSelect');
+    nsSel.innerHTML = '<option value="">— Namespace —</option>';
+    nsSel.disabled = true; hideTable();
+    if (!currentClusterId) { showState('selectCluster'); return; }
+    showState('loading');
+    try {
+        const data = await api.get(`/kubernetes/clusters/${encodeURIComponent(currentClusterId)}/namespaces?limit=500`);
+        (data.items || []).forEach(ns => {
+            const opt = document.createElement('option');
+            opt.value = ns.name; opt.textContent = ns.name;
+            nsSel.appendChild(opt);
+        });
+        nsSel.disabled = false; showState('selectCluster');
+    } catch (e) { showState('error', e.message); }
+}
+
+async function onNamespaceChange() {
+    currentNamespace = document.getElementById('namespaceSelect').value || null;
+    continueStack = []; nextContinue = null;
+    if (!currentNamespace) { hideTable(); showState('selectCluster'); return; }
+    await loadDeployments(null);
+}
+
+async function loadDeployments(cont) {
+    if (!currentClusterId || !currentNamespace) return;
+    showState('loading'); hideTable();
+    try {
+        let url = `/kubernetes/clusters/${encodeURIComponent(currentClusterId)}/namespaces/${encodeURIComponent(currentNamespace)}/deployments?limit=${LIMIT}`;
+        if (cont) url += `&continue_token=${encodeURIComponent(cont)}`;
+        const data = await api.get(url);
+        deploymentsCache = data.items || [];
+        nextContinue = data.continue_token || null;
+        if (deploymentsCache.length === 0 && !cont) { showState('empty'); }
+        else { renderTable(); showTable(); }
+        updatePagination();
+        document.getElementById('deployFilter').disabled = false;
+        document.getElementById('refreshBtn').disabled = false;
+    } catch (e) {
+        const msg = e.message || '';
+        if (msg.includes('FORBIDDEN') || msg.includes('403')) showState('forbidden');
+        else showState('error', msg);
+    }
+}
+
+function updatePagination() {
+    const hasPrev = continueStack.length > 0, hasNext = !!nextContinue;
+    const pag = document.getElementById('deployPagination');
+    pag.style.display = (hasPrev || hasNext) ? 'flex' : 'none';
+    document.getElementById('prevBtn').disabled = !hasPrev;
+    document.getElementById('nextBtn').disabled = !hasNext;
+    document.getElementById('pageInfo').textContent = `Страница ${continueStack.length + 1}${nextContinue ? '+' : ''}`;
+}
+function onPrevPage() { const prev = continueStack.pop(); loadDeployments(prev || null); }
+function onNextPage() { continueStack.push(null); loadDeployments(nextContinue); }
+
+// ── Table ─────────────────────────────────────────────────────────────────
+function renderTable() {
+    const filter = (document.getElementById('deployFilter').value || '').toLowerCase();
+    const tbody = document.getElementById('deployTbody');
+    const filtered = deploymentsCache.filter(d => !filter || d.name.toLowerCase().includes(filter));
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-light);padding:24px">Нет совпадений</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(d => {
+        const statusHtml = deployStatusHtml(d);
+        const replicasHtml = replicasHtml_(d);
+        const imagesHtml = (d.images || []).slice(0, 2).map(img =>
+            `<span class="image-pill" title="${escapeHtml(img)}">${escapeHtml(shortImage(img))}</span>`
+        ).join('') + (d.images && d.images.length > 2 ? ` <span class="image-pill">+${d.images.length - 2}</span>` : '');
+        const createdHtml = d.created_at ? `<span style="font-size:11px;color:var(--text-light)">${formatDate(d.created_at)}</span>` : '—';
+
+        return `<tr>
+            <td><a href="#" onclick="showDetail(${JSON.stringify(d.name)});return false" style="font-weight:500;font-size:13px">${escapeHtml(d.name)}</a></td>
+            <td>${statusHtml}</td>
+            <td>${replicasHtml}</td>
+            <td>${imagesHtml}</td>
+            <td>${createdHtml}</td>
+            <td style="white-space:nowrap">
+                <button class="tbl-icon-btn" title="Масштабировать" onclick="openScaleModal(${JSON.stringify(d.name)}, ${d.replicas_desired})">
+                    <i class="fa-solid fa-sliders"></i>
+                </button>
+                <button class="tbl-icon-btn" title="Перезапустить" onclick="confirmRestart(${JSON.stringify(d.name)})">
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function deployStatusHtml(d) {
+    const desired = d.replicas_desired;
+    const ready   = d.replicas_ready;
+    let cls = 'deploy-ok', label = 'OK';
+    if (desired === 0) { cls = 'deploy-unknown'; label = 'Scaled to 0'; }
+    else if (ready === 0) { cls = 'deploy-degraded'; label = 'Unavailable'; }
+    else if (ready < desired) { cls = 'deploy-progress'; label = 'Progressing'; }
+    // Check conditions
+    const progCond = (d.conditions || []).find(c => c.type_ === 'Progressing');
+    const availCond = (d.conditions || []).find(c => c.type_ === 'Available');
+    if (availCond && availCond.status === 'False') { cls = 'deploy-degraded'; label = 'Unavailable'; }
+    else if (progCond && progCond.reason === 'NewReplicaSetCreated') { cls = 'deploy-progress'; label = 'Rolling Out'; }
+    return `<span class="deploy-status ${cls}">${label}</span>`;
+}
+
+function replicasHtml_(d) {
+    const desired = d.replicas_desired || 0;
+    const ready = d.replicas_ready || 0;
+    const pct = desired > 0 ? Math.round((ready / desired) * 100) : 0;
+    const fillCls = pct === 100 ? '' : pct === 0 ? ' none' : ' partial';
+    return `<div class="replicas-bar">
+        <div class="replicas-track"><div class="replicas-fill${fillCls}" style="width:${pct}%"></div></div>
+        <span class="replicas-label">${ready}/${desired}</span>
+    </div>`;
+}
+
+function shortImage(img) {
+    const parts = img.split('/');
+    const last = parts[parts.length - 1];
+    return last.length > 40 ? last.substring(0, 37) + '…' : last;
+}
+
+// ── Detail panel ───────────────────────────────────────────────────────────
+async function showDetail(name) {
+    document.getElementById('detailName').textContent = name;
+    document.getElementById('detailContent').innerHTML = '<p style="color:var(--text-light)">Загрузка…</p>';
+    document.getElementById('deployDetailOverlay').style.display = 'flex';
+    try {
+        const d = await api.get(
+            `/kubernetes/clusters/${encodeURIComponent(currentClusterId)}/namespaces/${encodeURIComponent(currentNamespace)}/deployments/${encodeURIComponent(name)}`
+        );
+        renderDetail(d);
+    } catch (e) {
+        document.getElementById('detailContent').innerHTML = `<p style="color:#c62828">Ошибка: ${escapeHtml(e.message || '')}</p>`;
+    }
+}
+
+function renderDetail(d) {
+    const labelsHtml = Object.entries(d.labels || {}).map(([k, v]) =>
+        `<span class="label-chip">${escapeHtml(k)}=${escapeHtml(v)}</span>`
+    ).join('') || '<span style="color:var(--text-light)">—</span>';
+
+    const selectorHtml = Object.entries(d.selector || {}).map(([k, v]) =>
+        `<span class="label-chip">${escapeHtml(k)}=${escapeHtml(v)}</span>`
+    ).join('') || '—';
+
+    const imagesHtml = (d.images || []).map(img =>
+        `<div><span class="image-pill">${escapeHtml(img)}</span></div>`
+    ).join('') || '—';
+
+    const conditionsHtml = (d.conditions || []).map(c => `
+        <div class="cond-row">
+            <span class="cond-type">${escapeHtml(c.type_)}</span>
+            <span class="${c.status === 'True' ? 'cond-true' : 'cond-false'}">${c.status}</span>
+            ${c.reason ? `<span style="color:var(--text-light)">${escapeHtml(c.reason)}</span>` : ''}
+        </div>`).join('') || '<span style="color:var(--text-light)">—</span>';
+
+    document.getElementById('detailContent').innerHTML = `
+        <div class="detail-section">
+            <h4>Основное</h4>
+            <table class="kv-table">
+                <tr><td>Namespace</td><td>${escapeHtml(d.namespace)}</td></tr>
+                <tr><td>Desired</td><td>${d.replicas_desired}</td></tr>
+                <tr><td>Ready</td><td>${d.replicas_ready}</td></tr>
+                <tr><td>Available</td><td>${d.replicas_available}</td></tr>
+                <tr><td>Updated</td><td>${d.replicas_updated}</td></tr>
+                <tr><td>Создан</td><td>${d.created_at ? formatDate(d.created_at) : '—'}</td></tr>
+            </table>
+        </div>
+        <div class="detail-section" style="margin-top:12px">
+            <h4>Образы</h4>${imagesHtml}
+        </div>
+        <div class="detail-section" style="margin-top:12px">
+            <h4>Selector</h4><div>${selectorHtml}</div>
+        </div>
+        <div class="detail-section" style="margin-top:12px">
+            <h4>Conditions</h4>${conditionsHtml}
+        </div>
+        <div class="detail-section" style="margin-top:12px">
+            <h4>Labels</h4><div>${labelsHtml}</div>
+        </div>
+        <div class="detail-section" style="margin-top:16px;display:flex;gap:8px">
+            <button class="btn btn-secondary btn-sm" onclick="openScaleModal(${JSON.stringify(d.name)}, ${d.replicas_desired})">
+                <i class="fa-solid fa-sliders"></i> Масштабировать
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="confirmRestart(${JSON.stringify(d.name)})">
+                <i class="fa-solid fa-rotate-right"></i> Перезапустить
+            </button>
+        </div>`;
+}
+
+function closeDetail(event) {
+    if (!event || event.target === document.getElementById('deployDetailOverlay'))
+        document.getElementById('deployDetailOverlay').style.display = 'none';
+}
+
+// ── Scale modal ────────────────────────────────────────────────────────────
+function openScaleModal(name, currentReplicas) {
+    scaleTarget = name;
+    document.getElementById('scaleModalName').textContent = name;
+    document.getElementById('scaleReplicasInput').value = currentReplicas || 1;
+    document.getElementById('scaleModal').style.display = 'flex';
+}
+function closeScaleModal() {
+    document.getElementById('scaleModal').style.display = 'none';
+    scaleTarget = null;
+}
+async function doScale() {
+    if (!scaleTarget) return;
+    const replicas = parseInt(document.getElementById('scaleReplicasInput').value);
+    if (isNaN(replicas) || replicas < 0) { alert('Введите корректное число реплик'); return; }
+    closeScaleModal();
+    try {
+        await api.post(
+            `/kubernetes/clusters/${encodeURIComponent(currentClusterId)}/namespaces/${encodeURIComponent(currentNamespace)}/deployments/${encodeURIComponent(scaleTarget)}/scale`,
+            { replicas }
+        );
+        await loadDeployments(null);
+    } catch (e) {
+        alert(`Ошибка масштабирования: ${e.message || String(e)}`);
+    }
+}
+
+// ── Restart ────────────────────────────────────────────────────────────────
+function confirmRestart(name) {
+    if (!confirm(`Перезапустить Deployment "${name}"?\n\nBсе Pod'ы будут пересозданы.`)) return;
+    doRestart(name);
+}
+async function doRestart(name) {
+    try {
+        await api.post(
+            `/kubernetes/clusters/${encodeURIComponent(currentClusterId)}/namespaces/${encodeURIComponent(currentNamespace)}/deployments/${encodeURIComponent(name)}/restart`,
+            {}
+        );
+        await loadDeployments(null);
+    } catch (e) {
+        alert(`Ошибка перезапуска: ${e.message || String(e)}`);
+    }
+}
+
+// ── UI helpers ─────────────────────────────────────────────────────────────
+function showState(state, msg) {
+    ['notConfigured','selectCluster','loading','forbidden','error','empty'].forEach(s => {
+        document.getElementById('state' + s.charAt(0).toUpperCase() + s.slice(1)).style.display = 'none';
+    });
+    const el = document.getElementById('state' + state.charAt(0).toUpperCase() + state.slice(1));
+    if (el) el.style.display = '';
+    if (state === 'error' && msg) document.getElementById('stateErrorMsg').textContent = msg;
+}
+function showTable() { document.getElementById('deployTableWrap').style.display = ''; }
+function hideTable() { document.getElementById('deployTableWrap').style.display = 'none'; }
+</script>
+</body>
+</html>
