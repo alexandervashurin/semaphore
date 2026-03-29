@@ -279,21 +279,55 @@ flowchart LR
 ---
 
 ### 🔹 Фаза 2: Core Workloads (Недели 3-5)
-**Цель:** Полный CRUD для основных workload ресурсов
+**Цель:** Основные workload-ресурсы: read/write через API, логи и exec для подов, управление Deployment и сопутствующими объектами; фронт под [детальный план](#2-pods)–[6-statefulsets](#6-statefulsets).
 
-- [ ] **Events (минимум для workloads):** list/get по namespace и по involved object (pod/deployment) — см. раздел [16. Events](#16-events); полноценный cluster-wide стрим и топология — в [фазе 8](#фазы-реализации)
-- [ ] Pods (CRUD, логи, exec, port-forward)
-- [ ] Редактор YAML / apply с **server-side dry-run** и по возможности **diff** к live-объекту (backlog деталей — таблица в разделе референсов)
-- [ ] Deployments (scale, rollout, rollback)
-- [ ] ReplicaSets
-- [ ] DaemonSets
-- [ ] StatefulSets
+#### 2.1 Events (минимум для workloads)
+- [ ] `GET` список **Event** в namespace с фильтрами (`fieldSelector` по `involvedObject.kind/name`, `type` Normal/Warning) — см. [16. Events](#16-events).
+- [ ] В карточках Pod / Deployment / ReplicaSet отображать **последние события** (встраиваемый блок или ссылка на отфильтрованный список).
+- [ ] Полноценный cluster-wide стрим и отдельный экран «все события кластера» — [фаза 8](#фазы-реализации).
+
+#### 2.2 Pods: API и поведение
+- [ ] **List/get:** `GET /namespaces/{ns}/pods`, `GET .../pods/{name}` с полями статуса, контейнеров, nodeName, QoS, условий; **пагинация** `limit`/`continue` обязательна для списка.
+- [ ] **Delete:** `DELETE .../pods/{name}`; опционально **grace period** через query/body.
+- [ ] **Evict:** `POST .../evict` через **Eviction API** (Policy/V1), обработка `429` при PDB — сообщение пользователю.
+- [ ] **Logs:** `GET .../logs` (query: `container`, `follow`, `tailLines`, `sinceSeconds`); для `follow=true` — **WebSocket или SSE** с бэкенда, не держать сотни соединений к apiserver без лимитов.
+- [ ] **Exec:** `POST` + апгрейд до **WebSocket** (или SPDY-совместимый прокси через `kube`); таймауты, лимиты размера кадров, соответствие [безопасности exec](#безопасность-и-мульти-тенантность).
+- [ ] **Port-forward:** прокси через backend с явным закрытием по таймауту и аудитом (см. тот же раздел безопасности).
+- [ ] **YAML:** `GET/PUT .../yaml` для Pod (осознанно: многие поля immutable — возвращать понятную ошибку при конфликте).
+
+#### 2.3 Универсальный YAML / apply (для Pod и далее по фазам)
+- [ ] Редактор на фронте (подсветка, базовая проверка JSON/YAML); для apply — передача на backend.
+- [ ] **Server-side dry-run:** `dry-run=server` для mutating запросов; отображение ответа admission (ошибки валидации, warnings).
+- [ ] По возможности **diff** к live-объекту (или сравнение с последним applied) — детали в [референсах и backlog](#ref-web-ui-best-practices).
+
+#### 2.4 Deployments
+- [ ] Полный CRUD + `scale`, `restart` (стратегия через patch/annotation, как принято), `pause`/`resume` rollout, `rollback` с указанием ревизии, `history`, список связанных **ReplicaSet**.
+- [ ] UI: реплики desired/current/ready, прогресс rollout, история ревизий; YAML-редактор с dry-run.
+
+#### 2.5 ReplicaSets
+- [ ] List/get/delete; список **подов** и ссылка на родительский Deployment; предупреждение при delete, если RS управляется Deployment.
+
+#### 2.6 DaemonSets
+- [ ] CRUD; список подов по нодам; отображение **desiredNumberScheduled / currentNumberScheduled** и аналогичных полей статуса.
+
+#### 2.7 StatefulSets
+- [ ] CRUD + **scale**; список подов с **ordinal**; связанные PVC (имена); headless service — отображение в деталях (ссылка на Service в фазе 3).
+
+#### 2.8 RBAC-UX для фазы 2
+- [ ] Перед мутациями и exec: проверка прав (**SelfSubjectAccessReview** или кэш `can-i`) для соответствующих **verbs** на `pods`, `deployments`, `daemonsets`, `statefulsets`, `replicasets`.
+- [ ] Скрывать или дизейблить кнопки при отсутствии прав; ответы **403** от apiserver показывать человекочитаемо.
+
+#### 2.9 Фронтенд ([web/public/k8s/](web/public/k8s/))
+- [ ] Страницы/модули: **pods**, **deployments**, **replicaSets** (вкладка/подраздел), **daemonsets**, **statefulsets** — согласовать с деревом в разделе [Frontend компоненты](#frontend-компоненты).
+- [ ] **Namespace picker** (глобальный или локальный) — переиспользовать компонент из фазы 1.
+- [ ] Таблицы с фильтром по имени/статусу; детальные страницы с вкладками: Overview, YAML, Events, Logs (pods), Terminal (pods).
 
 **Definition of Done:**
-- ✅ Pod logs streaming через WebSocket
-- ✅ Exec terminal работает стабильно
-- ✅ Deployment scale/restart/rollback работают
-- ✅ YAML editor с валидацией schema
+- ✅ Логи пода: **follow** работает стабильно в UI; обрыв соединения и повторное подключение не роняют страницу.
+- ✅ **Exec** в интерактивном терминале (минимум shell в контейнере) с ограничениями из раздела безопасности; сессия завершается по таймауту и при закрытии вкладки.
+- ✅ **Deployment:** scale, restart, pause/resume, rollback, просмотр истории и RS — без расхождения с фактическим состоянием кластера после refresh.
+- ✅ YAML-редактор с **dry-run=server** до apply; ошибки admission отображаются целиком.
+- ✅ Нагрузочно: список подов в namespace с **100+** pod не ломает UI (пагинация или виртуализация списка на фронте).
 
 ---
 
