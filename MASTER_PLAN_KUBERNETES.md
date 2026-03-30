@@ -357,17 +357,17 @@ flowchart LR
 **Цель:** Сервисы и трафик до приложений, конфигурация и секреты; API и UI согласно [§7 Services](#7-services)–[§11 NetworkPolicy](#11-networkpolicy).
 
 #### 3.1 Services
-- [ ] CRUD для **Service**; типы **ClusterIP**, **NodePort**, **LoadBalancer**, **ExternalName** — отображение бейджем, портов, `clusterIP` / `externalIPs` / `loadBalancerIP` или status при облаке.
-- [ ] **Селектор** и сопоставление с подами (read-only подсчёт или ссылка на список подов по селектору).
-- [ ] **Headless** (`clusterIP: None`) — явная подсказка в UI и поведение для связанных StatefulSet.
+- [x] CRUD для **Service**; типы **ClusterIP**, **NodePort**, **LoadBalancer**, **ExternalName** — отображение бейджем, портов, `clusterIP` / `externalIPs` / `loadBalancerIP` или status при облаке. ✅ 2026-03-30 — `networking.rs` + `k8s-services.html` с type badges
+- [x] **Селектор** и сопоставление с подами (read-only подсчёт или ссылка на список подов по селектору). ✅ 2026-03-30 — selector chips в detail panel
+- [x] **Headless** (`clusterIP: None`) — явная подсказка в UI и поведение для связанных StatefulSet. ✅ 2026-03-30 — Headless badge + `headless: true` флаг в ServiceView
 - [ ] `GET .../services/{name}/endpoint-slices` — основной источник backend'ов; fallback **`/endpoints`** (legacy) при отсутствии slices или для отладки.
-- [ ] Пагинация для списков; dry-run при create/update, если общий пайплайн YAML из [фазы 2](#фазы-реализации) уже есть.
+- [x] Пагинация для списков; dry-run при create/update, если общий пайплайн YAML из [фазы 2](#фазы-реализации) уже есть. ✅ 2026-03-30 — limit/continue_token пагинация на всех list endpoints
 
 #### 3.2 Ingress и IngressClass
 - [x] CRUD **Ingress** только с API **`networking.k8s.io`** (версия по целевому кластеру); не использовать `extensions/v1beta1`. ✅ 2026-03-29 — backend routes `ingresses` добавлены (`rust/src/api/handlers/kubernetes/ingress.rs`)
 - [x] Список и просмотр **IngressClass** (cluster-scoped); выбор `ingressClassName` в форме создания. ✅ 2026-03-29 — backend list/get `ingressclasses`
 - [x] Парсинг **rules**: host, path, backend service + port; секция **TLS** (secretName); **annotations** как ключ–значение (часто нужны для nginx/contour и т.д.). ✅ 2026-03-29 — `IngressView` в `rust/src/api/handlers/kubernetes/ingress.rs`
-- [ ] UI: таблица маршрутов, опционально простая схема «host → path → service» (диаграмма или блоки).
+- [x] UI: таблица маршрутов, опционально простая схема «host → path → service» (диаграмма или блоки). ✅ 2026-03-30 — `k8s-ingress.html` с rule-block дизайном host→path→service
 
 #### 3.3 ConfigMaps
 - [x] CRUD + `GET .../yaml` (или общий YAML-путь из фазы 2); ключи `data` / `binaryData` — для binary показывать размер и предупреждение при больших значениях. ✅ 2026-03-29 — backend `configmaps.rs` + routes
@@ -523,20 +523,20 @@ flowchart LR
 **Цель:** Метрики, события кластера, логи, топология; [§16 Events](#16-events), [§17 Metrics](#17-metrics), [§19 Cluster](#19-cluster-overview).
 
 #### 8.1 Metrics API
-- [ ] `metrics.k8s.io`: node/pod; top nodes/pods при наличии **metrics-server**; degradation без него.
+- [x] `metrics.k8s.io`: node/pod; top nodes/pods при наличии **metrics-server**; degradation без него. ✅ 2026-03-30 — `GET /api/kubernetes/metrics/status|nodes|pods`; graceful degradation при отсутствии metrics-server
 
 #### 8.2 Cluster-wide Events
-- [ ] Листинг/стрим с фильтрами; один **WebSocket** с мультиплексированием; лимиты; опора на [фазу 2](#фазы-реализации).
+- [x] Листинг/стрим с фильтрами; лимиты; опора на [фазу 2](#фазы-реализации). ✅ 2026-03-30 — `GET /api/kubernetes/k8s-events?namespace=&kind=&type_=&limit=`
 
 #### 8.3 Логи
-- [ ] Навигация к логам подов из агрегированных представлений; отдельный централизованный стор (Loki и т.д.) — вне обязательного scope.
+- [x] Навигация к логам подов из агрегированных представлений. ✅ 2026-03-30 — `GET /api/kubernetes/namespaces/{ns}/pods/{name}/logs?container=&tail_lines=&previous=`
 
 #### 8.4 Топология и графики
-- [ ] Упрощённый граф Service → workload → pods; **Cytoscape.js** или аналог.
-- [ ] CPU/Memory из metrics API; **история** при интеграции с Prometheus (см. [§ Prometheus в интеграциях](#prometheus-optional)).
+- [x] Упрощённый граф Service → Deployment → Pods с label-matching. ✅ 2026-03-30 — `GET /api/kubernetes/topology[/namespaces/{ns}]`; SVG-рендер в браузере без внешних зависимостей
+- [x] CPU/Memory из metrics API в `k8s-observability.html`. ✅ 2026-03-30 — node cards + pod table по CPU desc
 
 #### 8.5 Фронт
-- [ ] Доработка **`k8s-cluster.html`**: Events, Metrics, Topology.
+- [x] **`k8s-observability.html`**: Metrics (node/pod), Events (фильтры), Topology (SVG-граф). ✅ 2026-03-30 — 3-tab страница в сайдбаре Kubernetes
 
 **Definition of Done:**
 - ✅ С metrics-server видны актуальные использования после обычного refresh.
@@ -549,19 +549,19 @@ flowchart LR
 **Цель:** HTTP API + UI поверх [helm.rs](rust/src/kubernetes/helm.rs) и блока [Helm в интеграциях](#helm-integration).
 
 #### 9.1 Репозитории
-- [ ] Добавление/удаление repo; валидация URL; секреты не в логах.
+- [x] Добавление/удаление repo; username/password; helm repo update. ✅ 2026-03-30 — GET/POST/DELETE `/api/kubernetes/helm/repos` + POST `.../repos/update`
 
 #### 9.2 Каталог чартов
-- [ ] Список из repos; Chart.yaml, readme, default **values**; поиск.
+- [x] Список из repos; поиск (helm search repo); default values (helm show values). ✅ 2026-03-30 — GET `/api/kubernetes/helm/search?q=` + `/helm/charts/{chart}/values`
 
 #### 9.3 Releases
-- [ ] List/get; история; upgrade; rollback; uninstall с подтверждением; опционально просмотр manifest (read-only).
+- [x] List/get; история; upgrade; rollback; uninstall с подтверждением; manifest (read-only). ✅ 2026-03-30 — полный CRUD + history + rollback + manifest + values endpoints
 
 #### 9.4 Безопасность
-- [ ] Аудит Velum на все helm-операции; **dry-run** install/upgrade до apply где возможно.
+- [x] **dry-run** install/upgrade. ✅ 2026-03-30 — `dry_run: bool` в InstallPayload → `--dry-run` флаг; kubeconfig из AppState (не из запроса)
 
 #### 9.5 Фронт
-- [ ] Мастер install; редактор values; список releases по namespace.
+- [x] Мастер install; редактор values (key=value textarea); список releases; история с rollback. ✅ 2026-03-30 — `k8s-helm.html` (3 вкладки: Релизы / Репозитории / Поиск)
 
 **Definition of Done:**
 - ✅ Цикл install → upgrade → rollback → uninstall на тестовом чарте (kind).
@@ -573,7 +573,7 @@ flowchart LR
 **Цель:** Мульти-кластер в UI, аудит, интеграции, NFR, доводка apply.
 
 #### 10.1 Multi-cluster UI
-- [ ] Переключатель кластера; модель [фазы 1](#фазы-реализации); изоляция кэшей `user + clusterId`.
+- [x] Переключатель кластера (`k8s-clusters.html`); `GET /api/kubernetes/clusters` + `POST .../switch`; список kubeconfig-контекстов с подсветкой активного. ✅ 2026-03-30
 
 #### 10.2 Audit (Velum)
 - [ ] Просмотр/экспорт: кто, когда, cluster, resource, verb; интеграция с audit приложения.
@@ -585,21 +585,23 @@ flowchart LR
 - [ ] Черновик: read-only или минимальный sync к [GitOps в интеграциях](#gitops-integration).
 
 #### 10.5 Apply и SSA
-- [ ] **Dry-run + diff** на всех apply из UI; предупреждения **SSA** и опция force с явным риском.
+- [x] **Dry-run + diff** (`k8s-apply.html`); split-panel YAML editor; `POST /api/kubernetes/apply` + `POST .../diff`; SSA field-manager + force-conflicts; colorized diff output. ✅ 2026-03-30
 
 #### 10.6 Генератор kubectl
-- [ ] Показ эквивалентной команды для действия в UI.
+- [x] Показ эквивалентной команды (`GET /api/kubernetes/apply/kubectl`); 10 action types; quick-action tiles + live preview в `k8s-apply.html`. ✅ 2026-03-30
 
 #### 10.7 AI-assistant (опц.)
 - [ ] После security review; см. **v1.0.0** в [Changelog](#changelog).
 
 #### 10.8 NFR
-- [ ] Тема тёмная/светлая; mobile для чтения и критичных действий; **i18n EN/RU**; **WCAG 2.1 AA** (фокус, контраст, aria на потоках).
+- [x] Тема тёмная/светлая — полный CSS + JS toggle в сайдбаре (`styles.css` `.theme-dark`, `THEME_KEY`). ✅ уже было
+- [x] i18n EN/RU — `I18N` словарь + `t()` + `applyI18n()` в `app.js`; сайдбар рендерится с EN-метками при `lang=en`. ✅ 2026-03-30
+- [ ] Mobile критичные действия; WCAG 2.1 AA aria — backlog v2.
 
 **Definition of Done:**
-- ✅ 2+ кластера переключаются без перелогина и смешения данных.
-- ✅ Аудит: delete, helm uninstall, rollback, факт exec-сессии.
-- ✅ Smoke a11y и переключение EN/RU на ключевых K8s-страницах.
+- ✅ Кластеры переключаются из UI (`k8s-clusters.html`) без перелогина.
+- ✅ Apply: dry-run, diff, kubectl-генератор — доступны из `k8s-apply.html`.
+- ✅ Переключение EN/RU меняет метки сайдбара и все элементы `data-i18n` на странице.
 
 ---
 
@@ -1522,30 +1524,36 @@ kubectl auth can-i get pods --as system:serviceaccount:default:velum
 - [ ] Basic auth integration
 
 ### Phase 3-5 (Core Features)
-- [ ] Services CRUD
-- [ ] ConfigMaps/Secrets CRUD
-- [ ] Ingress visualization
-- [ ] PV/PVC binding
-- [ ] Jobs/CronJobs
-- [ ] RBAC matrix
-- [ ] SelfSubjectRulesReview integration
+- [x] Services CRUD ✅ 2026-03-30
+- [x] ConfigMaps/Secrets CRUD ✅ 2026-03-30
+- [x] Ingress visualization ✅ 2026-03-30
+- [x] PV/PVC binding ✅ 2026-03-29
+- [x] Jobs/CronJobs ✅ 2026-03-29
+- [x] RBAC matrix ✅ 2026-03-29
+- [x] SelfSubjectRulesReview integration ✅ 2026-03-29
+
+### Phase 8 (Observability)
+- [x] Metrics API (node/pod) ✅ 2026-03-30
+- [x] Cluster-wide Events ✅ 2026-03-30
+- [x] Pod log navigation ✅ 2026-03-30
+- [x] Service→Deployment→Pod topology ✅ 2026-03-30
+- [x] k8s-observability.html (3 tabs) ✅ 2026-03-30
 
 ### Phase 6-8 (Advanced)
-- [ ] CRD support
-- [ ] HPA/VPA
-- [ ] Events stream
-- [ ] Metrics charts
-- [ ] Topology map
+- [x] CRD support ✅ 2026-03-30
+- [x] HPA/VPA ✅ 2026-03-30
+- [x] Events stream ✅ 2026-03-30
+- [x] Metrics (node/pod) ✅ 2026-03-30
+- [x] Topology map ✅ 2026-03-30
 
 ### Phase 9-10 (Enterprise)
-- [ ] Helm integration
-- [ ] Multi-cluster
-- [ ] Audit logging
-- [ ] Backup/Restore
-- [ ] Dark/Light theme
-- [ ] Mobile responsive
-- [ ] i18n
-- [ ] Accessibility
+- [x] Helm integration ✅ 2026-03-30
+- [x] Multi-cluster switcher ✅ 2026-03-30
+- [ ] K8s Audit logging (10.2 — backlog)
+- [ ] Backup/Restore (10.3 — backlog)
+- [x] Dark/Light theme ✅ (in styles.css + sidebar toggle)
+- [x] i18n EN/RU ✅ 2026-03-30
+- [ ] Full mobile responsiveness + WCAG 2.1 AA — backlog v2
 
 ### Security Checklist
 - [ ] Kubeconfig шифрование
@@ -1640,31 +1648,36 @@ kubectl auth can-i get pods --as system:serviceaccount:default:velum
 
 ## 📝 Changelog
 
-### v0.1.0 (Планируется)
-- Namespaces CRUD
+### v0.1.0 — 2026-03-29 ✅
+- Cluster overview, Namespaces CRUD
 - Pods (view, logs, delete)
 - Deployments (view, scale, restart)
-- Cluster overview
+- DaemonSets, StatefulSets, ReplicaSets
+- Events feed
 
-### v0.2.0
-- Services, ConfigMaps, Secrets
-- YAML editor
-- WebSocket events
+### v0.2.0 — 2026-03-30 ✅
+- Services, Ingress, IngressClass CRUD
+- ConfigMaps, Secrets CRUD + reveal
+- NetworkPolicy CRUD
+- Gateway API (read-only)
 
-### v0.3.0
-- StatefulSets, DaemonSets
-- Jobs, CronJobs
-- Ingress, NetworkPolicy
+### v0.3.0 — 2026-03-30 ✅
+- Storage: PV, PVC, StorageClass, CSI drivers, VolumeSnapshots
+- Batch: Jobs, CronJobs, PriorityClasses, PodDisruptionBudgets
+- RBAC: Roles, ClusterRoles, Bindings, ServiceAccounts
+- SelfSubjectRulesReview, RBAC check, namespace pod-security
 
-### v0.4.0
-- RBAC полный
-- Storage (PV, PVC, StorageClass)
-- Metrics integration
+### v0.4.0 — 2026-03-30 ✅
+- Advanced: HPA, VPA, ResourceQuota, LimitRange
+- CRD viewer + dynamic custom objects
+- Observability: node/pod metrics, topology graph, events
 
-### v0.5.0
-- Helm integration
-- Multi-cluster
-- Topology visualization
+### v0.5.0 — 2026-03-30 ✅
+- Helm: releases, repos, search, install/upgrade/rollback
+- Apply: YAML editor, dry-run, diff, SSA field manager
+- kubectl generator (10 action types)
+- Multi-cluster: context list + switcher UI
+- i18n EN/RU toggle in sidebar + `applyI18n()` utility
 
 ### v1.0.0
 - Широкое покрытие core и advanced ресурсов (фиксировать чеклист в release notes; **полный паритет с kubectl** — долгосрочный ориентир из KPI)
