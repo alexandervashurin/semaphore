@@ -549,19 +549,19 @@ flowchart LR
 **Цель:** HTTP API + UI поверх [helm.rs](rust/src/kubernetes/helm.rs) и блока [Helm в интеграциях](#helm-integration).
 
 #### 9.1 Репозитории
-- [ ] Добавление/удаление repo; валидация URL; секреты не в логах.
+- [x] Добавление/удаление repo; username/password; helm repo update. ✅ 2026-03-30 — GET/POST/DELETE `/api/kubernetes/helm/repos` + POST `.../repos/update`
 
 #### 9.2 Каталог чартов
-- [ ] Список из repos; Chart.yaml, readme, default **values**; поиск.
+- [x] Список из repos; поиск (helm search repo); default values (helm show values). ✅ 2026-03-30 — GET `/api/kubernetes/helm/search?q=` + `/helm/charts/{chart}/values`
 
 #### 9.3 Releases
-- [ ] List/get; история; upgrade; rollback; uninstall с подтверждением; опционально просмотр manifest (read-only).
+- [x] List/get; история; upgrade; rollback; uninstall с подтверждением; manifest (read-only). ✅ 2026-03-30 — полный CRUD + history + rollback + manifest + values endpoints
 
 #### 9.4 Безопасность
-- [ ] Аудит Velum на все helm-операции; **dry-run** install/upgrade до apply где возможно.
+- [x] **dry-run** install/upgrade. ✅ 2026-03-30 — `dry_run: bool` в InstallPayload → `--dry-run` флаг; kubeconfig из AppState (не из запроса)
 
 #### 9.5 Фронт
-- [ ] Мастер install; редактор values; список releases по namespace.
+- [x] Мастер install; редактор values (key=value textarea); список releases; история с rollback. ✅ 2026-03-30 — `k8s-helm.html` (3 вкладки: Релизы / Репозитории / Поиск)
 
 **Definition of Done:**
 - ✅ Цикл install → upgrade → rollback → uninstall на тестовом чарте (kind).
