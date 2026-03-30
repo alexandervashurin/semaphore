@@ -72,6 +72,10 @@ pub struct AuthUser {
     pub username: String,
     pub email: String,
     pub admin: bool,
+    /// JWT ID — for blacklist check on logout
+    pub jti: String,
+    /// Token expiry (Unix seconds) — for blacklist TTL
+    pub exp: usize,
 }
 
 impl FromRequestParts<Arc<AppState>> for AuthUser {
@@ -102,11 +106,22 @@ impl FromRequestParts<Arc<AppState>> for AuthUser {
                 )
             })?;
 
+        // Check blacklist — token may have been revoked on logout
+        if state.token_blacklist.is_revoked(&claims.jti) {
+            return Err((
+                StatusCode::UNAUTHORIZED,
+                Json(ErrorResponse::new("Токен отозван")
+                    .with_code("TOKEN_REVOKED")),
+            ));
+        }
+
         Ok(AuthUser {
             user_id: claims.sub,
             username: claims.username,
             email: claims.email,
             admin: claims.admin,
+            jti: claims.jti,
+            exp: claims.exp,
         })
     }
 }

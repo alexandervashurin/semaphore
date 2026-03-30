@@ -12,6 +12,7 @@ use super::websocket::WebSocketManager;
 use super::store_wrapper::StoreWrapper;
 use super::middleware::rate_limiter::{RateLimiter, RateLimitConfig};
 use crate::api::handlers::kubernetes::client::{KubeClient, KubeConfig};
+use crate::api::token_blacklist::TokenBlacklist;
 
 /// OIDC state для хранения PKCE verifier между redirect и callback
 #[derive(Clone)]
@@ -32,6 +33,8 @@ pub struct AppState {
     pub rate_limiter_api: Arc<RateLimiter>,
     /// Rate limiter для auth эндпоинтов (5 req/min per IP)
     pub rate_limiter_auth: Arc<RateLimiter>,
+    /// JWT blacklist — отозванные токены до истечения их TTL
+    pub token_blacklist: TokenBlacklist,
 }
 
 impl AppState {
@@ -52,6 +55,7 @@ impl AppState {
                 max_requests: 5,
                 period_secs: 60,
             })),
+            token_blacklist: TokenBlacklist::new(),
         }
     }
 

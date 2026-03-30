@@ -48,6 +48,9 @@ impl ServerCommand {
                 println!("Task scheduler started");
             }
 
+            // Запускаем Telegram Bot (если токен задан в конфиге/env)
+            crate::services::telegram_bot::start_bot_if_configured(&config);
+
             // Запускаем сервис автобэкапа (если включён через env)
             let backup_enabled = std::env::var("SEMAPHORE_AUTO_BACKUP_ENABLED")
                 .map(|v| v == "true" || v == "1")
