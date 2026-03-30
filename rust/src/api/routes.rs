@@ -1842,6 +1842,11 @@ pub fn api_routes() -> Router<Arc<AppState>> {
             "/api/kubernetes/namespaces/{namespace}/events/{name}",
             get(handlers::get_event),
         )
+        // Events WebSocket Streaming
+        .route(
+            "/api/kubernetes/namespaces/{namespace}/events/stream",
+            get(handlers::events_websocket),
+        )
         .route(
             "/api/kubernetes/metrics/pods",
             get(handlers::list_pod_metrics),
