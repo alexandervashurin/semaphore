@@ -123,6 +123,7 @@ pub fn merge_configs(first: Config, second: Config) -> Config {
         email_sender: if !second.email_sender.is_empty() { second.email_sender } else { first.email_sender },
         telegram_bot_token: second.telegram_bot_token.or(first.telegram_bot_token),
         redis: second.redis.or(first.redis),
+        kubernetes: second.kubernetes.or(first.kubernetes),
     }
 }
 

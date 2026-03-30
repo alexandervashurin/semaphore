@@ -717,6 +717,22 @@ const SIDEBAR_SECTIONS = [
         ]
     },
     {
+        label: 'Kubernetes',
+        collapsible: true,
+        items: [
+            { href: 'k8s-services.html',      icon: 'fa-solid fa-network-wired', label: 'Services' },
+            { href: 'k8s-configmaps.html',    icon: 'fa-solid fa-map',           label: 'ConfigMaps' },
+            { href: 'k8s-secrets.html',       icon: 'fa-solid fa-user-secret',   label: 'Secrets' },
+            { href: 'k8s-ingress.html',       icon: 'fa-solid fa-route',         label: 'Ingress' },
+            { href: 'k8s-networkpolicy.html', icon: 'fa-solid fa-shield-halved', label: 'NetworkPolicy' },
+            { href: 'k8s-gateway.html',       icon: 'fa-solid fa-signs-post',    label: 'Gateway API' },
+            { href: 'k8s-storage.html',       icon: 'fa-solid fa-hard-drive',    label: 'Storage' },
+            { href: 'k8s-jobs.html',         icon: 'fa-solid fa-clock-rotate-left', label: 'Jobs & PDB' },
+            { href: 'k8s-rbac.html',         icon: 'fa-solid fa-user-shield',       label: 'RBAC' },
+            { href: 'k8s-crd.html',          icon: 'fa-solid fa-gears',               label: 'CRD & HPA' },
+        ]
+    },
+    {
         label: 'Настройки',
         collapsible: true,
         items: [

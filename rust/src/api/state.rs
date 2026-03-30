@@ -4,12 +4,14 @@ use crate::db::Store;
 use crate::config::Config;
 use crate::services::metrics::MetricsManager;
 use crate::cache::RedisCache;
+use crate::error::{Error, Result};
 use std::sync::Arc;
 use std::collections::HashMap;
 use std::sync::Mutex;
 use super::websocket::WebSocketManager;
 use super::store_wrapper::StoreWrapper;
 use super::middleware::rate_limiter::{RateLimiter, RateLimitConfig};
+use crate::api::handlers::kubernetes::client::{KubeClient, KubeConfig};
 
 /// OIDC state для хранения PKCE verifier между redirect и callback
 #[derive(Clone)]
@@ -51,5 +53,23 @@ impl AppState {
                 period_secs: 60,
             })),
         }
+    }
+
+    /// Создаёт Kubernetes клиент из конфигурации
+    pub fn kubernetes_client(&self) -> Result<Arc<KubeClient>> {
+        let kubeconfig_path = self.config.kubernetes.as_ref().and_then(|k| k.kubeconfig_path.clone());
+        let context = self.config.kubernetes.as_ref().and_then(|k| k.context.clone());
+
+        let kube_config = KubeConfig {
+            kubeconfig_path,
+            context,
+            default_namespace: "default".to_string(),
+            timeout_secs: 30,
+        };
+
+        // Используем blocking-обёртку для async создания клиента
+        // В реальном приложении лучше кэшировать клиент при старте
+        let client = futures::executor::block_on(KubeClient::new(kube_config))?;
+        Ok(Arc::new(client))
     }
 }

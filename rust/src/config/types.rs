@@ -387,6 +387,10 @@ pub struct Config {
     /// Redis конфигурация для кэширования
     #[serde(rename = "redis", default)]
     pub redis: Option<RedisConfig>,
+
+    /// Kubernetes конфигурация для интеграции с кластером
+    #[serde(rename = "kubernetes", default)]
+    pub kubernetes: Option<KubernetesConfig>,
 }
 
 /// Redis конфигурация
@@ -404,6 +408,24 @@ pub struct RedisConfig {
     /// Включить кэширование
     #[serde(default = "default_redis_enabled")]
     pub enabled: bool,
+}
+
+/// Kubernetes конфигурация
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct KubernetesConfig {
+    /// Путь к kubeconfig файлу
+    #[serde(rename = "kubeconfigPath", default)]
+    pub kubeconfig_path: Option<String>,
+    /// Контекст для подключения
+    #[serde(default)]
+    pub context: Option<String>,
+    /// Namespace по умолчанию
+    #[serde(rename = "defaultNamespace", default = "default_k8s_namespace")]
+    pub default_namespace: String,
+}
+
+fn default_k8s_namespace() -> String {
+    "default".to_string()
 }
 
 fn default_redis_url() -> String {
@@ -489,6 +511,7 @@ impl Default for Config {
             email_sender: default_email_sender(),
             telegram_bot_token: None,
             redis: None,
+            kubernetes: None,
         }
     }
 }

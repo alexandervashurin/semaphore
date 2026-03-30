@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes Gateway API - Velum</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar"></aside>
+    <div class="main-content">
+        <div class="main-header"><h2><i class="fa-solid fa-signs-post"></i> Kubernetes Gateway API</h2></div>
+        <div class="main-body">
+            <div id="status" class="card" style="margin-bottom: 12px;"></div>
+            <div class="card" style="margin-bottom: 12px; display: flex; gap: 8px; align-items: center;">
+                <select id="namespace" class="form-control" style="max-width: 260px;"></select>
+                <button class="btn btn-primary" onclick="loadAll()"><i class="fa-solid fa-rotate"></i> Обновить</button>
+            </div>
+            <div id="content" class="card"><div class="loading"><div class="loading-spinner"></div><p>Загрузка...</p></div></div>
+        </div>
+    </div>
+</div>
+<script src="app.js"></script>
+<script>
+checkAuth();
+const KEY = 'k8s_namespace';
+
+async function loadNamespaces() {
+    const data = await api.get('/kubernetes/namespaces');
+    const sel = $('#namespace');
+    const names = (data || []).map(n => n.name).filter(Boolean);
+    const current = localStorage.getItem(KEY) || names[0] || 'default';
+    sel.innerHTML = names.map(n => `<option value="${escapeHtml(n)}"${n===current?' selected':''}>${escapeHtml(n)}</option>`).join('');
+    sel.addEventListener('change', () => { localStorage.setItem(KEY, sel.value); loadAll(); });
+}
+
+async function loadAll() {
+    const ns = $('#namespace').value || localStorage.getItem(KEY) || 'default';
+    const st = await api.get('/kubernetes/gateway-api/status');
+    $('#status').innerHTML = st.installed
+        ? `<span class="badge badge-success">Gateway API установлен</span>`
+        : `<span class="badge badge-warning">Gateway API не обнаружен — раздел можно скрыть в UI</span>`;
+    if (!st.installed) {
+        $('#content').innerHTML = '<p>CRD Gateway API отсутствуют в кластере.</p>';
+        return;
+    }
+    const [gateways, routes, grpc] = await Promise.all([
+        api.get(`/kubernetes/gateways?namespace=${encodeURIComponent(ns)}`),
+        api.get(`/kubernetes/httproutes?namespace=${encodeURIComponent(ns)}`),
+        api.get(`/kubernetes/grpcroutes?namespace=${encodeURIComponent(ns)}`)
+    ]);
+    $('#content').innerHTML = `
+        <table class="table">
+            <thead><tr><th>Ресурс</th><th>Количество</th></tr></thead>
+            <tbody>
+                <tr><td>Gateway</td><td>${(gateways || []).length}</td></tr>
+                <tr><td>HTTPRoute</td><td>${(routes || []).length}</td></tr>
+                <tr><td>GRPCRoute</td><td>${(grpc || []).length}</td></tr>
+            </tbody>
+        </table>
+        <div style="margin-top: 10px;">
+            <button class="btn btn-sm" onclick='ui.showModal("Gateways", "<pre style=&quot;white-space: pre-wrap;&quot;>"+escapeHtml(JSON.stringify(window.__gw || [], null, 2))+"</pre>")'>Gateways JSON</button>
+            <button class="btn btn-sm" onclick='ui.showModal("HTTPRoutes", "<pre style=&quot;white-space: pre-wrap;&quot;>"+escapeHtml(JSON.stringify(window.__hr || [], null, 2))+"</pre>")'>HTTPRoutes JSON</button>
+            <button class="btn btn-sm" onclick='ui.showModal("GRPCRoutes", "<pre style=&quot;white-space: pre-wrap;&quot;>"+escapeHtml(JSON.stringify(window.__gr || [], null, 2))+"</pre>")'>GRPCRoutes JSON</button>
+        </div>
+    `;
+    window.__gw = gateways || [];
+    window.__hr = routes || [];
+    window.__gr = grpc || [];
+}
+
+(async function init(){ await loadNamespaces(); await loadAll(); })();
+</script>
+</body>
+</html>

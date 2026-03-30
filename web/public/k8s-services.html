@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes Services - Velum</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar"></aside>
+    <div class="main-content">
+        <div class="main-header"><h2><i class="fa-solid fa-network-wired"></i> Kubernetes Services</h2></div>
+        <div class="main-body">
+            <div class="card" style="margin-bottom: 12px; display: flex; gap: 8px; align-items: center;">
+                <select id="namespace" class="form-control" style="max-width: 260px;"></select>
+                <input id="filter" class="form-control" placeholder="Фильтр по имени/типу">
+                <button class="btn btn-primary" onclick="loadServices()"><i class="fa-solid fa-rotate"></i> Обновить</button>
+            </div>
+            <div id="content" class="card"><div class="loading"><div class="loading-spinner"></div><p>Загрузка...</p></div></div>
+        </div>
+    </div>
+</div>
+<script src="app.js"></script>
+<script>
+checkAuth();
+const KEY = 'k8s_namespace';
+const content = $('#content');
+
+async function loadNamespaces() {
+    const data = await api.get('/kubernetes/namespaces');
+    const sel = $('#namespace');
+    const names = (data || []).map(n => n.name).filter(Boolean);
+    const current = localStorage.getItem(KEY) || names[0] || 'default';
+    sel.innerHTML = names.map(n => `<option value="${escapeHtml(n)}"${n===current?' selected':''}>${escapeHtml(n)}</option>`).join('');
+    sel.addEventListener('change', () => { localStorage.setItem(KEY, sel.value); loadServices(); });
+}
+
+async function loadServices() {
+    const ns = $('#namespace').value || localStorage.getItem(KEY) || 'default';
+    const filter = ($('#filter').value || '').toLowerCase();
+    const rows = await api.get(`/kubernetes/services?namespace=${encodeURIComponent(ns)}`);
+    const filtered = (rows || []).filter(x => (x.name || '').toLowerCase().includes(filter) || (x.type || '').toLowerCase().includes(filter));
+    content.innerHTML = `
+        <table class="table">
+            <thead><tr><th>Имя</th><th>Тип</th><th>ClusterIP</th><th>Ports</th><th></th></tr></thead>
+            <tbody>
+                ${filtered.map(s => `<tr>
+                    <td>${escapeHtml(s.name || '—')}</td>
+                    <td><span class="badge badge-info">${escapeHtml(s.type || 'ClusterIP')}</span></td>
+                    <td>${escapeHtml(s.cluster_ip || '—')}</td>
+                    <td>${escapeHtml((s.ports || []).join(', ') || '—')}</td>
+                    <td><button class="btn btn-sm" onclick="showYaml('${encodeURIComponent(s.name)}')"><i class="fa-solid fa-eye"></i></button></td>
+                </tr>`).join('')}
+            </tbody>
+        </table>`;
+}
+
+async function showYaml(nameEnc) {
+    const ns = $('#namespace').value || 'default';
+    const data = await api.get(`/kubernetes/namespaces/${encodeURIComponent(ns)}/services/${nameEnc}`);
+    ui.showModal('Service details', `<pre style="white-space: pre-wrap;">${escapeHtml(JSON.stringify(data, null, 2))}</pre>`);
+}
+
+$('#filter').addEventListener('input', () => loadServices());
+(async function init(){ await loadNamespaces(); await loadServices(); })();
+</script>
+</body>
+</html>

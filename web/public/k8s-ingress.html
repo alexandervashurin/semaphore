@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes Ingress - Velum</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar"></aside>
+    <div class="main-content">
+        <div class="main-header"><h2><i class="fa-solid fa-route"></i> Kubernetes Ingress</h2></div>
+        <div class="main-body">
+            <div class="card" style="margin-bottom: 12px; display: flex; gap: 8px; align-items: center;">
+                <select id="namespace" class="form-control" style="max-width: 260px;"></select>
+                <input id="filter" class="form-control" placeholder="Фильтр по имени/host">
+                <button class="btn btn-primary" onclick="loadIngresses()"><i class="fa-solid fa-rotate"></i> Обновить</button>
+            </div>
+            <div id="content" class="card"><div class="loading"><div class="loading-spinner"></div><p>Загрузка...</p></div></div>
+        </div>
+    </div>
+</div>
+<script src="app.js"></script>
+<script>
+checkAuth();
+const KEY = 'k8s_namespace';
+const content = $('#content');
+let ingressRows = [];
+
+async function loadNamespaces() {
+    const data = await api.get('/kubernetes/namespaces');
+    const sel = $('#namespace');
+    const names = (data || []).map(n => n.name).filter(Boolean);
+    const current = localStorage.getItem(KEY) || names[0] || 'default';
+    sel.innerHTML = names.map(n => `<option value="${escapeHtml(n)}"${n===current?' selected':''}>${escapeHtml(n)}</option>`).join('');
+    sel.addEventListener('change', () => { localStorage.setItem(KEY, sel.value); loadIngresses(); });
+}
+
+async function loadIngresses() {
+    const ns = $('#namespace').value || localStorage.getItem(KEY) || 'default';
+    const filter = ($('#filter').value || '').toLowerCase();
+    const rows = await api.get(`/kubernetes/ingresses?namespace=${encodeURIComponent(ns)}`);
+    ingressRows = rows || [];
+    const filtered = ingressRows.filter(x => {
+        const host = (x.rules && x.rules[0] && x.rules[0].host) ? x.rules[0].host : '';
+        return (x.name || '').toLowerCase().includes(filter) || host.toLowerCase().includes(filter);
+    });
+    content.innerHTML = `
+        <table class="table">
+            <thead><tr><th>Имя</th><th>IngressClass</th><th>Маршруты</th><th>TLS</th><th></th></tr></thead>
+            <tbody>
+                ${filtered.map(i => `<tr>
+                    <td>${escapeHtml(i.name || '—')}</td>
+                    <td>${escapeHtml(i.ingress_class_name || '—')}</td>
+                    <td>${(i.rules || []).length}</td>
+                    <td>${(i.tls || []).length}</td>
+                    <td><button class="btn btn-sm" onclick="showDetails(${ingressRows.indexOf(i)})"><i class="fa-solid fa-eye"></i></button></td>
+                </tr>`).join('')}
+            </tbody>
+        </table>`;
+}
+
+function showDetails(idx) {
+    const item = ingressRows[idx] || {};
+    ui.showModal('Ingress details', `<pre style="white-space: pre-wrap;">${escapeHtml(JSON.stringify(item, null, 2))}</pre>`);
+}
+
+$('#filter').addEventListener('input', () => loadIngresses());
+(async function init(){ await loadNamespaces(); await loadIngresses(); })();
+</script>
+</body>
+</html>
