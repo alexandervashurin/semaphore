@@ -1,6 +1,7 @@
 //! Kubernetes API handlers
 
 pub mod advanced;
+pub mod audit;
 pub mod batch;
 pub mod client;
 pub mod cluster;
@@ -24,6 +25,7 @@ pub mod storage_snapshots;
 pub mod types;
 
 pub use advanced::*;
+pub use audit::*;
 pub use batch::*;
 pub use client::*;
 pub use cluster::*;

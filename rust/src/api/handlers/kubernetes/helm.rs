@@ -12,6 +12,7 @@ use kube::{api::{Api, ListParams, DeleteParams, PostParams}, Client};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+use crate::api::handlers::kubernetes::audit::KubernetesAuditLogger;
 use crate::api::state::AppState;
 use crate::error::{Error, Result};
 
@@ -264,18 +265,31 @@ pub async fn install_helm_chart(
 ) -> Result<Json<HelmRelease>> {
     // In real implementation, this would use helm CLI or library
     // For now, return a mock response
-    
-    Ok(Json(HelmRelease {
-        name: payload.name,
-        namespace: payload.namespace,
-        chart: payload.chart,
-        chart_version: payload.version.unwrap_or_else(|| "latest".to_string()),
+
+    let release = HelmRelease {
+        name: payload.name.clone(),
+        namespace: payload.namespace.clone(),
+        chart: payload.chart.clone(),
+        chart_version: payload.version.clone().unwrap_or_else(|| "latest".to_string()),
         app_version: None,
         status: "deployed".to_string(),
         revision: 1,
         deployed_at: Some(chrono::Utc::now().to_rfc3339()),
         values: payload.values,
-    }))
+    };
+
+    // Log to audit log
+    KubernetesAuditLogger::log_helm_install(
+        &state,
+        None, // user_id - нужно получить из контекста аутентификации
+        None, // username
+        &payload.name,
+        &payload.chart,
+        &payload.namespace,
+    )
+    .await;
+
+    Ok(Json(release))
 }
 
 #[derive(Debug, Deserialize)]
@@ -287,33 +301,46 @@ pub struct UpgradeHelmRequest {
 }
 
 pub async fn upgrade_helm_release(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
     Path((namespace, name)): Path<(String, String)>,
     Json(payload): Json<UpgradeHelmRequest>,
 ) -> Result<Json<HelmRelease>> {
-    Ok(Json(HelmRelease {
-        name: name,
-        namespace: namespace,
-        chart: payload.chart,
-        chart_version: payload.version.unwrap_or_else(|| "latest".to_string()),
+    let release = HelmRelease {
+        name: name.clone(),
+        namespace: namespace.clone(),
+        chart: payload.chart.clone(),
+        chart_version: payload.version.clone().unwrap_or_else(|| "latest".to_string()),
         app_version: None,
         status: "upgraded".to_string(),
         revision: 2,
         deployed_at: Some(chrono::Utc::now().to_rfc3339()),
         values: payload.values,
-    }))
+    };
+
+    // Log to audit log
+    KubernetesAuditLogger::log_helm_upgrade(
+        &state,
+        None,
+        None,
+        &name,
+        &payload.chart,
+        &namespace,
+    )
+    .await;
+
+    Ok(Json(release))
 }
 
 pub async fn rollback_helm_release(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
     Path((namespace, name)): Path<(String, String)>,
     Query(query): Query<RollbackQuery>,
 ) -> Result<Json<HelmRelease>> {
     let revision = query.revision.unwrap_or(1);
-    
-    Ok(Json(HelmRelease {
-        name: name,
-        namespace: namespace,
+
+    let release = HelmRelease {
+        name: name.clone(),
+        namespace: namespace.clone(),
         chart: "rolled-back".to_string(),
         chart_version: format!("{}.{}", revision, 0),
         app_version: None,
@@ -321,7 +348,20 @@ pub async fn rollback_helm_release(
         revision: revision + 1,
         deployed_at: Some(chrono::Utc::now().to_rfc3339()),
         values: None,
-    }))
+    };
+
+    // Log to audit log
+    KubernetesAuditLogger::log_helm_rollback(
+        &state,
+        None,
+        None,
+        &name,
+        revision,
+        &namespace,
+    )
+    .await;
+
+    Ok(Json(release))
 }
 
 #[derive(Debug, Deserialize)]
@@ -334,14 +374,14 @@ pub async fn uninstall_helm_release(
     Path((namespace, name)): Path<(String, String)>,
 ) -> Result<StatusCode> {
     let client = state.kubernetes_client()?;
-    
+
     // Delete Helm release Secret
     let secrets_api: Api<Secret> = Api::namespaced(client.raw().clone(), &namespace);
-    
+
     // Try to delete the release secret
     let lp = ListParams::default().labels(format!("name={}", name).as_str());
     let secrets = secrets_api.list(&lp).await.ok();
-    
+
     if let Some(secret_list) = secrets {
         for secret in secret_list.items {
             if let Some(name) = &secret.metadata.name {
@@ -349,7 +389,17 @@ pub async fn uninstall_helm_release(
             }
         }
     }
-    
+
+    // Log to audit log
+    KubernetesAuditLogger::log_helm_uninstall(
+        &state,
+        None,
+        None,
+        &name,
+        &namespace,
+    )
+    .await;
+
     Ok(StatusCode::NO_CONTENT)
 }
 

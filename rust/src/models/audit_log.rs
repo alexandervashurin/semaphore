@@ -91,6 +91,16 @@ pub enum AuditAction {
     RestorePerformed,
     MigrationApplied,
 
+    // Kubernetes операции
+    KubernetesResourceCreated,
+    KubernetesResourceUpdated,
+    KubernetesResourceDeleted,
+    KubernetesResourceScaled,
+    KubernetesHelmReleaseInstalled,
+    KubernetesHelmReleaseUpgraded,
+    KubernetesHelmReleaseRolledBack,
+    KubernetesHelmReleaseUninstalled,
+
     // Другое
     Other,
 }
@@ -113,6 +123,7 @@ pub enum AuditObjectType {
     View,
     Secret,
     System,
+    Kubernetes,
     Other,
 }
 
@@ -332,6 +343,14 @@ impl std::fmt::Display for AuditAction {
             AuditAction::BackupCreated => write!(f, "backup_created"),
             AuditAction::RestorePerformed => write!(f, "restore_performed"),
             AuditAction::MigrationApplied => write!(f, "migration_applied"),
+            AuditAction::KubernetesResourceCreated => write!(f, "kubernetes_resource_created"),
+            AuditAction::KubernetesResourceUpdated => write!(f, "kubernetes_resource_updated"),
+            AuditAction::KubernetesResourceDeleted => write!(f, "kubernetes_resource_deleted"),
+            AuditAction::KubernetesResourceScaled => write!(f, "kubernetes_resource_scaled"),
+            AuditAction::KubernetesHelmReleaseInstalled => write!(f, "kubernetes_helm_release_installed"),
+            AuditAction::KubernetesHelmReleaseUpgraded => write!(f, "kubernetes_helm_release_upgraded"),
+            AuditAction::KubernetesHelmReleaseRolledBack => write!(f, "kubernetes_helm_release_rolled_back"),
+            AuditAction::KubernetesHelmReleaseUninstalled => write!(f, "kubernetes_helm_release_uninstalled"),
             AuditAction::Other => write!(f, "other"),
         }
     }
@@ -354,6 +373,7 @@ impl std::fmt::Display for AuditObjectType {
             AuditObjectType::View => write!(f, "view"),
             AuditObjectType::Secret => write!(f, "secret"),
             AuditObjectType::System => write!(f, "system"),
+            AuditObjectType::Kubernetes => write!(f, "kubernetes"),
             AuditObjectType::Other => write!(f, "other"),
         }
     }
