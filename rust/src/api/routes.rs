@@ -1298,7 +1298,7 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         )
         .route(
             "/api/kubernetes/cluster/summary",
-            get(handlers::get_cluster_summary),
+            get(handlers::get_k8s_cluster_summary),
         )
         // Health
         .route("/api/kubernetes/health", get(handlers::kubernetes_health))
@@ -1922,6 +1922,35 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route(
             "/api/kubernetes/helm/releases/{namespace}/{name}/values",
             put(handlers::update_helm_release_values),
+        )
+        // Multi-Cluster Management
+        .route(
+            "/api/kubernetes/clusters",
+            get(handlers::list_kubernetes_clusters),
+        )
+        .route(
+            "/api/kubernetes/clusters",
+            post(handlers::add_kubernetes_cluster),
+        )
+        .route(
+            "/api/kubernetes/clusters/{name}/switch",
+            post(handlers::switch_kubernetes_cluster),
+        )
+        .route(
+            "/api/kubernetes/clusters/{name}",
+            delete(handlers::remove_kubernetes_cluster),
+        )
+        .route(
+            "/api/kubernetes/cluster/health",
+            get(handlers::get_cluster_health),
+        )
+        .route(
+            "/api/kubernetes/cluster/summary",
+            get(handlers::get_k8s_cluster_summary),
+        )
+        .route(
+            "/api/kubernetes/cluster/aggregate",
+            get(handlers::get_aggregate_view),
         )
 }
 
