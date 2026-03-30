@@ -856,6 +856,19 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/api/kubernetes/metrics/pods", get(handlers::get_pod_metrics))
         .route("/api/kubernetes/topology", get(handlers::get_topology))
         .route("/api/kubernetes/topology/namespaces/{namespace}", get(handlers::get_namespace_topology))
+        // ── Phase 9: Helm ─────────────────────────────────────────────────
+        .route("/api/kubernetes/helm/status", get(handlers::helm_status))
+        .route("/api/kubernetes/helm/repos", get(handlers::list_helm_repos).post(handlers::add_helm_repo))
+        .route("/api/kubernetes/helm/repos/update", post(handlers::update_helm_repos))
+        .route("/api/kubernetes/helm/repos/{name}", delete(handlers::remove_helm_repo))
+        .route("/api/kubernetes/helm/releases", get(handlers::list_helm_releases).post(handlers::install_helm_release))
+        .route("/api/kubernetes/helm/search", get(handlers::search_helm_charts))
+        .route("/api/kubernetes/helm/namespaces/{ns}/releases/{name}", get(handlers::get_helm_release).put(handlers::upgrade_helm_release).delete(handlers::uninstall_helm_release))
+        .route("/api/kubernetes/helm/namespaces/{ns}/releases/{name}/history", get(handlers::helm_release_history))
+        .route("/api/kubernetes/helm/namespaces/{ns}/releases/{name}/rollback", post(handlers::rollback_helm_release))
+        .route("/api/kubernetes/helm/namespaces/{ns}/releases/{name}/values", get(handlers::get_helm_release_values))
+        .route("/api/kubernetes/helm/namespaces/{ns}/releases/{name}/manifest", get(handlers::get_helm_release_manifest))
+        .route("/api/kubernetes/helm/charts/{chart}/values", get(handlers::get_chart_default_values))
 }
 
 /// Создаёт маршруты для статических файлов
