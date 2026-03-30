@@ -1,147 +1,185 @@
-//! Kubernetes Cluster Handlers — /api/kubernetes/clusters/{cluster_id}/...
+//! Cluster API handlers
 //!
-//! Фаза 1: cluster info, namespaces
+//! Handlers для управления кластером Kubernetes
 
 use axum::{
-    extract::{Path, Query, State},
-    http::StatusCode,
+    extract::State,
     Json,
 };
-use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
 use std::sync::Arc;
 use crate::api::state::AppState;
-use crate::api::extractors::AuthUser;
-use crate::kubernetes::service::NamespaceList;
-use crate::error::Error;
+use crate::error::{Error, Result};
+use crate::api::handlers::kubernetes::client::KubernetesClusterService;
+use k8s_openapi::api::core::v1::Node;
+use kube::api::{Api, ListParams};
 
-// ──────────────────────────────────────────────────────────────────────────────
-// GET /api/kubernetes/clusters
-// ──────────────────────────────────────────────────────────────────────────────
+use super::types::{ClusterInfo, NodeSummary, ClusterSummary};
 
-/// Список доступных кластеров
-///
-/// GET /api/kubernetes/clusters
-pub async fn list_clusters(
+/// Получить информацию о кластере
+/// GET /api/kubernetes/cluster/info
+pub async fn get_cluster_info(
     State(state): State<Arc<AppState>>,
-    _auth: AuthUser,
-) -> (StatusCode, Json<Value>) {
-    match &state.k8s {
-        None => (
-            StatusCode::OK,
-            Json(json!({"clusters": [], "message": "Kubernetes не сконфигурирован"})),
-        ),
-        Some(mgr) => {
-            let clusters = mgr.list_clusters();
-            (StatusCode::OK, Json(json!({"clusters": clusters})))
-        }
-    }
+) -> Result<Json<ClusterInfo>> {
+    let client = state.kubernetes_client()?;
+    let service = KubernetesClusterService::new(client);
+
+    let info = service.get_cluster_info().await?;
+    
+    let version = info
+        .get("kubernetes_version")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown");
+
+    let platform = info
+        .get("platform")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown");
+
+    Ok(Json(ClusterInfo {
+        kubernetes_version: version.to_string(),
+        platform: platform.to_string(),
+        git_version: info.get("git_version").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
+        git_commit: info.get("git_commit").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
+        build_date: info.get("build_date").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
+        go_version: info.get("go_version").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
+        compiler: info.get("compiler").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
+        platform_os: platform.split('/').next().unwrap_or("unknown").to_string(),
+        architecture: platform.split('/').nth(1).unwrap_or("unknown").to_string(),
+    }))
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// GET /api/kubernetes/clusters/:cluster_id/info
-// ──────────────────────────────────────────────────────────────────────────────
-
-/// Информация о кластере (версия, доступность)
-///
-/// GET /api/kubernetes/clusters/{cluster_id}/info
-pub async fn cluster_info(
+/// Получить список узлов
+/// GET /api/kubernetes/cluster/nodes
+pub async fn get_cluster_nodes(
     State(state): State<Arc<AppState>>,
-    _auth: AuthUser,
-    Path(cluster_id): Path<String>,
-) -> (StatusCode, Json<Value>) {
-    let mgr = match &state.k8s {
-        Some(m) => m.clone(),
-        None => return (
-            StatusCode::SERVICE_UNAVAILABLE,
-            Json(json!({"error": "Kubernetes не сконфигурирован", "code": "K8S_NOT_CONFIGURED"})),
-        ),
-    };
+) -> Result<Json<Vec<NodeSummary>>> {
+    let client = state.kubernetes_client()?;
+    let service = KubernetesClusterService::new(client);
 
-    let svc = match mgr.get(&cluster_id).await {
-        Ok(s) => s,
-        Err(Error::NotFound(msg)) => return (
-            StatusCode::NOT_FOUND,
-            Json(json!({"error": msg, "code": "CLUSTER_NOT_FOUND"})),
-        ),
-        Err(e) => return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": e.to_string()})),
-        ),
-    };
+    let nodes = service.list_nodes().await?;
 
-    let info = svc.cluster_info().await;
-
-    // Статус ответа зависит от состояния кластера
-    let http_status = if info.reachable {
-        StatusCode::OK
-    } else if info.status == "unauthorized" {
-        StatusCode::UNAUTHORIZED
-    } else {
-        StatusCode::SERVICE_UNAVAILABLE
-    };
-
-    (http_status, Json(json!(info)))
-}
-
-// ──────────────────────────────────────────────────────────────────────────────
-// GET /api/kubernetes/clusters/:cluster_id/namespaces
-// ──────────────────────────────────────────────────────────────────────────────
-
-/// Query params для списка namespace'ов
-#[derive(Debug, Deserialize)]
-pub struct NamespaceListQuery {
-    /// Макс. кол-во записей (1..500, default 100)
-    pub limit: Option<u32>,
-    /// Continue token для пагинации
-    pub continue_token: Option<String>,
-}
-
-/// Список namespace'ов кластера
-///
-/// GET /api/kubernetes/clusters/{cluster_id}/namespaces
-pub async fn list_namespaces(
-    State(state): State<Arc<AppState>>,
-    _auth: AuthUser,
-    Path(cluster_id): Path<String>,
-    Query(q): Query<NamespaceListQuery>,
-) -> (StatusCode, Json<Value>) {
-    let mgr = match &state.k8s {
-        Some(m) => m.clone(),
-        None => return (
-            StatusCode::SERVICE_UNAVAILABLE,
-            Json(json!({"error": "Kubernetes не сконфигурирован", "code": "K8S_NOT_CONFIGURED"})),
-        ),
-    };
-
-    let svc = match mgr.get(&cluster_id).await {
-        Ok(s) => s,
-        Err(Error::NotFound(msg)) => return (
-            StatusCode::NOT_FOUND,
-            Json(json!({"error": msg, "code": "CLUSTER_NOT_FOUND"})),
-        ),
-        Err(e) => return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": e.to_string()})),
-        ),
-    };
-
-    match svc.list_namespaces(q.limit, q.continue_token).await {
-        Ok(list) => (StatusCode::OK, Json(json!(list))),
-        Err(e) => {
-            let msg = e.to_string();
-            // Прокидываем 403 от apiserver как 403 ответ
-            if msg.contains("FORBIDDEN") {
-                (
-                    StatusCode::FORBIDDEN,
-                    Json(json!({"error": "Нет прав на просмотр namespace'ов", "code": "K8S_FORBIDDEN", "detail": msg})),
-                )
-            } else {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(json!({"error": msg})),
-                )
+    let summaries = nodes
+        .iter()
+        .map(|node| {
+            NodeSummary {
+                name: node.get("name").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
+                status: node.get("status").and_then(|v| v.as_str()).unwrap_or("Unknown").to_string(),
+                roles: node
+                    .get("roles")
+                    .and_then(|v| v.as_array())
+                    .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                    .unwrap_or_default(),
+                version: node.get("version").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
+                internal_ip: node.get("internal_ip").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
+                external_ip: node.get("external_ip").and_then(|v| v.as_str()).map(String::from),
+                os_image: node.get("os_image").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
+                kernel_version: node.get("kernel_version").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
+                container_runtime: node.get("container_runtime").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
+                cpu_capacity: "0".to_string(),
+                memory_capacity: "0".to_string(),
+                pods_capacity: 0,
+                cpu_allocatable: "0".to_string(),
+                memory_allocatable: "0".to_string(),
+                pods_allocatable: 0,
             }
-        }
-    }
+        })
+        .collect();
+
+    Ok(Json(summaries))
+}
+
+/// Получить сводку по кластеру
+/// GET /api/kubernetes/cluster/summary
+pub async fn get_cluster_summary(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<ClusterSummary>> {
+    let client = state.kubernetes_client()?;
+
+    // Считаем количество узлов
+    let nodes_api: Api<Node> = client.api_all();
+    let nodes = nodes_api
+        .list(&ListParams::default())
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
+
+    let nodes_count = nodes.items.len() as i32;
+    let nodes_ready = nodes
+        .items
+        .iter()
+        .filter(|n| {
+            n.status
+                .as_ref()
+                .and_then(|s| s.conditions.as_ref())
+                .map(|conds| {
+                    conds
+                        .iter()
+                        .any(|c| c.type_ == "Ready" && c.status == "True")
+                })
+                .unwrap_or(false)
+        })
+        .count() as i32;
+
+    // Считаем namespaces
+    use k8s_openapi::api::core::v1::Namespace;
+    let ns_api: Api<Namespace> = client.api_all();
+    let namespaces = ns_api
+        .list(&ListParams::default())
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let namespaces_count = namespaces.items.len() as i32;
+
+    // Считаем pod'ы
+    use k8s_openapi::api::core::v1::Pod;
+    let pods_api: Api<Pod> = client.api_all();
+    let pods = pods_api
+        .list(&ListParams::default())
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
+
+    let pods_total = pods.items.len() as i32;
+    let pods_running = pods
+        .items
+        .iter()
+        .filter(|p| {
+            p.status
+                .as_ref()
+                .map(|s| s.phase.as_deref() == Some("Running"))
+                .unwrap_or(false)
+        })
+        .count() as i32;
+    let pods_pending = pods
+        .items
+        .iter()
+        .filter(|p| {
+            p.status
+                .as_ref()
+                .map(|s| s.phase.as_deref() == Some("Pending"))
+                .unwrap_or(false)
+        })
+        .count() as i32;
+    let pods_failed = pods
+        .items
+        .iter()
+        .filter(|p| {
+            p.status
+                .as_ref()
+                .map(|s| s.phase.as_deref() == Some("Failed"))
+                .unwrap_or(false)
+        })
+        .count() as i32;
+
+    Ok(Json(ClusterSummary {
+        kubernetes_version: "v1.30.0".to_string(), // TODO: получить из API
+        nodes_count,
+        nodes_ready,
+        namespaces_count,
+        pods_total,
+        pods_running,
+        pods_pending,
+        pods_failed,
+        cpu_capacity: "0".to_string(),
+        memory_capacity: "0".to_string(),
+        cpu_allocatable: "0".to_string(),
+        memory_allocatable: "0".to_string(),
+    }))
 }

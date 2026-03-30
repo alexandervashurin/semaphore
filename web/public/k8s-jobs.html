@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes Jobs — Velum</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar"></aside>
+    <div class="main-content">
+        <div class="main-header"><h2><i class="fa-solid fa-clock-rotate-left"></i> Kubernetes Jobs & Scheduling</h2></div>
+        <div class="main-body">
+            <div id="rbac-bar" class="card" style="margin-bottom:12px;font-size:0.9rem;"></div>
+            <div class="card" style="margin-bottom:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+                <select id="namespace" class="form-control" style="max-width:260px;"></select>
+                <select id="tab" class="form-control" style="max-width:220px;">
+                    <option value="jobs">Jobs</option>
+                    <option value="cronjobs">CronJobs</option>
+                    <option value="pdb">PodDisruptionBudget</option>
+                    <option value="priorityclass">PriorityClass</option>
+                </select>
+                <input id="filter" class="form-control" placeholder="Фильтр по имени">
+                <button class="btn btn-primary" id="btn-refresh"><i class="fa-solid fa-rotate"></i> Обновить</button>
+            </div>
+            <div id="content" class="card"><div class="loading"><div class="loading-spinner"></div><p>Загрузка...</p></div></div>
+        </div>
+    </div>
+</div>
+<script src="app.js"></script>
+<script>
+checkAuth();
+const KEY = 'k8s_namespace';
+let rbacData = null;
+
+const RESOURCE_KEY = {
+    jobs: 'jobs',
+    cronjobs: 'cronjobs',
+    pdb: 'poddisruptionbudgets',
+    priorityclass: 'priorityclasses',
+};
+
+function verbsFor(tab) {
+    const key = RESOURCE_KEY[tab];
+    const row = (rbacData?.resources || []).find(r => r.resource === key);
+    return row?.verbs || { get:false, list:false, watch:false, create:false, update:false, patch:false, delete:false };
+}
+
+function renderRbacBar(tab) {
+    const v = verbsFor(tab);
+    const ns = $('#namespace').value || localStorage.getItem(KEY) || 'default';
+    const bits = ['list','get','create','update','patch','delete'].map(k => `${k}: ${v[k] ? '✓' : '—'}`).join(' · ');
+    const scope = tab === 'priorityclass' ? 'кластер' : `namespace: ${escapeHtml(ns)}`;
+    $('#rbac-bar').innerHTML = `<strong><i class="fa-solid fa-user-shield"></i> RBAC (${escapeHtml(RESOURCE_KEY[tab])})</strong> · ${escapeHtml(scope)}<br><span style="opacity:0.9">${escapeHtml(bits)}</span>`;
+}
+
+async function loadRbac(ns) {
+    try {
+        rbacData = await api.post('/kubernetes/rbac/check', { namespace: ns || null });
+    } catch (e) {
+        rbacData = null;
+        $('#rbac-bar').innerHTML = `<span style="color:var(--danger,#c62828);">RBAC: не удалось загрузить матрицу (${escapeHtml(e.message || 'ошибка')})</span>`;
+    }
+}
+
+async function loadNamespaces() {
+    const data = await api.get('/kubernetes/namespaces');
+    const names = (data || []).map(n => n.name).filter(Boolean);
+    const current = localStorage.getItem(KEY) || names[0] || 'default';
+    const sel = $('#namespace');
+    sel.innerHTML = names.map(n => `<option value="${escapeHtml(n)}"${n===current?' selected':''}>${escapeHtml(n)}</option>`).join('');
+    sel.addEventListener('change', async () => {
+        localStorage.setItem(KEY, sel.value);
+        await loadRbac(sel.value);
+        renderRbacBar($('#tab').value);
+        await loadData();
+    });
+}
+
+function renderTable(headers, rows) {
+    $('#content').innerHTML = `<table class="table"><thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>`;
+}
+
+async function showJobDetail(nameEnc) {
+    const ns = $('#namespace').value || 'default';
+    const name = decodeURIComponent(nameEnc);
+    const data = await api.get(`/kubernetes/namespaces/${encodeURIComponent(ns)}/jobs/${encodeURIComponent(name)}`);
+    ui.showModal('Job: ' + name, `<pre style="white-space:pre-wrap;">${escapeHtml(JSON.stringify(data, null, 2))}</pre>`);
+}
+
+async function showJobPods(nameEnc) {
+    if (!verbsFor('jobs').get) {
+        ui.showAlert('Нет права get на jobs', 'warning');
+        return;
+    }
+    const ns = $('#namespace').value || 'default';
+    const name = decodeURIComponent(nameEnc);
+    const pods = await api.get(`/kubernetes/namespaces/${encodeURIComponent(ns)}/jobs/${encodeURIComponent(name)}/pods`);
+    ui.showModal('Pods Job: ' + name, `<pre style="white-space:pre-wrap;">${escapeHtml(JSON.stringify(pods, null, 2))}</pre>`);
+}
+
+async function deleteJob(nameEnc) {
+    if (!verbsFor('jobs').delete) return;
+    if (!(await ui.confirm('Удалить Job?', decodeURIComponent(nameEnc)))) return;
+    const ns = $('#namespace').value || 'default';
+    const name = decodeURIComponent(nameEnc);
+    await api.request('DELETE', `/kubernetes/namespaces/${encodeURIComponent(ns)}/jobs/${encodeURIComponent(name)}`);
+    ui.showAlert('Job удалён', 'success');
+    await loadData();
+}
+
+async function showCronDetail(nameEnc) {
+    const ns = $('#namespace').value || 'default';
+    const name = decodeURIComponent(nameEnc);
+    const data = await api.get(`/kubernetes/namespaces/${encodeURIComponent(ns)}/cronjobs/${encodeURIComponent(name)}`);
+    ui.showModal('CronJob: ' + name, `<pre style="white-space:pre-wrap;">${escapeHtml(JSON.stringify(data, null, 2))}</pre>`);
+}
+
+async function showCronHistory(nameEnc) {
+    const ns = $('#namespace').value || 'default';
+    const name = decodeURIComponent(nameEnc);
+    const hist = await api.get(`/kubernetes/namespaces/${encodeURIComponent(ns)}/cronjobs/${encodeURIComponent(name)}/history`);
+    ui.showModal('История Job: ' + name, `<pre style="white-space:pre-wrap;">${escapeHtml(JSON.stringify(hist, null, 2))}</pre>`);
+}
+
+async function toggleCronSuspend(nameEnc, wantSuspend) {
+    if (!verbsFor('cronjobs').update && !verbsFor('cronjobs').patch) {
+        ui.showAlert('Нужны права update или patch на cronjobs', 'warning');
+        return;
+    }
+    const ns = $('#namespace').value || 'default';
+    const name = decodeURIComponent(nameEnc);
+    await api.request('PUT', `/kubernetes/namespaces/${encodeURIComponent(ns)}/cronjobs/${encodeURIComponent(name)}/suspend/${wantSuspend}`);
+    await loadData();
+}
+
+async function deleteCron(nameEnc) {
+    if (!verbsFor('cronjobs').delete) return;
+    if (!(await ui.confirm('Удалить CronJob?', decodeURIComponent(nameEnc)))) return;
+    const ns = $('#namespace').value || 'default';
+    const name = decodeURIComponent(nameEnc);
+    await api.request('DELETE', `/kubernetes/namespaces/${encodeURIComponent(ns)}/cronjobs/${encodeURIComponent(name)}`);
+    await loadData();
+}
+
+async function showPdbDetail(nameEnc) {
+    const ns = $('#namespace').value || 'default';
+    const name = decodeURIComponent(nameEnc);
+    const rows = await api.get(`/kubernetes/poddisruptionbudgets?namespace=${encodeURIComponent(ns)}`);
+    const row = (rows || []).find(x => x.name === name);
+    ui.showModal('PDB: ' + name, `<pre style="white-space:pre-wrap;">${escapeHtml(JSON.stringify(row || { name }, null, 2))}</pre>`);
+}
+
+async function deletePdb(nameEnc) {
+    if (!verbsFor('pdb').delete) return;
+    if (!(await ui.confirm('Удалить PodDisruptionBudget?', decodeURIComponent(nameEnc)))) return;
+    const ns = $('#namespace').value || 'default';
+    const name = decodeURIComponent(nameEnc);
+    await api.request('DELETE', `/kubernetes/namespaces/${encodeURIComponent(ns)}/poddisruptionbudgets/${encodeURIComponent(name)}`);
+    await loadData();
+}
+
+async function showPcDetail(name) {
+    const rows = await api.get('/kubernetes/priorityclasses');
+    const row = (rows || []).find(x => x.name === decodeURIComponent(name));
+    ui.showModal('PriorityClass: ' + decodeURIComponent(name), `<pre style="white-space:pre-wrap;">${escapeHtml(JSON.stringify(row || {}, null, 2))}</pre>`);
+}
+
+async function deletePc(nameEnc) {
+    if (!verbsFor('priorityclass').delete) return;
+    if (!(await ui.confirm('Удалить PriorityClass?', decodeURIComponent(nameEnc)))) return;
+    const name = decodeURIComponent(nameEnc);
+    await api.request('DELETE', `/kubernetes/priorityclasses/${encodeURIComponent(name)}`);
+    await loadData();
+}
+
+async function loadData() {
+    const tab = $('#tab').value;
+    const f = ($('#filter').value || '').toLowerCase();
+    const ns = $('#namespace').value || localStorage.getItem(KEY) || 'default';
+
+    const v = verbsFor(tab);
+    if (!v.list) {
+        $('#content').innerHTML = '<p>Нет права <strong>list</strong> для этого ресурса.</p>';
+        return;
+    }
+
+    try {
+        if (tab === 'jobs') {
+            const rows = await api.get(`/kubernetes/jobs?namespace=${encodeURIComponent(ns)}`);
+            const filtered = (rows || []).filter(x => (x.name || '').toLowerCase().includes(f));
+            const del = v.delete ? (n) => `<button class="btn btn-sm btn-danger" onclick="deleteJob('${encodeURIComponent(n)}')"><i class="fa-solid fa-trash"></i></button>` : '';
+            renderTable(['Имя','Active','Succeeded','Failed','Completions','Parallelism',''],
+                filtered.map(x => {
+                    const n = x.name || '';
+                    const ne = encodeURIComponent(n);
+                    return `<tr>
+                        <td>${escapeHtml(n)}</td><td>${x.active ?? '—'}</td><td>${x.succeeded ?? '—'}</td><td>${x.failed ?? '—'}</td>
+                        <td>${escapeHtml(String(x.completions ?? '—'))}</td><td>${escapeHtml(String(x.parallelism ?? '—'))}</td>
+                        <td style="white-space:nowrap;">
+                            ${v.get ? `<button class="btn btn-sm" onclick="showJobDetail('${ne}')"><i class="fa-solid fa-eye"></i></button>` : ''}
+                            ${v.get ? `<button class="btn btn-sm" onclick="showJobPods('${ne}')" title="Pods"><i class="fa-solid fa-cube"></i></button>` : ''}
+                            ${v.delete ? del(n) : ''}
+                        </td></tr>`;
+                }));
+            return;
+        }
+        if (tab === 'cronjobs') {
+            const rows = await api.get(`/kubernetes/cronjobs?namespace=${encodeURIComponent(ns)}`);
+            const filtered = (rows || []).filter(x => (x.name || '').toLowerCase().includes(f));
+            const canMut = v.update || v.patch;
+            renderTable(['Имя','Schedule','Suspend','Active','Last schedule',''],
+                filtered.map(x => {
+                    const n = x.name || '';
+                    const ne = encodeURIComponent(n);
+                    const suspBtn = canMut
+                        ? (x.suspend
+                            ? `<button class="btn btn-sm" onclick="toggleCronSuspend('${ne}', false)">Resume</button>`
+                            : `<button class="btn btn-sm" onclick="toggleCronSuspend('${ne}', true)">Suspend</button>`)
+                        : '';
+                    return `<tr>
+                        <td>${escapeHtml(n)}</td><td><code>${escapeHtml(x.schedule||'—')}</code></td>
+                        <td>${x.suspend ? 'да' : 'нет'}</td><td>${x.active ?? '—'}</td><td>${escapeHtml(x.last_schedule_time || '—')}</td>
+                        <td style="white-space:nowrap;">
+                            ${v.get ? `<button class="btn btn-sm" onclick="showCronDetail('${ne}')"><i class="fa-solid fa-eye"></i></button>` : ''}
+                            ${v.get ? `<button class="btn btn-sm" onclick="showCronHistory('${ne}')" title="История"><i class="fa-solid fa-clock-rotate-left"></i></button>` : ''}
+                            ${suspBtn}
+                            ${v.delete ? `<button class="btn btn-sm btn-danger" onclick="deleteCron('${ne}')"><i class="fa-solid fa-trash"></i></button>` : ''}
+                        </td></tr>`;
+                }));
+            return;
+        }
+        if (tab === 'pdb') {
+            const rows = await api.get(`/kubernetes/poddisruptionbudgets?namespace=${encodeURIComponent(ns)}`);
+            const filtered = (rows || []).filter(x => (x.name || '').toLowerCase().includes(f));
+            renderTable(['Имя','minAvailable','maxUnavailable',''],
+                filtered.map(x => {
+                    const n = x.name || '';
+                    const ne = encodeURIComponent(n);
+                    return `<tr>
+                        <td>${escapeHtml(n)}</td><td>${escapeHtml(x.min_available||'—')}</td><td>${escapeHtml(x.max_unavailable||'—')}</td>
+                        <td>
+                            ${v.get ? `<button class="btn btn-sm" onclick="showPdbDetail('${ne}')"><i class="fa-solid fa-eye"></i></button>` : ''}
+                            ${v.delete ? `<button class="btn btn-sm btn-danger" onclick="deletePdb('${ne}')"><i class="fa-solid fa-trash"></i></button>` : ''}
+                        </td></tr>`;
+                }));
+            return;
+        }
+        const rows = await api.get('/kubernetes/priorityclasses');
+        const filtered = (rows || []).filter(x => (x.name || '').toLowerCase().includes(f));
+        renderTable(['Имя','Value','Global default','Description',''],
+            filtered.map(x => {
+                const n = x.name || '';
+                const ne = encodeURIComponent(n);
+                return `<tr>
+                    <td>${escapeHtml(n)}</td><td>${x.value ?? '—'}</td><td>${x.global_default ? 'да' : 'нет'}</td>
+                    <td>${escapeHtml(x.description||'—')}</td>
+                    <td>
+                        ${v.get ? `<button class="btn btn-sm" onclick="showPcDetail('${ne}')"><i class="fa-solid fa-eye"></i></button>` : ''}
+                        ${v.delete ? `<button class="btn btn-sm btn-danger" onclick="deletePc('${ne}')"><i class="fa-solid fa-trash"></i></button>` : ''}
+                    </td></tr>`;
+            }));
+    } catch (e) {
+        $('#content').innerHTML = `<p class="text-danger">Ошибка: ${escapeHtml(e.message||String(e))}</p>`;
+    }
+}
+
+function updateNsVisibility() {
+    const tab = $('#tab').value;
+    const ns = $('#namespace');
+    if (tab === 'priorityclass') {
+        ns.disabled = true;
+        ns.title = 'PriorityClass — кластерный ресурс (namespace не используется)';
+    } else {
+        ns.disabled = false;
+        ns.title = '';
+    }
+}
+
+$('#tab').addEventListener('change', () => {
+    updateNsVisibility();
+    renderRbacBar($('#tab').value);
+    loadData();
+});
+$('#filter').addEventListener('input', loadData);
+$('#btn-refresh').addEventListener('click', loadData);
+
+(async function init() {
+    await loadNamespaces();
+    await loadRbac($('#namespace').value);
+    updateNsVisibility();
+    renderRbacBar($('#tab').value);
+    await loadData();
+})();
+</script>
+</body>
+</html>

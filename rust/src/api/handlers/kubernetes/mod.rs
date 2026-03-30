@@ -1,31 +1,41 @@
-//! Kubernetes API Handlers
-//!
-//! Маршруты: /api/kubernetes/...
-//!
-//! Фаза 1: clusters list, cluster info, namespaces
-//! Фаза 2: pods list/get/delete/logs
+//! Kubernetes API handlers
 
 pub mod cluster;
-pub mod pods;
-pub mod deployments;
-pub mod workloads;
-pub mod networking;
-pub mod config;
+pub mod client;
+pub mod error;
+pub mod namespaces;
+pub mod health;
+pub mod services;
+pub mod ingress;
+pub mod configmaps;
+pub mod secrets;
+pub mod networkpolicies;
+pub mod gateway_api;
+pub mod rbac;
+pub mod rbac_objects;
+pub mod storage;
+pub mod storage_snapshots;
+pub mod storage_csi;
+pub mod batch;
+pub mod advanced;
+pub mod types;
 
-pub use cluster::{list_clusters, cluster_info, list_namespaces};
-pub use pods::{list_pods, get_pod, delete_pod, pod_logs};
-pub use deployments::{list_deployments, get_deployment, scale_deployment, restart_deployment};
-pub use workloads::{
-    list_daemonsets, get_daemonset, restart_daemonset,
-    list_statefulsets, get_statefulset, scale_statefulset,
-    list_replicasets,
-    list_events,
-};
-pub use networking::{
-    list_services, get_service, delete_service,
-    list_ingresses, get_ingress, delete_ingress,
-};
-pub use config::{
-    list_configmaps, get_configmap, delete_configmap, update_configmap,
-    list_secrets, get_secret, delete_secret,
-};
+pub use cluster::*;
+pub use client::*;
+pub use error::*;
+pub use namespaces::*;
+pub use health::*;
+pub use services::*;
+pub use ingress::*;
+pub use configmaps::*;
+pub use secrets::*;
+pub use networkpolicies::*;
+pub use gateway_api::*;
+pub use rbac::*;
+pub use rbac_objects::*;
+pub use storage::*;
+pub use storage_snapshots::*;
+pub use storage_csi::*;
+pub use batch::*;
+pub use advanced::*;
+pub use types::*;

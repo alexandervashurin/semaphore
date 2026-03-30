@@ -1,0 +1,39 @@
+---
+# Обновление пакетов на Debian (apt update + upgrade)
+- name: Debian — Update Packages
+  hosts: all
+  gather_facts: no
+  become: yes
+  tasks:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Check upgradable packages
+      ansible.builtin.shell: apt list --upgradable 2>/dev/null | grep -v Listing | wc -l
+      register: upgradable
+      changed_when: false
+
+    - name: Show upgradable count
+      ansible.builtin.debug:
+        msg: "Packages available for upgrade: {{ upgradable.stdout }}"
+
+    - name: Upgrade all packages (safe)
+      ansible.builtin.apt:
+        upgrade: safe
+        autoremove: yes
+      register: upgrade_result
+
+    - name: Show upgrade result
+      ansible.builtin.debug:
+        msg: "Upgrade complete. Changed: {{ upgrade_result.changed }}"
+
+    - name: Check if reboot required
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: reboot_required
+
+    - name: Reboot status
+      ansible.builtin.debug:
+        msg: "Reboot required: {{ reboot_required.stat.exists }}"

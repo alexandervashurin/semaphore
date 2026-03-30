@@ -127,6 +127,7 @@ pub fn create_default_config() -> Config {
         email_sender: "velum@localhost".to_string(),
         telegram_bot_token: None,
         redis: None,
+        kubernetes: None,
     }
 }
 

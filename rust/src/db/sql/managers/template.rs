@@ -46,6 +46,12 @@ impl TemplateManager for SqlStore {
                 task_params: row.try_get("task_params").ok().flatten(),
                 survey_vars: row.try_get("survey_vars").ok().flatten(),
                 vaults: row.try_get("vaults").ok().flatten(),
+                parent_template_id: row.try_get("parent_template_id").ok().flatten(),
+                execution_image: row.try_get("execution_image").ok().flatten(),
+                pre_template_id: row.try_get("pre_template_id").ok().flatten(),
+                post_template_id: row.try_get("post_template_id").ok().flatten(),
+                fail_template_id: row.try_get("fail_template_id").ok().flatten(),
+                deploy_environment_id: row.try_get("deploy_environment_id").ok().flatten(),
             }).collect())
     }
 
@@ -88,11 +94,24 @@ impl TemplateManager for SqlStore {
                 task_params: row.try_get("task_params").ok().flatten(),
                 survey_vars: row.try_get("survey_vars").ok().flatten(),
                 vaults: row.try_get("vaults").ok().flatten(),
+                parent_template_id: row.try_get("parent_template_id").ok().flatten(),
+                execution_image: row.try_get("execution_image").ok().flatten(),
+                pre_template_id: row.try_get("pre_template_id").ok().flatten(),
+                post_template_id: row.try_get("post_template_id").ok().flatten(),
+                fail_template_id: row.try_get("fail_template_id").ok().flatten(),
+                deploy_environment_id: row.try_get("deploy_environment_id").ok().flatten(),
             })
     }
 
     async fn create_template(&self, mut template: Template) -> Result<Template> {
-        let query = "INSERT INTO template (project_id, name, playbook, description, inventory_id, repository_id, environment_id, type, app, git_branch, created, arguments, vault_key_id, view_id, build_template_id, autorun, allow_override_args_vars, allow_override_branch_in_task, allow_inventory_in_task, allow_parallel_tasks, suppress_success_alerts, require_approval, task_params, survey_vars, vaults) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25) RETURNING id";
+        let query = "INSERT INTO template \
+            (project_id, name, playbook, description, inventory_id, repository_id, environment_id, \
+             type, app, git_branch, created, arguments, vault_key_id, view_id, build_template_id, \
+             autorun, allow_override_args_vars, allow_override_branch_in_task, allow_inventory_in_task, \
+             allow_parallel_tasks, suppress_success_alerts, require_approval, task_params, survey_vars, vaults, \
+             parent_template_id, execution_image, pre_template_id, post_template_id, fail_template_id, deploy_environment_id) \
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31) \
+            RETURNING id";
             let id: i32 = sqlx::query_scalar(query)
                 .bind(template.project_id)
                 .bind(&template.name)
@@ -119,6 +138,12 @@ impl TemplateManager for SqlStore {
                 .bind(&template.task_params)
                 .bind(&template.survey_vars)
                 .bind(&template.vaults)
+                .bind(template.parent_template_id)
+                .bind(&template.execution_image)
+                .bind(template.pre_template_id)
+                .bind(template.post_template_id)
+                .bind(template.fail_template_id)
+                .bind(template.deploy_environment_id)
                 .fetch_one(self.get_postgres_pool()?)
                 .await
                 .map_err(Error::Database)?;
@@ -128,7 +153,16 @@ impl TemplateManager for SqlStore {
     }
 
     async fn update_template(&self, template: Template) -> Result<()> {
-        let query = "UPDATE template SET name = $1, playbook = $2, description = $3, inventory_id = $4, repository_id = $5, environment_id = $6, type = $7, app = $8, git_branch = $9, arguments = $10, vault_key_id = $11, view_id = $12, build_template_id = $13, autorun = $14, allow_override_args_vars = $15, allow_override_branch_in_task = $16, allow_inventory_in_task = $17, allow_parallel_tasks = $18, suppress_success_alerts = $19, require_approval = $20, task_params = $21, survey_vars = $22, vaults = $23 WHERE id = $24 AND project_id = $25";
+        let query = "UPDATE template SET \
+            name = $1, playbook = $2, description = $3, inventory_id = $4, repository_id = $5, \
+            environment_id = $6, type = $7, app = $8, git_branch = $9, arguments = $10, \
+            vault_key_id = $11, view_id = $12, build_template_id = $13, autorun = $14, \
+            allow_override_args_vars = $15, allow_override_branch_in_task = $16, \
+            allow_inventory_in_task = $17, allow_parallel_tasks = $18, suppress_success_alerts = $19, \
+            require_approval = $20, task_params = $21, survey_vars = $22, vaults = $23, \
+            parent_template_id = $24, execution_image = $25, pre_template_id = $26, \
+            post_template_id = $27, fail_template_id = $28, deploy_environment_id = $29 \
+            WHERE id = $30 AND project_id = $31";
             sqlx::query(query)
                 .bind(&template.name)
                 .bind(&template.playbook)
@@ -153,6 +187,12 @@ impl TemplateManager for SqlStore {
                 .bind(&template.task_params)
                 .bind(&template.survey_vars)
                 .bind(&template.vaults)
+                .bind(template.parent_template_id)
+                .bind(&template.execution_image)
+                .bind(template.pre_template_id)
+                .bind(template.post_template_id)
+                .bind(template.fail_template_id)
+                .bind(template.deploy_environment_id)
                 .bind(template.id)
                 .bind(template.project_id)
                 .execute(self.get_postgres_pool()?)

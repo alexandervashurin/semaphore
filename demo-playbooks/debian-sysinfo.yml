@@ -1,0 +1,62 @@
+---
+# Сбор системной информации с Debian-сервера
+- name: Debian System Info
+  hosts: all
+  gather_facts: yes
+  tasks:
+    - name: Show system info
+      ansible.builtin.debug:
+        msg: |
+          === SYSTEM ===
+          Host: {{ inventory_hostname }}
+          OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          Kernel: {{ ansible_kernel }}
+          CPU: {{ ansible_processor[2] }} ({{ ansible_processor_vcpus }} vCPU)
+          RAM: {{ (ansible_memtotal_mb / 1024) | round(1) }} GB
+
+    - name: Check disk usage
+      ansible.builtin.command: df -hT /
+      register: disk_info
+      changed_when: false
+
+    - name: Show disk usage
+      ansible.builtin.debug:
+        msg: "{{ disk_info.stdout_lines }}"
+
+    - name: Check memory
+      ansible.builtin.command: free -h
+      register: mem_info
+      changed_when: false
+
+    - name: Show memory
+      ansible.builtin.debug:
+        msg: "{{ mem_info.stdout_lines }}"
+
+    - name: Check running services count
+      ansible.builtin.shell: systemctl list-units --type=service --state=running --no-legend | wc -l
+      register: svc_count
+      changed_when: false
+
+    - name: Show services count
+      ansible.builtin.debug:
+        msg: "Running services: {{ svc_count.stdout }}"
+
+    - name: Check CPU temperature
+      ansible.builtin.command: cat /sys/class/thermal/thermal_zone0/temp
+      register: cpu_temp
+      changed_when: false
+      ignore_errors: true
+
+    - name: Show CPU temperature
+      ansible.builtin.debug:
+        msg: "CPU Temp: {{ (cpu_temp.stdout | int / 1000) | round(1) }}°C"
+      when: cpu_temp.rc == 0
+
+    - name: Uptime
+      ansible.builtin.command: uptime
+      register: uptime_out
+      changed_when: false
+
+    - name: Show uptime
+      ansible.builtin.debug:
+        msg: "{{ uptime_out.stdout }}"

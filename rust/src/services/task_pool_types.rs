@@ -109,6 +109,8 @@ impl RunningTask {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::db::mock::MockStore;
+    use crate::db::Store;
     use crate::services::task_logger::TaskStatus;
 
     fn create_test_project() -> Project {
@@ -124,15 +126,8 @@ mod tests {
         }
     }
 
-    fn create_test_store() -> Arc<crate::db::sql::SqlStore> {
-        Arc::new(
-            tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .unwrap()
-                .block_on(crate::db::sql::SqlStore::new("sqlite::memory:"))
-                .unwrap()
-        )
+    fn create_test_store() -> Arc<dyn Store + Send + Sync> {
+        Arc::new(MockStore::new())
     }
 
     #[test]
@@ -147,7 +142,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_task_pool_shutdown() {
-        let store = Arc::new(crate::db::sql::SqlStore::new("sqlite::memory:").await.unwrap());
+        let store: Arc<dyn Store + Send + Sync> = Arc::new(MockStore::new());
         let project = create_test_project();
         let ws_manager = Arc::new(crate::api::websocket::WebSocketManager::new());
 

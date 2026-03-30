@@ -110,5 +110,17 @@ pub use terraform_state::{TerraformState, TerraformStateSummary, TerraformStateL
 pub mod plan_approval;
 pub use plan_approval::{TerraformPlan, PlanReviewPayload, PlanStatus};
 
+pub mod deployment_environment;
+pub use deployment_environment::{
+    DeploymentEnvironment, DeploymentEnvironmentCreate, DeploymentEnvironmentUpdate,
+    DeploymentRecord,
+};
+
+pub mod task_structured_output;
+pub use task_structured_output::{
+    TaskStructuredOutput, TaskStructuredOutputCreate,
+    TaskStructuredOutputBatch, TaskOutputsMap,
+};
+
 // Ре-экспорт RetrieveQueryParams из db::store
 pub use crate::db::store::RetrieveQueryParams;

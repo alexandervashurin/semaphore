@@ -70,6 +70,12 @@ pub async fn create_template(
         task_params: payload.task_params,
         survey_vars: payload.survey_vars,
         vaults: payload.vaults,
+        parent_template_id: payload.parent_template_id,
+        execution_image: payload.execution_image,
+        pre_template_id: payload.pre_template_id,
+        post_template_id: payload.post_template_id,
+        fail_template_id: payload.fail_template_id,
+        deploy_environment_id: payload.deploy_environment_id,
     };
 
     let created = state.store.create_template(template)
@@ -259,6 +265,18 @@ pub struct TemplateCreatePayload {
     pub survey_vars: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub vaults: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parent_template_id: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub execution_image: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pre_template_id: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub post_template_id: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fail_template_id: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deploy_environment_id: Option<i32>,
 }
 
 /// Payload для обновления шаблона

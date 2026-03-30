@@ -697,8 +697,9 @@ const SIDEBAR_SECTIONS = [
             { href: 'inventory.html',    icon: 'fa-solid fa-server',           label: 'Инвентарь' },
             { href: 'repositories.html', icon: 'fa-brands fa-git-alt',         label: 'Репозитории' },
             { href: 'keys.html',         icon: 'fa-solid fa-key',              label: 'Ключи' },
-            { href: 'environments.html', icon: 'fa-solid fa-leaf',             label: 'Окружения' },
-            { href: 'playbooks.html',    icon: 'fa-solid fa-scroll',           label: 'Playbooks' },
+            { href: 'environments.html',        icon: 'fa-solid fa-leaf',             label: 'Окружения' },
+            { href: 'deploy-environments.html', icon: 'fa-solid fa-rocket',           label: 'Deploy Envs' },
+            { href: 'playbooks.html',           icon: 'fa-solid fa-scroll',           label: 'Playbooks' },
             { href: 'schedules.html',    icon: 'fa-solid fa-calendar-days',    label: 'Расписания' },
             { href: 'webhooks.html',     icon: 'fa-solid fa-plug',             label: 'Webhooks' },
             { href: 'workflow.html',     icon: 'fa-solid fa-diagram-project',  label: 'Workflows' },
@@ -719,16 +720,22 @@ const SIDEBAR_SECTIONS = [
         label: 'Kubernetes',
         collapsible: true,
         items: [
-            { href: 'k8s-cluster.html',     icon: 'fa-solid fa-dharmachakra', label: 'Кластер',      noId: true },
-            { href: 'k8s-pods.html',        icon: 'fa-solid fa-box',          label: 'Pods',          noId: true },
-            { href: 'k8s-deploy.html',      icon: 'fa-solid fa-rocket',       label: 'Deployments',   noId: true },
-            { href: 'k8s-daemonsets.html',  icon: 'fa-solid fa-layer-group',  label: 'DaemonSets',    noId: true },
-            { href: 'k8s-statefulsets.html',icon: 'fa-solid fa-database',     label: 'StatefulSets',  noId: true },
-            { href: 'k8s-events.html',      icon: 'fa-solid fa-bell',         label: 'Events',        noId: true },
-            { href: 'k8s-services.html',    icon: 'fa-solid fa-network-wired', label: 'Services',      noId: true },
-            { href: 'k8s-ingress.html',     icon: 'fa-solid fa-route',         label: 'Ingress',       noId: true },
-            { href: 'k8s-configmaps.html',  icon: 'fa-solid fa-sliders',       label: 'ConfigMaps',    noId: true },
-            { href: 'k8s-secrets.html',     icon: 'fa-solid fa-user-secret',   label: 'Secrets',       noId: true },
+            { href: 'k8s-cluster.html',       icon: 'fa-solid fa-dharmachakra',      label: 'Кластер',      noId: true },
+            { href: 'k8s-pods.html',          icon: 'fa-solid fa-box',               label: 'Pods',          noId: true },
+            { href: 'k8s-deploy.html',        icon: 'fa-solid fa-rocket',            label: 'Deployments',   noId: true },
+            { href: 'k8s-daemonsets.html',    icon: 'fa-solid fa-layer-group',       label: 'DaemonSets',    noId: true },
+            { href: 'k8s-statefulsets.html',  icon: 'fa-solid fa-database',          label: 'StatefulSets',  noId: true },
+            { href: 'k8s-events.html',        icon: 'fa-solid fa-bell',              label: 'Events',        noId: true },
+            { href: 'k8s-services.html',      icon: 'fa-solid fa-network-wired',     label: 'Services',      noId: true },
+            { href: 'k8s-ingress.html',       icon: 'fa-solid fa-route',             label: 'Ingress',       noId: true },
+            { href: 'k8s-configmaps.html',    icon: 'fa-solid fa-sliders',           label: 'ConfigMaps',    noId: true },
+            { href: 'k8s-secrets.html',       icon: 'fa-solid fa-user-secret',       label: 'Secrets',       noId: true },
+            { href: 'k8s-networkpolicy.html', icon: 'fa-solid fa-shield-halved',     label: 'NetworkPolicy', noId: true },
+            { href: 'k8s-gateway.html',       icon: 'fa-solid fa-signs-post',        label: 'Gateway API',   noId: true },
+            { href: 'k8s-storage.html',       icon: 'fa-solid fa-hard-drive',        label: 'Storage',       noId: true },
+            { href: 'k8s-jobs.html',          icon: 'fa-solid fa-clock-rotate-left', label: 'Jobs & PDB',    noId: true },
+            { href: 'k8s-rbac.html',          icon: 'fa-solid fa-user-shield',       label: 'RBAC',          noId: true },
+            { href: 'k8s-crd.html',           icon: 'fa-solid fa-gears',             label: 'CRD & HPA',     noId: true },
         ]
     },
     {
@@ -741,6 +748,7 @@ const SIDEBAR_SECTIONS = [
             { href: 'runners.html',          icon: 'fa-solid fa-bolt',         label: 'Runners',      noId: true },
             { href: 'apps.html',             icon: 'fa-solid fa-puzzle-piece', label: 'Apps',         noId: true },
             { href: 'ldap_groups.html',      icon: 'fa-solid fa-sitemap',      label: 'LDAP Groups',  noId: true },
+            { href: 'organizations.html',    icon: 'fa-solid fa-building',     label: 'Организации',  noId: true },
             { href: 'mcp.html',              icon: 'fa-solid fa-robot',        label: 'MCP / AI',     noId: true },
             { href: 'marketplace.html',      icon: 'fa-solid fa-store',        label: 'Marketplace',  noId: true },
         ]
@@ -810,9 +818,6 @@ function renderSidebar() {
         <div class="sidebar-logo">
             <div class="sidebar-logo-dot"><img src="/logo.png" alt=""></div>
             <h2>Velum</h2>
-        </div>
-        <div class="sidebar-section">
-            <span>Проект</span>
         </div>
         <div class="sidebar-project" data-current-page="${escapeHtml(currentPage)}">
             <select class="form-control sidebar-project-select">

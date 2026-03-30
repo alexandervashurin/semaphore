@@ -1,0 +1,56 @@
+---
+# Очистка системы: journald, apt cache, temp files
+- name: Debian — System Cleanup
+  hosts: all
+  gather_facts: no
+  become: yes
+  tasks:
+    - name: Check disk before cleanup
+      ansible.builtin.shell: df -h / | tail -1 | awk '{print $3 " used, " $4 " free (" $5 " used)"}'
+      register: disk_before
+      changed_when: false
+
+    - name: Show disk before
+      ansible.builtin.debug:
+        msg: "Before cleanup: {{ disk_before.stdout }}"
+
+    - name: Clean apt cache
+      ansible.builtin.apt:
+        autoclean: yes
+        autoremove: yes
+
+    - name: Clean journald logs older than 7 days
+      ansible.builtin.command: journalctl --vacuum-time=7d
+      register: journal_clean
+      changed_when: "'Vacuuming done' in journal_clean.stderr"
+
+    - name: Show journal cleanup
+      ansible.builtin.debug:
+        msg: "{{ journal_clean.stderr_lines | last | default('Journal cleaned') }}"
+
+    - name: Clean /tmp files older than 3 days
+      ansible.builtin.find:
+        paths: /tmp
+        age: 3d
+        recurse: no
+      register: old_tmp
+
+    - name: Remove old temp files
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ old_tmp.files }}"
+      ignore_errors: true
+
+    - name: Show removed temp count
+      ansible.builtin.debug:
+        msg: "Removed {{ old_tmp.files | length }} old temp items"
+
+    - name: Check disk after cleanup
+      ansible.builtin.shell: df -h / | tail -1 | awk '{print $3 " used, " $4 " free (" $5 " used)"}'
+      register: disk_after
+      changed_when: false
+
+    - name: Show disk after
+      ansible.builtin.debug:
+        msg: "After cleanup: {{ disk_after.stdout }}"

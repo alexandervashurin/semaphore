@@ -4,8 +4,8 @@
 
 use axum::{
     extract::{Path, Query, State},
-    http::StatusCode,
-    response::IntoResponse,
+    http::{StatusCode, header},
+    response::{IntoResponse, Response},
     Json,
 };
 use std::sync::Arc;
@@ -236,6 +236,114 @@ pub async fn delete_old_audit_logs(
         "before": before,
         "message": format!("Удалено {} записей до {}", deleted, before)
     })))
+}
+
+/// Query параметры для экспорта audit log
+#[derive(Debug, Deserialize)]
+pub struct ExportParams {
+    pub format: Option<String>,  // "csv" | "json" (default: json)
+    pub from: Option<chrono::DateTime<chrono::Utc>>,
+    pub to: Option<chrono::DateTime<chrono::Utc>>,
+    pub project_id: Option<i64>,
+    pub user_id: Option<i64>,
+    pub action: Option<String>,
+    pub limit: Option<i64>,
+}
+
+/// GET /api/audit-log/export — экспорт в CSV или JSON для SIEM (Splunk, ELK)
+#[axum::debug_handler]
+pub async fn export_audit_logs(
+    State(state): State<Arc<AppState>>,
+    _admin: AdminUser,
+    Query(params): Query<ExportParams>,
+) -> Response {
+    let filter = AuditLogFilter {
+        project_id: params.project_id,
+        user_id: params.user_id,
+        action: params.action.as_deref().and_then(|a| match a {
+            "login" => Some(AuditAction::Login),
+            "logout" => Some(AuditAction::Logout),
+            "login_failed" => Some(AuditAction::LoginFailed),
+            "task_created" => Some(AuditAction::TaskCreated),
+            "task_started" => Some(AuditAction::TaskStarted),
+            "task_stopped" => Some(AuditAction::TaskStopped),
+            "user_created" => Some(AuditAction::UserCreated),
+            "user_deleted" => Some(AuditAction::UserDeleted),
+            "project_created" => Some(AuditAction::ProjectCreated),
+            "project_deleted" => Some(AuditAction::ProjectDeleted),
+            _ => None,
+        }),
+        username: None,
+        object_type: None,
+        object_id: None,
+        level: None,
+        search: None,
+        date_from: params.from,
+        date_to: params.to,
+        limit: params.limit.unwrap_or(10_000).min(100_000),
+        offset: 0,
+        sort: "created".to_string(),
+        order: "desc".to_string(),
+    };
+
+    let result = match state.store.search_audit_logs(&filter).await {
+        Ok(r) => r,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": e.to_string()})),
+            ).into_response();
+        }
+    };
+
+    let fmt = params.format.as_deref().unwrap_or("json");
+    match fmt {
+        "csv" => {
+            let mut csv = String::from("id,timestamp,user_id,username,action,object_type,object_id,object_name,ip_address,description\n");
+            for log in &result.records {
+                csv.push_str(&format!(
+                    "{},{},{},{},{},{},{},{},{},{}\n",
+                    log.id,
+                    log.created,
+                    log.user_id.map(|v| v.to_string()).unwrap_or_default(),
+                    csv_escape(log.username.as_deref().unwrap_or("")),
+                    log.action,
+                    log.object_type,
+                    log.object_id.map(|v| v.to_string()).unwrap_or_default(),
+                    csv_escape(log.object_name.as_deref().unwrap_or("")),
+                    csv_escape(log.ip_address.as_deref().unwrap_or("")),
+                    csv_escape(&log.description),
+                ));
+            }
+            (
+                StatusCode::OK,
+                [(header::CONTENT_TYPE, "text/csv; charset=utf-8"),
+                 (header::CONTENT_DISPOSITION, "attachment; filename=\"audit_log.csv\"")],
+                csv,
+            ).into_response()
+        }
+        _ => {
+            // JSON — NDJSON (newline-delimited) для совместимости с Logstash/Fluentd
+            let ndjson: String = result.records.iter()
+                .filter_map(|r| serde_json::to_string(r).ok())
+                .collect::<Vec<_>>()
+                .join("\n");
+            (
+                StatusCode::OK,
+                [(header::CONTENT_TYPE, "application/x-ndjson"),
+                 (header::CONTENT_DISPOSITION, "attachment; filename=\"audit_log.ndjson\"")],
+                ndjson,
+            ).into_response()
+        }
+    }
+}
+
+fn csv_escape(s: &str) -> String {
+    if s.contains(',') || s.contains('"') || s.contains('\n') {
+        format!("\"{}\"", s.replace('"', "\"\""))
+    } else {
+        s.to_string()
+    }
 }
 
 #[derive(Debug, Deserialize)]

@@ -3,221 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kubernetes Services — Velum</title>
+    <title>Kubernetes Services - Velum</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
-    <style>
-        .k8s-icon { color: #326ce5; font-size: 22px; }
-        .svc-type { display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:600; }
-        .type-clusterip    { background:#e8f0fe;color:#1a56db; }
-        .type-nodeport     { background:#e8f5e9;color:#2e7d32; }
-        .type-loadbalancer { background:#fff8e1;color:#f57f17; }
-        .type-externalname { background:#f3e5f5;color:#6a1b9a; }
-        .type-headless     { background:#f5f5f5;color:#616161; }
-        .port-badge { display:inline-block;background:#f3f4f6;border:1px solid var(--border);border-radius:5px;padding:1px 7px;font-family:monospace;font-size:11px;margin:1px; }
-        .selector-chip { display:inline-block;background:#e8f0fe;color:#1a56db;border-radius:10px;padding:1px 7px;font-size:11px;margin:1px; }
-        .toolbar { display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px; }
-        .tbl-icon-btn { background:none;border:none;cursor:pointer;color:var(--text-light);padding:4px 6px;border-radius:4px;font-size:14px; }
-        .tbl-icon-btn:hover.danger { color:#c62828; }
-        .tbl-icon-btn:hover { color:var(--primary); }
-        .detail-overlay { position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:900;display:flex;justify-content:flex-end; }
-        .detail-panel { width:500px;max-width:96vw;background:var(--surface);height:100vh;overflow-y:auto;box-shadow:-4px 0 20px rgba(0,0,0,.15);padding:24px;display:flex;flex-direction:column;gap:14px; }
-        .detail-header { display:flex;align-items:center;justify-content:space-between; }
-        .detail-title { font-size:16px;font-weight:600;word-break:break-all; }
-        .kv-table { width:100%;font-size:13px;border-collapse:collapse; }
-        .kv-table td { padding:4px 0;vertical-align:top; }
-        .kv-table td:first-child { color:var(--text-light);width:40%;padding-right:8px; }
-        .section-title { font-size:12px;font-weight:600;text-transform:uppercase;color:var(--text-light);margin-bottom:8px;margin-top:4px; }
-        .port-row { display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg);border-radius:6px;margin-bottom:4px;font-size:13px; }
-        .port-row .proto { background:#326ce5;color:#fff;padding:1px 7px;border-radius:8px;font-size:10px;font-weight:700; }
-    </style>
 </head>
 <body>
 <div class="layout">
-    <nav class="sidebar"></nav>
-    <main class="main-content">
-        <div class="page-header">
-            <div style="display:flex;align-items:center;gap:10px">
-                <i class="fa-solid fa-network-wired k8s-icon"></i>
-                <div>
-                    <h1 class="page-title">Services</h1>
-                    <p class="page-subtitle">Kubernetes — сетевые сервисы</p>
-                </div>
+    <aside class="sidebar"></aside>
+    <div class="main-content">
+        <div class="main-header"><h2><i class="fa-solid fa-network-wired"></i> Kubernetes Services</h2></div>
+        <div class="main-body">
+            <div class="card" style="margin-bottom: 12px; display: flex; gap: 8px; align-items: center;">
+                <select id="namespace" class="form-control" style="max-width: 260px;"></select>
+                <input id="filter" class="form-control" placeholder="Фильтр по имени/типу">
+                <button class="btn btn-primary" onclick="loadServices()"><i class="fa-solid fa-rotate"></i> Обновить</button>
             </div>
+            <div id="content" class="card"><div class="loading"><div class="loading-spinner"></div><p>Загрузка...</p></div></div>
         </div>
-
-        <div class="toolbar">
-            <select class="form-control" id="clusterSelect" style="min-width:180px"><option value="">— Кластер —</option></select>
-            <select class="form-control" id="namespaceSelect" style="min-width:180px" disabled><option value="">— Namespace —</option></select>
-            <select class="form-control" id="typeFilter" style="min-width:140px" disabled>
-                <option value="">Все типы</option>
-                <option value="ClusterIP">ClusterIP</option>
-                <option value="NodePort">NodePort</option>
-                <option value="LoadBalancer">LoadBalancer</option>
-                <option value="ExternalName">ExternalName</option>
-            </select>
-            <input type="text" class="form-control" id="filter" placeholder="Фильтр по имени…" style="flex:1;min-width:140px" disabled>
-            <button class="btn btn-secondary" id="refreshBtn" disabled><i class="fa-solid fa-rotate-right"></i> Обновить</button>
-        </div>
-
-        <div id="stateNotConfigured" class="empty-state" style="display:none"><i class="fa-solid fa-dharmachakra" style="font-size:48px;color:#326ce5;opacity:.4;margin-bottom:12px"></i><p>Kubernetes не сконфигурирован.</p></div>
-        <div id="stateSelectCluster" class="empty-state" style="display:none"><i class="fa-solid fa-circle-info" style="font-size:36px;color:#aaa;margin-bottom:10px"></i><p>Выберите кластер и namespace.</p></div>
-        <div id="stateLoading" class="empty-state" style="display:none"><i class="fa-solid fa-circle-notch fa-spin" style="font-size:36px;color:#aaa;margin-bottom:10px"></i><p>Загрузка…</p></div>
-        <div id="stateForbidden" class="empty-state" style="display:none"><i class="fa-solid fa-ban" style="font-size:36px;color:#c62828;opacity:.5;margin-bottom:10px"></i><p>Нет прав.</p></div>
-        <div id="stateError" class="empty-state" style="display:none"><i class="fa-solid fa-triangle-exclamation" style="font-size:36px;color:#f57f17;opacity:.6;margin-bottom:10px"></i><p id="stateErrorMsg">Ошибка.</p></div>
-        <div id="stateEmpty" class="empty-state" style="display:none"><i class="fa-solid fa-network-wired" style="font-size:36px;color:#aaa;opacity:.5;margin-bottom:10px"></i><p>Нет Services.</p></div>
-
-        <div id="tableWrap" style="display:none">
-            <div class="table-container">
-                <table class="data-table">
-                    <thead><tr><th>Имя</th><th>Тип</th><th>ClusterIP</th><th>Порты</th><th>Selector</th><th>Создан</th><th></th></tr></thead>
-                    <tbody id="tbody"></tbody>
-                </table>
-            </div>
-        </div>
-    </main>
-</div>
-
-<div id="detailOverlay" class="detail-overlay" style="display:none" onclick="closeDetail(event)">
-    <div class="detail-panel" onclick="event.stopPropagation()">
-        <div class="detail-header"><span class="detail-title" id="detailName"></span><button class="btn btn-secondary btn-sm" onclick="closeDetail()">✕</button></div>
-        <div id="detailContent"></div>
     </div>
 </div>
-
 <script src="app.js"></script>
 <script>
-let currentClusterId=null, currentNamespace=null, cache=[];
-const enc=s=>encodeURIComponent(s);
+checkAuth();
+const KEY = 'k8s_namespace';
+const content = $('#content');
 
-document.addEventListener('DOMContentLoaded', async () => {
-    await loadClusters();
-    document.getElementById('clusterSelect').addEventListener('change', onClusterChange);
-    document.getElementById('namespaceSelect').addEventListener('change', onNsChange);
-    document.getElementById('typeFilter').addEventListener('change', renderTable);
-    document.getElementById('filter').addEventListener('input', renderTable);
-    document.getElementById('refreshBtn').addEventListener('click', load);
-});
-
-async function loadClusters() {
-    try {
-        const data = await api.get('/kubernetes/clusters');
-        const sel = document.getElementById('clusterSelect');
-        if (!data.clusters?.length) { showState('notConfigured'); return; }
-        data.clusters.forEach(c => { const o=document.createElement('option'); o.value=c.id; o.textContent=c.display_name||c.id; sel.appendChild(o); });
-        showState('selectCluster');
-    } catch { showState('notConfigured'); }
+async function loadNamespaces() {
+    const data = await api.get('/kubernetes/namespaces');
+    const sel = $('#namespace');
+    const names = (data || []).map(n => n.name).filter(Boolean);
+    const current = localStorage.getItem(KEY) || names[0] || 'default';
+    sel.innerHTML = names.map(n => `<option value="${escapeHtml(n)}"${n===current?' selected':''}>${escapeHtml(n)}</option>`).join('');
+    sel.addEventListener('change', () => { localStorage.setItem(KEY, sel.value); loadServices(); });
 }
 
-async function onClusterChange() {
-    currentClusterId = document.getElementById('clusterSelect').value||null;
-    const nsSel = document.getElementById('namespaceSelect');
-    nsSel.innerHTML='<option value="">— Namespace —</option>'; nsSel.disabled=true; hide();
-    if (!currentClusterId) { showState('selectCluster'); return; }
-    showState('loading');
-    try {
-        const data = await api.get(`/kubernetes/clusters/${enc(currentClusterId)}/namespaces?limit=500`);
-        (data.items||[]).forEach(ns => { const o=document.createElement('option'); o.value=ns.name; o.textContent=ns.name; nsSel.appendChild(o); });
-        nsSel.disabled=false; showState('selectCluster');
-    } catch(e) { showState('error', e.message); }
+async function loadServices() {
+    const ns = $('#namespace').value || localStorage.getItem(KEY) || 'default';
+    const filter = ($('#filter').value || '').toLowerCase();
+    const rows = await api.get(`/kubernetes/services?namespace=${encodeURIComponent(ns)}`);
+    const filtered = (rows || []).filter(x => (x.name || '').toLowerCase().includes(filter) || (x.type || '').toLowerCase().includes(filter));
+    content.innerHTML = `
+        <table class="table">
+            <thead><tr><th>Имя</th><th>Тип</th><th>ClusterIP</th><th>Ports</th><th></th></tr></thead>
+            <tbody>
+                ${filtered.map(s => `<tr>
+                    <td>${escapeHtml(s.name || '—')}</td>
+                    <td><span class="badge badge-info">${escapeHtml(s.type || 'ClusterIP')}</span></td>
+                    <td>${escapeHtml(s.cluster_ip || '—')}</td>
+                    <td>${escapeHtml((s.ports || []).join(', ') || '—')}</td>
+                    <td><button class="btn btn-sm" onclick="showYaml('${encodeURIComponent(s.name)}')"><i class="fa-solid fa-eye"></i></button></td>
+                </tr>`).join('')}
+            </tbody>
+        </table>`;
 }
 
-async function onNsChange() {
-    currentNamespace = document.getElementById('namespaceSelect').value||null;
-    if (!currentNamespace) { hide(); showState('selectCluster'); return; }
-    await load();
+async function showYaml(nameEnc) {
+    const ns = $('#namespace').value || 'default';
+    const data = await api.get(`/kubernetes/namespaces/${encodeURIComponent(ns)}/services/${nameEnc}`);
+    ui.showModal('Service details', `<pre style="white-space: pre-wrap;">${escapeHtml(JSON.stringify(data, null, 2))}</pre>`);
 }
 
-async function load() {
-    if (!currentClusterId||!currentNamespace) return;
-    showState('loading'); hide();
-    try {
-        const data = await api.get(`/kubernetes/clusters/${enc(currentClusterId)}/namespaces/${enc(currentNamespace)}/services?limit=200`);
-        cache = data.items||[];
-        if (!cache.length) { showState('empty'); return; }
-        renderTable(); show();
-        ['filter','typeFilter','refreshBtn'].forEach(id => document.getElementById(id).disabled=false);
-    } catch(e) {
-        const m=e.message||'';
-        if (m.includes('FORBIDDEN')||m.includes('403')) showState('forbidden');
-        else showState('error', m);
-    }
-}
-
-function renderTable() {
-    const f=(document.getElementById('filter').value||'').toLowerCase();
-    const tf=document.getElementById('typeFilter').value;
-    const rows=cache.filter(s => (!tf||s.type_===tf) && (!f||s.name.toLowerCase().includes(f)));
-    const tbody=document.getElementById('tbody');
-    if (!rows.length) { tbody.innerHTML=`<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-light)">Нет совпадений</td></tr>`; return; }
-    tbody.innerHTML=rows.map(s => {
-        const typeCls = s.headless ? 'type-headless' : `type-${s.type_.toLowerCase()}`;
-        const typeLabel = s.headless ? 'Headless' : s.type_;
-        const clusterIp = s.headless ? '<em style="color:var(--text-light)">None</em>' : (s.cluster_ip||'—');
-        const ports = (s.ports||[]).map(p=>`<span class="port-badge">${p.port}${p.node_port?`:${p.node_port}`:''}</span>`).join('');
-        const selector = Object.entries(s.selector||{}).slice(0,2).map(([k,v])=>`<span class="selector-chip">${escapeHtml(k)}=${escapeHtml(v)}</span>`).join('');
-        return `<tr>
-            <td><a href="#" onclick="showDetail(${JSON.stringify(s.name)});return false" style="font-weight:500;font-size:13px">${escapeHtml(s.name)}</a></td>
-            <td><span class="svc-type ${typeCls}">${typeLabel}</span></td>
-            <td style="font-family:monospace;font-size:12px">${clusterIp}</td>
-            <td>${ports||'—'}</td>
-            <td>${selector||'<span style="color:var(--text-light)">—</span>'}</td>
-            <td>${s.created_at?`<span style="font-size:11px;color:var(--text-light)">${formatDate(s.created_at)}</span>`:'—'}</td>
-            <td><button class="tbl-icon-btn danger" title="Удалить" onclick="confirmDelete(${JSON.stringify(s.name)})"><i class="fa-solid fa-trash"></i></button></td>
-        </tr>`;
-    }).join('');
-}
-
-async function showDetail(name) {
-    document.getElementById('detailName').textContent=name;
-    document.getElementById('detailContent').innerHTML='<p style="color:var(--text-light)">Загрузка…</p>';
-    document.getElementById('detailOverlay').style.display='flex';
-    try {
-        const s = await api.get(`/kubernetes/clusters/${enc(currentClusterId)}/namespaces/${enc(currentNamespace)}/services/${enc(name)}`);
-        const typeCls = s.headless?'type-headless':`type-${s.type_.toLowerCase()}`;
-        const typeLabel = s.headless?'Headless':s.type_;
-        const portsHtml = (s.ports||[]).map(p=>`
-            <div class="port-row">
-                <span class="proto">${escapeHtml(p.protocol)}</span>
-                <span>${p.name||''}</span>
-                <strong>${p.port}</strong><span style="color:var(--text-light)">→</span><span>${escapeHtml(p.target_port)}</span>
-                ${p.node_port?`<span style="color:#2e7d32;font-size:11px">NodePort: ${p.node_port}</span>`:''}
-            </div>`).join('')||'<span style="color:var(--text-light)">—</span>';
-        const selHtml = Object.entries(s.selector||{}).map(([k,v])=>`<span class="selector-chip">${escapeHtml(k)}=${escapeHtml(v)}</span>`).join('')||'<span style="color:var(--text-light)">нет</span>';
-        const labelsHtml = Object.entries(s.labels||{}).map(([k,v])=>`<span class="selector-chip" style="background:#f3f4f6;color:#555">${escapeHtml(k)}=${escapeHtml(v)}</span>`).join('')||'—';
-        document.getElementById('detailContent').innerHTML=`
-            <div class="section-title">Основное</div>
-            <table class="kv-table">
-                <tr><td>Тип</td><td><span class="svc-type ${typeCls}">${typeLabel}</span></td></tr>
-                <tr><td>ClusterIP</td><td style="font-family:monospace">${escapeHtml(s.cluster_ip||'—')}</td></tr>
-                ${(s.external_ips||[]).length?`<tr><td>External IPs</td><td style="font-family:monospace">${s.external_ips.join(', ')}</td></tr>`:''}
-                ${s.load_balancer_ip?`<tr><td>LB IP</td><td style="font-family:monospace">${escapeHtml(s.load_balancer_ip)}</td></tr>`:''}
-                <tr><td>Создан</td><td>${s.created_at?formatDate(s.created_at):'—'}</td></tr>
-            </table>
-            <div class="section-title" style="margin-top:12px">Порты</div>
-            ${portsHtml}
-            <div class="section-title" style="margin-top:12px">Selector</div>
-            <div>${selHtml}</div>
-            <div class="section-title" style="margin-top:12px">Labels</div>
-            <div>${labelsHtml}</div>
-            <div style="margin-top:16px">
-                <button class="btn btn-danger btn-sm" onclick="confirmDelete(${JSON.stringify(s.name)})"><i class="fa-solid fa-trash"></i> Удалить</button>
-            </div>`;
-    } catch(e) { document.getElementById('detailContent').innerHTML=`<p style="color:#c62828">Ошибка: ${escapeHtml(e.message||'')}</p>`; }
-}
-
-function closeDetail(e) { if (!e||e.target===document.getElementById('detailOverlay')) document.getElementById('detailOverlay').style.display='none'; }
-
-function confirmDelete(name) {
-    if (!confirm(`Удалить Service "${name}"?`)) return;
-    api.delete(`/kubernetes/clusters/${enc(currentClusterId)}/namespaces/${enc(currentNamespace)}/services/${enc(name)}`)
-        .then(() => { cache=cache.filter(s=>s.name!==name); renderTable(); document.getElementById('detailOverlay').style.display='none'; if (!cache.length) { hide(); showState('empty'); } })
-        .catch(e=>alert(`Ошибка: ${e.message||e}`));
-}
-
-function showState(s,msg){['notConfigured','selectCluster','loading','forbidden','error','empty'].forEach(x=>{document.getElementById('state'+x.charAt(0).toUpperCase()+x.slice(1)).style.display='none';});const el=document.getElementById('state'+s.charAt(0).toUpperCase()+s.slice(1));if(el)el.style.display='';if(s==='error'&&msg)document.getElementById('stateErrorMsg').textContent=msg;}
-function show(){document.getElementById('tableWrap').style.display='';}
-function hide(){document.getElementById('tableWrap').style.display='none';}
+$('#filter').addEventListener('input', () => loadServices());
+(async function init(){ await loadNamespaces(); await loadServices(); })();
 </script>
 </body>
 </html>

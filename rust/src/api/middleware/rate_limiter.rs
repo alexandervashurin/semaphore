@@ -4,7 +4,7 @@ use axum::{
     extract::State,
     http::{Request, StatusCode},
     middleware::Next,
-    response::Response,
+    response::{Response, IntoResponse, Json},
     body::Body,
 };
 use std::{
@@ -145,6 +145,38 @@ pub async fn auth_rate_limit(
     }
     
     Ok(next.run(req).await)
+}
+
+/// Middleware для API rate limiting через AppState
+pub async fn app_api_rate_limit(
+    State(state): State<std::sync::Arc<crate::api::state::AppState>>,
+    req: Request<Body>,
+    next: Next,
+) -> Response {
+    let ip = extract_ip(&req);
+    if !state.rate_limiter_api.is_allowed(&ip).await {
+        return (
+            StatusCode::TOO_MANY_REQUESTS,
+            Json(serde_json::json!({"error": "Rate limit exceeded. Try again later."})),
+        ).into_response();
+    }
+    next.run(req).await
+}
+
+/// Middleware для auth rate limiting через AppState
+pub async fn app_auth_rate_limit(
+    State(state): State<std::sync::Arc<crate::api::state::AppState>>,
+    req: Request<Body>,
+    next: Next,
+) -> Response {
+    let ip = extract_ip(&req);
+    if !state.rate_limiter_auth.is_allowed(&ip).await {
+        return (
+            StatusCode::TOO_MANY_REQUESTS,
+            Json(serde_json::json!({"error": "Too many authentication attempts. Try again in 1 minute."})),
+        ).into_response();
+    }
+    next.run(req).await
 }
 
 #[cfg(test)]

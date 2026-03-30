@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes NetworkPolicy - Velum</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar"></aside>
+    <div class="main-content">
+        <div class="main-header"><h2><i class="fa-solid fa-shield-halved"></i> Kubernetes NetworkPolicy</h2></div>
+        <div class="main-body">
+            <div class="card" style="margin-bottom: 12px; display: flex; gap: 8px; align-items: center;">
+                <select id="namespace" class="form-control" style="max-width: 260px;"></select>
+                <input id="filter" class="form-control" placeholder="Фильтр по имени">
+                <button class="btn btn-primary" onclick="loadPolicies()"><i class="fa-solid fa-rotate"></i> Обновить</button>
+            </div>
+            <div id="content" class="card"><div class="loading"><div class="loading-spinner"></div><p>Загрузка...</p></div></div>
+        </div>
+    </div>
+</div>
+<script src="app.js"></script>
+<script>
+checkAuth();
+const KEY = 'k8s_namespace';
+const content = $('#content');
+
+async function loadNamespaces() {
+    const data = await api.get('/kubernetes/namespaces');
+    const sel = $('#namespace');
+    const names = (data || []).map(n => n.name).filter(Boolean);
+    const current = localStorage.getItem(KEY) || names[0] || 'default';
+    sel.innerHTML = names.map(n => `<option value="${escapeHtml(n)}"${n===current?' selected':''}>${escapeHtml(n)}</option>`).join('');
+    sel.addEventListener('change', () => { localStorage.setItem(KEY, sel.value); loadPolicies(); });
+}
+
+async function loadPolicies() {
+    const ns = $('#namespace').value || localStorage.getItem(KEY) || 'default';
+    const filter = ($('#filter').value || '').toLowerCase();
+    const rows = await api.get(`/kubernetes/networkpolicies?namespace=${encodeURIComponent(ns)}`);
+    const filtered = (rows || []).filter(x => (x.name || '').toLowerCase().includes(filter));
+    content.innerHTML = `
+        <table class="table">
+            <thead><tr><th>Имя</th><th>PolicyTypes</th><th>Ingress rules</th><th>Egress rules</th><th></th></tr></thead>
+            <tbody>
+                ${filtered.map(p => `<tr>
+                    <td>${escapeHtml(p.name || '—')}</td>
+                    <td>${escapeHtml((p.policy_types || []).join(', ') || '—')}</td>
+                    <td>${p.ingress_rules || 0}</td>
+                    <td>${p.egress_rules || 0}</td>
+                    <td><button class="btn btn-sm" onclick="showDetails('${encodeURIComponent(p.name)}')"><i class="fa-solid fa-eye"></i></button></td>
+                </tr>`).join('')}
+            </tbody>
+        </table>`;
+}
+
+async function showDetails(nameEnc) {
+    const ns = $('#namespace').value || 'default';
+    const data = await api.get(`/kubernetes/namespaces/${encodeURIComponent(ns)}/networkpolicies/${nameEnc}`);
+    ui.showModal('NetworkPolicy details', `<pre style="white-space: pre-wrap;">${escapeHtml(JSON.stringify(data, null, 2))}</pre>`);
+}
+
+$('#filter').addEventListener('input', () => loadPolicies());
+(async function init(){ await loadNamespaces(); await loadPolicies(); })();
+</script>
+</body>
+</html>

@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes RBAC — Velum</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar"></aside>
+    <div class="main-content">
+        <div class="main-header"><h2><i class="fa-solid fa-user-shield"></i> Kubernetes RBAC</h2></div>
+        <div class="main-body">
+            <div id="rbac-bar" class="card" style="margin-bottom:12px;font-size:0.9rem;"></div>
+            <div class="card" style="margin-bottom:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+                <select id="namespace" class="form-control" style="max-width:260px;"></select>
+                <select id="tab" class="form-control" style="max-width:240px;">
+                    <option value="sa">ServiceAccounts</option>
+                    <option value="roles">Roles</option>
+                    <option value="rolebindings">RoleBindings</option>
+                    <option value="clusterroles">ClusterRoles</option>
+                    <option value="clusterrolebindings">ClusterRoleBindings</option>
+                    <option value="myrules">Мои правила (SSR)</option>
+                    <option value="psa">Pod Security (namespace)</option>
+                </select>
+                <input id="filter" class="form-control" placeholder="Фильтр по имени" style="min-width:160px;">
+                <button class="btn btn-primary" id="btn-refresh"><i class="fa-solid fa-rotate"></i> Обновить</button>
+            </div>
+            <div id="rules-extra" class="card" style="margin-bottom:12px;display:none;">
+                <label style="margin-right:12px;"><input type="checkbox" id="rules-cluster-only"> Только кластерный scope (без namespace)</label>
+                <button class="btn btn-sm btn-primary" id="btn-rules"><i class="fa-solid fa-magnifying-glass"></i> Запросить SelfSubjectRulesReview</button>
+            </div>
+            <div id="psa-panel" class="card" style="margin-bottom:12px;display:none;">
+                <p style="margin-bottom:8px;">Метки <code>pod-security.kubernetes.io/*</code> для выбранного namespace. Пустое значение снимает метку.</p>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+                    <label>enforce <select id="psa-enforce" class="form-control" style="max-width:140px;"><option value="">—</option><option value="privileged">privileged</option><option value="baseline">baseline</option><option value="restricted">restricted</option></select></label>
+                    <label>audit <select id="psa-audit" class="form-control" style="max-width:140px;"><option value="">—</option><option value="privileged">privileged</option><option value="baseline">baseline</option><option value="restricted">restricted</option></select></label>
+                    <label>warn <select id="psa-warn" class="form-control" style="max-width:140px;"><option value="">—</option><option value="privileged">privileged</option><option value="baseline">baseline</option><option value="restricted">restricted</option></select></label>
+                    <button class="btn btn-primary" id="btn-psa-save" type="button">Сохранить</button>
+                    <button class="btn" id="btn-psa-reload" type="button">Перечитать</button>
+                </div>
+            </div>
+            <div id="import-panel" class="card" style="margin-bottom:12px;display:none;">
+                <details>
+                    <summary>Создать объект из JSON (POST)</summary>
+                    <textarea id="importJson" class="form-control" style="width:100%;min-height:120px;margin-top:8px;font-family:monospace;font-size:12px;" placeholder='{"apiVersion":"rbac.authorization.k8s.io/v1","kind":"Role",...}'></textarea>
+                    <button class="btn btn-sm btn-primary" type="button" id="btn-import" style="margin-top:8px;">Отправить</button>
+                </details>
+            </div>
+            <div id="content" class="card"><div class="loading"><div class="loading-spinner"></div><p>Загрузка...</p></div></div>
+        </div>
+    </div>
+</div>
+<script src="app.js"></script>
+<script>
+checkAuth();
+const KEY = 'k8s_namespace';
+let rbacData = null;
+
+const RESOURCE_KEY = {
+    sa: 'serviceaccounts',
+    roles: 'roles',
+    rolebindings: 'rolebindings',
+    clusterroles: 'clusterroles',
+    clusterrolebindings: 'clusterrolebindings',
+    psa: 'namespaces',
+};
+
+function verbsFor(tab) {
+    const key = RESOURCE_KEY[tab];
+    if (!key) return { get:false, list:false, watch:false, create:false, update:false, patch:false, delete:false };
+    const row = (rbacData?.resources || []).find(r => r.resource === key);
+    return row?.verbs || { get:false, list:false, watch:false, create:false, update:false, patch:false, delete:false };
+}
+
+function renderRbacBar(tab) {
+    if (tab === 'myrules') {
+        $('#rbac-bar').innerHTML = '<strong>SelfSubjectRulesReview</strong> — запрос правил для текущего пользователя kubeconfig (см. kube-apiserver).';
+        return;
+    }
+    const v = verbsFor(tab);
+    const ns = $('#namespace').value || localStorage.getItem(KEY) || 'default';
+    const bits = ['list','get','create','update','patch','delete'].map(k => `${k}: ${v[k] ? '✓' : '—'}`).join(' · ');
+    const cluster = (tab === 'clusterroles' || tab === 'clusterrolebindings');
+    const scope = cluster ? 'кластер' : `namespace: ${escapeHtml(ns)}`;
+    const name = RESOURCE_KEY[tab] || tab;
+    $('#rbac-bar').innerHTML = `<strong><i class="fa-solid fa-user-shield"></i> RBAC (${escapeHtml(name)})</strong> · ${escapeHtml(scope)}<br><span style="opacity:0.9">${escapeHtml(bits)}</span>`;
+}
+
+async function loadRbac(ns) {
+    try {
+        rbacData = await api.post('/kubernetes/rbac/check', { namespace: ns || null });
+    } catch (e) {
+        rbacData = null;
+        $('#rbac-bar').innerHTML = `<span style="color:var(--danger,#c62828);">RBAC: ${escapeHtml(e.message || 'ошибка')}</span>`;
+    }
+}
+
+async function loadNamespaces() {
+    const data = await api.get('/kubernetes/namespaces');
+    const names = (data || []).map(n => n.name).filter(Boolean);
+    const current = localStorage.getItem(KEY) || names[0] || 'default';
+    const sel = $('#namespace');
+    sel.innerHTML = names.map(n => `<option value="${escapeHtml(n)}"${n===current?' selected':''}>${escapeHtml(n)}</option>`).join('');
+    sel.addEventListener('change', async () => {
+        localStorage.setItem(KEY, sel.value);
+        await loadRbac(sel.value);
+        renderRbacBar($('#tab').value);
+        await loadData();
+    });
+}
+
+function renderTable(headers, rows) {
+    $('#content').innerHTML = `<table class="table"><thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>`;
+}
+
+function updatePanels() {
+    const tab = $('#tab').value;
+    $('#rules-extra').style.display = tab === 'myrules' ? 'block' : 'none';
+    $('#psa-panel').style.display = tab === 'psa' ? 'block' : 'none';
+    const showImport = ['sa','roles','rolebindings','clusterroles','clusterrolebindings'].includes(tab) && verbsFor(tab).create;
+    $('#import-panel').style.display = showImport ? 'block' : 'none';
+    const ns = $('#namespace');
+    if (tab === 'clusterroles' || tab === 'clusterrolebindings') {
+        ns.disabled = true;
+        ns.title = 'Кластерные ресурсы — namespace не используется';
+    } else {
+        ns.disabled = false;
+        ns.title = '';
+    }
+}
+
+async function loadPsa() {
+    const ns = $('#namespace').value || 'default';
+    const v = await api.get(`/kubernetes/namespaces/${encodeURIComponent(ns)}/pod-security`);
+    const set = (id, val) => { const el = $(id); if (el) el.value = val || ''; };
+    set('#psa-enforce', v.enforce);
+    set('#psa-audit', v.audit);
+    set('#psa-warn', v.warn);
+}
+
+async function savePsa() {
+    const ns = $('#namespace').value || 'default';
+    if (!verbsFor('psa').patch && !verbsFor('psa').update) {
+        ui.showAlert('Нужны права update/patch на namespaces', 'warning');
+        return;
+    }
+    const payload = {
+        enforce: $('#psa-enforce').value,
+        audit: $('#psa-audit').value,
+        warn: $('#psa-warn').value,
+    };
+    await api.put(`/kubernetes/namespaces/${encodeURIComponent(ns)}/pod-security`, payload);
+    ui.showAlert('Метки Pod Security обновлены', 'success');
+    await loadPsa();
+}
+
+async function postRulesReview() {
+    const clusterOnly = $('#rules-cluster-only').checked;
+    const ns = clusterOnly ? null : ($('#namespace').value || null);
+    const data = await api.post('/kubernetes/rbac/rules-review', { namespace: ns });
+    ui.showModal('SelfSubjectRulesReview', `<pre style="white-space:pre-wrap;max-height:70vh;overflow:auto;">${escapeHtml(JSON.stringify(data, null, 2))}</pre>`);
+}
+
+async function doImport() {
+    let obj;
+    try { obj = JSON.parse($('#importJson').value || '{}'); } catch (e) {
+        ui.showAlert('Невалидный JSON', 'danger');
+        return;
+    }
+    const ns = $('#namespace').value || 'default';
+    const tab = $('#tab').value;
+    try {
+        if (tab === 'sa') await api.post(`/kubernetes/namespaces/${encodeURIComponent(ns)}/serviceaccounts`, obj);
+        else if (tab === 'roles') await api.post(`/kubernetes/namespaces/${encodeURIComponent(ns)}/roles`, obj);
+        else if (tab === 'rolebindings') await api.post(`/kubernetes/namespaces/${encodeURIComponent(ns)}/rolebindings`, obj);
+        else if (tab === 'clusterroles') await api.post('/kubernetes/clusterroles', obj);
+        else if (tab === 'clusterrolebindings') await api.post('/kubernetes/clusterrolebindings', obj);
+        ui.showAlert('Создано', 'success');
+        $('#importJson').value = '';
+        await loadData();
+    } catch (e) {
+        ui.showAlert(e.message || String(e), 'danger');
+    }
+}
+
+async function loadData() {
+    const tab = $('#tab').value;
+    const f = ($('#filter').value || '').toLowerCase();
+    const ns = $('#namespace').value || localStorage.getItem(KEY) || 'default';
+
+    if (tab === 'myrules') {
+        $('#content').innerHTML = '<p>Отметьте scope и нажмите «Запросить SelfSubjectRulesReview» выше.</p>';
+        return;
+    }
+    if (tab === 'psa') {
+        await loadPsa();
+        $('#content').innerHTML = '<p class="text-muted">Настройки PSA в панели выше. Текущие значения подставляются из меток namespace.</p>';
+        return;
+    }
+
+    const v = verbsFor(tab);
+    if (!v.list) {
+        $('#content').innerHTML = '<p>Нет права <strong>list</strong> для этого ресурса.</p>';
+        return;
+    }
+
+    try {
+        if (tab === 'sa') {
+            const rows = await api.get(`/kubernetes/serviceaccounts?namespace=${encodeURIComponent(ns)}`);
+            const filtered = (rows || []).filter(x => (x.name || '').toLowerCase().includes(f));
+            renderTable(['Имя','Namespace',''],
+                filtered.map(x => {
+                    const n = x.name || '';
+                    const ne = encodeURIComponent(n);
+                    return `<tr><td>${escapeHtml(n)}</td><td>${escapeHtml(x.namespace||ns)}</td><td style="white-space:nowrap;">
+                        ${v.get ? `<button class="btn btn-sm" onclick="viewSa('${ne}')"><i class="fa-solid fa-eye"></i></button>` : ''}
+                        ${v.get ? `<button class="btn btn-sm" onclick="viewSaSecrets('${ne}')" title="Секреты SA"><i class="fa-solid fa-key"></i></button>` : ''}
+                        ${v.delete ? `<button class="btn btn-sm btn-danger" onclick="delSa('${ne}')"><i class="fa-solid fa-trash"></i></button>` : ''}
+                    </td></tr>`;
+                }));
+            return;
+        }
+        if (tab === 'roles') {
+            const rows = await api.get(`/kubernetes/roles?namespace=${encodeURIComponent(ns)}`);
+            const filtered = (rows || []).filter(x => (x.name || '').toLowerCase().includes(f));
+            renderTable(['Имя','Правил','Wildcard','Предупреждение',''],
+                filtered.map(x => {
+                    const n = x.name || '';
+                    const ne = encodeURIComponent(n);
+                    const w = x.warning ? `<span title="${escapeHtml(x.warning)}">⚠</span>` : '—';
+                    return `<tr><td>${escapeHtml(n)}</td><td>${x.rules_count ?? '—'}</td><td>${x.wide_rules ? 'да' : 'нет'}</td><td>${w}</td>
+                    <td style="white-space:nowrap;">
+                        ${v.get ? `<button class="btn btn-sm" onclick="viewRole('${ne}')"><i class="fa-solid fa-eye"></i></button>` : ''}
+                        ${v.delete ? `<button class="btn btn-sm btn-danger" onclick="delRole('${ne}')"><i class="fa-solid fa-trash"></i></button>` : ''}
+                    </td></tr>`;
+                }));
+            return;
+        }
+        if (tab === 'rolebindings') {
+            const rows = await api.get(`/kubernetes/rolebindings?namespace=${encodeURIComponent(ns)}`);
+            const filtered = (rows || []).filter(x => (x.name || '').toLowerCase().includes(f));
+            renderTable(['Имя','Role kind','Role name','Subjects',''],
+                filtered.map(x => {
+                    const n = x.name || '';
+                    const ne = encodeURIComponent(n);
+                    return `<tr><td>${escapeHtml(n)}</td><td>${escapeHtml(x.role_kind||'—')}</td><td>${escapeHtml(x.role_name||'—')}</td><td>${x.subjects_count ?? 0}</td>
+                    <td style="white-space:nowrap;">
+                        ${v.get ? `<button class="btn btn-sm" onclick="viewRb('${ne}')"><i class="fa-solid fa-eye"></i></button>` : ''}
+                        ${v.delete ? `<button class="btn btn-sm btn-danger" onclick="delRb('${ne}')"><i class="fa-solid fa-trash"></i></button>` : ''}
+                    </td></tr>`;
+                }));
+            return;
+        }
+        if (tab === 'clusterroles') {
+            const rows = await api.get('/kubernetes/clusterroles');
+            const filtered = (rows || []).filter(x => (x.name || '').toLowerCase().includes(f));
+            renderTable(['Имя','Правил','Wildcard','Системная','Предупреждение',''],
+                filtered.map(x => {
+                    const n = x.name || '';
+                    const ne = encodeURIComponent(n);
+                    const w = x.warning ? `<span title="${escapeHtml(x.warning)}">⚠</span>` : '—';
+                    return `<tr><td>${escapeHtml(n)}</td><td>${x.rules_count ?? '—'}</td><td>${x.wide_rules ? 'да' : 'нет'}</td><td>${x.is_system ? 'да' : 'нет'}</td><td>${w}</td>
+                    <td style="white-space:nowrap;">
+                        ${v.get ? `<button class="btn btn-sm" onclick="viewCr('${ne}')"><i class="fa-solid fa-eye"></i></button>` : ''}
+                        ${v.delete ? `<button class="btn btn-sm btn-danger" onclick="delCr('${ne}')"><i class="fa-solid fa-trash"></i></button>` : ''}
+                    </td></tr>`;
+                }));
+            return;
+        }
+        if (tab === 'clusterrolebindings') {
+            const rows = await api.get('/kubernetes/clusterrolebindings');
+            const filtered = (rows || []).filter(x => (x.name || '').toLowerCase().includes(f));
+            renderTable(['Имя','Role kind','Role name','Subjects',''],
+                filtered.map(x => {
+                    const n = x.name || '';
+                    const ne = encodeURIComponent(n);
+                    return `<tr><td>${escapeHtml(n)}</td><td>${escapeHtml(x.role_kind||'—')}</td><td>${escapeHtml(x.role_name||'—')}</td><td>${x.subjects_count ?? 0}</td>
+                    <td style="white-space:nowrap;">
+                        ${v.get ? `<button class="btn btn-sm" onclick="viewCrb('${ne}')"><i class="fa-solid fa-eye"></i></button>` : ''}
+                        ${v.delete ? `<button class="btn btn-sm btn-danger" onclick="delCrb('${ne}')"><i class="fa-solid fa-trash"></i></button>` : ''}
+                    </td></tr>`;
+                }));
+        }
+    } catch (e) {
+        $('#content').innerHTML = `<p class="alert alert-danger">Ошибка: ${escapeHtml(e.message||String(e))}</p>`;
+    }
+}
+
+async function viewSa(nameEnc) {
+    const ns = $('#namespace').value || 'default';
+    const name = decodeURIComponent(nameEnc);
+    const data = await api.get(`/kubernetes/namespaces/${encodeURIComponent(ns)}/serviceaccounts/${encodeURIComponent(name)}`);
+    ui.showModal('ServiceAccount: ' + name, `<pre style="white-space:pre-wrap;">${escapeHtml(JSON.stringify(data, null, 2))}</pre>`);
+}
+
+async function viewSaSecrets(nameEnc) {
+    const ns = $('#namespace').value || 'default';
+    const name = decodeURIComponent(nameEnc);
+    const rows = await api.get(`/kubernetes/namespaces/${encodeURIComponent(ns)}/serviceaccounts/${encodeURIComponent(name)}/secrets`);
+    ui.showModal('Секреты SA: ' + name, `<p>Только имена и тип (без токенов).</p><pre style="white-space:pre-wrap;">${escapeHtml(JSON.stringify(rows, null, 2))}</pre>`);
+}
+
+async function delSa(nameEnc) {
+    if (!verbsFor('sa').delete) return;
+    if (!(await ui.confirm('Удалить ServiceAccount?', decodeURIComponent(nameEnc)))) return;
+    const ns = $('#namespace').value || 'default';
+    await api.request('DELETE', `/kubernetes/namespaces/${encodeURIComponent(ns)}/serviceaccounts/${encodeURIComponent(decodeURIComponent(nameEnc))}`);
+    await loadData();
+}
+
+async function viewRole(nameEnc) {
+    const ns = $('#namespace').value || 'default';
+    const name = decodeURIComponent(nameEnc);
+    const data = await api.get(`/kubernetes/namespaces/${encodeURIComponent(ns)}/roles/${encodeURIComponent(name)}`);
+    ui.showModal('Role: ' + name, `<pre style="white-space:pre-wrap;">${escapeHtml(JSON.stringify(data, null, 2))}</pre>`);
+}
+
+async function delRole(nameEnc) {
+    if (!(await ui.confirm('Удалить Role?', decodeURIComponent(nameEnc)))) return;
+    const ns = $('#namespace').value || 'default';
+    await api.request('DELETE', `/kubernetes/namespaces/${encodeURIComponent(ns)}/roles/${encodeURIComponent(decodeURIComponent(nameEnc))}`);
+    await loadData();
+}
+
+async function viewRb(nameEnc) {
+    const ns = $('#namespace').value || 'default';
+    const name = decodeURIComponent(nameEnc);
+    const data = await api.get(`/kubernetes/namespaces/${encodeURIComponent(ns)}/rolebindings/${encodeURIComponent(name)}`);
+    ui.showModal('RoleBinding: ' + name, `<pre style="white-space:pre-wrap;">${escapeHtml(JSON.stringify(data, null, 2))}</pre>`);
+}
+
+async function delRb(nameEnc) {
+    if (!(await ui.confirm('Удалить RoleBinding?', decodeURIComponent(nameEnc)))) return;
+    const ns = $('#namespace').value || 'default';
+    await api.request('DELETE', `/kubernetes/namespaces/${encodeURIComponent(ns)}/rolebindings/${encodeURIComponent(decodeURIComponent(nameEnc))}`);
+    await loadData();
+}
+
+async function viewCr(nameEnc) {
+    const name = decodeURIComponent(nameEnc);
+    const data = await api.get(`/kubernetes/clusterroles/${encodeURIComponent(name)}`);
+    ui.showModal('ClusterRole: ' + name, `<pre style="white-space:pre-wrap;">${escapeHtml(JSON.stringify(data, null, 2))}</pre>`);
+}
+
+async function delCr(nameEnc) {
+    if (!(await ui.confirm('Удалить ClusterRole?', decodeURIComponent(nameEnc)))) return;
+    const name = decodeURIComponent(nameEnc);
+    await api.request('DELETE', `/kubernetes/clusterroles/${encodeURIComponent(name)}`);
+    await loadData();
+}
+
+async function viewCrb(nameEnc) {
+    const name = decodeURIComponent(nameEnc);
+    const data = await api.get(`/kubernetes/clusterrolebindings/${encodeURIComponent(name)}`);
+    ui.showModal('ClusterRoleBinding: ' + name, `<pre style="white-space:pre-wrap;">${escapeHtml(JSON.stringify(data, null, 2))}</pre>`);
+}
+
+async function delCrb(nameEnc) {
+    if (!(await ui.confirm('Удалить ClusterRoleBinding?', decodeURIComponent(nameEnc)))) return;
+    const name = decodeURIComponent(nameEnc);
+    await api.request('DELETE', `/kubernetes/clusterrolebindings/${encodeURIComponent(name)}`);
+    await loadData();
+}
+
+$('#tab').addEventListener('change', () => {
+    updatePanels();
+    renderRbacBar($('#tab').value);
+    loadData();
+});
+$('#filter').addEventListener('input', loadData);
+$('#btn-refresh').addEventListener('click', loadData);
+$('#btn-rules').addEventListener('click', () => postRulesReview().catch(e => ui.showAlert(e.message, 'danger')));
+$('#btn-import').addEventListener('click', () => doImport());
+$('#btn-psa-save').addEventListener('click', () => savePsa().catch(e => ui.showAlert(e.message, 'danger')));
+$('#btn-psa-reload').addEventListener('click', () => loadPsa().catch(e => ui.showAlert(e.message, 'danger')));
+
+(async function init() {
+    await loadNamespaces();
+    await loadRbac($('#namespace').value);
+    updatePanels();
+    renderRbacBar($('#tab').value);
+    await loadData();
+})();
+</script>
+</body>
+</html>
