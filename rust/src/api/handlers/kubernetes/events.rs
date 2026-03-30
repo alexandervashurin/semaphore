@@ -7,6 +7,8 @@ use axum::{
     Json,
 };
 use k8s_openapi::api::core::v1::Event;
+use k8s_openapi::api::apps::v1::{Deployment, ReplicaSet};
+use k8s_openapi::api::core::v1::{Pod, Service};
 use kube::{api::{Api, ListParams}, Client};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -256,6 +258,252 @@ pub async fn get_top_nodes(
 ) -> Result<Json<Vec<NodeMetrics>>> {
     // For now, return empty list - real implementation requires metrics-server
     Ok(Json(vec![]))
+}
+
+// ============================================================================
+// Topology Visualization
+// ============================================================================
+
+#[derive(Debug, Serialize)]
+pub struct TopologyData {
+    pub namespace: String,
+    pub nodes: Vec<TopologyNode>,
+    pub edges: Vec<TopologyEdge>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct TopologyNode {
+    pub id: String,
+    pub kind: String,
+    pub name: String,
+    pub namespace: String,
+    pub status: String,
+    pub replicas: Option<TopologyReplicas>,
+    pub labels: Option<std::collections::BTreeMap<String, String>>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct TopologyReplicas {
+    pub desired: i32,
+    pub ready: i32,
+}
+
+#[derive(Debug, Serialize)]
+pub struct TopologyEdge {
+    pub source: String,
+    pub target: String,
+    pub kind: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TopologyQuery {
+    pub namespace: Option<String>,
+}
+
+pub async fn get_topology(
+    State(state): State<Arc<AppState>>,
+    Query(query): Query<TopologyQuery>,
+) -> Result<Json<TopologyData>> {
+    let client = state.kubernetes_client()?;
+    let ns = query.namespace.unwrap_or_else(|| "default".to_string());
+    
+    let mut nodes = Vec::new();
+    let mut edges = Vec::new();
+    
+    // Load Deployments
+    let deployments_api: Api<Deployment> = Api::namespaced(client.raw().clone(), &ns);
+    let deployments = deployments_api.list(&Default::default()).await.ok();
+    
+    if let Some(dep_list) = deployments {
+        for dep in dep_list.items {
+            let node_id = format!("deployment/{}", dep.metadata.name.as_ref().unwrap_or(&String::new()));
+            
+            let spec = dep.spec.as_ref();
+            let status = dep.status.as_ref();
+            let desired = spec.and_then(|s| s.replicas).unwrap_or(1);
+            let ready = status.and_then(|s| s.ready_replicas).unwrap_or(0);
+            
+            let replicas = TopologyReplicas {
+                desired: desired,
+                ready: ready,
+            };
+            
+            nodes.push(TopologyNode {
+                id: node_id.clone(),
+                kind: "Deployment".to_string(),
+                name: dep.metadata.name.clone().unwrap_or_default(),
+                namespace: dep.metadata.namespace.clone().unwrap_or_default(),
+                status: get_deployment_status(&dep),
+                replicas: Some(replicas),
+                labels: dep.metadata.labels.clone(),
+            });
+        }
+    }
+    
+    // Load ReplicaSets
+    let rs_api: Api<ReplicaSet> = Api::namespaced(client.raw().clone(), &ns);
+    let replica_sets = rs_api.list(&Default::default()).await.ok();
+    
+    if let Some(rs_list) = replica_sets {
+        for rs in rs_list.items {
+            let node_id = format!("replicaset/{}", rs.metadata.name.as_ref().unwrap_or(&String::new()));
+            
+            let spec = rs.spec.as_ref();
+            let status = rs.status.as_ref();
+            let spec_replicas = spec.and_then(|s| s.replicas).unwrap_or(1);
+            let ready_replicas = status.and_then(|s| s.ready_replicas).unwrap_or(0);
+            
+            nodes.push(TopologyNode {
+                id: node_id.clone(),
+                kind: "ReplicaSet".to_string(),
+                name: rs.metadata.name.clone().unwrap_or_default(),
+                namespace: rs.metadata.namespace.clone().unwrap_or_default(),
+                status: get_replicaset_status(&rs),
+                replicas: Some(TopologyReplicas {
+                    desired: spec_replicas,
+                    ready: ready_replicas,
+                }),
+                labels: rs.metadata.labels.clone(),
+            });
+            
+            // Edge: ReplicaSet → Pods (by owner reference)
+            if let Some(owner_refs) = rs.metadata.owner_references.as_ref() {
+                for owner in owner_refs {
+                    if owner.kind == "Deployment" {
+                        edges.push(TopologyEdge {
+                            source: format!("deployment/{}", owner.name),
+                            target: node_id.clone(),
+                            kind: "manages".to_string(),
+                        });
+                    }
+                }
+            }
+        }
+    }
+    
+    // Load Pods
+    let pods_api: Api<Pod> = Api::namespaced(client.raw().clone(), &ns);
+    let pods = pods_api.list(&Default::default()).await.ok();
+    
+    if let Some(pod_list) = pods {
+        for pod in pod_list.items {
+            let node_id = format!("pod/{}", pod.metadata.name.as_ref().unwrap_or(&String::new()));
+            
+            let status = pod.status.as_ref().and_then(|s| s.phase.clone()).unwrap_or_default();
+            
+            nodes.push(TopologyNode {
+                id: node_id.clone(),
+                kind: "Pod".to_string(),
+                name: pod.metadata.name.clone().unwrap_or_default(),
+                namespace: pod.metadata.namespace.clone().unwrap_or_default(),
+                status: status,
+                replicas: None,
+                labels: pod.metadata.labels.clone(),
+            });
+            
+            // Edge: Pod → ReplicaSet (by owner reference)
+            if let Some(owner_refs) = pod.metadata.owner_references.as_ref() {
+                for owner in owner_refs {
+                    if owner.kind == "ReplicaSet" {
+                        edges.push(TopologyEdge {
+                            source: format!("replicaset/{}", owner.name),
+                            target: node_id.clone(),
+                            kind: "manages".to_string(),
+                        });
+                    }
+                }
+            }
+        }
+    }
+    
+    // Load Services
+    let services_api: Api<Service> = Api::namespaced(client.raw().clone(), &ns);
+    let services = services_api.list(&Default::default()).await.ok();
+    
+    if let Some(svc_list) = services {
+        for svc in svc_list.items {
+            let node_id = format!("service/{}", svc.metadata.name.as_ref().unwrap_or(&String::new()));
+            
+            nodes.push(TopologyNode {
+                id: node_id.clone(),
+                kind: "Service".to_string(),
+                name: svc.metadata.name.clone().unwrap_or_default(),
+                namespace: svc.metadata.namespace.clone().unwrap_or_default(),
+                status: "active".to_string(),
+                replicas: None,
+                labels: svc.metadata.labels.clone(),
+            });
+            
+            // Edge: Service → Deployment/Pod (by selector)
+            let selector = svc.spec.as_ref().and_then(|s| s.selector.as_ref());
+            if let Some(selector) = selector {
+                for node in &nodes {
+                    if node.kind == "Pod" || node.kind == "Deployment" {
+                        if matches_selector(&node.labels, selector) {
+                            edges.push(TopologyEdge {
+                                source: node_id.clone(),
+                                target: node.id.clone(),
+                                kind: "routes".to_string(),
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    Ok(Json(TopologyData {
+        namespace: ns,
+        nodes,
+        edges,
+    }))
+}
+
+fn get_deployment_status(dep: &Deployment) -> String {
+    let spec = dep.spec.as_ref();
+    let status = dep.status.as_ref();
+    let desired = spec.and_then(|s| s.replicas).unwrap_or(1);
+    let ready = status.and_then(|s| s.ready_replicas).unwrap_or(0);
+    let available = status.and_then(|s| s.available_replicas).unwrap_or(0);
+    
+    if ready >= desired && available >= desired {
+        "ready".to_string()
+    } else if ready > 0 {
+        "progressing".to_string()
+    } else {
+        "pending".to_string()
+    }
+}
+
+fn get_replicaset_status(rs: &ReplicaSet) -> String {
+    let spec = rs.spec.as_ref();
+    let status = rs.status.as_ref();
+    let desired = spec.and_then(|s| s.replicas).unwrap_or(1);
+    let ready = status.and_then(|s| s.ready_replicas).unwrap_or(0);
+    
+    if ready >= desired {
+        "ready".to_string()
+    } else if ready > 0 {
+        "progressing".to_string()
+    } else {
+        "pending".to_string()
+    }
+}
+
+fn matches_selector(
+    labels: &Option<std::collections::BTreeMap<String, String>>,
+    selector: &std::collections::BTreeMap<String, String>,
+) -> bool {
+    if let Some(res_labels) = labels {
+        for (key, value) in selector {
+            if res_labels.get(key) != Some(value) {
+                return false;
+            }
+        }
+        true
+    } else {
+        false
+    }
 }
 
 // Helper functions for parsing resource values

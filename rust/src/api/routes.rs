@@ -1870,6 +1870,10 @@ pub fn api_routes() -> Router<Arc<AppState>> {
             "/api/kubernetes/metrics/top/nodes",
             get(handlers::get_top_nodes),
         )
+        .route(
+            "/api/kubernetes/topology",
+            get(handlers::get_topology),
+        )
 }
 
 /// Создаёт маршруты для статических файлов

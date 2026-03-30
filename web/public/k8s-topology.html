@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes Topology — Velum</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dagre/0.8.5/dagre.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape-dagre/2.5.0/cytoscape-dagre.min.js" crossorigin="anonymous"></script>
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar"></aside>
+    <div class="main-content">
+        <div class="main-header">
+            <h2><i class="fa-solid fa-project-diagram"></i> Kubernetes Topology</h2>
+        </div>
+        <div class="main-body">
+            <div class="card" style="margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <label>Namespace: <select id="namespace" class="form-control" style="max-width:200px;"></select></label>
+                <button class="btn btn-primary" onclick="loadTopology()"><i class="fa-solid fa-rotate"></i> Обновить</button>
+                <button class="btn btn-secondary" onclick="toggleLayout()"><i class="fa-solid fa-table-cells"></i> Layout</button>
+                <label style="margin-left:auto;"><input type="checkbox" id="auto-refresh" checked> Автообновление (30с)</label>
+            </div>
+            <div id="topology-container" class="card" style="height:calc(100vh - 250px);position:relative;">
+                <div id="cy" style="width:100%;height:100%;"></div>
+            </div>
+            <div class="card" style="margin-top:12px;display:flex;gap:16px;flex-wrap:wrap;">
+                <div><span class="legend-dot" style="background:#2ecc71;"></span> Ready</div>
+                <div><span class="legend-dot" style="background:#f39c12;"></span> Progressing</div>
+                <div><span class="legend-dot" style="background:#e74c3c;"></span> Pending/Error</div>
+                <div><span class="legend-dot" style="background:#3498db;"></span> Active</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.legend-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 4px;
+}
+#cy {
+    background: #fafafa;
+}
+</style>
+
+<script src="app.js"></script>
+<script>
+cytoscape.use(cytoscapeDagre);
+
+checkAuth();
+let cy = null;
+let autoRefreshInterval = null;
+
+async function loadNamespaces() {
+    const ns = await api.get('/kubernetes/namespaces');
+    const select = $('#namespace');
+    select.innerHTML = '<option value="">— все —</option>';
+    ns.forEach(n => {
+        select.innerHTML += `<option value="${escapeHtml(n.name)}">${escapeHtml(n.name)}</option>`;
+    });
+}
+
+async function loadTopology() {
+    const ns = $('#namespace').value || 'default';
+    
+    try {
+        const data = await api.get(`/kubernetes/topology?namespace=${ns}`);
+        renderTopology(data);
+    } catch (e) {
+        $('#topology-container').innerHTML = `<div class="alert alert-danger"><i class="fa-solid fa-triangle-exclamation"></i> ${escapeHtml(e.message)}</div>`;
+    }
+}
+
+function renderTopology(data) {
+    if (cy) {
+        cy.destroy();
+    }
+    
+    const elements = [];
+    
+    // Add nodes
+    data.nodes.forEach(node => {
+        elements.push({
+            data: {
+                id: node.id,
+                label: `${node.kind}\n${node.name}`,
+                kind: node.kind,
+                name: node.name,
+                status: node.status,
+                namespace: node.namespace,
+                replicas: node.replicas ? `${node.replicas.ready}/${node.replicas.desired}` : null
+            }
+        });
+    });
+    
+    // Add edges
+    data.edges.forEach(edge => {
+        elements.push({
+            data: {
+                source: edge.source,
+                target: edge.target,
+                label: edge.kind
+            }
+        });
+    });
+    
+    cy = cytoscape({
+        container: document.getElementById('cy'),
+        elements: elements,
+        style: [
+            {
+                selector: 'node',
+                style: {
+                    'label': 'data(name)',
+                    'text-valign': 'bottom',
+                    'text-halign': 'center',
+                    'width': 60,
+                    'height': 60,
+                    'background-color': getNodeColor,
+                    'border-width': 2,
+                    'border-color': '#333',
+                    'color': '#333',
+                    'font-size': '11px',
+                    'shape': 'round-rectangle'
+                }
+            },
+            {
+                selector: 'node[kind="Deployment"]',
+                style: {
+                    'shape': 'rectangle'
+                }
+            },
+            {
+                selector: 'node[kind="Pod"]',
+                style: {
+                    'shape': 'ellipse',
+                    'width': 50,
+                    'height': 50
+                }
+            },
+            {
+                selector: 'node[kind="Service"]',
+                style: {
+                    'shape': 'hexagon',
+                    'width': 65,
+                    'height': 65
+                }
+            },
+            {
+                selector: 'edge',
+                style: {
+                    'width': 2,
+                    'line-color': '#95a5a6',
+                    'target-arrow-color': '#95a5a6',
+                    'target-arrow-shape': 'triangle',
+                    'curve-style': 'bezier',
+                    'label': 'data(label)',
+                    'font-size': '10px',
+                    'text-rotation': 'autorotate'
+                }
+            }
+        ],
+        layout: {
+            name: 'dagre',
+            rankDir: 'TB',
+            animate: true,
+            animationDuration: 500
+        }
+    });
+    
+    // Click on node - show details
+    cy.on('tap', 'node', function(evt){
+        const node = evt.target;
+        const data = node.data();
+        console.log('Clicked:', data);
+    });
+}
+
+function getNodeColor(ele) {
+    const status = ele.data('status');
+    const kind = ele.data('kind');
+    
+    if (kind === 'Service') {
+        return '#3498db';
+    }
+    
+    if (status === 'ready' || status === 'Running' || status === 'Succeeded') {
+        return '#2ecc71';
+    } else if (status === 'progressing' || status === 'Pending' || status === 'ContainerCreating') {
+        return '#f39c12';
+    } else {
+        return '#e74c3c';
+    }
+}
+
+function toggleLayout() {
+    if (!cy) return;
+    
+    const currentLayout = cy.layout({ name: 'dagre' });
+    currentLayout.run();
+}
+
+function toggleAutoRefresh() {
+    if ($('#auto-refresh').checked) {
+        autoRefreshInterval = setInterval(loadTopology, 30000); // 30 seconds
+    } else {
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+            autoRefreshInterval = null;
+        }
+    }
+}
+
+$('#namespace').addEventListener('change', loadTopology);
+$('#auto-refresh').addEventListener('change', toggleAutoRefresh);
+
+loadNamespaces().then(() => {
+    loadTopology();
+    toggleAutoRefresh();
+});
+</script>
+</body>
+</html>
