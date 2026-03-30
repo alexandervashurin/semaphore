@@ -91,10 +91,11 @@ mod tests {
     }
 
     async fn create_test_pool() -> TaskPool {
-        use crate::db::sql::SqlStore;
+        use crate::db::mock::MockStore;
+        use crate::db::Store;
         use crate::models::Project;
-        
-        let store = Arc::new(SqlStore::new("sqlite::memory:").await.unwrap());
+
+        let store: Arc<dyn Store + Send + Sync> = Arc::new(MockStore::new());
         let project = Project {
             id: 1,
             name: "Test Project".to_string(),

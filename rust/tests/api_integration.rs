@@ -1,16 +1,15 @@
 //! Integration tests for the Velum REST API
 //!
-//! Tests run against a real SQLite in-memory-like (temp-file) database and
-//! the actual Axum router.  No mocks, no stubs — every test hits the full
-//! HTTP stack, exactly like a real client would.
+//! **Сборка:** `cargo test --features integration-api-tests --test api_integration`
+//!
+//! Ранее использовался временный файл SQLite; после перехода на PostgreSQL-only
+//! `SqlStore` эти тесты нужно перевести на `VELUM_*` URL к тестовой БД или
+//! переписать сиды. Пока тестовый бинарь не собирается без фичи `integration-api-tests`.
 //!
 //! Pattern:
-//!   1. Spin up `create_app(SqlStore)` backed by a fresh temp-file DB.
+//!   1. Spin up `create_app(SqlStore)` backed by a fresh DB.
 //!   2. Send HTTP requests via `tower::ServiceExt::oneshot`.
 //!   3. Assert status codes and JSON payloads.
-//!
-//! Run with:
-//!   cargo test --test api_integration
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};

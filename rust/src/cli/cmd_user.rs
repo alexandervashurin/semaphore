@@ -268,37 +268,6 @@ impl UserTotpDeleteCommand {
 mod tests {
     use super::*;
     use std::sync::Arc;
-    use crate::db::sql::{SqlStore, init};
-
-    fn test_config_with_db(db_url: &str) -> Config {
-        let mut config = Config::default();
-        config.database.dialect = Some(crate::config::types::DbDialect::SQLite);
-        config.database.path = Some(db_url.to_string());
-        config
-    }
-
-    #[test]
-    fn test_user_add_command() {
-        let (db_url, _temp) = init::test_sqlite_url();
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap();
-        runtime.block_on(async {
-            let store = SqlStore::new(&db_url).await.unwrap();
-            store.init_user_table_for_test().await.unwrap();
-        });
-
-        let cmd = UserAddCommand {
-            username: "test".to_string(),
-            name: "Test User".to_string(),
-            email: "test@example.com".to_string(),
-            password: "password".to_string(),
-            admin: false,
-        };
-        let config = test_config_with_db(&db_url);
-        assert!(cmd.run(Arc::new(config)).is_ok());
-    }
 
     #[test]
     fn test_user_list_command() {

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes ConfigMaps - Velum</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar"></aside>
+    <div class="main-content">
+        <div class="main-header"><h2><i class="fa-solid fa-map"></i> Kubernetes ConfigMaps</h2></div>
+        <div class="main-body">
+            <div class="card" style="margin-bottom: 12px; display: flex; gap: 8px; align-items: center;">
+                <select id="namespace" class="form-control" style="max-width: 260px;"></select>
+                <input id="filter" class="form-control" placeholder="Фильтр по имени">
+                <button class="btn btn-primary" onclick="loadConfigMaps()"><i class="fa-solid fa-rotate"></i> Обновить</button>
+            </div>
+            <div id="content" class="card"><div class="loading"><div class="loading-spinner"></div><p>Загрузка...</p></div></div>
+        </div>
+    </div>
+</div>
+<script src="app.js"></script>
+<script>
+checkAuth();
+const KEY = 'k8s_namespace';
+const content = $('#content');
+
+async function loadNamespaces() {
+    const data = await api.get('/kubernetes/namespaces');
+    const sel = $('#namespace');
+    const names = (data || []).map(n => n.name).filter(Boolean);
+    const current = localStorage.getItem(KEY) || names[0] || 'default';
+    sel.innerHTML = names.map(n => `<option value="${escapeHtml(n)}"${n===current?' selected':''}>${escapeHtml(n)}</option>`).join('');
+    sel.addEventListener('change', () => { localStorage.setItem(KEY, sel.value); loadConfigMaps(); });
+}
+
+async function loadConfigMaps() {
+    const ns = $('#namespace').value || localStorage.getItem(KEY) || 'default';
+    const filter = ($('#filter').value || '').toLowerCase();
+    const rows = await api.get(`/kubernetes/configmaps?namespace=${encodeURIComponent(ns)}`);
+    const filtered = (rows || []).filter(x => (x.name || '').toLowerCase().includes(filter));
+    content.innerHTML = `
+        <table class="table">
+            <thead><tr><th>Имя</th><th>Data keys</th><th>Binary keys</th><th>Binary bytes</th><th></th></tr></thead>
+            <tbody>
+                ${filtered.map(c => `<tr>
+                    <td>${escapeHtml(c.name || '—')}</td>
+                    <td>${c.data_keys || 0}</td>
+                    <td>${c.binary_data_keys || 0}</td>
+                    <td>${c.binary_total_bytes || 0}</td>
+                    <td>
+                        <button class="btn btn-sm" onclick="showYaml('${encodeURIComponent(c.name)}')"><i class="fa-solid fa-file-code"></i></button>
+                        <button class="btn btn-sm" onclick="dryRun('${encodeURIComponent(c.name)}')"><i class="fa-solid fa-vial"></i></button>
+                        <button class="btn btn-sm" onclick="showRefs('${encodeURIComponent(c.name)}')"><i class="fa-solid fa-link"></i></button>
+                    </td>
+                </tr>`).join('')}
+            </tbody>
+        </table>`;
+}
+
+async function showYaml(nameEnc) {
+    const ns = $('#namespace').value || 'default';
+    const text = await fetch(`/api/kubernetes/namespaces/${encodeURIComponent(ns)}/configmaps/${nameEnc}/yaml`, {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('velum_token') }
+    }).then(r => r.text());
+    ui.showModal('ConfigMap YAML', `<pre style="white-space: pre-wrap;">${escapeHtml(text)}</pre>`);
+}
+
+async function showRefs(nameEnc) {
+    const ns = $('#namespace').value || 'default';
+    const refs = await api.get(`/kubernetes/namespaces/${encodeURIComponent(ns)}/configmaps/${nameEnc}/references`);
+    ui.showModal('Referenced by', `<pre style="white-space: pre-wrap;">${escapeHtml(JSON.stringify(refs, null, 2))}</pre>`);
+}
+
+async function dryRun(nameEnc) {
+    const ns = $('#namespace').value || 'default';
+    const text = await fetch(`/api/kubernetes/namespaces/${encodeURIComponent(ns)}/configmaps/${nameEnc}/yaml`, {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('velum_token') }
+    }).then(r => r.text());
+    const result = await api.post('/kubernetes/configmaps/validate', { mode: 'raw_yaml', raw: text });
+    ui.showModal('Dry-run validation', `<pre style="white-space: pre-wrap;">${escapeHtml(JSON.stringify(result, null, 2))}</pre>`);
+}
+
+$('#filter').addEventListener('input', () => loadConfigMaps());
+(async function init(){ await loadNamespaces(); await loadConfigMaps(); })();
+</script>
+</body>
+</html>

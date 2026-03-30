@@ -98,7 +98,7 @@ impl TaskPool {
     }
     
     /// Отправляет WebSocket уведомление
-    async fn notify_websocket(&self, task_id: i32, status: TaskStatus) {
+    pub(crate) async fn notify_websocket(&self, task_id: i32, status: TaskStatus) {
         // Получаем задачу из БД
         let task = match self.store.get_task(self.project.id, task_id).await {
             Ok(t) => t,

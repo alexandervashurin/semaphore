@@ -4,7 +4,6 @@ pub mod runner;
 pub mod types;
 pub mod init;
 pub mod migrations;
-pub mod queries;
 pub mod utils;
 pub mod audit_log;
 pub mod webhook;
@@ -863,6 +862,87 @@ impl SqlStore {
         .execute(pool)
         .await
         .map_err(Error::Database)?;
+
+        // ── FI-GL-1: Deployment Environment (GitLab Environments) ──────────
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS deployment_environment (
+                id                  SERIAL PRIMARY KEY,
+                project_id          INTEGER NOT NULL REFERENCES project(id) ON DELETE CASCADE,
+                name                TEXT NOT NULL,
+                url                 TEXT,
+                tier                TEXT NOT NULL DEFAULT 'other',
+                status              TEXT NOT NULL DEFAULT 'unknown',
+                template_id         INTEGER,
+                last_task_id        INTEGER,
+                last_deploy_version TEXT,
+                last_deployed_by    INTEGER REFERENCES \"user\"(id) ON DELETE SET NULL,
+                created             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                UNIQUE (project_id, name)
+            )",
+        )
+        .execute(pool).await.map_err(Error::Database)?;
+
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS deployment_record (
+                id                      SERIAL PRIMARY KEY,
+                deploy_environment_id   INTEGER NOT NULL REFERENCES deployment_environment(id) ON DELETE CASCADE,
+                task_id                 INTEGER NOT NULL,
+                project_id              INTEGER NOT NULL,
+                version                 TEXT,
+                deployed_by             INTEGER,
+                status                  TEXT NOT NULL DEFAULT 'unknown',
+                created                 TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )",
+        )
+        .execute(pool).await.map_err(Error::Database)?;
+
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_deploy_env_project ON deployment_environment(project_id)")
+            .execute(pool).await.map_err(Error::Database)?;
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_deploy_record_env ON deployment_record(deploy_environment_id)")
+            .execute(pool).await.map_err(Error::Database)?;
+
+        // ── FI-PUL-1: Task Structured Outputs ──────────────────────────────
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS task_structured_output (
+                id          SERIAL PRIMARY KEY,
+                task_id     INTEGER NOT NULL,
+                project_id  INTEGER NOT NULL,
+                key         TEXT NOT NULL,
+                value       JSONB NOT NULL DEFAULT 'null'::jsonb,
+                value_type  TEXT NOT NULL DEFAULT 'string',
+                created     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                UNIQUE (task_id, key)
+            )",
+        )
+        .execute(pool).await.map_err(Error::Database)?;
+
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_struct_output_task ON task_structured_output(task_id, project_id)")
+            .execute(pool).await.map_err(Error::Database)?;
+
+        // ── FI-JEN-1: Template Inheritance ─────────────────────────────────
+        sqlx::query("ALTER TABLE template ADD COLUMN IF NOT EXISTS parent_template_id INTEGER")
+            .execute(pool).await.map_err(Error::Database)?;
+
+        // ── FI-AWX-1: Execution Environments ───────────────────────────────
+        sqlx::query("ALTER TABLE template ADD COLUMN IF NOT EXISTS execution_image TEXT")
+            .execute(pool).await.map_err(Error::Database)?;
+
+        // ── FI-ARGO-1: Sync Hooks ───────────────────────────────────────────
+        sqlx::query("ALTER TABLE template ADD COLUMN IF NOT EXISTS pre_template_id INTEGER")
+            .execute(pool).await.map_err(Error::Database)?;
+        sqlx::query("ALTER TABLE template ADD COLUMN IF NOT EXISTS post_template_id INTEGER")
+            .execute(pool).await.map_err(Error::Database)?;
+        sqlx::query("ALTER TABLE template ADD COLUMN IF NOT EXISTS fail_template_id INTEGER")
+            .execute(pool).await.map_err(Error::Database)?;
+
+        // ── FI-GL-1: Template → DeploymentEnvironment link ─────────────────
+        sqlx::query("ALTER TABLE template ADD COLUMN IF NOT EXISTS deploy_environment_id INTEGER")
+            .execute(pool).await.map_err(Error::Database)?;
+
+        // ── FI-ARGO-1: Sync Waves ───────────────────────────────────────────
+        sqlx::query("ALTER TABLE workflow_node ADD COLUMN IF NOT EXISTS wave INTEGER NOT NULL DEFAULT 0")
+            .execute(pool).await.map_err(Error::Database)?;
 
         tracing::info!("Схема БД инициализирована");
         Ok(())

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes Storage - Velum</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar"></aside>
+    <div class="main-content">
+        <div class="main-header"><h2><i class="fa-solid fa-hard-drive"></i> Kubernetes Storage</h2></div>
+        <div class="main-body">
+            <div class="card" style="margin-bottom: 12px; display:flex; gap:8px; align-items:center;">
+                <select id="namespace" class="form-control" style="max-width:260px;"></select>
+                <select id="tab" class="form-control" style="max-width:220px;">
+                    <option value="pv">PersistentVolumes</option>
+                    <option value="pvc">PersistentVolumeClaims</option>
+                    <option value="sc">StorageClasses</option>
+                    <option value="snapshots">Snapshots</option>
+                </select>
+                <input id="filter" class="form-control" placeholder="Фильтр по имени">
+                <button class="btn btn-primary" onclick="loadData()"><i class="fa-solid fa-rotate"></i> Обновить</button>
+            </div>
+            <div id="content" class="card"></div>
+        </div>
+    </div>
+</div>
+<script src="app.js"></script>
+<script>
+checkAuth();
+const KEY = 'k8s_namespace';
+
+async function loadNamespaces() {
+    const data = await api.get('/kubernetes/namespaces');
+    const names = (data || []).map(n => n.name).filter(Boolean);
+    const current = localStorage.getItem(KEY) || names[0] || 'default';
+    const sel = $('#namespace');
+    sel.innerHTML = names.map(n => `<option value="${escapeHtml(n)}"${n===current?' selected':''}>${escapeHtml(n)}</option>`).join('');
+    sel.addEventListener('change', () => { localStorage.setItem(KEY, sel.value); loadData(); });
+}
+
+function renderTable(headers, rows) {
+    $('#content').innerHTML = `
+      <table class="table">
+        <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+        <tbody>${rows.join('')}</tbody>
+      </table>`;
+}
+
+async function loadData() {
+    const ns = $('#namespace').value || localStorage.getItem(KEY) || 'default';
+    const tab = $('#tab').value;
+    const f = ($('#filter').value || '').toLowerCase();
+
+    if (tab === 'pv') {
+        const rows = await api.get('/kubernetes/persistentvolumes');
+        const filtered = (rows || []).filter(x => (x.name || '').toLowerCase().includes(f));
+        renderTable(['Имя','Status','Capacity','AccessModes','StorageClass','ClaimRef'], filtered.map(x => `
+            <tr><td>${escapeHtml(x.name||'—')}</td><td>${escapeHtml(x.status||'—')}</td><td>${escapeHtml(x.capacity||'—')}</td>
+            <td>${escapeHtml((x.access_modes||[]).join(', ')||'—')}</td><td>${escapeHtml(x.storage_class_name||'—')}</td><td>${escapeHtml(x.claim_ref||'—')}</td></tr>`));
+        return;
+    }
+    if (tab === 'pvc') {
+        const rows = await api.get(`/kubernetes/persistentvolumeclaims?namespace=${encodeURIComponent(ns)}`);
+        const filtered = (rows || []).filter(x => (x.name || '').toLowerCase().includes(f));
+        renderTable(['Имя','Phase','Capacity','AccessModes','Volume','StorageClass'], filtered.map(x => `
+            <tr><td>${escapeHtml(x.name||'—')}</td><td>${escapeHtml(x.phase||'—')}</td><td>${escapeHtml(x.capacity||'—')}</td>
+            <td>${escapeHtml((x.access_modes||[]).join(', ')||'—')}</td><td>${escapeHtml(x.volume_name||'—')}</td><td>${escapeHtml(x.storage_class_name||'—')}</td></tr>`));
+        return;
+    }
+    if (tab === 'sc') {
+        const rows = await api.get('/kubernetes/storageclasses');
+        const filtered = (rows || []).filter(x => (x.name || '').toLowerCase().includes(f));
+        renderTable(['Имя','Provisioner','Reclaim','BindingMode','AllowExpand','Default'], filtered.map(x => `
+            <tr><td>${escapeHtml(x.name||'—')}</td><td>${escapeHtml(x.provisioner||'—')}</td><td>${escapeHtml(x.reclaim_policy||'—')}</td>
+            <td>${escapeHtml(x.volume_binding_mode||'—')}</td><td>${x.allow_volume_expansion===null?'—':String(x.allow_volume_expansion)}</td><td>${x.is_default?'✅':'—'}</td></tr>`));
+        return;
+    }
+    const st = await api.get('/kubernetes/snapshots/status');
+    if (!st.installed) {
+        $('#content').innerHTML = '<p>Snapshot API не обнаружен в кластере.</p>';
+        return;
+    }
+    const [vs, vsc] = await Promise.all([
+        api.get(`/kubernetes/volumesnapshots?namespace=${encodeURIComponent(ns)}`),
+        api.get('/kubernetes/volumesnapshotclasses')
+    ]);
+    renderTable(['Ресурс','Количество'], [
+      `<tr><td>VolumeSnapshot</td><td>${(vs||[]).length}</td></tr>`,
+      `<tr><td>VolumeSnapshotClass</td><td>${(vsc||[]).length}</td></tr>`
+    ]);
+}
+
+$('#tab').addEventListener('change', loadData);
+$('#filter').addEventListener('input', loadData);
+(async function init(){ await loadNamespaces(); await loadData(); })();
+</script>
+</body>
+</html>

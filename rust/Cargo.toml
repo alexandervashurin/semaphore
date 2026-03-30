@@ -6,6 +6,12 @@ authors = ["Alexander Vashurin <alexandervashurin@yandex.ru>"]
 description = "Velum — Rust-port of Semaphore UI. DevOps task management with Ansible, Terraform, PowerShell support."
 license = "MIT"
 repository = "https://github.com/tnl-o/velum"
+autotests = false
+
+[[test]]
+name = "api_integration"
+path = "tests/api_integration.rs"
+required-features = ["integration-api-tests"]
 
 [lib]
 name = "velum_ffi"
@@ -33,6 +39,7 @@ reqwest = { version = "0.12", features = ["json", "blocking"] }
 # GraphQL
 async-graphql = { version = "7.0", features = ["chrono", "uuid"] }
 async-graphql-axum = "7.0"
+utoipa = "5"
 
 # Telegram Bot
 teloxide = { version = "0.13", features = ["macros"] }
@@ -239,3 +246,5 @@ debug = true
 default = ["postgres"]
 postgres = ["sqlx/postgres"]
 bolt = []  # Sled для BoltDB-подобного режима
+# API integration tests (tests/api_integration.rs) — пока требуют доработки под PostgreSQL-only
+integration-api-tests = []

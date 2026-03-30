@@ -382,6 +382,12 @@ impl RestoreEntryAsync for BackupTemplate {
             task_params: None,
             survey_vars: None,
             vaults: None,
+            parent_template_id: None,
+            execution_image: None,
+            pre_template_id: None,
+            post_template_id: None,
+            fail_template_id: None,
+            deploy_environment_id: None,
         };
 
         let new_tpl = store.create_template(tpl).await?;

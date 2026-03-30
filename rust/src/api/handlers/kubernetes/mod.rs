@@ -1,0 +1,41 @@
+//! Kubernetes API handlers
+
+pub mod cluster;
+pub mod client;
+pub mod error;
+pub mod namespaces;
+pub mod health;
+pub mod services;
+pub mod ingress;
+pub mod configmaps;
+pub mod secrets;
+pub mod networkpolicies;
+pub mod gateway_api;
+pub mod rbac;
+pub mod rbac_objects;
+pub mod storage;
+pub mod storage_snapshots;
+pub mod storage_csi;
+pub mod batch;
+pub mod advanced;
+pub mod types;
+
+pub use cluster::*;
+pub use client::*;
+pub use error::*;
+pub use namespaces::*;
+pub use health::*;
+pub use services::*;
+pub use ingress::*;
+pub use configmaps::*;
+pub use secrets::*;
+pub use networkpolicies::*;
+pub use gateway_api::*;
+pub use rbac::*;
+pub use rbac_objects::*;
+pub use storage::*;
+pub use storage_snapshots::*;
+pub use storage_csi::*;
+pub use batch::*;
+pub use advanced::*;
+pub use types::*;

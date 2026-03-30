@@ -497,6 +497,8 @@ pub trait Store:
     + TerraformStateManager
     + PlanApprovalManager
     + OrganizationManager
+    + DeploymentEnvironmentManager
+    + StructuredOutputManager
 {
 }
 
@@ -593,4 +595,27 @@ pub trait OrganizationManager: Send + Sync {
     async fn update_user_organization_role(&self, org_id: i32, user_id: i32, role: &str) -> Result<()>;
     async fn get_user_organizations(&self, user_id: i32) -> Result<Vec<Organization>>;
     async fn check_organization_quota(&self, org_id: i32, quota_type: &str) -> Result<bool>;
+}
+
+/// Менеджер deployment environments (GitLab Environments — FI-GL-1)
+#[async_trait]
+pub trait DeploymentEnvironmentManager: Send + Sync {
+    async fn get_deployment_environments(&self, project_id: i32) -> Result<Vec<crate::models::DeploymentEnvironment>>;
+    async fn get_deployment_environment(&self, id: i32, project_id: i32) -> Result<crate::models::DeploymentEnvironment>;
+    async fn create_deployment_environment(&self, project_id: i32, payload: crate::models::DeploymentEnvironmentCreate) -> Result<crate::models::DeploymentEnvironment>;
+    async fn update_deployment_environment(&self, id: i32, project_id: i32, payload: crate::models::DeploymentEnvironmentUpdate) -> Result<crate::models::DeploymentEnvironment>;
+    async fn delete_deployment_environment(&self, id: i32, project_id: i32) -> Result<()>;
+    async fn get_deployment_history(&self, env_id: i32, project_id: i32) -> Result<Vec<crate::models::DeploymentRecord>>;
+    async fn record_deployment(&self, env_id: i32, task_id: i32, project_id: i32, version: Option<String>, deployed_by: Option<i32>, status: &str) -> Result<()>;
+}
+
+/// Менеджер structured outputs задачи (Pulumi Outputs — FI-PUL-1)
+#[async_trait]
+pub trait StructuredOutputManager: Send + Sync {
+    async fn get_task_structured_outputs(&self, task_id: i32, project_id: i32) -> Result<Vec<crate::models::TaskStructuredOutput>>;
+    async fn get_task_outputs_map(&self, task_id: i32, project_id: i32) -> Result<crate::models::TaskOutputsMap>;
+    async fn create_task_structured_output(&self, task_id: i32, project_id: i32, payload: crate::models::TaskStructuredOutputCreate) -> Result<crate::models::TaskStructuredOutput>;
+    async fn create_task_structured_outputs_batch(&self, task_id: i32, project_id: i32, outputs: Vec<crate::models::TaskStructuredOutputCreate>) -> Result<()>;
+    async fn delete_task_structured_outputs(&self, task_id: i32, project_id: i32) -> Result<()>;
+    async fn get_template_last_outputs(&self, template_id: i32, project_id: i32) -> Result<crate::models::TaskOutputsMap>;
 }
