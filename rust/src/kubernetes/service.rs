@@ -4,9 +4,10 @@
 //! Существующий [client.rs](client.rs) с kubectl subprocess остаётся для задач Job/Helm.
 
 use kube::{Client, Config, config::KubeConfigOptions};
-use k8s_openapi::api::core::v1::{Namespace, Pod, Event};
+use k8s_openapi::api::core::v1::{Namespace, Pod, Event, Service, ConfigMap, Secret};
 use k8s_openapi::api::apps::v1::{Deployment, DaemonSet, StatefulSet, ReplicaSet};
-use kube::api::{Api, ListParams, LogParams, DeleteParams, Patch, PatchParams};
+use k8s_openapi::api::networking::v1::Ingress;
+use kube::api::{Api, ListParams, LogParams, DeleteParams, Patch, PatchParams, PostParams};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use crate::error::{Error, Result};
@@ -581,6 +582,121 @@ impl KubernetesClusterService {
         }).collect();
         Ok(EventList { items })
     }
+
+    // ─── Services ─────────────────────────────────────────────────────────────
+
+    pub async fn list_services(&self, namespace: &str, limit: Option<u32>, continue_token: Option<String>) -> Result<ServiceList> {
+        let api: Api<Service> = Api::namespaced(self.client.clone(), namespace);
+        let limit = limit.unwrap_or(100).min(500);
+        let mut lp = ListParams::default().limit(limit);
+        if let Some(ref c) = continue_token { lp = lp.continue_token(c.as_str()); }
+        let list = api.list(&lp).await.map_err(|e| map_err("list services", e))?;
+        let cont = list.metadata.continue_.filter(|s| !s.is_empty());
+        Ok(ServiceList { items: list.items.into_iter().map(service_to_info).collect(), continue_token: cont })
+    }
+
+    pub async fn get_service(&self, namespace: &str, name: &str) -> Result<ServiceInfo> {
+        let api: Api<Service> = Api::namespaced(self.client.clone(), namespace);
+        api.get(name).await.map(service_to_info).map_err(|e| map_err_named("Service", name, e))
+    }
+
+    pub async fn delete_service(&self, namespace: &str, name: &str) -> Result<()> {
+        let api: Api<Service> = Api::namespaced(self.client.clone(), namespace);
+        api.delete(name, &DeleteParams::default()).await.map_err(|e| map_err_named("Service", name, e))?;
+        Ok(())
+    }
+
+    // ─── Ingress ──────────────────────────────────────────────────────────────
+
+    pub async fn list_ingresses(&self, namespace: &str, limit: Option<u32>, continue_token: Option<String>) -> Result<IngressList> {
+        let api: Api<Ingress> = Api::namespaced(self.client.clone(), namespace);
+        let limit = limit.unwrap_or(100).min(500);
+        let mut lp = ListParams::default().limit(limit);
+        if let Some(ref c) = continue_token { lp = lp.continue_token(c.as_str()); }
+        let list = api.list(&lp).await.map_err(|e| map_err("list ingresses", e))?;
+        let cont = list.metadata.continue_.filter(|s| !s.is_empty());
+        Ok(IngressList { items: list.items.into_iter().map(ingress_to_info).collect(), continue_token: cont })
+    }
+
+    pub async fn get_ingress(&self, namespace: &str, name: &str) -> Result<IngressInfo> {
+        let api: Api<Ingress> = Api::namespaced(self.client.clone(), namespace);
+        api.get(name).await.map(ingress_to_info).map_err(|e| map_err_named("Ingress", name, e))
+    }
+
+    pub async fn delete_ingress(&self, namespace: &str, name: &str) -> Result<()> {
+        let api: Api<Ingress> = Api::namespaced(self.client.clone(), namespace);
+        api.delete(name, &DeleteParams::default()).await.map_err(|e| map_err_named("Ingress", name, e))?;
+        Ok(())
+    }
+
+    // ─── ConfigMaps ───────────────────────────────────────────────────────────
+
+    pub async fn list_configmaps(&self, namespace: &str, limit: Option<u32>, continue_token: Option<String>) -> Result<ConfigMapList> {
+        let api: Api<ConfigMap> = Api::namespaced(self.client.clone(), namespace);
+        let limit = limit.unwrap_or(100).min(500);
+        let mut lp = ListParams::default().limit(limit);
+        if let Some(ref c) = continue_token { lp = lp.continue_token(c.as_str()); }
+        let list = api.list(&lp).await.map_err(|e| map_err("list configmaps", e))?;
+        let cont = list.metadata.continue_.filter(|s| !s.is_empty());
+        Ok(ConfigMapList { items: list.items.into_iter().map(configmap_to_info).collect(), continue_token: cont })
+    }
+
+    pub async fn get_configmap(&self, namespace: &str, name: &str) -> Result<ConfigMapInfo> {
+        let api: Api<ConfigMap> = Api::namespaced(self.client.clone(), namespace);
+        api.get(name).await.map(configmap_to_info).map_err(|e| map_err_named("ConfigMap", name, e))
+    }
+
+    pub async fn delete_configmap(&self, namespace: &str, name: &str) -> Result<()> {
+        let api: Api<ConfigMap> = Api::namespaced(self.client.clone(), namespace);
+        api.delete(name, &DeleteParams::default()).await.map_err(|e| map_err_named("ConfigMap", name, e))?;
+        Ok(())
+    }
+
+    pub async fn create_configmap(&self, namespace: &str, cm: ConfigMap) -> Result<ConfigMapInfo> {
+        let api: Api<ConfigMap> = Api::namespaced(self.client.clone(), namespace);
+        api.create(&PostParams::default(), &cm).await.map(configmap_to_info).map_err(|e| map_err("create configmap", e))
+    }
+
+    pub async fn update_configmap(&self, namespace: &str, name: &str, data: BTreeMap<String, String>) -> Result<ConfigMapInfo> {
+        let api: Api<ConfigMap> = Api::namespaced(self.client.clone(), namespace);
+        let patch = serde_json::json!({ "data": data });
+        api.patch(name, &PatchParams::apply("velum").force(), &Patch::Merge(&patch))
+            .await.map(configmap_to_info).map_err(|e| map_err("update configmap", e))
+    }
+
+    // ─── Secrets ──────────────────────────────────────────────────────────────
+
+    pub async fn list_secrets(&self, namespace: &str, limit: Option<u32>, continue_token: Option<String>) -> Result<SecretList> {
+        let api: Api<Secret> = Api::namespaced(self.client.clone(), namespace);
+        let limit = limit.unwrap_or(100).min(500);
+        let mut lp = ListParams::default().limit(limit);
+        if let Some(ref c) = continue_token { lp = lp.continue_token(c.as_str()); }
+        let list = api.list(&lp).await.map_err(|e| map_err("list secrets", e))?;
+        let cont = list.metadata.continue_.filter(|s| !s.is_empty());
+        Ok(SecretList { items: list.items.into_iter().map(secret_to_info).collect(), continue_token: cont })
+    }
+
+    pub async fn get_secret(&self, namespace: &str, name: &str) -> Result<SecretInfo> {
+        let api: Api<Secret> = Api::namespaced(self.client.clone(), namespace);
+        api.get(name).await.map(secret_to_info).map_err(|e| map_err_named("Secret", name, e))
+    }
+
+    pub async fn delete_secret(&self, namespace: &str, name: &str) -> Result<()> {
+        let api: Api<Secret> = Api::namespaced(self.client.clone(), namespace);
+        api.delete(name, &DeleteParams::default()).await.map_err(|e| map_err_named("Secret", name, e))?;
+        Ok(())
+    }
+
+    /// Получить Secret; при reveal=true декодирует base64-значения
+    pub async fn get_secret_raw(&self, namespace: &str, name: &str, reveal: bool) -> Result<SecretInfo> {
+        let api: Api<Secret> = Api::namespaced(self.client.clone(), namespace);
+        let s = api.get(name).await.map_err(|e| map_err_named("Secret", name, e))?;
+        if reveal {
+            Ok(secret_to_info_revealed(s))
+        } else {
+            Ok(secret_to_info(s))
+        }
+    }
 }
 
 // ─── Pod DTO helpers ─────────────────────────────────────────────────────────
@@ -952,4 +1068,262 @@ pub struct EventInfo {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EventList {
     pub items: Vec<EventInfo>,
+}
+
+// ─── Service DTOs ─────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServicePortInfo {
+    pub name: Option<String>,
+    pub protocol: String,
+    pub port: i32,
+    pub target_port: String,
+    pub node_port: Option<i32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServiceInfo {
+    pub name: String,
+    pub namespace: String,
+    pub type_: String,
+    pub cluster_ip: Option<String>,
+    pub external_ips: Vec<String>,
+    pub load_balancer_ip: Option<String>,
+    pub ports: Vec<ServicePortInfo>,
+    pub selector: BTreeMap<String, String>,
+    pub labels: BTreeMap<String, String>,
+    pub headless: bool,
+    pub created_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServiceList {
+    pub items: Vec<ServiceInfo>,
+    pub continue_token: Option<String>,
+}
+
+fn service_to_info(svc: Service) -> ServiceInfo {
+    let meta = &svc.metadata;
+    let name = meta.name.clone().unwrap_or_default();
+    let namespace = meta.namespace.clone().unwrap_or_default();
+    let labels = meta.labels.clone().unwrap_or_default();
+    let created_at = meta.creation_timestamp.as_ref().map(|t| t.0.to_rfc3339());
+
+    let spec = svc.spec.as_ref();
+    let type_ = spec.and_then(|s| s.type_.clone()).unwrap_or_else(|| "ClusterIP".to_string());
+    let cluster_ip = spec.and_then(|s| s.cluster_ip.clone()).filter(|ip| !ip.is_empty());
+    let headless = cluster_ip.as_deref() == Some("None");
+    let selector = spec.and_then(|s| s.selector.clone()).unwrap_or_default();
+    let external_ips = spec.and_then(|s| s.external_ips.clone()).unwrap_or_default();
+    let load_balancer_ip = spec.and_then(|s| s.load_balancer_ip.clone());
+
+    let ports = spec.and_then(|s| s.ports.clone()).unwrap_or_default().into_iter().map(|p| {
+        let target_port = p.target_port.map(|tp| match tp {
+            k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(n) => n.to_string(),
+            k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::String(s) => s,
+        }).unwrap_or_default();
+        ServicePortInfo {
+            name: p.name,
+            protocol: p.protocol.unwrap_or_else(|| "TCP".to_string()),
+            port: p.port,
+            target_port,
+            node_port: p.node_port,
+        }
+    }).collect();
+
+    ServiceInfo { name, namespace, type_, cluster_ip, external_ips, load_balancer_ip, ports, selector, labels, headless, created_at }
+}
+
+// ─── Ingress DTOs ─────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IngressRule {
+    pub host: Option<String>,
+    pub paths: Vec<IngressPath>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IngressPath {
+    pub path: String,
+    pub path_type: String,
+    pub backend_service: String,
+    pub backend_port: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IngressTls {
+    pub hosts: Vec<String>,
+    pub secret_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IngressInfo {
+    pub name: String,
+    pub namespace: String,
+    pub ingress_class: Option<String>,
+    pub rules: Vec<IngressRule>,
+    pub tls: Vec<IngressTls>,
+    pub labels: BTreeMap<String, String>,
+    pub annotations: BTreeMap<String, String>,
+    pub load_balancer_ips: Vec<String>,
+    pub created_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IngressList {
+    pub items: Vec<IngressInfo>,
+    pub continue_token: Option<String>,
+}
+
+fn ingress_to_info(ing: Ingress) -> IngressInfo {
+    let meta = &ing.metadata;
+    let name = meta.name.clone().unwrap_or_default();
+    let namespace = meta.namespace.clone().unwrap_or_default();
+    let labels = meta.labels.clone().unwrap_or_default();
+    let annotations = meta.annotations.clone().unwrap_or_default();
+    let created_at = meta.creation_timestamp.as_ref().map(|t| t.0.to_rfc3339());
+
+    let spec = ing.spec.as_ref();
+    let ingress_class = spec.and_then(|s| s.ingress_class_name.clone());
+
+    let rules = spec.and_then(|s| s.rules.clone()).unwrap_or_default().into_iter().map(|r| {
+        let host = r.host.clone();
+        let paths = r.http.as_ref().map(|h| h.paths.iter().map(|p| {
+            let backend_service = p.backend.service.as_ref()
+                .map(|s| s.name.clone()).unwrap_or_default();
+            let backend_port = p.backend.service.as_ref()
+                .and_then(|s| s.port.as_ref())
+                .map(|port| {
+                    if let Some(n) = port.number { n.to_string() }
+                    else if let Some(ref nm) = port.name { nm.clone() }
+                    else { String::new() }
+                }).unwrap_or_default();
+            IngressPath {
+                path: p.path.clone().unwrap_or_else(|| "/".to_string()),
+                path_type: p.path_type.clone(),
+                backend_service,
+                backend_port,
+            }
+        }).collect()).unwrap_or_default();
+        IngressRule { host, paths }
+    }).collect();
+
+    let tls = spec.and_then(|s| s.tls.clone()).unwrap_or_default().into_iter().map(|t| IngressTls {
+        hosts: t.hosts.unwrap_or_default(),
+        secret_name: t.secret_name,
+    }).collect();
+
+    let load_balancer_ips = ing.status.as_ref()
+        .and_then(|s| s.load_balancer.as_ref())
+        .and_then(|lb| lb.ingress.as_ref())
+        .map(|ingresses| ingresses.iter()
+            .filter_map(|i| i.ip.clone().or_else(|| i.hostname.clone()))
+            .collect())
+        .unwrap_or_default();
+
+    IngressInfo { name, namespace, ingress_class, rules, tls, labels, annotations, load_balancer_ips, created_at }
+}
+
+// ─── ConfigMap DTOs ───────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConfigMapInfo {
+    pub name: String,
+    pub namespace: String,
+    pub data: BTreeMap<String, String>,
+    pub binary_data_keys: Vec<String>,
+    pub labels: BTreeMap<String, String>,
+    pub created_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConfigMapList {
+    pub items: Vec<ConfigMapInfo>,
+    pub continue_token: Option<String>,
+}
+
+fn configmap_to_info(cm: ConfigMap) -> ConfigMapInfo {
+    let meta = &cm.metadata;
+    ConfigMapInfo {
+        name: meta.name.clone().unwrap_or_default(),
+        namespace: meta.namespace.clone().unwrap_or_default(),
+        labels: meta.labels.clone().unwrap_or_default(),
+        created_at: meta.creation_timestamp.as_ref().map(|t| t.0.to_rfc3339()),
+        data: cm.data.unwrap_or_default(),
+        binary_data_keys: cm.binary_data.map(|b| b.keys().cloned().collect()).unwrap_or_default(),
+    }
+}
+
+// ─── Secret DTOs ──────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SecretInfo {
+    pub name: String,
+    pub namespace: String,
+    pub type_: String,
+    /// Только ключи — значения не возвращаются по умолчанию (безопасность)
+    pub data_keys: Vec<String>,
+    /// base64-декодированные значения (только при явном запросе reveal=true)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data_revealed: Option<BTreeMap<String, String>>,
+    pub labels: BTreeMap<String, String>,
+    pub created_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SecretList {
+    pub items: Vec<SecretInfo>,
+    pub continue_token: Option<String>,
+}
+
+fn secret_to_info(s: Secret) -> SecretInfo {
+    let meta = &s.metadata;
+    let data_keys = s.data.as_ref()
+        .map(|d| d.keys().cloned().collect())
+        .unwrap_or_default();
+    SecretInfo {
+        name: meta.name.clone().unwrap_or_default(),
+        namespace: meta.namespace.clone().unwrap_or_default(),
+        type_: s.type_.clone().unwrap_or_else(|| "Opaque".to_string()),
+        labels: meta.labels.clone().unwrap_or_default(),
+        created_at: meta.creation_timestamp.as_ref().map(|t| t.0.to_rfc3339()),
+        data_keys,
+        data_revealed: None,
+    }
+}
+
+/// Секрет с раскрытыми значениями (явный вызов из handler при reveal=true)
+pub fn secret_to_info_revealed(s: Secret) -> SecretInfo {
+    let mut info = secret_to_info(s.clone());
+    let revealed: BTreeMap<String, String> = s.data.unwrap_or_default()
+        .into_iter()
+        .map(|(k, v)| {
+            let decoded = String::from_utf8(v.0).unwrap_or_else(|_| "<binary>".to_string());
+            (k, decoded)
+        })
+        .collect();
+    info.data_revealed = Some(revealed);
+    info
+}
+
+// ─── Error helpers ────────────────────────────────────────────────────────────
+
+fn map_err(op: &str, e: kube::Error) -> Error {
+    let msg = e.to_string();
+    if msg.contains("403") || msg.contains("Forbidden") {
+        Error::Other(format!("FORBIDDEN: {msg}"))
+    } else {
+        Error::Other(format!("Failed to {op}: {msg}"))
+    }
+}
+
+fn map_err_named(kind: &str, name: &str, e: kube::Error) -> Error {
+    let msg = e.to_string();
+    if msg.contains("404") || msg.contains("not found") {
+        Error::NotFound(format!("{kind} {name} not found"))
+    } else if msg.contains("403") || msg.contains("Forbidden") {
+        Error::Other(format!("FORBIDDEN: {msg}"))
+    } else {
+        Error::Other(format!("Failed to get {kind} {name}: {msg}"))
+    }
 }

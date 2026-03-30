@@ -564,6 +564,47 @@ pub fn api_routes() -> Router<Arc<AppState>> {
             "/api/kubernetes/clusters/{cluster_id}/namespaces/{namespace}/events",
             get(handlers::kubernetes::list_events),
         )
+        // ── Kubernetes UI API (Фаза 3: services) ─────────────────────────────
+        .route(
+            "/api/kubernetes/clusters/{cluster_id}/namespaces/{namespace}/services",
+            get(handlers::kubernetes::list_services),
+        )
+        .route(
+            "/api/kubernetes/clusters/{cluster_id}/namespaces/{namespace}/services/{name}",
+            get(handlers::kubernetes::get_service)
+                .delete(handlers::kubernetes::delete_service),
+        )
+        // ── Kubernetes UI API (Фаза 3: ingress) ──────────────────────────────
+        .route(
+            "/api/kubernetes/clusters/{cluster_id}/namespaces/{namespace}/ingresses",
+            get(handlers::kubernetes::list_ingresses),
+        )
+        .route(
+            "/api/kubernetes/clusters/{cluster_id}/namespaces/{namespace}/ingresses/{name}",
+            get(handlers::kubernetes::get_ingress)
+                .delete(handlers::kubernetes::delete_ingress),
+        )
+        // ── Kubernetes UI API (Фаза 3: configmaps) ───────────────────────────
+        .route(
+            "/api/kubernetes/clusters/{cluster_id}/namespaces/{namespace}/configmaps",
+            get(handlers::kubernetes::list_configmaps),
+        )
+        .route(
+            "/api/kubernetes/clusters/{cluster_id}/namespaces/{namespace}/configmaps/{name}",
+            get(handlers::kubernetes::get_configmap)
+                .delete(handlers::kubernetes::delete_configmap)
+                .put(handlers::kubernetes::update_configmap),
+        )
+        // ── Kubernetes UI API (Фаза 3: secrets) ──────────────────────────────
+        .route(
+            "/api/kubernetes/clusters/{cluster_id}/namespaces/{namespace}/secrets",
+            get(handlers::kubernetes::list_secrets),
+        )
+        .route(
+            "/api/kubernetes/clusters/{cluster_id}/namespaces/{namespace}/secrets/{name}",
+            get(handlers::kubernetes::get_secret)
+                .delete(handlers::kubernetes::delete_secret),
+        )
 }
 
 /// Создаёт маршруты для статических файлов

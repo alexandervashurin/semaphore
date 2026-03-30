@@ -725,6 +725,10 @@ const SIDEBAR_SECTIONS = [
             { href: 'k8s-daemonsets.html',  icon: 'fa-solid fa-layer-group',  label: 'DaemonSets',    noId: true },
             { href: 'k8s-statefulsets.html',icon: 'fa-solid fa-database',     label: 'StatefulSets',  noId: true },
             { href: 'k8s-events.html',      icon: 'fa-solid fa-bell',         label: 'Events',        noId: true },
+            { href: 'k8s-services.html',    icon: 'fa-solid fa-network-wired', label: 'Services',      noId: true },
+            { href: 'k8s-ingress.html',     icon: 'fa-solid fa-route',         label: 'Ingress',       noId: true },
+            { href: 'k8s-configmaps.html',  icon: 'fa-solid fa-sliders',       label: 'ConfigMaps',    noId: true },
+            { href: 'k8s-secrets.html',     icon: 'fa-solid fa-user-secret',   label: 'Secrets',       noId: true },
         ]
     },
     {
