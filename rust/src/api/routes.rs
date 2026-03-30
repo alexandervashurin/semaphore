@@ -835,6 +835,27 @@ pub fn api_routes() -> Router<Arc<AppState>> {
             "/api/kubernetes/namespaces/{namespace}/verticalpodautoscalers/{name}",
             get(handlers::get_vertical_pod_autoscaler),
         )
+        // ── Phase 2: Workloads ────────────────────────────────────────────
+        .route("/api/kubernetes/pods", get(handlers::list_pods))
+        .route("/api/kubernetes/namespaces/{namespace}/pods/{name}", get(handlers::get_pod))
+        .route("/api/kubernetes/namespaces/{namespace}/pods/{name}", delete(handlers::delete_pod))
+        .route("/api/kubernetes/namespaces/{namespace}/pods/{name}/logs", get(handlers::pod_logs))
+        .route("/api/kubernetes/deployments", get(handlers::list_deployments))
+        .route("/api/kubernetes/namespaces/{namespace}/deployments/{name}", get(handlers::get_deployment))
+        .route("/api/kubernetes/namespaces/{namespace}/deployments/{name}/scale", put(handlers::scale_deployment))
+        .route("/api/kubernetes/namespaces/{namespace}/deployments/{name}/restart", post(handlers::restart_deployment))
+        .route("/api/kubernetes/daemonsets", get(handlers::list_daemonsets))
+        .route("/api/kubernetes/namespaces/{namespace}/daemonsets/{name}/restart", post(handlers::restart_daemonset))
+        .route("/api/kubernetes/statefulsets", get(handlers::list_statefulsets))
+        .route("/api/kubernetes/namespaces/{namespace}/statefulsets/{name}/scale", put(handlers::scale_statefulset))
+        .route("/api/kubernetes/replicasets", get(handlers::list_replicasets))
+        .route("/api/kubernetes/k8s-events", get(handlers::list_k8s_events))
+        // ── Phase 8: Observability ────────────────────────────────────────
+        .route("/api/kubernetes/metrics/status", get(handlers::get_metrics_status))
+        .route("/api/kubernetes/metrics/nodes", get(handlers::get_node_metrics))
+        .route("/api/kubernetes/metrics/pods", get(handlers::get_pod_metrics))
+        .route("/api/kubernetes/topology", get(handlers::get_topology))
+        .route("/api/kubernetes/topology/namespaces/{namespace}", get(handlers::get_namespace_topology))
 }
 
 /// Создаёт маршруты для статических файлов

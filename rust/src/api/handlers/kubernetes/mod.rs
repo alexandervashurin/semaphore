@@ -19,6 +19,8 @@ pub mod storage_csi;
 pub mod batch;
 pub mod advanced;
 pub mod types;
+pub mod workloads_k8s;
+pub mod observability;
 
 pub use cluster::*;
 pub use client::*;
@@ -39,3 +41,5 @@ pub use storage_csi::*;
 pub use batch::*;
 pub use advanced::*;
 pub use types::*;
+pub use workloads_k8s::*;
+pub use observability::*;
