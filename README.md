@@ -4,7 +4,7 @@
 [![Rust](https://img.shields.io/badge/Rust-stable-orange.svg)](https://www.rust-lang.org)
 [![Build](https://github.com/tnl-o/velum/actions/workflows/rust.yml/badge.svg)](https://github.com/tnl-o/velum/actions)
 
-A Rust rewrite of [Velum](https://github.com/velum/velum) — an open-source DevOps automation platform.
+A Rust rewrite of [Semaphore](https://github.com/semaphoreui/semaphore) — an open-source DevOps automation platform.
 Manages and runs Ansible, Terraform, OpenTofu, Terragrunt, Bash, and PowerShell through a web UI backed by a PostgreSQL database.
 
 > **Database:** PostgreSQL only (SQLite/MySQL removed in v2.2).
@@ -230,7 +230,7 @@ cargo run -- version             # print version
 | | |
 |---|---|
 | This repository | https://github.com/tnl-o/velum |
-| Go original | https://github.com/velum/velum |
+| Go original | [https://github.com/semaphoreui/semaphore](https://github.com/semaphoreui/semaphore) |
 | Upstream fork | https://github.com/alexandervashurin/semaphore |
 
 ---

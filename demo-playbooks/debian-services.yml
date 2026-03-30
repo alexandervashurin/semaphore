@@ -1,0 +1,49 @@
+---
+# Проверка и управление сервисами на Debian
+- name: Debian — Services Health Check
+  hosts: all
+  gather_facts: no
+  tasks:
+    - name: List failed services
+      ansible.builtin.shell: systemctl --failed --no-legend --plain 2>/dev/null || echo "none"
+      register: failed_svcs
+      changed_when: false
+
+    - name: Show failed services
+      ansible.builtin.debug:
+        msg: "Failed services: {{ failed_svcs.stdout_lines }}"
+
+    - name: Check critical services
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+      register: svc_status
+      loop:
+        - ssh
+        - NetworkManager
+        - ollama-serve
+      ignore_errors: true
+      changed_when: false
+
+    - name: Show service statuses
+      ansible.builtin.debug:
+        msg: "{{ item.item }}: {{ item.status.ActiveState | default('unknown') }}"
+      loop: "{{ svc_status.results }}"
+
+    - name: Check disk I/O
+      ansible.builtin.shell: iostat -x 1 1 2>/dev/null | tail -5 || echo "iostat not available"
+      register: iostat_out
+      changed_when: false
+
+    - name: Show I/O stats
+      ansible.builtin.debug:
+        msg: "{{ iostat_out.stdout_lines }}"
+
+    - name: Check open ports
+      ansible.builtin.shell: ss -tlnp | grep LISTEN
+      register: ports_out
+      changed_when: false
+      become: yes
+
+    - name: Show open ports
+      ansible.builtin.debug:
+        msg: "{{ ports_out.stdout_lines }}"

@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes CRD & Advanced — Velum</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar"></aside>
+    <div class="main-content">
+        <div class="main-header"><h2><i class="fa-solid fa-gears"></i> Kubernetes CRD, HPA, Quota</h2></div>
+        <div class="main-body">
+            <div id="rbac-bar" class="card" style="margin-bottom:12px;font-size:0.9rem;"></div>
+            <div class="card" style="margin-bottom:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+                <select id="namespace" class="form-control" style="max-width:260px;"></select>
+                <select id="tab" class="form-control" style="max-width:220px;">
+                    <option value="crd">CustomResourceDefinitions</option>
+                    <option value="cr">Custom objects (dynamic)</option>
+                    <option value="hpa">HPA</option>
+                    <option value="vpa">VPA</option>
+                    <option value="rq">ResourceQuota</option>
+                    <option value="lr">LimitRange</option>
+                </select>
+                <input id="filter" class="form-control" placeholder="Фильтр по имени" style="min-width:140px;">
+                <button class="btn btn-primary" id="btn-refresh"><i class="fa-solid fa-rotate"></i> Обновить</button>
+            </div>
+            <div id="cr-params" class="card" style="margin-bottom:12px;display:none;">
+                <p style="margin-bottom:8px;font-size:0.9rem;">Для list/get CR укажите GVK и plural (как в CRD). Namespace пустой — кластерный scope.</p>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+                    <input id="cr-group" class="form-control" placeholder="group" style="max-width:200px;">
+                    <input id="cr-version" class="form-control" placeholder="version" style="max-width:120px;">
+                    <input id="cr-plural" class="form-control" placeholder="plural" style="max-width:160px;">
+                    <input id="cr-kind" class="form-control" placeholder="Kind" style="max-width:140px;">
+                    <input id="cr-ns" class="form-control" placeholder="namespace (опц.)" style="max-width:180px;">
+                </div>
+            </div>
+            <div id="content" class="card"><div class="loading"><div class="loading-spinner"></div><p>Загрузка...</p></div></div>
+        </div>
+    </div>
+</div>
+<script src="app.js"></script>
+<script>
+checkAuth();
+const KEY = 'k8s_namespace';
+let rbacData = null;
+
+const RESOURCE_KEY = {
+    crd: 'customresourcedefinitions',
+    hpa: 'horizontalpodautoscalers',
+    rq: 'resourcequotas',
+    lr: 'limitranges',
+};
+
+function verbsFor(tab) {
+    const key = RESOURCE_KEY[tab];
+    if (!key) return { get:false, list:false, watch:false, create:false, update:false, patch:false, delete:false };
+    const row = (rbacData?.resources || []).find(r => r.resource === key);
+    return row?.verbs || { get:false, list:false, watch:false, create:false, update:false, patch:false, delete:false };
+}
+
+function renderRbacBar(tab) {
+    if (tab === 'cr' || tab === 'vpa') {
+        $('#rbac-bar').innerHTML = tab === 'vpa'
+            ? '<strong>VPA</strong> — CRD <code>autoscaling.k8s.io</code>; права зависят от установленного оператора.'
+            : '<strong>Custom objects</strong> — права на конкретный CR задаются отдельными Role (не в общей матрице).';
+        return;
+    }
+    const v = verbsFor(tab);
+    const ns = $('#namespace').value || localStorage.getItem(KEY) || 'default';
+    const bits = ['list','get','create','update','patch','delete'].map(k => `${k}: ${v[k] ? '✓' : '—'}`).join(' · ');
+    const cluster = tab === 'crd';
+    const scope = cluster ? 'кластер' : `namespace: ${escapeHtml(ns)}`;
+    const name = RESOURCE_KEY[tab] || tab;
+    $('#rbac-bar').innerHTML = `<strong>RBAC (${escapeHtml(name)})</strong> · ${escapeHtml(scope)}<br><span style="opacity:0.9">${escapeHtml(bits)}</span>`;
+}
+
+async function loadRbac(ns) {
+    try {
+        rbacData = await api.post('/kubernetes/rbac/check', { namespace: ns || null });
+    } catch (e) {
+        rbacData = null;
+        $('#rbac-bar').innerHTML = `<span style="color:#c62828;">RBAC: ${escapeHtml(e.message || 'ошибка')}</span>`;
+    }
+}
+
+async function loadNamespaces() {
+    const data = await api.get('/kubernetes/namespaces');
+    const names = (data || []).map(n => n.name).filter(Boolean);
+    const current = localStorage.getItem(KEY) || names[0] || 'default';
+    const sel = $('#namespace');
+    sel.innerHTML = names.map(n => `<option value="${escapeHtml(n)}"${n===current?' selected':''}>${escapeHtml(n)}</option>`).join('');
+    sel.addEventListener('change', async () => {
+        localStorage.setItem(KEY, sel.value);
+        await loadRbac(sel.value);
+        renderRbacBar($('#tab').value);
+        await loadData();
+    });
+}
+
+function renderTable(headers, rows) {
+    $('#content').innerHTML = `<table class="table"><thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>`;
+}
+
+function crQueryParams() {
+    const g = ($('#cr-group').value || '').trim();
+    const v = ($('#cr-version').value || '').trim();
+    const p = ($('#cr-plural').value || '').trim();
+    const k = ($('#cr-kind').value || '').trim();
+    const n = ($('#cr-ns').value || '').trim();
+    if (!g || !v || !p || !k) return null;
+    let q = `group=${encodeURIComponent(g)}&version=${encodeURIComponent(v)}&plural=${encodeURIComponent(p)}&kind=${encodeURIComponent(k)}`;
+    if (n) q += `&namespace=${encodeURIComponent(n)}`;
+    return q;
+}
+
+async function loadData() {
+    const tab = $('#tab').value;
+    const f = ($('#filter').value || '').toLowerCase();
+    const ns = $('#namespace').value || localStorage.getItem(KEY) || 'default';
+
+    $('#cr-params').style.display = tab === 'cr' ? 'block' : 'none';
+
+    try {
+        if (tab === 'crd') {
+            const v = verbsFor('crd');
+            if (!v.list) {
+                $('#content').innerHTML = '<p>Нет права <strong>list</strong> на customresourcedefinitions.</p>';
+                return;
+            }
+            const rows = await api.get('/kubernetes/customresourcedefinitions');
+            const filtered = (rows || []).filter(x => (x.name || '').toLowerCase().includes(f));
+            renderTable(['Имя','Group','Kind','Plural','Scope','Версии',''],
+                filtered.map(x => {
+                    const n = x.name || '';
+                    const ne = encodeURIComponent(n);
+                    return `<tr><td>${escapeHtml(n)}</td><td>${escapeHtml(x.group||'—')}</td><td>${escapeHtml(x.kind||'—')}</td>
+                    <td>${escapeHtml(x.plural||'—')}</td><td>${escapeHtml(x.scope||'—')}</td><td>${escapeHtml((x.versions||[]).join(', ')||'—')}</td>
+                    <td>${v.get ? `<button class="btn btn-sm" onclick="viewCrd('${ne}')"><i class="fa-solid fa-eye"></i></button>` : ''}</td></tr>`;
+                }));
+            return;
+        }
+        if (tab === 'cr') {
+            const qp = crQueryParams();
+            if (!qp) {
+                $('#content').innerHTML = '<p>Заполните group, version, plural и Kind, затем обновите.</p>';
+                return;
+            }
+            const rows = await api.get(`/kubernetes/customobjects?${qp}`);
+            const filtered = (rows || []).filter(x => {
+                const name = (x.metadata && x.metadata.name) || '';
+                return name.toLowerCase().includes(f);
+            });
+            renderTable(['Имя',''],
+                filtered.map(x => {
+                    const name = (x.metadata && x.metadata.name) || '—';
+                    const ne = encodeURIComponent(name);
+                    const nsVal = (x.metadata && x.metadata.namespace) || '';
+                    return `<tr><td>${escapeHtml(name)}</td><td><button class="btn btn-sm" onclick="viewCr('${ne}','${encodeURIComponent(nsVal)}')"><i class="fa-solid fa-eye"></i></button></td></tr>`;
+                }));
+            return;
+        }
+        if (tab === 'hpa') {
+            const v = verbsFor('hpa');
+            if (!v.list) {
+                $('#content').innerHTML = '<p>Нет права <strong>list</strong> на horizontalpodautoscalers.</p>';
+                return;
+            }
+            const rows = await api.get(`/kubernetes/horizontalpodautoscalers?namespace=${encodeURIComponent(ns)}`);
+            const filtered = (rows || []).filter(x => (x.name || '').toLowerCase().includes(f));
+            renderTable(['Имя','Target','Min','Max','Current','Подсказка (метрики)',''],
+                filtered.map(x => {
+                    const n = x.name || '';
+                    const ne = encodeURIComponent(n);
+                    const hint = x.metrics_hint ? `<span title="${escapeHtml(x.metrics_hint)}">⚠</span>` : '—';
+                    return `<tr><td>${escapeHtml(n)}</td><td>${escapeHtml(x.target_ref||'—')}</td>
+                    <td>${escapeHtml(String(x.min_replicas ?? '—'))}</td><td>${escapeHtml(String(x.max_replicas ?? '—'))}</td>
+                    <td>${escapeHtml(String(x.current_replicas ?? '—'))}</td><td>${hint}</td>
+                    <td>${v.get ? `<button class="btn btn-sm" onclick="viewHpa('${ne}')"><i class="fa-solid fa-eye"></i></button>` : ''}</td></tr>`;
+                }));
+            return;
+        }
+        if (tab === 'vpa') {
+            const st = await api.get('/kubernetes/vpa/status');
+            if (!st.installed) {
+                $('#content').innerHTML = '<p>CRD VerticalPodAutoscaler не обнаружен или API недоступен.</p>';
+                return;
+            }
+            const rows = await api.get(`/kubernetes/verticalpodautoscalers?namespace=${encodeURIComponent(ns)}`);
+            const filtered = (rows || []).filter(x => {
+                const name = (x.metadata && x.metadata.name) || '';
+                return name.toLowerCase().includes(f);
+            });
+            renderTable(['Имя',''],
+                filtered.map(x => {
+                    const name = (x.metadata && x.metadata.name) || '—';
+                    const ne = encodeURIComponent(name);
+                    return `<tr><td>${escapeHtml(name)}</td><td><button class="btn btn-sm" onclick="viewVpa('${ne}')"><i class="fa-solid fa-eye"></i></button></td></tr>`;
+                }));
+            return;
+        }
+        if (tab === 'rq') {
+            const v = verbsFor('rq');
+            if (!v.list) {
+                $('#content').innerHTML = '<p>Нет права <strong>list</strong> на resourcequotas.</p>';
+                return;
+            }
+            const rows = await api.get(`/kubernetes/resourcequotas?namespace=${encodeURIComponent(ns)}`);
+            const filtered = (rows || []).filter(x => (x.name || '').toLowerCase().includes(f));
+            renderTable(['Имя','Hard (фрагмент)','Used (фрагмент)',''],
+                filtered.map(x => {
+                    const n = x.name || '';
+                    const ne = encodeURIComponent(n);
+                    const h = x.hard ? JSON.stringify(x.hard).slice(0, 80) : '—';
+                    const u = x.used ? JSON.stringify(x.used).slice(0, 80) : '—';
+                    return `<tr><td>${escapeHtml(n)}</td><td><code>${escapeHtml(h)}</code></td><td><code>${escapeHtml(u)}</code></td>
+                    <td>${v.get ? `<button class="btn btn-sm" onclick="viewRq('${ne}')"><i class="fa-solid fa-eye"></i></button>` : ''}</td></tr>`;
+                }));
+            return;
+        }
+        if (tab === 'lr') {
+            const v = verbsFor('lr');
+            if (!v.list) {
+                $('#content').innerHTML = '<p>Нет права <strong>list</strong> на limitranges.</p>';
+                return;
+            }
+            const rows = await api.get(`/kubernetes/limitranges?namespace=${encodeURIComponent(ns)}`);
+            const filtered = (rows || []).filter(x => (x.name || '').toLowerCase().includes(f));
+            renderTable(['Имя','Лимитов',''],
+                filtered.map(x => {
+                    const n = x.name || '';
+                    const ne = encodeURIComponent(n);
+                    return `<tr><td>${escapeHtml(n)}</td><td>${x.limits_count ?? '—'}</td>
+                    <td>${v.get ? `<button class="btn btn-sm" onclick="viewLr('${ne}')"><i class="fa-solid fa-eye"></i></button>` : ''}</td></tr>`;
+                }));
+        }
+    } catch (e) {
+        $('#content').innerHTML = `<p class="alert alert-danger">Ошибка: ${escapeHtml(e.message||String(e))}</p>`;
+    }
+}
+
+async function viewCrd(nameEnc) {
+    const name = decodeURIComponent(nameEnc);
+    const data = await api.get(`/kubernetes/customresourcedefinitions/${encodeURIComponent(name)}`);
+    ui.showModal('CRD: ' + name, `<pre style="white-space:pre-wrap;max-height:70vh;overflow:auto;">${escapeHtml(JSON.stringify(data, null, 2))}</pre>`);
+}
+
+async function viewCr(nameEnc, nsEnc) {
+    const g = ($('#cr-group').value || '').trim();
+    const ver = ($('#cr-version').value || '').trim();
+    const p = ($('#cr-plural').value || '').trim();
+    const k = ($('#cr-kind').value || '').trim();
+    if (!g || !ver || !p || !k) return;
+    const name = decodeURIComponent(nameEnc);
+    const ns = decodeURIComponent(nsEnc || '');
+    const q = `group=${encodeURIComponent(g)}&version=${encodeURIComponent(ver)}&kind=${encodeURIComponent(k)}`;
+    const url = ns
+        ? `/kubernetes/namespaces/${encodeURIComponent(ns)}/customobjects/${encodeURIComponent(p)}/${encodeURIComponent(name)}?${q}`
+        : `/kubernetes/cluster/customobjects/${encodeURIComponent(p)}/${encodeURIComponent(name)}?${q}`;
+    const data = await api.get(url);
+    ui.showModal('CR: ' + name, `<pre style="white-space:pre-wrap;max-height:70vh;overflow:auto;">${escapeHtml(JSON.stringify(data, null, 2))}</pre>`);
+}
+
+async function viewHpa(nameEnc) {
+    const ns = $('#namespace').value || 'default';
+    const name = decodeURIComponent(nameEnc);
+    const data = await api.get(`/kubernetes/namespaces/${encodeURIComponent(ns)}/horizontalpodautoscalers/${encodeURIComponent(name)}`);
+    ui.showModal('HPA: ' + name, `<pre style="white-space:pre-wrap;">${escapeHtml(JSON.stringify(data, null, 2))}</pre>`);
+}
+
+async function viewVpa(nameEnc) {
+    const ns = $('#namespace').value || 'default';
+    const name = decodeURIComponent(nameEnc);
+    const data = await api.get(`/kubernetes/namespaces/${encodeURIComponent(ns)}/verticalpodautoscalers/${encodeURIComponent(name)}`);
+    ui.showModal('VPA: ' + name, `<pre style="white-space:pre-wrap;">${escapeHtml(JSON.stringify(data, null, 2))}</pre>`);
+}
+
+async function viewRq(nameEnc) {
+    const ns = $('#namespace').value || 'default';
+    const name = decodeURIComponent(nameEnc);
+    const data = await api.get(`/kubernetes/namespaces/${encodeURIComponent(ns)}/resourcequotas/${encodeURIComponent(name)}`);
+    ui.showModal('ResourceQuota: ' + name, `<pre style="white-space:pre-wrap;">${escapeHtml(JSON.stringify(data, null, 2))}</pre>`);
+}
+
+async function viewLr(nameEnc) {
+    const ns = $('#namespace').value || 'default';
+    const name = decodeURIComponent(nameEnc);
+    const data = await api.get(`/kubernetes/namespaces/${encodeURIComponent(ns)}/limitranges/${encodeURIComponent(name)}`);
+    ui.showModal('LimitRange: ' + name, `<pre style="white-space:pre-wrap;">${escapeHtml(JSON.stringify(data, null, 2))}</pre>`);
+}
+
+function updateNsVisibility() {
+    const tab = $('#tab').value;
+    const sel = $('#namespace');
+    if (tab === 'crd') {
+        sel.disabled = true;
+        sel.title = 'CRD — кластерные объекты';
+    } else {
+        sel.disabled = false;
+        sel.title = '';
+    }
+}
+
+$('#tab').addEventListener('change', () => {
+    updateNsVisibility();
+    renderRbacBar($('#tab').value);
+    loadData();
+});
+$('#filter').addEventListener('input', loadData);
+$('#btn-refresh').addEventListener('click', loadData);
+['cr-group','cr-version','cr-plural','cr-kind','cr-ns'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', () => { if ($('#tab').value === 'cr') loadData(); });
+});
+
+(async function init() {
+    await loadNamespaces();
+    await loadRbac($('#namespace').value);
+    updateNsVisibility();
+    renderRbacBar($('#tab').value);
+    await loadData();
+})();
+</script>
+</body>
+</html>

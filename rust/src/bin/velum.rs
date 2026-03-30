@@ -313,6 +313,7 @@ fn cmd_templates(client: &Client, project: i32) -> Result<(), String> {
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn cmd_run(
     client: &Client, project: i32, template: i32, message: Option<String>,
     branch: Option<String>, args: Option<String>, dry_run: bool, wait: bool,

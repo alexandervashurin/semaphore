@@ -5,6 +5,7 @@
 
 use std::sync::{Arc, Mutex};
 use tracing::{error, info};
+use chrono::Utc;
 
 use crate::db::store::{Store, PlanApprovalManager};
 use crate::models::{Task, TaskOutput, Inventory, Repository, Environment, TerraformPlan};
@@ -16,11 +17,13 @@ use crate::db_lib::AccessKeyInstallerImpl;
 ///
 /// Загружает шаблон, инвентарь, репозиторий и окружение, запускает LocalJob,
 /// сохраняет вывод в БД и обновляет статус задачи.
-pub async fn execute_task(store: Arc<dyn Store + Send + Sync>, task: Task) {
+pub async fn execute_task(store: Arc<dyn Store + Send + Sync>, mut task: Task) {
     info!("[task_runner] Starting task {} (template {})", task.id, task.template_id);
 
-    // Обновляем статус → Running
-    match store.update_task_status(task.project_id, task.id, TaskStatus::Running).await {
+    // Обновляем статус → Running и фиксируем время начала
+    task.status = TaskStatus::Running;
+    task.start = Some(Utc::now());
+    match store.update_task(task.clone()).await {
         Ok(()) => info!("[task_runner] task {} status → Running", task.id),
         Err(e) => error!("[task_runner] task {} failed to set Running: {e}", task.id),
     }
@@ -30,7 +33,9 @@ pub async fn execute_task(store: Arc<dyn Store + Send + Sync>, task: Task) {
         Ok(t) => t,
         Err(e) => {
             error!("[task_runner] task {}: failed to get template: {e}", task.id);
-            let _ = store.update_task_status(task.project_id, task.id, TaskStatus::Error).await;
+            task.status = TaskStatus::Error;
+            task.end = Some(Utc::now());
+            let _ = store.update_task(task).await;
             return;
         }
     };
@@ -113,7 +118,9 @@ pub async fn execute_task(store: Arc<dyn Store + Send + Sync>, task: Task) {
 
     if let Err(e) = tokio::fs::create_dir_all(&tmp_dir).await {
         error!("[task_runner] task {}: failed to create workdir: {e}", task.id);
-        let _ = store.update_task_status(task.project_id, task.id, TaskStatus::Error).await;
+        task.status = TaskStatus::Error;
+        task.end = Some(Utc::now());
+        let _ = store.update_task(task).await;
         return;
     }
 
@@ -148,14 +155,17 @@ pub async fn execute_task(store: Arc<dyn Store + Send + Sync>, task: Task) {
         let _ = store.create_task_output(output).await;
     }
 
+    task.end = Some(Utc::now());
     match result {
         Ok(()) => {
             info!("[task_runner] task {} completed successfully", task.id);
-            let _ = store.update_task_status(task.project_id, task.id, TaskStatus::Success).await;
+            task.status = TaskStatus::Success;
+            let _ = store.update_task(task).await;
         }
         Err(e) => {
             error!("[task_runner] task {} failed: {e}", task.id);
-            let _ = store.update_task_status(task.project_id, task.id, TaskStatus::Error).await;
+            task.status = TaskStatus::Error;
+            let _ = store.update_task(task).await;
         }
     }
 }

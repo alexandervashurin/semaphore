@@ -30,194 +30,426 @@
         </div>
     </div>
 
+    <!-- Модальное окно создания/редактирования организации -->
+    <div class="modal-overlay" id="org-modal" style="display:none">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="org-modal-title">Новая организация</h3>
+                <button class="modal-close" onclick="closeOrgModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="org-form" onsubmit="saveOrg(event)">
+                    <div class="form-group">
+                        <label>Название *</label>
+                        <input type="text" id="org-name" class="form-control" required placeholder="Моя организация">
+                    </div>
+                    <div class="form-group">
+                        <label>Slug (URL-идентификатор)</label>
+                        <input type="text" id="org-slug" class="form-control" placeholder="my-org (генерируется автоматически)">
+                    </div>
+                    <div class="form-group">
+                        <label>Описание</label>
+                        <textarea id="org-description" class="form-control" rows="3" placeholder="Описание организации"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Квота: максимум проектов</label>
+                        <input type="number" id="org-quota-projects" class="form-control" min="0" placeholder="Без ограничений">
+                    </div>
+                    <div class="form-group">
+                        <label>Квота: максимум пользователей</label>
+                        <input type="number" id="org-quota-users" class="form-control" min="0" placeholder="Без ограничений">
+                    </div>
+                    <div class="form-group">
+                        <label>Квота: задач в месяц</label>
+                        <input type="number" id="org-quota-tasks" class="form-control" min="0" placeholder="Без ограничений">
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="org-active" checked> Активна
+                        </label>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" onclick="closeOrgModal()">Отмена</button>
+                        <button type="submit" class="btn btn-primary" id="org-save-btn">Сохранить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно White-labeling / Branding -->
+    <div class="modal-overlay" id="branding-modal" style="display:none">
+        <div class="modal" style="max-width:600px">
+            <div class="modal-header">
+                <h3>Branding: <span id="branding-modal-org-name"></span></h3>
+                <button class="modal-close" onclick="closeBrandingModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="branding-form" onsubmit="saveBranding(event)">
+                    <div class="form-group">
+                        <label>Название приложения</label>
+                        <input type="text" id="b-app-name" class="form-control" placeholder="Velum">
+                    </div>
+                    <div class="form-group">
+                        <label>Основной цвет (hex)</label>
+                        <div style="display:flex;gap:8px;align-items:center">
+                            <input type="color" id="b-color-picker" value="#005057" style="width:44px;height:36px;padding:2px;border:1px solid #ccc;border-radius:4px;cursor:pointer">
+                            <input type="text" id="b-primary-color" class="form-control" placeholder="#005057" style="flex:1">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>URL логотипа</label>
+                        <input type="url" id="b-logo-url" class="form-control" placeholder="https://example.com/logo.svg">
+                    </div>
+                    <div class="form-group">
+                        <label>URL favicon</label>
+                        <input type="url" id="b-favicon-url" class="form-control" placeholder="https://example.com/favicon.ico">
+                    </div>
+                    <div class="form-group">
+                        <label>Дополнительный CSS</label>
+                        <textarea id="b-custom-css" class="form-control" rows="4" placeholder=":root { --sidebar-color: #1a1a2e; }"></textarea>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" onclick="closeBrandingModal()">Отмена</button>
+                        <button type="submit" class="btn btn-primary">Сохранить Branding</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно управления пользователями организации -->
+    <div class="modal-overlay" id="users-modal" style="display:none">
+        <div class="modal" style="max-width:700px">
+            <div class="modal-header">
+                <h3>Пользователи: <span id="users-modal-org-name"></span></h3>
+                <button class="modal-close" onclick="closeUsersModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-row" style="margin-bottom:12px;gap:8px;display:flex">
+                    <input type="number" id="add-user-id" class="form-control" placeholder="ID пользователя" style="width:140px">
+                    <select id="add-user-role" class="form-control" style="width:130px">
+                        <option value="owner">owner</option>
+                        <option value="admin">admin</option>
+                        <option value="member" selected>member</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="addOrgUser()">
+                        <i class="fa-solid fa-plus"></i> Добавить
+                    </button>
+                </div>
+                <div id="org-users-list">
+                    <div class="loading"><div class="loading-spinner"></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="app.js"></script>
     <script>
         checkAuth();
-        loadOrganizations();
 
-        function loadOrganizations() {
+        let editingOrgId = null;
+        let currentOrgId = null;
+
+        loadOrgs();
+
+        function loadOrgs() {
             const container = $('#orgs-content');
-
-            api.get('/organizations')
+            fetch('/api/organizations', { headers: authHeaders() })
+                .then(r => r.json())
                 .then(orgs => {
-                    if (orgs.length === 0) {
-                        ui.showEmpty(container, '<i class="fa-solid fa-building"></i>', 'Нет организаций', 'Создайте первую организацию');
-                    } else {
-                        container.innerHTML = `
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th>Название</th>
-                                        <th>Slug</th>
-                                        <th>Описание</th>
-                                        <th>Квоты</th>
-                                        <th>Статус</th>
-                                        <th>Создана</th>
-                                        <th>Действия</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${orgs.map(org => `
-                                        <tr>
-                                            <td><strong>${escapeHtml(org.name)}</strong></td>
-                                            <td><code>${escapeHtml(org.slug)}</code></td>
-                                            <td>${escapeHtml(org.description || '—')}</td>
-                                            <td>
-                                                <small>
-                                                    ${org.quota_max_projects ? `Проекты: ${org.quota_max_projects}<br>` : ''}
-                                                    ${org.quota_max_users ? `Пользователи: ${org.quota_max_users}<br>` : ''}
-                                                    ${org.quota_max_tasks_per_month ? `Задачи: ${org.quota_max_tasks_per_month}/мес` : '—'}
-                                                </small>
-                                            </td>
-                                            <td>
-                                                <span class="badge badge-${org.active ? 'success' : 'secondary'}">
-                                                    ${org.active ? 'Активна' : 'Неактивна'}
-                                                </span>
-                                            </td>
-                                            <td>${formatDate(org.created)}</td>
-                                            <td>
-                                                <button class="btn btn-sm" onclick="editOrg(${org.id})"><i class="fa-solid fa-pen"></i></button>
-                                                <button class="btn btn-danger btn-sm" onclick="deleteOrg(${org.id})"><i class="fa-solid fa-trash"></i></button>
-                                            </td>
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        `;
+                    if (!Array.isArray(orgs) || orgs.length === 0) {
+                        ui.showEmpty(container, '<i class="fa-solid fa-building"></i>', 'Нет организаций', 'Создайте первую организацию для Multi-Tenancy');
+                        return;
                     }
+                    container.innerHTML = `
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Название</th>
+                                    <th>Slug</th>
+                                    <th>Описание</th>
+                                    <th>Квоты</th>
+                                    <th>Статус</th>
+                                    <th>Создана</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${orgs.map(org => `
+                                    <tr>
+                                        <td>${org.id}</td>
+                                        <td><strong>${escapeHtml(org.name)}</strong></td>
+                                        <td><code>${escapeHtml(org.slug)}</code></td>
+                                        <td>${org.description ? escapeHtml(org.description) : '<span class="text-muted">—</span>'}</td>
+                                        <td>
+                                            <small>
+                                                ${org.quota_max_projects != null ? `<i class="fa-solid fa-folder"></i> ${org.quota_max_projects}` : '∞'}&nbsp;
+                                                ${org.quota_max_users != null ? `<i class="fa-solid fa-users"></i> ${org.quota_max_users}` : '∞'}&nbsp;
+                                                ${org.quota_max_tasks_per_month != null ? `<i class="fa-solid fa-play"></i> ${org.quota_max_tasks_per_month}/мес` : '∞'}
+                                            </small>
+                                        </td>
+                                        <td>
+                                            <span class="badge ${org.active ? 'badge-success' : 'badge-secondary'}">
+                                                ${org.active ? 'Активна' : 'Отключена'}
+                                            </span>
+                                        </td>
+                                        <td>${formatDate(org.created)}</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-secondary" onclick="openUsersModal(${org.id}, '${escapeHtml(org.name)}')" title="Пользователи">
+                                                <i class="fa-solid fa-users"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-secondary" onclick="openBrandingModal(${org.id}, '${escapeHtml(org.name)}')" title="Branding">
+                                                <i class="fa-solid fa-palette"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-secondary" onclick="openOrgModal(${org.id})" title="Редактировать">
+                                                <i class="fa-solid fa-pen"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-danger" onclick="deleteOrg(${org.id}, '${escapeHtml(org.name)}')" title="Удалить">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
                 })
-                .catch(error => {
-                    ui.showError(container, error.message);
+                .catch(e => {
+                    container.innerHTML = `<div class="alert alert-danger"><i class="fa-solid fa-triangle-exclamation"></i> ${e.message}</div>`;
                 });
         }
 
-        function editOrg(id) {
-            api.get('/organizations/' + id)
-                .then(org => openOrgModal(org))
-                .catch(error => ui.showAlert('Ошибка: ' + error.message, 'danger'));
-        }
+        function openOrgModal(id) {
+            editingOrgId = id || null;
+            $('#org-modal-title').textContent = id ? 'Редактировать организацию' : 'Новая организация';
+            $('#org-name').value = '';
+            $('#org-slug').value = '';
+            $('#org-description').value = '';
+            $('#org-quota-projects').value = '';
+            $('#org-quota-users').value = '';
+            $('#org-quota-tasks').value = '';
+            $('#org-active').checked = true;
 
-        function deleteOrg(id) {
-            if (!confirm('Удалить эту организацию? Все проекты будут перемещены в общий пул.')) return;
-
-            api.request('/organizations/' + id, { method: 'DELETE' })
-                .then(() => {
-                    ui.showAlert('Организация удалена', 'success');
-                    loadOrganizations();
-                })
-                .catch(error => ui.showAlert('Ошибка: ' + error.message, 'danger'));
-        }
-
-        function openOrgModal(org) {
-            const isEdit = !!org;
-            const overlay = document.createElement('div');
-            overlay.className = 'modal-overlay';
-            overlay.id = 'org-modal';
-            overlay.innerHTML = `
-                <div class="modal" style="max-width:600px;">
-                    <div class="modal-header">
-                        <h2>${isEdit ? '<i class="fa-solid fa-pen"></i> Редактирование' : '<i class="fa-solid fa-plus"></i> Новая организация'}</h2>
-                    </div>
-                    <form id="org-form">
-                        <div class="form-group">
-                            <label for="org-name">Название *</label>
-                            <input id="org-name" type="text" class="form-control" required
-                                   value="${escapeHtml(org?.name || '')}" placeholder="My Company">
-                        </div>
-                        <div class="form-group">
-                            <label for="org-slug">Slug (уникальный идентификатор)</label>
-                            <input id="org-slug" type="text" class="form-control"
-                                   value="${escapeHtml(org?.slug || '')}" placeholder="my-company">
-                            <p class="form-hint">Генерируется автоматически из названия</p>
-                        </div>
-                        <div class="form-group">
-                            <label for="org-description">Описание</label>
-                            <textarea id="org-description" class="form-control" rows="3"
-                                      placeholder="Описание организации">${escapeHtml(org?.description || '')}</textarea>
-                        </div>
-                        <div class="form-group">
-                            <label>Квоты</label>
-                            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
-                                <div>
-                                    <label for="quota-projects" style="font-size:13px;">Макс. проектов</label>
-                                    <input id="quota-projects" type="number" class="form-control" min="0"
-                                           value="${org?.quota_max_projects || ''}" placeholder="10">
-                                </div>
-                                <div>
-                                    <label for="quota-users" style="font-size:13px;">Макс. пользователей</label>
-                                    <input id="quota-users" type="number" class="form-control" min="0"
-                                           value="${org?.quota_max_users || ''}" placeholder="50">
-                                </div>
-                                <div>
-                                    <label for="quota-tasks" style="font-size:13px;">Задач/мес</label>
-                                    <input id="quota-tasks" type="number" class="form-control" min="0"
-                                           value="${org?.quota_max_tasks_per_month || ''}" placeholder="1000">
-                                </div>
-                            </div>
-                        </div>
-                        ${isEdit ? `
-                        <div class="form-group">
-                            <label style="display:flex;align-items:center;gap:8px;">
-                                <input type="checkbox" id="org-active" ${org?.active ? 'checked' : ''}>
-                                Активна
-                            </label>
-                        </div>
-                        ` : ''}
-                        <div class="modal-footer">
-                            <button type="button" class="btn" onclick="closeOrgModal()">Отмена</button>
-                            <button type="submit" class="btn btn-primary">${isEdit ? 'Сохранить' : 'Создать'}</button>
-                        </div>
-                    </form>
-                </div>
-            `;
-            document.body.appendChild(overlay);
-
-            document.getElementById('org-form').addEventListener('submit', function(e) {
-                e.preventDefault();
-                saveOrg(org?.id || null);
-            });
-
-            overlay.addEventListener('click', function(e) {
-                if (e.target === overlay) closeOrgModal();
-            });
+            if (id) {
+                fetch(`/api/organizations/${id}`, { headers: authHeaders() })
+                    .then(r => r.json())
+                    .then(org => {
+                        $('#org-name').value = org.name || '';
+                        $('#org-slug').value = org.slug || '';
+                        $('#org-description').value = org.description || '';
+                        $('#org-quota-projects').value = org.quota_max_projects ?? '';
+                        $('#org-quota-users').value = org.quota_max_users ?? '';
+                        $('#org-quota-tasks').value = org.quota_max_tasks_per_month ?? '';
+                        $('#org-active').checked = org.active !== false;
+                    });
+            }
+            $('#org-modal').style.display = 'flex';
         }
 
         function closeOrgModal() {
-            const modal = $('#org-modal');
-            if (modal) modal.remove();
+            $('#org-modal').style.display = 'none';
+            editingOrgId = null;
         }
 
-        function saveOrg(id) {
-            const payload = {
-                name: $('#org-name').value.trim(),
-                slug: $('#org-slug').value.trim() || null,
-                description: $('#org-description').value.trim() || null,
-                quota_max_projects: parseInt($('#quota-projects').value) || null,
-                quota_max_users: parseInt($('#quota-users').value) || null,
-                quota_max_tasks_per_month: parseInt($('#quota-tasks').value) || null,
-            };
-
-            if (!payload.name) {
-                ui.showAlert('Введите название', 'warning');
-                return;
-            }
-
-            const btn = document.querySelector('#org-modal button[type="submit"]');
+        function saveOrg(e) {
+            e.preventDefault();
+            const btn = $('#org-save-btn');
             btn.disabled = true;
 
-            const url = id ? '/organizations/' + id : '/organizations';
-            const method = id ? 'PUT' : 'POST';
+            const payload = {
+                name: $('#org-name').value.trim(),
+                slug: $('#org-slug').value.trim() || undefined,
+                description: $('#org-description').value.trim() || undefined,
+                quota_max_projects: $('#org-quota-projects').value ? parseInt($('#org-quota-projects').value) : undefined,
+                quota_max_users: $('#org-quota-users').value ? parseInt($('#org-quota-users').value) : undefined,
+                quota_max_tasks_per_month: $('#org-quota-tasks').value ? parseInt($('#org-quota-tasks').value) : undefined,
+            };
 
-            api.request(url, { method, body: JSON.stringify(payload) })
-                .then(() => {
-                    closeOrgModal();
-                    ui.showAlert(`Организация ${id ? 'обновлена' : 'создана'}`, 'success');
-                    loadOrganizations();
-                })
-                .catch(error => {
-                    ui.showAlert('Ошибка: ' + error.message, 'danger');
-                    btn.disabled = false;
+            const method = editingOrgId ? 'PUT' : 'POST';
+            const url = editingOrgId ? `/api/organizations/${editingOrgId}` : '/api/organizations';
+
+            if (editingOrgId) {
+                payload.active = $('#org-active').checked;
+            }
+
+            fetch(url, {
+                method,
+                headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            })
+            .then(r => {
+                if (!r.ok) return r.json().then(d => { throw new Error(d.error || 'Ошибка сохранения'); });
+                return r.json();
+            })
+            .then(() => {
+                closeOrgModal();
+                loadOrgs();
+            })
+            .catch(e => alert(e.message))
+            .finally(() => { btn.disabled = false; });
+        }
+
+        function deleteOrg(id, name) {
+            if (!confirm(`Удалить организацию "${name}"? Все связанные данные будут отвязаны.`)) return;
+            fetch(`/api/organizations/${id}`, {
+                method: 'DELETE',
+                headers: authHeaders(),
+            })
+            .then(r => {
+                if (!r.ok) return r.json().then(d => { throw new Error(d.error || 'Ошибка удаления'); });
+            })
+            .then(() => loadOrgs())
+            .catch(e => alert(e.message));
+        }
+
+        // --- Users modal ---
+
+        function openUsersModal(orgId, orgName) {
+            currentOrgId = orgId;
+            $('#users-modal-org-name').textContent = orgName;
+            $('#users-modal').style.display = 'flex';
+            loadOrgUsers();
+        }
+
+        function closeUsersModal() {
+            $('#users-modal').style.display = 'none';
+            currentOrgId = null;
+        }
+
+        function loadOrgUsers() {
+            const container = $('#org-users-list');
+            container.innerHTML = '<div class="loading"><div class="loading-spinner"></div></div>';
+            fetch(`/api/organizations/${currentOrgId}/users`, { headers: authHeaders() })
+                .then(r => r.json())
+                .then(users => {
+                    if (!Array.isArray(users) || users.length === 0) {
+                        container.innerHTML = '<p class="text-muted">Нет пользователей в организации</p>';
+                        return;
+                    }
+                    container.innerHTML = `
+                        <table class="table">
+                            <thead><tr><th>User ID</th><th>Роль</th><th>Добавлен</th><th></th></tr></thead>
+                            <tbody>
+                                ${users.map(u => `
+                                    <tr>
+                                        <td>${u.user_id}</td>
+                                        <td>
+                                            <select class="form-control" style="width:120px" onchange="changeRole(${u.user_id}, this.value)">
+                                                ${['owner','admin','member'].map(r => `<option ${r === u.role ? 'selected' : ''}>${r}</option>`).join('')}
+                                            </select>
+                                        </td>
+                                        <td>${formatDate(u.created)}</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-danger" onclick="removeOrgUser(${u.user_id})">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
                 });
+        }
+
+        function addOrgUser() {
+            const userId = parseInt($('#add-user-id').value);
+            const role = $('#add-user-role').value;
+            if (!userId) return alert('Введите ID пользователя');
+            fetch(`/api/organizations/${currentOrgId}/users`, {
+                method: 'POST',
+                headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ org_id: currentOrgId, user_id: userId, role }),
+            })
+            .then(r => {
+                if (!r.ok) return r.json().then(d => { throw new Error(d.error || 'Ошибка'); });
+            })
+            .then(() => { $('#add-user-id').value = ''; loadOrgUsers(); })
+            .catch(e => alert(e.message));
+        }
+
+        function changeRole(userId, role) {
+            fetch(`/api/organizations/${currentOrgId}/users/${userId}/role`, {
+                method: 'PUT',
+                headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ role }),
+            }).catch(e => alert(e.message));
+        }
+
+        function removeOrgUser(userId) {
+            if (!confirm('Удалить пользователя из организации?')) return;
+            fetch(`/api/organizations/${currentOrgId}/users/${userId}`, {
+                method: 'DELETE',
+                headers: authHeaders(),
+            })
+            .then(() => loadOrgUsers())
+            .catch(e => alert(e.message));
+        }
+
+        // --- Branding modal ---
+        let currentBrandingOrgId = null;
+
+        function openBrandingModal(orgId, orgName) {
+            currentBrandingOrgId = orgId;
+            $('#branding-modal-org-name').textContent = orgName;
+            // Сбрасываем поля
+            $('#b-app-name').value = '';
+            $('#b-primary-color').value = '#005057';
+            $('#b-color-picker').value = '#005057';
+            $('#b-logo-url').value = '';
+            $('#b-favicon-url').value = '';
+            $('#b-custom-css').value = '';
+
+            fetch(`/api/organizations/${orgId}/branding`, { headers: authHeaders() })
+                .then(r => r.json())
+                .then(b => {
+                    $('#b-app-name').value = b.app_name || '';
+                    $('#b-primary-color').value = b.primary_color || '#005057';
+                    $('#b-color-picker').value = b.primary_color || '#005057';
+                    $('#b-logo-url').value = b.logo_url || '';
+                    $('#b-favicon-url').value = b.favicon_url || '';
+                    $('#b-custom-css').value = b.custom_css || '';
+                }).catch(() => {});
+
+            // Синхронизация color picker с text input
+            $('#b-color-picker').oninput = (e) => { $('#b-primary-color').value = e.target.value; };
+            $('#b-primary-color').oninput = (e) => {
+                if (/^#[0-9a-fA-F]{6}$/.test(e.target.value)) {
+                    $('#b-color-picker').value = e.target.value;
+                }
+            };
+
+            $('#branding-modal').style.display = 'flex';
+        }
+
+        function closeBrandingModal() {
+            $('#branding-modal').style.display = 'none';
+        }
+
+        function saveBranding(e) {
+            e.preventDefault();
+            const payload = {
+                app_name: $('#b-app-name').value || undefined,
+                primary_color: $('#b-primary-color').value || undefined,
+                logo_url: $('#b-logo-url').value || undefined,
+                favicon_url: $('#b-favicon-url').value || undefined,
+                custom_css: $('#b-custom-css').value || undefined,
+            };
+            fetch(`/api/organizations/${currentBrandingOrgId}/branding`, {
+                method: 'PUT',
+                headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            })
+            .then(r => { if (!r.ok) return r.json().then(d => { throw new Error(d.error); }); })
+            .then(() => { closeBrandingModal(); alert('Branding сохранён'); })
+            .catch(e => alert(e.message));
+        }
+
+        function authHeaders() {
+            const token = localStorage.getItem('token');
+            return token ? { 'Authorization': `Bearer ${token}` } : {};
         }
     </script>
 </body>

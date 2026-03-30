@@ -387,6 +387,10 @@ pub struct Config {
     /// Redis конфигурация для кэширования
     #[serde(rename = "redis", default)]
     pub redis: Option<RedisConfig>,
+
+    /// Kubernetes конфигурация для интеграции с кластером
+    #[serde(rename = "kubernetes", default)]
+    pub kubernetes: Option<KubernetesConfig>,
 }
 
 /// Redis конфигурация
@@ -404,6 +408,24 @@ pub struct RedisConfig {
     /// Включить кэширование
     #[serde(default = "default_redis_enabled")]
     pub enabled: bool,
+}
+
+/// Kubernetes конфигурация
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct KubernetesConfig {
+    /// Путь к kubeconfig файлу
+    #[serde(rename = "kubeconfigPath", default)]
+    pub kubeconfig_path: Option<String>,
+    /// Контекст для подключения
+    #[serde(default)]
+    pub context: Option<String>,
+    /// Namespace по умолчанию
+    #[serde(rename = "defaultNamespace", default = "default_k8s_namespace")]
+    pub default_namespace: String,
+}
+
+fn default_k8s_namespace() -> String {
+    "default".to_string()
 }
 
 fn default_redis_url() -> String {
@@ -459,7 +481,7 @@ fn default_tcp_address() -> String {
 }
 
 fn default_tmp_path() -> String {
-    "/tmp/semaphore".to_string()
+    "/tmp/velum".to_string()
 }
 
 impl Default for Config {
@@ -489,6 +511,7 @@ impl Default for Config {
             email_sender: default_email_sender(),
             telegram_bot_token: None,
             redis: None,
+            kubernetes: None,
         }
     }
 }
@@ -638,7 +661,7 @@ mod tests {
     fn test_db_config_default() {
         let config = DbConfig::default();
         assert_eq!(config.hostname, "0.0.0.0");
-        assert_eq!(config.db_name, "semaphore");
+        assert_eq!(config.db_name, "velum");
     }
 
     #[test]
@@ -668,7 +691,7 @@ mod tests {
     fn test_config_default() {
         let config = Config::default();
         assert_eq!(config.tcp_address, "0.0.0.0:3000");
-        assert_eq!(config.tmp_path, "/tmp/semaphore");
+        assert_eq!(config.tmp_path, "/tmp/velum");
     }
 
     #[test]
@@ -683,6 +706,6 @@ mod tests {
     fn test_config_get_project_tmp_dir() {
         let config = Config::default();
         let dir = config.get_project_tmp_dir(123);
-        assert_eq!(dir, "/tmp/semaphore/project_123");
+        assert_eq!(dir, "/tmp/velum/project_123");
     }
 }

@@ -5,6 +5,7 @@
 use std::sync::Arc;
 use tokio::sync::{RwLock, Mutex};
 use tracing::{info, warn, error};
+use chrono::Utc;
 
 use crate::models::{Task, Inventory, Repository, Environment};
 use crate::services::task_logger::TaskStatus;
@@ -53,9 +54,13 @@ impl TaskPool {
     }
     
     /// Выполняет задачу через LocalJob
-    pub async fn execute_task(&self, task: Task) -> Result<(), String> {
-        // Обновляем статус на Running
-        self.update_task_status(task.id, TaskStatus::Running).await?;
+    pub async fn execute_task(&self, mut task: Task) -> Result<(), String> {
+        // Обновляем статус на Running и фиксируем время начала
+        task.status = TaskStatus::Running;
+        task.start = Some(Utc::now());
+        self.store.update_task(task.clone()).await
+            .map_err(|e| format!("Failed to update task: {}", e))?;
+        self.notify_websocket(task.id, TaskStatus::Running).await;
 
         // Получаем шаблон
         let template = self.store.get_template(task.project_id, task.template_id)
@@ -99,7 +104,10 @@ impl TaskPool {
         let work_dir = std::env::temp_dir().join(format!("semaphore_task_{}_{}", task.project_id, task.id));
         let tmp_dir = work_dir.join("tmp");
         if let Err(e) = tokio::fs::create_dir_all(&tmp_dir).await {
-            self.update_task_status(task.id, TaskStatus::Error).await.ok();
+            task.status = TaskStatus::Error;
+            task.end = Some(Utc::now());
+            self.store.update_task(task.clone()).await.ok();
+            self.notify_websocket(task.id, TaskStatus::Error).await;
             let mut running = self.running_tasks.write().await;
             running.remove(&task.id);
             return Err(format!("Failed to create work dir: {}", e));
@@ -129,17 +137,22 @@ impl TaskPool {
             running.remove(&task.id);
         }
 
+        task.end = Some(Utc::now());
         match result {
             Ok(()) => {
+                task.status = TaskStatus::Success;
+                self.store.update_task(task.clone()).await.ok();
+                self.notify_websocket(task.id, TaskStatus::Success).await;
                 job.cleanup();
-                self.update_task_status(task.id, TaskStatus::Success).await?;
                 info!("Task {} completed", task.id);
                 Ok(())
             }
             Err(e) => {
+                task.status = TaskStatus::Error;
+                self.store.update_task(task.clone()).await.ok();
+                self.notify_websocket(task.id, TaskStatus::Error).await;
                 job.cleanup();
                 error!("Task {} failed: {}", task.id, e);
-                self.update_task_status(task.id, TaskStatus::Error).await?;
                 Err(e.to_string())
             }
         }

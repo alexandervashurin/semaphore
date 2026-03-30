@@ -2,6 +2,7 @@
 
 use thiserror::Error;
 use axum::http::StatusCode;
+use axum::{Json, response::{IntoResponse, Response}};
 
 /// Основной тип ошибок приложения
 #[derive(Error, Debug)]
@@ -50,6 +51,10 @@ pub enum Error {
     #[error("Ошибка WebSocket: {0}")]
     WebSocket(String),
 
+    /// Ошибка Kubernetes
+    #[error("Ошибка Kubernetes: {0}")]
+    Kubernetes(String),
+
     /// Ошибка планировщика
     #[error("Ошибка планировщика: {0}")]
     Scheduler(String),
@@ -86,7 +91,7 @@ impl Error {
             Error::Database(_) | Error::Io(_) | Error::SystemTime(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Error::Json(_) => StatusCode::BAD_REQUEST,
             Error::Git(_) | Error::Http(_) => StatusCode::BAD_GATEWAY,
-            Error::WebSocket(_) | Error::Scheduler(_) | Error::NotImplemented(_) | Error::Other(_) => {
+            Error::WebSocket(_) | Error::Kubernetes(_) | Error::Scheduler(_) | Error::NotImplemented(_) | Error::Other(_) => {
                 StatusCode::INTERNAL_SERVER_ERROR
             }
         }
@@ -102,9 +107,21 @@ impl Error {
             Error::Config(_) => "CONFIG_ERROR",
             Error::Database(_) => "DATABASE_ERROR",
             Error::Json(_) => "INVALID_JSON",
+            Error::Kubernetes(_) => "KUBERNETES_ERROR",
             Error::Other(_) => "INTERNAL_ERROR",
             _ => "INTERNAL_ERROR",
         }
+    }
+}
+
+impl IntoResponse for Error {
+    fn into_response(self) -> Response {
+        let status = self.to_status_code();
+        let body = serde_json::json!({
+            "error": self.to_string(),
+            "code": self.error_code(),
+        });
+        (status, Json(body)).into_response()
     }
 }
 

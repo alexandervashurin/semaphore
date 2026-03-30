@@ -31,7 +31,10 @@ pub mod snapshot;
 pub mod cost_estimate;
 pub mod state_backend;
 pub mod plan_approval;
-pub mod organizations;
+pub mod organization;
+pub mod deployment_environment;
+pub mod task_structured_output;
+pub mod kubernetes;
 
 // Ре-экспорт всех handlers для удобства
 pub use auth::*;
@@ -49,4 +52,4 @@ pub use mailer::*;
 pub use audit_log::*;
 pub use playbook::*;
 pub use analytics::*;
-pub use organizations::*;
+pub use kubernetes::*;

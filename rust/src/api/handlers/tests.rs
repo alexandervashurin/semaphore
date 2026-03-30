@@ -50,6 +50,7 @@ mod tests {
         let state = Arc::new(crate::api::state::AppState::new(
             store,
             crate::config::Config::default(),
+            None,
         ));
         let result = handlers::logout(axum::extract::State(state)).await;
         assert!(result.is_ok());

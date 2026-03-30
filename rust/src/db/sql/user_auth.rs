@@ -52,41 +52,6 @@ pub fn verify_password(password: &str, hash: &str) -> Result<bool> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Utc;
-
-    struct TestDb {
-        db: SqlDb,
-        _temp: tempfile::NamedTempFile,
-    }
-
-    async fn create_test_db() -> TestDb {
-        let (db_path, temp) = crate::db::sql::init::test_sqlite_url();
-
-        let db = SqlDb::connect_sqlite(&db_path).await.unwrap();
-
-        // Создаём таблицу user
-        sqlx::query(
-            "CREATE TABLE IF NOT EXISTS user (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT NOT NULL,
-                name TEXT NOT NULL,
-                email TEXT NOT NULL,
-                password TEXT NOT NULL,
-                admin INTEGER NOT NULL,
-                external INTEGER NOT NULL,
-                alert INTEGER NOT NULL,
-                pro INTEGER NOT NULL,
-                created DATETIME NOT NULL,
-                totp TEXT,
-                email_otp TEXT
-            )"
-        )
-        .execute(db.get_sqlite_pool().unwrap())
-        .await
-        .unwrap();
-
-        TestDb { db, _temp: temp }
-    }
 
     #[test]
     fn test_hash_password() {
@@ -113,73 +78,5 @@ mod tests {
 
         let is_valid = verify_password("wrong_password", &hashed).unwrap();
         assert!(!is_valid);
-    }
-
-    #[tokio::test]
-    async fn test_set_user_password() {
-        let TestDb { db, _temp } = create_test_db().await;
-
-        let user = User {
-            id: 0,
-            created: Utc::now(),
-            username: "testuser".to_string(),
-            name: "Test User".to_string(),
-            email: "test@example.com".to_string(),
-            password: "old_hash".to_string(),
-            admin: false,
-            external: false,
-            alert: false,
-            pro: false,
-            totp: None,
-            email_otp: None,
-        };
-
-        let created = db.create_user(user).await.unwrap();
-
-        // Устанавливаем новый пароль
-        db.set_user_password(created.id, "new_password123").await.unwrap();
-
-        // Проверяем что пароль обновился
-        let is_valid = db.verify_user_password(created.id, "new_password123").await.unwrap();
-        assert!(is_valid);
-
-        let is_valid = db.verify_user_password(created.id, "old_password").await.unwrap();
-        assert!(!is_valid);
-
-        // Cleanup
-        let _ = db.close().await;
-    }
-
-    #[tokio::test]
-    async fn test_verify_user_password() {
-        let TestDb { db, _temp } = create_test_db().await;
-
-        let user = User {
-            id: 0,
-            created: Utc::now(),
-            username: "testuser2".to_string(),
-            name: "Test User".to_string(),
-            email: "test2@example.com".to_string(),
-            password: hash_password("correct_password").unwrap(),
-            admin: false,
-            external: false,
-            alert: false,
-            pro: false,
-            totp: None,
-            email_otp: None,
-        };
-
-        let created = db.create_user(user).await.unwrap();
-
-        // Проверяем правильный пароль
-        let is_valid = db.verify_user_password(created.id, "correct_password").await.unwrap();
-        assert!(is_valid);
-
-        // Проверяем неправильный пароль
-        let is_valid = db.verify_user_password(created.id, "wrong_password").await.unwrap();
-        assert!(!is_valid);
-
-        // Cleanup
-        let _ = db.close().await;
     }
 }

@@ -22,7 +22,7 @@
         .status-cancelled{ background: #e0e0e0; color: #424242; }
 
         /* Task detail modal */
-        .task-modal-body { display: flex; flex-direction: column; gap: 16px; }
+        .task-modal-body { display: flex; flex-direction: column; gap: 16px; padding: 16px 24px 20px; }
         .task-meta-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -130,18 +130,18 @@
     <!-- Task detail modal -->
     <div id="task-detail-modal" class="modal-overlay" style="display:none;" onclick="closeTaskDetail(event)">
         <div class="modal" style="max-width: 900px; width: 95vw;">
-            <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center;">
-                <h2 id="modal-title">Задача #—</h2>
-                <div style="display:flex; gap:8px; align-items:center;">
+            <div class="modal-header" style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+                <h2 id="modal-title" style="white-space:nowrap; padding-top:4px;">Задача #—</h2>
+                <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; flex-shrink:0;">
                     <span id="modal-status-badge" class="status-badge"></span>
                     <button class="btn btn-sm" id="modal-confirm-btn" style="display:none; background:#276749; color:#fff;" onclick="confirmCurrentTask()"><i class="fa-solid fa-check"></i> Подтвердить</button>
                     <button class="btn btn-sm" id="modal-reject-btn" style="display:none; background:#c53030; color:#fff;" onclick="rejectCurrentTask()"><i class="fa-solid fa-xmark"></i> Отклонить</button>
                     <button class="btn btn-sm" id="modal-stop-btn" style="display:none; color:#c53030;" onclick="stopCurrentTask()"><i class="fa-solid fa-stop"></i> Остановить</button>
                     <button class="btn btn-sm" id="modal-rerun-btn" style="display:none;" onclick="rerunCurrentTask()" title="Повторить запуск"><i class="fa-solid fa-rotate-right"></i> Повторить</button>
-                    <button class="btn btn-sm" id="modal-snapshot-btn" style="display:none; background:#e8f5e9; color:#276749;" onclick="saveCurrentSnapshot()" title="Сохранить снапшот для Rollback"><i class="fa-solid fa-camera"></i> Снапшот</button>
-                    <button class="btn btn-sm" id="modal-ai-btn" style="display:none; background:#f0f4ff; color:#3730a3;" onclick="analyzeFailureWithAI()" title="Анализ ошибки с помощью AI"><i class="fa-solid fa-wand-magic-sparkles"></i> AI анализ</button>
-                    <button class="btn btn-sm" onclick="downloadCurrentLog()"><i class="fa-solid fa-download"></i> Лог</button>
-                    <button class="btn btn-sm" onclick="closeTaskDetailModal()">✕</button>
+                    <button class="btn btn-sm" id="modal-snapshot-btn" style="display:none; background:#e8f5e9; color:#276749;" onclick="saveCurrentSnapshot()" title="Снапшот для Rollback"><i class="fa-solid fa-camera"></i> Снапшот</button>
+                    <button class="btn btn-sm" id="modal-ai-btn" style="display:none; background:#f0f4ff; color:#3730a3;" onclick="analyzeFailureWithAI()" title="AI анализ ошибки"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
+                    <button class="btn btn-sm" onclick="downloadCurrentLog()" title="Скачать лог"><i class="fa-solid fa-download"></i> Лог</button>
+                    <button class="btn btn-sm" onclick="closeTaskDetailModal()" style="font-size:16px; line-height:1;">✕</button>
                 </div>
             </div>
             <div class="task-modal-body">
