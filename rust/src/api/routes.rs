@@ -1883,35 +1883,6 @@ pub fn api_routes() -> Router<Arc<AppState>> {
             "/api/kubernetes/inventory/sync",
             post(handlers::execute_inventory_sync),
         )
-        // Kubernetes Pods
-        .route(
-            "/api/kubernetes/pods",
-            get(handlers::list_pods),
-        )
-        .route(
-            "/api/kubernetes/namespaces/{namespace}/pods",
-            get(handlers::list_pods),
-        )
-        .route(
-            "/api/kubernetes/namespaces/{namespace}/pods/{name}",
-            get(handlers::get_pod),
-        )
-        .route(
-            "/api/kubernetes/namespaces/{namespace}/pods/{name}",
-            delete(handlers::delete_pod),
-        )
-        .route(
-            "/api/kubernetes/namespaces/{namespace}/pods/{name}/restart",
-            post(handlers::restart_pod),
-        )
-        .route(
-            "/api/kubernetes/namespaces/{namespace}/pods/{name}/logs",
-            get(handlers::get_pod_logs),
-        )
-        .route(
-            "/api/kubernetes/namespaces/{namespace}/pods/{name}/exec",
-            post(handlers::exec_in_pod),
-        )
         .route(
             "/api/kubernetes/metrics/pods",
             get(handlers::list_pod_metrics),
