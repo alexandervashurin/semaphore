@@ -1874,6 +1874,15 @@ pub fn api_routes() -> Router<Arc<AppState>> {
             "/api/kubernetes/prometheus/health",
             get(handlers::check_prometheus_health),
         )
+        // Kubernetes Inventory Sync
+        .route(
+            "/api/kubernetes/inventory/sync/preview",
+            get(handlers::get_inventory_sync_preview),
+        )
+        .route(
+            "/api/kubernetes/inventory/sync",
+            post(handlers::execute_inventory_sync),
+        )
         .route(
             "/api/kubernetes/metrics/pods",
             get(handlers::list_pod_metrics),
