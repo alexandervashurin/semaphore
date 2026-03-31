@@ -14,7 +14,8 @@
       "Bash(git fetch *)",
       "Bash(mkdir *)",
       "Bash(mv *)",
-      "Bash(wc *)"
+      "Bash(wc *)",
+      "Bash(git *)"
     ]
   },
   "$version": 3
