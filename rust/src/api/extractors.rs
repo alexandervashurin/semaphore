@@ -231,6 +231,8 @@ mod tests {
             username: "test".to_string(),
             email: "test@example.com".to_string(),
             admin: true,
+            jti: "test-jti".to_string(),
+            exp: 9999999999,
         };
 
         assert_eq!(user.user_id, 1);

@@ -48,6 +48,18 @@ impl ServerCommand {
                 println!("Task scheduler started");
             }
 
+            // Запускаем Job Pool (Remote Runners + локальный планировщик задач)
+            let job_pool = std::sync::Arc::new(
+                crate::services::runners::JobPool::new(store.clone())
+            );
+            let pool_handle = job_pool.clone();
+            tokio::spawn(async move {
+                if let Err(e) = pool_handle.run().await {
+                    eprintln!("Warning: job pool error: {e}");
+                }
+            });
+            println!("Job pool started");
+
             // Запускаем Telegram Bot (если токен задан в конфиге/env)
             crate::services::telegram_bot::start_bot_if_configured(&config);
 

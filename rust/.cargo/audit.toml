@@ -1,0 +1,9 @@
+# cargo-audit configuration
+# Ref: https://github.com/rustsec/rustsec/tree/main/cargo-audit
+
+[advisories]
+# RUSTSEC-2023-0071: RSA Marvin Attack (timing side-channel in PKCS#1 v1.5 decryption)
+# Pulled in transitively by sqlx-postgres for PostgreSQL SCRAM-SHA-256 authentication.
+# We removed direct RSA usage and migrated to ECDSA P-256 for key generation.
+# The sqlx-postgres usage is limited to TLS handshake — not our code path.
+ignore = ["RUSTSEC-2023-0071"]

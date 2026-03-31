@@ -7,426 +7,930 @@
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
     <style>
-        .status-badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 3px;
-            font-size: 12px;
-            font-weight: 600;
+        .k8s-header-icon { color: #326ce5; font-size: 22px; }
+        .pod-phase {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 2px 9px; border-radius: 12px;
+            font-size: 11px; font-weight: 600;
         }
-        .status-running { background: #d4edda; color: #155724; }
-        .status-pending { background: #fff3cd; color: #856404; }
-        .status-failed { background: #f8d7da; color: #721c24; }
-        .status-succeeded { background: #d1ecf1; color: #0c5460; }
-        .status-unknown { background: #e2e3e5; color: #383d44; }
-        
-        .pod-actions {
-            display: flex;
-            gap: 4px;
+        .phase-running    { background: #e8f5e9; color: #2e7d32; }
+        .phase-pending    { background: #fff8e1; color: #f57f17; }
+        .phase-succeeded  { background: #e3f2fd; color: #1565c0; }
+        .phase-failed     { background: #ffebee; color: #c62828; }
+        .phase-unknown    { background: #f5f5f5; color: #757575; }
+        .phase-terminating { background: #fce4ec; color: #880e4f; }
+        .container-badges { display: flex; flex-wrap: wrap; gap: 4px; }
+        .container-badge {
+            padding: 1px 7px; border-radius: 10px; font-size: 11px;
+            border: 1px solid;
         }
-        .pod-actions button {
-            padding: 4px 8px;
-            font-size: 12px;
+        .container-badge.ready   { background: #e8f5e9; color: #2e7d32; border-color: #a5d6a7; }
+        .container-badge.not-ready { background: #ffebee; color: #c62828; border-color: #ef9a9a; }
+        .container-badge.waiting { background: #fff8e1; color: #f57f17; border-color: #ffe082; }
+        .ready-count { font-size: 12px; color: var(--text-light); white-space: nowrap; }
+        .ready-count .ok { color: #2e7d32; font-weight: 600; }
+        /* Log modal */
+        .log-modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,.5);
+            z-index: 1000; display: flex; align-items: center; justify-content: center;
         }
-        
-        .logs-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            display: none;
-            z-index: 1000;
+        .log-modal {
+            background: #1e1e1e; color: #d4d4d4;
+            width: 90vw; max-width: 1000px;
+            height: 70vh; border-radius: 12px;
+            display: flex; flex-direction: column; overflow: hidden;
         }
-        .logs-modal.active {
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        .log-modal-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 20px; border-bottom: 1px solid #333;
+            font-family: monospace; font-size: 13px; color: #aaa;
         }
-        .logs-content {
-            background: #fff;
-            border-radius: 8px;
-            padding: 20px;
-            max-width: 90%;
-            max-height: 90%;
-            overflow: auto;
+        .log-modal-body {
+            flex: 1; overflow-y: auto; padding: 16px 20px;
+            font-family: 'Courier New', monospace; font-size: 12px;
+            line-height: 1.7; white-space: pre-wrap; word-break: break-all;
         }
-        .logs-output {
-            background: #1e1e1e;
-            color: #d4d4d4;
-            padding: 12px;
-            border-radius: 4px;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            white-space: pre-wrap;
-            max-height: 400px;
-            overflow: auto;
+        .log-modal-body.empty { color: #666; font-style: italic; }
+        .log-modal-footer {
+            padding: 10px 20px; border-top: 1px solid #333;
+            display: flex; gap: 10px; align-items: center;
+        }
+        .log-modal select, .log-modal input[type=number] {
+            background: #2d2d2d; color: #d4d4d4;
+            border: 1px solid #444; border-radius: 6px;
+            padding: 5px 10px; font-size: 12px;
+        }
+        /* Toolbar */
+        .pods-toolbar {
+            display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
+            margin-bottom: 16px;
+        }
+        .ns-select { min-width: 180px; }
+        .pods-toolbar .search-box { flex: 1; min-width: 180px; }
+        .pods-toolbar .filter-select { min-width: 140px; }
+        .tbl-icon-btn {
+            background: none; border: none; cursor: pointer;
+            color: var(--text-light); padding: 4px 6px; border-radius: 4px;
+            font-size: 14px; transition: color .15s;
+        }
+        .tbl-icon-btn:hover { color: var(--primary); }
+        .tbl-icon-btn.danger:hover { color: #c62828; }
+        .restart-count {
+            font-size: 12px; color: var(--text-light);
+        }
+        .restart-count.warn { color: #f57f17; font-weight: 600; }
+        .restart-count.crit { color: #c62828; font-weight: 600; }
+        /* Exec terminal modal */
+        .exec-modal {
+            background: #0d1117; color: #e6edf3;
+            width: 90vw; max-width: 1100px;
+            height: 75vh; border-radius: 12px;
+            display: flex; flex-direction: column; overflow: hidden;
+            border: 1px solid #30363d;
+        }
+        .exec-modal-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 18px; border-bottom: 1px solid #30363d;
+            font-family: monospace; font-size: 13px; color: #8b949e;
+        }
+        .exec-modal-header .exec-title { color: #58a6ff; font-weight: 600; }
+        .exec-terminal {
+            flex: 1; overflow-y: auto; padding: 12px 16px;
+            font-family: 'Courier New', monospace; font-size: 12px;
+            line-height: 1.6; white-space: pre-wrap; word-break: break-all;
+            background: #0d1117;
+        }
+        .exec-terminal .line-out { color: #e6edf3; }
+        .exec-terminal .line-err { color: #f85149; }
+        .exec-terminal .line-sys { color: #3fb950; font-style: italic; }
+        .exec-input-row {
+            display: flex; align-items: center; gap: 0;
+            border-top: 1px solid #30363d; padding: 8px 16px;
+            background: #161b22;
+        }
+        .exec-prompt { color: #3fb950; font-family: monospace; font-size: 13px; margin-right: 8px; }
+        .exec-input {
+            flex: 1; background: transparent; border: none; outline: none;
+            color: #e6edf3; font-family: 'Courier New', monospace; font-size: 13px;
+        }
+        .exec-modal-toolbar {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 16px; border-bottom: 1px solid #30363d;
+            background: #161b22;
+        }
+        .exec-modal-toolbar select, .exec-modal-toolbar input[type=text] {
+            background: #21262d; color: #e6edf3;
+            border: 1px solid #30363d; border-radius: 6px;
+            padding: 4px 10px; font-size: 12px;
+        }
+        .exec-status-dot {
+            width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+        }
+        .exec-status-dot.connected { background: #3fb950; }
+        .exec-status-dot.disconnected { background: #f85149; }
+        .exec-status-dot.connecting { background: #d29922; animation: pulse .8s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+        /* Port-forward modal */
+        .pf-modal {
+            background: var(--surface); border-radius: 12px;
+            width: 460px; max-width: 96vw; padding: 24px;
+            box-shadow: 0 8px 32px rgba(0,0,0,.2);
+        }
+        .pf-status-row {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 14px; border-radius: 8px; margin: 14px 0;
+            background: var(--background); font-size: 13px;
+        }
+        .pf-log {
+            background: #0d1117; color: #8b949e;
+            font-family: monospace; font-size: 11px;
+            padding: 8px 12px; border-radius: 6px; max-height: 120px;
+            overflow-y: auto; white-space: pre-wrap; word-break: break-all;
+        }
+        /* Pod detail panel */
+        .pod-detail-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,.45);
+            z-index: 900; display: flex; justify-content: flex-end;
+        }
+        .pod-detail-panel {
+            width: 480px; max-width: 96vw;
+            background: var(--surface); height: 100vh; overflow-y: auto;
+            box-shadow: -4px 0 20px rgba(0,0,0,.15); padding: 24px;
+            display: flex; flex-direction: column; gap: 16px;
+        }
+        .pod-detail-header {
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .pod-detail-title { font-size: 16px; font-weight: 600; word-break: break-all; }
+        .pod-detail-section { margin-top: 8px; }
+        .pod-detail-section h4 { font-size: 12px; font-weight: 600; text-transform: uppercase; color: var(--text-light); margin-bottom: 8px; }
+        .kv-table { width: 100%; font-size: 13px; border-collapse: collapse; }
+        .kv-table td { padding: 4px 0; vertical-align: top; }
+        .kv-table td:first-child { color: var(--text-light); width: 40%; padding-right: 8px; }
+        .label-chip {
+            display: inline-block; padding: 1px 8px;
+            background: #e8f0fe; color: #1a56db;
+            border-radius: 10px; font-size: 11px; margin: 2px;
         }
     </style>
 </head>
 <body>
 <div class="layout">
-    <aside class="sidebar"></aside>
-    <div class="main-content">
-        <div class="main-header">
-            <h2><i class="fa-solid fa-box"></i> Kubernetes Pods</h2>
-            <div style="display: flex; gap: 8px;">
-                <a href="k8s-troubleshoot.html" class="btn btn-secondary">
-                    <i class="fa-solid fa-stethoscope"></i> Troubleshoot
-                </a>
-                <button class="btn btn-primary" onclick="loadPods()">
-                    <i class="fa-solid fa-rotate"></i> Обновить
-                </button>
-            </div>
-        </div>
-        <div class="main-body">
-            <!-- Фильтры -->
-            <div class="card" style="margin-bottom:12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                <label>Namespace:
-                    <select id="namespace" class="form-control" style="max-width: 200px;" onchange="loadPods()"></select>
-                </label>
-                <input id="filter" class="form-control" placeholder="Фильтр по имени" style="min-width: 200px;" onkeyup="filterPods()">
-                <label>
-                    <input type="checkbox" id="auto-refresh" onchange="toggleAutoRefresh()"> Автообновление
-                </label>
-                <span id="last-update" style="color: #666; font-size: 12px;"></span>
-            </div>
-
-            <!-- Таблица Pod -->
-            <div id="content" class="card">
-                <div class="loading">
-                    <div class="loading-spinner"></div>
-                    <p>Загрузка...</p>
+    <nav class="sidebar"></nav>
+    <main class="main-content">
+        <div class="page-header">
+            <div style="display:flex;align-items:center;gap:10px">
+                <i class="fa-solid fa-box k8s-header-icon"></i>
+                <div>
+                    <h1 class="page-title">Pods</h1>
+                    <p class="page-subtitle">Kubernetes — управление Pod'ами</p>
                 </div>
             </div>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="pods-toolbar">
+            <select class="form-control ns-select" id="clusterSelect" title="Кластер">
+                <option value="">— Кластер —</option>
+            </select>
+            <select class="form-control ns-select" id="namespaceSelect" disabled title="Namespace">
+                <option value="">— Namespace —</option>
+            </select>
+            <input type="text" class="form-control search-box" id="podFilter" placeholder="Фильтр по имени…" disabled>
+            <select class="form-control filter-select" id="phaseFilter" disabled>
+                <option value="">Все фазы</option>
+                <option value="Running">Running</option>
+                <option value="Pending">Pending</option>
+                <option value="Succeeded">Succeeded</option>
+                <option value="Failed">Failed</option>
+                <option value="Unknown">Unknown</option>
+            </select>
+            <button class="btn btn-secondary" id="refreshBtn" disabled>
+                <i class="fa-solid fa-rotate-right"></i> Обновить
+            </button>
+        </div>
+
+        <!-- Empty states -->
+        <div id="stateNotConfigured" class="empty-state" style="display:none">
+            <i class="fa-solid fa-dharmachakra" style="font-size:48px;color:#326ce5;opacity:.4;margin-bottom:12px"></i>
+            <p>Kubernetes не сконфигурирован.<br>Задайте переменную <code>VELUM_K8S_KUBECONFIG_PATH</code> или запустите внутри кластера.</p>
+        </div>
+        <div id="stateSelectCluster" class="empty-state" style="display:none">
+            <i class="fa-solid fa-circle-info" style="font-size:36px;color:#aaa;margin-bottom:10px"></i>
+            <p>Выберите кластер и namespace для просмотра Pod'ов.</p>
+        </div>
+        <div id="stateLoading" class="empty-state" style="display:none">
+            <i class="fa-solid fa-circle-notch fa-spin" style="font-size:36px;color:#aaa;margin-bottom:10px"></i>
+            <p>Загрузка…</p>
+        </div>
+        <div id="stateForbidden" class="empty-state" style="display:none">
+            <i class="fa-solid fa-ban" style="font-size:36px;color:#c62828;opacity:.5;margin-bottom:10px"></i>
+            <p>Нет прав на просмотр Pod'ов в этом namespace.</p>
+        </div>
+        <div id="stateError" class="empty-state" style="display:none">
+            <i class="fa-solid fa-triangle-exclamation" style="font-size:36px;color:#f57f17;opacity:.6;margin-bottom:10px"></i>
+            <p id="stateErrorMsg">Ошибка загрузки.</p>
+        </div>
+        <div id="stateEmpty" class="empty-state" style="display:none">
+            <i class="fa-solid fa-box-open" style="font-size:36px;color:#aaa;opacity:.5;margin-bottom:10px"></i>
+            <p>Нет Pod'ов в этом namespace.</p>
+        </div>
+
+        <!-- Pods table -->
+        <div id="podsTableWrap" style="display:none">
+            <div class="table-container">
+                <table class="data-table" id="podsTable">
+                    <thead>
+                        <tr>
+                            <th>Имя</th>
+                            <th>Фаза</th>
+                            <th>Готов</th>
+                            <th>Контейнеры</th>
+                            <th>Рестарты</th>
+                            <th>Нода</th>
+                            <th>Создан</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="podsTbody"></tbody>
+                </table>
+            </div>
+            <!-- Pagination -->
+            <div id="podsPagination" style="display:none; margin-top:12px; display:flex; gap:8px; align-items:center">
+                <button class="btn btn-secondary btn-sm" id="prevBtn" disabled>← Назад</button>
+                <span id="pageInfo" style="font-size:13px; color:var(--text-light)"></span>
+                <button class="btn btn-secondary btn-sm" id="nextBtn" disabled>Вперёд →</button>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Log modal -->
+<div id="logModal" class="log-modal-overlay" style="display:none">
+    <div class="log-modal">
+        <div class="log-modal-header">
+            <span id="logModalTitle">Logs</span>
+            <button class="btn btn-secondary btn-sm" onclick="closeLogModal()">✕ Закрыть</button>
+        </div>
+        <div class="log-modal-body" id="logModalBody"></div>
+        <div class="log-modal-footer">
+            <select id="logContainer" title="Контейнер">
+                <option value="">Все контейнеры</option>
+            </select>
+            <label style="color:#aaa;font-size:12px">Строк:</label>
+            <input type="number" id="logTailLines" value="200" min="1" max="5000" style="width:70px">
+            <label style="color:#aaa;font-size:12px">
+                <input type="checkbox" id="logPrevious"> Предыдущий контейнер
+            </label>
+            <button class="btn btn-secondary btn-sm" onclick="reloadLogs()">
+                <i class="fa-solid fa-rotate-right"></i> Обновить
+            </button>
         </div>
     </div>
 </div>
 
-<!-- Logs Modal -->
-<div id="logs-modal" class="logs-modal">
-    <div class="logs-content">
-        <h3><i class="fa-solid fa-file-lines"></i> Логи Pod: <span id="logs-pod-name"></span></h3>
-        <div style="margin-bottom: 12px;">
-            <label>Container:
-                <select id="logs-container" class="form-control" style="max-width: 200px;"></select>
-            </label>
-            <button class="btn btn-primary" onclick="loadLogs()">
-                <i class="fa-solid fa-rotate"></i> Обновить
+<!-- Exec terminal modal -->
+<div id="execModal" class="log-modal-overlay" style="display:none">
+    <div class="exec-modal">
+        <div class="exec-modal-header">
+            <span><span class="exec-title" id="execModalTitle">Terminal</span></span>
+            <div style="display:flex;align-items:center;gap:12px">
+                <span id="execStatusDot" class="exec-status-dot disconnected"></span>
+                <span id="execStatusText" style="font-size:11px">Не подключён</span>
+                <button class="btn btn-secondary btn-sm" onclick="closeExecModal()">✕ Закрыть</button>
+            </div>
+        </div>
+        <div class="exec-modal-toolbar">
+            <label style="color:#8b949e;font-size:12px">Контейнер:</label>
+            <select id="execContainer"></select>
+            <label style="color:#8b949e;font-size:12px">Команда:</label>
+            <input type="text" id="execCommand" value="/bin/sh" style="width:160px">
+            <button class="btn btn-secondary btn-sm" id="execConnectBtn" onclick="execConnect()">
+                <i class="fa-solid fa-play"></i> Подключить
             </button>
-            <button class="btn btn-success" onclick="streamLogs()">
-                <i class="fa-solid fa-play"></i> Live Stream
-            </button>
-            <button class="btn btn-secondary" onclick="closeLogsModal()">
-                <i class="fa-solid fa-xmark"></i> Закрыть
+            <button class="btn btn-secondary btn-sm" id="execDisconnectBtn" onclick="execDisconnect()" style="display:none">
+                <i class="fa-solid fa-stop"></i> Отключить
             </button>
         </div>
-        <div id="logs-output" class="logs-output"></div>
+        <div class="exec-terminal" id="execTerminal">
+            <span class="line-sys">Настройте контейнер и команду, затем нажмите «Подключить».</span>
+        </div>
+        <div class="exec-input-row">
+            <span class="exec-prompt">$</span>
+            <input class="exec-input" id="execInput" type="text" placeholder="Введите команду…" disabled
+                   autocomplete="off" spellcheck="false">
+        </div>
+    </div>
+</div>
+
+<!-- Port-forward modal -->
+<div id="pfModal" class="log-modal-overlay" style="display:none">
+    <div class="pf-modal">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+            <h3 style="margin:0;font-size:16px"><i class="fa-solid fa-network-wired" style="color:#326ce5"></i> Port Forward</h3>
+            <button class="btn btn-secondary btn-sm" onclick="closePfModal()">✕</button>
+        </div>
+        <div style="font-size:13px;color:var(--text-light);margin-bottom:12px" id="pfPodName"></div>
+        <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:4px">
+            <div style="flex:1">
+                <label class="form-label">Порт Pod'а</label>
+                <input type="number" class="form-control" id="pfPort" min="1" max="65535" placeholder="8080">
+            </div>
+            <button class="btn btn-primary" id="pfConnectBtn" onclick="pfConnect()">
+                <i class="fa-solid fa-plug"></i> Подключить
+            </button>
+            <button class="btn btn-danger" id="pfDisconnectBtn" onclick="pfDisconnect()" style="display:none">
+                <i class="fa-solid fa-plug-circle-xmark"></i> Стоп
+            </button>
+        </div>
+        <div class="pf-status-row" id="pfStatusRow">
+            <span id="pfStatusDot" class="exec-status-dot disconnected"></span>
+            <span id="pfStatusText" style="color:var(--text-light)">Не подключён</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-light);margin-bottom:6px">Лог:</div>
+        <div class="pf-log" id="pfLog">Нет активного подключения.</div>
+    </div>
+</div>
+
+<!-- Pod detail panel -->
+<div id="podDetailOverlay" class="pod-detail-overlay" style="display:none" onclick="closePodDetail(event)">
+    <div class="pod-detail-panel" onclick="event.stopPropagation()">
+        <div class="pod-detail-header">
+            <span class="pod-detail-title" id="podDetailName"></span>
+            <button class="btn btn-secondary btn-sm" onclick="closePodDetail()">✕</button>
+        </div>
+        <div id="podDetailContent"></div>
     </div>
 </div>
 
 <script src="app.js"></script>
 <script>
-checkAuth();
-let podsData = [];
-let autoRefreshInterval = null;
-let currentPodName = null;
+// ── State ──────────────────────────────────────────────────────────────────
+let currentClusterId = null;
 let currentNamespace = null;
+let podsCache = [];       // all loaded pods
+let continueStack = [];   // pagination stack
+let nextContinue = null;
+let currentLogPod = null;
 
-// Загрузка namespaces
-async function loadNamespaces() {
+const LIMIT = 100;
+
+// ── Init ───────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadClusters();
+    document.getElementById('clusterSelect').addEventListener('change', onClusterChange);
+    document.getElementById('namespaceSelect').addEventListener('change', onNamespaceChange);
+    document.getElementById('podFilter').addEventListener('input', renderPodsTable);
+    document.getElementById('phaseFilter').addEventListener('change', renderPodsTable);
+    document.getElementById('refreshBtn').addEventListener('click', () => loadPods(null));
+    document.getElementById('prevBtn').addEventListener('click', onPrevPage);
+    document.getElementById('nextBtn').addEventListener('click', onNextPage);
+});
+
+// ── Clusters ───────────────────────────────────────────────────────────────
+async function loadClusters() {
     try {
-        const ns = await api.get('/kubernetes/namespaces');
-        const select = $('#namespace');
-        select.innerHTML = '<option value="default">default</option>';
-        ns.forEach(n => {
-            select.innerHTML += `<option value="${escapeHtml(n.name)}">${escapeHtml(n.name)}</option>`;
+        const data = await api.get('/kubernetes/clusters');
+        const sel = document.getElementById('clusterSelect');
+        if (!data.clusters || data.clusters.length === 0) {
+            showState('notConfigured');
+            return;
+        }
+        data.clusters.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = c.display_name || c.id;
+            sel.appendChild(opt);
         });
-        loadPods();
+        showState('selectCluster');
     } catch (e) {
-        console.error('Failed to load namespaces:', e);
-        $('#content').innerHTML = `<div class="alert alert-error"><i class="fa-solid fa-exclamation-triangle"></i> Ошибка загрузки namespaces: ${escapeHtml(e.message)}</div>`;
+        showState('notConfigured');
     }
 }
 
-// Загрузка Pod
-async function loadPods() {
-    const namespace = $('#namespace').value;
-    const content = $('#content');
-    
-    content.innerHTML = '<div class="loading"><div class="loading-spinner"></div><p>Загрузка...</p></div>';
-    
+async function onClusterChange() {
+    const clusterId = document.getElementById('clusterSelect').value;
+    currentClusterId = clusterId || null;
+    const nsSel = document.getElementById('namespaceSelect');
+    nsSel.innerHTML = '<option value="">— Namespace —</option>';
+    nsSel.disabled = true;
+    hideTable();
+    if (!clusterId) { showState('selectCluster'); return; }
+    showState('loading');
     try {
-        podsData = await api.get(`/kubernetes/namespaces/${namespace}/pods`);
-        renderPods(podsData);
-        updateLastUpdate();
+        const data = await api.get(`/kubernetes/clusters/${encodeURIComponent(clusterId)}/namespaces?limit=500`);
+        (data.items || []).forEach(ns => {
+            const opt = document.createElement('option');
+            opt.value = ns.name;
+            opt.textContent = ns.name;
+            nsSel.appendChild(opt);
+        });
+        nsSel.disabled = false;
+        showState('selectCluster');
     } catch (e) {
-        console.error('Failed to load pods:', e);
-        content.innerHTML = `<div class="alert alert-error"><i class="fa-solid fa-exclamation-triangle"></i> Ошибка загрузки pods: ${escapeHtml(e.message)}</div>`;
+        showState('error', e.message || 'Ошибка загрузки namespace');
     }
 }
 
-// Рендер Pod
-function renderPods(pods) {
-    const content = $('#content');
-    const filter = $('#filter').value.toLowerCase();
-    
-    let filtered = pods;
-    if (filter) {
-        filtered = pods.filter(p => p.name.toLowerCase().includes(filter));
+async function onNamespaceChange() {
+    currentNamespace = document.getElementById('namespaceSelect').value || null;
+    continueStack = [];
+    nextContinue = null;
+    if (!currentNamespace) { hideTable(); showState('selectCluster'); return; }
+    await loadPods(null);
+}
+
+// ── Pods loading ───────────────────────────────────────────────────────────
+async function loadPods(cont) {
+    if (!currentClusterId || !currentNamespace) return;
+    showState('loading');
+    hideTable();
+    try {
+        let url = `/kubernetes/clusters/${encodeURIComponent(currentClusterId)}/namespaces/${encodeURIComponent(currentNamespace)}/pods?limit=${LIMIT}`;
+        if (cont) url += `&continue_token=${encodeURIComponent(cont)}`;
+        const data = await api.get(url);
+        podsCache = data.items || [];
+        nextContinue = data.continue_token || null;
+        if (podsCache.length === 0 && !cont) {
+            showState('empty');
+        } else {
+            renderPodsTable();
+            showTable();
+        }
+        // Pagination controls
+        updatePagination();
+        // Enable toolbar
+        document.getElementById('podFilter').disabled = false;
+        document.getElementById('phaseFilter').disabled = false;
+        document.getElementById('refreshBtn').disabled = false;
+    } catch (e) {
+        const msg = e.message || '';
+        if (msg.includes('FORBIDDEN') || msg.includes('403')) showState('forbidden');
+        else showState('error', msg);
     }
-    
+}
+
+function updatePagination() {
+    const hasPrev = continueStack.length > 0;
+    const hasNext = !!nextContinue;
+    const pag = document.getElementById('podsPagination');
+    pag.style.display = (hasPrev || hasNext) ? 'flex' : 'none';
+    document.getElementById('prevBtn').disabled = !hasPrev;
+    document.getElementById('nextBtn').disabled = !hasNext;
+    document.getElementById('pageInfo').textContent =
+        `Страница ${continueStack.length + 1}${nextContinue ? '+' : ''}`;
+}
+
+function onPrevPage() {
+    const prev = continueStack.pop();
+    loadPods(prev || null);
+}
+
+function onNextPage() {
+    continueStack.push(null); // placeholder for "go back to page before"
+    loadPods(nextContinue);
+}
+
+// ── Table rendering ────────────────────────────────────────────────────────
+function renderPodsTable() {
+    const filter = (document.getElementById('podFilter').value || '').toLowerCase();
+    const phaseFilter = document.getElementById('phaseFilter').value;
+    const tbody = document.getElementById('podsTbody');
+
+    const filtered = podsCache.filter(p => {
+        if (filter && !p.name.toLowerCase().includes(filter)) return false;
+        if (phaseFilter && p.phase !== phaseFilter) return false;
+        return true;
+    });
+
     if (filtered.length === 0) {
-        content.innerHTML = '<div class="alert alert-info"><i class="fa-solid fa-info-circle"></i> Pod не найдено</div>';
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--text-light);padding:24px">Нет совпадений</td></tr>`;
         return;
     }
-    
-    content.innerHTML = `
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Namespace</th>
-                    <th>Status</th>
-                    <th>IP</th>
-                    <th>Node</th>
-                    <th>Restarts</th>
-                    <th>Age</th>
-                    <th>Containers</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${filtered.map(pod => `
-                    <tr>
-                        <td><strong>${escapeHtml(pod.name)}</strong></td>
-                        <td>${escapeHtml(pod.namespace)}</td>
-                        <td><span class="status-badge status-${getPodStatusClass(pod.phase)}">${escapeHtml(pod.phase)}</span></td>
-                        <td>${escapeHtml(pod.ip || 'N/A')}</td>
-                        <td>${escapeHtml(pod.node || 'N/A')}</td>
-                        <td>${pod.restart_count || 0}</td>
-                        <td>${escapeHtml(pod.age)}</td>
-                        <td>
-                            ${pod.containers && pod.containers.length > 0 ? pod.containers.map(c => `
-                                <span class="status-badge status-${c.ready ? 'running' : 'pending'}" title="${escapeHtml(c.image)}">
-                                    ${escapeHtml(c.name)}
-                                </span>
-                            `).join(' ') : 'N/A'}
-                        </td>
-                        <td class="pod-actions">
-                            <button class="btn btn-secondary" onclick="showLogs('${escapeJs(pod.name)}', '${escapeJs(pod.namespace)}')" title="View Logs">
-                                <i class="fa-solid fa-file-lines"></i>
-                            </button>
-                            <button class="btn btn-info" onclick="showPodEvents('${escapeJs(pod.name)}', '${escapeJs(pod.namespace)}')" title="Recent Events">
-                                <i class="fa-solid fa-bell"></i>
-                            </button>
-                            <button class="btn btn-secondary" onclick="showDetails('${escapeJs(pod.name)}', '${escapeJs(pod.namespace)}')" title="View Details">
-                                <i class="fa-solid fa-eye"></i>
-                            </button>
-                            <button class="btn btn-warning" onclick="restartPod('${escapeJs(pod.name)}', '${escapeJs(pod.namespace)}')" title="Restart Pod">
-                                <i class="fa-solid fa-rotate"></i>
-                            </button>
-                            <button class="btn btn-danger" onclick="deletePod('${escapeJs(pod.name)}', '${escapeJs(pod.namespace)}')" title="Delete Pod">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `).join('')}
-            </tbody>
-        </table>
-    `;
+
+    tbody.innerHTML = filtered.map(pod => {
+        const phaseClass = phaseClass_(pod.phase);
+        const readyHtml = `<span class="ready-count"><span class="ok">${pod.ready_count}</span>/${pod.total_count}</span>`;
+        const containersHtml = renderContainerBadges(pod.containers);
+        const maxRestart = Math.max(...(pod.containers || []).map(c => c.restart_count || 0), 0);
+        const rcClass = maxRestart > 10 ? 'crit' : maxRestart > 2 ? 'warn' : '';
+        const restartHtml = `<span class="restart-count ${rcClass}">${maxRestart}</span>`;
+        const nodeHtml = pod.node_name ? `<span style="font-size:12px">${escapeHtml(pod.node_name)}</span>` : '<span style="color:var(--text-light)">—</span>';
+        const createdHtml = pod.created_at ? `<span style="font-size:11px;color:var(--text-light)">${formatDate(pod.created_at)}</span>` : '—';
+
+        return `<tr>
+            <td>
+                <a href="#" onclick="showPodDetail(${JSON.stringify(pod.name)}); return false"
+                   style="font-weight:500;font-size:13px">${escapeHtml(pod.name)}</a>
+            </td>
+            <td><span class="pod-phase ${phaseClass}">${escapeHtml(pod.phase)}${pod.reason ? ` (${escapeHtml(pod.reason)})` : ''}</span></td>
+            <td>${readyHtml}</td>
+            <td>${containersHtml}</td>
+            <td>${restartHtml}</td>
+            <td>${nodeHtml}</td>
+            <td>${createdHtml}</td>
+            <td style="white-space:nowrap">
+                <button class="tbl-icon-btn" title="Логи" onclick="openLogs(${JSON.stringify(pod.name)}, ${JSON.stringify(pod.containers||[])})">
+                    <i class="fa-solid fa-terminal"></i>
+                </button>
+                <button class="tbl-icon-btn" title="Exec (терминал)" onclick="openExecTerminal(${JSON.stringify(pod.name)}, ${JSON.stringify(pod.containers||[])})">
+                    <i class="fa-solid fa-code"></i>
+                </button>
+                <button class="tbl-icon-btn" title="Port Forward" onclick="openPortForward(${JSON.stringify(pod.name)})">
+                    <i class="fa-solid fa-network-wired"></i>
+                </button>
+                <button class="tbl-icon-btn danger" title="Удалить" onclick="confirmDelete(${JSON.stringify(pod.name)})">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
 }
 
-async function showPodEvents(podName, namespace) {
-    const params = new URLSearchParams();
-    params.set('namespace', namespace);
-    params.set('limit', '50');
-    params.set('field_selector', `involvedObject.kind=Pod,involvedObject.name=${podName}`);
-    const rows = await api.get(`/kubernetes/events?${params.toString()}`);
-    ui.showModal(
-        `Pod events: ${namespace}/${podName}`,
-        `<pre style="white-space: pre-wrap;">${escapeHtml(JSON.stringify(rows || [], null, 2))}</pre>`,
-    );
+function renderContainerBadges(containers) {
+    if (!containers || containers.length === 0) return '<span style="color:var(--text-light)">—</span>';
+    return `<div class="container-badges">${containers.map(c => {
+        const cls = c.state === 'running' && c.ready ? 'ready'
+                  : c.state === 'waiting' ? 'waiting' : 'not-ready';
+        return `<span class="container-badge ${cls}" title="${escapeHtml(c.image)}">${escapeHtml(c.name)}</span>`;
+    }).join('')}</div>`;
 }
 
-// Фильтрация
-function filterPods() {
-    renderPods(podsData);
+function phaseClass_(phase) {
+    switch ((phase || '').toLowerCase()) {
+        case 'running':     return 'phase-running';
+        case 'pending':     return 'phase-pending';
+        case 'succeeded':   return 'phase-succeeded';
+        case 'failed':      return 'phase-failed';
+        case 'terminating': return 'phase-terminating';
+        default:            return 'phase-unknown';
+    }
 }
 
-// Получить CSS класс для статуса
-function getPodStatusClass(phase) {
-    const classes = {
-        'Running': 'running',
-        'Pending': 'pending',
-        'Failed': 'failed',
-        'Succeeded': 'succeeded',
-        'Unknown': 'unknown'
-    };
-    return classes[phase] || 'unknown';
-}
-
-// Показать логи
-async function showLogs(podName, namespace) {
-    currentPodName = podName;
-    currentNamespace = namespace;
-    
-    $('#logs-pod-name').textContent = `${namespace}/${podName}`;
-    $('#logs-modal').classList.add('active');
-    $('#logs-output').innerHTML = '<div class="loading"><div class="loading-spinner"></div></div>';
-    
+// ── Pod detail panel ───────────────────────────────────────────────────────
+async function showPodDetail(name) {
+    document.getElementById('podDetailName').textContent = name;
+    document.getElementById('podDetailContent').innerHTML = '<p style="color:var(--text-light)">Загрузка…</p>';
+    document.getElementById('podDetailOverlay').style.display = 'flex';
     try {
-        const data = await api.get(`/kubernetes/namespaces/${namespace}/pods/${podName}`);
-        
-        // Заполняем контейнеры
-        const containerSelect = $('#logs-container');
-        containerSelect.innerHTML = '';
-        
-        if (data.spec && data.spec.containers) {
-            data.spec.containers.forEach(c => {
-                containerSelect.innerHTML += `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`;
-            });
+        const pod = await api.get(
+            `/kubernetes/clusters/${encodeURIComponent(currentClusterId)}/namespaces/${encodeURIComponent(currentNamespace)}/pods/${encodeURIComponent(name)}`
+        );
+        renderPodDetail(pod);
+    } catch (e) {
+        document.getElementById('podDetailContent').innerHTML =
+            `<p style="color:#c62828">Ошибка: ${escapeHtml(e.message || String(e))}</p>`;
+    }
+}
+
+function renderPodDetail(pod) {
+    const labels = Object.entries(pod.labels || {}).map(([k, v]) =>
+        `<span class="label-chip">${escapeHtml(k)}=${escapeHtml(v)}</span>`
+    ).join('') || '<span style="color:var(--text-light)">—</span>';
+
+    const containers = (pod.containers || []).map(c => `
+        <div style="border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:8px">
+            <div style="font-weight:600;font-size:13px;margin-bottom:4px">${escapeHtml(c.name)}</div>
+            <table class="kv-table">
+                <tr><td>Image</td><td style="font-family:monospace;font-size:11px;word-break:break-all">${escapeHtml(c.image)}</td></tr>
+                <tr><td>State</td><td><span class="pod-phase ${c.state === 'running' ? 'phase-running' : c.state === 'waiting' ? 'phase-pending' : 'phase-unknown'}">${escapeHtml(c.state)}${c.reason ? ` (${escapeHtml(c.reason)})` : ''}</span></td></tr>
+                <tr><td>Ready</td><td>${c.ready ? '<span style="color:#2e7d32">✓</span>' : '<span style="color:#c62828">✗</span>'}</td></tr>
+                <tr><td>Restarts</td><td>${c.restart_count}</td></tr>
+            </table>
+        </div>`).join('');
+
+    document.getElementById('podDetailContent').innerHTML = `
+        <div class="pod-detail-section">
+            <h4>Основное</h4>
+            <table class="kv-table">
+                <tr><td>Namespace</td><td>${escapeHtml(pod.namespace)}</td></tr>
+                <tr><td>Фаза</td><td><span class="pod-phase ${phaseClass_(pod.phase)}">${escapeHtml(pod.phase)}</span></td></tr>
+                ${pod.reason ? `<tr><td>Причина</td><td>${escapeHtml(pod.reason)}</td></tr>` : ''}
+                <tr><td>Pod IP</td><td>${escapeHtml(pod.pod_ip || '—')}</td></tr>
+                <tr><td>Host IP</td><td>${escapeHtml(pod.host_ip || '—')}</td></tr>
+                <tr><td>Нода</td><td>${escapeHtml(pod.node_name || '—')}</td></tr>
+                <tr><td>Создан</td><td>${pod.created_at ? formatDate(pod.created_at) : '—'}</td></tr>
+            </table>
+        </div>
+        <div class="pod-detail-section">
+            <h4>Контейнеры (${(pod.containers || []).length})</h4>
+            ${containers}
+        </div>
+        <div class="pod-detail-section">
+            <h4>Labels</h4>
+            <div style="margin-top:4px">${labels}</div>
+        </div>
+        <div class="pod-detail-section" style="margin-top:8px">
+            <button class="btn btn-secondary btn-sm" onclick="openLogs(${JSON.stringify(pod.name)}, ${JSON.stringify(pod.containers||[])})">
+                <i class="fa-solid fa-terminal"></i> Логи
+            </button>
+            <button class="btn btn-secondary btn-sm" style="margin-left:8px" onclick="openExecTerminal(${JSON.stringify(pod.name)}, ${JSON.stringify(pod.containers||[])})">
+                <i class="fa-solid fa-code"></i> Exec
+            </button>
+            <button class="btn btn-secondary btn-sm" style="margin-left:8px" onclick="openPortForward(${JSON.stringify(pod.name)})">
+                <i class="fa-solid fa-network-wired"></i> Port Forward
+            </button>
+            <button class="btn btn-danger btn-sm" style="margin-left:8px" onclick="confirmDelete(${JSON.stringify(pod.name)})">
+                <i class="fa-solid fa-trash"></i> Удалить
+            </button>
+        </div>`;
+}
+
+function closePodDetail(event) {
+    if (!event || event.target === document.getElementById('podDetailOverlay')) {
+        document.getElementById('podDetailOverlay').style.display = 'none';
+    }
+}
+
+// ── Logs modal ─────────────────────────────────────────────────────────────
+function openLogs(podName, containers) {
+    currentLogPod = podName;
+    document.getElementById('logModalTitle').textContent = `Logs: ${podName}`;
+    const sel = document.getElementById('logContainer');
+    sel.innerHTML = '<option value="">— Все / первый контейнер —</option>';
+    (containers || []).forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.name;
+        opt.textContent = c.name;
+        sel.appendChild(opt);
+    });
+    document.getElementById('logModal').style.display = 'flex';
+    reloadLogs();
+}
+
+async function reloadLogs() {
+    const body = document.getElementById('logModalBody');
+    body.classList.remove('empty');
+    body.textContent = 'Загрузка логов…';
+    const container = document.getElementById('logContainer').value || undefined;
+    const tailLines = parseInt(document.getElementById('logTailLines').value) || 200;
+    const previous = document.getElementById('logPrevious').checked;
+    let url = `/kubernetes/clusters/${encodeURIComponent(currentClusterId)}/namespaces/${encodeURIComponent(currentNamespace)}/pods/${encodeURIComponent(currentLogPod)}/logs?tail_lines=${tailLines}&previous=${previous}`;
+    if (container) url += `&container=${encodeURIComponent(container)}`;
+    try {
+        const data = await api.get(url);
+        const logs = data.logs || '';
+        if (logs.trim().length === 0) {
+            body.classList.add('empty');
+            body.textContent = '(пустой лог)';
+        } else {
+            body.textContent = logs;
+            body.scrollTop = body.scrollHeight;
         }
-        
-        // Загружаем логи
-        loadLogs();
     } catch (e) {
-        console.error('Failed to get pod details:', e);
-        $('#logs-output').innerHTML = `<div class="alert alert-error">Ошибка: ${escapeHtml(e.message)}</div>`;
+        body.classList.add('empty');
+        body.textContent = `Ошибка: ${e.message || String(e)}`;
     }
 }
 
-// Загрузить логи
-async function loadLogs() {
-    const container = $('#logs-container').value;
-    const output = $('#logs-output');
+function closeLogModal() {
+    document.getElementById('logModal').style.display = 'none';
+    currentLogPod = null;
+}
 
-    output.innerHTML = '<div class="loading"><div class="loading-spinner"></div></div>';
+// ── Delete pod ─────────────────────────────────────────────────────────────
+function confirmDelete(podName) {
+    if (!confirm(`Удалить Pod "${podName}"?`)) return;
+    deletePod(podName);
+}
 
+async function deletePod(podName) {
     try {
-        const params = new URLSearchParams({
-            container: container,
-            tail: '100',
-            timestamps: 'true'
-        });
-
-        const data = await api.get(`/kubernetes/namespaces/${currentNamespace}/pods/${currentPodName}/logs?${params}`);
-        output.textContent = data.logs || 'No logs available';
+        await api.delete(
+            `/kubernetes/clusters/${encodeURIComponent(currentClusterId)}/namespaces/${encodeURIComponent(currentNamespace)}/pods/${encodeURIComponent(podName)}`
+        );
+        // Remove from cache and re-render
+        podsCache = podsCache.filter(p => p.name !== podName);
+        renderPodsTable();
+        // Close detail panel if open
+        document.getElementById('podDetailOverlay').style.display = 'none';
     } catch (e) {
-        output.innerHTML = `<div class="alert alert-error">Ошибка загрузки логов: ${escapeHtml(e.message)}</div>`;
+        alert(`Ошибка удаления Pod: ${e.message || String(e)}`);
     }
 }
 
-// Загрузить логи через WebSocket (streaming)
-function streamLogs() {
-    const container = $('#logs-container').value;
-    const output = $('#logs-output');
-    
-    output.innerHTML = '<div style="color: #888;">Подключение к WebSocket...</div>';
-    
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/api/kubernetes/namespaces/${currentNamespace}/pods/${currentPodName}/logs/stream`;
-    
-    const ws = new WebSocket(wsUrl);
-    
-    ws.onopen = function() {
-        console.log('WebSocket connected');
-        output.innerHTML = '';
-        ws.send(JSON.stringify({
-            action: 'subscribe',
-            container: container,
-            tail_lines: 100,
-            follow: true
-        }));
+// ── Exec terminal ──────────────────────────────────────────────────────────
+let execWs = null;
+let execPodName = null;
+
+function openExecTerminal(podName, containers) {
+    execPodName = podName;
+    document.getElementById('execModalTitle').textContent = `Exec: ${podName}`;
+    const sel = document.getElementById('execContainer');
+    sel.innerHTML = '';
+    (containers || []).forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.name;
+        opt.textContent = c.name;
+        sel.appendChild(opt);
+    });
+    document.getElementById('execTerminal').innerHTML =
+        '<span class="line-sys">Настройте контейнер и команду, затем нажмите «Подключить».</span>\n';
+    setExecStatus('disconnected', 'Не подключён');
+    document.getElementById('execConnectBtn').style.display = '';
+    document.getElementById('execDisconnectBtn').style.display = 'none';
+    document.getElementById('execInput').disabled = true;
+    document.getElementById('execInput').value = '';
+    document.getElementById('execModal').style.display = 'flex';
+}
+
+function closeExecModal() {
+    execDisconnect();
+    document.getElementById('execModal').style.display = 'none';
+    execPodName = null;
+}
+
+function execConnect() {
+    if (execWs) execWs.close();
+    const container = document.getElementById('execContainer').value;
+    const command = document.getElementById('execCommand').value.trim() || '/bin/sh';
+    const term = document.getElementById('execTerminal');
+    term.innerHTML = '';
+    setExecStatus('connecting', 'Подключение…');
+
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    let url = `${proto}//${location.host}/api/kubernetes/clusters/${encodeURIComponent(currentClusterId)}/namespaces/${encodeURIComponent(currentNamespace)}/pods/${encodeURIComponent(execPodName)}/exec?command=${encodeURIComponent(command)}`;
+    if (container) url += `&container=${encodeURIComponent(container)}`;
+
+    execWs = new WebSocket(url);
+    execWs.binaryType = 'arraybuffer';
+
+    execWs.onopen = () => {
+        setExecStatus('connected', 'Подключён');
+        document.getElementById('execConnectBtn').style.display = 'none';
+        document.getElementById('execDisconnectBtn').style.display = '';
+        document.getElementById('execInput').disabled = false;
+        document.getElementById('execInput').focus();
+        appendExecLine('sys', `[connected to ${execPodName}]`);
     };
-    
-    ws.onmessage = function(event) {
+
+    execWs.onmessage = (ev) => {
+        let text;
+        if (ev.data instanceof ArrayBuffer) {
+            text = new TextDecoder().decode(ev.data);
+        } else {
+            text = ev.data;
+        }
+        // Try to parse as JSON error
         try {
-            const msg = JSON.parse(event.data);
-            if (msg.type === 'log' && msg.line) {
-                output.textContent += msg.line;
-                output.scrollTop = output.scrollHeight;
-            } else if (msg.status === 'connected') {
-                output.textContent += `[WebSocket connected: ${msg.pod}]\n`;
-            }
-        } catch (e) {
-            console.error('Failed to parse message:', e);
+            const obj = JSON.parse(text);
+            if (obj.error) { appendExecLine('err', obj.error); return; }
+        } catch (_) {}
+        appendExecLine('out', text);
+    };
+
+    execWs.onerror = () => {
+        appendExecLine('err', '[WebSocket error]');
+        setExecStatus('disconnected', 'Ошибка');
+    };
+
+    execWs.onclose = () => {
+        setExecStatus('disconnected', 'Отключён');
+        document.getElementById('execConnectBtn').style.display = '';
+        document.getElementById('execDisconnectBtn').style.display = 'none';
+        document.getElementById('execInput').disabled = true;
+        appendExecLine('sys', '[disconnected]');
+        execWs = null;
+    };
+
+    // Enter key sends input to pod stdin
+    const inp = document.getElementById('execInput');
+    inp.onkeydown = (e) => {
+        if (e.key === 'Enter' && execWs && execWs.readyState === WebSocket.OPEN) {
+            const cmd = inp.value;
+            inp.value = '';
+            appendExecLine('out', `$ ${cmd}`);
+            execWs.send(cmd + '\n');
         }
     };
-    
-    ws.onerror = function(error) {
-        console.error('WebSocket error:', error);
-        output.innerHTML += `\n<div class="alert alert-error">Ошибка WebSocket</div>`;
-    };
-    
-    ws.onclose = function() {
-        console.log('WebSocket closed');
-        output.textContent += '\n[WebSocket closed]';
-    };
-    
-    return ws;
 }
 
-// Закрыть модальное окно
-function closeLogsModal() {
-    $('#logs-modal').classList.remove('active');
+function execDisconnect() {
+    if (execWs) { execWs.close(); execWs = null; }
 }
 
-// Показать детали
-function showDetails(podName, namespace) {
-    window.location.href = `k8s-troubleshoot.html?namespace=${namespace}&kind=Pod&name=${podName}`;
+function appendExecLine(type, text) {
+    const term = document.getElementById('execTerminal');
+    const span = document.createElement('span');
+    span.className = `line-${type}`;
+    span.textContent = text;
+    term.appendChild(span);
+    term.appendChild(document.createTextNode('\n'));
+    term.scrollTop = term.scrollHeight;
 }
 
-// Перезапустить Pod
-async function restartPod(podName, namespace) {
-    if (!confirm(`Перезапустить Pod ${namespace}/${podName}?`)) {
+function setExecStatus(state, text) {
+    const dot = document.getElementById('execStatusDot');
+    dot.className = `exec-status-dot ${state}`;
+    document.getElementById('execStatusText').textContent = text;
+}
+
+// ── Port Forward ───────────────────────────────────────────────────────────
+let pfWs = null;
+let pfPodName = null;
+
+function openPortForward(podName) {
+    pfPodName = podName;
+    document.getElementById('pfPodName').textContent = `Pod: ${podName}`;
+    document.getElementById('pfLog').textContent = 'Нет активного подключения.';
+    setPfStatus('disconnected', 'Не подключён');
+    document.getElementById('pfConnectBtn').style.display = '';
+    document.getElementById('pfDisconnectBtn').style.display = 'none';
+    document.getElementById('pfModal').style.display = 'flex';
+}
+
+function closePfModal() {
+    pfDisconnect();
+    document.getElementById('pfModal').style.display = 'none';
+    pfPodName = null;
+}
+
+function pfConnect() {
+    const port = parseInt(document.getElementById('pfPort').value);
+    if (!port || port < 1 || port > 65535) {
+        alert('Укажите корректный порт (1–65535)');
         return;
     }
-    
-    try {
-        await api.post(`/kubernetes/namespaces/${namespace}/pods/${podName}/restart`, {});
-        alert(`Pod ${namespace}/${podName} перезапускается`);
-        loadPods();
-    } catch (e) {
-        alert(`Ошибка: ${e.message}`);
-    }
-}
+    if (pfWs) pfWs.close();
+    setPfStatus('connecting', 'Подключение…');
+    pfLog(`Подключение к ${pfPodName}:${port}…`);
 
-// Удалить Pod
-async function deletePod(podName, namespace) {
-    if (!confirm(`Удалить Pod ${namespace}/${podName}?`)) {
-        return;
-    }
-    
-    try {
-        await api.delete(`/kubernetes/namespaces/${namespace}/pods/${podName}`);
-        alert(`Pod ${namespace}/${podName} удалён`);
-        loadPods();
-    } catch (e) {
-        alert(`Ошибка: ${e.message}`);
-    }
-}
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const url = `${proto}//${location.host}/api/kubernetes/clusters/${encodeURIComponent(currentClusterId)}/namespaces/${encodeURIComponent(currentNamespace)}/pods/${encodeURIComponent(pfPodName)}/portforward?port=${port}`;
 
-// Автообновление
-function toggleAutoRefresh() {
-    if ($('#auto-refresh').checked) {
-        autoRefreshInterval = setInterval(loadPods, 10000);
-    } else {
-        if (autoRefreshInterval) {
-            clearInterval(autoRefreshInterval);
-            autoRefreshInterval = null;
+    pfWs = new WebSocket(url);
+    pfWs.binaryType = 'arraybuffer';
+
+    pfWs.onopen = () => {
+        setPfStatus('connected', `Туннель активен → pod:${port}`);
+        pfLog(`[connected] WebSocket туннель открыт к ${pfPodName}:${port}`);
+        document.getElementById('pfConnectBtn').style.display = 'none';
+        document.getElementById('pfDisconnectBtn').style.display = '';
+    };
+
+    pfWs.onmessage = (ev) => {
+        let text;
+        if (ev.data instanceof ArrayBuffer) {
+            text = `[data: ${ev.data.byteLength} bytes received]`;
+        } else {
+            try {
+                const obj = JSON.parse(ev.data);
+                if (obj.error) { pfLog(`[error] ${obj.error}`); return; }
+            } catch (_) {}
+            text = `[msg] ${ev.data}`;
         }
+        pfLog(text);
+    };
+
+    pfWs.onerror = () => {
+        pfLog('[WebSocket error]');
+        setPfStatus('disconnected', 'Ошибка');
+    };
+
+    pfWs.onclose = () => {
+        setPfStatus('disconnected', 'Отключён');
+        pfLog('[disconnected]');
+        document.getElementById('pfConnectBtn').style.display = '';
+        document.getElementById('pfDisconnectBtn').style.display = 'none';
+        pfWs = null;
+    };
+}
+
+function pfDisconnect() {
+    if (pfWs) { pfWs.close(); pfWs = null; }
+}
+
+function pfLog(msg) {
+    const el = document.getElementById('pfLog');
+    el.textContent += (el.textContent === 'Нет активного подключения.' ? '' : '\n') + msg;
+    el.textContent = el.textContent.replace('Нет активного подключения.', '').trim();
+    el.scrollTop = el.scrollHeight;
+}
+
+function setPfStatus(state, text) {
+    document.getElementById('pfStatusDot').className = `exec-status-dot ${state}`;
+    document.getElementById('pfStatusText').textContent = text;
+}
+
+// ── UI helpers ─────────────────────────────────────────────────────────────
+function showState(state, msg) {
+    ['notConfigured','selectCluster','loading','forbidden','error','empty'].forEach(s => {
+        document.getElementById('state' + s.charAt(0).toUpperCase() + s.slice(1)).style.display = 'none';
+    });
+    const el = document.getElementById('state' + state.charAt(0).toUpperCase() + state.slice(1));
+    if (el) el.style.display = '';
+    if (state === 'error' && msg) {
+        document.getElementById('stateErrorMsg').textContent = msg;
     }
 }
 
-function updateLastUpdate() {
-    const now = new Date();
-    $('#last-update').textContent = 'Обновлено: ' + now.toLocaleTimeString();
+function showTable() {
+    document.getElementById('podsTableWrap').style.display = '';
 }
 
-// Инициализация
-loadNamespaces();
+function hideTable() {
+    document.getElementById('podsTableWrap').style.display = 'none';
+}
 </script>
 </body>
 </html>

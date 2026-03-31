@@ -2,17 +2,16 @@
 //!
 //! Запущенная задача
 
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use chrono::{DateTime, Utc};
 use tokio::process::Command;
-use tokio::io::{AsyncBufReadExt, BufReader};
 
-use crate::services::task_logger::{TaskLogger, TaskStatus, StatusListener, LogListener};
+use crate::services::task_logger::{TaskStatus, StatusListener, LogListener};
 use super::types::{LogRecord, CommitInfo, JobData};
 
 /// Запущенная задача
 pub struct RunningJob {
-    pub status: TaskStatus,
+    pub status: RwLock<TaskStatus>,
     pub log_records: Arc<Mutex<Vec<LogRecord>>>,
     pub job: JobData,
     pub commit: Option<CommitInfo>,
@@ -24,13 +23,18 @@ impl RunningJob {
     /// Создаёт новую запущенную задачу
     pub fn new(job: JobData) -> Self {
         Self {
-            status: TaskStatus::Waiting,
+            status: RwLock::new(TaskStatus::Waiting),
             log_records: Arc::new(Mutex::new(Vec::new())),
             job,
             commit: None,
             status_listeners: Arc::new(Mutex::new(Vec::new())),
             log_listeners: Arc::new(Mutex::new(Vec::new())),
         }
+    }
+
+    /// Возвращает текущий статус
+    pub fn get_status(&self) -> TaskStatus {
+        *self.status.read().unwrap()
     }
 
     /// Добавляет слушателя статуса
@@ -66,16 +70,16 @@ impl RunningJob {
 
     /// Устанавливает статус
     pub fn set_status(&self, status: TaskStatus) {
-        if self.status == status {
+        let current = *self.status.read().unwrap();
+        if current == status {
             return;
         }
 
-        let mut current_status = self.status.clone();
-        current_status = status.clone();
+        *self.status.write().unwrap() = status;
 
         let listeners = self.status_listeners.lock().unwrap();
         for listener in listeners.iter() {
-            listener(status.clone());
+            listener(status);
         }
     }
 
@@ -89,9 +93,15 @@ impl RunningJob {
         // В базовой версии просто возвращаем
     }
 
-    /// Логирует вывод команды
-    pub async fn log_cmd(&self, cmd: &Command) {
-        // TODO: Реализовать логирование вывода команды
+    /// Логирует имя команды и аргументы (не захватывает вывод)
+    pub fn log_cmd(&self, cmd: &Command) {
+        let program = cmd.as_std().get_program().to_string_lossy().to_string();
+        let args: Vec<String> = cmd
+            .as_std()
+            .get_args()
+            .map(|s| s.to_string_lossy().to_string())
+            .collect();
+        self.log(&format!("$ {} {}", program, args.join(" ")));
     }
 }
 
@@ -103,77 +113,39 @@ impl RunningJob {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_running_job_creation() {
-        let job = JobData {
+    fn make_test_job() -> JobData {
+        JobData {
             username: "test".to_string(),
             incoming_version: None,
             alias: None,
-            task: crate::models::Task {
-                id: 1,
-                template_id: 1,
-                project_id: 1,
-                status: TaskStatus::Waiting,
-                playbook: None,
-                environment: None,
-                secret: None,
-                arguments: None,
-                git_branch: None,
-                user_id: None,
-                integration_id: None,
-                schedule_id: None,
-                created: Utc::now(),
-                start: None,
-                end: None,
-                message: None,
-                commit_hash: None,
-                commit_message: None,
-                build_task_id: None,
-                version: None,
-                inventory_id: None,
-                params: None,
-            },
-            template: crate::models::Template {
-                id: 1,
-                project_id: 1,
-                name: "Test".to_string(),
-                playbook: "test.yml".to_string(),
-                description: String::new(),
-                inventory_id: 1,
-                repository_id: 1,
-                environment_id: 1,
-                r#type: crate::models::template::TemplateType::Default,
-                app: crate::models::template::TemplateApp::Ansible,
-                git_branch: "main".to_string(),
-                created: Utc::now(),
-            },
-            inventory: crate::models::Inventory {
-                id: 1,
-                project_id: 1,
-                name: "Test".to_string(),
-                inventory_type: crate::models::inventory::InventoryType::Static,
-                inventory_data: String::new(),
-                ssh_key_id: None,
-                become_key_id: None,
-                repository_id: None,
-            },
-            repository: crate::models::Repository {
-                id: 1,
-                project_id: 1,
-                name: "Test".to_string(),
-                git_url: "https://example.com/test.git".to_string(),
-                ssh_key_id: None,
-            },
-            environment: crate::models::Environment {
-                id: 1,
-                project_id: 1,
-                name: "Test".to_string(),
-                json: "{}".to_string(),
-                secret_storage_id: None,
-            },
-        };
+            task: crate::models::Task::default(),
+            template: crate::models::Template::default(),
+            inventory: crate::models::Inventory::default(),
+            inventory_repository: None,
+            repository: crate::models::Repository::default(),
+            environment: crate::models::Environment::default(),
+        }
+    }
 
-        let running_job = RunningJob::new(job);
-        assert_eq!(running_job.status, TaskStatus::Waiting);
+    #[test]
+    fn test_running_job_creation() {
+        let running_job = RunningJob::new(make_test_job());
+        assert_eq!(running_job.get_status(), TaskStatus::Waiting);
+    }
+
+    #[test]
+    fn test_set_status() {
+        let job = RunningJob::new(make_test_job());
+        job.set_status(TaskStatus::Running);
+        assert_eq!(job.get_status(), TaskStatus::Running);
+    }
+
+    #[test]
+    fn test_log_records() {
+        let job = RunningJob::new(make_test_job());
+        job.log("hello");
+        let records = job.log_records.lock().unwrap();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].message, "hello");
     }
 }

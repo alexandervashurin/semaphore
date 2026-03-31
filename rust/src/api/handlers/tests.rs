@@ -52,7 +52,12 @@ mod tests {
             crate::config::Config::default(),
             None,
         ));
-        let result = handlers::logout(axum::extract::State(state)).await;
+        let req = axum::http::Request::builder()
+            .method("POST")
+            .uri("/api/auth/logout")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let result = handlers::logout(axum::extract::State(state), req).await;
         assert!(result.is_ok());
         assert_eq!(result.unwrap().1, StatusCode::OK);
     }

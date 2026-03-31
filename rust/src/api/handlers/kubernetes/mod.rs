@@ -40,6 +40,7 @@ pub mod workloads_k8s;
 pub mod observability;
 pub mod helm_handler;
 pub mod apply;
+pub mod pods;
 
 pub use advanced::*;
 pub use audit::*;
@@ -79,3 +80,5 @@ pub use storage_snapshots::*;
 pub use troubleshooting::*;
 pub use types::*;
 pub use apply::*;
+// Only export the new WS handlers; pod CRUD is already in workloads_k8s
+pub use pods::{pod_exec, pod_portforward, PodExecQuery, PodPortForwardQuery};
