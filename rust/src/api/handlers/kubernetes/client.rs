@@ -12,6 +12,7 @@ use kube::{
     Config, Resource,
 };
 use std::sync::Arc;
+use std::time::Duration;
 use tracing::{debug, error, info, warn};
 
 use super::types::KubeResourceMeta;
@@ -27,6 +28,8 @@ pub struct KubeConfig {
     pub default_namespace: String,
     /// Таймаут запросов (секунды)
     pub timeout_secs: u64,
+    /// Дефолтный лимит list-запросов к API
+    pub list_default_limit: u32,
 }
 
 impl Default for KubeConfig {
@@ -36,6 +39,7 @@ impl Default for KubeConfig {
             context: None,
             default_namespace: "default".to_string(),
             timeout_secs: 30,
+            list_default_limit: 200,
         }
     }
 }
@@ -62,7 +66,7 @@ impl KubeClient {
     pub async fn new(config: KubeConfig) -> Result<Self> {
         info!("Creating Kubernetes client");
 
-        let client_config = if let Some(kubeconfig_path) = &config.kubeconfig_path {
+        let mut client_config = if let Some(kubeconfig_path) = &config.kubeconfig_path {
             // Загрузка из файла
             debug!("Loading kubeconfig from: {}", kubeconfig_path);
             let kubeconfig = Kubeconfig::read_from(kubeconfig_path)
@@ -83,6 +87,10 @@ impl KubeClient {
                 .await
                 .map_err(|e| Error::Kubernetes(format!("Failed to infer config: {}", e)))?
         };
+        let timeout = Duration::from_secs(config.timeout_secs);
+        client_config.connect_timeout = Some(timeout);
+        client_config.read_timeout = Some(timeout);
+        client_config.write_timeout = Some(timeout);
 
         let client = Client::try_from(client_config)
             .map_err(|e| Error::Kubernetes(format!("Failed to create client: {}", e)))?;
@@ -159,6 +167,11 @@ impl KubeClient {
     pub fn config(&self) -> &KubeConfig {
         &self.config
     }
+
+    /// Дефолтный лимит list-запросов
+    pub fn default_list_limit(&self) -> u32 {
+        self.config.list_default_limit
+    }
 }
 
 /// Сервис для управления Kubernetes кластером
@@ -179,7 +192,7 @@ impl KubernetesClusterService {
         let api: Api<Namespace> = self.client.api_all();
 
         let namespaces = api
-            .list(&ListParams::default())
+            .list(&ListParams::default().limit(self.client.default_list_limit()))
             .await
             .map_err(|e| Error::Kubernetes(e.to_string()))?;
 

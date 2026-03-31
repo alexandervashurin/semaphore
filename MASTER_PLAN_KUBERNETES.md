@@ -267,7 +267,7 @@ flowchart LR
 #### 1.2 Конфигурация подключения к кластеру
 - [x] Реализовать построение **`kube::Config`**: из файла kubeconfig (путь через env/настройки Velum), опционально **in-cluster** (`KUBERNETES_SERVICE_HOST` и т.д.). ✅ `ConnectionMode::KubeConfig{path,context}` / `InCluster` / `Infer` в `service.rs`
 - [x] Явные ошибки при отсутствии контекста / невалидном kubeconfig; не логировать содержимое секретов. ✅ возвращается `Error::Internal` без секретов
-- [ ] Таймауты и лимиты клиента к apiserver (QPS/burst или эквивалент), чтобы не долбить кластер по умолчанию. *(задел — в Phase 2)*
+- [x] Таймауты и лимиты клиента к apiserver (QPS/burst или эквивалент), чтобы не долбить кластер по умолчанию. ✅ 2026-03-31 — `requestTimeoutSecs` + `defaultListLimit` в `KubernetesConfig`, применены в `KubeClient`
 
 #### 1.3 Сервисный слой (Rust)
 - [x] Ввести обёртку/сервис (например `KubernetesClusterService` или аналог), принимающую **`kube::Client`** и инкапсулирующую первые вызовы API. ✅ `rust/src/kubernetes/service.rs`

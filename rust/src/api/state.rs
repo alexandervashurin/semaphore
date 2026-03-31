@@ -76,12 +76,31 @@ impl AppState {
             .kubernetes
             .as_ref()
             .and_then(|k| k.context.clone());
+        let default_namespace = self
+            .config
+            .kubernetes
+            .as_ref()
+            .map(|k| k.default_namespace.clone())
+            .unwrap_or_else(|| "default".to_string());
+        let timeout_secs = self
+            .config
+            .kubernetes
+            .as_ref()
+            .map(|k| k.request_timeout_secs)
+            .unwrap_or(30);
+        let list_default_limit = self
+            .config
+            .kubernetes
+            .as_ref()
+            .map(|k| k.default_list_limit)
+            .unwrap_or(200);
 
         let kube_config = KubeConfig {
             kubeconfig_path,
             context,
-            default_namespace: "default".to_string(),
-            timeout_secs: 30,
+            default_namespace,
+            timeout_secs,
+            list_default_limit,
         };
 
         // Используем blocking-обёртку для async создания клиента

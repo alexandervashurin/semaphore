@@ -418,10 +418,24 @@ pub struct KubernetesConfig {
     /// Namespace по умолчанию
     #[serde(rename = "defaultNamespace", default = "default_k8s_namespace")]
     pub default_namespace: String,
+    /// Таймаут запросов к apiserver (секунды)
+    #[serde(rename = "requestTimeoutSecs", default = "default_k8s_timeout_secs")]
+    pub request_timeout_secs: u64,
+    /// Дефолтный лимит list-запросов (эквивалент анти-шторма)
+    #[serde(rename = "defaultListLimit", default = "default_k8s_list_limit")]
+    pub default_list_limit: u32,
 }
 
 fn default_k8s_namespace() -> String {
     "default".to_string()
+}
+
+fn default_k8s_timeout_secs() -> u64 {
+    30
+}
+
+fn default_k8s_list_limit() -> u32 {
+    200
 }
 
 fn default_redis_url() -> String {
