@@ -95,6 +95,14 @@ pub async fn get_cluster_summary(
 ) -> Result<Json<ClusterSummary>> {
     let client = state.kubernetes_client()?;
 
+    // Получить реальную версию Kubernetes из API-сервера
+    let kubernetes_version = client
+        .raw()
+        .apiserver_version()
+        .await
+        .map(|v| v.git_version.clone())
+        .unwrap_or_else(|_| "unknown".to_string());
+
     // Считаем количество узлов
     let nodes_api: Api<Node> = client.api_all();
     let nodes = nodes_api
@@ -169,7 +177,7 @@ pub async fn get_cluster_summary(
         .count() as i32;
 
     Ok(Json(ClusterSummary {
-        kubernetes_version: "v1.30.0".to_string(), // TODO: получить из API
+        kubernetes_version,
         nodes_count,
         nodes_ready,
         namespaces_count,
