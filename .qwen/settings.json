@@ -7,7 +7,11 @@
       "Bash(git stash)",
       "Bash(cargo check)",
       "Bash(git push *)",
-      "Bash(rm *)"
+      "Bash(rm *)",
+      "Bash(git checkout *)",
+      "Bash(gh *)",
+      "Bash(git merge *)",
+      "Bash(git fetch *)"
     ]
   },
   "$version": 3
