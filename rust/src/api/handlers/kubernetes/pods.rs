@@ -82,9 +82,11 @@ pub async fn list_pods(
     
     let namespace = query.namespace.as_deref().unwrap_or("default");
     let api: Api<Pod> = Api::namespaced(client, namespace);
-    
-    let mut lp = ListParams::default();
-    lp.limit = query.limit;
+
+    let mut lp = ListParams {
+        limit: query.limit,
+        ..Default::default()
+    };
     
     if let Some(selector) = query.label_selector {
         lp.label_selector = Some(selector);
@@ -154,11 +156,13 @@ pub async fn get_pod_logs(
     let client = kube_client.raw().clone();
     
     let api: Api<Pod> = Api::namespaced(client, &namespace);
-    
-    let mut lp = LogParams::default();
-    lp.container = query.container.clone();
-    lp.tail_lines = query.tail;
-    lp.timestamps = query.timestamps.unwrap_or(false);
+
+    let lp = LogParams {
+        container: query.container.clone(),
+        tail_lines: query.tail,
+        timestamps: query.timestamps.unwrap_or(false),
+        ..Default::default()
+    };
     
     let logs = api.logs(&name, &lp).await
         .map_err(|e| Error::Kubernetes(format!("Failed to get logs: {}", e)))?;

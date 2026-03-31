@@ -221,7 +221,7 @@ impl PrometheusClient {
                     .filter_map(|(ts, val)| {
                         let dt = DateTime::from_timestamp(ts as i64, 0);
                         let value = val.parse::<f64>().ok()?;
-                        dt.map(|t| (t.into(), value))
+                        dt.map(|t| (t, value))
                     })
                     .collect();
 
@@ -387,8 +387,8 @@ pub async fn check_prometheus_health(
         .unwrap_or_else(|_| "http://prometheus:9090".to_string());
     
     let client = reqwest::Client::new();
-    
-    match client.get(&format!("{}/api/v1/status/config", prometheus_url)).send().await {
+
+    match client.get(format!("{}/api/v1/status/config", prometheus_url)).send().await {
         Ok(response) => {
             if response.status().is_success() {
                 Ok(Json(PrometheusHealthResponse {

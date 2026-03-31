@@ -55,8 +55,10 @@ pub async fn list_events(
     let client = state.kubernetes_client()?;
     let ns = query.namespace.unwrap_or_else(|| "default".to_string());
     
-    let mut lp = ListParams::default();
-    lp.limit = Some(query.limit.unwrap_or(100) as u32);
+    let mut lp = ListParams {
+        limit: Some(query.limit.unwrap_or(100) as u32),
+        ..Default::default()
+    };
     
     if let Some(selector) = query.field_selector {
         lp.field_selector = Some(selector);
@@ -324,8 +326,8 @@ pub async fn get_topology(
             let ready = status.and_then(|s| s.ready_replicas).unwrap_or(0);
             
             let replicas = TopologyReplicas {
-                desired: desired,
-                ready: ready,
+                desired,
+                ready,
             };
             
             nodes.push(TopologyNode {
@@ -396,7 +398,7 @@ pub async fn get_topology(
                 kind: "Pod".to_string(),
                 name: pod.metadata.name.clone().unwrap_or_default(),
                 namespace: pod.metadata.namespace.clone().unwrap_or_default(),
-                status: status,
+                status,
                 replicas: None,
                 labels: pod.metadata.labels.clone(),
             });
@@ -438,14 +440,14 @@ pub async fn get_topology(
             let selector = svc.spec.as_ref().and_then(|s| s.selector.as_ref());
             if let Some(selector) = selector {
                 for node in &nodes {
-                    if node.kind == "Pod" || node.kind == "Deployment" {
-                        if matches_selector(&node.labels, selector) {
-                            edges.push(TopologyEdge {
-                                source: node_id.clone(),
-                                target: node.id.clone(),
-                                kind: "routes".to_string(),
-                            });
-                        }
+                    if (node.kind == "Pod" || node.kind == "Deployment")
+                        && matches_selector(&node.labels, selector)
+                    {
+                        edges.push(TopologyEdge {
+                            source: node_id.clone(),
+                            target: node.id.clone(),
+                            kind: "routes".to_string(),
+                        });
                     }
                 }
             }
@@ -508,20 +510,20 @@ fn matches_selector(
 
 // Helper functions for parsing resource values
 fn parse_cpu(cpu: &str) -> Option<u64> {
-    if cpu.ends_with('m') {
-        cpu[..cpu.len()-1].parse::<u64>().ok()
+    if let Some(stripped) = cpu.strip_suffix('m') {
+        stripped.parse::<u64>().ok()
     } else {
         cpu.parse::<u64>().ok().map(|v| v * 1000)
     }
 }
 
 fn parse_memory(mem: &str) -> Option<u64> {
-    if mem.ends_with("Ki") {
-        mem[..mem.len()-2].parse::<u64>().ok().map(|v| v * 1024)
-    } else if mem.ends_with("Mi") {
-        mem[..mem.len()-2].parse::<u64>().ok().map(|v| v * 1024 * 1024)
-    } else if mem.ends_with("Gi") {
-        mem[..mem.len()-2].parse::<u64>().ok().map(|v| v * 1024 * 1024 * 1024)
+    if let Some(stripped) = mem.strip_suffix("Ki") {
+        stripped.parse::<u64>().ok().map(|v| v * 1024)
+    } else if let Some(stripped) = mem.strip_suffix("Mi") {
+        stripped.parse::<u64>().ok().map(|v| v * 1024 * 1024)
+    } else if let Some(stripped) = mem.strip_suffix("Gi") {
+        stripped.parse::<u64>().ok().map(|v| v * 1024 * 1024 * 1024)
     } else {
         mem.parse::<u64>().ok()
     }

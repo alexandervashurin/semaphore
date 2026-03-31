@@ -54,21 +54,16 @@ pub struct InventorySyncParams {
 }
 
 /// Тип синхронизации
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum SyncType {
     /// Синхронизировать Node (кластерные ноды)
+    #[default]
     Nodes,
     /// Синхронизировать Pod (в namespace)
     Pods,
     /// Синхронизировать всё
     All,
-}
-
-impl Default for SyncType {
-    fn default() -> Self {
-        SyncType::Nodes
-    }
 }
 
 /// Предпросмотр синхронизации
@@ -289,16 +284,16 @@ fn generate_nodes_inventory(nodes: &[Node]) -> String {
                     // Добавляем labels как переменные
                     if let Some(labels) = &node.metadata.labels {
                         for (key, value) in labels {
-                            let safe_key = key.replace('/', "_").replace('-', "_");
-                            inventory.push_str(&format!(" k8s_label_{}={}", safe_key, sanitize_value(&value)));
+                            let safe_key = key.replace(['/', '-'], "_");
+                            inventory.push_str(&format!(" k8s_label_{}={}", safe_key, sanitize_value(value)));
                         }
                     }
-                    
+
                     // Annotations
                     if let Some(annotations) = &node.metadata.annotations {
                         for (key, value) in annotations {
-                            let safe_key = key.replace('/', "_").replace('-', "_");
-                            inventory.push_str(&format!(" k8s_annotation_{}={}", safe_key, sanitize_value(&value)));
+                            let safe_key = key.replace(['/', '-'], "_");
+                            inventory.push_str(&format!(" k8s_annotation_{}={}", safe_key, sanitize_value(value)));
                         }
                     }
                     
@@ -356,8 +351,8 @@ fn generate_pods_inventory(pods: &[Pod], namespace: &str) -> String {
                 // Labels
                 if let Some(labels) = &pod.metadata.labels {
                     for (key, value) in labels {
-                        let safe_key = key.replace('/', "_").replace('-', "_");
-                        inventory.push_str(&format!(" k8s_label_{}={}", safe_key, sanitize_value(&value)));
+                        let safe_key = key.replace(['/', '-'], "_");
+                        inventory.push_str(&format!(" k8s_label_{}={}", safe_key, sanitize_value(value)));
                     }
                 }
                 
@@ -373,7 +368,7 @@ fn generate_pods_inventory(pods: &[Pod], namespace: &str) -> String {
             for (key, value) in labels {
                 if key == "app" || key == "application" {
                     groups.entry(format!("k8s_app_{}", sanitize_value(value)))
-                        .or_insert_with(Vec::new)
+                        .or_default()
                         .push(name.clone());
                 }
             }
@@ -393,10 +388,7 @@ fn generate_pods_inventory(pods: &[Pod], namespace: &str) -> String {
 /// Очистить значение для использования в инвентаре
 fn sanitize_value(value: &str) -> String {
     value
-        .replace(' ', "_")
-        .replace('/', "_")
-        .replace('-', "_")
-        .replace('.', "_")
+        .replace([' ', '/', '-', '.'], "_")
         .chars()
         .filter(|c| c.is_alphanumeric() || *c == '_')
         .collect()

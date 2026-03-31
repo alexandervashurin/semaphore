@@ -2011,10 +2011,6 @@ pub fn api_routes() -> Router<Arc<AppState>> {
             get(handlers::get_cluster_health),
         )
         .route(
-            "/api/kubernetes/cluster/summary",
-            get(handlers::get_k8s_cluster_summary),
-        )
-        .route(
             "/api/kubernetes/cluster/aggregate",
             get(handlers::get_aggregate_view),
         )
