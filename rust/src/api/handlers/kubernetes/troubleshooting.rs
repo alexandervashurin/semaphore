@@ -16,6 +16,7 @@ use crate::api::state::AppState;
 use crate::db::store::AuditLogManager;
 use crate::error::{Error, Result};
 use super::client::KubeClient;
+use super::prometheus::MetricValue;
 
 // ============================================================================
 // Troubleshooting Dashboard Types
@@ -368,17 +369,67 @@ async fn get_resource_metrics(
     state: &Arc<AppState>,
     query: &TroubleshootQuery,
 ) -> Result<ResourceMetrics> {
-    // TODO: Интеграция с metrics.k8s.io API
-    // Пока возвращаем заглушку
-    Ok(ResourceMetrics {
-        cpu_usage: None,
-        memory_usage: None,
-        cpu_request: None,
-        memory_request: None,
-        cpu_limit: None,
-        memory_limit: None,
-        restart_count: None,
-    })
+    // Пробуем получить метрики из Prometheus
+    let prometheus_url = std::env::var("PROMETHEUS_URL")
+        .unwrap_or_else(|_| String::new());
+    
+    if prometheus_url.is_empty() {
+        // Prometheus не настроен, возвращаем заглушку
+        return Ok(ResourceMetrics {
+            cpu_usage: None,
+            memory_usage: None,
+            cpu_request: None,
+            memory_request: None,
+            cpu_limit: None,
+            memory_limit: None,
+            restart_count: None,
+        });
+    }
+    
+    // Получаем метрики из Prometheus
+    let client = super::prometheus::PrometheusClient::new(prometheus_url);
+    
+    if query.kind == "Pod" {
+        let (cpu_result, memory_result) = tokio::join!(
+            client.get_pod_cpu(&query.namespace, &query.name),
+            client.get_pod_memory(&query.namespace, &query.name)
+        );
+        
+        let cpu_usage = cpu_result.ok()
+            .and_then(|metrics| metrics.into_iter().next())
+            .and_then(|m| match m.value {
+                MetricValue::Single(v) => Some(format!("{:.2} cores", v)),
+                _ => None,
+            });
+        
+        let memory_usage = memory_result.ok()
+            .and_then(|metrics| metrics.into_iter().next())
+            .and_then(|m| match m.value {
+                MetricValue::Single(v) => Some(format!("{:.2} MiB", v / 1024.0 / 1024.0)),
+                _ => None,
+            });
+        
+        Ok(ResourceMetrics {
+            cpu_usage,
+            memory_usage,
+            cpu_request: None,
+            memory_request: None,
+            cpu_limit: None,
+            memory_limit: None,
+            restart_count: None,
+        })
+    } else {
+        // Для других ресурсов пока возвращаем пустые метрики
+        Ok(ResourceMetrics {
+            cpu_usage: None,
+            memory_usage: None,
+            cpu_request: None,
+            memory_request: None,
+            cpu_limit: None,
+            memory_limit: None,
+            restart_count: None,
+        })
+    }
 }
 
 /// Сгенерировать рекомендации на основе событий

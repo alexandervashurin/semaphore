@@ -1865,6 +1865,15 @@ pub fn api_routes() -> Router<Arc<AppState>> {
             "/api/kubernetes/runbooks/{task_id}/status",
             get(handlers::get_runbook_status),
         )
+        // Prometheus Metrics Integration
+        .route(
+            "/api/kubernetes/prometheus/metrics",
+            get(handlers::get_prometheus_metrics),
+        )
+        .route(
+            "/api/kubernetes/prometheus/health",
+            get(handlers::check_prometheus_health),
+        )
         .route(
             "/api/kubernetes/metrics/pods",
             get(handlers::list_pod_metrics),

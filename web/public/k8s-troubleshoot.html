@@ -6,6 +6,7 @@
     <title>Kubernetes Troubleshooting — Velum</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         .health-status {
             display: inline-block;
@@ -151,6 +152,9 @@
                     <button class="tab" onclick="switchTab('metrics')">
                         <i class="fa-solid fa-chart-line"></i> Метрики
                     </button>
+                    <button class="tab" onclick="switchTab('prometheus')">
+                        <i class="fa-solid fa-chart-area"></i> Prometheus
+                    </button>
                     <button class="tab" onclick="switchTab('recommendations')">
                         <i class="fa-solid fa-lightbulb"></i> Рекомендации
                     </button>
@@ -161,6 +165,7 @@
                 <div id="tab-events" class="tab-content" style="margin-top: 16px;"></div>
                 <div id="tab-audit" class="tab-content" style="margin-top: 16px;"></div>
                 <div id="tab-metrics" class="tab-content" style="margin-top: 16px;"></div>
+                <div id="tab-prometheus" class="tab-content" style="margin-top: 16px;"></div>
                 <div id="tab-recommendations" class="tab-content" style="margin-top: 16px;"></div>
             </div>
         </div>
@@ -263,6 +268,9 @@ function renderReport(report) {
 
     // Metrics
     renderMetrics(report.metrics);
+
+    // Prometheus
+    loadPrometheusMetrics();
 
     // Recommendations
     renderRecommendations(report.recommendations || []);
@@ -393,6 +401,158 @@ function formatDateTime(isoString) {
         day: '2-digit',
         hour: '2-digit',
         minute: '2-digit'
+    });
+}
+
+// Загрузка Prometheus метрик
+let cpuChart = null;
+let memoryChart = null;
+
+async function loadPrometheusMetrics() {
+    const namespace = $('#namespace').value;
+    const kind = $('#kind').value;
+    const name = $('#resource-name').value.trim();
+    
+    if (!name || kind !== 'Pod') {
+        $('#tab-prometheus').innerHTML = '<div class="alert alert-info"><i class="fa-solid fa-info-circle"></i> Prometheus метрики доступны только для Pod</div>';
+        return;
+    }
+    
+    try {
+        const params = new URLSearchParams({
+            namespace,
+            kind,
+            name,
+            metric_type: 'all',
+            range: '1h'
+        });
+        
+        const data = await api.get(`/kubernetes/prometheus/metrics?${params}`);
+        renderPrometheusMetrics(data);
+    } catch (e) {
+        $('#tab-prometheus').innerHTML = `
+            <div class="alert alert-info">
+                <i class="fa-solid fa-circle-info"></i>
+                Prometheus метрики недоступны. Убедитесь, что Prometheus настроен и доступен.
+                <br><small>${escapeHtml(e.message || 'Ошибка загрузки')}</small>
+            </div>
+        `;
+    }
+}
+
+function renderPrometheusMetrics(data) {
+    const container = $('#tab-prometheus');
+    
+    // Фильтруем метрики по типу
+    const cpuMetrics = data.metrics.filter(m => m.metric.includes('cpu'));
+    const memoryMetrics = data.metrics.filter(m => m.metric.includes('memory'));
+    
+    let html = '<h4><i class="fa-solid fa-chart-area"></i> Prometheus Метрики</h4>';
+    
+    if (cpuMetrics.length > 0) {
+        html += '<div class="card" style="margin-bottom: 16px;">';
+        html += '<h5><i class="fa-solid fa-microchip"></i> CPU Usage</h5>';
+        html += '<canvas id="cpu-chart" height="80"></canvas>';
+        html += '</div>';
+    }
+    
+    if (memoryMetrics.length > 0) {
+        html += '<div class="card">';
+        html += '<h5><i class="fa-solid fa-memory"></i> Memory Usage</h5>';
+        html += '<canvas id="memory-chart" height="80"></canvas>';
+        html += '</div>';
+    }
+    
+    if (cpuMetrics.length === 0 && memoryMetrics.length === 0) {
+        html += '<div class="alert alert-info"><i class="fa-solid fa-circle-info"></i> Метрики не найдены</div>';
+    }
+    
+    container.innerHTML = html;
+    
+    // Создаём графики
+    setTimeout(() => {
+        if (cpuMetrics.length > 0) {
+            renderChart('cpu-chart', cpuMetrics, 'CPU Usage', 'cores');
+        }
+        if (memoryMetrics.length > 0) {
+            renderChart('memory-chart', memoryMetrics, 'Memory Usage', 'MiB');
+        }
+    }, 100);
+}
+
+function renderChart(canvasId, metrics, label, unit) {
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    
+    // Собираем данные временного ряда
+    const datasets = metrics.map((m, idx) => {
+        const color = idx === 0 ? 'rgb(54, 162, 235)' : 'rgb(255, 99, 132)';
+        
+        if (m.value.time_series) {
+            return {
+                label: m.labels.pod || m.metric,
+                data: m.value.time_series.map(p => ({
+                    x: new Date(p[0]).toISOString(),
+                    y: unit === 'MiB' ? p[1] / 1024 / 1024 : p[1]
+                })),
+                borderColor: color,
+                backgroundColor: color.replace('1)', '0.2)'),
+                tension: 0.4,
+                fill: true
+            };
+        }
+        return null;
+    }).filter(d => d !== null);
+    
+    if (datasets.length === 0) return;
+    
+    new Chart(ctx, {
+        type: 'line',
+        data: { datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            interaction: {
+                mode: 'nearest',
+                axis: 'x',
+                intersect: false
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.y.toFixed(3) + ' ' + unit;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: 'minute',
+                        displayFormats: {
+                            minute: 'HH:mm'
+                        }
+                    },
+                    adapters: {
+                        date: {
+                            locale: 'ru'
+                        }
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: unit
+                    }
+                }
+            }
+        }
     });
 }
 
