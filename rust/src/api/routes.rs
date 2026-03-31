@@ -842,6 +842,9 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/api/kubernetes/namespaces/{namespace}/pods/{name}", get(handlers::get_pod))
         .route("/api/kubernetes/namespaces/{namespace}/pods/{name}", delete(handlers::delete_pod))
         .route("/api/kubernetes/namespaces/{namespace}/pods/{name}/logs", get(handlers::pod_logs))
+        // WebSocket: exec terminal + port-forward
+        .route("/api/kubernetes/clusters/{cluster_id}/namespaces/{namespace}/pods/{name}/exec", get(handlers::pod_exec))
+        .route("/api/kubernetes/clusters/{cluster_id}/namespaces/{namespace}/pods/{name}/portforward", get(handlers::pod_portforward))
         .route("/api/kubernetes/deployments", get(handlers::list_deployments))
         .route("/api/kubernetes/namespaces/{namespace}/deployments/{name}", get(handlers::get_deployment))
         .route("/api/kubernetes/namespaces/{namespace}/deployments/{name}/scale", put(handlers::scale_deployment))

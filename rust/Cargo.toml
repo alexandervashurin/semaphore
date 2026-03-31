@@ -155,7 +155,7 @@ tonic-reflection = "0.13"
 
 # Kubernetes интеграция
 k8s-openapi = { version = "0.24", features = ["v1_30"] }
-kube = { version = "0.98", features = ["runtime", "derive", "client"] }
+kube = { version = "0.98", features = ["runtime", "derive", "client", "ws"] }
 kube-runtime = "0.98"
 
 # WebSocket

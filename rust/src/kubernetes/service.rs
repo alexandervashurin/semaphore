@@ -697,6 +697,7 @@ impl KubernetesClusterService {
             Ok(secret_to_info(s))
         }
     }
+
 }
 
 // ─── Pod DTO helpers ─────────────────────────────────────────────────────────
