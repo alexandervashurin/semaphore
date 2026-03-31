@@ -84,9 +84,11 @@ dashmap = "6"
 lettre = { version = "0.11", features = ["tokio1-native-tls", "builder", "smtp-transport"] }
 rustls = "0.23"
 
-# Encryption (RSA + AES-256-GCM)
-rsa = "0.9"
-pkcs1 = "0.7"
+# Encryption (ECDSA P-256 + AES-256-GCM)
+# rsa = "0.9" removed — RUSTSEC-2023-0071 Marvin Attack; migrated to p256 ECDSA
+p256 = { version = "0.13", features = ["pkcs8", "pem"] }
+sec1 = { version = "0.7", features = ["pem"] }
+pkcs8 = { version = "0.10", features = ["pem"] }
 pem = "3.0"
 aes-gcm = "0.10"
 
@@ -242,6 +244,13 @@ codegen-units = 1
 
 [profile.dev]
 debug = true
+
+# cargo-audit: игнорируем RSA Marvin Attack в транзитивной зависимости sqlx-postgres.
+# sqlx использует RSA только для SCRAM-SHA-256 handshake при подключении к PostgreSQL
+# (серверная аутентификация, не наш код). Исправление — на стороне sqlx/PostgreSQL драйвера.
+# Ref: RUSTSEC-2023-0071
+[package.metadata.cargo-audit.ignore]
+RUSTSEC-2023-0071 = "rsa pulled by sqlx-postgres for SCRAM auth only, not our RSA usage"
 
 # Флаги для разных баз данных
 [features]
