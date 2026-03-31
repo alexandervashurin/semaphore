@@ -324,7 +324,7 @@ flowchart LR
 
 #### 2.4 Deployments
 - [x] `list`, `get`, `scale`, `restart`. ✅ 2026-03-29 — `k8s-deploy.html`
-- [ ] `pause`/`resume`, `rollback`, `history`, список связанных ReplicaSet. *(backlog)*
+- [ ] `pause`/`resume`, `rollback`, `history`, список связанных ReplicaSet. *(backlog; частично: linked ReplicaSets UI в `k8s-deployments.html`, 2026-03-31)*
 
 #### 2.5 ReplicaSets
 - [x] `list` с owner Deployment detection. ✅ 2026-03-29
