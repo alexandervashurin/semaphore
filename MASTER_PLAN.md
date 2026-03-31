@@ -5,7 +5,7 @@
 >
 > **Репозиторий:** https://github.com/tnl-o/velum
 > **Upstream (Go оригинал):** https://github.com/velum/velum
-> **Последнее обновление:** 2026-03-31 (обновление 39 — Remote Runners JobPool (store-backed scheduler), Kubernetes Pod Exec/Port-Forward WebSocket endpoints + frontend terminal UI в k8s-pods.html)
+> **Последнее обновление:** 2026-04-01 (обновление 40 — добавлены разделы 2ж (технический долг) и 20 (лучшие практики) с приоритетными задачами production hardening)
 
 ---
 
@@ -2226,6 +2226,197 @@ web/vanilla/
 
 ---
 
+## 2ж. Технический долг — открытые задачи (2026-04-01)
+
+> Задачи отсортированы по приоритету. Статусы: `⬜ Не начато` | `🔄 В работе` | `✅ Закрыт`
+
+### 🔴 P-01 — access_key_installation_service: подключить к store
+
+**Файл:** `rust/src/services/access_key_installation_service.rs`
+**Строки:** 238, 247, 256, 261
+
+Методы `update`, `list`, `delete` в `AccessKeyInstallationRepository` реализованы как заглушки (`Ok(())` / `Ok(vec![])`). Ключи шифруются/дешифруются корректно, но сохранение через этот сервис не персистируется.
+
+**Что сделать:**
+1. Добавить поле `store: Arc<dyn Store + Send + Sync>` в структуру сервиса
+2. Реализовать `update` → `store.update_access_key(...)`
+3. Реализовать `list` → `store.get_access_keys(project_id)`
+4. Реализовать `delete` → `store.delete_access_key(project_id, key_id)`
+
+**Статус:** ⬜ Не начато
+
+---
+
+### 🟠 P-02 — playbook_run_service: реальный user_id из контекста аутентификации
+
+**Файл:** `rust/src/services/playbook_run_service.rs:56`
+
+```rust
+let user_id = request.user_id.unwrap_or(1); // TODO: получить из контекста аутентификации
+```
+
+Все запуски playbook-ов записываются от имени user_id=1 независимо от авторизованного пользователя.
+
+**Что сделать:**
+1. Добавить `user_id: i32` в `PlaybookRunRequest` (передаётся из HTTP handler через `AuthUser`)
+2. Убрать `unwrap_or(1)`, использовать реальный `user_id`
+
+**Статус:** ⬜ Не начато
+
+---
+
+### 🟠 P-03 — alert.rs: HMAC подпись webhook-уведомлений
+
+**Файл:** `rust/src/services/alert.rs:348`
+
+Webhook payload отправляется без подписи — получатель не может проверить подлинность сообщения.
+
+**Что сделать:**
+1. При наличии `webhook_secret` в настройках интеграции — вычислять `HMAC-SHA256(secret, body)`
+2. Добавлять заголовок `X-Velum-Signature: sha256=<hex>`
+3. Документировать в OpenAPI
+
+**Статус:** ⬜ Не начато
+
+---
+
+### 🟠 P-04 — Graceful shutdown при SIGTERM
+
+**Файл:** `rust/src/cli/cmd_server.rs`
+
+Сервер убивается без ожидания завершения активных задач. При деплое в K8s это приводит к оборванным task runner процессам.
+
+**Что сделать:**
+1. Добавить `tokio::signal::unix::signal(SignalKind::terminate())` listener
+2. При получении SIGTERM — уведомить `JobPool` (установить флаг `shutting_down`)
+3. В `JobPool::run()` — при флаге не брать новые задачи, дождаться пока `running_ids` пуст
+4. Таймаут — 30 секунд, затем принудительный выход
+
+**Статус:** ⬜ Не начато
+
+---
+
+### 🟡 P-05 — Убрать unwrap() из production API кода
+
+**Файлы:** `rust/src/api/handlers/` (62 вхождения)
+
+Паники в production недопустимы. `unwrap()` на `Option` или `Result` без контекста делает ошибки непонятными.
+
+**Что сделать:**
+1. `grep -rn "\.unwrap()" rust/src/api/` — найти все вхождения
+2. Заменить на `?` с `ok_or(Error::...)` или `.unwrap_or_default()`
+3. Исключение: тесты (`#[cfg(test)]`) — там `unwrap()` допустим
+
+**Статус:** ⬜ Не начато
+
+---
+
+### 🟡 P-06 — Структурированные логи (JSON via tracing)
+
+**Файл:** `rust/src/cli/cmd_server.rs`, `rust/src/main.rs`
+
+Сейчас логи — plain-text. В Kubernetes/Loki/Datadog нужен JSON.
+
+**Что сделать:**
+```rust
+// Добавить в Cargo.toml:
+tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
+
+// В cmd_server.rs:
+tracing_subscriber::fmt()
+    .json()
+    .with_env_filter(EnvFilter::from_default_env())
+    .init();
+```
+
+**Статус:** ⬜ Не начато
+
+---
+
+### 🟡 P-07 — /healthz и /readyz эндпоинты (K8s liveness/readiness)
+
+**Файл:** `rust/src/api/routes.rs`
+
+Сейчас есть `/api/ping` но нет стандартных K8s probe путей.
+
+**Что сделать:**
+1. `GET /healthz` → `200 OK` (liveness — процесс жив)
+2. `GET /readyz` → `200 OK` если БД доступна, `503` если нет
+3. Добавить в `docker-compose.demo.yml` секцию `healthcheck`
+
+**Статус:** ⬜ Не начато
+
+---
+
+### 🟡 P-08 — Тесты для критических путей
+
+**Что добавить:**
+- `test_job_pool_picks_up_waiting_task()` — JobPool интеграция со store
+- `test_access_key_encrypt_decrypt_roundtrip()` — сквозное шифрование
+- `test_jwt_blacklist_logout_then_reject()` — HTTP-цикл logout → 401
+- `test_graceful_shutdown_waits_for_running_jobs()` — P-04
+
+**Статус:** ⬜ Не начато
+
+---
+
+### 🟡 P-09 — OpenAPI spec: K8s WS endpoints + актуализация
+
+**Файл:** `api-docs.yml`
+
+Эндпоинты `pod_exec`, `pod_portforward`, новые K8s маршруты не описаны в spec.
+
+**Что сделать:**
+1. Добавить WebSocket endpoints с описанием query params
+2. Обновить версию spec до актуальной
+3. Добавить `cargo doc` в CI pipeline
+
+**Статус:** ⬜ Не начато
+
+---
+
+### 🟢 P-10 — cargo-tarpaulin: метрика покрытия в CI
+
+**Файл:** `.github/workflows/rust.yml`
+
+Добавить шаг:
+```yaml
+- name: Code coverage
+  run: cargo tarpaulin --out Xml --exclude-files "*/tests/*"
+- uses: codecov/codecov-action@v3
+```
+
+**Статус:** ⬜ Не начато
+
+---
+
+### 🟢 P-11 — CHANGELOG.md
+
+Создать `CHANGELOG.md` с историей релизов по формату [Keep a Changelog](https://keepachangelog.com/).
+Включить все реализованные фичи с 2026-03-14 по 2026-04-01.
+
+**Статус:** ⬜ Не начато
+
+---
+
+## 2з. Сводная таблица задач production hardening
+
+| ID | Задача | Приоритет | Сложность | Статус |
+|---|---|---|---|---|
+| P-01 | access_key_installation_service → store | 🔴 | M | ⬜ |
+| P-02 | playbook_run_service user_id из auth | 🟠 | S | ⬜ |
+| P-03 | HMAC подпись webhook | 🟠 | S | ⬜ |
+| P-04 | Graceful shutdown SIGTERM | 🟠 | M | ⬜ |
+| P-05 | Убрать unwrap() из API handlers | 🟡 | M | ⬜ |
+| P-06 | Structured JSON logging | 🟡 | S | ⬜ |
+| P-07 | /healthz + /readyz endpoints | 🟡 | S | ⬜ |
+| P-08 | Тесты критических путей | 🟡 | M | ⬜ |
+| P-09 | OpenAPI spec актуализация | 🟡 | S | ⬜ |
+| P-10 | cargo-tarpaulin coverage в CI | 🟢 | S | ⬜ |
+| P-11 | CHANGELOG.md | 🟢 | S | ⬜ |
+
+---
+
 ## 13. Маппинг Go → Rust
 
 > Для контрибьюторов: при портировании Go-пакета заполняй эту таблицу.
@@ -2672,6 +2863,52 @@ docker compose up -d
 4. **Один файл — одна задача** — не смешивай несколько задач в одном edit
 5. **Обновляй MASTER_PLAN.md** после каждой задачи: строку статуса `⬜` → `✅ Закрыт YYYY-MM-DD`
 6. **Не создавай отдельные CSS файлы** — используй inline style или классы из styles.css
+
+---
+
+## 20. Лучшие практики — чеклист для production readiness
+
+> Статус на 2026-04-01. Отмечай ✅ по мере выполнения.
+
+### Безопасность
+- [x] JWT подписывается P-256 ECDSA (не HS256)
+- [x] Пароли хранятся через bcrypt
+- [x] TOTP 2FA поддерживается
+- [x] JWT blacklist при logout (DashMap + pruner)
+- [x] Rate limiting на auth endpoints (5 req/min per IP)
+- [ ] HMAC подпись webhook payload (→ P-03)
+- [ ] Rate limiting на task-run endpoints (→ P-05 соображения)
+- [ ] Audit log для всех admin-операций (написание есть, UI-фильтр по типу — нет)
+
+### Надёжность
+- [x] Graceful error handling через `Error` enum + `Result<T, Error>`
+- [x] Clippy 0 warnings
+- [x] 626+ тестов
+- [ ] Graceful shutdown на SIGTERM (→ P-04)
+- [ ] unwrap() → ? во всех API handlers (→ P-05)
+- [ ] /healthz + /readyz для K8s probes (→ P-07)
+
+### Наблюдаемость
+- [x] tracing подключён (TraceLayer в Axum)
+- [x] Metrics endpoint `/api/metrics` (prometheus)
+- [ ] Structured JSON logging (→ P-06)
+- [ ] Correlation ID сквозной от request до task log
+- [ ] cargo-tarpaulin coverage в CI (→ P-10)
+
+### Корректность данных
+- [x] AES-256-GCM шифрование access keys
+- [x] Транзакции в SQLx для многошаговых операций
+- [ ] access_key_installation_service → реальный store (→ P-01)
+- [ ] playbook_run user_id из auth context (→ P-02)
+
+### DevEx / Документация
+- [x] CLAUDE.md с порядком действий для агентов
+- [x] docker-compose.demo.yml для быстрого старта
+- [x] CI: build + clippy + test на каждый push
+- [x] OpenAPI spec (api-docs.yml) — частично актуален
+- [ ] OpenAPI: K8s WS endpoints (→ P-09)
+- [ ] CHANGELOG.md (→ P-11)
+- [ ] cargo doc без ошибок + публикация на GitHub Pages
 
 ---
 
