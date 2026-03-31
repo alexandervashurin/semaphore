@@ -5,7 +5,7 @@
 >
 > **Репозиторий:** https://github.com/tnl-o/velum
 > **Upstream (Go оригинал):** https://github.com/velum/velum
-> **Последнее обновление:** 2026-03-21 (обновление 38 — Enterprise UI polish: все ~270 emoji заменены на Font Awesome 6.5 иконки по всем 28+ HTML страницам; index.html и users.html мигрированы на единый sidebar layout; тёмная тема работает; upstream/main смержен (DEB пакет, DB migration 003, start-server.sh))
+> **Последнее обновление:** 2026-03-31 (обновление 39 — Remote Runners JobPool (store-backed scheduler), Kubernetes Pod Exec/Port-Forward WebSocket endpoints + frontend terminal UI в k8s-pods.html)
 
 ---
 
@@ -2220,6 +2220,9 @@ web/vanilla/
 | T-FE-08 | Task Stages прогресс-шкала | 🟡 | — | ✅ Закрыт 2026-03-17 (stepper в task detail modal) |
 | T-FE-09 | 2FA управление в users.html | 🟡 | T-BE-13 | ✅ Закрыт 2026-03-15 (TOTP enable/disable + QR код) |
 | T-FE-10 | Ошибки задачи — UX улучшения | 🟡 | — | ✅ Закрыт 2026-03-17 (error summary при failed статусе) |
+| T-FE-11 | Kubernetes Exec terminal + Port-Forward UI | 🟠 | — | ✅ Закрыт 2026-03-31 (k8s-pods.html: WS exec + pf modals) |
+| T-BE-16 | Kubernetes Pod Exec/PortForward WebSocket handlers | 🟠 | — | ✅ Закрыт 2026-03-31 (pods.rs: pod_exec + pod_portforward) |
+| T-BE-17 | Remote Runners JobPool — store-backed scheduler | 🟠 | — | ✅ Закрыт 2026-03-31 (job_pool.rs полный рефакторинг) |
 
 ---
 

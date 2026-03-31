@@ -80,6 +80,73 @@
         }
         .restart-count.warn { color: #f57f17; font-weight: 600; }
         .restart-count.crit { color: #c62828; font-weight: 600; }
+        /* Exec terminal modal */
+        .exec-modal {
+            background: #0d1117; color: #e6edf3;
+            width: 90vw; max-width: 1100px;
+            height: 75vh; border-radius: 12px;
+            display: flex; flex-direction: column; overflow: hidden;
+            border: 1px solid #30363d;
+        }
+        .exec-modal-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 18px; border-bottom: 1px solid #30363d;
+            font-family: monospace; font-size: 13px; color: #8b949e;
+        }
+        .exec-modal-header .exec-title { color: #58a6ff; font-weight: 600; }
+        .exec-terminal {
+            flex: 1; overflow-y: auto; padding: 12px 16px;
+            font-family: 'Courier New', monospace; font-size: 12px;
+            line-height: 1.6; white-space: pre-wrap; word-break: break-all;
+            background: #0d1117;
+        }
+        .exec-terminal .line-out { color: #e6edf3; }
+        .exec-terminal .line-err { color: #f85149; }
+        .exec-terminal .line-sys { color: #3fb950; font-style: italic; }
+        .exec-input-row {
+            display: flex; align-items: center; gap: 0;
+            border-top: 1px solid #30363d; padding: 8px 16px;
+            background: #161b22;
+        }
+        .exec-prompt { color: #3fb950; font-family: monospace; font-size: 13px; margin-right: 8px; }
+        .exec-input {
+            flex: 1; background: transparent; border: none; outline: none;
+            color: #e6edf3; font-family: 'Courier New', monospace; font-size: 13px;
+        }
+        .exec-modal-toolbar {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 16px; border-bottom: 1px solid #30363d;
+            background: #161b22;
+        }
+        .exec-modal-toolbar select, .exec-modal-toolbar input[type=text] {
+            background: #21262d; color: #e6edf3;
+            border: 1px solid #30363d; border-radius: 6px;
+            padding: 4px 10px; font-size: 12px;
+        }
+        .exec-status-dot {
+            width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+        }
+        .exec-status-dot.connected { background: #3fb950; }
+        .exec-status-dot.disconnected { background: #f85149; }
+        .exec-status-dot.connecting { background: #d29922; animation: pulse .8s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+        /* Port-forward modal */
+        .pf-modal {
+            background: var(--surface); border-radius: 12px;
+            width: 460px; max-width: 96vw; padding: 24px;
+            box-shadow: 0 8px 32px rgba(0,0,0,.2);
+        }
+        .pf-status-row {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 14px; border-radius: 8px; margin: 14px 0;
+            background: var(--background); font-size: 13px;
+        }
+        .pf-log {
+            background: #0d1117; color: #8b949e;
+            font-family: monospace; font-size: 11px;
+            padding: 8px 12px; border-radius: 6px; max-height: 120px;
+            overflow-y: auto; white-space: pre-wrap; word-break: break-all;
+        }
         /* Pod detail panel */
         .pod-detail-overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,.45);
@@ -219,6 +286,69 @@
                 <i class="fa-solid fa-rotate-right"></i> Обновить
             </button>
         </div>
+    </div>
+</div>
+
+<!-- Exec terminal modal -->
+<div id="execModal" class="log-modal-overlay" style="display:none">
+    <div class="exec-modal">
+        <div class="exec-modal-header">
+            <span><span class="exec-title" id="execModalTitle">Terminal</span></span>
+            <div style="display:flex;align-items:center;gap:12px">
+                <span id="execStatusDot" class="exec-status-dot disconnected"></span>
+                <span id="execStatusText" style="font-size:11px">Не подключён</span>
+                <button class="btn btn-secondary btn-sm" onclick="closeExecModal()">✕ Закрыть</button>
+            </div>
+        </div>
+        <div class="exec-modal-toolbar">
+            <label style="color:#8b949e;font-size:12px">Контейнер:</label>
+            <select id="execContainer"></select>
+            <label style="color:#8b949e;font-size:12px">Команда:</label>
+            <input type="text" id="execCommand" value="/bin/sh" style="width:160px">
+            <button class="btn btn-secondary btn-sm" id="execConnectBtn" onclick="execConnect()">
+                <i class="fa-solid fa-play"></i> Подключить
+            </button>
+            <button class="btn btn-secondary btn-sm" id="execDisconnectBtn" onclick="execDisconnect()" style="display:none">
+                <i class="fa-solid fa-stop"></i> Отключить
+            </button>
+        </div>
+        <div class="exec-terminal" id="execTerminal">
+            <span class="line-sys">Настройте контейнер и команду, затем нажмите «Подключить».</span>
+        </div>
+        <div class="exec-input-row">
+            <span class="exec-prompt">$</span>
+            <input class="exec-input" id="execInput" type="text" placeholder="Введите команду…" disabled
+                   autocomplete="off" spellcheck="false">
+        </div>
+    </div>
+</div>
+
+<!-- Port-forward modal -->
+<div id="pfModal" class="log-modal-overlay" style="display:none">
+    <div class="pf-modal">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+            <h3 style="margin:0;font-size:16px"><i class="fa-solid fa-network-wired" style="color:#326ce5"></i> Port Forward</h3>
+            <button class="btn btn-secondary btn-sm" onclick="closePfModal()">✕</button>
+        </div>
+        <div style="font-size:13px;color:var(--text-light);margin-bottom:12px" id="pfPodName"></div>
+        <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:4px">
+            <div style="flex:1">
+                <label class="form-label">Порт Pod'а</label>
+                <input type="number" class="form-control" id="pfPort" min="1" max="65535" placeholder="8080">
+            </div>
+            <button class="btn btn-primary" id="pfConnectBtn" onclick="pfConnect()">
+                <i class="fa-solid fa-plug"></i> Подключить
+            </button>
+            <button class="btn btn-danger" id="pfDisconnectBtn" onclick="pfDisconnect()" style="display:none">
+                <i class="fa-solid fa-plug-circle-xmark"></i> Стоп
+            </button>
+        </div>
+        <div class="pf-status-row" id="pfStatusRow">
+            <span id="pfStatusDot" class="exec-status-dot disconnected"></span>
+            <span id="pfStatusText" style="color:var(--text-light)">Не подключён</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-light);margin-bottom:6px">Лог:</div>
+        <div class="pf-log" id="pfLog">Нет активного подключения.</div>
     </div>
 </div>
 
@@ -403,6 +533,12 @@ function renderPodsTable() {
                 <button class="tbl-icon-btn" title="Логи" onclick="openLogs(${JSON.stringify(pod.name)}, ${JSON.stringify(pod.containers||[])})">
                     <i class="fa-solid fa-terminal"></i>
                 </button>
+                <button class="tbl-icon-btn" title="Exec (терминал)" onclick="openExecTerminal(${JSON.stringify(pod.name)}, ${JSON.stringify(pod.containers||[])})">
+                    <i class="fa-solid fa-code"></i>
+                </button>
+                <button class="tbl-icon-btn" title="Port Forward" onclick="openPortForward(${JSON.stringify(pod.name)})">
+                    <i class="fa-solid fa-network-wired"></i>
+                </button>
                 <button class="tbl-icon-btn danger" title="Удалить" onclick="confirmDelete(${JSON.stringify(pod.name)})">
                     <i class="fa-solid fa-trash"></i>
                 </button>
@@ -488,6 +624,12 @@ function renderPodDetail(pod) {
             <button class="btn btn-secondary btn-sm" onclick="openLogs(${JSON.stringify(pod.name)}, ${JSON.stringify(pod.containers||[])})">
                 <i class="fa-solid fa-terminal"></i> Логи
             </button>
+            <button class="btn btn-secondary btn-sm" style="margin-left:8px" onclick="openExecTerminal(${JSON.stringify(pod.name)}, ${JSON.stringify(pod.containers||[])})">
+                <i class="fa-solid fa-code"></i> Exec
+            </button>
+            <button class="btn btn-secondary btn-sm" style="margin-left:8px" onclick="openPortForward(${JSON.stringify(pod.name)})">
+                <i class="fa-solid fa-network-wired"></i> Port Forward
+            </button>
             <button class="btn btn-danger btn-sm" style="margin-left:8px" onclick="confirmDelete(${JSON.stringify(pod.name)})">
                 <i class="fa-solid fa-trash"></i> Удалить
             </button>
@@ -565,6 +707,209 @@ async function deletePod(podName) {
     } catch (e) {
         alert(`Ошибка удаления Pod: ${e.message || String(e)}`);
     }
+}
+
+// ── Exec terminal ──────────────────────────────────────────────────────────
+let execWs = null;
+let execPodName = null;
+
+function openExecTerminal(podName, containers) {
+    execPodName = podName;
+    document.getElementById('execModalTitle').textContent = `Exec: ${podName}`;
+    const sel = document.getElementById('execContainer');
+    sel.innerHTML = '';
+    (containers || []).forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.name;
+        opt.textContent = c.name;
+        sel.appendChild(opt);
+    });
+    document.getElementById('execTerminal').innerHTML =
+        '<span class="line-sys">Настройте контейнер и команду, затем нажмите «Подключить».</span>\n';
+    setExecStatus('disconnected', 'Не подключён');
+    document.getElementById('execConnectBtn').style.display = '';
+    document.getElementById('execDisconnectBtn').style.display = 'none';
+    document.getElementById('execInput').disabled = true;
+    document.getElementById('execInput').value = '';
+    document.getElementById('execModal').style.display = 'flex';
+}
+
+function closeExecModal() {
+    execDisconnect();
+    document.getElementById('execModal').style.display = 'none';
+    execPodName = null;
+}
+
+function execConnect() {
+    if (execWs) execWs.close();
+    const container = document.getElementById('execContainer').value;
+    const command = document.getElementById('execCommand').value.trim() || '/bin/sh';
+    const term = document.getElementById('execTerminal');
+    term.innerHTML = '';
+    setExecStatus('connecting', 'Подключение…');
+
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    let url = `${proto}//${location.host}/api/kubernetes/clusters/${encodeURIComponent(currentClusterId)}/namespaces/${encodeURIComponent(currentNamespace)}/pods/${encodeURIComponent(execPodName)}/exec?command=${encodeURIComponent(command)}`;
+    if (container) url += `&container=${encodeURIComponent(container)}`;
+
+    execWs = new WebSocket(url);
+    execWs.binaryType = 'arraybuffer';
+
+    execWs.onopen = () => {
+        setExecStatus('connected', 'Подключён');
+        document.getElementById('execConnectBtn').style.display = 'none';
+        document.getElementById('execDisconnectBtn').style.display = '';
+        document.getElementById('execInput').disabled = false;
+        document.getElementById('execInput').focus();
+        appendExecLine('sys', `[connected to ${execPodName}]`);
+    };
+
+    execWs.onmessage = (ev) => {
+        let text;
+        if (ev.data instanceof ArrayBuffer) {
+            text = new TextDecoder().decode(ev.data);
+        } else {
+            text = ev.data;
+        }
+        // Try to parse as JSON error
+        try {
+            const obj = JSON.parse(text);
+            if (obj.error) { appendExecLine('err', obj.error); return; }
+        } catch (_) {}
+        appendExecLine('out', text);
+    };
+
+    execWs.onerror = () => {
+        appendExecLine('err', '[WebSocket error]');
+        setExecStatus('disconnected', 'Ошибка');
+    };
+
+    execWs.onclose = () => {
+        setExecStatus('disconnected', 'Отключён');
+        document.getElementById('execConnectBtn').style.display = '';
+        document.getElementById('execDisconnectBtn').style.display = 'none';
+        document.getElementById('execInput').disabled = true;
+        appendExecLine('sys', '[disconnected]');
+        execWs = null;
+    };
+
+    // Enter key sends input to pod stdin
+    const inp = document.getElementById('execInput');
+    inp.onkeydown = (e) => {
+        if (e.key === 'Enter' && execWs && execWs.readyState === WebSocket.OPEN) {
+            const cmd = inp.value;
+            inp.value = '';
+            appendExecLine('out', `$ ${cmd}`);
+            execWs.send(cmd + '\n');
+        }
+    };
+}
+
+function execDisconnect() {
+    if (execWs) { execWs.close(); execWs = null; }
+}
+
+function appendExecLine(type, text) {
+    const term = document.getElementById('execTerminal');
+    const span = document.createElement('span');
+    span.className = `line-${type}`;
+    span.textContent = text;
+    term.appendChild(span);
+    term.appendChild(document.createTextNode('\n'));
+    term.scrollTop = term.scrollHeight;
+}
+
+function setExecStatus(state, text) {
+    const dot = document.getElementById('execStatusDot');
+    dot.className = `exec-status-dot ${state}`;
+    document.getElementById('execStatusText').textContent = text;
+}
+
+// ── Port Forward ───────────────────────────────────────────────────────────
+let pfWs = null;
+let pfPodName = null;
+
+function openPortForward(podName) {
+    pfPodName = podName;
+    document.getElementById('pfPodName').textContent = `Pod: ${podName}`;
+    document.getElementById('pfLog').textContent = 'Нет активного подключения.';
+    setPfStatus('disconnected', 'Не подключён');
+    document.getElementById('pfConnectBtn').style.display = '';
+    document.getElementById('pfDisconnectBtn').style.display = 'none';
+    document.getElementById('pfModal').style.display = 'flex';
+}
+
+function closePfModal() {
+    pfDisconnect();
+    document.getElementById('pfModal').style.display = 'none';
+    pfPodName = null;
+}
+
+function pfConnect() {
+    const port = parseInt(document.getElementById('pfPort').value);
+    if (!port || port < 1 || port > 65535) {
+        alert('Укажите корректный порт (1–65535)');
+        return;
+    }
+    if (pfWs) pfWs.close();
+    setPfStatus('connecting', 'Подключение…');
+    pfLog(`Подключение к ${pfPodName}:${port}…`);
+
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const url = `${proto}//${location.host}/api/kubernetes/clusters/${encodeURIComponent(currentClusterId)}/namespaces/${encodeURIComponent(currentNamespace)}/pods/${encodeURIComponent(pfPodName)}/portforward?port=${port}`;
+
+    pfWs = new WebSocket(url);
+    pfWs.binaryType = 'arraybuffer';
+
+    pfWs.onopen = () => {
+        setPfStatus('connected', `Туннель активен → pod:${port}`);
+        pfLog(`[connected] WebSocket туннель открыт к ${pfPodName}:${port}`);
+        document.getElementById('pfConnectBtn').style.display = 'none';
+        document.getElementById('pfDisconnectBtn').style.display = '';
+    };
+
+    pfWs.onmessage = (ev) => {
+        let text;
+        if (ev.data instanceof ArrayBuffer) {
+            text = `[data: ${ev.data.byteLength} bytes received]`;
+        } else {
+            try {
+                const obj = JSON.parse(ev.data);
+                if (obj.error) { pfLog(`[error] ${obj.error}`); return; }
+            } catch (_) {}
+            text = `[msg] ${ev.data}`;
+        }
+        pfLog(text);
+    };
+
+    pfWs.onerror = () => {
+        pfLog('[WebSocket error]');
+        setPfStatus('disconnected', 'Ошибка');
+    };
+
+    pfWs.onclose = () => {
+        setPfStatus('disconnected', 'Отключён');
+        pfLog('[disconnected]');
+        document.getElementById('pfConnectBtn').style.display = '';
+        document.getElementById('pfDisconnectBtn').style.display = 'none';
+        pfWs = null;
+    };
+}
+
+function pfDisconnect() {
+    if (pfWs) { pfWs.close(); pfWs = null; }
+}
+
+function pfLog(msg) {
+    const el = document.getElementById('pfLog');
+    el.textContent += (el.textContent === 'Нет активного подключения.' ? '' : '\n') + msg;
+    el.textContent = el.textContent.replace('Нет активного подключения.', '').trim();
+    el.scrollTop = el.scrollHeight;
+}
+
+function setPfStatus(state, text) {
+    document.getElementById('pfStatusDot').className = `exec-status-dot ${state}`;
+    document.getElementById('pfStatusText').textContent = text;
 }
 
 // ── UI helpers ─────────────────────────────────────────────────────────────
