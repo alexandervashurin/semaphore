@@ -80,11 +80,18 @@ cargo run -- server --host 0.0.0.0 --port 3000
 
 ### Из релиза GitHub
 
-Скачайте бинарник для вашей платформы из [релизов](https://github.com/tnl-o/velum/releases):
+Скачайте бинарник для вашей платформы из релизов:
 
+**Основной репозиторий:**
 ```bash
-# Linux x86_64
 wget https://github.com/tnl-o/velum/releases/download/v2.4.0/velum-linux-x86_64
+chmod +x velum-linux-x86_64
+./velum-linux-x86_64 server --host 0.0.0.0 --port 3000
+```
+
+**Текущий форк (актуальная версия):**
+```bash
+wget https://github.com/alexandervashurin/semaphore/releases/download/v2.4.0/velum-linux-x86_64
 chmod +x velum-linux-x86_64
 ./velum-linux-x86_64 server --host 0.0.0.0 --port 3000
 ```
