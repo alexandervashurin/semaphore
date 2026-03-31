@@ -2,18 +2,18 @@
 //!
 //! Handlers для управления Kubernetes namespaces
 
+use crate::api::handlers::kubernetes::client::KubernetesClusterService;
+use crate::api::state::AppState;
+use crate::error::{Error, Result};
 use axum::{
     extract::{Path, Query, State},
     Json,
 };
-use std::sync::Arc;
-use std::collections::BTreeMap;
-use crate::api::state::AppState;
-use crate::error::{Error, Result};
-use crate::api::handlers::kubernetes::client::KubernetesClusterService;
-use k8s_openapi::api::core::v1::{Namespace, ResourceQuota, LimitRange};
-use kube::api::{Api, ListParams, PostParams, DeleteParams};
+use k8s_openapi::api::core::v1::{LimitRange, Namespace, ResourceQuota};
+use kube::api::{Api, DeleteParams, ListParams, PostParams};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use super::types::NamespaceSummary;
 
@@ -52,22 +52,38 @@ pub async fn list_namespaces(
 
     let summaries = namespaces
         .iter()
-        .map(|ns| {
-            NamespaceSummary {
-                name: ns.get("name").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
-                uid: ns.get("uid").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
-                status: ns.get("status").and_then(|v| v.as_str()).unwrap_or("Unknown").to_string(),
-                created_at: ns.get("created_at").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
-                labels: ns.get("labels")
-                    .and_then(|v| serde_json::from_value(v.clone()).ok())
-                    .unwrap_or_default(),
-                annotations: ns.get("annotations")
-                    .and_then(|v| serde_json::from_value(v.clone()).ok())
-                    .unwrap_or_default(),
-                pods_count: None,
-                services_count: None,
-                deployments_count: None,
-            }
+        .map(|ns| NamespaceSummary {
+            name: ns
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
+                .to_string(),
+            uid: ns
+                .get("uid")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
+                .to_string(),
+            status: ns
+                .get("status")
+                .and_then(|v| v.as_str())
+                .unwrap_or("Unknown")
+                .to_string(),
+            created_at: ns
+                .get("created_at")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
+                .to_string(),
+            labels: ns
+                .get("labels")
+                .and_then(|v| serde_json::from_value(v.clone()).ok())
+                .unwrap_or_default(),
+            annotations: ns
+                .get("annotations")
+                .and_then(|v| serde_json::from_value(v.clone()).ok())
+                .unwrap_or_default(),
+            pods_count: None,
+            services_count: None,
+            deployments_count: None,
         })
         .collect();
 
@@ -96,7 +112,9 @@ pub async fn create_namespace(
     let client = state.kubernetes_client()?;
     let service = KubernetesClusterService::new(client);
 
-    let created = service.create_namespace(&payload.name, payload.labels.clone()).await?;
+    let created = service
+        .create_namespace(&payload.name, payload.labels.clone())
+        .await?;
     Ok(Json(created))
 }
 

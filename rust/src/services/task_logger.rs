@@ -82,7 +82,6 @@ impl fmt::Display for TaskStatus {
     }
 }
 
-
 impl TaskStatus {
     /// Проверяет, является ли статус допустимым
     pub fn is_valid(&self) -> bool {

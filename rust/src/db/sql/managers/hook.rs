@@ -13,4 +13,3 @@ impl HookManager for SqlStore {
         Ok(Vec::new())
     }
 }
-

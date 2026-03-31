@@ -1,8 +1,11 @@
 //! Модуль ошибок приложения
 
-use thiserror::Error;
 use axum::http::StatusCode;
-use axum::{Json, response::{IntoResponse, Response}};
+use axum::{
+    response::{IntoResponse, Response},
+    Json,
+};
+use thiserror::Error;
 
 /// Основной тип ошибок приложения
 #[derive(Error, Debug)]
@@ -88,12 +91,16 @@ impl Error {
             Error::Auth(_) | Error::Unauthorized(_) => StatusCode::UNAUTHORIZED,
             Error::Forbidden(_) => StatusCode::FORBIDDEN,
             Error::Config(_) => StatusCode::SERVICE_UNAVAILABLE,
-            Error::Database(_) | Error::Io(_) | Error::SystemTime(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            Error::Json(_) => StatusCode::BAD_REQUEST,
-            Error::Git(_) | Error::Http(_) => StatusCode::BAD_GATEWAY,
-            Error::WebSocket(_) | Error::Kubernetes(_) | Error::Scheduler(_) | Error::NotImplemented(_) | Error::Other(_) => {
+            Error::Database(_) | Error::Io(_) | Error::SystemTime(_) => {
                 StatusCode::INTERNAL_SERVER_ERROR
             }
+            Error::Json(_) => StatusCode::BAD_REQUEST,
+            Error::Git(_) | Error::Http(_) => StatusCode::BAD_GATEWAY,
+            Error::WebSocket(_)
+            | Error::Kubernetes(_)
+            | Error::Scheduler(_)
+            | Error::NotImplemented(_)
+            | Error::Other(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 
@@ -131,14 +138,26 @@ mod tests {
 
     #[test]
     fn test_error_to_status_code() {
-        assert_eq!(Error::NotFound("x".to_string()).to_status_code(), StatusCode::NOT_FOUND);
-        assert_eq!(Error::Unauthorized("x".to_string()).to_status_code(), StatusCode::UNAUTHORIZED);
-        assert_eq!(Error::Validation("x".to_string()).to_status_code(), StatusCode::BAD_REQUEST);
+        assert_eq!(
+            Error::NotFound("x".to_string()).to_status_code(),
+            StatusCode::NOT_FOUND
+        );
+        assert_eq!(
+            Error::Unauthorized("x".to_string()).to_status_code(),
+            StatusCode::UNAUTHORIZED
+        );
+        assert_eq!(
+            Error::Validation("x".to_string()).to_status_code(),
+            StatusCode::BAD_REQUEST
+        );
     }
 
     #[test]
     fn test_error_code() {
         assert_eq!(Error::NotFound("x".to_string()).error_code(), "NOT_FOUND");
-        assert_eq!(Error::Validation("x".to_string()).error_code(), "VALIDATION_ERROR");
+        assert_eq!(
+            Error::Validation("x".to_string()).error_code(),
+            "VALIDATION_ERROR"
+        );
     }
 }

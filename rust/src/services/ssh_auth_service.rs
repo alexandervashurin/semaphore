@@ -26,15 +26,14 @@ impl SshAuthService {
     pub fn create_ssh_callbacks(access_key: &AccessKey) -> Result<RemoteCallbacks<'static>> {
         // Проверяем тип ключа
         if access_key.r#type != AccessKeyType::SSH {
-            return Err(Error::Validation(
-                "Ключ не является SSH ключом".to_string(),
-            ));
+            return Err(Error::Validation("Ключ не является SSH ключом".to_string()));
         }
 
         // Получаем SSH ключ
-        let ssh_key = access_key.ssh_key.clone().ok_or_else(|| {
-            Error::Validation("SSH ключ не найден".to_string())
-        })?;
+        let ssh_key = access_key
+            .ssh_key
+            .clone()
+            .ok_or_else(|| Error::Validation("SSH ключ не найден".to_string()))?;
 
         let passphrase = access_key.ssh_passphrase.clone();
 
@@ -45,9 +44,8 @@ impl SshAuthService {
 
         // Записываем ключ в файл
         let key_path = temp_dir.path().join("ssh_key");
-        std::fs::write(&key_path, &ssh_key).map_err(|e| {
-            Error::Other(format!("Не удалось записать SSH ключ: {}", e))
-        })?;
+        std::fs::write(&key_path, &ssh_key)
+            .map_err(|e| Error::Other(format!("Не удалось записать SSH ключ: {}", e)))?;
 
         // Устанавливаем правильные права (только для владельца)
         #[cfg(unix)]
@@ -65,7 +63,10 @@ impl SshAuthService {
 
         // Устанавливаем credentials callback
         callbacks.credentials(move |url, username_from_url, allowed_types| {
-            info!("Git credentials callback: URL={}, username={:?}", url, username_from_url);
+            info!(
+                "Git credentials callback: URL={}, username={:?}",
+                url, username_from_url
+            );
 
             // Проверяем разрешенные типы аутентификации
             if allowed_types.contains(git2::CredentialType::SSH_KEY) {
@@ -126,9 +127,7 @@ impl SshAuthService {
     pub fn validate_ssh_key(ssh_key: &str) -> Result<()> {
         // Простая проверка формата
         if !ssh_key.contains("BEGIN") || !ssh_key.contains("END") {
-            return Err(Error::Validation(
-                "Неверный формат SSH ключа".to_string(),
-            ));
+            return Err(Error::Validation("Неверный формат SSH ключа".to_string()));
         }
 
         // Проверяем поддерживаемые типы ключей
@@ -149,7 +148,8 @@ mod tests {
 
     #[test]
     fn test_validate_valid_ssh_key() {
-        let key = "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA...\n-----END RSA PRIVATE KEY-----";
+        let key =
+            "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA...\n-----END RSA PRIVATE KEY-----";
         assert!(SshAuthService::validate_ssh_key(key).is_ok());
     }
 

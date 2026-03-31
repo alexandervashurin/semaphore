@@ -4,10 +4,10 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
-use k8s_openapi::api::core::v1::ConfigMap;
 use k8s_openapi::api::apps::v1::{DaemonSet, Deployment, StatefulSet};
-use k8s_openapi::api::core::v1::{Container, Pod, PodSpec};
 use k8s_openapi::api::batch::v1::{CronJob, Job};
+use k8s_openapi::api::core::v1::ConfigMap;
+use k8s_openapi::api::core::v1::{Container, Pod, PodSpec};
 use kube::api::{Api, DeleteParams, ListParams, PostParams};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -76,7 +76,11 @@ fn to_summary(cm: &ConfigMap) -> ConfigMapSummary {
         .unwrap_or(0);
 
     ConfigMapSummary {
-        name: cm.metadata.name.clone().unwrap_or_else(|| "unknown".to_string()),
+        name: cm
+            .metadata
+            .name
+            .clone()
+            .unwrap_or_else(|| "unknown".to_string()),
         namespace: cm
             .metadata
             .namespace
@@ -149,7 +153,10 @@ fn pod_spec_references_configmap(spec: &PodSpec, target_name: &str) -> Vec<Strin
     if spec
         .init_containers
         .as_ref()
-        .map(|c| c.iter().any(|i| container_references_configmap(i, target_name)))
+        .map(|c| {
+            c.iter()
+                .any(|i| container_references_configmap(i, target_name))
+        })
         .unwrap_or(false)
     {
         fields.push("spec.initContainers[*].env|envFrom".to_string());
@@ -291,18 +298,16 @@ pub async fn validate_configmap(
             ..Default::default()
         },
         ConfigMapEditorMode::RawYaml => {
-            let raw = payload
-                .raw
-                .as_deref()
-                .ok_or_else(|| Error::Validation("Field 'raw' is required for raw_yaml".to_string()))?;
+            let raw = payload.raw.as_deref().ok_or_else(|| {
+                Error::Validation("Field 'raw' is required for raw_yaml".to_string())
+            })?;
             serde_yaml::from_str::<ConfigMap>(raw)
                 .map_err(|e| Error::Validation(format!("YAML parse error: {e}")))?
         }
         ConfigMapEditorMode::RawJson => {
-            let raw = payload
-                .raw
-                .as_deref()
-                .ok_or_else(|| Error::Validation("Field 'raw' is required for raw_json".to_string()))?;
+            let raw = payload.raw.as_deref().ok_or_else(|| {
+                Error::Validation("Field 'raw' is required for raw_json".to_string())
+            })?;
             serde_json::from_str::<ConfigMap>(raw)
                 .map_err(|e| Error::Validation(format!("JSON parse error: {e}")))?
         }

@@ -34,7 +34,13 @@ impl PlaybookRunService {
         store: &S,
     ) -> Result<PlaybookRunResult>
     where
-        S: PlaybookManager + TemplateManager + InventoryManager + EnvironmentManager + TaskManager + UserManager + PlaybookRunManager,
+        S: PlaybookManager
+            + TemplateManager
+            + InventoryManager
+            + EnvironmentManager
+            + TaskManager
+            + UserManager
+            + PlaybookRunManager,
     {
         // 1. Валидация запроса
         request.validate().map_err(Error::Validation)?;
@@ -62,7 +68,8 @@ impl PlaybookRunService {
             project_id,
             request.inventory_id,
             store,
-        ).await?;
+        )
+        .await?;
 
         // 7. Создаем задачу
         let task = Task {
@@ -114,9 +121,7 @@ impl PlaybookRunService {
 
         info!(
             "Задача {} создана для playbook {}, запись истории {}",
-            created_task.id,
-            playbook.name,
-            _playbook_run.id
+            created_task.id, playbook.name, _playbook_run.id
         );
 
         // 10. Возвращаем результат
@@ -196,8 +201,7 @@ impl PlaybookRunService {
 
         info!(
             "Создан template {} для playbook {}",
-            created_template.id,
-            playbook.name
+            created_template.id, playbook.name
         );
 
         Ok(created_template)
@@ -220,8 +224,7 @@ mod tests {
 
     #[test]
     fn test_playbook_run_request_invalid_extra_vars() {
-        let request = PlaybookRunRequest::new()
-            .with_extra_vars(json!(["invalid", "array"]));
+        let request = PlaybookRunRequest::new().with_extra_vars(json!(["invalid", "array"]));
 
         assert!(request.validate().is_err());
     }

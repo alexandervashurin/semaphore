@@ -132,9 +132,7 @@ impl DbConfig {
                 }
                 Ok(conn)
             }
-            Some(DbDialect::SQLite) => {
-                Ok(self.db_name.clone())
-            }
+            Some(DbDialect::SQLite) => Ok(self.db_name.clone()),
             _ => Err("Unknown database dialect".to_string()),
         }
     }
@@ -145,13 +143,13 @@ impl DbConfig {
 pub struct LdapMappings {
     #[serde(default = "default_ldap_dn")]
     pub dn: String,
-    
+
     #[serde(default = "default_ldap_mail")]
     pub mail: String,
-    
+
     #[serde(default = "default_ldap_uid")]
     pub uid: String,
-    
+
     #[serde(default = "default_ldap_cn")]
     pub cn: String,
 }
@@ -198,50 +196,45 @@ impl LdapMappings {
 }
 
 /// Конфигурация LDAP
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, Default)]
 pub struct LdapConfig {
     #[serde(default)]
     pub enable: bool,
-    
+
     #[serde(default)]
     pub server: String,
-    
+
     #[serde(default)]
     pub bind_dn: String,
-    
+
     #[serde(default)]
     pub bind_password: String,
-    
+
     #[serde(default)]
     pub search_dn: String,
-    
+
     #[serde(default)]
     pub search_filter: String,
-    
+
     #[serde(default)]
     pub need_tls: bool,
-    
+
     #[serde(default)]
     pub mappings: LdapMappings,
 }
 
-
 /// Конфигурация TOTP
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, Default)]
 pub struct TotpConfig {
     #[serde(default)]
     pub enable: bool,
-    
+
     #[serde(default)]
     pub allow_recovery: bool,
 }
 
-
 /// Конфигурация аутентификации
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, Default)]
 pub struct AuthConfig {
     #[serde(default)]
     pub totp: TotpConfig,
@@ -250,17 +243,15 @@ pub struct AuthConfig {
     pub oidc_providers: Vec<crate::config::config_oidc::OidcProvider>,
 }
 
-
 /// Конфигурация HA (High Availability)
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, Default)]
 pub struct HAConfig {
     #[serde(default)]
     pub enable: bool,
-    
+
     #[serde(default)]
     pub redis: HARedisConfig,
-    
+
     #[serde(skip)]
     pub node_id: String,
 }
@@ -293,7 +284,10 @@ impl HAConfig {
         if self.redis.password.is_empty() {
             format!("redis://{}:{}/0", self.redis.host, self.redis.port)
         } else {
-            format!("redis://:{}@{}:{}/0", self.redis.password, self.redis.host, self.redis.port)
+            format!(
+                "redis://:{}@{}:{}/0",
+                self.redis.password, self.redis.host, self.redis.port
+            )
         }
     }
 
@@ -303,7 +297,10 @@ impl HAConfig {
         let mut rng = rand::thread_rng();
         let mut bytes = [0u8; 16];
         rng.fill_bytes(&mut bytes);
-        self.node_id = bytes.iter().map(|b| format!("{:02x}", b)).collect::<String>();
+        self.node_id = bytes
+            .iter()
+            .map(|b| format!("{:02x}", b))
+            .collect::<String>();
     }
 
     /// Получает Node ID или генерирует новый
@@ -314,7 +311,6 @@ impl HAConfig {
         &self.node_id
     }
 }
-
 
 /// Основная структура конфигурации
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
@@ -521,8 +517,7 @@ impl Config {
     pub fn from_env() -> Result<Self, crate::error::Error> {
         use std::env;
 
-        let dialect_str = env::var("VELUM_DB_DIALECT")
-            .unwrap_or_else(|_| "sqlite".to_string());
+        let dialect_str = env::var("VELUM_DB_DIALECT").unwrap_or_else(|_| "sqlite".to_string());
 
         let dialect = match dialect_str.as_str() {
             "postgres" | "postgresql" => DbDialect::Postgres,
@@ -578,8 +573,8 @@ impl Config {
     /// Возвращает LDAP конфигурацию.
     /// Приоритет: переменные окружения > YAML конфиг.
     pub fn ldap_config(&self) -> crate::config::LdapConfigFull {
-        use crate::config::{LdapConfigFull, config_ldap::load_ldap_from_env};
         use crate::config::types::LdapMappings;
+        use crate::config::{config_ldap::load_ldap_from_env, LdapConfigFull};
 
         // Начинаем со значений из YAML конфига
         let mut result = if let Some(ref lc) = self.ldap {
@@ -604,13 +599,27 @@ impl Config {
 
         // Переменные окружения перезаписывают значения из YAML
         let env_cfg = load_ldap_from_env();
-        if env_cfg.enable { result.enable = true; }
-        if !env_cfg.server.is_empty() { result.server = env_cfg.server; }
-        if !env_cfg.bind_dn.is_empty() { result.bind_dn = env_cfg.bind_dn; }
-        if !env_cfg.bind_password.is_empty() { result.bind_password = env_cfg.bind_password; }
-        if !env_cfg.search_dn.is_empty() { result.search_dn = env_cfg.search_dn; }
-        if !env_cfg.search_filter.is_empty() { result.search_filter = env_cfg.search_filter; }
-        if env_cfg.need_tls { result.need_tls = true; }
+        if env_cfg.enable {
+            result.enable = true;
+        }
+        if !env_cfg.server.is_empty() {
+            result.server = env_cfg.server;
+        }
+        if !env_cfg.bind_dn.is_empty() {
+            result.bind_dn = env_cfg.bind_dn;
+        }
+        if !env_cfg.bind_password.is_empty() {
+            result.bind_password = env_cfg.bind_password;
+        }
+        if !env_cfg.search_dn.is_empty() {
+            result.search_dn = env_cfg.search_dn;
+        }
+        if !env_cfg.search_filter.is_empty() {
+            result.search_filter = env_cfg.search_filter;
+        }
+        if env_cfg.need_tls {
+            result.need_tls = true;
+        }
 
         result
     }
@@ -649,7 +658,10 @@ impl Config {
         let mut rng = rand::thread_rng();
         let mut bytes = [0u8; 16];
         rng.fill_bytes(&mut bytes);
-        self.ha.node_id = bytes.iter().map(|b| format!("{:02x}", b)).collect::<String>();
+        self.ha.node_id = bytes
+            .iter()
+            .map(|b| format!("{:02x}", b))
+            .collect::<String>();
     }
 }
 

@@ -2,8 +2,8 @@
 //!
 //! Команда для запуска раннера
 
-use clap::Args;
 use crate::cli::CliResult;
+use clap::Args;
 
 /// Команда runner
 #[derive(Debug, Args)]

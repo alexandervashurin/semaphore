@@ -30,9 +30,9 @@ impl ObjectReferrers {
 
     /// Проверяет, есть ли ссылки
     pub fn is_empty(&self) -> bool {
-        self.templates.is_empty() &&
-        self.tasks.is_empty() &&
-        self.schedules.is_empty() &&
-        self.integrations.is_empty()
+        self.templates.is_empty()
+            && self.tasks.is_empty()
+            && self.schedules.is_empty()
+            && self.integrations.is_empty()
     }
 }

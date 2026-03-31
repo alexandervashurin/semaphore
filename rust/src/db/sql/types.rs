@@ -108,25 +108,22 @@ pub struct SqlTransaction {
 impl SqlTransaction {
     /// Создаёт новую транзакцию
     pub fn new() -> Self {
-        Self {
-            postgres_txn: None,
-        }
+        Self { postgres_txn: None }
     }
 
     /// Начинает транзакцию
     pub async fn begin(&mut self, db: &SqlDb) -> Result<(), crate::error::Error> {
-        let pool = db.get_postgres_pool()
+        let pool = db
+            .get_postgres_pool()
             .ok_or_else(|| crate::error::Error::Other("PostgreSQL pool not found".to_string()))?;
-        self.postgres_txn = Some(pool.begin().await
-            .map_err(crate::error::Error::Database)?);
+        self.postgres_txn = Some(pool.begin().await.map_err(crate::error::Error::Database)?);
         Ok(())
     }
 
     /// Фиксирует транзакцию
     pub async fn commit(&mut self) -> Result<(), crate::error::Error> {
         if let Some(txn) = self.postgres_txn.take() {
-            txn.commit().await
-                .map_err(crate::error::Error::Database)?;
+            txn.commit().await.map_err(crate::error::Error::Database)?;
         }
         Ok(())
     }
@@ -134,7 +131,8 @@ impl SqlTransaction {
     /// Откатывает транзакцию
     pub async fn rollback(&mut self) -> Result<(), crate::error::Error> {
         if let Some(txn) = self.postgres_txn.take() {
-            txn.rollback().await
+            txn.rollback()
+                .await
                 .map_err(crate::error::Error::Database)?;
         }
         Ok(())

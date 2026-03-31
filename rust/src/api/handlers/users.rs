@@ -2,20 +2,20 @@
 //!
 //! Обработчики запросов для управления пользователями
 
+use crate::api::extractors::AuthUser;
+use crate::api::middleware::ErrorResponse;
+use crate::api::state::AppState;
+use crate::db::store::{RetrieveQueryParams, UserManager};
+use crate::error::Error;
+use crate::models::User;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
     Json,
 };
-use std::sync::Arc;
-use serde::Deserialize;
-use crate::api::state::AppState;
-use crate::api::extractors::AuthUser;
-use crate::models::User;
-use crate::db::store::{RetrieveQueryParams, UserManager};
-use crate::error::Error;
-use crate::api::middleware::ErrorResponse;
 use chrono;
+use serde::Deserialize;
+use std::sync::Arc;
 
 /// Получить список пользователей
 ///
@@ -23,12 +23,16 @@ use chrono;
 pub async fn get_users(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<Vec<User>>, (StatusCode, Json<ErrorResponse>)> {
-    let users = state.store.get_users(RetrieveQueryParams::default())
+    let users = state
+        .store
+        .get_users(RetrieveQueryParams::default())
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
     Ok(Json(users))
 }
@@ -40,18 +44,16 @@ pub async fn get_user(
     State(state): State<Arc<AppState>>,
     Path(user_id): Path<i32>,
 ) -> Result<Json<User>, (StatusCode, Json<ErrorResponse>)> {
-    let user = state.store.get_user(user_id)
-        .await
-        .map_err(|e| match e {
-            Error::NotFound(_) => (
-                StatusCode::NOT_FOUND,
-                Json(ErrorResponse::new(e.to_string())),
-            ),
-            _ => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse::new(e.to_string())),
-            ),
-        })?;
+    let user = state.store.get_user(user_id).await.map_err(|e| match e {
+        Error::NotFound(_) => (
+            StatusCode::NOT_FOUND,
+            Json(ErrorResponse::new(e.to_string())),
+        ),
+        _ => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(e.to_string())),
+        ),
+    })?;
 
     Ok(Json(user))
 }
@@ -64,18 +66,16 @@ pub async fn update_user(
     Path(user_id): Path<i32>,
     Json(payload): Json<UserUpdatePayload>,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    let mut user = state.store.get_user(user_id)
-        .await
-        .map_err(|e| match e {
-            Error::NotFound(_) => (
-                StatusCode::NOT_FOUND,
-                Json(ErrorResponse::new(e.to_string())),
-            ),
-            _ => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse::new(e.to_string())),
-            ),
-        })?;
+    let mut user = state.store.get_user(user_id).await.map_err(|e| match e {
+        Error::NotFound(_) => (
+            StatusCode::NOT_FOUND,
+            Json(ErrorResponse::new(e.to_string())),
+        ),
+        _ => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(e.to_string())),
+        ),
+    })?;
 
     if let Some(username) = payload.username {
         user.username = username;
@@ -87,12 +87,12 @@ pub async fn update_user(
         user.email = email;
     }
 
-    state.store.update_user(user)
-        .await
-        .map_err(|e| (
+    state.store.update_user(user).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     Ok(StatusCode::OK)
 }
@@ -104,12 +104,12 @@ pub async fn delete_user(
     State(state): State<Arc<AppState>>,
     Path(user_id): Path<i32>,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    state.store.delete_user(user_id)
-        .await
-        .map_err(|e| (
+    state.store.delete_user(user_id).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -121,7 +121,11 @@ pub async fn delete_user(
 /// Внешние пользователи (LDAP/OIDC) не могут менять пароль через API.
 pub async fn update_user_password(
     State(state): State<Arc<AppState>>,
-    AuthUser { user_id: editor_id, admin, .. }: AuthUser,
+    AuthUser {
+        user_id: editor_id,
+        admin,
+        ..
+    }: AuthUser,
     Path(target_user_id): Path<i32>,
     Json(payload): Json<PasswordUpdatePayload>,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
@@ -131,7 +135,9 @@ pub async fn update_user_password(
         return Err((StatusCode::FORBIDDEN, Json(err)));
     }
 
-    let target_user = state.store.get_user(target_user_id)
+    let target_user = state
+        .store
+        .get_user(target_user_id)
         .await
         .map_err(|e| match e {
             Error::NotFound(_) => (
@@ -150,7 +156,9 @@ pub async fn update_user_password(
         return Err((StatusCode::BAD_REQUEST, Json(err)));
     }
 
-    state.store.set_user_password(target_user_id, &payload.password)
+    state
+        .store
+        .set_user_password(target_user_id, &payload.password)
         .await
         .map_err(|e| {
             let (status, resp) = ErrorResponse::from_crate_error(&e);
@@ -200,12 +208,16 @@ pub async fn create_user(
         email_otp: None,
     };
 
-    let created = state.store.create_user(user, payload.password.as_deref().unwrap_or(""))
+    let created = state
+        .store
+        .create_user(user, payload.password.as_deref().unwrap_or(""))
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
     Ok((StatusCode::CREATED, Json(created)))
 }
@@ -246,7 +258,7 @@ mod tests {
             "name": "New Name",
             "email": "new@example.com"
         }"#;
-        
+
         let payload: UserUpdatePayload = serde_json::from_str(json).unwrap();
         assert_eq!(payload.username, Some("newuser".to_string()));
         assert_eq!(payload.name, Some("New Name".to_string()));
@@ -258,7 +270,7 @@ mod tests {
         let json = r#"{
             "email": "new@example.com"
         }"#;
-        
+
         let payload: UserUpdatePayload = serde_json::from_str(json).unwrap();
         assert_eq!(payload.username, None);
         assert_eq!(payload.name, None);
@@ -268,7 +280,7 @@ mod tests {
     #[test]
     fn test_user_update_payload_deserialize_empty() {
         let json = r#"{}"#;
-        
+
         let payload: UserUpdatePayload = serde_json::from_str(json).unwrap();
         assert_eq!(payload.username, None);
         assert_eq!(payload.name, None);

@@ -51,13 +51,17 @@ impl SqlDb {
     }
 
     /// Получает задачи проекта
-    pub async fn get_tasks(&self, project_id: i32, template_id: Option<i32>) -> Result<Vec<TaskWithTpl>> {
+    pub async fn get_tasks(
+        &self,
+        project_id: i32,
+        template_id: Option<i32>,
+    ) -> Result<Vec<TaskWithTpl>> {
         let pool = self.pg_pool()?;
         let mut query = String::from(
             "SELECT t.*, tpl.playbook as tpl_playbook
              FROM task t
              LEFT JOIN template tpl ON t.template_id = tpl.id AND tpl.project_id = t.project_id
-             WHERE t.project_id = $1"
+             WHERE t.project_id = $1",
         );
 
         let rows = if let Some(tpl_id) = template_id {
@@ -108,13 +112,20 @@ impl SqlDb {
         let (filter, rows) = if let Some(ref statuses) = status_filter {
             if statuses.is_empty() {
                 let q = format!("{} ORDER BY t.created DESC LIMIT {}", base, lim);
-                let r = sqlx::query(&q).fetch_all(pool).await.map_err(Error::Database)?;
+                let r = sqlx::query(&q)
+                    .fetch_all(pool)
+                    .await
+                    .map_err(Error::Database)?;
                 (String::new(), r)
             } else {
                 // Build $1,$2,... placeholders
-                let placeholders: Vec<String> = (1..=statuses.len()).map(|i| format!("${}", i)).collect();
+                let placeholders: Vec<String> =
+                    (1..=statuses.len()).map(|i| format!("${}", i)).collect();
                 let filter_str = format!(" WHERE t.status IN ({})", placeholders.join(", "));
-                let q = format!("{}{} ORDER BY t.created DESC LIMIT {}", base, filter_str, lim);
+                let q = format!(
+                    "{}{} ORDER BY t.created DESC LIMIT {}",
+                    base, filter_str, lim
+                );
                 let mut query = sqlx::query(&q);
                 for s in statuses {
                     query = query.bind(s);
@@ -124,7 +135,10 @@ impl SqlDb {
             }
         } else {
             let q = format!("{} ORDER BY t.created DESC LIMIT {}", base, lim);
-            let r = sqlx::query(&q).fetch_all(pool).await.map_err(Error::Database)?;
+            let r = sqlx::query(&q)
+                .fetch_all(pool)
+                .await
+                .map_err(Error::Database)?;
             (String::new(), r)
         };
         let _ = filter;
@@ -133,29 +147,36 @@ impl SqlDb {
         for row in rows {
             let task = Self::row_to_task(&row)?;
             let tpl_playbook: Option<String> = row.try_get("tpl_playbook").ok();
-            tasks.push(TaskWithTpl { task, tpl_playbook, tpl_type: None, tpl_app: None, user_name: None, build_task: None });
+            tasks.push(TaskWithTpl {
+                task,
+                tpl_playbook,
+                tpl_type: None,
+                tpl_app: None,
+                user_name: None,
+                build_task: None,
+            });
         }
         Ok(tasks)
     }
 
     /// Получает задачу по ID
     pub async fn get_task(&self, project_id: i32, task_id: i32) -> Result<Task> {
-        let row = sqlx::query(
-            "SELECT * FROM task WHERE id = $1 AND project_id = $2"
-        )
-        .bind(task_id)
-        .bind(project_id)
-        .fetch_optional(self.pg_pool()?)
-        .await
-        .map_err(Error::Database)?
-        .ok_or_else(|| Error::NotFound("Task not found".to_string()))?;
+        let row = sqlx::query("SELECT * FROM task WHERE id = $1 AND project_id = $2")
+            .bind(task_id)
+            .bind(project_id)
+            .fetch_optional(self.pg_pool()?)
+            .await
+            .map_err(Error::Database)?
+            .ok_or_else(|| Error::NotFound("Task not found".to_string()))?;
 
         Self::row_to_task(&row)
     }
 
     /// Создаёт новую задачу
     pub async fn create_task(&self, mut task: Task) -> Result<Task> {
-        let params_json = task.params.as_ref()
+        let params_json = task
+            .params
+            .as_ref()
             .and_then(|p| serde_json::to_string(p).ok());
 
         let id: i32 = sqlx::query_scalar(
@@ -198,7 +219,7 @@ impl SqlDb {
     pub async fn update_task(&self, task: Task) -> Result<()> {
         sqlx::query(
             "UPDATE task SET status = $1, message = $2, commit_hash = $3, commit_message = $4,
-             version = $5, start_time = $6, end_time = $7 WHERE id = $8 AND project_id = $9"
+             version = $5, start_time = $6, end_time = $7 WHERE id = $8 AND project_id = $9",
         )
         .bind(task.status.to_string())
         .bind(&task.message)
@@ -216,16 +237,19 @@ impl SqlDb {
     }
 
     /// Обновляет статус задачи
-    pub async fn update_task_status(&self, project_id: i32, task_id: i32, status: TaskStatus) -> Result<()> {
-        sqlx::query(
-            "UPDATE task SET status = $1 WHERE id = $2 AND project_id = $3"
-        )
-        .bind(status.to_string())
-        .bind(task_id)
-        .bind(project_id)
-        .execute(self.pg_pool()?)
-        .await
-        .map_err(Error::Database)?;
+    pub async fn update_task_status(
+        &self,
+        project_id: i32,
+        task_id: i32,
+        status: TaskStatus,
+    ) -> Result<()> {
+        sqlx::query("UPDATE task SET status = $1 WHERE id = $2 AND project_id = $3")
+            .bind(status.to_string())
+            .bind(task_id)
+            .bind(project_id)
+            .execute(self.pg_pool()?)
+            .await
+            .map_err(Error::Database)?;
         Ok(())
     }
 

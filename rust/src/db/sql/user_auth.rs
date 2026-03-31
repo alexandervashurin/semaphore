@@ -45,8 +45,7 @@ pub fn hash_password(password: &str) -> Result<String> {
 
 /// Проверяет пароль
 pub fn verify_password(password: &str, hash: &str) -> Result<bool> {
-    verify(password, hash)
-        .map_err(|e| Error::Other(format!("Failed to verify password: {}", e)))
+    verify(password, hash).map_err(|e| Error::Other(format!("Failed to verify password: {}", e)))
 }
 
 #[cfg(test)]

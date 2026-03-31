@@ -8,7 +8,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use tokio::process::Command as TokioCommand;
-use tracing::{info, debug};
+use tracing::{debug, info};
 
 use crate::error::{Error, Result};
 use crate::models::Repository;
@@ -27,25 +27,25 @@ pub enum GitRepositoryDirType {
 pub trait GitClient: Send + Sync {
     /// Клонирует репозиторий
     async fn clone(&self, repo: &GitRepository) -> Result<()>;
-    
+
     /// Pull изменения
     async fn pull(&self, repo: &GitRepository) -> Result<()>;
-    
+
     /// Checkout ветки/тега
     async fn checkout(&self, repo: &GitRepository, target: &str) -> Result<()>;
-    
+
     /// Проверяет, можно ли сделать pull
     fn can_be_pulled(&self, repo: &GitRepository) -> bool;
-    
+
     /// Получает сообщение последнего коммита
     async fn get_last_commit_message(&self, repo: &GitRepository) -> Result<String>;
-    
+
     /// Получает хэш последнего коммита
     async fn get_last_commit_hash(&self, repo: &GitRepository) -> Result<String>;
-    
+
     /// Получает хэш последнего удалённого коммита
     async fn get_last_remote_commit_hash(&self, repo: &GitRepository) -> Result<String>;
-    
+
     /// Получает список удалённых веток
     async fn get_remote_branches(&self, repo: &GitRepository) -> Result<Vec<String>>;
 }
@@ -64,11 +64,7 @@ pub struct GitRepository {
 
 impl GitRepository {
     /// Создаёт новый GitRepository
-    pub fn new(
-        repository: Repository,
-        project_id: i32,
-        template_id: i32,
-    ) -> Self {
+    pub fn new(repository: Repository, project_id: i32, template_id: i32) -> Self {
         Self {
             tmp_dir_name: None,
             repository,
@@ -87,13 +83,15 @@ impl GitRepository {
     pub fn get_full_path(&self) -> PathBuf {
         if let Some(ref tmp_name) = self.tmp_dir_name {
             // Временная директория проекта
-            PathBuf::from(format!("/tmp/semaphore/project_{}/{}", self.project_id, tmp_name))
+            PathBuf::from(format!(
+                "/tmp/semaphore/project_{}/{}",
+                self.project_id, tmp_name
+            ))
         } else {
             // Полная директория репозитория
             PathBuf::from(format!(
                 "/tmp/semaphore/repo_{}_{}",
-                self.repository.id,
-                self.template_id
+                self.repository.id, self.template_id
             ))
         }
     }
@@ -102,7 +100,10 @@ impl GitRepository {
     pub fn validate_repo(&self) -> Result<()> {
         let path = self.get_full_path();
         if !path.exists() {
-            return Err(Error::NotFound(format!("Repository not found at {:?}", path)));
+            return Err(Error::NotFound(format!(
+                "Repository not found at {:?}",
+                path
+            )));
         }
         Ok(())
     }
@@ -110,14 +111,14 @@ impl GitRepository {
     /// Клонирует репозиторий
     pub async fn clone(&self) -> Result<()> {
         info!("Cloning repository {}", self.repository.git_url);
-        
+
         let repo_path = self.get_full_path();
-        
+
         // Создаём родительскую директорию
         if let Some(parent) = repo_path.parent() {
-            tokio::fs::create_dir_all(parent).await.map_err(|e| {
-                Error::Other(format!("Ошибка создания директории: {}", e))
-            })?;
+            tokio::fs::create_dir_all(parent)
+                .await
+                .map_err(|e| Error::Other(format!("Ошибка создания директории: {}", e)))?;
         }
 
         let mut cmd = TokioCommand::new("git");
@@ -127,9 +128,10 @@ impl GitRepository {
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
 
-        let output = cmd.output().await.map_err(|e| {
-            Error::Other(format!("Ошибка клонирования репозитория: {}", e))
-        })?;
+        let output = cmd
+            .output()
+            .await
+            .map_err(|e| Error::Other(format!("Ошибка клонирования репозитория: {}", e)))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -143,18 +145,19 @@ impl GitRepository {
     /// Pull изменения
     pub async fn pull(&self) -> Result<()> {
         debug!("Pulling changes for repository");
-        
+
         let repo_path = self.get_full_path();
-        
+
         let mut cmd = TokioCommand::new("git");
         cmd.arg("pull");
         cmd.current_dir(&repo_path);
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
 
-        let output = cmd.output().await.map_err(|e| {
-            Error::Other(format!("Ошибка pull: {}", e))
-        })?;
+        let output = cmd
+            .output()
+            .await
+            .map_err(|e| Error::Other(format!("Ошибка pull: {}", e)))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -167,9 +170,9 @@ impl GitRepository {
     /// Checkout ветки/тега
     pub async fn checkout(&self, target: &str) -> Result<()> {
         debug!("Checking out {}", target);
-        
+
         let repo_path = self.get_full_path();
-        
+
         let mut cmd = TokioCommand::new("git");
         cmd.arg("checkout");
         cmd.arg(target);
@@ -177,9 +180,10 @@ impl GitRepository {
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
 
-        let output = cmd.output().await.map_err(|e| {
-            Error::Other(format!("Ошибка checkout: {}", e))
-        })?;
+        let output = cmd
+            .output()
+            .await
+            .map_err(|e| Error::Other(format!("Ошибка checkout: {}", e)))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -198,7 +202,7 @@ impl GitRepository {
     /// Получает сообщение последнего коммита
     pub async fn get_last_commit_message(&self) -> Result<String> {
         let repo_path = self.get_full_path();
-        
+
         let mut cmd = TokioCommand::new("git");
         cmd.arg("log");
         cmd.arg("-1");
@@ -207,17 +211,16 @@ impl GitRepository {
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
 
-        let output = cmd.output().await.map_err(|e| {
-            Error::Other(format!("Ошибка получения commit message: {}", e))
-        })?;
+        let output = cmd
+            .output()
+            .await
+            .map_err(|e| Error::Other(format!("Ошибка получения commit message: {}", e)))?;
 
         if !output.status.success() {
             return Err(Error::Other("Git log failed".to_string()));
         }
 
-        let message = String::from_utf8_lossy(&output.stdout)
-            .trim()
-            .to_string();
+        let message = String::from_utf8_lossy(&output.stdout).trim().to_string();
 
         Ok(message)
     }
@@ -225,7 +228,7 @@ impl GitRepository {
     /// Получает хэш последнего коммита
     pub async fn get_last_commit_hash(&self) -> Result<String> {
         let repo_path = self.get_full_path();
-        
+
         let mut cmd = TokioCommand::new("git");
         cmd.arg("rev-parse");
         cmd.arg("HEAD");
@@ -233,17 +236,16 @@ impl GitRepository {
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
 
-        let output = cmd.output().await.map_err(|e| {
-            Error::Other(format!("Ошибка получения commit hash: {}", e))
-        })?;
+        let output = cmd
+            .output()
+            .await
+            .map_err(|e| Error::Other(format!("Ошибка получения commit hash: {}", e)))?;
 
         if !output.status.success() {
             return Err(Error::Other("Git rev-parse failed".to_string()));
         }
 
-        let hash = String::from_utf8_lossy(&output.stdout)
-            .trim()
-            .to_string();
+        let hash = String::from_utf8_lossy(&output.stdout).trim().to_string();
 
         Ok(hash)
     }
@@ -251,22 +253,23 @@ impl GitRepository {
     /// Получает хэш последнего удалённого коммита
     pub async fn get_last_remote_commit_hash(&self) -> Result<String> {
         let repo_path = self.get_full_path();
-        
+
         let mut cmd = TokioCommand::new("git");
         cmd.arg("ls-remote");
         cmd.arg(self.repository.git_url.clone());
-        
+
         // Получаем HEAD
-        let output = cmd.output().await.map_err(|e| {
-            Error::Other(format!("Ошибка получения remote hash: {}", e))
-        })?;
+        let output = cmd
+            .output()
+            .await
+            .map_err(|e| Error::Other(format!("Ошибка получения remote hash: {}", e)))?;
 
         if !output.status.success() {
             return Err(Error::Other("Git ls-remote failed".to_string()));
         }
 
         let output_str = String::from_utf8_lossy(&output.stdout);
-        
+
         // Парсим вывод: "hash\trefs/heads/branch"
         for line in output_str.lines() {
             if line.contains("HEAD") || line.contains("refs/heads/") {
@@ -277,7 +280,9 @@ impl GitRepository {
             }
         }
 
-        Err(Error::Other("Не удалось получить remote commit hash".to_string()))
+        Err(Error::Other(
+            "Не удалось получить remote commit hash".to_string(),
+        ))
     }
 
     /// Получает список удалённых веток
@@ -289,9 +294,10 @@ impl GitRepository {
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
 
-        let output = cmd.output().await.map_err(|e| {
-            Error::Other(format!("Ошибка получения веток: {}", e))
-        })?;
+        let output = cmd
+            .output()
+            .await
+            .map_err(|e| Error::Other(format!("Ошибка получения веток: {}", e)))?;
 
         if !output.status.success() {
             return Err(Error::Other("Git ls-remote failed".to_string()));
@@ -402,8 +408,7 @@ mod tests {
             created: None,
         };
 
-        let git_repo = GitRepository::new(repo, 1, 1)
-            .with_tmp_dir("test_tmp".to_string());
+        let git_repo = GitRepository::new(repo, 1, 1).with_tmp_dir("test_tmp".to_string());
 
         assert!(git_repo.tmp_dir_name.is_some());
         assert_eq!(git_repo.tmp_dir_name.unwrap(), "test_tmp");

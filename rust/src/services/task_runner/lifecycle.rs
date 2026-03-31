@@ -2,36 +2,36 @@
 //!
 //! Аналог services/tasks/task_runner_lifecycle.go из Go версии
 
-use std::sync::Arc;
-use tracing::{info, error};
+use crate::db_lib::AccessKeyInstallerImpl;
 use crate::error::Result;
-use crate::services::task_runner::TaskRunner;
 use crate::services::local_job::LocalJob;
 use crate::services::task_logger::TaskLogger;
-use crate::db_lib::AccessKeyInstallerImpl;
+use crate::services::task_runner::TaskRunner;
+use std::sync::Arc;
+use tracing::{error, info};
 
 impl TaskRunner {
     /// run запускает задачу
     pub async fn run(&mut self) -> Result<()> {
         self.log("Task started");
-        
+
         // Подготовка деталей
         if let Err(e) = self.populate_details().await {
             let msg = format!("Failed to populate details: {}", e);
             self.log(&msg);
             return Err(e);
         }
-        
+
         // Подготовка окружения
         if let Err(e) = self.populate_task_environment().await {
             let msg = format!("Failed to populate environment: {}", e);
             self.log(&msg);
             return Err(e);
         }
-        
+
         // Создание LocalJob
         let logger = Arc::new(crate::services::task_logger::BasicLogger::new());
-        
+
         let mut local_job = LocalJob::new(
             self.task.clone(),
             self.template.clone(),
@@ -43,14 +43,15 @@ impl TaskRunner {
             std::path::PathBuf::from(format!("/tmp/semaphore/task_{}", self.task.id)),
             std::path::PathBuf::from(format!("/tmp/semaphore/task_{}_tmp", self.task.id)),
         );
-        local_job.store = Some(Arc::clone(&self.pool.store) as Arc<dyn crate::db::store::Store + Send + Sync>);
+        local_job.store =
+            Some(Arc::clone(&self.pool.store) as Arc<dyn crate::db::store::Store + Send + Sync>);
         local_job.set_run_params(
             self.username.clone(),
             self.incoming_version.clone(),
             self.alias.clone().unwrap_or_default(),
         );
         self.job = Some(Box::new(local_job));
-        
+
         // Запуск задачи
         if let Some(ref mut job) = self.job {
             if let Err(e) = job.run().await {
@@ -59,12 +60,12 @@ impl TaskRunner {
                 return Err(e);
             }
         }
-        
+
         self.log("Task completed successfully");
-        
+
         // Создание события задачи
         self.create_task_event().await?;
-        
+
         Ok(())
     }
 
@@ -73,10 +74,10 @@ impl TaskRunner {
         if let Some(ref mut job) = self.job {
             job.kill();
         }
-        
+
         let mut killed = self.killed.lock().await;
         *killed = true;
-        
+
         self.log("Task killed");
     }
 
@@ -92,15 +93,20 @@ impl TaskRunner {
             self.task.status.to_string().to_uppercase()
         );
 
-        match self.pool.store.create_event(Event {
-            id: 0,
-            object_type: obj_type.to_string(),
-            object_id: Some(self.task.id),
-            project_id: Some(self.task.project_id),
-            description: desc,
-            user_id: None,
-            created: chrono::Utc::now(),
-        }).await {
+        match self
+            .pool
+            .store
+            .create_event(Event {
+                id: 0,
+                object_type: obj_type.to_string(),
+                object_id: Some(self.task.id),
+                project_id: Some(self.task.project_id),
+                description: desc,
+                user_id: None,
+                created: chrono::Utc::now(),
+            })
+            .await
+        {
             Ok(_) => Ok(()),
             Err(e) => {
                 error!("Failed to create task event: {}", e);
@@ -113,10 +119,10 @@ impl TaskRunner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Utc;
+    use crate::db::MockStore;
     use crate::models::Task;
     use crate::services::task_logger::TaskStatus;
-    use crate::db::MockStore;
+    use chrono::Utc;
 
     fn create_test_task_runner() -> TaskRunner {
         use crate::services::task_pool::TaskPool;
@@ -148,12 +154,14 @@ mod tests {
             params: None,
         };
 
-        let pool = Arc::new(TaskPool::new(
-            Arc::new(MockStore::new()),
-            5,
-        ));
+        let pool = Arc::new(TaskPool::new(Arc::new(MockStore::new()), 5));
 
-        TaskRunner::new(task, pool, "testuser".to_string(), AccessKeyInstallerImpl::new())
+        TaskRunner::new(
+            task,
+            pool,
+            "testuser".to_string(),
+            AccessKeyInstallerImpl::new(),
+        )
     }
 
     #[tokio::test]

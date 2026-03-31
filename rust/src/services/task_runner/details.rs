@@ -9,29 +9,39 @@ impl TaskRunner {
     /// populate_details загружает детали задачи из БД
     pub async fn populate_details(&mut self) -> Result<()> {
         // Загрузка шаблона
-        self.template = self.pool.store.get_template(self.task.project_id, self.task.template_id).await?;
-        
+        self.template = self
+            .pool
+            .store
+            .get_template(self.task.project_id, self.task.template_id)
+            .await?;
+
         // Загрузка инвентаря
         if let Some(inventory_id) = self.task.inventory_id {
-            self.inventory = self.pool.store
+            self.inventory = self
+                .pool
+                .store
                 .get_inventory(self.template.project_id, inventory_id)
                 .await?;
         }
-        
+
         // Загрузка репозитория
         if let Some(repository_id) = self.task.repository_id {
-            self.repository = self.pool.store
+            self.repository = self
+                .pool
+                .store
                 .get_repository(self.template.project_id, repository_id)
                 .await?;
         }
-        
+
         // Загрузка окружения
         if let Some(environment_id) = self.task.environment_id {
-            self.environment = self.pool.store
+            self.environment = self
+                .pool
+                .store
                 .get_environment(self.template.project_id, environment_id)
                 .await?;
         }
-        
+
         Ok(())
     }
 
@@ -57,12 +67,12 @@ impl TaskRunner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Utc;
-    use crate::models::{Task, Project};
+    use crate::db::MockStore;
+    use crate::db_lib::AccessKeyInstallerImpl;
+    use crate::models::{Project, Task};
     use crate::services::task_logger::TaskStatus;
     use crate::services::task_pool::TaskPool;
-    use crate::db_lib::AccessKeyInstallerImpl;
-    use crate::db::MockStore;
+    use chrono::Utc;
     use std::sync::Arc;
 
     fn create_test_task_runner() -> TaskRunner {
@@ -82,22 +92,24 @@ mod tests {
             ..Default::default()
         };
 
-        let pool = Arc::new(TaskPool::new(
-            Arc::new(MockStore::new()),
-            5,
-        ));
+        let pool = Arc::new(TaskPool::new(Arc::new(MockStore::new()), 5));
 
-        TaskRunner::new(task, pool, "testuser".to_string(), AccessKeyInstallerImpl::new())
+        TaskRunner::new(
+            task,
+            pool,
+            "testuser".to_string(),
+            AccessKeyInstallerImpl::new(),
+        )
     }
 
     #[tokio::test]
     async fn test_populate_details() {
         let mut runner = create_test_task_runner();
-        
+
         // В реальном тесте нужна моковая БД с данными
         // Пока просто проверяем, что метод вызывается
         let result = runner.populate_details().await;
-        
+
         // Ожидается ошибка, так как БД пустая
         assert!(result.is_err());
     }
@@ -105,9 +117,9 @@ mod tests {
     #[tokio::test]
     async fn test_populate_task_environment() {
         let mut runner = create_test_task_runner();
-        
+
         let result = runner.populate_task_environment().await;
-        
+
         // Проверяем, что метод работает
         assert!(result.is_ok() || result.is_err()); // Either is fine for now
     }

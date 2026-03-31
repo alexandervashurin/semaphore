@@ -2,7 +2,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::{FromRow, Type, decode::Decode, encode::Encode, database::Database};
+use sqlx::{database::Database, decode::Decode, encode::Encode, FromRow, Type};
 
 /// Тип шаблона
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -84,7 +84,10 @@ where
     DB: 'q,
     String: Encode<'q, DB>,
 {
-    fn encode_by_ref(&self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
+    fn encode_by_ref(
+        &self,
+        buf: &mut <DB as Database>::ArgumentBuffer<'q>,
+    ) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
         let s = match self {
             TemplateType::Build => "build",
             TemplateType::Deploy => "deploy",
@@ -93,7 +96,8 @@ where
             TemplateType::Terraform => "terraform",
             TemplateType::Shell => "shell",
             TemplateType::Default => "default",
-        }.to_string();
+        }
+        .to_string();
         <String as Encode<'q, DB>>::encode(s, buf)
     }
 }
@@ -185,7 +189,10 @@ where
     DB: 'q,
     String: Encode<'q, DB>,
 {
-    fn encode_by_ref(&self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
+    fn encode_by_ref(
+        &self,
+        buf: &mut <DB as Database>::ArgumentBuffer<'q>,
+    ) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
         let s = match self {
             TemplateApp::Ansible => "ansible",
             TemplateApp::Terraform => "terraform",
@@ -196,7 +203,8 @@ where
             TemplateApp::Python => "python",
             TemplateApp::Pulumi => "pulumi",
             TemplateApp::Default => "default",
-        }.to_string();
+        }
+        .to_string();
         <String as Encode<'q, DB>>::encode(s, buf)
     }
 }

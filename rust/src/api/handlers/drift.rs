@@ -33,7 +33,10 @@ pub async fn list_drift_configs(
             }
             (StatusCode::OK, Json(json!(result)))
         }
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        ),
     }
 }
 
@@ -46,7 +49,10 @@ pub async fn create_drift_config(
     let store = state.store.store();
     match store.create_drift_config(project_id, body).await {
         Ok(c) => (StatusCode::CREATED, Json(json!(c))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        ),
     }
 }
 
@@ -63,9 +69,16 @@ pub async fn update_drift_config(
     Json(body): Json<DriftToggle>,
 ) -> impl IntoResponse {
     let store = state.store.store();
-    match store.update_drift_config_enabled(id, project_id, body.enabled).await {
+    match store
+        .update_drift_config_enabled(id, project_id, body.enabled)
+        .await
+    {
         Ok(_) => StatusCode::NO_CONTENT.into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }
 
@@ -77,7 +90,11 @@ pub async fn delete_drift_config(
     let store = state.store.store();
     match store.delete_drift_config(id, project_id).await {
         Ok(_) => StatusCode::NO_CONTENT.into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }
 
@@ -92,7 +109,9 @@ pub async fn trigger_drift_check(
     // Get the drift config
     let config = match store.get_drift_config(id, project_id).await {
         Ok(c) => c,
-        Err(e) => return (StatusCode::NOT_FOUND, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => {
+            return (StatusCode::NOT_FOUND, Json(json!({"error": e.to_string()}))).into_response()
+        }
     };
 
     // Create a task with --check argument (dry run)
@@ -105,23 +124,33 @@ pub async fn trigger_drift_check(
 
     // Post task to the project tasks endpoint via store
     // We record the drift result with "pending" status and the task_id
-    let result = store.create_drift_result(
-        project_id,
-        id,
-        config.template_id,
-        "pending",
-        Some("Drift check triggered manually".to_string()),
-        None,
-    ).await;
+    let result = store
+        .create_drift_result(
+            project_id,
+            id,
+            config.template_id,
+            "pending",
+            Some("Drift check triggered manually".to_string()),
+            None,
+        )
+        .await;
 
     match result {
-        Ok(r) => (StatusCode::OK, Json(json!({
-            "message": "Drift check triggered",
-            "drift_result_id": r.id,
-            "template_id": config.template_id,
-            "hint": "Create a task manually with --check --diff arguments to complete the check"
-        }))).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Ok(r) => (
+            StatusCode::OK,
+            Json(json!({
+                "message": "Drift check triggered",
+                "drift_result_id": r.id,
+                "template_id": config.template_id,
+                "hint": "Create a task manually with --check --diff arguments to complete the check"
+            })),
+        )
+            .into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }
 
@@ -133,10 +162,18 @@ pub async fn get_drift_results(
     let store = state.store.store();
     // Verify config belongs to project
     if store.get_drift_config(id, project_id).await.is_err() {
-        return (StatusCode::NOT_FOUND, Json(json!({"error": "Drift config not found"}))).into_response();
+        return (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "Drift config not found"})),
+        )
+            .into_response();
     }
     match store.get_drift_results(id, 50).await {
         Ok(results) => (StatusCode::OK, Json(json!(results))).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }

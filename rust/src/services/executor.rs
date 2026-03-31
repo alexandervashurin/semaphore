@@ -2,17 +2,17 @@
 //!
 //! Предоставляет инфраструктуру для запуска задач Ansible, Terraform, Bash, PowerShell и других.
 
+use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::Arc;
-use chrono::{DateTime, Utc};
 use tokio::process::Command as TokioCommand;
 
 use crate::error::{Error, Result};
-use crate::models::{Inventory, Repository, Template, Task};
-use crate::services::task_logger::{TaskLogger, TaskStatus, StatusListener, LogListener};
+use crate::models::{Inventory, Repository, Task, Template};
+use crate::services::task_logger::{LogListener, StatusListener, TaskLogger, TaskStatus};
 
 /// Тип приложения для выполнения
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -71,7 +71,13 @@ pub trait ExecutableApp: Send + Sync {
     fn set_logger(&mut self, logger: Arc<dyn TaskLogger>) -> Result<()>;
 
     /// Устанавливает параметры задачи
-    fn set_task(&mut self, task: &Task, template: &Template, repository: &Repository, inventory: &Inventory);
+    fn set_task(
+        &mut self,
+        task: &Task,
+        template: &Template,
+        repository: &Repository,
+        inventory: &Inventory,
+    );
 
     /// Устанавливает рабочую директорию
     fn set_work_dir(&mut self, path: PathBuf);
@@ -132,9 +138,7 @@ impl BaseApp {
 
     /// Получает логгер или создаёт заглушку
     fn get_logger(&self) -> Arc<dyn TaskLogger> {
-        self.logger.clone().unwrap_or_else(|| {
-            Arc::new(NullLogger)
-        })
+        self.logger.clone().unwrap_or_else(|| Arc::new(NullLogger))
     }
 
     /// Получает рабочую директорию
@@ -179,16 +183,16 @@ impl BaseApp {
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
 
-        let mut child = cmd.spawn().map_err(|e| {
-            Error::Other(format!("Ошибка запуска команды: {}", e))
-        })?;
+        let mut child = cmd
+            .spawn()
+            .map_err(|e| Error::Other(format!("Ошибка запуска команды: {}", e)))?;
 
         // Читаем stdout
         if let Some(stdout) = child.stdout.take() {
             use tokio::io::{AsyncBufReadExt, BufReader};
             let reader = BufReader::new(stdout);
             let mut lines = reader.lines();
-            
+
             while let Ok(Some(line)) = lines.next_line().await {
                 logger.log(&line);
             }
@@ -199,15 +203,16 @@ impl BaseApp {
             use tokio::io::{AsyncBufReadExt, BufReader};
             let reader = BufReader::new(stderr);
             let mut lines = reader.lines();
-            
+
             while let Ok(Some(line)) = lines.next_line().await {
                 logger.log(&format!("STDERR: {}", line));
             }
         }
 
-        let status = child.wait().await.map_err(|e| {
-            Error::Other(format!("Ошибка ожидания команды: {}", e))
-        })?;
+        let status = child
+            .wait()
+            .await
+            .map_err(|e| Error::Other(format!("Ошибка ожидания команды: {}", e)))?;
 
         let exit_code = status.code().unwrap_or(-1);
         let has_errors = !status.success();
@@ -318,7 +323,9 @@ impl AnsibleApp {
         let result = self.base.run_command("ansible-galaxy", &args, &[]).await?;
 
         if result.has_errors {
-            return Err(Error::Other("Ошибка установки зависимостей Ansible Galaxy".to_string()));
+            return Err(Error::Other(
+                "Ошибка установки зависимостей Ansible Galaxy".to_string(),
+            ));
         }
 
         logger.log("Зависимости успешно установлены");
@@ -339,12 +346,18 @@ impl ExecutableApp for AnsibleApp {
         Ok(())
     }
 
-    fn set_task(&mut self, task: &Task, template: &Template, repository: &Repository, inventory: &Inventory) {
+    fn set_task(
+        &mut self,
+        task: &Task,
+        template: &Template,
+        repository: &Repository,
+        inventory: &Inventory,
+    ) {
         self.base.task = Some(task.clone());
         self.base.template = Some(template.clone());
         self.base.repository = Some(repository.clone());
         self.base.inventory = Some(inventory.clone());
-        
+
         if let Some(ref tpl) = self.base.template {
             self.playbook_path = PathBuf::from(&tpl.playbook);
         }
@@ -372,13 +385,11 @@ impl ExecutableApp for AnsibleApp {
 
     async fn run(&mut self) -> Result<AppRunResult> {
         let logger = self.base.get_logger();
-        
+
         logger.log("Запуск Ansible playbook...");
 
         // Формируем команду ansible-playbook
-        let mut args = vec![
-            self.playbook_path.to_string_lossy().to_string(),
-        ];
+        let mut args = vec![self.playbook_path.to_string_lossy().to_string()];
 
         // Добавляем inventory
         if let Some(ref inv_path) = self.inventory_path {
@@ -498,7 +509,7 @@ impl TerraformApp {
 
         // Проверяем, есть ли изменения
         let has_changes = !result.has_errors;
-        
+
         if self.plan_only {
             logger.log("Режим plan-only, завершаем выполнение");
             return Ok(false); // Нет необходимости в apply
@@ -513,7 +524,7 @@ impl TerraformApp {
         logger.log("Выполнение terraform apply...");
 
         let mut args = vec!["apply".to_string()];
-        
+
         if self.auto_approve {
             args.push("-auto-approve".to_string());
         }
@@ -521,7 +532,9 @@ impl TerraformApp {
         let result = self.base.run_command("terraform", &args, &[]).await?;
 
         if result.has_errors {
-            return Err(Error::Other("Ошибка выполнения terraform apply".to_string()));
+            return Err(Error::Other(
+                "Ошибка выполнения terraform apply".to_string(),
+            ));
         }
 
         Ok(())
@@ -541,7 +554,13 @@ impl ExecutableApp for TerraformApp {
         Ok(())
     }
 
-    fn set_task(&mut self, task: &Task, template: &Template, repository: &Repository, inventory: &Inventory) {
+    fn set_task(
+        &mut self,
+        task: &Task,
+        template: &Template,
+        repository: &Repository,
+        inventory: &Inventory,
+    ) {
         self.base.task = Some(task.clone());
         self.base.template = Some(template.clone());
         self.base.repository = Some(repository.clone());
@@ -579,16 +598,16 @@ impl ExecutableApp for TerraformApp {
 
     async fn run(&mut self) -> Result<AppRunResult> {
         let logger = self.base.get_logger();
-        
+
         // Инициализация
         self.init().await?;
-        
+
         // Выбор workspace
         self.select_workspace().await?;
-        
+
         // Plan
         let has_changes = self.plan().await?;
-        
+
         if !has_changes || self.plan_only {
             logger.log("Изменений нет или режим plan-only");
             return Ok(AppRunResult {
@@ -662,12 +681,18 @@ impl ExecutableApp for ShellApp {
         Ok(())
     }
 
-    fn set_task(&mut self, task: &Task, template: &Template, repository: &Repository, inventory: &Inventory) {
+    fn set_task(
+        &mut self,
+        task: &Task,
+        template: &Template,
+        repository: &Repository,
+        inventory: &Inventory,
+    ) {
         self.base.task = Some(task.clone());
         self.base.template = Some(template.clone());
         self.base.repository = Some(repository.clone());
         self.base.inventory = Some(inventory.clone());
-        
+
         if let Some(ref tpl) = self.base.template {
             self.script_path = PathBuf::from(&tpl.playbook);
         }
@@ -702,7 +727,9 @@ impl ExecutableApp for ShellApp {
         let mut args = vec![self.script_path.to_string_lossy().to_string()];
         args.extend(self.base.cli_args.clone());
 
-        self.base.run_command(command, &args, &self.base.environment_vars).await
+        self.base
+            .run_command(command, &args, &self.base.environment_vars)
+            .await
     }
 
     fn cleanup(&mut self) -> Result<()> {

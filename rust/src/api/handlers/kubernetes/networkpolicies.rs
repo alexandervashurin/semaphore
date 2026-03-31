@@ -41,7 +41,11 @@ pub struct NetworkPolicyView {
 fn to_summary(np: &NetworkPolicy) -> NetworkPolicySummary {
     let spec = np.spec.as_ref();
     NetworkPolicySummary {
-        name: np.metadata.name.clone().unwrap_or_else(|| "unknown".to_string()),
+        name: np
+            .metadata
+            .name
+            .clone()
+            .unwrap_or_else(|| "unknown".to_string()),
         namespace: np
             .metadata
             .namespace
@@ -67,7 +71,8 @@ fn to_view(np: &NetworkPolicy) -> NetworkPolicyView {
         policy_types: summary.policy_types,
         ingress_rules: summary.ingress_rules,
         egress_rules: summary.egress_rules,
-        note: "NetworkPolicy effect depends on CNI implementation and cluster networking setup.".to_string(),
+        note: "NetworkPolicy effect depends on CNI implementation and cluster networking setup."
+            .to_string(),
     }
 }
 

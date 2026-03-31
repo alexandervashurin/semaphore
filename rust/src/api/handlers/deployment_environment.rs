@@ -22,10 +22,16 @@ pub async fn list_deploy_environments(
     Path(project_id): Path<i32>,
     _auth: AuthUser,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let envs = state.store
+    let envs = state
+        .store
         .get_deployment_environments(project_id)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": e.to_string()})),
+            )
+        })?;
     Ok(Json(json!(envs)))
 }
 
@@ -35,7 +41,8 @@ pub async fn get_deploy_environment(
     Path((project_id, id)): Path<(i32, i32)>,
     _auth: AuthUser,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let env = state.store
+    let env = state
+        .store
         .get_deployment_environment(id, project_id)
         .await
         .map_err(|e| (StatusCode::NOT_FOUND, Json(json!({"error": e.to_string()}))))?;
@@ -49,10 +56,16 @@ pub async fn create_deploy_environment(
     _auth: AuthUser,
     Json(payload): Json<DeploymentEnvironmentCreate>,
 ) -> Result<(StatusCode, Json<serde_json::Value>), (StatusCode, Json<serde_json::Value>)> {
-    let env = state.store
+    let env = state
+        .store
         .create_deployment_environment(project_id, payload)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": e.to_string()})),
+            )
+        })?;
     Ok((StatusCode::CREATED, Json(json!(env))))
 }
 
@@ -63,10 +76,16 @@ pub async fn update_deploy_environment(
     _auth: AuthUser,
     Json(payload): Json<DeploymentEnvironmentUpdate>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let env = state.store
+    let env = state
+        .store
         .update_deployment_environment(id, project_id, payload)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": e.to_string()})),
+            )
+        })?;
     Ok(Json(json!(env)))
 }
 
@@ -76,10 +95,16 @@ pub async fn delete_deploy_environment(
     Path((project_id, id)): Path<(i32, i32)>,
     _auth: AuthUser,
 ) -> Result<StatusCode, (StatusCode, Json<serde_json::Value>)> {
-    state.store
+    state
+        .store
         .delete_deployment_environment(id, project_id)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": e.to_string()})),
+            )
+        })?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -89,9 +114,15 @@ pub async fn get_deploy_history(
     Path((project_id, id)): Path<(i32, i32)>,
     _auth: AuthUser,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let history = state.store
+    let history = state
+        .store
         .get_deployment_history(id, project_id)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": e.to_string()})),
+            )
+        })?;
     Ok(Json(json!(history)))
 }

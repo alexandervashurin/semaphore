@@ -2,7 +2,7 @@
 //!
 //! Утилиты для логирования ошибок
 
-use tracing::{error, warn, debug};
+use tracing::{debug, error, warn};
 
 /// Логирует warning с произвольным полем если есть ошибка
 pub fn log_warning<E: std::fmt::Display>(err: &E) {
@@ -11,7 +11,10 @@ pub fn log_warning<E: std::fmt::Display>(err: &E) {
 
 /// Логирует debug с дополнительными полями если есть ошибка
 pub fn log_debug_f<E: std::fmt::Display>(err: &E, fields: &[(&str, &str)]) {
-    if std::env::var("RUST_LOG").unwrap_or_default().contains("debug") {
+    if std::env::var("RUST_LOG")
+        .unwrap_or_default()
+        .contains("debug")
+    {
         let mut msg = format!("{}", err);
         for (key, value) in fields {
             msg.push_str(&format!(" {}={}", key, value));

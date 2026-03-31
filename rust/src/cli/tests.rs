@@ -33,15 +33,13 @@ mod tests {
         ]);
 
         match cli.command {
-            crate::cli::Commands::User(args) => {
-                match args.command {
-                    crate::cli::cmd_user::UserCommands::Add(add_args) => {
-                        assert_eq!(add_args.username, "test");
-                        assert_eq!(add_args.email, "test@example.com");
-                    }
-                    _ => panic!("Ожидалась команда add"),
+            crate::cli::Commands::User(args) => match args.command {
+                crate::cli::cmd_user::UserCommands::Add(add_args) => {
+                    assert_eq!(add_args.username, "test");
+                    assert_eq!(add_args.email, "test@example.com");
                 }
-            }
+                _ => panic!("Ожидалась команда add"),
+            },
             _ => panic!("Ожидалась команда user"),
         }
     }

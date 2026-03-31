@@ -72,14 +72,31 @@ pub async fn state_dispatch(
     let lock_id_from_query = parts.uri.query().and_then(|q| {
         q.split('&').find_map(|pair| {
             let (k, v) = pair.split_once('=')?;
-            if k.eq_ignore_ascii_case("id") { Some(v.to_string()) } else { None }
+            if k.eq_ignore_ascii_case("id") {
+                Some(v.to_string())
+            } else {
+                None
+            }
         })
     });
-    let query = StatePostQuery { id: lock_id_from_query };
+    let query = StatePostQuery {
+        id: lock_id_from_query,
+    };
 
     match method.as_str() {
         "GET" => handle_get(app, auth, project_id, workspace).await,
-        "POST" => handle_post(app, auth, project_id, workspace, query, parts.headers, body_bytes).await,
+        "POST" => {
+            handle_post(
+                app,
+                auth,
+                project_id,
+                workspace,
+                query,
+                parts.headers,
+                body_bytes,
+            )
+            .await
+        }
         "DELETE" => handle_delete(app, auth, project_id, workspace).await,
         "LOCK" => handle_lock(app, auth, project_id, workspace, body_bytes).await,
         "UNLOCK" => handle_unlock(app, auth, project_id, workspace, body_bytes).await,
@@ -133,7 +150,7 @@ async fn handle_post(
 
     // Use sha2 (already a dep) to produce a hex digest for idempotency checks.
     let md5_hash = {
-        use sha2::{Sha256, Digest as _};
+        use sha2::{Digest as _, Sha256};
         let hash = Sha256::digest(&body);
         format!("{:x}", hash)[..32].to_string()
     };
@@ -149,20 +166,23 @@ async fn handle_post(
     };
 
     let record = TerraformState {
-        id:         0,
+        id: 0,
         project_id,
-        workspace:  workspace.clone(),
+        workspace: workspace.clone(),
         serial,
         lineage,
         state_data: body.to_vec(),
-        encrypted:  false,
-        md5:        md5_hash,
+        encrypted: false,
+        md5: md5_hash,
         created_at: chrono::Utc::now(),
     };
 
     match store.create_terraform_state(record).await {
         Ok(_) => StatusCode::OK.into_response(),
-        Err(e) if e.to_string().contains("already exists with different content") => {
+        Err(e)
+            if e.to_string()
+                .contains("already exists with different content") =>
+        {
             (StatusCode::CONFLICT, Json(json!({"error": e.to_string()}))).into_response()
         }
         Err(e) => (
@@ -215,18 +235,21 @@ async fn handle_lock(
     let store = app.store.store();
     let lock = TerraformStateLock {
         project_id,
-        workspace:  workspace.clone(),
-        lock_id:    lock_info.id.clone(),
-        operation:  lock_info.operation.clone(),
-        info:       lock_info.info.clone(),
-        who:        lock_info.who.clone(),
-        version:    lock_info.version.clone(),
-        path:       lock_info.path.clone(),
+        workspace: workspace.clone(),
+        lock_id: lock_info.id.clone(),
+        operation: lock_info.operation.clone(),
+        info: lock_info.info.clone(),
+        who: lock_info.who.clone(),
+        version: lock_info.version.clone(),
+        path: lock_info.path.clone(),
         created_at: chrono::Utc::now(),
         expires_at: chrono::Utc::now() + chrono::Duration::hours(2),
     };
 
-    match store.lock_terraform_state(project_id, &workspace, lock).await {
+    match store
+        .lock_terraform_state(project_id, &workspace, lock)
+        .await
+    {
         Ok(l) => (StatusCode::OK, Json(json!(LockInfo::from_lock(&l)))).into_response(),
         Err(e) => {
             let msg = e.to_string();
@@ -270,7 +293,10 @@ async fn handle_unlock(
         return StatusCode::OK.into_response();
     }
 
-    match store.unlock_terraform_state(project_id, &workspace, &lock_id).await {
+    match store
+        .unlock_terraform_state(project_id, &workspace, &lock_id)
+        .await
+    {
         Ok(()) => StatusCode::OK.into_response(),
         Err(e) if e.to_string().contains("not found") => (
             StatusCode::CONFLICT,
@@ -329,9 +355,7 @@ pub async fn get_lock_info(
 ) -> impl IntoResponse {
     let store = app.store.store();
     match store.get_terraform_lock(project_id, &workspace).await {
-        Ok(Some(lock)) => {
-            (StatusCode::OK, Json(json!(LockInfo::from_lock(&lock)))).into_response()
-        }
+        Ok(Some(lock)) => (StatusCode::OK, Json(json!(LockInfo::from_lock(&lock)))).into_response(),
         Ok(None) => StatusCode::NO_CONTENT.into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,

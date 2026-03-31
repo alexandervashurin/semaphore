@@ -9,11 +9,11 @@
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use tracing::{info, warn, debug};
+use tracing::{debug, info, warn};
 
 use crate::error::{Error, Result};
-use crate::models::AccessKey;
 use crate::models::access_key::AccessKeyType;
+use crate::models::AccessKey;
 
 /// Роль ключа доступа
 #[derive(Debug, Clone, Copy)]
@@ -62,9 +62,8 @@ impl SshKeyInstallation {
     pub fn destroy(&self) -> Result<()> {
         // Удаляем приватный ключ
         if self.private_key_path.exists() {
-            fs::remove_file(&self.private_key_path).map_err(|e| {
-                Error::Other(format!("Ошибка удаления приватного ключа: {}", e))
-            })?;
+            fs::remove_file(&self.private_key_path)
+                .map_err(|e| Error::Other(format!("Ошибка удаления приватного ключа: {}", e)))?;
         }
 
         // Удаляем публичный ключ
@@ -83,7 +82,7 @@ impl SshKeyInstallation {
     /// Получает переменные окружения для Git
     pub fn get_git_env(&self) -> Vec<(String, String)> {
         let mut env = Vec::new();
-        
+
         // GIT_SSH_COMMAND для использования конкретного ключа
         let ssh_command = format!(
             "ssh -i {} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null",
@@ -98,7 +97,7 @@ impl SshKeyInstallation {
     /// Получает переменные окружения для Ansible
     pub fn get_ansible_env(&self) -> Vec<(String, String)> {
         let mut env = Vec::new();
-        
+
         // ANSIBLE_PRIVATE_KEY_FILE
         env.push((
             "ANSIBLE_PRIVATE_KEY_FILE".to_string(),
@@ -126,24 +125,22 @@ impl AccessKeyInstaller {
     }
 
     /// Устанавливает ключ
-    pub fn install(
-        &self,
-        key: &AccessKey,
-        role: AccessKeyRole,
-    ) -> Result<SshKeyInstallation> {
+    pub fn install(&self, key: &AccessKey, role: AccessKeyRole) -> Result<SshKeyInstallation> {
         match key.r#type {
             AccessKeyType::SSH => self.install_ssh_key(key),
             AccessKeyType::LoginPassword => {
                 // Для login/password SSH ключ не нужен
-                Err(Error::Other("Login/Password ключ не требует установки SSH ключа".to_string()))
+                Err(Error::Other(
+                    "Login/Password ключ не требует установки SSH ключа".to_string(),
+                ))
             }
             AccessKeyType::AccessKey => {
                 // Access Key (AWS и т.д.) не требует SSH ключа
-                Err(Error::Other("Access Key не требует установки SSH ключа".to_string()))
+                Err(Error::Other(
+                    "Access Key не требует установки SSH ключа".to_string(),
+                ))
             }
-            AccessKeyType::None => {
-                Err(Error::Other("Ключ не настроен".to_string()))
-            }
+            AccessKeyType::None => Err(Error::Other("Ключ не настроен".to_string())),
         }
     }
 
@@ -152,32 +149,30 @@ impl AccessKeyInstaller {
         info!("Установка SSH ключа: {}", key.name);
 
         // Получаем приватный ключ
-        let private_key = key.ssh_key.as_ref()
+        let private_key = key
+            .ssh_key
+            .as_ref()
             .ok_or_else(|| Error::Other("SSH ключ не настроен".to_string()))?;
 
         // Создаём временную директорию для ключа
         let key_dir = self.temp_dir.join(format!("key_{}", key.id));
-        fs::create_dir_all(&key_dir).map_err(|e| {
-            Error::Other(format!("Ошибка создания директории: {}", e))
-        })?;
+        fs::create_dir_all(&key_dir)
+            .map_err(|e| Error::Other(format!("Ошибка создания директории: {}", e)))?;
 
         // Записываем приватный ключ
         let private_key_path = key_dir.join("id_rsa");
-        let mut file = File::create(&private_key_path).map_err(|e| {
-            Error::Other(format!("Ошибка создания файла ключа: {}", e))
-        })?;
+        let mut file = File::create(&private_key_path)
+            .map_err(|e| Error::Other(format!("Ошибка создания файла ключа: {}", e)))?;
 
-        file.write_all(private_key.as_bytes()).map_err(|e| {
-            Error::Other(format!("Ошибка записи ключа: {}", e))
-        })?;
+        file.write_all(private_key.as_bytes())
+            .map_err(|e| Error::Other(format!("Ошибка записи ключа: {}", e)))?;
 
         // Устанавливаем правильные права (0o600)
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            fs::set_permissions(&private_key_path, fs::Permissions::from_mode(0o600)).map_err(|e| {
-                Error::Other(format!("Ошибка установки прав на ключ: {}", e))
-            })?;
+            fs::set_permissions(&private_key_path, fs::Permissions::from_mode(0o600))
+                .map_err(|e| Error::Other(format!("Ошибка установки прав на ключ: {}", e)))?;
         }
 
         debug!("Приватный ключ установлен: {:?}", private_key_path);
@@ -187,7 +182,7 @@ impl AccessKeyInstaller {
             // В реальной реализации здесь был бы публичный ключ
             // Пока создаём заглушку
             let pub_key_path = key_dir.join("id_rsa.pub");
-            
+
             // Пробуем сгенерировать публичный ключ из приватного
             // Это упрощённая реализация
             Some(pub_key_path)
@@ -196,7 +191,7 @@ impl AccessKeyInstaller {
         };
 
         let mut installation = SshKeyInstallation::new(private_key_path);
-        
+
         if let Some(pub_path) = public_key_path {
             installation = installation.with_public_key(pub_path);
         }
@@ -265,7 +260,7 @@ mod tests {
     fn test_ssh_key_installation_creation() {
         let path = PathBuf::from("/tmp/test_key");
         let installation = SshKeyInstallation::new(path.clone());
-        
+
         assert_eq!(installation.private_key_path, path);
         assert!(installation.public_key_path.is_none());
         assert!(installation.passphrase.is_none());
@@ -275,10 +270,10 @@ mod tests {
     fn test_ssh_key_installation_with_public_key() {
         let private_path = PathBuf::from("/tmp/test_key");
         let public_path = PathBuf::from("/tmp/test_key.pub");
-        
-        let installation = SshKeyInstallation::new(private_path.clone())
-            .with_public_key(public_path.clone());
-        
+
+        let installation =
+            SshKeyInstallation::new(private_path.clone()).with_public_key(public_path.clone());
+
         assert_eq!(installation.private_key_path, private_path);
         assert!(installation.public_key_path.is_some());
         assert_eq!(installation.public_key_path.unwrap(), public_path);
@@ -287,9 +282,9 @@ mod tests {
     #[test]
     fn test_ssh_key_installation_with_passphrase() {
         let path = PathBuf::from("/tmp/test_key");
-        let installation = SshKeyInstallation::new(path.clone())
-            .with_passphrase("test".to_string());
-        
+        let installation =
+            SshKeyInstallation::new(path.clone()).with_passphrase("test".to_string());
+
         assert_eq!(installation.private_key_path, path);
         assert!(installation.passphrase.is_some());
         assert_eq!(installation.passphrase.unwrap(), "test");
@@ -299,15 +294,19 @@ mod tests {
     fn test_access_key_installer_creation() {
         let temp_dir = PathBuf::from("/tmp/semaphore/test");
         let installer = AccessKeyInstaller::new(temp_dir.clone());
-        
+
         assert_eq!(installer.temp_dir, temp_dir);
     }
 
     #[test]
     fn test_access_key_installer_default() {
         let installer = AccessKeyInstaller::default();
-        
-        assert!(installer.temp_dir.display().to_string().contains("semaphore"));
+
+        assert!(installer
+            .temp_dir
+            .display()
+            .to_string()
+            .contains("semaphore"));
     }
 
     #[test]
@@ -315,7 +314,7 @@ mod tests {
         let git_role = AccessKeyRole::Git;
         let ansible_role = AccessKeyRole::Ansible;
         let ssh_role = AccessKeyRole::SSH;
-        
+
         assert!(matches!(git_role, AccessKeyRole::Git));
         assert!(matches!(ansible_role, AccessKeyRole::Ansible));
         assert!(matches!(ssh_role, AccessKeyRole::SSH));

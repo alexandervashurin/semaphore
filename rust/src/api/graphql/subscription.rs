@@ -1,6 +1,6 @@
 //! GraphQL Subscription корень — real-time события
 
-use async_graphql::{Context, Object, Subscription, Result};
+use async_graphql::{Context, Object, Result, Subscription};
 use futures_util::stream::{self, Stream, StreamExt};
 use tokio::sync::broadcast;
 
@@ -10,7 +10,7 @@ use super::types::Task;
 pub struct SubscriptionRoot;
 
 /// Канал для real-time событий задач
-pub static TASK_CHANNEL: once_cell::sync::Lazy<broadcast::Sender<Task>> = 
+pub static TASK_CHANNEL: once_cell::sync::Lazy<broadcast::Sender<Task>> =
     once_cell::sync::Lazy::new(|| broadcast::channel(100).0);
 
 #[Subscription]
@@ -18,7 +18,7 @@ impl SubscriptionRoot {
     /// Подписка на создание задач
     async fn task_created(&self, _ctx: &Context<'_>) -> Result<impl Stream<Item = Task>> {
         let mut rx = TASK_CHANNEL.subscribe();
-        
+
         Ok(stream::unfold(rx, move |mut rx| async move {
             loop {
                 match rx.recv().await {
@@ -39,7 +39,7 @@ impl SubscriptionRoot {
     /// Подписка на изменение статуса задачи
     async fn task_status_changed(&self, _ctx: &Context<'_>) -> Result<impl Stream<Item = Task>> {
         let mut rx = TASK_CHANNEL.subscribe();
-        
+
         Ok(stream::unfold(rx, move |mut rx| async move {
             loop {
                 match rx.recv().await {

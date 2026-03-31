@@ -4,12 +4,7 @@ use super::protocol::{McpRequest, McpResponse};
 use super::tools;
 use crate::api::extractors::AuthUser;
 use crate::api::state::AppState;
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::IntoResponse,
-    Json,
-};
+use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::sync::Arc;
@@ -23,7 +18,7 @@ const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Main MCP JSON-RPC 2.0 endpoint. Requires Bearer JWT auth.
 pub async fn mcp_endpoint(
     State(state): State<Arc<AppState>>,
-    _auth: AuthUser,                // enforce authentication
+    _auth: AuthUser, // enforce authentication
     Json(req): Json<McpRequest>,
 ) -> impl IntoResponse {
     let id = req.id.clone();
@@ -53,11 +48,8 @@ async fn handle(req: McpRequest, state: &Arc<AppState>) -> Value {
 
         "tools/list" => {
             let tool_list = tools::all_definitions();
-            serde_json::to_value(McpResponse::ok(
-                id,
-                json!({ "tools": tool_list }),
-            ))
-            .unwrap_or(Value::Null)
+            serde_json::to_value(McpResponse::ok(id, json!({ "tools": tool_list })))
+                .unwrap_or(Value::Null)
         }
 
         "tools/call" => {
@@ -159,8 +151,6 @@ pub async fn update_mcp_settings(
 
 // ── GET /api/mcp/tools ────────────────────────────────────────────────────────
 
-pub async fn get_mcp_tools(
-    _auth: AuthUser,
-) -> impl IntoResponse {
+pub async fn get_mcp_tools(_auth: AuthUser) -> impl IntoResponse {
     Json(json!({ "tools": tools::all_definitions() }))
 }

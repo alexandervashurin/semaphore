@@ -2,11 +2,11 @@
 //!
 //! Полная реализация CRUD операций для webhook
 
-use crate::error::{Error, Result};
-use crate::models::webhook::{Webhook, UpdateWebhook, WebhookLog, WebhookType};
 use super::SqlDb;
+use crate::error::{Error, Result};
+use crate::models::webhook::{UpdateWebhook, Webhook, WebhookLog, WebhookType};
 use chrono::Utc;
-use sqlx::{Row, FromRow};
+use sqlx::{FromRow, Row};
 
 // Helper types для SQLx
 #[derive(FromRow)]
@@ -45,22 +45,31 @@ impl SqlDb {
     /// Получает webhook по ID
     pub async fn get_webhook(&self, webhook_id: i64) -> Result<Webhook> {
         let row = sqlx::query_as::<_, WebhookRow>("SELECT * FROM webhook WHERE id = $1")
-                    .bind(webhook_id)
-                    .fetch_optional(self.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?)
-                    .await
-                    .map_err(Error::Database)?;
+            .bind(webhook_id)
+            .fetch_optional(
+                self.get_postgres_pool()
+                    .ok_or(Error::Other("PostgreSQL pool not found".to_string()))?,
+            )
+            .await
+            .map_err(Error::Database)?;
 
-        let row = row.ok_or_else(|| Error::NotFound(format!("Webhook {} not found", webhook_id)))?;
+        let row =
+            row.ok_or_else(|| Error::NotFound(format!("Webhook {} not found", webhook_id)))?;
         Ok(self.row_to_webhook(row))
     }
 
     /// Получает webhook проекта
     pub async fn get_webhooks_by_project(&self, project_id: i64) -> Result<Vec<Webhook>> {
-        let rows = sqlx::query_as::<_, WebhookRow>("SELECT * FROM webhook WHERE project_id = $1 ORDER BY created_at DESC")
-                    .bind(project_id)
-                    .fetch_all(self.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?)
-                    .await
-                    .map_err(Error::Database)?;
+        let rows = sqlx::query_as::<_, WebhookRow>(
+            "SELECT * FROM webhook WHERE project_id = $1 ORDER BY created_at DESC",
+        )
+        .bind(project_id)
+        .fetch_all(
+            self.get_postgres_pool()
+                .ok_or(Error::Other("PostgreSQL pool not found".to_string()))?,
+        )
+        .await
+        .map_err(Error::Database)?;
 
         Ok(rows.into_iter().map(|r| self.row_to_webhook(r)).collect())
     }
@@ -69,7 +78,7 @@ impl SqlDb {
     pub async fn create_webhook(&self, mut webhook: Webhook) -> Result<Webhook> {
         let now = Utc::now();
         let type_str = self.webhook_type_to_string(&webhook.r#type);
-        
+
         let id = sqlx::query_scalar::<_, i64>(
                     "INSERT INTO webhook (project_id, name, type, url, secret, headers, active, events, retry_count, timeout_secs, created_at, updated_at)
                      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id"
@@ -90,10 +99,10 @@ impl SqlDb {
                 .await
                 .map_err(Error::Database)?;
 
-                webhook.id = id;
-                webhook.created = now;
-                webhook.updated = now;
-                Ok(webhook)
+        webhook.id = id;
+        webhook.created = now;
+        webhook.updated = now;
+        Ok(webhook)
     }
 
     /// Обновляет webhook
@@ -102,17 +111,33 @@ impl SqlDb {
         let mut current = self.get_webhook(webhook_id).await?;
 
         // Обновляем поля
-        if let Some(name) = webhook.name { current.name = name; }
-        if let Some(r#type) = webhook.r#type { current.r#type = r#type; }
-        if let Some(url) = webhook.url { current.url = url; }
-        if let Some(secret) = webhook.secret { current.secret = Some(secret); }
-        if let Some(headers) = webhook.headers { current.headers = Some(headers); }
-        if let Some(active) = webhook.active { current.active = active; }
+        if let Some(name) = webhook.name {
+            current.name = name;
+        }
+        if let Some(r#type) = webhook.r#type {
+            current.r#type = r#type;
+        }
+        if let Some(url) = webhook.url {
+            current.url = url;
+        }
+        if let Some(secret) = webhook.secret {
+            current.secret = Some(secret);
+        }
+        if let Some(headers) = webhook.headers {
+            current.headers = Some(headers);
+        }
+        if let Some(active) = webhook.active {
+            current.active = active;
+        }
         if let Some(events) = webhook.events {
             current.events = serde_json::to_value(&events).unwrap_or_default();
         }
-        if let Some(retry_count) = webhook.retry_count { current.retry_count = retry_count; }
-        if let Some(timeout_secs) = webhook.timeout_secs { current.timeout_secs = timeout_secs; }
+        if let Some(retry_count) = webhook.retry_count {
+            current.retry_count = retry_count;
+        }
+        if let Some(timeout_secs) = webhook.timeout_secs {
+            current.timeout_secs = timeout_secs;
+        }
         current.updated = now;
 
         let type_str = self.webhook_type_to_string(&current.r#type);
@@ -134,28 +159,39 @@ impl SqlDb {
     /// Удаляет webhook
     pub async fn delete_webhook(&self, webhook_id: i64) -> Result<()> {
         sqlx::query("DELETE FROM webhook WHERE id = $1")
-                    .bind(webhook_id)
-                    .execute(self.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?)
-                    .await
-                    .map_err(Error::Database)?;
+            .bind(webhook_id)
+            .execute(
+                self.get_postgres_pool()
+                    .ok_or(Error::Other("PostgreSQL pool not found".to_string()))?,
+            )
+            .await
+            .map_err(Error::Database)?;
         Ok(())
     }
 
     /// Получает логи webhook
     pub async fn get_webhook_logs(&self, webhook_id: i64) -> Result<Vec<WebhookLog>> {
-        let rows = sqlx::query_as::<_, WebhookLogRow>("SELECT * FROM webhook_log WHERE webhook_id = $1 ORDER BY created_at DESC")
-                    .bind(webhook_id)
-                    .fetch_all(self.get_postgres_pool().ok_or(Error::Other("PostgreSQL pool not found".to_string()))?)
-                    .await
-                    .map_err(Error::Database)?;
+        let rows = sqlx::query_as::<_, WebhookLogRow>(
+            "SELECT * FROM webhook_log WHERE webhook_id = $1 ORDER BY created_at DESC",
+        )
+        .bind(webhook_id)
+        .fetch_all(
+            self.get_postgres_pool()
+                .ok_or(Error::Other("PostgreSQL pool not found".to_string()))?,
+        )
+        .await
+        .map_err(Error::Database)?;
 
-        Ok(rows.into_iter().map(|r| self.row_to_webhook_log(r)).collect())
+        Ok(rows
+            .into_iter()
+            .map(|r| self.row_to_webhook_log(r))
+            .collect())
     }
 
     /// Создаёт лог webhook
     pub async fn create_webhook_log(&self, mut log: WebhookLog) -> Result<WebhookLog> {
         let now = Utc::now();
-        
+
         let id = sqlx::query_scalar::<_, i64>(
                     "INSERT INTO webhook_log (webhook_id, event_type, status_code, success, error, attempts, payload, response, created_at)
                      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id"
@@ -173,9 +209,9 @@ impl SqlDb {
                 .await
                 .map_err(Error::Database)?;
 
-                log.id = id;
-                log.created = now;
-                Ok(log)
+        log.id = id;
+        log.created = now;
+        Ok(log)
     }
 
     // === Helper методы ===

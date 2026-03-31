@@ -17,19 +17,19 @@
 //! - **plugins** - Система плагинов
 
 pub mod api;
+pub mod cache;
 pub mod cli;
 pub mod config;
 pub mod db;
 pub mod db_lib;
 pub mod ffi;
+pub mod grpc;
+pub mod kubernetes;
 pub mod models;
+pub mod plugins;
 pub mod pro;
 pub mod services;
 pub mod utils;
-pub mod plugins;
-pub mod cache;
-pub mod grpc;
-pub mod kubernetes;
 pub mod validators;
 
 mod error;

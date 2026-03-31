@@ -14,31 +14,37 @@ impl SqlDb {
     }
 
     /// Получает все vaults для шаблона
-    pub async fn get_template_vaults(&self, project_id: i32, template_id: i32) -> Result<Vec<TemplateVault>> {
-        let rows = sqlx::query(
-            "SELECT * FROM template_vault WHERE template_id = $1 AND project_id = $2"
-        )
-        .bind(template_id)
-        .bind(project_id)
-        .fetch_all(self.pg_pool_template_vault()?)
-        .await
-        .map_err(Error::Database)?;
+    pub async fn get_template_vaults(
+        &self,
+        project_id: i32,
+        template_id: i32,
+    ) -> Result<Vec<TemplateVault>> {
+        let rows =
+            sqlx::query("SELECT * FROM template_vault WHERE template_id = $1 AND project_id = $2")
+                .bind(template_id)
+                .bind(project_id)
+                .fetch_all(self.pg_pool_template_vault()?)
+                .await
+                .map_err(Error::Database)?;
 
-        Ok(rows.into_iter().map(|row| TemplateVault {
-            id: row.get("id"),
-            template_id: row.get("template_id"),
-            project_id: row.get("project_id"),
-            vault_id: row.get("vault_id"),
-            vault_key_id: row.try_get("vault_key_id").ok().unwrap_or(0),
-            name: row.get("name"),
-        }).collect())
+        Ok(rows
+            .into_iter()
+            .map(|row| TemplateVault {
+                id: row.get("id"),
+                template_id: row.get("template_id"),
+                project_id: row.get("project_id"),
+                vault_id: row.get("vault_id"),
+                vault_key_id: row.try_get("vault_key_id").ok().unwrap_or(0),
+                name: row.get("name"),
+            })
+            .collect())
     }
 
     /// Создаёт TemplateVault
     pub async fn create_template_vault(&self, mut vault: TemplateVault) -> Result<TemplateVault> {
         let id: i32 = sqlx::query_scalar(
             "INSERT INTO template_vault (template_id, project_id, vault_id, vault_key_id, name) \
-             VALUES ($1, $2, $3, $4, $5) RETURNING id"
+             VALUES ($1, $2, $3, $4, $5) RETURNING id",
         )
         .bind(vault.template_id)
         .bind(vault.project_id)
@@ -57,7 +63,7 @@ impl SqlDb {
     pub async fn update_template_vault(&self, vault: TemplateVault) -> Result<()> {
         sqlx::query(
             "UPDATE template_vault SET vault_id = $1, vault_key_id = $2, name = $3 \
-             WHERE id = $4 AND template_id = $5 AND project_id = $6"
+             WHERE id = $4 AND template_id = $5 AND project_id = $6",
         )
         .bind(vault.vault_id)
         .bind(vault.vault_key_id)
@@ -72,9 +78,14 @@ impl SqlDb {
     }
 
     /// Удаляет TemplateVault
-    pub async fn delete_template_vault(&self, project_id: i32, template_id: i32, vault_id: i32) -> Result<()> {
+    pub async fn delete_template_vault(
+        &self,
+        project_id: i32,
+        template_id: i32,
+        vault_id: i32,
+    ) -> Result<()> {
         sqlx::query(
-            "DELETE FROM template_vault WHERE id = $1 AND template_id = $2 AND project_id = $3"
+            "DELETE FROM template_vault WHERE id = $1 AND template_id = $2 AND project_id = $3",
         )
         .bind(vault_id)
         .bind(template_id)
@@ -86,15 +97,18 @@ impl SqlDb {
     }
 
     /// Обновляет все vaults для шаблона
-    pub async fn update_template_vaults(&self, project_id: i32, template_id: i32, vaults: Vec<TemplateVault>) -> Result<()> {
-        sqlx::query(
-            "DELETE FROM template_vault WHERE template_id = $1 AND project_id = $2"
-        )
-        .bind(template_id)
-        .bind(project_id)
-        .execute(self.pg_pool_template_vault()?)
-        .await
-        .map_err(Error::Database)?;
+    pub async fn update_template_vaults(
+        &self,
+        project_id: i32,
+        template_id: i32,
+        vaults: Vec<TemplateVault>,
+    ) -> Result<()> {
+        sqlx::query("DELETE FROM template_vault WHERE template_id = $1 AND project_id = $2")
+            .bind(template_id)
+            .bind(project_id)
+            .execute(self.pg_pool_template_vault()?)
+            .await
+            .map_err(Error::Database)?;
 
         for mut vault in vaults {
             vault.template_id = template_id;

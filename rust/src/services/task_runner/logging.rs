@@ -2,17 +2,17 @@
 //!
 //! Аналог services/tasks/task_runner_logging.go из Go версии
 
-use std::sync::Arc;
-use chrono::Utc;
 use crate::error::Result;
-use crate::services::task_runner::TaskRunner;
 use crate::services::task_logger::TaskStatus;
+use crate::services::task_runner::TaskRunner;
+use chrono::Utc;
+use std::sync::Arc;
 
 impl TaskRunner {
     /// save_status сохраняет статус задачи и уведомляет пользователей
     pub async fn save_status(&self) {
         use serde_json::json;
-        
+
         // Формирование сообщения для WebSocket
         let message = json!({
             "type": "update",
@@ -26,11 +26,9 @@ impl TaskRunner {
         });
 
         // Отправка статуса через WebSocket (broadcast всем подписчикам)
-        self.pool.ws_manager.send_status(
-            self.task.id,
-            self.task.status.to_string(),
-            Utc::now(),
-        );
+        self.pool
+            .ws_manager
+            .send_status(self.task.id, self.task.status.to_string(), Utc::now());
 
         // Уведомление слушателей статусов
         for listener in &self.status_listeners {
@@ -56,7 +54,9 @@ impl TaskRunner {
 
         // Отправка лога через WebSocket
         let now = Utc::now();
-        self.pool.ws_manager.send_log(self.task.id, msg.to_string(), now);
+        self.pool
+            .ws_manager
+            .send_log(self.task.id, msg.to_string(), now);
 
         // Сохранение в БД — fire-and-forget через spawn
         let store = Arc::clone(&self.pool.store);
@@ -87,12 +87,12 @@ impl TaskRunner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Utc;
-    use crate::services::task_logger::TaskStatus;
-    use crate::models::{Task, Project};
-    use crate::services::task_pool::TaskPool;
-    use crate::db_lib::AccessKeyInstallerImpl;
     use crate::db::MockStore;
+    use crate::db_lib::AccessKeyInstallerImpl;
+    use crate::models::{Project, Task};
+    use crate::services::task_logger::TaskStatus;
+    use crate::services::task_pool::TaskPool;
+    use chrono::Utc;
     use std::sync::Arc;
 
     fn create_test_task_runner() -> TaskRunner {
@@ -109,12 +109,14 @@ mod tests {
             ..Default::default()
         };
 
-        let pool = Arc::new(TaskPool::new(
-            Arc::new(MockStore::new()),
-            5,
-        ));
+        let pool = Arc::new(TaskPool::new(Arc::new(MockStore::new()), 5));
 
-        TaskRunner::new(task, pool, "testuser".to_string(), AccessKeyInstallerImpl::new())
+        TaskRunner::new(
+            task,
+            pool,
+            "testuser".to_string(),
+            AccessKeyInstallerImpl::new(),
+        )
     }
 
     #[tokio::test]

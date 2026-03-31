@@ -2,15 +2,15 @@
 //!
 //! Кэширует GET запросы для улучшения производительности
 
-use std::sync::Arc;
+use crate::cache::RedisCache;
 use axum::{
     body::Body,
-    http::{Request, Response, StatusCode, header, Method},
+    http::{header, Method, Request, Response, StatusCode},
     middleware::Next,
 };
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
+use std::sync::Arc;
 use tracing::{debug, warn};
-use crate::cache::RedisCache;
 
 /// Middleware для кэширования ответов
 pub struct CacheMiddleware {
@@ -40,7 +40,7 @@ impl CacheMiddleware {
         let mut hasher = Sha256::new();
         hasher.update(method.as_str().as_bytes());
         hasher.update(uri.as_bytes());
-        
+
         let hash = format!("{:x}", hasher.finalize());
         format!("http_cache:{}", hash)
     }
@@ -57,7 +57,7 @@ impl CacheMiddleware {
         }
 
         let path = req.uri().path().to_string();
-        
+
         // Пропускаем указанные пути
         if self.should_skip(&path) {
             debug!("Skipping cache for path: {}", path);
@@ -70,7 +70,7 @@ impl CacheMiddleware {
         // Пробуем получить из кэша
         if let Some(cached_body) = self.redis.get::<String>(&cache_key).await.unwrap_or(None) {
             debug!("Cache hit for key: {}", cache_key);
-            
+
             // Восстанавливаем ответ из кэша
             let response = Response::builder()
                 .status(StatusCode::OK)
@@ -78,42 +78,49 @@ impl CacheMiddleware {
                 .header("X-Cache", "HIT")
                 .body(Body::from(cached_body))
                 .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-            
+
             return Ok(response);
         }
 
         // Кэш промах - выполняем запрос
         debug!("Cache miss for key: {}", cache_key);
         let response = next.run(req).await;
-        
+
         // Кэшируем успешные ответы
         if response.status() == StatusCode::OK {
             // Разбираем response на части
             let (parts, body) = response.into_parts();
-            
+
             // Читаем тело ответа
             let body_bytes = match axum::body::to_bytes(body, usize::MAX).await {
                 Ok(bytes) => bytes,
                 Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
             };
-            
+
             let body_str = String::from_utf8_lossy(&body_bytes).to_string();
-            
+
             // Сохраняем в кэш
-            if let Err(e) = self.redis.set_with_ttl(&cache_key, &body_str, self.ttl_secs).await {
+            if let Err(e) = self
+                .redis
+                .set_with_ttl(&cache_key, &body_str, self.ttl_secs)
+                .await
+            {
                 warn!("Failed to cache response: {}", e);
             }
-            
+
             // Восстанавливаем response
             return Ok(Response::from_parts(parts, Body::from(body_bytes)));
         }
-        
+
         Ok(response)
     }
 }
 
 /// Helper функции для инвалидации HTTP кэша
-pub async fn invalidate_http_cache(redis: &RedisCache, path_pattern: &str) -> crate::error::Result<()> {
+pub async fn invalidate_http_cache(
+    redis: &RedisCache,
+    path_pattern: &str,
+) -> crate::error::Result<()> {
     // В полной реализации нужно удалять ключи по паттерну
     debug!("Invalidating HTTP cache for pattern: {}", path_pattern);
     Ok(())
@@ -133,9 +140,9 @@ mod tests {
 
         let key1 = middleware.generate_cache_key(&Method::GET, "/api/projects");
         let key2 = middleware.generate_cache_key(&Method::GET, "/api/projects");
-        
+
         assert_eq!(key1, key2);
-        
+
         let key3 = middleware.generate_cache_key(&Method::GET, "/api/tasks");
         assert_ne!(key1, key3);
     }

@@ -15,7 +15,7 @@ pub enum PlanStatus {
 impl std::fmt::Display for PlanStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            PlanStatus::Pending  => write!(f, "pending"),
+            PlanStatus::Pending => write!(f, "pending"),
             PlanStatus::Approved => write!(f, "approved"),
             PlanStatus::Rejected => write!(f, "rejected"),
         }
@@ -28,7 +28,7 @@ impl std::str::FromStr for PlanStatus {
         Ok(match s {
             "approved" => PlanStatus::Approved,
             "rejected" => PlanStatus::Rejected,
-            _          => PlanStatus::Pending,
+            _ => PlanStatus::Pending,
         })
     }
 }
@@ -36,19 +36,19 @@ impl std::str::FromStr for PlanStatus {
 /// Stored terraform plan awaiting review
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TerraformPlan {
-    pub id:                i64,
-    pub task_id:           i32,
-    pub project_id:        i32,
-    pub plan_output:       String,
-    pub plan_json:         Option<String>,
-    pub resources_added:   i32,
+    pub id: i64,
+    pub task_id: i32,
+    pub project_id: i32,
+    pub plan_output: String,
+    pub plan_json: Option<String>,
+    pub resources_added: i32,
     pub resources_changed: i32,
     pub resources_removed: i32,
-    pub status:            String,
-    pub created_at:        DateTime<Utc>,
-    pub reviewed_at:       Option<DateTime<Utc>>,
-    pub reviewed_by:       Option<i32>,
-    pub review_comment:    Option<String>,
+    pub status: String,
+    pub created_at: DateTime<Utc>,
+    pub reviewed_at: Option<DateTime<Utc>>,
+    pub reviewed_by: Option<i32>,
+    pub review_comment: Option<String>,
 }
 
 /// Payload for approve/reject

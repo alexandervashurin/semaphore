@@ -3,89 +3,365 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kubernetes ConfigMaps - Velum</title>
+    <title>Kubernetes ConfigMaps — Velum</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+    <style>
+        .data-preview {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow: auto;
+            white-space: pre-wrap;
+        }
+        .key-badge {
+            display: inline-block;
+            background: #e9ecef;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            margin: 2px;
+        }
+    </style>
 </head>
 <body>
 <div class="layout">
     <aside class="sidebar"></aside>
     <div class="main-content">
-        <div class="main-header"><h2><i class="fa-solid fa-map"></i> Kubernetes ConfigMaps</h2></div>
-        <div class="main-body">
-            <div class="card" style="margin-bottom: 12px; display: flex; gap: 8px; align-items: center;">
-                <select id="namespace" class="form-control" style="max-width: 260px;"></select>
-                <input id="filter" class="form-control" placeholder="Фильтр по имени">
-                <button class="btn btn-primary" onclick="loadConfigMaps()"><i class="fa-solid fa-rotate"></i> Обновить</button>
+        <div class="main-header">
+            <h2><i class="fa-solid fa-map"></i> Kubernetes ConfigMaps</h2>
+            <div style="display: flex; gap: 8px;">
+                <button class="btn btn-primary" onclick="openCreateModal()">
+                    <i class="fa-solid fa-plus"></i> Создать
+                </button>
+                <button class="btn btn-secondary" onclick="loadConfigMaps()">
+                    <i class="fa-solid fa-rotate"></i> Обновить
+                </button>
             </div>
-            <div id="content" class="card"><div class="loading"><div class="loading-spinner"></div><p>Загрузка...</p></div></div>
+        </div>
+        <div class="main-body">
+            <!-- Фильтры -->
+            <div class="card" style="margin-bottom: 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <label>Namespace:
+                    <select id="namespace" class="form-control" style="max-width: 200px;" onchange="loadConfigMaps()"></select>
+                </label>
+                <input id="filter" class="form-control" placeholder="Фильтр по имени" style="min-width: 200px;" onkeyup="filterConfigMaps()">
+                <label>
+                    <input type="checkbox" id="auto-refresh" onchange="toggleAutoRefresh()"> Автообновление
+                </label>
+            </div>
+
+            <!-- Таблица ConfigMaps -->
+            <div id="content" class="card">
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <p>Загрузка...</p>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+
+<!-- Create/Update Modal -->
+<div id="create-modal" class="modal">
+    <div class="modal-content" style="max-width: 700px;">
+        <h3><i class="fa-solid fa-plus"></i> Создать ConfigMap</h3>
+        <form onsubmit="createConfigMap(event)">
+            <div class="form-group">
+                <label>Name *</label>
+                <input type="text" id="cm-name" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label>Namespace *</label>
+                <select id="cm-namespace" class="form-control" required></select>
+            </div>
+            <div class="form-group">
+                <label>Data (JSON формат)</label>
+                <div style="font-size: 12px; color: #666; margin-bottom: 8px;">
+                    Пример: {"key1": "value1", "key2": "value2"}
+                </div>
+                <textarea id="cm-data" class="form-control" rows="10" style="font-family: monospace;" placeholder='{"DATABASE_URL": "postgres://localhost:5432/db"}'></textarea>
+            </div>
+            <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px;">
+                <button type="button" class="btn btn-secondary" onclick="closeCreateModal()">Отмена</button>
+                <button type="submit" class="btn btn-primary">Создать</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Details Modal -->
+<div id="details-modal" class="modal">
+    <div class="modal-content" style="max-width: 800px;">
+        <h3><i class="fa-solid fa-map"></i> ConfigMap: <span id="details-name"></span></h3>
+        <div id="details-content"></div>
+        <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px;">
+            <button class="btn btn-primary" onclick="editCurrentConfigMap()">
+                <i class="fa-solid fa-pen"></i> Редактировать
+            </button>
+            <button class="btn btn-secondary" onclick="closeDetailsModal()">Закрыть</button>
+        </div>
+    </div>
+</div>
+
 <script src="app.js"></script>
 <script>
 checkAuth();
-const KEY = 'k8s_namespace';
-const content = $('#content');
+let configMapsData = [];
+let autoRefreshInterval = null;
+let currentConfigMap = null;
 
+// Загрузка namespaces
 async function loadNamespaces() {
-    const data = await api.get('/kubernetes/namespaces');
-    const sel = $('#namespace');
-    const names = (data || []).map(n => n.name).filter(Boolean);
-    const current = localStorage.getItem(KEY) || names[0] || 'default';
-    sel.innerHTML = names.map(n => `<option value="${escapeHtml(n)}"${n===current?' selected':''}>${escapeHtml(n)}</option>`).join('');
-    sel.addEventListener('change', () => { localStorage.setItem(KEY, sel.value); loadConfigMaps(); });
+    try {
+        const ns = await api.get('/kubernetes/namespaces');
+        const select = $('#namespace');
+        const cmSelect = $('#cm-namespace');
+        const options = '<option value="default">default</option>' + ns.map(n => `<option value="${escapeHtml(n.name)}">${escapeHtml(n.name)}</option>`).join('');
+        select.innerHTML = options;
+        cmSelect.innerHTML = options;
+        loadConfigMaps();
+    } catch (e) {
+        console.error('Failed to load namespaces:', e);
+        $('#content').innerHTML = `<div class="alert alert-error"><i class="fa-solid fa-exclamation-triangle"></i> Ошибка: ${escapeHtml(e.message)}</div>`;
+    }
 }
 
+// Загрузка ConfigMaps
 async function loadConfigMaps() {
-    const ns = $('#namespace').value || localStorage.getItem(KEY) || 'default';
-    const filter = ($('#filter').value || '').toLowerCase();
-    const rows = await api.get(`/kubernetes/configmaps?namespace=${encodeURIComponent(ns)}`);
-    const filtered = (rows || []).filter(x => (x.name || '').toLowerCase().includes(filter));
+    const namespace = $('#namespace').value;
+    const content = $('#content');
+
+    content.innerHTML = '<div class="loading"><div class="loading-spinner"></div><p>Загрузка...</p></div>';
+
+    try {
+        configMapsData = await api.get(`/kubernetes/namespaces/${namespace}/configmaps`);
+        renderConfigMaps(configMapsData);
+        updateLastUpdate();
+    } catch (e) {
+        console.error('Failed to load configmaps:', e);
+        content.innerHTML = `<div class="alert alert-error"><i class="fa-solid fa-exclamation-triangle"></i> Ошибка: ${escapeHtml(e.message)}</div>`;
+    }
+}
+
+// Рендер ConfigMaps
+function renderConfigMaps(configMaps) {
+    const content = $('#content');
+    const filter = $('#filter').value.toLowerCase();
+
+    let filtered = configMaps;
+    if (filter) {
+        filtered = configMaps.filter(cm => cm.name.toLowerCase().includes(filter));
+    }
+
+    if (filtered.length === 0) {
+        content.innerHTML = '<div class="alert alert-info"><i class="fa-solid fa-info-circle"></i> ConfigMaps не найдено</div>';
+        return;
+    }
+
     content.innerHTML = `
         <table class="table">
-            <thead><tr><th>Имя</th><th>Data keys</th><th>Binary keys</th><th>Binary bytes</th><th></th></tr></thead>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Namespace</th>
+                    <th>Keys</th>
+                    <th>Size</th>
+                    <th>Age</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
             <tbody>
-                ${filtered.map(c => `<tr>
-                    <td>${escapeHtml(c.name || '—')}</td>
-                    <td>${c.data_keys || 0}</td>
-                    <td>${c.binary_data_keys || 0}</td>
-                    <td>${c.binary_total_bytes || 0}</td>
-                    <td>
-                        <button class="btn btn-sm" onclick="showYaml('${encodeURIComponent(c.name)}')"><i class="fa-solid fa-file-code"></i></button>
-                        <button class="btn btn-sm" onclick="dryRun('${encodeURIComponent(c.name)}')"><i class="fa-solid fa-vial"></i></button>
-                        <button class="btn btn-sm" onclick="showRefs('${encodeURIComponent(c.name)}')"><i class="fa-solid fa-link"></i></button>
-                    </td>
-                </tr>`).join('')}
+                ${filtered.map(cm => `
+                    <tr>
+                        <td><strong>${escapeHtml(cm.name)}</strong></td>
+                        <td>${escapeHtml(cm.namespace)}</td>
+                        <td>
+                            ${cm.keys && cm.keys.length ? cm.keys.map(k => `<span class="key-badge">${escapeHtml(k)}</span>`).join('') : '<span style="color:#999">—</span>'}
+                        </td>
+                        <td>${cm.size || 'N/A'}</td>
+                        <td>${escapeHtml(cm.age || 'N/A')}</td>
+                        <td style="display: flex; gap: 4px;">
+                            <button class="btn btn-sm btn-secondary" onclick="showDetails('${escapeHtml(cm.name)}', '${escapeHtml(cm.namespace)}')" title="View">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                            <button class="btn btn-sm btn-primary" onclick="editConfigMap('${escapeHtml(cm.name)}', '${escapeHtml(cm.namespace)}')" title="Edit">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteConfigMap('${escapeHtml(cm.name)}', '${escapeHtml(cm.namespace)}')" title="Delete">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `).join('')}
             </tbody>
-        </table>`;
+        </table>
+    `;
 }
 
-async function showYaml(nameEnc) {
-    const ns = $('#namespace').value || 'default';
-    const text = await fetch(`/api/kubernetes/namespaces/${encodeURIComponent(ns)}/configmaps/${nameEnc}/yaml`, {
-        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('velum_token') }
-    }).then(r => r.text());
-    ui.showModal('ConfigMap YAML', `<pre style="white-space: pre-wrap;">${escapeHtml(text)}</pre>`);
+// Фильтр
+function filterConfigMaps() {
+    renderConfigMaps(configMapsData);
 }
 
-async function showRefs(nameEnc) {
-    const ns = $('#namespace').value || 'default';
-    const refs = await api.get(`/kubernetes/namespaces/${encodeURIComponent(ns)}/configmaps/${nameEnc}/references`);
-    ui.showModal('Referenced by', `<pre style="white-space: pre-wrap;">${escapeHtml(JSON.stringify(refs, null, 2))}</pre>`);
+// Показать детали
+async function showDetails(name, namespace) {
+    try {
+        const data = await api.get(`/kubernetes/namespaces/${namespace}/configmaps/${name}`);
+        currentConfigMap = { name, namespace, data };
+        
+        $('#details-name').textContent = `${namespace}/${name}`;
+        
+        const dataKeys = data.data ? Object.keys(data.data) : [];
+        const binaryKeys = data.binary_data ? Object.keys(data.binary_data) : [];
+        
+        let dataHtml = '';
+        if (dataKeys.length > 0) {
+            dataHtml += `<h4>Data</h4><div class="data-preview">${escapeHtml(JSON.stringify(data.data, null, 2))}</div>`;
+        }
+        if (binaryKeys.length > 0) {
+            dataHtml += `<h4>Binary Data</h4><div class="data-preview">${binaryKeys.map(k => `${k}: <base64>`).join('\n')}</div>`;
+        }
+        
+        $('#details-content').innerHTML = `
+            <div class="card">
+                <table class="table">
+                    <tr><td>Name</td><td>${escapeHtml(data.name)}</td></tr>
+                    <tr><td>Namespace</td><td>${escapeHtml(data.namespace)}</td></tr>
+                    <tr><td>Data keys</td><td>${dataKeys.length}</td></tr>
+                    <tr><td>Binary keys</td><td>${binaryKeys.length}</td></tr>
+                    <tr><td>Created</td><td>${data.created_at ? new Date(data.created_at).toLocaleString() : 'N/A'}</td></tr>
+                </table>
+                ${dataHtml}
+            </div>
+        `;
+        $('#details-modal').classList.add('active');
+    } catch (e) {
+        alert(`Ошибка: ${e.message}`);
+    }
 }
 
-async function dryRun(nameEnc) {
-    const ns = $('#namespace').value || 'default';
-    const text = await fetch(`/api/kubernetes/namespaces/${encodeURIComponent(ns)}/configmaps/${nameEnc}/yaml`, {
-        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('velum_token') }
-    }).then(r => r.text());
-    const result = await api.post('/kubernetes/configmaps/validate', { mode: 'raw_yaml', raw: text });
-    ui.showModal('Dry-run validation', `<pre style="white-space: pre-wrap;">${escapeHtml(JSON.stringify(result, null, 2))}</pre>`);
+// Edit ConfigMap
+async function editConfigMap(name, namespace) {
+    try {
+        const data = await api.get(`/kubernetes/namespaces/${namespace}/configmaps/${name}`);
+        currentConfigMap = { name, namespace, data };
+        
+        $('#cm-name').value = data.name;
+        $('#cm-name').disabled = true;
+        $('#cm-namespace').value = data.namespace;
+        $('#cm-data').value = JSON.stringify(data.data || {}, null, 2);
+        
+        $('#create-modal').classList.add('active');
+        document.querySelector('#create-modal h3').innerHTML = '<i class="fa-solid fa-pen"></i> Редактировать ConfigMap';
+    } catch (e) {
+        alert(`Ошибка: ${e.message}`);
+    }
 }
 
-$('#filter').addEventListener('input', () => loadConfigMaps());
-(async function init(){ await loadNamespaces(); await loadConfigMaps(); })();
+function editCurrentConfigMap() {
+    if (currentConfigMap) {
+        editConfigMap(currentConfigMap.name, currentConfigMap.namespace);
+    }
+}
+
+// Create/Update ConfigMap
+async function createConfigMap(event) {
+    event.preventDefault();
+    
+    const name = $('#cm-name').value;
+    const namespace = $('#cm-namespace').value;
+    let dataValue = {};
+    
+    try {
+        const dataStr = $('#cm-data').value.trim();
+        if (dataStr) {
+            dataValue = JSON.parse(dataStr);
+        }
+    } catch (e) {
+        alert(`Invalid JSON: ${e.message}`);
+        return;
+    }
+    
+    try {
+        if (currentConfigMap && currentConfigMap.name === name && currentConfigMap.namespace === namespace) {
+            // Update
+            await api.put(`/kubernetes/namespaces/${namespace}/configmaps/${name}`, {
+                data: dataValue
+            });
+            alert(`ConfigMap ${namespace}/${name} обновлена`);
+        } else {
+            // Create
+            await api.post('/kubernetes/configmaps', {
+                name,
+                namespace,
+                data: dataValue
+            });
+            alert(`ConfigMap ${namespace}/${name} создана`);
+        }
+        closeCreateModal();
+        loadConfigMaps();
+    } catch (e) {
+        alert(`Ошибка: ${e.message}`);
+    }
+}
+
+// Delete ConfigMap
+async function deleteConfigMap(name, namespace) {
+    if (!confirm(`Удалить ConfigMap ${namespace}/${name}?`)) return;
+    
+    try {
+        await api.delete(`/kubernetes/namespaces/${namespace}/configmaps/${name}`);
+        alert(`ConfigMap ${namespace}/${name} удалена`);
+        loadConfigMaps();
+    } catch (e) {
+        alert(`Ошибка: ${e.message}`);
+    }
+}
+
+// Modal functions
+function openCreateModal() {
+    currentConfigMap = null;
+    $('#cm-name').disabled = false;
+    $('#cm-name').value = '';
+    $('#cm-data').value = '';
+    document.querySelector('#create-modal h3').innerHTML = '<i class="fa-solid fa-plus"></i> Создать ConfigMap';
+    $('#create-modal').classList.add('active');
+}
+
+function closeCreateModal() {
+    $('#create-modal').classList.remove('active');
+}
+
+function closeDetailsModal() {
+    $('#details-modal').classList.remove('active');
+    currentConfigMap = null;
+}
+
+// Auto Refresh
+function toggleAutoRefresh() {
+    if ($('#auto-refresh').checked) {
+        autoRefreshInterval = setInterval(loadConfigMaps, 10000);
+    } else {
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+            autoRefreshInterval = null;
+        }
+    }
+}
+
+function updateLastUpdate() {
+    const now = new Date();
+    const el = document.getElementById('last-update');
+    if (el) el.textContent = 'Обновлено: ' + now.toLocaleTimeString();
+}
+
+// Init
+loadNamespaces();
 </script>
 </body>
 </html>

@@ -10,11 +10,11 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-use crate::api::state::AppState;
 use crate::api::extractors::AuthUser;
+use crate::api::state::AppState;
+use crate::db::store::{RetrieveQueryParams, UserManager};
 use crate::error::{Error, Result};
 use crate::models::User;
-use crate::db::store::{UserManager, RetrieveQueryParams};
 
 /// Контроллер пользователей
 pub struct UsersController {
@@ -55,7 +55,9 @@ impl UsersController {
     ) -> Result<(StatusCode, Json<User>)> {
         // Проверяем права администратора
         if !admin {
-            return Err(Error::Other("User is not permitted to create users".to_string()));
+            return Err(Error::Other(
+                "User is not permitted to create users".to_string(),
+            ));
         }
 
         // TODO: Проверка подписки для PRO пользователей
@@ -95,7 +97,9 @@ impl UsersController {
     ) -> Result<Json<User>> {
         // Проверяем права (пользователь может редактировать только себя или админ может всех)
         if !admin && user_id != update_user_id {
-            return Err(Error::Other("User is not permitted to update other users".to_string()));
+            return Err(Error::Other(
+                "User is not permitted to update other users".to_string(),
+            ));
         }
 
         let mut user_to_update = state.store.get_user(update_user_id).await?;
@@ -116,7 +120,9 @@ impl UsersController {
     ) -> Result<StatusCode> {
         // Проверяем права
         if !admin {
-            return Err(Error::Other("User is not permitted to delete users".to_string()));
+            return Err(Error::Other(
+                "User is not permitted to delete users".to_string(),
+            ));
         }
 
         state.store.delete_user(user_id).await?;
@@ -159,7 +165,8 @@ impl UsersController {
         let user = state.store.get_user(user_id).await?;
 
         // Проверяем что TOTP настроен
-        let totp = user.totp
+        let totp = user
+            .totp
             .ok_or_else(|| Error::Other("TOTP not enabled".to_string()))?;
 
         // Проверяем код

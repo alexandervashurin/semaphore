@@ -1,14 +1,14 @@
 //! GraphQL Mutation корень — CRUD операции
 
-use async_graphql::{Context, Object, Result, InputObject};
-use chrono::Utc;
 use crate::api::state::AppState;
-use crate::db::store::{UserManager, ProjectStore, TemplateManager, TaskManager};
-use crate::models::{User as DbUser, Project as DbProject, Template as DbTemplate, Task as DbTask};
-use crate::models::template::{TemplateType, TemplateApp};
+use crate::db::store::{ProjectStore, TaskManager, TemplateManager, UserManager};
+use crate::models::template::{TemplateApp, TemplateType};
+use crate::models::{Project as DbProject, Task as DbTask, Template as DbTemplate, User as DbUser};
 use crate::services::task_logger::TaskStatus;
+use async_graphql::{Context, InputObject, Object, Result};
+use chrono::Utc;
 
-use super::types::{User, Project, Template, Task};
+use super::types::{Project, Task, Template, User};
 
 /// Input для создания пользователя
 #[derive(InputObject, Debug)]
@@ -61,7 +61,7 @@ impl MutationRoot {
         let store = &state.store;
 
         let admin = input.admin.unwrap_or(false);
-        
+
         let new_user = DbUser {
             id: 0,
             created: Utc::now(),
@@ -78,7 +78,7 @@ impl MutationRoot {
         };
 
         let created = store.create_user(new_user, &input.password).await?;
-        
+
         Ok(User {
             id: created.id,
             username: created.username,
@@ -89,7 +89,11 @@ impl MutationRoot {
     }
 
     /// Создать проект
-    async fn create_project(&self, ctx: &Context<'_>, input: CreateProjectInput) -> Result<Project> {
+    async fn create_project(
+        &self,
+        ctx: &Context<'_>,
+        input: CreateProjectInput,
+    ) -> Result<Project> {
         let state = ctx.data::<AppState>()?;
         let store = &state.store;
 
@@ -105,7 +109,7 @@ impl MutationRoot {
         };
 
         let created = store.create_project(new_project).await?;
-        
+
         Ok(Project {
             id: created.id,
             name: created.name,
@@ -113,7 +117,11 @@ impl MutationRoot {
     }
 
     /// Создать шаблон
-    async fn create_template(&self, ctx: &Context<'_>, input: CreateTemplateInput) -> Result<Template> {
+    async fn create_template(
+        &self,
+        ctx: &Context<'_>,
+        input: CreateTemplateInput,
+    ) -> Result<Template> {
         let state = ctx.data::<AppState>()?;
         let store = &state.store;
 
@@ -153,7 +161,7 @@ impl MutationRoot {
         };
 
         let created = store.create_template(new_template).await?;
-        
+
         Ok(Template {
             id: created.id,
             project_id: created.project_id,
@@ -195,7 +203,7 @@ impl MutationRoot {
         };
 
         let created = store.create_task(new_task).await?;
-        
+
         Ok(Task {
             id: created.id,
             template_id: created.template_id,
@@ -205,11 +213,20 @@ impl MutationRoot {
     }
 
     /// Обновить шаблон
-    async fn update_template(&self, ctx: &Context<'_>, project_id: i32, id: i32, name: String, playbook: String) -> Result<Template> {
+    async fn update_template(
+        &self,
+        ctx: &Context<'_>,
+        project_id: i32,
+        id: i32,
+        name: String,
+        playbook: String,
+    ) -> Result<Template> {
         let state = ctx.data::<AppState>()?;
         let store = &state.store;
 
-        let template = store.get_template(project_id, id).await
+        let template = store
+            .get_template(project_id, id)
+            .await
             .map_err(|_| async_graphql::Error::new("Template not found"))?;
 
         let updated = DbTemplate {
@@ -219,7 +236,7 @@ impl MutationRoot {
         };
 
         store.update_template(updated).await?;
-        
+
         Ok(Template {
             id,
             project_id: template.project_id,
@@ -235,7 +252,9 @@ impl MutationRoot {
 
         // Получаем project_id из шаблона
         let templates = store.get_templates(1).await?;
-        let template = templates.iter().find(|t| t.id == id)
+        let template = templates
+            .iter()
+            .find(|t| t.id == id)
             .ok_or_else(|| async_graphql::Error::new("Template not found"))?;
         let project_id = template.project_id;
 
@@ -250,7 +269,9 @@ impl MutationRoot {
 
         // Получаем project_id из задачи
         let tasks = store.get_tasks(1, None).await?;
-        let task = tasks.iter().find(|t| t.task.id == id)
+        let task = tasks
+            .iter()
+            .find(|t| t.task.id == id)
             .ok_or_else(|| async_graphql::Error::new("Task not found"))?;
         let project_id = task.task.project_id;
 

@@ -52,7 +52,9 @@ impl<'r, DB: sqlx::Database> sqlx::Decode<'r, DB> for SecretStorageType
 where
     String: sqlx::Decode<'r, DB>,
 {
-    fn decode(value: <DB as sqlx::Database>::ValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
+    fn decode(
+        value: <DB as sqlx::Database>::ValueRef<'r>,
+    ) -> Result<Self, sqlx::error::BoxDynError> {
         let s = <String as sqlx::Decode<'r, DB>>::decode(value)?;
         Ok(s.parse().unwrap_or(SecretStorageType::Local))
     }
@@ -94,7 +96,12 @@ pub struct SecretStorage {
 
 impl SecretStorage {
     /// Создаёт новое хранилище
-    pub fn new(project_id: i32, name: String, storage_type: SecretStorageType, params: String) -> Self {
+    pub fn new(
+        project_id: i32,
+        name: String,
+        storage_type: SecretStorageType,
+        params: String,
+    ) -> Self {
         Self {
             id: 0,
             project_id,

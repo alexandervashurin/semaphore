@@ -14,12 +14,16 @@ pub fn validate_template(template: &Template) -> Result<()> {
 
     // Проверка playbook
     if template.playbook.is_empty() {
-        return Err(Error::Other("Template playbook cannot be empty".to_string()));
+        return Err(Error::Other(
+            "Template playbook cannot be empty".to_string(),
+        ));
     }
 
     // Проверка что playbook заканчивается на .yml или .yaml
     if !template.playbook.ends_with(".yml") && !template.playbook.ends_with(".yaml") {
-        return Err(Error::Other("Template playbook must end with .yml or .yaml".to_string()));
+        return Err(Error::Other(
+            "Template playbook must end with .yml or .yaml".to_string(),
+        ));
     }
 
     Ok(())
@@ -28,7 +32,7 @@ pub fn validate_template(template: &Template) -> Result<()> {
 /// Проверяет существует ли playbook
 pub async fn playbook_exists(playbook_path: &str) -> Result<bool> {
     use tokio::fs;
-    
+
     match fs::metadata(playbook_path).await {
         Ok(_) => Ok(true),
         Err(_) => Ok(false),
@@ -37,15 +41,18 @@ pub async fn playbook_exists(playbook_path: &str) -> Result<bool> {
 
 /// Получает список playbook из директории
 pub async fn list_playbooks(dir_path: &str) -> Result<Vec<String>> {
-    use tokio::fs;
     use std::path::Path;
-    
+    use tokio::fs;
+
     let mut playbooks = Vec::new();
-    let mut entries = fs::read_dir(dir_path).await
+    let mut entries = fs::read_dir(dir_path)
+        .await
         .map_err(|e| Error::Other(format!("Failed to read directory: {}", e)))?;
-    
-    while let Some(entry) = entries.next_entry().await
-        .map_err(|e| Error::Other(format!("Failed to read entry: {}", e)))? 
+
+    while let Some(entry) = entries
+        .next_entry()
+        .await
+        .map_err(|e| Error::Other(format!("Failed to read entry: {}", e)))?
     {
         let path = entry.path();
         if path.is_file() {
@@ -58,7 +65,7 @@ pub async fn list_playbooks(dir_path: &str) -> Result<Vec<String>> {
             }
         }
     }
-    
+
     Ok(playbooks)
 }
 

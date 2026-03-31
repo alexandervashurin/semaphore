@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes HPA — Velum</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar"></aside>
+    <div class="main-content">
+        <div class="main-header">
+            <h2><i class="fa-solid fa-arrows-spin"></i> HorizontalPodAutoscaler</h2>
+            <button class="btn btn-primary" onclick="openCreateModal()"><i class="fa-solid fa-plus"></i> Создать HPA</button>
+        </div>
+        <div class="main-body">
+            <div class="card" style="margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <label>Namespace: <select id="namespace" class="form-control" style="max-width:200px;"></select></label>
+                <input id="filter" class="form-control" placeholder="Фильтр по имени" style="min-width:160px;">
+                <button class="btn btn-primary" onclick="loadHPAs()"><i class="fa-solid fa-rotate"></i> Обновить</button>
+            </div>
+            <div id="content" class="card"><div class="loading"><div class="loading-spinner"></div><p>Загрузка...</p></div></div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Create/Edit HPA -->
+<div class="modal-overlay" id="hpa-modal" style="display:none;">
+    <div class="modal" style="max-width:700px;">
+        <div class="modal-header">
+            <h3 id="modal-title">Создать HPA</h3>
+            <button class="modal-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+            <form id="hpa-form" onsubmit="saveHPA(event)">
+                <div class="form-group">
+                    <label>Имя *</label>
+                    <input type="text" id="hpa-name" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Namespace *</label>
+                    <select id="hpa-namespace" class="form-control" required></select>
+                </div>
+                <div class="form-group">
+                    <label>Target Reference *</label>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                        <select id="hpa-target-kind" class="form-control">
+                            <option value="Deployment">Deployment</option>
+                            <option value="StatefulSet">StatefulSet</option>
+                            <option value="ReplicaSet">ReplicaSet</option>
+                        </select>
+                        <input type="text" id="hpa-target-name" class="form-control" placeholder="Имя ресурса" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Min Replicas</label>
+                    <input type="number" id="hpa-min" class="form-control" min="1" value="1">
+                </div>
+                <div class="form-group">
+                    <label>Max Replicas *</label>
+                    <input type="number" id="hpa-max" class="form-control" min="1" value="10" required>
+                </div>
+                <div class="form-group">
+                    <label>Metric Type</label>
+                    <select id="hpa-metric-type" class="form-control" onchange="toggleMetricFields()">
+                        <option value="cpu">CPU Utilization</option>
+                        <option value="memory">Memory Utilization</option>
+                        <option value="custom">Custom Metric</option>
+                    </select>
+                </div>
+                <div id="cpu-field" class="form-group">
+                    <label>CPU Target Utilization (%)</label>
+                    <input type="number" id="hpa-cpu-target" class="form-control" min="1" max="100" value="80">
+                </div>
+                <div id="memory-field" class="form-group" style="display:none;">
+                    <label>Memory Target (Mi)</label>
+                    <input type="number" id="hpa-memory-target" class="form-control" min="1" value="512">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn" onclick="closeModal()">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+checkAuth();
+let editingName = null;
+
+async function loadNamespaces() {
+    const ns = await api.get('/kubernetes/namespaces');
+    const select = $('#namespace');
+    const hpaSelect = $('#hpa-namespace');
+    select.innerHTML = '<option value="">— все —</option>';
+    hpaSelect.innerHTML = '';
+    ns.forEach(n => {
+        const opt = `<option value="${escapeHtml(n.name)}">${escapeHtml(n.name)}</option>`;
+        select.innerHTML += opt;
+        hpaSelect.innerHTML += opt;
+    });
+}
+
+async function loadHPAs() {
+    const ns = $('#namespace').value || 'default';
+    const filter = $('#filter').value.toLowerCase();
+    const content = $('#content');
+    
+    try {
+        const hpas = await api.get(`/kubernetes/horizontalpodautoscalers?namespace=${ns}`);
+        const filtered = hpas.filter(h => !filter || h.name.toLowerCase().includes(filter));
+        
+        if (filtered.length === 0) {
+            ui.showEmpty(content, '<i class="fa-solid fa-arrows-spin"></i>', 'Нет HPA', 'Создайте первый HorizontalPodAutoscaler');
+            return;
+        }
+        
+        content.innerHTML = `
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Имя</th>
+                        <th>Namespace</th>
+                        <th>Target</th>
+                        <th>Min/Max</th>
+                        <th>Current/Desired</th>
+                        <th>Metrics</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${filtered.map(hpa => `
+                        <tr>
+                            <td><strong>${escapeHtml(hpa.name)}</strong></td>
+                            <td>${escapeHtml(hpa.namespace)}</td>
+                            <td>${escapeHtml(hpa.target_ref)}</td>
+                            <td>${hpa.min_replicas || 1} / ${hpa.max_replicas}</td>
+                            <td>${hpa.current_replicas || '—'} / ${hpa.desired_replicas || '—'}</td>
+                            <td>${hpa.metrics_hint ? '<i class="fa-solid fa-circle-exclamation" style="color:var(--warning)"></i>' : 'CPU'}</td>
+                            <td>
+                                <button class="btn btn-sm btn-secondary" onclick="editHPA('${escapeHtml(hpa.name)}','${escapeHtml(hpa.namespace)}')" title="Редактировать"><i class="fa-solid fa-pen"></i></button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteHPA('${escapeHtml(hpa.name)}','${escapeHtml(hpa.namespace)}')" title="Удалить"><i class="fa-solid fa-trash"></i></button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (e) {
+        ui.showError(content, e.message);
+    }
+}
+
+function openCreateModal() {
+    editingName = null;
+    $('#modal-title').textContent = 'Создать HPA';
+    $('#hpa-form').reset();
+    $('#hpa-modal').style.display = 'flex';
+}
+
+function closeModal() {
+    $('#hpa-modal').style.display = 'none';
+}
+
+function toggleMetricFields() {
+    const type = $('#hpa-metric-type').value;
+    $('#cpu-field').style.display = type === 'cpu' ? 'block' : 'none';
+    $('#memory-field').style.display = type === 'memory' ? 'block' : 'none';
+}
+
+async function editHPA(name, namespace) {
+    editingName = name;
+    $('#modal-title').textContent = 'Редактировать HPA';
+    
+    try {
+        const hpa = await api.get(`/kubernetes/namespaces/${namespace}/horizontalpodautoscalers/${name}`);
+        $('#hpa-name').value = hpa.metadata.name;
+        $('#hpa-namespace').value = hpa.metadata.namespace || 'default';
+        $('#hpa-target-kind').value = hpa.spec.scaleTargetRef.kind;
+        $('#hpa-target-name').value = hpa.spec.scaleTargetRef.name;
+        $('#hpa-min').value = hpa.spec.minReplicas || 1;
+        $('#hpa-max').value = hpa.spec.maxReplicas;
+        $('#hpa-modal').style.display = 'flex';
+    } catch (e) {
+        ui.showAlert('Ошибка: ' + e.message, 'danger');
+    }
+}
+
+async function saveHPA(e) {
+    e.preventDefault();
+    
+    const metricType = $('#hpa-metric-type').value;
+    let metrics = [];
+    if (metricType === 'cpu') {
+        metrics = [{
+            type: 'Resource',
+            resource: {
+                name: 'cpu',
+                target: {
+                    type: 'Utilization',
+                    averageUtilization: parseInt($('#hpa-cpu-target').value)
+                }
+            }
+        }];
+    } else if (metricType === 'memory') {
+        metrics = [{
+            type: 'Resource',
+            resource: {
+                name: 'memory',
+                target: {
+                    type: 'AverageValue',
+                    averageValue: $('#hpa-memory-target').value + 'Mi'
+                }
+            }
+        }];
+    }
+    
+    const payload = {
+        apiVersion: 'autoscaling/v2',
+        kind: 'HorizontalPodAutoscaler',
+        metadata: {
+            name: $('#hpa-name').value,
+            namespace: $('#hpa-namespace').value
+        },
+        spec: {
+            scaleTargetRef: {
+                apiVersion: 'apps/v1',
+                kind: $('#hpa-target-kind').value,
+                name: $('#hpa-target-name').value
+            },
+            minReplicas: parseInt($('#hpa-min').value),
+            maxReplicas: parseInt($('#hpa-max').value),
+            metrics: metrics
+        }
+    };
+    
+    const btn = document.querySelector('#hpa-modal button[type="submit"]');
+    btn.disabled = true;
+    
+    try {
+        if (editingName) {
+            await api.put(`/kubernetes/namespaces/${$('#hpa-namespace').value}/horizontalpodautoscalers/${editingName}`, payload);
+        } else {
+            await api.post(`/kubernetes/namespaces/${$('#hpa-namespace').value}/horizontalpodautoscalers`, payload);
+        }
+        closeModal();
+        loadHPAs();
+        ui.showAlert('HPA сохранён', 'success');
+    } catch (e) {
+        ui.showAlert('Ошибка: ' + e.message, 'danger');
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function deleteHPA(name, namespace) {
+    if (!confirm(`Удалить HPA ${namespace}/${name}?`)) return;
+    
+    try {
+        await api.delete(`/kubernetes/namespaces/${namespace}/horizontalpodautoscalers/${name}`);
+        loadHPAs();
+        ui.showAlert('HPA удалён', 'success');
+    } catch (e) {
+        ui.showAlert('Ошибка: ' + e.message, 'danger');
+    }
+}
+
+$('#namespace').addEventListener('change', loadHPAs);
+$('#filter').addEventListener('input', loadHPAs);
+
+loadNamespaces().then(loadHPAs);
+</script>
+</body>
+</html>

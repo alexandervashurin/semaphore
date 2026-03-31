@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 
 use crate::models::Task;
 use crate::services::task_pool_types::TaskPool;
@@ -15,60 +15,60 @@ impl TaskPool {
         if self.is_shutdown().await {
             return Err("TaskPool is shutdown".to_string());
         }
-        
+
         let mut queue = self.task_queue.lock().await;
         queue.push(task);
-        
+
         info!("Task added to queue. Queue size: {}", queue.len());
-        
+
         Ok(())
     }
-    
+
     /// Получает задачу из очереди
     pub async fn get_next_task(&self) -> Option<Task> {
         let mut queue = self.task_queue.lock().await;
-        
+
         if queue.is_empty() {
             return None;
         }
-        
+
         let task = queue.remove(0);
         info!("Task removed from queue. Queue size: {}", queue.len());
-        
+
         Some(task)
     }
-    
+
     /// Получает размер очереди
     pub async fn queue_size(&self) -> usize {
         let queue = self.task_queue.lock().await;
         queue.len()
     }
-    
+
     /// Очищает очередь
     pub async fn clear_queue(&self) {
         let mut queue = self.task_queue.lock().await;
         let count = queue.len();
         queue.clear();
-        
+
         info!("Queue cleared. Removed {} tasks.", count);
     }
-    
+
     /// Получает все задачи из очереди
     pub async fn get_queue(&self) -> Vec<Task> {
         let queue = self.task_queue.lock().await;
         queue.clone()
     }
-    
+
     /// Удаляет задачу из очереди по ID
     pub async fn remove_task(&self, task_id: i32) -> bool {
         let mut queue = self.task_queue.lock().await;
-        
+
         if let Some(pos) = queue.iter().position(|t| t.id == task_id) {
             queue.remove(pos);
             info!("Task {} removed from queue", task_id);
             return true;
         }
-        
+
         false
     }
 }
@@ -106,18 +106,22 @@ mod tests {
             r#type: "default".to_string(),
             default_secret_storage_id: None,
         };
-        
-        TaskPool::new(store, project, Arc::new(crate::api::websocket::WebSocketManager::new()))
+
+        TaskPool::new(
+            store,
+            project,
+            Arc::new(crate::api::websocket::WebSocketManager::new()),
+        )
     }
 
     #[tokio::test]
     async fn test_add_task() {
         let pool = create_test_pool().await;
         let task = create_test_task(1);
-        
+
         let result = pool.add_task(task).await;
         assert!(result.is_ok());
-        
+
         assert_eq!(pool.queue_size().await, 1);
     }
 
@@ -125,55 +129,55 @@ mod tests {
     async fn test_get_next_task() {
         let pool = create_test_pool().await;
         let task = create_test_task(1);
-        
+
         pool.add_task(task).await.unwrap();
-        
+
         let next_task = pool.get_next_task().await;
         assert!(next_task.is_some());
         assert_eq!(next_task.unwrap().id, 1);
-        
+
         assert_eq!(pool.queue_size().await, 0);
     }
 
     #[tokio::test]
     async fn test_queue_size() {
         let pool = create_test_pool().await;
-        
+
         assert_eq!(pool.queue_size().await, 0);
-        
+
         pool.add_task(create_test_task(1)).await.unwrap();
         pool.add_task(create_test_task(2)).await.unwrap();
         pool.add_task(create_test_task(3)).await.unwrap();
-        
+
         assert_eq!(pool.queue_size().await, 3);
     }
 
     #[tokio::test]
     async fn test_clear_queue() {
         let pool = create_test_pool().await;
-        
+
         pool.add_task(create_test_task(1)).await.unwrap();
         pool.add_task(create_test_task(2)).await.unwrap();
         pool.add_task(create_test_task(3)).await.unwrap();
-        
+
         pool.clear_queue().await;
-        
+
         assert_eq!(pool.queue_size().await, 0);
     }
 
     #[tokio::test]
     async fn test_remove_task() {
         let pool = create_test_pool().await;
-        
+
         pool.add_task(create_test_task(1)).await.unwrap();
         pool.add_task(create_test_task(2)).await.unwrap();
         pool.add_task(create_test_task(3)).await.unwrap();
-        
+
         let removed = pool.remove_task(2).await;
         assert!(removed);
-        
+
         assert_eq!(pool.queue_size().await, 2);
-        
+
         let removed = pool.remove_task(999).await;
         assert!(!removed);
     }
@@ -181,10 +185,10 @@ mod tests {
     #[tokio::test]
     async fn test_get_queue() {
         let pool = create_test_pool().await;
-        
+
         pool.add_task(create_test_task(1)).await.unwrap();
         pool.add_task(create_test_task(2)).await.unwrap();
-        
+
         let queue = pool.get_queue().await;
         assert_eq!(queue.len(), 2);
         assert_eq!(queue[0].id, 1);
@@ -194,9 +198,9 @@ mod tests {
     #[tokio::test]
     async fn test_add_task_after_shutdown() {
         let pool = create_test_pool().await;
-        
+
         pool.shutdown().await;
-        
+
         let result = pool.add_task(create_test_task(1)).await;
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), "TaskPool is shutdown");

@@ -15,14 +15,12 @@ impl SqlDb {
 
     /// Получает сессию по ID
     pub async fn get_session(&self, _user_id: i32, session_id: i32) -> Result<Session> {
-        let row = sqlx::query(
-            "SELECT * FROM session WHERE id = $1"
-        )
-        .bind(session_id)
-        .fetch_optional(self.pg_pool_session()?)
-        .await
-        .map_err(Error::Database)?
-        .ok_or_else(|| Error::NotFound("Сессия не найдена".to_string()))?;
+        let row = sqlx::query("SELECT * FROM session WHERE id = $1")
+            .bind(session_id)
+            .fetch_optional(self.pg_pool_session()?)
+            .await
+            .map_err(Error::Database)?
+            .ok_or_else(|| Error::NotFound("Сессия не найдена".to_string()))?;
 
         Ok(Session {
             id: row.get("id"),
@@ -32,7 +30,10 @@ impl SqlDb {
             ip: row.try_get("ip").ok().unwrap_or_default(),
             user_agent: row.try_get("user_agent").ok().unwrap_or_default(),
             expired: row.get("expired"),
-            verification_method: row.try_get("verification_method").ok().unwrap_or(SessionVerificationMethod::None),
+            verification_method: row
+                .try_get("verification_method")
+                .ok()
+                .unwrap_or(SessionVerificationMethod::None),
             verified: row.try_get("verified").ok().unwrap_or(false),
         })
     }
@@ -42,7 +43,7 @@ impl SqlDb {
         let id: i32 = sqlx::query_scalar(
             "INSERT INTO session (user_id, created, last_active, ip, user_agent, expired, \
              verification_method, verified) \
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id"
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
         )
         .bind(session.user_id)
         .bind(session.created)

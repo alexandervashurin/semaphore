@@ -4,7 +4,6 @@
 
 pub mod apps;
 pub mod auth;
-pub mod mcp;
 pub mod auth_ldap;
 pub mod auth_local;
 pub mod cache;
@@ -14,9 +13,33 @@ pub mod graphql;
 pub mod handlers;
 pub mod integration;
 pub mod login;
+pub mod mcp;
 pub mod middleware;
 pub mod options;
-pub mod routes;
+pub mod routes {
+    pub mod auth;
+    pub mod kubernetes;
+    pub mod playbooks;
+    pub mod projects;
+    pub mod repositories;
+    pub mod static_files;
+    pub mod tasks;
+    pub mod templates;
+    pub mod users;
+
+    pub use auth::auth_routes;
+    pub use kubernetes::kubernetes_routes;
+    pub use playbooks::playbook_routes;
+    pub use projects::project_routes;
+    pub use repositories::repository_routes;
+    pub use tasks::task_routes;
+    pub use templates::template_routes;
+    pub use users::user_routes;
+    pub use static_files::static_routes;
+
+    pub mod main;
+    pub use main::api_routes;
+}
 pub mod runners;
 pub mod state;
 pub mod store_wrapper;
@@ -25,10 +48,10 @@ pub mod user;
 pub mod users;
 pub mod websocket;
 
-use axum::{Router, middleware as axum_middleware};
-use tower_http::cors::{CorsLayer, Any};
-use tower_http::trace::TraceLayer;
+use axum::{middleware as axum_middleware, Router};
 use std::sync::Arc;
+use tower_http::cors::{Any, CorsLayer};
+use tower_http::trace::TraceLayer;
 use tracing::{info, warn};
 
 use state::AppState;
@@ -39,12 +62,12 @@ pub use middleware::{rate_limiter, security_headers};
 /// Создаёт приложение Axum
 pub fn create_app(store: Arc<dyn crate::db::Store + Send + Sync>) -> Router {
     let config = crate::config::Config::default();
-    
+
     // Инициализация Redis cache для HA режима
     let cache = if config.ha.enable && !config.ha.redis.host.is_empty() {
         let redis_url = config.ha.redis_url();
         info!("HA mode enabled, connecting to Redis: {}", redis_url);
-        
+
         match crate::cache::RedisCache::new(crate::cache::RedisConfig {
             url: redis_url,
             key_prefix: "velum:".to_string(),
@@ -52,13 +75,18 @@ pub fn create_app(store: Arc<dyn crate::db::Store + Send + Sync>) -> Router {
             max_retries: 3,
             connection_timeout_secs: 5,
             enabled: true,
-        }).initialize_sync() {
+        })
+        .initialize_sync()
+        {
             Ok(cache) => {
                 info!("Redis cache initialized successfully");
                 Some(Arc::new(cache))
             }
             Err(e) => {
-                warn!("Failed to initialize Redis cache: {}. HA features may not work.", e);
+                warn!(
+                    "Failed to initialize Redis cache: {}. HA features may not work.",
+                    e
+                );
                 None
             }
         }
@@ -67,11 +95,7 @@ pub fn create_app(store: Arc<dyn crate::db::Store + Send + Sync>) -> Router {
         None
     };
 
-    let state = Arc::new(AppState::new(
-        store,
-        config,
-        cache,
-    ));
+    let state = Arc::new(AppState::new(store, config, cache));
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
@@ -80,9 +104,15 @@ pub fn create_app(store: Arc<dyn crate::db::Store + Send + Sync>) -> Router {
 
     // Auth роуты с жёстким rate limiting (5 попыток/мин per IP)
     let auth_routes = Router::new()
-        .route("/api/auth/login", axum::routing::get(handlers::get_login_metadata).post(handlers::login))
+        .route(
+            "/api/auth/login",
+            axum::routing::get(handlers::get_login_metadata).post(handlers::login),
+        )
         .route("/api/auth/logout", axum::routing::post(handlers::logout))
-        .route("/api/auth/refresh", axum::routing::post(handlers::refresh_token))
+        .route(
+            "/api/auth/refresh",
+            axum::routing::post(handlers::refresh_token),
+        )
         .layer(axum_middleware::from_fn_with_state(
             Arc::clone(&state),
             middleware::rate_limiter::app_auth_rate_limit,
@@ -94,10 +124,12 @@ pub fn create_app(store: Arc<dyn crate::db::Store + Send + Sync>) -> Router {
         // Auth с отдельным строгим rate limiter
         .merge(auth_routes)
         // Остальные API с мягким rate limiting (100 req/min per IP)
-        .merge(routes::api_routes().layer(axum_middleware::from_fn_with_state(
-            Arc::clone(&state),
-            middleware::rate_limiter::app_api_rate_limit,
-        )))
+        .merge(
+            routes::api_routes().layer(axum_middleware::from_fn_with_state(
+                Arc::clone(&state),
+                middleware::rate_limiter::app_api_rate_limit,
+            )),
+        )
         // Static files с fallback
         .merge(routes::static_routes())
         // Middleware (порядок: последний layer применяется первым)

@@ -13,4 +13,4 @@ pub mod services;
 
 // Типы и сервисы будут определены в services.rs
 pub use server::GrpcServer;
-pub use services::{TaskServiceImpl, ProjectServiceImpl, RunnerServiceImpl};
+pub use services::{ProjectServiceImpl, RunnerServiceImpl, TaskServiceImpl};

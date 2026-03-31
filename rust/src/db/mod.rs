@@ -5,30 +5,15 @@
 //! - MySQL
 //! - PostgreSQL
 
-pub mod store;
 pub mod sql;
+pub mod store;
 
 // Ре-экспорт основных типов
 pub use store::{
-    Store,
-    ConnectionManager,
-    MigrationManager,
-    OptionsManager,
-    UserManager,
-    ProjectStore,
-    TemplateManager,
-    InventoryManager,
-    RepositoryManager,
-    EnvironmentManager,
-    AccessKeyManager,
-    TaskManager,
-    ScheduleManager,
-    SessionManager,
-    TokenManager,
-    EventManager,
-    RunnerManager,
-    ViewManager,
-    IntegrationManager,
+    AccessKeyManager, ConnectionManager, EnvironmentManager, EventManager, IntegrationManager,
+    InventoryManager, MigrationManager, OptionsManager, ProjectStore, RepositoryManager,
+    RunnerManager, ScheduleManager, SessionManager, Store, TaskManager, TemplateManager,
+    TokenManager, UserManager, ViewManager,
 };
 
 pub use sql::SqlStore;

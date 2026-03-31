@@ -3,8 +3,8 @@
 //! Парсеры этапов для PRO функциональности
 
 use crate::db::store::Store;
-use crate::models::{TaskStage, TaskOutput};
 use crate::error::Result;
+use crate::models::{TaskOutput, TaskStage};
 
 /// Переход к следующему этапу
 ///

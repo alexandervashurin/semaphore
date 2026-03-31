@@ -6,15 +6,18 @@
 //! - Уведомлений об изменении статуса задач
 
 use axum::{
-    extract::{State, ws::{WebSocketUpgrade, WebSocket}},
+    extract::{
+        ws::{WebSocket, WebSocketUpgrade},
+        State,
+    },
     response::IntoResponse,
 };
+use chrono::{DateTime, Utc};
+use futures::{SinkExt, StreamExt};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{broadcast, RwLock};
-use chrono::{DateTime, Utc};
-use tracing::{warn, info};
-use futures::{StreamExt, SinkExt};
+use tracing::{info, warn};
 
 use crate::api::state::AppState;
 
@@ -36,9 +39,7 @@ pub enum WsMessage {
         time: DateTime<Utc>,
     },
     /// Ошибка
-    Error {
-        message: String,
-    },
+    Error { message: String },
     /// Ping для проверки соединения
     Ping,
     /// Pong ответ
@@ -70,13 +71,20 @@ impl WebSocketManager {
     }
 
     /// Отправляет сообщение всем подключенным клиентам
-    pub fn broadcast(&self, message: WsMessage) -> Result<usize, broadcast::error::SendError<WsMessage>> {
+    pub fn broadcast(
+        &self,
+        message: WsMessage,
+    ) -> Result<usize, broadcast::error::SendError<WsMessage>> {
         self.broadcaster.send(message)
     }
 
     /// Отправляет лог задачи
     pub fn send_log(&self, task_id: i32, output: String, time: DateTime<Utc>) {
-        let message = WsMessage::Log { task_id, output, time };
+        let message = WsMessage::Log {
+            task_id,
+            output,
+            time,
+        };
         if let Err(e) = self.broadcast(message) {
             warn!("Ошибка отправки лога через WebSocket: {}", e);
         }
@@ -84,7 +92,11 @@ impl WebSocketManager {
 
     /// Отправляет статус задачи
     pub fn send_status(&self, task_id: i32, status: String, time: DateTime<Utc>) {
-        let message = WsMessage::Status { task_id, status, time };
+        let message = WsMessage::Status {
+            task_id,
+            status,
+            time,
+        };
         if let Err(e) = self.broadcast(message) {
             warn!("Ошибка отправки статуса через WebSocket: {}", e);
         }
@@ -128,7 +140,10 @@ async fn handle_socket(socket: WebSocket, ws_manager: Arc<WebSocketManager>) {
                     continue;
                 }
             };
-            if let Err(e) = sender.send(axum::extract::ws::Message::Text(json.into())).await {
+            if let Err(e) = sender
+                .send(axum::extract::ws::Message::Text(json.into()))
+                .await
+            {
                 warn!("WebSocket send error: {}", e);
                 break;
             }
@@ -200,19 +215,21 @@ mod tests {
     #[test]
     fn test_websocket_manager_broadcast() {
         let manager = WebSocketManager::new();
-        
+
         // Подписываемся
         let mut rx = manager.subscribe();
-        
+
         // Отправляем сообщение
         manager.send_log(1, "Test".to_string(), Utc::now());
-        
+
         // Получаем сообщение
         let msg = rx.try_recv();
         assert!(msg.is_ok());
-        
+
         match msg.unwrap() {
-            WsMessage::Log { task_id, output, .. } => {
+            WsMessage::Log {
+                task_id, output, ..
+            } => {
                 assert_eq!(task_id, 1);
                 assert_eq!(output, "Test");
             }
@@ -223,21 +240,21 @@ mod tests {
     #[test]
     fn test_websocket_manager_multiple_subscribers() {
         let manager = WebSocketManager::new();
-        
+
         // Несколько подписчиков
         let mut rx1 = manager.subscribe();
         let mut rx2 = manager.subscribe();
-        
+
         // Отправляем сообщение
         manager.send_status(2, "success".to_string(), Utc::now());
-        
+
         // Оба получают сообщение
         let msg1 = rx1.try_recv();
         let msg2 = rx2.try_recv();
-        
+
         assert!(msg1.is_ok());
         assert!(msg2.is_ok());
-        
+
         match msg1.unwrap() {
             WsMessage::Status { status, .. } => {
                 assert_eq!(status, "success");

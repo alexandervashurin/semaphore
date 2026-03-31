@@ -12,11 +12,11 @@
 //!   3. Assert status codes and JSON payloads.
 
 use axum::body::Body;
-use axum::http::{Request, StatusCode, header};
+use axum::http::{header, Request, StatusCode};
 use http_body_util::BodyExt; // .collect() on response body
 use serde_json::{json, Value};
-use velum_ffi::{api::create_app, db::SqlStore};
-use tower::ServiceExt; // .oneshot()
+use tower::ServiceExt;
+use velum_ffi::{api::create_app, db::SqlStore}; // .oneshot()
 
 // ── helpers ───────────────────────────────────────────────────────────────
 
@@ -28,7 +28,7 @@ fn sqlite_url_from_path(path: &std::path::Path) -> String {
     let path_str = canonical.to_string_lossy();
     let stripped = path_str
         .strip_prefix(r"\\?\UNC\")
-        .map(|s| format!("//{}",  s))
+        .map(|s| format!("//{}", s))
         .or_else(|| path_str.strip_prefix(r"\\?\").map(|s| s.to_string()))
         .unwrap_or_else(|| path_str.into_owned());
     // Forward slashes
@@ -39,10 +39,7 @@ fn sqlite_url_from_path(path: &std::path::Path) -> String {
 /// Create a fresh Axum app backed by a brand-new temp-file SQLite database.
 /// The `NamedTempFile` is returned so it is kept alive for the duration of
 /// the test.  When it drops, the temp file is deleted automatically.
-async fn test_app() -> (
-    axum::Router,
-    tempfile::NamedTempFile,
-) {
+async fn test_app() -> (axum::Router, tempfile::NamedTempFile) {
     let temp = tempfile::NamedTempFile::new().expect("temp file");
     let url = sqlite_url_from_path(temp.path());
 
@@ -53,11 +50,7 @@ async fn test_app() -> (
 }
 
 /// POST JSON body, return (status, parsed JSON value).
-async fn post_json(
-    app: axum::Router,
-    uri: &str,
-    body: Value,
-) -> (StatusCode, Value) {
+async fn post_json(app: axum::Router, uri: &str, body: Value) -> (StatusCode, Value) {
     post_json_with_token(app, uri, body, None).await
 }
 
@@ -87,11 +80,7 @@ async fn post_json_with_token(
 }
 
 /// DELETE with optional Bearer token, returns status code only.
-async fn delete_req(
-    app: axum::Router,
-    uri: &str,
-    token: Option<&str>,
-) -> StatusCode {
+async fn delete_req(app: axum::Router, uri: &str, token: Option<&str>) -> StatusCode {
     let mut req = Request::builder().method("DELETE").uri(uri);
     if let Some(tok) = token {
         req = req.header(header::AUTHORIZATION, format!("Bearer {}", tok));
@@ -125,11 +114,7 @@ async fn put_json(
 }
 
 /// GET with optional Bearer token.
-async fn get_json(
-    app: axum::Router,
-    uri: &str,
-    token: Option<&str>,
-) -> (StatusCode, Value) {
+async fn get_json(app: axum::Router, uri: &str, token: Option<&str>) -> (StatusCode, Value) {
     let mut req = Request::builder().method("GET").uri(uri);
 
     if let Some(tok) = token {
@@ -194,11 +179,13 @@ async fn seeded_app() -> (axum::Router, tempfile::NamedTempFile) {
 
     // Seed the user into the DB before building the app
     {
+        use chrono::Utc;
         use velum_ffi::db::store::UserManager;
         use velum_ffi::models::User;
-        use chrono::Utc;
 
-        let store = SqlStore::new(&url).await.expect("SqlStore::new for seeding");
+        let store = SqlStore::new(&url)
+            .await
+            .expect("SqlStore::new for seeding");
 
         let user = User {
             id: 0,
@@ -215,7 +202,10 @@ async fn seeded_app() -> (axum::Router, tempfile::NamedTempFile) {
             email_otp: None,
         };
 
-        store.create_user(user, "Test1234!").await.expect("create test user");
+        store
+            .create_user(user, "Test1234!")
+            .await
+            .expect("create test user");
     }
 
     let store = SqlStore::new(&url).await.expect("SqlStore::new for app");
@@ -315,8 +305,17 @@ async fn test_refresh_token() {
     )
     .await;
 
-    assert_eq!(status, StatusCode::OK, "refresh should succeed; body={:?}", body);
-    assert!(body["token"].is_string(), "new token in refresh response; body={:?}", body);
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "refresh should succeed; body={:?}",
+        body
+    );
+    assert!(
+        body["token"].is_string(),
+        "new token in refresh response; body={:?}",
+        body
+    );
 }
 
 // ── Auth: protected endpoints require token ────────────────────────────────
@@ -363,16 +362,28 @@ async fn test_create_and_list_projects() {
     )
     .await;
 
-    assert_eq!(status, StatusCode::CREATED, "create project; body={:?}", body);
+    assert_eq!(
+        status,
+        StatusCode::CREATED,
+        "create project; body={:?}",
+        body
+    );
     let project_id = body["id"].as_i64().expect("project id in response");
 
     // List projects
     let (status, list_body) = get_json(app.clone(), "/api/projects", Some(&token)).await;
-    assert_eq!(status, StatusCode::OK, "list projects; body={:?}", list_body);
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "list projects; body={:?}",
+        list_body
+    );
 
     let projects = list_body.as_array().expect("projects array");
     assert!(
-        projects.iter().any(|p| p["id"].as_i64() == Some(project_id)),
+        projects
+            .iter()
+            .any(|p| p["id"].as_i64() == Some(project_id)),
         "created project must appear in list"
     );
 }
@@ -403,8 +414,7 @@ async fn test_delete_project() {
 
     let response = app.oneshot(request).await.unwrap();
     assert!(
-        response.status() == StatusCode::NO_CONTENT
-            || response.status() == StatusCode::OK,
+        response.status() == StatusCode::NO_CONTENT || response.status() == StatusCode::OK,
         "delete project returned {:?}",
         response.status()
     );
@@ -496,7 +506,12 @@ async fn test_create_and_list_inventories() {
         Some(&token),
     )
     .await;
-    assert_eq!(status, StatusCode::CREATED, "create inventory; body={:?}", body);
+    assert_eq!(
+        status,
+        StatusCode::CREATED,
+        "create inventory; body={:?}",
+        body
+    );
     let inv_id = body["id"].as_i64().expect("inventory id");
 
     // List inventories
@@ -672,7 +687,12 @@ async fn test_create_and_list_templates() {
         Some(&token),
     )
     .await;
-    assert_eq!(status, StatusCode::CREATED, "create template; body={:?}", body);
+    assert_eq!(
+        status,
+        StatusCode::CREATED,
+        "create template; body={:?}",
+        body
+    );
     let tpl_id = body["id"].as_i64().expect("template id");
 
     let (status, list) = get_json(
@@ -683,7 +703,10 @@ async fn test_create_and_list_templates() {
     .await;
     assert_eq!(status, StatusCode::OK, "list templates; body={:?}", list);
     let tpls = list.as_array().expect("templates array");
-    assert!(tpls.iter().any(|t| t["id"].as_i64() == Some(tpl_id)), "created template must appear in list");
+    assert!(
+        tpls.iter().any(|t| t["id"].as_i64() == Some(tpl_id)),
+        "created template must appear in list"
+    );
 }
 
 #[tokio::test]
@@ -873,7 +896,12 @@ async fn test_create_and_list_schedules() {
         Some(&token),
     )
     .await;
-    assert_eq!(status, StatusCode::CREATED, "create schedule; body={:?}", body);
+    assert_eq!(
+        status,
+        StatusCode::CREATED,
+        "create schedule; body={:?}",
+        body
+    );
     let sched_id = body["id"].as_i64().expect("schedule id");
 
     let (status, list) = get_json(
@@ -983,7 +1011,10 @@ async fn test_create_task_from_template() {
     .await;
     assert_eq!(status, StatusCode::OK, "list tasks; body={:?}", list);
     let tasks = list.as_array().expect("tasks array");
-    assert!(tasks.iter().any(|t| t["id"].as_i64() == Some(task_id)), "created task must appear in history");
+    assert!(
+        tasks.iter().any(|t| t["id"].as_i64() == Some(task_id)),
+        "created task must appear in history"
+    );
 }
 
 // ── Task output endpoint ──────────────────────────────────────────────────
@@ -1075,7 +1106,11 @@ async fn test_delete_inventory() {
         Some(&token),
     )
     .await;
-    assert_eq!(not_found_status, StatusCode::NOT_FOUND, "deleted inventory should return 404");
+    assert_eq!(
+        not_found_status,
+        StatusCode::NOT_FOUND,
+        "deleted inventory should return 404"
+    );
 }
 
 // ── Delete template ───────────────────────────────────────────────────────
@@ -1150,7 +1185,10 @@ async fn test_create_and_list_views() {
     .await;
     assert_eq!(status, StatusCode::OK, "list views; body={:?}", list);
     let views = list.as_array().expect("views array");
-    assert!(views.iter().any(|v| v["id"].as_i64() == Some(view_id)), "created view must appear in list");
+    assert!(
+        views.iter().any(|v| v["id"].as_i64() == Some(view_id)),
+        "created view must appear in list"
+    );
 }
 
 // ── Users list (admin) ────────────────────────────────────────────────────
@@ -1163,9 +1201,14 @@ async fn test_list_users_as_admin() {
     let (status, body) = get_json(app.clone(), "/api/users", Some(&token)).await;
     assert_eq!(status, StatusCode::OK, "list users; body={:?}", body);
     let users = body.as_array().expect("users array");
-    assert!(!users.is_empty(), "should have at least the seeded admin user");
     assert!(
-        users.iter().any(|u| u["username"].as_str() == Some("testadmin")),
+        !users.is_empty(),
+        "should have at least the seeded admin user"
+    );
+    assert!(
+        users
+            .iter()
+            .any(|u| u["username"].as_str() == Some("testadmin")),
         "testadmin should be in user list"
     );
 }
@@ -1188,7 +1231,12 @@ async fn test_e2e_full_resource_cycle() {
         Some(&token),
     )
     .await;
-    assert_eq!(status, StatusCode::CREATED, "create project; body={:?}", proj);
+    assert_eq!(
+        status,
+        StatusCode::CREATED,
+        "create project; body={:?}",
+        proj
+    );
     let project_id = proj["id"].as_i64().expect("project id");
 
     // 2. Create access key (none type — no secrets required)
@@ -1210,7 +1258,12 @@ async fn test_e2e_full_resource_cycle() {
         Some(&token),
     )
     .await;
-    assert_eq!(status, StatusCode::CREATED, "create inventory; body={:?}", inv);
+    assert_eq!(
+        status,
+        StatusCode::CREATED,
+        "create inventory; body={:?}",
+        inv
+    );
     let inv_id = inv["id"].as_i64().expect("inventory id");
 
     // 4. Create environment with variables
@@ -1225,7 +1278,12 @@ async fn test_e2e_full_resource_cycle() {
         Some(&token),
     )
     .await;
-    assert_eq!(status, StatusCode::CREATED, "create environment; body={:?}", env);
+    assert_eq!(
+        status,
+        StatusCode::CREATED,
+        "create environment; body={:?}",
+        env
+    );
     let env_id = env["id"].as_i64().expect("environment id");
 
     // 5. Create template linking inventory + environment
@@ -1241,7 +1299,12 @@ async fn test_e2e_full_resource_cycle() {
         Some(&token),
     )
     .await;
-    assert_eq!(status, StatusCode::CREATED, "create template; body={:?}", tpl);
+    assert_eq!(
+        status,
+        StatusCode::CREATED,
+        "create template; body={:?}",
+        tpl
+    );
     let tpl_id = tpl["id"].as_i64().expect("template id");
 
     // 6. Start a task from the template
@@ -1264,7 +1327,11 @@ async fn test_e2e_full_resource_cycle() {
     .await;
     assert_eq!(status, StatusCode::OK, "list tasks; body={:?}", tasks_list);
     assert!(
-        tasks_list.as_array().expect("array").iter().any(|t| t["id"].as_i64() == Some(task_id)),
+        tasks_list
+            .as_array()
+            .expect("array")
+            .iter()
+            .any(|t| t["id"].as_i64() == Some(task_id)),
         "task must appear in history"
     );
 
@@ -1285,7 +1352,12 @@ async fn test_e2e_full_resource_cycle() {
         Some(&token),
     )
     .await;
-    assert_eq!(status, StatusCode::OK, "get task by id; body={:?}", got_task);
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "get task by id; body={:?}",
+        got_task
+    );
     assert_eq!(got_task["id"].as_i64(), Some(task_id));
     assert_eq!(got_task["template_id"].as_i64(), Some(tpl_id));
 }
@@ -1301,24 +1373,50 @@ async fn test_project_team_management() {
     let url = sqlite_url_from_path(temp.path());
     let teammate_id;
     {
+        use chrono::Utc;
         use velum_ffi::db::store::UserManager;
         use velum_ffi::models::User;
-        use chrono::Utc;
         let store = SqlStore::new(&url).await.expect("seed store");
-        store.create_user(
-            User { id: 0, username: "testadmin".into(), name: "Test Admin".into(),
-                   email: "testadmin@test.local".into(), password: String::new(),
-                   admin: true, external: false, alert: false, pro: false,
-                   created: Utc::now(), totp: None, email_otp: None },
-            "Test1234!",
-        ).await.expect("create admin");
-        let teammate = store.create_user(
-            User { id: 0, username: "teammate".into(), name: "Team Mate".into(),
-                   email: "teammate@test.local".into(), password: String::new(),
-                   admin: false, external: false, alert: false, pro: false,
-                   created: Utc::now(), totp: None, email_otp: None },
-            "Teammate1!",
-        ).await.expect("create teammate");
+        store
+            .create_user(
+                User {
+                    id: 0,
+                    username: "testadmin".into(),
+                    name: "Test Admin".into(),
+                    email: "testadmin@test.local".into(),
+                    password: String::new(),
+                    admin: true,
+                    external: false,
+                    alert: false,
+                    pro: false,
+                    created: Utc::now(),
+                    totp: None,
+                    email_otp: None,
+                },
+                "Test1234!",
+            )
+            .await
+            .expect("create admin");
+        let teammate = store
+            .create_user(
+                User {
+                    id: 0,
+                    username: "teammate".into(),
+                    name: "Team Mate".into(),
+                    email: "teammate@test.local".into(),
+                    password: String::new(),
+                    admin: false,
+                    external: false,
+                    alert: false,
+                    pro: false,
+                    created: Utc::now(),
+                    totp: None,
+                    email_otp: None,
+                },
+                "Teammate1!",
+            )
+            .await
+            .expect("create teammate");
         teammate_id = teammate.id as i64;
     }
     let store2 = SqlStore::new(&url).await.expect("app store");
@@ -1342,7 +1440,12 @@ async fn test_project_team_management() {
         Some(&token),
     )
     .await;
-    assert_eq!(status, StatusCode::OK, "list project users; body={:?}", members);
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "list project users; body={:?}",
+        members
+    );
 
     // Add teammate as task_runner
     let (status, _) = post_json_with_token(

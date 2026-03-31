@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes Events — Velum</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar"></aside>
+    <div class="main-content">
+        <div class="main-header">
+            <h2><i class="fa-solid fa-bell"></i> Kubernetes Events</h2>
+            <a href="k8s-troubleshoot.html" class="btn btn-secondary">
+                <i class="fa-solid fa-stethoscope"></i> Troubleshoot
+            </a>
+        </div>
+        <div class="main-body">
+            <div class="card" style="margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <label>Namespace: <select id="namespace" class="form-control" style="max-width:200px;"></select></label>
+                <select id="type-filter" class="form-control" style="max-width:150px;">
+                    <option value="">Все типы</option>
+                    <option value="Normal">Normal</option>
+                    <option value="Warning">Warning</option>
+                </select>
+                <input id="filter" class="form-control" placeholder="Фильтр по имени/сообщению" style="min-width:200px;">
+                <button class="btn btn-primary" onclick="loadEvents()"><i class="fa-solid fa-rotate"></i> Обновить</button>
+                <button class="btn btn-secondary" id="ws-btn" onclick="toggleWebSocket()"><i class="fa-solid fa-bolt"></i> Real-time: <span id="ws-status">OFF</span></button>
+                <label style="margin-left:auto;"><input type="checkbox" id="auto-refresh" checked> Автообновление</label>
+            </div>
+            <div id="content" class="card"><div class="loading"><div class="loading-spinner"></div><p>Загрузка...</p></div></div>
+        </div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+checkAuth();
+let autoRefreshInterval = null;
+let ws = null;
+let wsEnabled = false;
+let eventsBuffer = [];
+
+async function loadNamespaces() {
+    const ns = await api.get('/kubernetes/namespaces');
+    const select = $('#namespace');
+    select.innerHTML = '<option value="">— все —</option>';
+    ns.forEach(n => {
+        select.innerHTML += `<option value="${escapeHtml(n.name)}">${escapeHtml(n.name)}</option>`;
+    });
+}
+
+function connectWebSocket() {
+    const ns = $('#namespace').value || 'default';
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/api/kubernetes/namespaces/${ns}/events/stream`;
+    
+    ws = new WebSocket(wsUrl);
+    
+    ws.onopen = function() {
+        console.log('WebSocket connected');
+        $('#ws-status').textContent = 'ON';
+        $('#ws-status').style.color = '#2ecc71';
+        $('#ws-btn').classList.add('btn-success');
+    };
+    
+    ws.onmessage = function(event) {
+        try {
+            const data = JSON.parse(event.data);
+            if (data.type === 'event') {
+                // Добавляем событие в буфер
+                eventsBuffer.push(data.event);
+                // Оставляем последние 200 событий
+                if (eventsBuffer.length > 200) {
+                    eventsBuffer.shift();
+                }
+                // Перерисовываем таблицу
+                renderEvents(eventsBuffer);
+            } else if (data.type === 'connected') {
+                console.log('Connected to event stream, count:', data.count);
+            } else if (data.type === 'error') {
+                console.error('WebSocket error:', data.message);
+                ui.showError($('#content'), data.message);
+            }
+        } catch (e) {
+            console.error('Error parsing WebSocket message:', e);
+        }
+    };
+    
+    ws.onerror = function(error) {
+        console.error('WebSocket error:', error);
+    };
+    
+    ws.onclose = function() {
+        console.log('WebSocket disconnected');
+        if (wsEnabled) {
+            // Переподключаемся через 3 секунды
+            setTimeout(connectWebSocket, 3000);
+        } else {
+            $('#ws-status').textContent = 'OFF';
+            $('#ws-status').style.color = '';
+            $('#ws-btn').classList.remove('btn-success');
+        }
+    };
+}
+
+function toggleWebSocket() {
+    wsEnabled = !wsEnabled;
+    if (wsEnabled) {
+        connectWebSocket();
+    } else {
+        if (ws) {
+            ws.close();
+            ws = null;
+        }
+    }
+}
+
+function renderEvents(events) {
+    const content = $('#content');
+    const typeFilter = $('#type-filter').value;
+    const filter = $('#filter').value.toLowerCase();
+    
+    let filtered = events;
+    if (typeFilter) {
+        filtered = filtered.filter(e => e.type_ === typeFilter);
+    }
+    if (filter) {
+        filtered = filtered.filter(e =>
+            e.name.toLowerCase().includes(filter) ||
+            e.message.toLowerCase().includes(filter) ||
+            e.involved_object.name.toLowerCase().includes(filter)
+        );
+    }
+    
+    // Sort by last_seen descending
+    filtered.sort((a, b) => new Date(b.last_seen || b.first_seen) - new Date(a.last_seen || a.first_seen));
+    
+    if (filtered.length === 0) {
+        ui.showEmpty(content, '<i class="fa-solid fa-bell"></i>', 'Нет событий', 'События Kubernetes появятся здесь');
+        return;
+    }
+    
+    content.innerHTML = `
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Тип</th>
+                    <th>Reason</th>
+                    <th>Object</th>
+                    <th>Message</th>
+                    <th>Count</th>
+                    <th>Last Seen</th>
+                    <th>First Seen</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${filtered.map(event => `
+                    <tr class="${event.type_ === 'Warning' ? 'row-warning' : ''}">
+                        <td>
+                            <span class="badge badge-${event.type_ === 'Warning' ? 'danger' : 'success'}">
+                                ${event.type_ === 'Warning' ? '<i class="fa-solid fa-triangle-exclamation"></i> Warning' : '<i class="fa-solid fa-circle-check"></i> Normal'}
+                            </span>
+                        </td>
+                        <td><code>${escapeHtml(event.reason)}</code></td>
+                        <td>
+                            <strong>${escapeHtml(event.involved_object.kind)}/${escapeHtml(event.involved_object.name)}</strong>
+                        </td>
+                        <td>${escapeHtml(event.message)}</td>
+                        <td>${event.count}</td>
+                        <td>${formatDate(event.last_seen)}</td>
+                        <td>${formatDate(event.first_seen)}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+async function loadEvents() {
+    const ns = $('#namespace').value || 'default';
+    const content = $('#content');
+    
+    // Если WebSocket включен, не загружаем через polling
+    if (wsEnabled) {
+        eventsBuffer = [];
+        return;
+    }
+    
+    try {
+        let url = `/kubernetes/events?namespace=${ns}&limit=200`;
+        const events = await api.get(url);
+        eventsBuffer = events;
+        renderEvents(events);
+    } catch (e) {
+        ui.showError(content, e.message);
+    }
+}
+
+function toggleAutoRefresh() {
+    if ($('#auto-refresh').checked) {
+        autoRefreshInterval = setInterval(loadEvents, 10000); // 10 seconds
+    } else {
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+            autoRefreshInterval = null;
+        }
+    }
+}
+
+$('#namespace').addEventListener('change', () => {
+    loadEvents();
+    // Переподключаем WebSocket если включен
+    if (wsEnabled && ws) {
+        ws.close();
+        setTimeout(connectWebSocket, 500);
+    }
+});
+$('#type-filter').addEventListener('change', () => renderEvents(eventsBuffer));
+$('#filter').addEventListener('input', () => renderEvents(eventsBuffer));
+$('#auto-refresh').addEventListener('change', toggleAutoRefresh);
+
+loadNamespaces().then(() => {
+    loadEvents();
+    toggleAutoRefresh();
+});
+</script>
+</body>
+</html>

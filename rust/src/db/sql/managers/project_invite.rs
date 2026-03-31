@@ -8,7 +8,11 @@ use async_trait::async_trait;
 
 #[async_trait]
 impl ProjectInviteManager for SqlStore {
-    async fn get_project_invites(&self, project_id: i32, params: RetrieveQueryParams) -> Result<Vec<ProjectInviteWithUser>> {
+    async fn get_project_invites(
+        &self,
+        project_id: i32,
+        params: RetrieveQueryParams,
+    ) -> Result<Vec<ProjectInviteWithUser>> {
         self.get_project_invites(project_id, params).await
     }
 
@@ -32,4 +36,3 @@ impl ProjectInviteManager for SqlStore {
         self.delete_project_invite(project_id, invite_id).await
     }
 }
-

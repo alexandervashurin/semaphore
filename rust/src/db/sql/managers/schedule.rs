@@ -4,8 +4,8 @@
 
 use crate::db::sql::SqlStore;
 use crate::db::store::*;
-use crate::models::{Schedule, ScheduleWithTpl};
 use crate::error::{Error, Result};
+use crate::models::{Schedule, ScheduleWithTpl};
 use async_trait::async_trait;
 use sqlx::Row;
 
@@ -90,7 +90,12 @@ impl ScheduleManager for SqlStore {
         Ok(())
     }
 
-    async fn set_schedule_active(&self, _project_id: i32, schedule_id: i32, active: bool) -> Result<()> {
+    async fn set_schedule_active(
+        &self,
+        _project_id: i32,
+        schedule_id: i32,
+        active: bool,
+    ) -> Result<()> {
         sqlx::query("UPDATE schedule SET active = $1 WHERE id = $2")
             .bind(active)
             .bind(schedule_id)
@@ -100,7 +105,12 @@ impl ScheduleManager for SqlStore {
         Ok(())
     }
 
-    async fn set_schedule_commit_hash(&self, _project_id: i32, schedule_id: i32, hash: &str) -> Result<()> {
+    async fn set_schedule_commit_hash(
+        &self,
+        _project_id: i32,
+        schedule_id: i32,
+        hash: &str,
+    ) -> Result<()> {
         sqlx::query("UPDATE schedule SET last_commit_hash = $1 WHERE id = $2")
             .bind(hash)
             .bind(schedule_id)
@@ -117,17 +127,17 @@ impl ScheduleManager for SqlStore {
 
 fn row_to_schedule(row: sqlx::postgres::PgRow) -> Schedule {
     Schedule {
-        id:               row.get("id"),
-        project_id:       row.get("project_id"),
-        template_id:      row.get("template_id"),
-        cron:             row.get("cron"),
-        cron_format:      row.try_get("cron_format").ok().flatten(),
-        name:             row.get("name"),
-        active:           row.get("active"),
+        id: row.get("id"),
+        project_id: row.get("project_id"),
+        template_id: row.get("template_id"),
+        cron: row.get("cron"),
+        cron_format: row.try_get("cron_format").ok().flatten(),
+        name: row.get("name"),
+        active: row.get("active"),
         last_commit_hash: row.try_get("last_commit_hash").ok().flatten(),
-        repository_id:    row.try_get("repository_id").ok(),
-        created:          row.try_get("created").ok().flatten(),
-        run_at:           row.try_get("run_at").ok().flatten(),
+        repository_id: row.try_get("repository_id").ok(),
+        created: row.try_get("created").ok().flatten(),
+        run_at: row.try_get("run_at").ok().flatten(),
         delete_after_run: row.get("delete_after_run"),
     }
 }

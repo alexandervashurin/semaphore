@@ -32,7 +32,9 @@ pub struct TaskStructuredOutputCreate {
     pub value_type: String,
 }
 
-fn default_value_type() -> String { "string".to_string() }
+fn default_value_type() -> String {
+    "string".to_string()
+}
 
 /// Batch payload — несколько outputs за раз
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audit Log - Velum</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+    <style>
+        .audit-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px; }
+        .audit-level-info { color: #1976d2; }
+        .audit-level-warning { color: #f57c00; }
+        .audit-level-error { color: #d32f2f; }
+        .audit-level-critical { color: #b71c1c; font-weight: bold; }
+        .badge-level-info { background: #e3f2fd; color: #1976d2; }
+        .badge-level-warning { background: #fff3e0; color: #f57c00; }
+        .badge-level-error { background: #ffebee; color: #d32f2f; }
+        .badge-level-critical { background: #b71c1c; color: white; }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar"></aside>
+
+        <div class="main-content">
+            <div class="main-header">
+                <h2><i class="fa-solid fa-clipboard-list"></i> Audit Log</h2>
+                <div style="display:flex;gap:8px;">
+                    <button class="btn" onclick="exportAuditLog()">
+                        <i class="fa-solid fa-download"></i> Экспорт CSV
+                    </button>
+                    <button class="btn btn-danger" onclick="clearAuditLog()">
+                        <i class="fa-solid fa-trash"></i> Очистить
+                    </button>
+                </div>
+            </div>
+
+            <div class="main-body">
+                <!-- Filters -->
+                <div class="audit-filters">
+                    <input type="text" id="filter-username" class="form-control" placeholder="Пользователь">
+                    <select id="filter-action" class="form-control">
+                        <option value="">Все действия</option>
+                        <option value="login">Login</option>
+                        <option value="logout">Logout</option>
+                        <option value="user_created">User Created</option>
+                        <option value="user_updated">User Updated</option>
+                        <option value="user_deleted">User Deleted</option>
+                        <option value="project_created">Project Created</option>
+                        <option value="project_updated">Project Updated</option>
+                        <option value="project_deleted">Project Deleted</option>
+                        <option value="task_created">Task Created</option>
+                        <option value="task_started">Task Started</option>
+                        <option value="task_completed">Task Completed</option>
+                        <option value="task_failed">Task Failed</option>
+                        <option value="template_run">Template Run</option>
+                        <option value="config_changed">Config Changed</option>
+                    </select>
+                    <select id="filter-level" class="form-control">
+                        <option value="">Все уровни</option>
+                        <option value="info">Info</option>
+                        <option value="warning">Warning</option>
+                        <option value="error">Error</option>
+                        <option value="critical">Critical</option>
+                    </select>
+                    <select id="filter-object-type" class="form-control">
+                        <option value="">Все объекты</option>
+                        <option value="user">User</option>
+                        <option value="project">Project</option>
+                        <option value="task">Task</option>
+                        <option value="template">Template</option>
+                        <option value="system">System</option>
+                    </select>
+                    <input type="text" id="filter-search" class="form-control" placeholder="🔍 Поиск">
+                </div>
+
+                <div style="display:flex;gap:8px;margin-bottom:16px;">
+                    <button class="btn btn-primary" onclick="loadAuditLogs()">
+                        <i class="fa-solid fa-search"></i> Применить фильтры
+                    </button>
+                    <button class="btn" onclick="resetFilters()">
+                        <i class="fa-solid fa-rotate-left"></i> Сбросить
+                    </button>
+                </div>
+
+                <div id="audit-content">
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        <p>Загрузка audit log...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        checkAuth();
+        loadAuditLogs();
+
+        function loadAuditLogs() {
+            const container = $('#audit-content');
+            
+            const params = new URLSearchParams();
+            const username = $('#filter-username')?.value;
+            const action = $('#filter-action')?.value;
+            const level = $('#filter-level')?.value;
+            const objectType = $('#filter-object-type')?.value;
+            const search = $('#filter-search')?.value;
+
+            if (username) params.append('username', username);
+            if (action) params.append('action', action);
+            if (level) params.append('level', level);
+            if (objectType) params.append('object_type', objectType);
+            if (search) params.append('search', search);
+            params.append('limit', '100');
+
+            api.get('/audit-log?' + params.toString())
+                .then(result => {
+                    const records = result.records || result;
+                    if (!records || records.length === 0) {
+                        ui.showEmpty(container, '<i class="fa-solid fa-clipboard"></i>', 'Нет записей', 'Записи audit log отсутствуют');
+                        return;
+                    }
+
+                    container.innerHTML = `
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Время</th>
+                                    <th>Пользователь</th>
+                                    <th>Действие</th>
+                                    <th>Объект</th>
+                                    <th>Уровень</th>
+                                    <th>Детали</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${records.map(r => `
+                                    <tr>
+                                        <td>${formatDate(r.created)}</td>
+                                        <td><strong>${escapeHtml(r.username || '—')}</strong></td>
+                                        <td><code>${escapeHtml(r.action)}</code></td>
+                                        <td>${r.object_type || '—'}</td>
+                                        <td>
+                                            <span class="badge badge-level-${r.level || 'info'}">
+                                                ${r.level || 'info'}
+                                            </span>
+                                        </td>
+                                        <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(r.details || '')}">
+                                            ${escapeHtml(r.details || '—')}
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                })
+                .catch(error => {
+                    ui.showError(container, error.message);
+                });
+        }
+
+        function resetFilters() {
+            $('#filter-username').value = '';
+            $('#filter-action').value = '';
+            $('#filter-level').value = '';
+            $('#filter-object-type').value = '';
+            $('#filter-search').value = '';
+            loadAuditLogs();
+        }
+
+        function exportAuditLog() {
+            const params = new URLSearchParams();
+            const username = $('#filter-username')?.value;
+            const action = $('#filter-action')?.value;
+            const level = $('#filter-level')?.value;
+            const objectType = $('#filter-object-type')?.value;
+            const search = $('#filter-search')?.value;
+
+            if (username) params.append('username', username);
+            if (action) params.append('action', action);
+            if (level) params.append('level', level);
+            if (objectType) params.append('object_type', objectType);
+            if (search) params.append('search', search);
+
+            window.location.href = '/api/audit-log/export?' + params.toString();
+        }
+
+        function clearAuditLog() {
+            if (!confirm('⚠️ Внимание! Это удалит ВСЕ записи audit log. Продолжить?')) return;
+            if (!confirm('Вы уверены? Это действие необратимо.')) return;
+
+            api.request('/audit-log/clear', { method: 'DELETE' })
+                .then(result => {
+                    ui.showAlert(`Audit log очищен. Удалено записей: ${result.deleted}`, 'success');
+                    loadAuditLogs();
+                })
+                .catch(error => ui.showAlert('Ошибка: ' + error.message, 'danger'));
+        }
+    </script>
+</body>
+</html>

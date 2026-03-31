@@ -37,8 +37,7 @@ pub async fn ldap_authenticate(
         return Err(Error::Other("LDAP server is not configured".to_string()));
     }
 
-    let settings = LdapConnSettings::new()
-        .set_no_tls_verify(!config.need_tls);
+    let settings = LdapConnSettings::new().set_no_tls_verify(!config.need_tls);
 
     let url = config.ldap_url();
 
@@ -62,14 +61,32 @@ pub async fn ldap_authenticate(
     let filter = if config.search_filter.is_empty() {
         format!("(uid={})", ldap_escape(username))
     } else {
-        config.search_filter.replace("{username}", &ldap_escape(username))
+        config
+            .search_filter
+            .replace("{username}", &ldap_escape(username))
     };
 
     // Атрибуты для получения
-    let dn_attr = if config.mappings.dn.is_empty() { "dn" } else { &config.mappings.dn };
-    let mail_attr = if config.mappings.mail.is_empty() { "mail" } else { &config.mappings.mail };
-    let uid_attr = if config.mappings.uid.is_empty() { "uid" } else { &config.mappings.uid };
-    let cn_attr = if config.mappings.cn.is_empty() { "cn" } else { &config.mappings.cn };
+    let dn_attr = if config.mappings.dn.is_empty() {
+        "dn"
+    } else {
+        &config.mappings.dn
+    };
+    let mail_attr = if config.mappings.mail.is_empty() {
+        "mail"
+    } else {
+        &config.mappings.mail
+    };
+    let uid_attr = if config.mappings.uid.is_empty() {
+        "uid"
+    } else {
+        &config.mappings.uid
+    };
+    let cn_attr = if config.mappings.cn.is_empty() {
+        "cn"
+    } else {
+        &config.mappings.cn
+    };
 
     let attrs = vec![dn_attr, mail_attr, uid_attr, cn_attr, "memberOf"];
 
@@ -119,11 +136,7 @@ pub async fn ldap_authenticate(
         .unwrap_or_else(|| username.to_string());
 
     // Извлекаем группы из атрибута memberOf (Active Directory / openLDAP с memberOf overlay)
-    let groups = entry
-        .attrs
-        .get("memberOf")
-        .cloned()
-        .unwrap_or_default();
+    let groups = entry.attrs.get("memberOf").cloned().unwrap_or_default();
 
     ldap.unbind()
         .await

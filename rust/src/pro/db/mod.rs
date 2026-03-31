@@ -4,4 +4,4 @@
 
 pub mod factory;
 
-pub use factory::{new_terraform_store, new_ansible_task_repository};
+pub use factory::{new_ansible_task_repository, new_terraform_store};

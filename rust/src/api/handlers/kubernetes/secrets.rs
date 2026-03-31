@@ -50,10 +50,7 @@ pub struct SecretRevealView {
 }
 
 fn secret_type(secret: &Secret) -> String {
-    secret
-        .type_
-        .clone()
-        .unwrap_or_else(|| "Opaque".to_string())
+    secret.type_.clone().unwrap_or_else(|| "Opaque".to_string())
 }
 
 fn masked_data(secret: &Secret) -> BTreeMap<String, String> {
@@ -152,9 +149,8 @@ pub async fn reveal_secret(
         .map(|m| {
             m.iter()
                 .map(|(k, v)| {
-                    let decoded = String::from_utf8(v.0.clone()).unwrap_or_else(|_| {
-                        base64::engine::general_purpose::STANDARD.encode(&v.0)
-                    });
+                    let decoded = String::from_utf8(v.0.clone())
+                        .unwrap_or_else(|_| base64::engine::general_purpose::STANDARD.encode(&v.0));
                     (k.clone(), decoded)
                 })
                 .collect::<BTreeMap<_, _>>()

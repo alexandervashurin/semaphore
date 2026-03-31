@@ -80,7 +80,13 @@ pub struct LocalAppRunningArgs {
 
 impl LocalAppRunningArgs {
     /// Создаёт новые аргументы запуска
-    pub fn new(project_id: i32, template_id: i32, task_id: i32, command: String, working_dir: String) -> Self {
+    pub fn new(
+        project_id: i32,
+        template_id: i32,
+        task_id: i32,
+        command: String,
+        working_dir: String,
+    ) -> Self {
         Self {
             project_id,
             template_id,

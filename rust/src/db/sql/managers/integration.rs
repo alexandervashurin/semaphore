@@ -19,15 +19,18 @@ impl IntegrationManager for SqlStore {
         .await
         .map_err(Error::Database)?;
 
-        Ok(rows.into_iter().map(|row| Integration {
-            id: row.get("id"),
-            project_id: row.get("project_id"),
-            name: row.get("name"),
-            template_id: row.try_get("template_id").unwrap_or(0),
-            auth_method: row.try_get("auth_method").unwrap_or_default(),
-            auth_header: row.try_get("auth_header").ok().flatten(),
-            auth_secret_id: row.try_get("auth_secret_id").ok().flatten(),
-        }).collect())
+        Ok(rows
+            .into_iter()
+            .map(|row| Integration {
+                id: row.get("id"),
+                project_id: row.get("project_id"),
+                name: row.get("name"),
+                template_id: row.try_get("template_id").unwrap_or(0),
+                auth_method: row.try_get("auth_method").unwrap_or_default(),
+                auth_header: row.try_get("auth_header").ok().flatten(),
+                auth_secret_id: row.try_get("auth_secret_id").ok().flatten(),
+            })
+            .collect())
     }
 
     async fn get_integration(&self, project_id: i32, integration_id: i32) -> Result<Integration> {

@@ -2,8 +2,8 @@
 //!
 //! Запуск Ansible playbook
 
-use std::process::{Command, Stdio};
 use std::io::{Read, Write};
+use std::process::{Command, Stdio};
 use std::sync::Arc;
 
 use crate::error::{Error, Result};
@@ -64,17 +64,23 @@ impl AnsiblePlaybook {
         _inputs: std::collections::HashMap<String, String>,
         callback: Box<dyn FnOnce(u32) + Send + 'static>,
     ) -> Result<()> {
-        let mut cmd = self.make_command("ansible-playbook", &args.iter().map(|s| s.as_str()).collect::<Vec<_>>(), environment_vars);
+        let mut cmd = self.make_command(
+            "ansible-playbook",
+            &args.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+            environment_vars,
+        );
 
         self.logger.log_cmd(&cmd);
 
-        let mut child = cmd.spawn()
+        let mut child = cmd
+            .spawn()
             .map_err(|e| Error::Other(format!("Failed to start ansible-playbook: {}", e)))?;
 
         let pid = child.id();
         callback(pid);
 
-        let status = child.wait()
+        let status = child
+            .wait()
             .map_err(|e| Error::Other(format!("ansible-playbook failed: {}", e)))?;
 
         // Ждём завершения обработки логов
@@ -83,17 +89,25 @@ impl AnsiblePlaybook {
         if status.success() {
             Ok(())
         } else {
-            Err(Error::Other(format!("ansible-playbook exited with code {:?}", status.code())))
+            Err(Error::Other(format!(
+                "ansible-playbook exited with code {:?}",
+                status.code()
+            )))
         }
     }
 
     /// Запускает ansible-galaxy
     pub fn run_galaxy(&self, args: &[String], environment_vars: &[String]) -> Result<()> {
-        let mut cmd = self.make_command("ansible-galaxy", &args.iter().map(|s| s.as_str()).collect::<Vec<_>>(), environment_vars);
+        let mut cmd = self.make_command(
+            "ansible-galaxy",
+            &args.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+            environment_vars,
+        );
 
         self.logger.log_cmd(&cmd);
 
-        let status = cmd.status()
+        let status = cmd
+            .status()
             .map_err(|e| Error::Other(format!("ansible-galaxy failed: {}", e)))?;
 
         // Ждём завершения обработки логов
@@ -102,7 +116,10 @@ impl AnsiblePlaybook {
         if status.success() {
             Ok(())
         } else {
-            Err(Error::Other(format!("ansible-galaxy exited with code {:?}", status.code())))
+            Err(Error::Other(format!(
+                "ansible-galaxy exited with code {:?}",
+                status.code()
+            )))
         }
     }
 

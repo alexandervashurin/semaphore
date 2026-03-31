@@ -2,9 +2,9 @@
 //!
 //! Аналог services/tasks/local_job_args.go из Go версии
 
-use std::collections::HashMap;
 use crate::error::Result;
 use crate::services::local_job::LocalJob;
+use std::collections::HashMap;
 
 impl LocalJob {
     /// Получает аргументы для shell скрипта
@@ -23,7 +23,9 @@ impl LocalJob {
 
         // Секретные переменные из environment.secrets (JSON)
         if let Some(ref secrets_json) = self.environment.secrets {
-            if let Ok(secrets) = serde_json::from_str::<Vec<crate::models::EnvironmentSecretValue>>(secrets_json) {
+            if let Ok(secrets) =
+                serde_json::from_str::<Vec<crate::models::EnvironmentSecretValue>>(secrets_json)
+            {
                 for secret in secrets {
                     if secret.secret_type == crate::models::EnvironmentSecretType::Var {
                         args.push(format!("{}={}", secret.name, secret.secret));
@@ -81,7 +83,9 @@ impl LocalJob {
         // Аргументы для секретов из environment.secrets (JSON)
         let mut secret_args = Vec::new();
         if let Some(ref secrets_json) = self.environment.secrets {
-            if let Ok(secrets) = serde_json::from_str::<Vec<crate::models::EnvironmentSecretValue>>(secrets_json) {
+            if let Ok(secrets) =
+                serde_json::from_str::<Vec<crate::models::EnvironmentSecretValue>>(secrets_json)
+            {
                 for secret in secrets {
                     if secret.secret_type != crate::models::EnvironmentSecretType::Var {
                         continue;
@@ -115,12 +119,12 @@ impl LocalJob {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::TemplateType;
-    use chrono::Utc;
-    use std::sync::Arc;
-    use crate::services::task_logger::BasicLogger;
     use crate::db_lib::AccessKeyInstallerImpl;
+    use crate::models::TemplateType;
+    use crate::services::task_logger::BasicLogger;
+    use chrono::Utc;
     use std::path::PathBuf;
+    use std::sync::Arc;
 
     fn create_test_shell_job() -> LocalJob {
         let logger = Arc::new(BasicLogger::new());

@@ -3,13 +3,13 @@
 //! Реализация локального выполнения задач
 //! Аналог services/tasks/LocalJob.go из Go версии
 
-pub mod types;
-pub mod environment;
-pub mod cli;
 pub mod args;
-pub mod ssh;
-pub mod vault;
+pub mod cli;
+pub mod environment;
 pub mod repository;
 pub mod run;
+pub mod ssh;
+pub mod types;
+pub mod vault;
 
 pub use types::LocalJob;

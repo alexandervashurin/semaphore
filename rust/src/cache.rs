@@ -6,14 +6,14 @@
 //! - Инвалидацию кэша при изменениях
 //! - Метрики hit/miss
 
+use crate::error::{Error, Result};
+use redis::aio::ConnectionManager;
+use redis::{AsyncCommands, Client, ConnectionLike, RedisResult, Value};
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
-use redis::{Client, ConnectionLike, AsyncCommands, RedisResult, Value};
-use redis::aio::ConnectionManager;
 use tokio::sync::RwLock;
-use tracing::{info, warn, error, debug};
-use serde::{Serialize, Deserialize};
-use crate::error::{Error, Result};
+use tracing::{debug, error, info, warn};
 
 /// Конфигурация Redis
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -131,7 +131,10 @@ impl RedisCache {
             }
         }
 
-        let err_msg = format!("Failed to connect to Redis after {} attempts", self.config.max_retries);
+        let err_msg = format!(
+            "Failed to connect to Redis after {} attempts",
+            self.config.max_retries
+        );
         if let Some(e) = last_error {
             error!("{}: {}", err_msg, e);
         }
@@ -143,7 +146,7 @@ impl RedisCache {
     pub fn initialize_sync(mut self) -> Result<Self> {
         let runtime = tokio::runtime::Runtime::new()
             .map_err(|e| Error::Other(format!("Failed to create tokio runtime: {}", e)))?;
-        
+
         runtime.block_on(self.initialize())?;
         Ok(self)
     }
@@ -167,7 +170,7 @@ impl RedisCache {
 
         let full_key = self.make_key(key);
         let mut conn_guard = self.connection.write().await;
-        
+
         let conn = match conn_guard.as_mut() {
             Some(c) => c,
             None => {
@@ -178,12 +181,12 @@ impl RedisCache {
         };
 
         let result: RedisResult<String> = conn.get(&full_key).await;
-        
+
         match result {
             Ok(value_str) => {
                 let mut stats = self.stats.write().await;
                 stats.hits += 1;
-                
+
                 match serde_json::from_str::<T>(&value_str) {
                     Ok(v) => Ok(Some(v)),
                     Err(e) => {
@@ -195,11 +198,11 @@ impl RedisCache {
             Err(e) => {
                 let mut stats = self.stats.write().await;
                 stats.misses += 1;
-                
+
                 if e.is_unrecoverable_error() {
                     error!("Redis get error for key {}: {}", key, e);
                 }
-                
+
                 Ok(None)
             }
         }
@@ -207,18 +210,24 @@ impl RedisCache {
 
     /// Устанавливает значение в кэш с TTL по умолчанию
     pub async fn set<T: Serialize>(&self, key: &str, value: &T) -> Result<()> {
-        self.set_with_ttl(key, value, self.config.default_ttl_secs).await
+        self.set_with_ttl(key, value, self.config.default_ttl_secs)
+            .await
     }
 
     /// Устанавливает значение в кэш с указанным TTL
-    pub async fn set_with_ttl<T: Serialize>(&self, key: &str, value: &T, ttl_secs: u64) -> Result<()> {
+    pub async fn set_with_ttl<T: Serialize>(
+        &self,
+        key: &str,
+        value: &T,
+        ttl_secs: u64,
+    ) -> Result<()> {
         if !self.config.enabled {
             return Ok(());
         }
 
         let full_key = self.make_key(key);
         let mut conn_guard = self.connection.write().await;
-        
+
         let conn = match conn_guard.as_mut() {
             Some(c) => c,
             None => {
@@ -232,7 +241,7 @@ impl RedisCache {
             .map_err(|e| Error::Other(format!("Failed to serialize value: {}", e)))?;
 
         let result: RedisResult<()> = conn.set_ex(&full_key, &serialized, ttl_secs).await;
-        
+
         match result {
             Ok(_) => {
                 debug!("Cached key {} with TTL {}s", key, ttl_secs);
@@ -255,14 +264,14 @@ impl RedisCache {
 
         let full_key = self.make_key(key);
         let mut conn_guard = self.connection.write().await;
-        
+
         let conn = match conn_guard.as_mut() {
             Some(c) => c,
             None => return Ok(()),
         };
 
         let result: RedisResult<()> = conn.del(&full_key).await;
-        
+
         match result {
             Ok(_) => {
                 debug!("Deleted key {}", key);
@@ -285,18 +294,18 @@ impl RedisCache {
 
         let full_pattern = format!("{}{}", self.config.key_prefix, pattern);
         let mut conn_guard = self.connection.write().await;
-        
+
         let conn = match conn_guard.as_mut() {
             Some(c) => c,
             None => return Ok(()),
         };
 
         let keys: Vec<String> = conn.keys(&full_pattern).await.unwrap_or_default();
-        
+
         for key in &keys {
             let _: () = conn.del(key).await.unwrap_or(());
         }
-        
+
         debug!("Deleted {} keys by pattern {}", keys.len(), pattern);
         Ok(())
     }
@@ -309,7 +318,7 @@ impl RedisCache {
 
         let full_key = self.make_key(key);
         let mut conn_guard = self.connection.write().await;
-        
+
         let conn = match conn_guard.as_mut() {
             Some(c) => c,
             None => return Ok(false),
@@ -327,7 +336,7 @@ impl RedisCache {
 
         let full_key = self.make_key(key);
         let mut conn_guard = self.connection.write().await;
-        
+
         let conn = match conn_guard.as_mut() {
             Some(c) => c,
             None => return Ok(0),
@@ -372,13 +381,13 @@ macro_rules! cache_result {
             if let Some(cached) = $cache.get::<_>(&$key).await? {
                 return Ok(cached);
             }
-            
+
             let result = $block;
-            
+
             if let Ok(ref value) = result {
                 $cache.set_with_ttl(&$key, value, $ttl).await?;
             }
-            
+
             result
         }
     };
@@ -392,7 +401,10 @@ mod tests {
     fn test_cache_key() {
         assert_eq!(cache_key(&["user", "123"]), "user:123");
         assert_eq!(cache_key(&["project", "456", "tasks"]), "project:456:tasks");
-        assert_eq!(cache_key(&["api", "v1", "projects", "1"]), "api:v1:projects:1");
+        assert_eq!(
+            cache_key(&["api", "v1", "projects", "1"]),
+            "api:v1:projects:1"
+        );
     }
 
     #[test]
@@ -478,7 +490,7 @@ mod tests {
     async fn test_redis_cache_get_disabled() {
         let config = RedisConfig::default();
         let cache = RedisCache::new(config);
-        
+
         // Когда кэш отключён, get должен возвращать None
         let result: Result<Option<String>> = cache.get("test_key").await;
         assert!(result.is_ok());
@@ -489,7 +501,7 @@ mod tests {
     async fn test_redis_cache_set_disabled() {
         let config = RedisConfig::default();
         let cache = RedisCache::new(config);
-        
+
         // Когда кэш отключён, set должен возвращать Ok
         let result = cache.set("test_key", &"test_value").await;
         assert!(result.is_ok());
@@ -499,7 +511,7 @@ mod tests {
     async fn test_redis_cache_delete_disabled() {
         let config = RedisConfig::default();
         let cache = RedisCache::new(config);
-        
+
         // Когда кэш отключён, delete должен возвращать Ok
         let result = cache.delete("test_key").await;
         assert!(result.is_ok());
@@ -509,7 +521,7 @@ mod tests {
     async fn test_redis_cache_increment_disabled() {
         let config = RedisConfig::default();
         let cache = RedisCache::new(config);
-        
+
         // Когда кэш отключён, increment должен возвращать 0
         let result = cache.increment("test_key").await;
         assert!(result.is_ok());
@@ -520,7 +532,7 @@ mod tests {
     async fn test_redis_cache_exists_disabled() {
         let config = RedisConfig::default();
         let cache = RedisCache::new(config);
-        
+
         // Когда кэш отключён, exists должен возвращать false
         let result = cache.exists("test_key").await;
         assert!(result.is_ok());
@@ -534,7 +546,7 @@ mod tests {
             ..Default::default()
         };
         let cache = RedisCache::new(config);
-        
+
         // Проверяем что ключ формируется с префиксом
         // Это приватный метод, но мы можем проверить через публичные методы
         let _ = cache.get::<String>("key").await;
@@ -544,7 +556,7 @@ mod tests {
     async fn test_redis_cache_stats() {
         let config = RedisConfig::default();
         let cache = RedisCache::new(config);
-        
+
         let stats = cache.get_stats().await;
         assert_eq!(stats.hits, 0);
         assert_eq!(stats.misses, 0);
@@ -556,10 +568,10 @@ mod tests {
     async fn test_redis_cache_reset_stats() {
         let config = RedisConfig::default();
         let cache = RedisCache::new(config);
-        
+
         // Сброс статистики
         cache.reset_stats().await;
-        
+
         let stats = cache.get_stats().await;
         assert_eq!(stats.hits, 0);
         assert_eq!(stats.misses, 0);
@@ -570,7 +582,7 @@ mod tests {
     async fn test_redis_cache_delete_pattern_disabled() {
         let config = RedisConfig::default();
         let cache = RedisCache::new(config);
-        
+
         // Когда кэш отключён, delete_pattern должен возвращать Ok
         let result = cache.delete_pattern("test*").await;
         assert!(result.is_ok());

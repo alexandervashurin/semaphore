@@ -6,11 +6,11 @@ use std::process::{Command, Stdio};
 use std::sync::Arc;
 use tokio::io::AsyncReadExt;
 
+use super::local_app::{LocalApp, LocalAppInstallingArgs, LocalAppRunningArgs};
 use crate::error::{Error, Result};
-use crate::models::{Template, Repository};
 use crate::models::template::TemplateApp;
+use crate::models::{Repository, Template};
 use crate::services::task_logger::{TaskLogger, TaskStatus};
-use super::local_app::{LocalApp, LocalAppRunningArgs, LocalAppInstallingArgs};
 
 /// Shell App для выполнения скриптов
 pub struct ShellApp {
@@ -74,11 +74,17 @@ impl ShellApp {
     fn get_noop_command() -> (String, Vec<String>) {
         #[cfg(windows)]
         {
-            ("cmd".to_string(), vec!["/c".to_string(), "exit".to_string(), "0".to_string()])
+            (
+                "cmd".to_string(),
+                vec!["/c".to_string(), "exit".to_string(), "0".to_string()],
+            )
         }
         #[cfg(not(windows))]
         {
-            ("sh".to_string(), vec!["-c".to_string(), "exit 0".to_string()])
+            (
+                "sh".to_string(),
+                vec!["-c".to_string(), "exit 0".to_string()],
+            )
         }
     }
 
@@ -117,14 +123,16 @@ impl LocalApp for ShellApp {
         }
 
         // Запускаем процесс
-        let mut child = cmd.spawn()
+        let mut child = cmd
+            .spawn()
             .map_err(|e| Error::Other(format!("Failed to start shell command: {}", e)))?;
 
         let pid = child.id();
         (args.callback)(pid);
 
         // Ждём завершения
-        let status = child.wait()
+        let status = child
+            .wait()
             .map_err(|e| Error::Other(format!("Shell command failed: {}", e)))?;
 
         // Ждём завершения обработки логов
@@ -135,7 +143,10 @@ impl LocalApp for ShellApp {
         if status.success() {
             Ok(())
         } else {
-            Err(Error::Other(format!("Shell command exited with code {:?}", status.code())))
+            Err(Error::Other(format!(
+                "Shell command exited with code {:?}",
+                status.code()
+            )))
         }
     }
 

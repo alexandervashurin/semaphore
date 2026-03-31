@@ -1,17 +1,17 @@
 //! Состояние приложения
 
-use crate::db::Store;
-use crate::config::Config;
-use crate::services::metrics::MetricsManager;
-use crate::cache::RedisCache;
-use crate::error::{Error, Result};
-use std::sync::Arc;
-use std::collections::HashMap;
-use std::sync::Mutex;
-use super::websocket::WebSocketManager;
+use super::middleware::rate_limiter::{RateLimitConfig, RateLimiter};
 use super::store_wrapper::StoreWrapper;
-use super::middleware::rate_limiter::{RateLimiter, RateLimitConfig};
+use super::websocket::WebSocketManager;
 use crate::api::handlers::kubernetes::client::{KubeClient, KubeConfig};
+use crate::cache::RedisCache;
+use crate::config::Config;
+use crate::db::Store;
+use crate::error::{Error, Result};
+use crate::services::metrics::MetricsManager;
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 /// OIDC state для хранения PKCE verifier между redirect и callback
 #[derive(Clone)]
@@ -36,7 +36,11 @@ pub struct AppState {
 
 impl AppState {
     /// Создаёт новое состояние приложения
-    pub fn new(store: Arc<dyn Store + Send + Sync>, config: Config, cache: Option<Arc<RedisCache>>) -> Self {
+    pub fn new(
+        store: Arc<dyn Store + Send + Sync>,
+        config: Config,
+        cache: Option<Arc<RedisCache>>,
+    ) -> Self {
         Self {
             store: StoreWrapper::new(store),
             config,
@@ -47,18 +51,28 @@ impl AppState {
             rate_limiter_api: Arc::new(RateLimiter::new(RateLimitConfig {
                 max_requests: 100,
                 period_secs: 60,
+                burst_size: Some(20),
             })),
             rate_limiter_auth: Arc::new(RateLimiter::new(RateLimitConfig {
                 max_requests: 5,
                 period_secs: 60,
+                burst_size: None,
             })),
         }
     }
 
     /// Создаёт Kubernetes клиент из конфигурации
     pub fn kubernetes_client(&self) -> Result<Arc<KubeClient>> {
-        let kubeconfig_path = self.config.kubernetes.as_ref().and_then(|k| k.kubeconfig_path.clone());
-        let context = self.config.kubernetes.as_ref().and_then(|k| k.context.clone());
+        let kubeconfig_path = self
+            .config
+            .kubernetes
+            .as_ref()
+            .and_then(|k| k.kubeconfig_path.clone());
+        let context = self
+            .config
+            .kubernetes
+            .as_ref()
+            .and_then(|k| k.context.clone());
 
         let kube_config = KubeConfig {
             kubeconfig_path,

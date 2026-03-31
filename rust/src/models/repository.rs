@@ -2,7 +2,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::{FromRow, Type, decode::Decode, encode::Encode, database::Database};
+use sqlx::{database::Database, decode::Decode, encode::Encode, FromRow, Type};
 
 /// Тип репозитория
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -48,13 +48,17 @@ where
     DB: 'q,
     String: Encode<'q, DB>,
 {
-    fn encode_by_ref(&self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
+    fn encode_by_ref(
+        &self,
+        buf: &mut <DB as Database>::ArgumentBuffer<'q>,
+    ) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
         let s = match self {
             RepositoryType::Git => "git",
             RepositoryType::Http => "http",
             RepositoryType::Https => "https",
             RepositoryType::File => "file",
-        }.to_string();
+        }
+        .to_string();
         <String as Encode<'q, DB>>::encode(s, buf)
     }
 }
@@ -117,7 +121,9 @@ impl Repository {
 
     /// Получает полный путь к репозиторию
     pub fn get_full_path(&self) -> String {
-        self.git_path.clone().unwrap_or_else(|| self.git_url.clone())
+        self.git_path
+            .clone()
+            .unwrap_or_else(|| self.git_url.clone())
     }
 }
 

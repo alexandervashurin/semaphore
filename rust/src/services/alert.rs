@@ -2,15 +2,15 @@
 //!
 //! Аналог services/tasks/alert.go из Go версии
 
-use std::collections::HashMap;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use tracing::{info, warn, error};
+use std::collections::HashMap;
+use tracing::{error, info, warn};
 
 use crate::error::{Error, Result};
 use crate::models::{Task, User};
-use crate::services::task_logger::TaskStatus;
 use crate::services::task_logger::TaskLogger;
+use crate::services::task_logger::TaskStatus;
 
 /// Alert представляет уведомление
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -102,7 +102,7 @@ impl AlertService {
     /// Создаёт Alert объект
     fn create_alert(&self) -> Alert {
         let (author, version) = self.alert_infos();
-        
+
         Alert {
             name: self.template_name.clone(),
             author,
@@ -114,25 +114,20 @@ impl AlertService {
                 desc: self.task.message.clone().unwrap_or_default(),
                 version,
             },
-            chat: AlertChat {
-                id: String::new(),
-            },
+            chat: AlertChat { id: String::new() },
         }
     }
 
     /// Отправляет email уведомление
-    pub async fn send_email_alert(
-        &self,
-        users: Vec<User>,
-    ) -> Result<()> {
+    pub async fn send_email_alert(&self, users: Vec<User>) -> Result<()> {
         use crate::utils::mailer::{send_email, Email};
-        
+
         if !crate::config::email_alert_enabled() {
             return Ok(());
         }
 
         let alert = self.create_alert();
-        
+
         // Формируем тело письма
         let body = format!(
             "Alert: {}\nAuthor: {}\nResult: {}\nVersion: {}\nDescription: {}\nURL: {}",
@@ -171,7 +166,7 @@ impl AlertService {
     /// Отправляет Telegram уведомление
     pub async fn send_telegram_alert(&self, chat_id: &str, token: &str) -> Result<()> {
         let alert = self.create_alert();
-        
+
         let text = format!(
             "{} *Alert: {}*\n*Author:* {}\n*Result:* {}\n*Version:* {}\n*Description:* {}\n[View Task]({})",
             alert.color,
@@ -183,10 +178,7 @@ impl AlertService {
             alert.task.url
         );
 
-        let url = format!(
-            "https://api.telegram.org/bot{}/sendMessage",
-            token
-        );
+        let url = format!("https://api.telegram.org/bot{}/sendMessage", token);
 
         let mut params = HashMap::new();
         params.insert("chat_id", chat_id);
@@ -209,13 +201,13 @@ impl AlertService {
     /// Отправляет Slack уведомление
     pub async fn send_slack_alert(&self, webhook_url: &str) -> Result<()> {
         let alert = self.create_alert();
-        
+
         let payload = serde_json::json!({
             "attachments": [
                 {
                     "color": alert.color,
                     "title": alert.name,
-                    "text": format!("Author: {}\nResult: {}\nVersion: {}\nDescription: {}", 
+                    "text": format!("Author: {}\nResult: {}\nVersion: {}\nDescription: {}",
                         alert.author, alert.task.result, alert.task.version, alert.task.desc),
                     "fields": [
                         {
@@ -244,13 +236,13 @@ impl AlertService {
     /// Отправляет Rocket.Chat уведомление
     pub async fn send_rocket_chat_alert(&self, webhook_url: &str) -> Result<()> {
         let alert = self.create_alert();
-        
+
         let payload = serde_json::json!({
             "attachments": [
                 {
                     "color": alert.color,
                     "title": alert.name,
-                    "text": format!("Author: {}\nResult: {}\nVersion: {}", 
+                    "text": format!("Author: {}\nResult: {}\nVersion: {}",
                         alert.author, alert.task.result, alert.task.version),
                     "fields": [
                         {
@@ -284,7 +276,7 @@ impl AlertService {
     /// Отправляет Microsoft Teams уведомление
     pub async fn send_teams_alert(&self, webhook_url: &str) -> Result<()> {
         let alert = self.create_alert();
-        
+
         let payload = serde_json::json!({
             "@type": "MessageCard",
             "@context": "http://schema.org/extensions",
@@ -326,7 +318,7 @@ impl AlertService {
     /// Отправляет DingTalk уведомление
     pub async fn send_dingtalk_alert(&self, webhook_url: &str, secret: Option<&str>) -> Result<()> {
         let alert = self.create_alert();
-        
+
         let mut payload = serde_json::json!({
             "msgtype": "markdown",
             "markdown": {
@@ -365,7 +357,7 @@ impl AlertService {
     /// Отправляет Gotify уведомление
     pub async fn send_gotify_alert(&self, server_url: &str, app_token: &str) -> Result<()> {
         let alert = self.create_alert();
-        
+
         let payload = serde_json::json!({
             "title": format!("Alert: {}", alert.name),
             "message": format!(
@@ -420,7 +412,7 @@ mod tests {
     fn test_alert_color() {
         let task = create_test_task();
         let service = AlertService::new(task, "Test".to_string(), "testuser".to_string());
-        
+
         assert_eq!(service.alert_color("telegram"), "✅");
         assert_eq!(service.alert_color("slack"), "good");
     }
@@ -429,7 +421,7 @@ mod tests {
     fn test_alert_infos() {
         let task = create_test_task();
         let service = AlertService::new(task, "Test".to_string(), "testuser".to_string());
-        
+
         let (author, version) = service.alert_infos();
         assert_eq!(author, "testuser");
         assert_eq!(version, "1.0.0");

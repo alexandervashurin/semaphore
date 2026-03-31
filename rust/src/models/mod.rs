@@ -3,100 +3,129 @@
 //! Этот модуль содержит основные структуры данных, используемые в приложении.
 //! Модели переведены из Go-версии Velum с сохранением совместимости.
 
-pub mod user;
-pub mod project;
-pub mod task;
-pub mod template;
-pub mod template_vault;
-pub mod totp_verification;
-pub mod inventory;
-pub mod repository;
-pub mod environment;
 pub mod access_key;
-pub mod integration;
-pub mod schedule;
-pub mod session;
-pub mod token;
+pub mod alias;
+pub mod analytics;
+pub mod ansible;
+pub mod audit_log;
+pub mod backup_entity;
+pub mod cost_estimate;
+pub mod credential_type;
+pub mod drift;
+pub mod environment;
 pub mod event;
-pub mod runner;
-pub mod view;
-pub mod role;
-pub mod project_invite;
+pub mod export_entity_type;
+pub mod hook;
+pub mod integration;
+pub mod inventory;
+pub mod ldap_group;
+pub mod migration;
+pub mod notification;
 pub mod object_referrers;
 pub mod option;
-pub mod secret_storage;
-pub mod hook;
-pub mod terraform_inventory;
-pub mod alias;
-pub mod ansible;
-pub mod backup_entity;
-pub mod export_entity_type;
-pub mod migration;
-pub mod project_stats;
-pub mod project_user;
-pub mod task_params;
-pub mod audit_log;
-pub mod webhook;
-pub mod analytics;
+pub mod organization;
 pub mod playbook;
 pub mod playbook_run;
 pub mod playbook_run_history;
-pub mod workflow;
-pub mod notification;
-pub mod credential_type;
-pub mod drift;
-pub mod ldap_group;
+pub mod project;
+pub mod project_invite;
+pub mod project_stats;
+pub mod project_user;
+pub mod repository;
+pub mod role;
+pub mod runner;
+pub mod schedule;
+pub mod secret_storage;
+pub mod session;
 pub mod snapshot;
-pub mod cost_estimate;
-pub mod organization;
+pub mod task;
+pub mod task_params;
+pub mod template;
+pub mod template_vault;
+pub mod terraform_inventory;
+pub mod token;
+pub mod totp_verification;
+pub mod user;
+pub mod view;
+pub mod webhook;
+pub mod workflow;
 
 #[cfg(test)]
 mod tests;
 
 // Ре-экспорт основных типов
-pub use user::{User, UserTotp, UserEmailOtp, UserWithProjectRole, ProjectUserRole};
-pub use project::Project;
-pub use task::{Task, TaskWithTpl, TaskOutput, TaskStage, TaskStageType, TaskStageWithResult, TaskStageResult, AnsibleTaskParams, TerraformTaskParams, DefaultTaskParams};
-pub use template::{Template, TemplateWithPerms, TemplateRolePerm, TemplateType, TemplateApp, TemplateFilter, SurveyVar, TemplateVaultRef};
-pub use template_vault::TemplateVault;
-pub use playbook::{Playbook, PlaybookCreate, PlaybookUpdate};
-pub use playbook_run::{PlaybookRunRequest, PlaybookRunResult, AnsiblePlaybookParams};
-pub use playbook_run_history::{PlaybookRun, PlaybookRunCreate, PlaybookRunUpdate, PlaybookRunStatus, PlaybookRunStats, PlaybookRunFilter};
-pub use workflow::{Workflow, WorkflowCreate, WorkflowUpdate, WorkflowNode, WorkflowNodeCreate, WorkflowNodeUpdate, WorkflowEdge, WorkflowEdgeCreate, WorkflowRun as WorkflowRunModel, WorkflowFull, EdgeCondition};
-pub use notification::{NotificationPolicy, NotificationPolicyCreate, NotificationPolicyUpdate, NotificationChannelType};
-pub use totp_verification::TotpVerification;
-pub use inventory::{Inventory, InventoryType};
-pub use repository::{Repository, RepositoryType};
-pub use environment::{Environment, EnvironmentSecret, EnvironmentSecretType, EnvironmentSecretValue};
-pub use access_key::{AccessKey, AccessKeyOwner, AccessKeyType, SshKeyData, LoginPasswordData};
-pub use integration::{Integration, IntegrationExtractValue, IntegrationMatcher, IntegrationAlias};
-pub use schedule::{Schedule, ScheduleWithTpl};
-pub use session::{Session, SessionVerificationMethod};
-pub use token::APIToken;
-pub use event::{Event, EventType};
-pub use runner::Runner;
-pub use view::View;
-pub use role::Role;
-pub use project_invite::{ProjectInvite, ProjectInviteWithUser};
-pub use object_referrers::ObjectReferrers;
-pub use secret_storage::{SecretStorage, SecretStorageType};
-pub use hook::{Hook, HookType};
-pub use terraform_inventory::{TerraformInventoryAlias, TerraformInventoryState, Alias};
+pub use access_key::{AccessKey, AccessKeyOwner, AccessKeyType, LoginPasswordData, SshKeyData};
+pub use analytics::{
+    AnalyticsQueryParams, ChartData, PerformanceMetrics, ProjectAnalytics, ResourceUsage,
+    RunnerMetrics, SystemMetrics, SystemStatus, TaskStats, TimeSeries, TopItem, TopSlowTask,
+    TopUser, UserActivity,
+};
+pub use ansible::{AnsibleGalaxyRequirements, AnsiblePlaybook, GalaxyRequirement};
+pub use audit_log::{
+    AuditAction, AuditDetails, AuditLevel, AuditLog, AuditLogFilter, AuditLogResult,
+    AuditObjectType,
+};
 pub use backup_entity::BackupEntity;
+pub use drift::{DriftConfig, DriftConfigCreate};
+pub use environment::{
+    Environment, EnvironmentSecret, EnvironmentSecretType, EnvironmentSecretValue,
+};
+pub use event::{Event, EventType};
 pub use export_entity_type::ExportEntityType;
+pub use hook::{Hook, HookType};
+pub use integration::{Integration, IntegrationAlias, IntegrationExtractValue, IntegrationMatcher};
+pub use inventory::{Inventory, InventoryType};
+pub use ldap_group::{LdapGroupMapping, LdapGroupMappingCreate};
 pub use migration::Migration;
+pub use notification::{
+    NotificationChannelType, NotificationPolicy, NotificationPolicyCreate, NotificationPolicyUpdate,
+};
+pub use object_referrers::ObjectReferrers;
+pub use playbook::{Playbook, PlaybookCreate, PlaybookUpdate};
+pub use playbook_run::{AnsiblePlaybookParams, PlaybookRunRequest, PlaybookRunResult};
+pub use playbook_run_history::{
+    PlaybookRun, PlaybookRunCreate, PlaybookRunFilter, PlaybookRunStats, PlaybookRunStatus,
+    PlaybookRunUpdate,
+};
+pub use project::Project;
+pub use project_invite::{ProjectInvite, ProjectInviteWithUser};
 pub use project_stats::ProjectStats;
 pub use project_user::ProjectUser;
-pub use audit_log::{AuditLog, AuditAction, AuditObjectType, AuditLevel, AuditDetails, AuditLogFilter, AuditLogResult};
-pub use webhook::{Webhook, WebhookType, CreateWebhook, UpdateWebhook, TestWebhook, WebhookLog};
-pub use drift::{DriftConfig, DriftConfigCreate};
-pub use ldap_group::{LdapGroupMapping, LdapGroupMappingCreate};
-pub use ansible::{AnsiblePlaybook, AnsibleGalaxyRequirements, GalaxyRequirement};
-pub use task_params::{AnsibleTaskParams as AnsibleTaskParamsStruct, TerraformTaskParams as TerraformTaskParamsStruct, DefaultTaskParams as DefaultTaskParamsStruct};
-pub use analytics::{TaskStats, UserActivity, PerformanceMetrics, ResourceUsage, ChartData, TimeSeries, SystemStatus, TopItem, TopSlowTask, TopUser, AnalyticsQueryParams, ProjectAnalytics, RunnerMetrics, SystemMetrics};
+pub use repository::{Repository, RepositoryType};
+pub use role::Role;
+pub use runner::Runner;
+pub use schedule::{Schedule, ScheduleWithTpl};
+pub use secret_storage::{SecretStorage, SecretStorageType};
+pub use session::{Session, SessionVerificationMethod};
+pub use task::{
+    AnsibleTaskParams, DefaultTaskParams, Task, TaskOutput, TaskStage, TaskStageResult,
+    TaskStageType, TaskStageWithResult, TaskWithTpl, TerraformTaskParams,
+};
+pub use task_params::{
+    AnsibleTaskParams as AnsibleTaskParamsStruct, DefaultTaskParams as DefaultTaskParamsStruct,
+    TerraformTaskParams as TerraformTaskParamsStruct,
+};
+pub use template::{
+    SurveyVar, Template, TemplateApp, TemplateFilter, TemplateRolePerm, TemplateType,
+    TemplateVaultRef, TemplateWithPerms,
+};
+pub use template_vault::TemplateVault;
+pub use terraform_inventory::{Alias, TerraformInventoryAlias, TerraformInventoryState};
+pub use token::APIToken;
+pub use totp_verification::TotpVerification;
+pub use user::{ProjectUserRole, User, UserEmailOtp, UserTotp, UserWithProjectRole};
+pub use view::View;
+pub use webhook::{CreateWebhook, TestWebhook, UpdateWebhook, Webhook, WebhookLog, WebhookType};
+pub use workflow::{
+    EdgeCondition, Workflow, WorkflowCreate, WorkflowEdge, WorkflowEdgeCreate, WorkflowFull,
+    WorkflowNode, WorkflowNodeCreate, WorkflowNodeUpdate, WorkflowRun as WorkflowRunModel,
+    WorkflowUpdate,
+};
 
 // Organization (Multi-Tenancy)
-pub use organization::{Organization, OrganizationCreate, OrganizationUpdate, OrganizationUser, OrganizationUserCreate};
+pub use organization::{
+    Organization, OrganizationCreate, OrganizationUpdate, OrganizationUser, OrganizationUserCreate,
+};
 
 // Cost Estimate
 pub use cost_estimate::{CostEstimate, CostEstimateCreate, CostSummary};
@@ -106,9 +135,12 @@ pub use option::OptionItem;
 
 // Terraform State и Plan Approval
 pub mod terraform_state;
-pub use terraform_state::{TerraformState, TerraformStateSummary, TerraformStateLock, LockInfo, StateDiff, StateDiffResource};
+pub use terraform_state::{
+    LockInfo, StateDiff, StateDiffResource, TerraformState, TerraformStateLock,
+    TerraformStateSummary,
+};
 pub mod plan_approval;
-pub use plan_approval::{TerraformPlan, PlanReviewPayload, PlanStatus};
+pub use plan_approval::{PlanReviewPayload, PlanStatus, TerraformPlan};
 
 pub mod deployment_environment;
 pub use deployment_environment::{
@@ -118,8 +150,7 @@ pub use deployment_environment::{
 
 pub mod task_structured_output;
 pub use task_structured_output::{
-    TaskStructuredOutput, TaskStructuredOutputCreate,
-    TaskStructuredOutputBatch, TaskOutputsMap,
+    TaskOutputsMap, TaskStructuredOutput, TaskStructuredOutputBatch, TaskStructuredOutputCreate,
 };
 
 // Ре-экспорт RetrieveQueryParams из db::store

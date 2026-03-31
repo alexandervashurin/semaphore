@@ -10,19 +10,22 @@ use async_trait::async_trait;
 impl LdapGroupMappingManager for SqlStore {
     async fn get_ldap_group_mappings(&self) -> Result<Vec<LdapGroupMapping>> {
         let rows = sqlx::query_as::<_, LdapGroupMapping>(
-                r#"SELECT lgm.id, lgm.ldap_group_dn, lgm.project_id, lgm.role, lgm.created_at::text,
+            r#"SELECT lgm.id, lgm.ldap_group_dn, lgm.project_id, lgm.role, lgm.created_at::text,
                           COALESCE(p.name,'') AS project_name
                    FROM ldap_group_mapping lgm
                    LEFT JOIN project p ON p.id = lgm.project_id
-                   ORDER BY lgm.id"#
-            )
-            .fetch_all(self.get_postgres_pool()?)
-            .await
-            .map_err(Error::Database)?;
-            Ok(rows)
+                   ORDER BY lgm.id"#,
+        )
+        .fetch_all(self.get_postgres_pool()?)
+        .await
+        .map_err(Error::Database)?;
+        Ok(rows)
     }
 
-    async fn create_ldap_group_mapping(&self, payload: LdapGroupMappingCreate) -> Result<LdapGroupMapping> {
+    async fn create_ldap_group_mapping(
+        &self,
+        payload: LdapGroupMappingCreate,
+    ) -> Result<LdapGroupMapping> {
         let row = sqlx::query_as::<_, LdapGroupMapping>(
                 r#"INSERT INTO ldap_group_mapping (ldap_group_dn, project_id, role)
                    VALUES ($1, $2, $3)
@@ -34,15 +37,15 @@ impl LdapGroupMappingManager for SqlStore {
             .fetch_one(self.get_postgres_pool()?)
             .await
             .map_err(Error::Database)?;
-            Ok(row)
+        Ok(row)
     }
 
     async fn delete_ldap_group_mapping(&self, id: i32) -> Result<()> {
         sqlx::query("DELETE FROM ldap_group_mapping WHERE id = $1")
-                .bind(id)
-                .execute(self.get_postgres_pool()?)
-                .await
-                .map_err(Error::Database)?;
+            .bind(id)
+            .execute(self.get_postgres_pool()?)
+            .await
+            .map_err(Error::Database)?;
         Ok(())
     }
 
@@ -51,6 +54,9 @@ impl LdapGroupMappingManager for SqlStore {
             return Ok(vec![]);
         }
         let all = self.get_ldap_group_mappings().await?;
-        Ok(all.into_iter().filter(|m| group_dns.contains(&m.ldap_group_dn)).collect())
+        Ok(all
+            .into_iter()
+            .filter(|m| group_dns.contains(&m.ldap_group_dn))
+            .collect())
     }
 }

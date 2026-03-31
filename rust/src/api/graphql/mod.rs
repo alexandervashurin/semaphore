@@ -2,21 +2,21 @@
 //!
 //! Предоставляет GraphQL альтернативу REST API
 
-pub mod schema;
-pub mod query;
 pub mod mutation;
+pub mod query;
+pub mod schema;
 pub mod subscription;
 pub mod types;
 
-use axum::{
-    Router,
-    extract::State,
-    response::{Html, IntoResponse},
-    routing::get,
-};
 use async_graphql::http::GraphiQLSource;
 use async_graphql_axum::GraphQLRequest;
 use async_graphql_axum::GraphQLResponse;
+use axum::{
+    extract::State,
+    response::{Html, IntoResponse},
+    routing::get,
+    Router,
+};
 
 use crate::api::state::AppState;
 
@@ -41,9 +41,5 @@ pub async fn graphql_handler(
 
 /// GraphiQL playground
 pub async fn graphql_playground() -> Html<String> {
-    Html(
-        GraphiQLSource::build()
-            .endpoint("/graphql")
-            .finish(),
-    )
+    Html(GraphiQLSource::build().endpoint("/graphql").finish())
 }

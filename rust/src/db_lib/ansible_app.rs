@@ -2,18 +2,18 @@
 //!
 //! Аналог db_lib/AnsibleApp.go из Go версии
 
+use md5::{Digest, Md5};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
-use tokio::process::{Child, Command as TokioCommand};
 use tokio::io::{AsyncBufReadExt, BufReader};
-use tracing::{info, warn, error, debug};
-use md5::{Md5, Digest};
+use tokio::process::{Child, Command as TokioCommand};
+use tracing::{debug, error, info, warn};
 
 use crate::error::{Error, Result};
-use crate::models::{Template, Repository};
-use crate::services::task_logger::{TaskLogger, TaskStatus, TaskLoggerArc};
+use crate::models::{Repository, Template};
+use crate::services::task_logger::{TaskLogger, TaskLoggerArc, TaskStatus};
 
 /// Тип требований Galaxy
 #[derive(Debug, Clone, Copy)]
@@ -78,34 +78,43 @@ impl AnsiblePlaybook {
 
     /// Получает директорию playbook
     fn get_playbook_dir(&self) -> PathBuf {
-        self.get_repo_path().join(&self.template.playbook).parent().unwrap().to_path_buf()
+        self.get_repo_path()
+            .join(&self.template.playbook)
+            .parent()
+            .unwrap()
+            .to_path_buf()
     }
 
     /// Создаёт команду для выполнения
-    fn make_cmd(&self, command: &str, args: Vec<String>, environment_vars: Vec<String>) -> TokioCommand {
+    fn make_cmd(
+        &self,
+        command: &str,
+        args: Vec<String>,
+        environment_vars: Vec<String>,
+    ) -> TokioCommand {
         let mut cmd = TokioCommand::new(command);
         cmd.args(&args);
         cmd.current_dir(self.get_playbook_dir());
-        
+
         // Добавляем переменные окружения
         for env_var in environment_vars {
             if let Some((key, value)) = env_var.split_once('=') {
                 cmd.env(key, value);
             }
         }
-        
+
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
-        
+
         cmd
     }
 
     /// Выполняет команду
     async fn run_cmd(&self, command: &str, args: Vec<String>) -> Result<()> {
         let mut cmd = self.make_cmd(command, args, vec![]);
-        
+
         let mut child = cmd.spawn()?;
-        
+
         // Читаем вывод
         if let Some(ref mut stdout) = child.stdout {
             let mut reader = BufReader::new(stdout).lines();
@@ -113,20 +122,23 @@ impl AnsiblePlaybook {
                 self.logger.log(&line);
             }
         }
-        
+
         if let Some(ref mut stderr) = child.stderr {
             let mut reader = BufReader::new(stderr).lines();
             while let Ok(Some(line)) = reader.next_line().await {
                 self.logger.log(&line);
             }
         }
-        
+
         let status = child.wait().await?;
-        
+
         if !status.success() {
-            return Err(Error::Other(format!("Command failed with status: {}", status)));
+            return Err(Error::Other(format!(
+                "Command failed with status: {}",
+                status
+            )));
         }
-        
+
         Ok(())
     }
 
@@ -139,24 +151,24 @@ impl AnsiblePlaybook {
         cb: Option<Box<dyn FnOnce(u32) + Send + 'static>>,
     ) -> Result<()> {
         self.logger.log("Running Ansible playbook...");
-        
+
         let mut args = vec![];
-        
+
         // Extra vars
         if !inputs.is_empty() {
             let extra_vars = serde_json::to_string(&inputs).unwrap_or_default();
             args.push("-e".to_string());
             args.push(extra_vars);
         }
-        
+
         // CLI аргументы
         args.extend(cli_args);
-        
+
         // Playbook file
         args.push(self.template.playbook.clone());
-        
+
         let mut cmd = self.make_cmd("ansible-playbook", args, environment_vars);
-        
+
         let mut child = cmd.spawn()?;
         // На Windows child.id() возвращает Option<u32>
         let pid = child.id().unwrap_or(0);
@@ -177,7 +189,9 @@ impl AnsiblePlaybook {
                 }
             });
             Some(handle)
-        } else { None };
+        } else {
+            None
+        };
         let stderr_handle = if let Some(stderr) = child.stderr.take() {
             let handle = tokio::spawn(async move {
                 let mut reader = BufReader::new(stderr).lines();
@@ -186,14 +200,23 @@ impl AnsiblePlaybook {
                 }
             });
             Some(handle)
-        } else { None };
+        } else {
+            None
+        };
 
         let status = child.wait().await?;
-        if let Some(h) = stdout_handle { let _ = h.await; }
-        if let Some(h) = stderr_handle { let _ = h.await; }
+        if let Some(h) = stdout_handle {
+            let _ = h.await;
+        }
+        if let Some(h) = stderr_handle {
+            let _ = h.await;
+        }
 
         if !status.success() {
-            return Err(Error::Other(format!("Playbook failed with status: {}", status)));
+            return Err(Error::Other(format!(
+                "Playbook failed with status: {}",
+                status
+            )));
         }
 
         Ok(())
@@ -202,15 +225,18 @@ impl AnsiblePlaybook {
     /// Запускает Galaxy команду
     pub async fn run_galaxy(&self, args: Vec<String>, environment_vars: Vec<String>) -> Result<()> {
         self.logger.log("Running Ansible Galaxy...");
-        
+
         let mut cmd = self.make_cmd("ansible-galaxy", args, environment_vars);
-        
+
         let status = cmd.spawn()?.wait().await?;
-        
+
         if !status.success() {
-            return Err(Error::Other(format!("Galaxy command failed with status: {}", status)));
+            return Err(Error::Other(format!(
+                "Galaxy command failed with status: {}",
+                status
+            )));
         }
-        
+
         Ok(())
     }
 }
@@ -301,16 +327,24 @@ impl AnsibleApp {
         requirements_path: &Path,
         environment_vars: Vec<String>,
     ) -> Result<()> {
-        let hash_path = requirements_path.with_extension(format!("yml.{}.md5", requirements_type.to_str()));
+        let hash_path =
+            requirements_path.with_extension(format!("yml.{}.md5", requirements_type.to_str()));
 
         if !requirements_path.exists() {
-            self.log(&format!("No {} file found. Skip galaxy install process.", requirements_path.display()));
+            self.log(&format!(
+                "No {} file found. Skip galaxy install process.",
+                requirements_path.display()
+            ));
             return Ok(());
         }
 
         if Self::has_requirements_changes(requirements_path, &hash_path) {
-            self.log(&format!("Installing {} requirements from {}", requirements_type.to_str(), requirements_path.display()));
-            
+            self.log(&format!(
+                "Installing {} requirements from {}",
+                requirements_type.to_str(),
+                requirements_path.display()
+            ));
+
             let args = vec![
                 requirements_type.to_str().to_string(),
                 "install".to_string(),
@@ -318,12 +352,15 @@ impl AnsibleApp {
                 requirements_path.display().to_string(),
                 "--force".to_string(),
             ];
-            
+
             self.playbook.run_galaxy(args, environment_vars).await?;
-            
+
             Self::write_md5_hash(requirements_path, &hash_path)?;
         } else {
-            self.log(&format!("{} has no changes. Skip galaxy install process.", requirements_path.display()));
+            self.log(&format!(
+                "{} has no changes. Skip galaxy install process.",
+                requirements_path.display()
+            ));
         }
 
         Ok(())
@@ -339,32 +376,39 @@ impl AnsibleApp {
             GalaxyRequirementsType::Role,
             &playbook_dir.join("roles").join("requirements.yml"),
             environment_vars.clone(),
-        ).await?;
+        )
+        .await?;
 
         self.install_galaxy_requirements_file(
             GalaxyRequirementsType::Role,
             &playbook_dir.join("requirements.yml"),
             environment_vars.clone(),
-        ).await?;
+        )
+        .await?;
 
         // alternative roles path
         self.install_galaxy_requirements_file(
             GalaxyRequirementsType::Role,
             &repo_path.join("roles").join("requirements.yml"),
             environment_vars.clone(),
-        ).await?;
+        )
+        .await?;
 
         self.install_galaxy_requirements_file(
             GalaxyRequirementsType::Role,
             &repo_path.join("requirements.yml"),
             environment_vars,
-        ).await?;
+        )
+        .await?;
 
         Ok(())
     }
 
     /// Устанавливает требования коллекций
-    pub async fn install_collections_requirements(&self, environment_vars: Vec<String>) -> Result<()> {
+    pub async fn install_collections_requirements(
+        &self,
+        environment_vars: Vec<String>,
+    ) -> Result<()> {
         let playbook_dir = self.get_playbook_dir();
         let repo_path = self.get_repo_path();
 
@@ -373,42 +417,52 @@ impl AnsibleApp {
             GalaxyRequirementsType::Collection,
             &playbook_dir.join("collections").join("requirements.yml"),
             environment_vars.clone(),
-        ).await?;
+        )
+        .await?;
 
         self.install_galaxy_requirements_file(
             GalaxyRequirementsType::Collection,
             &playbook_dir.join("requirements.yml"),
             environment_vars.clone(),
-        ).await?;
+        )
+        .await?;
 
         // alternative collections path
         self.install_galaxy_requirements_file(
             GalaxyRequirementsType::Collection,
             &repo_path.join("collections").join("requirements.yml"),
             environment_vars.clone(),
-        ).await?;
+        )
+        .await?;
 
         self.install_galaxy_requirements_file(
             GalaxyRequirementsType::Collection,
             &repo_path.join("requirements.yml"),
             environment_vars,
-        ).await?;
+        )
+        .await?;
 
         Ok(())
     }
 
     /// Устанавливает зависимости
-    pub async fn install_requirements(&self, args: crate::db_lib::LocalAppInstallingArgs) -> Result<()> {
+    pub async fn install_requirements(
+        &self,
+        args: crate::db_lib::LocalAppInstallingArgs,
+    ) -> Result<()> {
         self.log("Installing Ansible requirements...");
-        
-        if let Err(e) = self.install_collections_requirements(args.environment_vars.clone()).await {
+
+        if let Err(e) = self
+            .install_collections_requirements(args.environment_vars.clone())
+            .await
+        {
             self.log(&format!("Failed to install collections: {}", e));
         }
-        
+
         if let Err(e) = self.install_roles_requirements(args.environment_vars).await {
             self.log(&format!("Failed to install roles: {}", e));
         }
-        
+
         Ok(())
     }
 
@@ -417,12 +471,14 @@ impl AnsibleApp {
         // Получаем аргументы для "default" ключа
         let cli_args = args.cli_args.get("default").cloned().unwrap_or_default();
 
-        self.playbook.run_playbook(
-            cli_args,
-            args.environment_vars,
-            args.inputs,
-            Some(args.callback),
-        ).await
+        self.playbook
+            .run_playbook(
+                cli_args,
+                args.environment_vars,
+                args.inputs,
+                Some(args.callback),
+            )
+            .await
     }
 
     /// Очищает ресурсы
@@ -464,18 +520,24 @@ mod tests {
         let app = create_test_ansible_app();
         let dir = app.get_playbook_dir();
         // get_playbook_dir returns parent of (repo_path/playbook), i.e. repository dir
-        assert!(dir.ends_with("repository") || dir.to_string_lossy().replace('\\', "/").ends_with("repository"));
+        assert!(
+            dir.ends_with("repository")
+                || dir
+                    .to_string_lossy()
+                    .replace('\\', "/")
+                    .ends_with("repository")
+        );
     }
 
     #[test]
     fn test_get_md5_hash() {
         use std::fs;
-        use tempfile::NamedTempFile;
         use std::io::Write;
-        
+        use tempfile::NamedTempFile;
+
         let mut temp_file = NamedTempFile::new().unwrap();
         writeln!(temp_file, "test content").unwrap();
-        
+
         let hash = AnsibleApp::get_md5_hash(temp_file.path()).unwrap();
         assert_eq!(hash.len(), 32); // MD5 hash is 32 hex characters
     }

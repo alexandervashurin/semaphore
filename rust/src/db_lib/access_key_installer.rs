@@ -5,8 +5,8 @@
 
 use crate::error::{Error, Result};
 use crate::services::ssh_agent::{
-    AccessKeyInstallation, AccessKeyRole, AccessKeyType, AccessKey,
-    SshKeyData, LoginPasswordData, KeyInstaller,
+    AccessKey, AccessKeyInstallation, AccessKeyRole, AccessKeyType, KeyInstaller,
+    LoginPasswordData, SshKeyData,
 };
 use crate::services::task_logger::TaskLogger;
 
@@ -108,7 +108,10 @@ impl DbAccessKey {
         if let Some(storage_type) = self.source_storage_type {
             match storage_type {
                 DbAccessKeySourceStorageType::Env | DbAccessKeySourceStorageType::File => {
-                    return self.source_storage_key.as_ref().is_none_or(|k| k.is_empty());
+                    return self
+                        .source_storage_key
+                        .as_ref()
+                        .is_none_or(|k| k.is_empty());
                 }
                 DbAccessKeySourceStorageType::Vault => {
                     return self.source_storage_id.is_none();
@@ -124,10 +127,14 @@ impl DbAccessKey {
 
         match self.key_type {
             DbAccessKeyType::String => self.string_value.as_ref().is_none_or(|s| s.is_empty()),
-            DbAccessKeyType::Ssh => self.ssh_key.as_ref().is_none_or(|k| k.private_key.is_empty()),
-            DbAccessKeyType::LoginPassword => {
-                self.login_password.as_ref().is_none_or(|k| k.password.is_empty())
-            }
+            DbAccessKeyType::Ssh => self
+                .ssh_key
+                .as_ref()
+                .is_none_or(|k| k.private_key.is_empty()),
+            DbAccessKeyType::LoginPassword => self
+                .login_password
+                .as_ref()
+                .is_none_or(|k| k.password.is_empty()),
             DbAccessKeyType::None => true,
         }
     }
@@ -152,9 +159,7 @@ impl DbAccessKey {
                 DbAccessKeyType::LoginPassword => {
                     if let Some(ref lp) = self.login_password {
                         if lp.password.is_empty() {
-                            return Err(Error::Validation(
-                                "Password cannot be empty".to_string(),
-                            ));
+                            return Err(Error::Validation("Password cannot be empty".to_string()));
                         }
                     }
                 }
@@ -171,9 +176,10 @@ impl DbAccessKey {
 
         match self.key_type {
             DbAccessKeyType::Ssh => {
-                let ssh = self.ssh_key.as_ref().ok_or_else(|| {
-                    Error::Validation("SSH key data missing".to_string())
-                })?;
+                let ssh = self
+                    .ssh_key
+                    .as_ref()
+                    .ok_or_else(|| Error::Validation("SSH key data missing".to_string()))?;
 
                 Ok(AccessKey::new_ssh(
                     self.id as i64,
@@ -184,9 +190,10 @@ impl DbAccessKey {
                 ))
             }
             DbAccessKeyType::LoginPassword => {
-                let lp = self.login_password.as_ref().ok_or_else(|| {
-                    Error::Validation("Login/Password data missing".to_string())
-                })?;
+                let lp = self
+                    .login_password
+                    .as_ref()
+                    .ok_or_else(|| Error::Validation("Login/Password data missing".to_string()))?;
 
                 Ok(AccessKey::new_login_password(
                     self.id as i64,
@@ -335,7 +342,9 @@ mod tests {
             ssh_key: Some(DbSshKey {
                 login: "git".to_string(),
                 passphrase: "".to_string(),
-                private_key: "-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----".to_string(),
+                private_key:
+                    "-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----"
+                        .to_string(),
             }),
             override_secret: false,
             storage_id: None,
@@ -370,7 +379,9 @@ mod tests {
             ssh_key: Some(DbSshKey {
                 login: "git".to_string(),
                 passphrase: "".to_string(),
-                private_key: "-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----".to_string(),
+                private_key:
+                    "-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----"
+                        .to_string(),
             }),
             override_secret: false,
             storage_id: None,

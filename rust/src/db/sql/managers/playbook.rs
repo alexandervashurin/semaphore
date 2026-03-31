@@ -11,27 +11,27 @@ use sqlx::Row;
 impl PlaybookManager for SqlStore {
     async fn get_playbooks(&self, project_id: i32) -> Result<Vec<Playbook>> {
         let playbooks = sqlx::query_as::<_, Playbook>(
-                "SELECT * FROM playbook WHERE project_id = $1 ORDER BY name"
-            )
-            .bind(project_id)
-            .fetch_all(self.get_postgres_pool()?)
-            .await
-            .map_err(Error::Database)?;
+            "SELECT * FROM playbook WHERE project_id = $1 ORDER BY name",
+        )
+        .bind(project_id)
+        .fetch_all(self.get_postgres_pool()?)
+        .await
+        .map_err(Error::Database)?;
 
-            Ok(playbooks)
+        Ok(playbooks)
     }
 
     async fn get_playbook(&self, id: i32, project_id: i32) -> Result<Playbook> {
         let playbook = sqlx::query_as::<_, Playbook>(
-                "SELECT * FROM playbook WHERE id = $1 AND project_id = $2"
-            )
-            .bind(id)
-            .bind(project_id)
-            .fetch_one(self.get_postgres_pool()?)
-            .await
-            .map_err(Error::Database)?;
+            "SELECT * FROM playbook WHERE id = $1 AND project_id = $2",
+        )
+        .bind(id)
+        .bind(project_id)
+        .fetch_one(self.get_postgres_pool()?)
+        .await
+        .map_err(Error::Database)?;
 
-            Ok(playbook)
+        Ok(playbook)
     }
 
     async fn create_playbook(&self, project_id: i32, payload: PlaybookCreate) -> Result<Playbook> {
@@ -49,10 +49,15 @@ impl PlaybookManager for SqlStore {
             .await
             .map_err(Error::Database)?;
 
-            Ok(playbook)
+        Ok(playbook)
     }
 
-    async fn update_playbook(&self, id: i32, project_id: i32, payload: PlaybookUpdate) -> Result<Playbook> {
+    async fn update_playbook(
+        &self,
+        id: i32,
+        project_id: i32,
+        payload: PlaybookUpdate,
+    ) -> Result<Playbook> {
         let playbook = sqlx::query_as::<_, Playbook>(
                 "UPDATE playbook SET name = $1, content = $2, description = $3, playbook_type = $4, updated = NOW()
                  WHERE id = $5 AND project_id = $6 RETURNING *"
@@ -67,16 +72,16 @@ impl PlaybookManager for SqlStore {
             .await
             .map_err(Error::Database)?;
 
-            Ok(playbook)
+        Ok(playbook)
     }
 
     async fn delete_playbook(&self, id: i32, project_id: i32) -> Result<()> {
         sqlx::query("DELETE FROM playbook WHERE id = $1 AND project_id = $2")
-                .bind(id)
-                .bind(project_id)
-                .execute(self.get_postgres_pool()?)
-                .await
-                .map_err(Error::Database)?;
+            .bind(id)
+            .bind(project_id)
+            .execute(self.get_postgres_pool()?)
+            .await
+            .map_err(Error::Database)?;
 
         Ok(())
     }

@@ -2,19 +2,19 @@
 //!
 //! Обработчики запросов для управления ключами доступа
 
+use crate::api::middleware::ErrorResponse;
+use crate::api::state::AppState;
+use crate::db::store::{AccessKeyManager, ProjectStore};
+use crate::error::Error;
+use crate::models::access_key::AccessKeyType;
+use crate::models::AccessKey;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
     Json,
 };
-use std::sync::Arc;
 use serde::{Deserialize, Serialize};
-use crate::api::state::AppState;
-use crate::models::AccessKey;
-use crate::models::access_key::AccessKeyType;
-use crate::error::Error;
-use crate::api::middleware::ErrorResponse;
-use crate::db::store::{AccessKeyManager, ProjectStore};
+use std::sync::Arc;
 
 /// Получить список ключей доступа проекта
 ///
@@ -23,12 +23,12 @@ pub async fn get_access_keys(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
 ) -> Result<Json<Vec<AccessKey>>, (StatusCode, Json<ErrorResponse>)> {
-    let keys = state.store.get_access_keys(project_id)
-        .await
-        .map_err(|e| (
+    let keys = state.store.get_access_keys(project_id).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     Ok(Json(keys))
 }
@@ -41,18 +41,15 @@ pub async fn create_access_key(
     Path(project_id): Path<i32>,
     Json(payload): Json<AccessKeyCreatePayload>,
 ) -> Result<(StatusCode, Json<AccessKey>), (StatusCode, Json<ErrorResponse>)> {
-    let mut key = AccessKey::new(
-        payload.name,
-        payload.key_type,
-    );
+    let mut key = AccessKey::new(payload.name, payload.key_type);
     key.project_id = Some(project_id);
 
-    let created = state.store.create_access_key(key)
-        .await
-        .map_err(|e| (
+    let created = state.store.create_access_key(key).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     Ok((StatusCode::CREATED, Json(created)))
 }
@@ -64,7 +61,9 @@ pub async fn get_access_key(
     State(state): State<Arc<AppState>>,
     Path((project_id, key_id)): Path<(i32, i32)>,
 ) -> Result<Json<AccessKey>, (StatusCode, Json<ErrorResponse>)> {
-    let key = state.store.get_access_key(project_id, key_id)
+    let key = state
+        .store
+        .get_access_key(project_id, key_id)
         .await
         .map_err(|e| match e {
             Error::NotFound(_) => (
@@ -88,7 +87,9 @@ pub async fn update_access_key(
     Path((project_id, key_id)): Path<(i32, i32)>,
     Json(payload): Json<AccessKeyUpdatePayload>,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    let mut key = state.store.get_access_key(project_id, key_id)
+    let mut key = state
+        .store
+        .get_access_key(project_id, key_id)
         .await
         .map_err(|e| match e {
             Error::NotFound(_) => (
@@ -105,12 +106,12 @@ pub async fn update_access_key(
         key.name = name;
     }
 
-    state.store.update_access_key(key)
-        .await
-        .map_err(|e| (
+    state.store.update_access_key(key).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     Ok(StatusCode::OK)
 }
@@ -122,12 +123,16 @@ pub async fn delete_access_key(
     State(state): State<Arc<AppState>>,
     Path((project_id, key_id)): Path<(i32, i32)>,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    state.store.delete_access_key(project_id, key_id)
+    state
+        .store
+        .delete_access_key(project_id, key_id)
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
     Ok(StatusCode::NO_CONTENT)
 }

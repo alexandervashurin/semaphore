@@ -36,7 +36,8 @@ fn needs_quoting(s: &str) -> bool {
         // Специальные символы shell
         matches!(
             c,
-            ' ' | '\t' | '\n'
+            ' ' | '\t'
+                | '\n'
                 | '\\'
                 | '\''
                 | '"'
@@ -148,7 +149,7 @@ mod tests {
         assert!(!needs_quoting("hello"));
         assert!(!needs_quoting("test123"));
         assert!(!needs_quoting("path/to/file"));
-        
+
         assert!(needs_quoting("hello world"));
         assert!(needs_quoting("test$var"));
         assert!(needs_quoting("file*.txt"));

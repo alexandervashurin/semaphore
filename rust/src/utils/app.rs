@@ -5,8 +5,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Приложение Velum
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct App {
     /// Активно ли приложение
     pub active: bool,
@@ -49,12 +48,7 @@ impl App {
     }
 
     /// Создаёт приложение с параметрами
-    pub fn with_params(
-        title: String,
-        app_path: String,
-        icon: String,
-        color: String,
-    ) -> Self {
+    pub fn with_params(title: String, app_path: String, icon: String, color: String) -> Self {
         Self {
             active: true,
             priority: 0,
@@ -67,7 +61,6 @@ impl App {
         }
     }
 }
-
 
 // ============================================================================
 // Tests

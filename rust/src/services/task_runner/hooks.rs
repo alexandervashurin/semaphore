@@ -3,14 +3,17 @@
 //! Аналог services/tasks/task_runner_hooks.go из Go версии
 
 use crate::error::Result;
-use crate::services::task_runner::TaskRunner;
 use crate::models::{Hook, HookType};
+use crate::services::task_runner::TaskRunner;
 
 impl TaskRunner {
     /// run_hooks запускает hooks для задачи
     pub async fn run_hooks(&self, event_type: &str) -> Result<()> {
         // Получение hooks из хранилища по template_id
-        let hooks = self.pool.store().get_hooks_by_template(self.task.template_id)
+        let hooks = self
+            .pool
+            .store()
+            .get_hooks_by_template(self.task.template_id)
             .await
             .unwrap_or_default();
 
@@ -41,7 +44,10 @@ impl TaskRunner {
 
     /// execute_hook выполняет один hook
     async fn execute_hook(&self, hook: &Hook) -> Result<()> {
-        self.log(&format!("Executing hook: {} (type: {:?})", hook.name, hook.r#type));
+        self.log(&format!(
+            "Executing hook: {} (type: {:?})",
+            hook.name, hook.r#type
+        ));
 
         match hook.r#type {
             HookType::Http => {
@@ -49,7 +55,7 @@ impl TaskRunner {
                 if let Some(url) = &hook.url {
                     let client = reqwest::Client::new();
                     let method = hook.http_method.as_deref().unwrap_or("GET");
-                    
+
                     let request = match method.to_uppercase().as_str() {
                         "GET" => client.get(url),
                         "POST" => client.post(url),
@@ -75,10 +81,17 @@ impl TaskRunner {
                     let response = request.send().await;
                     match response {
                         Ok(resp) => {
-                            self.log(&format!("Hook '{}' completed with status: {}", hook.name, resp.status()));
+                            self.log(&format!(
+                                "Hook '{}' completed with status: {}",
+                                hook.name,
+                                resp.status()
+                            ));
                         }
                         Err(e) => {
-                            return Err(crate::error::Error::Other(format!("HTTP hook failed: {}", e)));
+                            return Err(crate::error::Error::Other(format!(
+                                "HTTP hook failed: {}",
+                                e
+                            )));
                         }
                     }
                 }
@@ -102,20 +115,26 @@ impl TaskRunner {
                         Ok(out) => {
                             let stdout = String::from_utf8_lossy(&out.stdout);
                             let stderr = String::from_utf8_lossy(&out.stderr);
-                            
+
                             if !stdout.is_empty() {
                                 self.log(&format!("Hook '{}' stdout: {}", hook.name, stdout));
                             }
                             if !stderr.is_empty() {
                                 self.log(&format!("Hook '{}' stderr: {}", hook.name, stderr));
                             }
-                            
+
                             if !out.status.success() {
-                                return Err(crate::error::Error::Other(format!("Script hook failed with exit code: {:?}", out.status.code())));
+                                return Err(crate::error::Error::Other(format!(
+                                    "Script hook failed with exit code: {:?}",
+                                    out.status.code()
+                                )));
                             }
                         }
                         Err(e) => {
-                            return Err(crate::error::Error::Other(format!("Script hook failed: {}", e)));
+                            return Err(crate::error::Error::Other(format!(
+                                "Script hook failed: {}",
+                                e
+                            )));
                         }
                     }
                 }
@@ -149,12 +168,12 @@ impl TaskRunner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Utc;
-    use crate::services::task_logger::TaskStatus;
-    use crate::models::{Task, Project};
-    use crate::services::task_pool::TaskPool;
-    use crate::db_lib::AccessKeyInstallerImpl;
     use crate::db::MockStore;
+    use crate::db_lib::AccessKeyInstallerImpl;
+    use crate::models::{Project, Task};
+    use crate::services::task_logger::TaskStatus;
+    use crate::services::task_pool::TaskPool;
+    use chrono::Utc;
     use std::sync::Arc;
 
     fn create_test_task_runner() -> TaskRunner {
@@ -171,12 +190,14 @@ mod tests {
             ..Default::default()
         };
 
-        let pool = Arc::new(TaskPool::new(
-            Arc::new(MockStore::new()),
-            5,
-        ));
+        let pool = Arc::new(TaskPool::new(Arc::new(MockStore::new()), 5));
 
-        TaskRunner::new(task, pool, "testuser".to_string(), AccessKeyInstallerImpl::new())
+        TaskRunner::new(
+            task,
+            pool,
+            "testuser".to_string(),
+            AccessKeyInstallerImpl::new(),
+        )
     }
 
     #[tokio::test]

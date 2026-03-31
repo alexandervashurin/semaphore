@@ -5,14 +5,14 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::process::Child;
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 
-use crate::error::Result;
-use crate::models::{Task, Template, Inventory, Repository, Environment};
-use crate::services::task_logger::{TaskLogger, TaskStatus};
-use crate::services::ssh_agent::AccessKeyInstallation;
-use crate::services::task_runner::Job;
 use crate::db_lib::AccessKeyInstallerImpl;
+use crate::error::Result;
+use crate::models::{Environment, Inventory, Repository, Task, Template};
+use crate::services::ssh_agent::AccessKeyInstallation;
+use crate::services::task_logger::{TaskLogger, TaskStatus};
+use crate::services::task_runner::Job;
 
 /// Локальная задача для выполнения
 pub struct LocalJob {
@@ -94,7 +94,12 @@ impl LocalJob {
     }
 
     /// Устанавливает параметры запуска (вызывается перед Job::run)
-    pub fn set_run_params(&mut self, username: String, incoming_version: Option<String>, alias: String) {
+    pub fn set_run_params(
+        &mut self,
+        username: String,
+        incoming_version: Option<String>,
+        alias: String,
+    ) {
         self.username = username;
         self.incoming_version = incoming_version;
         self.alias = alias;
@@ -145,13 +150,7 @@ impl Job for LocalJob {
         let username = self.username.clone();
         let incoming_version = self.incoming_version.clone();
         let alias = self.alias.clone();
-        LocalJob::run(
-            self,
-            &username,
-            incoming_version.as_deref(),
-            &alias,
-        )
-        .await
+        LocalJob::run(self, &username, incoming_version.as_deref(), &alias).await
     }
 
     fn kill(&mut self) {

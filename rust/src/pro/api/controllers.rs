@@ -2,14 +2,10 @@
 //!
 //! PRO контроллеры для Velum API
 
-use axum::{
-    extract::State,
-    http::StatusCode,
-    Json,
-};
-use std::sync::Arc;
 use crate::api::state::AppState;
 use crate::error::Result;
+use axum::{extract::State, http::StatusCode, Json};
+use std::sync::Arc;
 
 // ============================================================================
 // Roles Controller

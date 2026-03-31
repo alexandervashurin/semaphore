@@ -2,16 +2,16 @@
 //!
 //! Обработчики для ссылок на объекты
 
+use crate::api::middleware::ErrorResponse;
+use crate::api::state::AppState;
+use crate::error::{Error, Result};
 use axum::{
     extract::{Path, State},
     http::StatusCode,
     Json,
 };
-use std::sync::Arc;
 use serde::{Deserialize, Serialize};
-use crate::api::state::AppState;
-use crate::error::{Error, Result};
-use crate::api::middleware::ErrorResponse;
+use std::sync::Arc;
 
 /// Ссылки на объект
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -28,7 +28,7 @@ pub async fn get_key_refs(
 ) -> std::result::Result<Json<ObjectRefs>, (StatusCode, Json<ErrorResponse>)> {
     // В реальной реализации нужно получить ссылки из БД
     // let refs = state.store.get_access_key_refs(project_id, key_id).await?;
-    
+
     let refs = ObjectRefs {
         templates: vec![],
         schedules: vec![],
@@ -45,7 +45,7 @@ pub async fn get_repository_refs(
 ) -> std::result::Result<Json<ObjectRefs>, (StatusCode, Json<ErrorResponse>)> {
     // В реальной реализации нужно получить ссылки из БД
     // let refs = state.store.get_repository_refs(project_id, repository_id).await?;
-    
+
     let refs = ObjectRefs {
         templates: vec![],
         schedules: vec![],
@@ -62,7 +62,7 @@ pub async fn get_inventory_refs(
 ) -> std::result::Result<Json<ObjectRefs>, (StatusCode, Json<ErrorResponse>)> {
     // В реальной реализации нужно получить ссылки из БД
     // let refs = state.store.get_inventory_refs(project_id, inventory_id).await?;
-    
+
     let refs = ObjectRefs {
         templates: vec![],
         schedules: vec![],
@@ -79,7 +79,7 @@ pub async fn get_template_refs(
 ) -> std::result::Result<Json<ObjectRefs>, (StatusCode, Json<ErrorResponse>)> {
     // В реальной реализации нужно получить ссылки из БД
     // let refs = state.store.get_template_refs(project_id, template_id).await?;
-    
+
     let refs = ObjectRefs {
         templates: vec![],
         schedules: vec![],
@@ -96,7 +96,7 @@ pub async fn get_integration_refs(
 ) -> std::result::Result<Json<ObjectRefs>, (StatusCode, Json<ErrorResponse>)> {
     // В реальной реализации нужно получить ссылки из БД
     // let refs = state.store.get_integration_refs(project_id, integration_id).await?;
-    
+
     let refs = ObjectRefs {
         templates: vec![],
         schedules: vec![],

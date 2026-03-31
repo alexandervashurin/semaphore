@@ -1,11 +1,11 @@
 //! Kubernetes Job Executor - Запуск задач в Kubernetes Jobs
 
-use k8s_openapi::api::batch::v1::{Job, JobSpec};
-use k8s_openapi::api::core::v1::{PodSpec, PodTemplateSpec, Container, EnvVar};
-use serde::{Deserialize, Serialize};
-use tracing::{info, warn, error, debug};
 use crate::error::{Error, Result};
 use crate::kubernetes::client::KubernetesClient;
+use k8s_openapi::api::batch::v1::{Job, JobSpec};
+use k8s_openapi::api::core::v1::{Container, EnvVar, PodSpec, PodTemplateSpec};
+use serde::{Deserialize, Serialize};
+use tracing::{debug, error, info, warn};
 
 /// Конфигурация Kubernetes Job
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -170,30 +170,40 @@ spec:
     /// Запускает Job в Kubernetes
     pub fn run(&self, client: &KubernetesClient) -> Result<String> {
         let yaml = self.generate_yaml();
-        let namespace = self.config.namespace.as_deref().or(Some(client.default_namespace()));
-        
-        info!("Creating Kubernetes Job '{}' in namespace '{:?}'", 
-              self.config.name, namespace);
-        
+        let namespace = self
+            .config
+            .namespace
+            .as_deref()
+            .or(Some(client.default_namespace()));
+
+        info!(
+            "Creating Kubernetes Job '{}' in namespace '{:?}'",
+            self.config.name, namespace
+        );
+
         client.create_job(&yaml, namespace)?;
-        
+
         info!("Job '{}' created successfully", self.config.name);
-        
+
         Ok(self.config.name.clone())
     }
 
     /// Получает статус Job
     pub fn get_status(&self, client: &KubernetesClient) -> Result<JobStatus> {
-        let namespace = self.config.namespace.as_deref().or(Some(client.default_namespace()));
+        let namespace = self
+            .config
+            .namespace
+            .as_deref()
+            .or(Some(client.default_namespace()));
         let status_str = client.get_job_status(&self.config.name, namespace)?;
-        
+
         let status = match status_str.as_str() {
             "Complete" => JobStatus::Succeeded,
             "Failed" => JobStatus::Failed,
             "Running" => JobStatus::Running,
             _ => JobStatus::Pending,
         };
-        
+
         Ok(status)
     }
 
@@ -204,16 +214,23 @@ spec:
         timeout_secs: u64,
     ) -> Result<JobStatus> {
         use std::time::{Duration, Instant};
-        
-        let namespace = self.config.namespace.as_deref().or(Some(client.default_namespace()));
-        
-        info!("Waiting for Job '{}' to complete (timeout: {}s)", self.config.name, timeout_secs);
-        
+
+        let namespace = self
+            .config
+            .namespace
+            .as_deref()
+            .or(Some(client.default_namespace()));
+
+        info!(
+            "Waiting for Job '{}' to complete (timeout: {}s)",
+            self.config.name, timeout_secs
+        );
+
         let start = Instant::now();
-        
+
         while start.elapsed() < Duration::from_secs(timeout_secs) {
             let status_str = client.get_job_status(&self.config.name, namespace)?;
-            
+
             match status_str.as_str() {
                 "Complete" => {
                     info!("Job '{}' completed", self.config.name);
@@ -229,17 +246,21 @@ spec:
                 }
             }
         }
-        
+
         warn!("Timeout waiting for Job '{}' to complete", self.config.name);
         Ok(JobStatus::Unknown)
     }
 
     /// Удаляет Job
     pub fn delete(&self, client: &KubernetesClient) -> Result<()> {
-        let namespace = self.config.namespace.as_deref().or(Some(client.default_namespace()));
-        
+        let namespace = self
+            .config
+            .namespace
+            .as_deref()
+            .or(Some(client.default_namespace()));
+
         info!("Deleting Job '{}'", self.config.name);
-        
+
         let _ = client.run_command(&[
             "delete",
             "job",
@@ -248,7 +269,7 @@ spec:
             namespace.unwrap_or("default"),
             "--ignore-not-found",
         ]);
-        
+
         Ok(())
     }
 }
@@ -283,10 +304,10 @@ mod tests {
             image: "nginx:latest".to_string(),
             ..Default::default()
         };
-        
+
         let job = KubernetesJob::new(config);
         let yaml = job.generate_yaml();
-        
+
         assert!(yaml.contains("name: test-job"));
         assert!(yaml.contains("namespace: test-ns"));
         assert!(yaml.contains("image: nginx:latest"));

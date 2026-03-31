@@ -2,8 +2,8 @@
 //!
 //! Команды для управления хранилищами секретов
 
-use clap::{Args, Subcommand};
 use crate::cli::CliResult;
+use clap::{Args, Subcommand};
 
 /// Команда vault
 #[derive(Debug, Args)]

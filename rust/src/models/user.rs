@@ -124,7 +124,6 @@ impl<'r> sqlx::Decode<'r, sqlx::Postgres> for ProjectUserRole {
     }
 }
 
-
 /// Пользователь с паролем (для создания/обновления)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserWithPwd {

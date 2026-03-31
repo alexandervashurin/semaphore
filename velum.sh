@@ -7,7 +7,7 @@
 # Использование: ./velum.sh <КОМАНДА> [ОПЦИИ]
 #
 # Команды:
-#   start [РЕЖИМ]   Запуск (native|hybrid|docker)
+#   start [РЕЖИМ]   Запуск (dev|docker)
 #   stop            Остановка сервисов
 #   restart         Перезапуск
 #   clean           Очистка данных
@@ -19,9 +19,8 @@
 #   help            Показать справку
 #
 # Режимы запуска:
-#   native    Чистый запуск: SQLite + Backend + Frontend на хосте
-#   hybrid    Гибрид: PostgreSQL в Docker + остальное на хосте (рекомендуется)
-#   docker    Всё в Docker: PostgreSQL + Backend + Frontend
+#   dev       PostgreSQL в Docker + Backend на хосте (рекомендуется для разработки)
+#   docker    Всё в Docker: PostgreSQL + Backend + Frontend (продакшен)
 # ============================================================================
 
 set -e
@@ -149,36 +148,10 @@ build_backend() {
 # Переменные окружения
 # ============================================================================
 
-setup_env_native() {
-    step "Настройка переменных окружения (native)..."
-    mkdir -p "$DATA_DIR" "$LOG_DIR"
-    
-    export VELUM_DB_DIALECT=sqlite
-    export VELUM_DB_PATH="${VELUM_DB_PATH:-$DATA_DIR/velum.db}"
-    export VELUM_WEB_PATH="$SCRIPT_DIR/web/public"
-    export VELUM_TMP_PATH="/tmp/velum"
-    export VELUM_TCP_ADDRESS="0.0.0.0:3000"
-    export RUST_LOG="${RUST_LOG:-info}"
-    
-    cat > "$ENV_FILE" <<EOF
-# Velum - Native Mode (SQLite)
-VELUM_DB_DIALECT=sqlite
-VELUM_DB_PATH=$VELUM_DB_PATH
-VELUM_WEB_PATH=$VELUM_WEB_PATH
-VELUM_TMP_PATH=$VELUM_TMP_PATH
-VELUM_TCP_ADDRESS=$VELUM_TCP_ADDRESS
-RUST_LOG=$RUST_LOG
-EOF
-    success "Переменные окружения установлены"
-    info "  DB: SQLite ($VELUM_DB_PATH)"
-    info "  Web: $VELUM_WEB_PATH"
-    info "  Port: 3000"
-}
-
-setup_env_hybrid() {
-    step "Настройка переменных окружения (hybrid)..."
+setup_env_dev() {
+    step "Настройка переменных окружения (dev)..."
     mkdir -p "$LOG_DIR"
-    
+
     export VELUM_DB_DIALECT=postgres
     export VELUM_DB_HOST="localhost"
     export VELUM_DB_PORT="5432"
@@ -190,9 +163,9 @@ setup_env_hybrid() {
     export VELUM_TMP_PATH="/tmp/velum"
     export VELUM_TCP_ADDRESS="0.0.0.0:3000"
     export RUST_LOG="${RUST_LOG:-info}"
-    
+
     cat > "$ENV_FILE" <<EOF
-# Velum - Hybrid Mode (PostgreSQL in Docker)
+# Velum - Dev Mode (PostgreSQL in Docker)
 VELUM_DB_DIALECT=postgres
 VELUM_DB_URL=$VELUM_DB_URL
 VELUM_WEB_PATH=$VELUM_WEB_PATH
@@ -281,57 +254,18 @@ wait_for_server() {
 }
 
 # ============================================================================
-# Native режим (SQLite)
+# Native режим (SQLite) - УСТАРЕЛ, НЕ ИСПОЛЬЗУЕТСЯ
 # ============================================================================
+# Эти функции оставлены для обратной совместимости, но выводят предупреждение
 
 cmd_init_native() {
-    setup_env_native
-    check_rust
-    step "Инициализация SQLite БД..."
-    cd "$SCRIPT_DIR/rust"
-    cargo run --release -- migrate --upgrade
-    success "Миграции применены"
-    step "Создание пользователя admin..."
-    cargo run --release -- user add \
-        --username admin \
-        --name "Administrator" \
-        --email admin@localhost \
-        --password admin123 \
-        --admin
-    success "Пользователь admin создан"
-    echo ""
-    info "Теперь запустите сервер: $0 start native"
+    warning "Режим SQLite устарел и больше не поддерживается. Используйте dev (PostgreSQL)."
+    cmd_init_dev
 }
 
 cmd_start_native() {
-    setup_env_native
-    check_rust
-    
-    if ! check_frontend; then
-        warning "Frontend не найден"
-        check_node && build_frontend || warning "Запуск без frontend (только API)"
-    else
-        success "Frontend найден"
-    fi
-    
-    step "Запуск backend..."
-    cd "$SCRIPT_DIR/rust"
-    pkill -f "velum server" 2>/dev/null || true
-    sleep 1
-    
-    nohup cargo run --release -- server --host 0.0.0.0 --port 3000 > "$LOG_DIR/backend.log" 2>&1 &
-    BACKEND_PID=$!
-    echo $BACKEND_PID > "$LOG_DIR/backend.pid"
-    
-    sleep 3
-    
-    if ps -p $BACKEND_PID > /dev/null 2>&1; then
-        success "Backend запущен (PID: $BACKEND_PID)"
-        wait_for_server
-        print_status_native
-    else
-        error "Backend не запустился. Проверьте логи: $LOG_DIR/backend.log"
-    fi
+    warning "Режим SQLite устарел и больше не поддерживается. Используйте dev (PostgreSQL)."
+    cmd_start_dev
 }
 
 cmd_stop_native() {
@@ -359,46 +293,26 @@ cmd_logs_native() {
     fi
 }
 
-print_status_native() {
-    echo ""
-    echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║         Velum запущен! (Native Mode)            ║${NC}"
-    echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
-    echo ""
-    echo -e "${GREEN}🌐 Web-интерфейс:${NC} http://localhost:3000"
-    echo -e "${GREEN}💾 База данных:${NC} $VELUM_DB_PATH"
-    echo ""
-    echo -e "${YELLOW}Учётные данные:${NC}"
-    echo -e "   admin / admin123"
-    echo ""
-    echo -e "${YELLOW}Полезные команды:${NC}"
-    echo -e "   ${CYAN}$0 stop${NC}   - Остановить backend"
-    echo -e "   ${CYAN}$0 logs${NC}   - Просмотр логов"
-    echo -e "   ${CYAN}$0 init${NC}   - Инициализировать БД"
-    echo -e "   ${CYAN}$0 clean${NC}  - Удалить БД"
-    echo ""
-}
-
 # ============================================================================
-# Hybrid режим (PostgreSQL в Docker)
+# Dev режим (PostgreSQL в Docker)
 # ============================================================================
 
-cmd_init_hybrid() {
-    setup_env_hybrid
+cmd_init_dev() {
+    setup_env_dev
     check_docker
     check_rust
-    
+
     if ! docker ps --format '{{.Names}}' | grep -q velum-db; then
         start_postgres_docker
     fi
-    
+
     step "Инициализация PostgreSQL БД..."
     cd "$SCRIPT_DIR/rust"
-    cargo run --release -- migrate --upgrade
+    cargo run --release --bin velum-cli -- migrate --upgrade
     success "Миграции применены"
-    
+
     step "Создание пользователя admin..."
-    cargo run --release -- user add \
+    cargo run --release --bin velum-cli -- user add \
         --username admin \
         --name "Administrator" \
         --email admin@localhost \
@@ -406,46 +320,46 @@ cmd_init_hybrid() {
         --admin
     success "Пользователь admin создан"
     echo ""
-    info "Теперь запустите сервер: $0 start hybrid"
+    info "Теперь запустите сервер: $0 start dev"
 }
 
-cmd_start_hybrid() {
-    setup_env_hybrid
+cmd_start_dev() {
+    setup_env_dev
     check_docker
     check_rust
-    
+
     if ! check_frontend; then
         warning "Frontend не найден"
         check_node && build_frontend || warning "Запуск без frontend (только API)"
     else
         success "Frontend найден"
     fi
-    
+
     if ! docker ps --format '{{.Names}}' | grep -q velum-db; then
         start_postgres_docker
     fi
-    
+
     step "Запуск backend..."
     cd "$SCRIPT_DIR/rust"
     pkill -f "velum server" 2>/dev/null || true
     sleep 1
-    
-    nohup cargo run --release -- server --host 0.0.0.0 --port 3000 > "$LOG_DIR/backend.log" 2>&1 &
+
+    nohup cargo run --release --bin velum -- server --host 0.0.0.0 --port 3000 > "$LOG_DIR/backend.log" 2>&1 &
     BACKEND_PID=$!
     echo $BACKEND_PID > "$LOG_DIR/backend.pid"
-    
+
     sleep 3
-    
+
     if ps -p $BACKEND_PID > /dev/null 2>&1; then
         success "Backend запущен (PID: $BACKEND_PID)"
         wait_for_server
-        print_status_hybrid
+        print_status_dev
     else
         error "Backend не запустился. Проверьте логи: $LOG_DIR/backend.log"
     fi
 }
 
-cmd_stop_hybrid() {
+cmd_stop_dev() {
     step "Остановка backend и PostgreSQL..."
     pkill -f "velum server" 2>/dev/null || true
     docker stop velum-db 2>/dev/null || true
@@ -453,22 +367,22 @@ cmd_stop_hybrid() {
     success "Сервисы остановлены"
 }
 
-cmd_restart_hybrid() {
+cmd_restart_dev() {
     step "Перезапуск сервисов..."
     docker restart velum-db 2>/dev/null || true
     pkill -f "velum server" 2>/dev/null || true
     sleep 2
-    cmd_start_hybrid
+    cmd_start_dev
     success "Сервисы перезапущены"
 }
 
-cmd_clean_hybrid() {
+cmd_clean_dev() {
     step "Очистка volumes PostgreSQL..."
     docker volume rm velum_postgres_data 2>/dev/null || true
     success "Данные PostgreSQL удалены"
 }
 
-cmd_logs_hybrid() {
+cmd_logs_dev() {
     echo "=== Backend Logs ==="
     if [ -f "$LOG_DIR/backend.log" ]; then
         tail -f "$LOG_DIR/backend.log"
@@ -477,17 +391,17 @@ cmd_logs_hybrid() {
     fi
 }
 
-print_status_hybrid() {
+print_status_dev() {
     echo ""
     echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║         Velum запущен! (Hybrid Mode)            ║${NC}"
+    echo -e "${BLUE}║         Velum запущен! (Dev Mode)               ║${NC}"
     echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
     echo ""
     echo -e "${GREEN}🌐 Web-интерфейс:${NC} http://localhost:3000"
     echo -e "${GREEN}💾 База данных:${NC} PostgreSQL (localhost:5432)"
     echo ""
-    echo -e "${YELLOW}Учётные данные (демо):${NC}"
-    echo -e "   admin / demo123"
+    echo -e "${YELLOW}Учётные данные:${NC}"
+    echo -e "   admin / admin123"
     echo ""
     echo -e "${YELLOW}Полезные команды:${NC}"
     echo -e "   ${CYAN}$0 stop${NC}   - Остановить сервисы"
@@ -497,7 +411,6 @@ print_status_hybrid() {
     echo -e "   ${CYAN}docker logs velum-db${NC}   - Лог PostgreSQL"
     echo ""
 }
-
 # ============================================================================
 # Docker режим (всё в Docker)
 # ============================================================================
@@ -643,7 +556,7 @@ cmd_help() {
 
 Команды:
   start [РЕЖИМ]   Запуск сервиса
-                  Режимы: native (SQLite), hybrid (PostgreSQL в Docker), docker
+                  Режимы: dev (PostgreSQL в Docker), docker
   stop            Остановка сервисов
   restart         Перезапуск сервисов
   clean           Очистка данных
@@ -655,8 +568,7 @@ cmd_help() {
   help            Показать эту справку
 
 Примеры:
-  \$0 start native      - Запуск с SQLite (быстро, минимум зависимостей)
-  \$0 start hybrid      - Запуск с PostgreSQL в Docker (рекомендуется)
+  \$0 start dev         - Запуск с PostgreSQL в Docker (рекомендуется)
   \$0 start docker      - Запуск всех сервисов в Docker
   \$0 stop              - Остановить сервисы
   \$0 clean             - Очистить данные
@@ -686,18 +598,18 @@ main() {
 
     case "$COMMAND" in
         start)
-            local MODE="${1:-hybrid}"
+            local MODE="${1:-dev}"
             shift 2>/dev/null || true
             case "$MODE" in
-                native) cmd_start_native "$@" ;;
-                hybrid) cmd_start_hybrid "$@" ;;
+                dev) cmd_start_dev "$@" ;;
                 docker) cmd_start_docker "$@" ;;
-                *) error "Неизвестный режим: $MODE. Доступные: native, hybrid, docker" ;;
+                native|hybrid) warning "Режим '$MODE' устарел. Используйте 'dev' (PostgreSQL)." ; cmd_start_dev "$@" ;;
+                *) error "Неизвестный режим: $MODE. Доступные: dev, docker" ;;
             esac
             ;;
         stop)
             if docker ps --format '{{.Names}}' | grep -q velum-db; then
-                cmd_stop_hybrid
+                cmd_stop_dev
             elif pgrep -f "velum server" > /dev/null; then
                 cmd_stop_native
             else
@@ -706,14 +618,14 @@ main() {
             ;;
         restart)
             if docker ps --format '{{.Names}}' | grep -q velum-db; then
-                cmd_restart_hybrid
+                cmd_restart_dev
             else
                 cmd_restart_docker
             fi
             ;;
         clean)
             if docker volume ls --format '{{.Name}}' | grep -q velum_postgres_data; then
-                cmd_clean_hybrid
+                cmd_clean_dev
             elif [ -f "${VELUM_DB_PATH:-$DATA_DIR/velum.db}" ]; then
                 cmd_clean_native
             else
@@ -721,11 +633,11 @@ main() {
             fi
             ;;
         init)
-            local MODE="${1:-hybrid}"
+            local MODE="${1:-dev}"
             case "$MODE" in
-                native) cmd_init_native ;;
-                hybrid) cmd_init_hybrid ;;
-                *) error "Инициализация поддерживается только для native и hybrid" ;;
+                dev) cmd_init_dev ;;
+                native|hybrid) warning "Режим '$MODE' устарел. Используйте 'dev' (PostgreSQL)." ; cmd_init_dev ;;
+                *) error "Инициализация поддерживается только для dev" ;;
             esac
             ;;
         status)
@@ -733,7 +645,7 @@ main() {
             ;;
         logs)
             if docker ps --format '{{.Names}}' | grep -q velum-db; then
-                cmd_logs_hybrid
+                cmd_logs_dev
             else
                 cmd_logs_native
             fi
@@ -742,7 +654,7 @@ main() {
             cmd_build
             ;;
         demo)
-            local MODE="${1:-hybrid}"
+            local MODE="${1:-dev}"
             cmd_demo "$MODE"
             ;;
         help|--help|-h)

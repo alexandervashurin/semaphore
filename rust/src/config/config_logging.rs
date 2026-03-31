@@ -15,7 +15,6 @@ pub enum LogFormat {
     Text,
 }
 
-
 /// Тип уровня логирования
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
@@ -28,34 +27,33 @@ pub enum LogLevel {
     Error,
 }
 
-
 /// Конфигурация логирования
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoggingConfig {
     /// Формат логов (json/text)
     #[serde(default)]
     pub format: LogFormat,
-    
+
     /// Уровень логирования
     #[serde(default)]
     pub level: LogLevel,
-    
+
     /// Путь к файлу логов (если пустой - в stdout)
     #[serde(default)]
     pub file: Option<String>,
-    
+
     /// Максимальный размер файла логов в МБ
     #[serde(default)]
     pub max_size: u64,
-    
+
     /// Максимальное количество файлов логов
     #[serde(default)]
     pub max_backups: u32,
-    
+
     /// Максимальный возраст файлов логов в днях
     #[serde(default)]
     pub max_age: u32,
-    
+
     /// Сжимать старые файлы логов
     #[serde(default)]
     pub compress: bool,
@@ -80,17 +78,17 @@ impl LoggingConfig {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     /// Проверяет включено ли логирование в файл
     pub fn is_file_logging(&self) -> bool {
         self.file.is_some()
     }
-    
+
     /// Получает путь к файлу логов
     pub fn get_file_path(&self) -> Option<PathBuf> {
         self.file.as_ref().map(PathBuf::from)
     }
-    
+
     /// Получает уровень логирования как строку
     pub fn level_string(&self) -> &'static str {
         match self.level {
@@ -210,7 +208,7 @@ mod tests {
         let format = LogFormat::Json;
         let serialized = serde_json::to_string(&format).unwrap();
         assert_eq!(serialized, "\"json\"");
-        
+
         let deserialized: LogFormat = serde_json::from_str(&serialized).unwrap();
         assert_eq!(deserialized, LogFormat::Json);
     }
@@ -220,7 +218,7 @@ mod tests {
         let level = LogLevel::Warn;
         let serialized = serde_json::to_string(&level).unwrap();
         assert_eq!(serialized, "\"warn\"");
-        
+
         let deserialized: LogLevel = serde_json::from_str(&serialized).unwrap();
         assert_eq!(deserialized, LogLevel::Warn);
     }

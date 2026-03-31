@@ -2,10 +2,10 @@
 //!
 //! Аналог services/project/backup.go из Go версии
 
-use serde::{Deserialize, Serialize};
 use rand::RngCore;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 
 use crate::error::{Error, Result};
 use crate::models::*;
@@ -179,17 +179,37 @@ impl BackupDB {
         self.schedules = store.get_schedules(project_id).await?;
         self.integrations = store.get_integrations(project_id).await?;
         self.views = store.get_views(project_id).await?;
-        
+
         Ok(())
     }
 
     /// Уникализирует имена
     pub fn make_unique_names(&mut self) {
-        make_unique_names(&mut self.templates, |item| &item.name, |item, name| item.name = name);
-        make_unique_names(&mut self.repositories, |item| &item.name, |item, name| item.name = name);
-        make_unique_names(&mut self.inventories, |item| &item.name, |item, name| item.name = name);
-        make_unique_names(&mut self.environments, |item| &item.name, |item, name| item.name = name);
-        make_unique_names(&mut self.access_keys, |item| &item.name, |item, name| item.name = name);
+        make_unique_names(
+            &mut self.templates,
+            |item| &item.name,
+            |item, name| item.name = name,
+        );
+        make_unique_names(
+            &mut self.repositories,
+            |item| &item.name,
+            |item, name| item.name = name,
+        );
+        make_unique_names(
+            &mut self.inventories,
+            |item| &item.name,
+            |item, name| item.name = name,
+        );
+        make_unique_names(
+            &mut self.environments,
+            |item| &item.name,
+            |item, name| item.name = name,
+        );
+        make_unique_names(
+            &mut self.access_keys,
+            |item| &item.name,
+            |item, name| item.name = name,
+        );
     }
 
     /// Форматирует backup
@@ -242,9 +262,15 @@ impl BackupDB {
                 playbook: tpl.playbook.clone(),
                 arguments: tpl.arguments.clone(),
                 template_type: tpl.r#type.to_string(),
-                inventory: tpl.inventory_id.and_then(|id| inventory_map.get(&id).cloned()),
-                repository: tpl.repository_id.and_then(|id| repository_map.get(&id).cloned()),
-                environment: tpl.environment_id.and_then(|id| environment_map.get(&id).cloned()),
+                inventory: tpl
+                    .inventory_id
+                    .and_then(|id| inventory_map.get(&id).cloned()),
+                repository: tpl
+                    .repository_id
+                    .and_then(|id| repository_map.get(&id).cloned()),
+                environment: tpl
+                    .environment_id
+                    .and_then(|id| environment_map.get(&id).cloned()),
                 cron: schedule,
             });
         }
@@ -265,8 +291,12 @@ impl BackupDB {
                 name: inv.name.clone(),
                 inventory_type: inv.inventory_type.to_string(),
                 inventory: inv.inventory_data.clone(),
-                ssh_key: inv.ssh_key_id.and_then(|id| access_key_map.get(&id).cloned()),
-                become_key: inv.become_key_id.and_then(|id| access_key_map.get(&id).cloned()),
+                ssh_key: inv
+                    .ssh_key_id
+                    .and_then(|id| access_key_map.get(&id).cloned()),
+                become_key: inv
+                    .become_key_id
+                    .and_then(|id| access_key_map.get(&id).cloned()),
             });
         }
 
@@ -283,7 +313,11 @@ impl BackupDB {
             let mut backup_key = BackupAccessKey {
                 name: key.name.clone(),
                 key_type: key.r#type.to_string(),
-                owner: key.owner.as_ref().map(|o| o.to_string()).unwrap_or_default(),
+                owner: key
+                    .owner
+                    .as_ref()
+                    .map(|o| o.to_string())
+                    .unwrap_or_default(),
                 ssh_key: None,
                 login_password: None,
             };
@@ -366,12 +400,16 @@ pub fn find_name_by_id<T: BackupEntity>(id: i32, items: &[T]) -> Option<String> 
 
 /// Вспомогательная функция для поиска сущности по имени
 pub fn find_entity_by_name<'a, T: BackupEntity>(name: &'a str, items: &'a [T]) -> Option<&'a T> {
-    items.iter().find(|&item| item.get_name() == name).map(|v| v as _)
+    items
+        .iter()
+        .find(|&item| item.get_name() == name)
+        .map(|v| v as _)
 }
 
 /// Получает расписания по проекту
 pub fn get_schedules_by_project(project_id: i32, schedules: &[Schedule]) -> Vec<Schedule> {
-    schedules.iter()
+    schedules
+        .iter()
         .filter(|s| s.project_id == project_id)
         .cloned()
         .collect()
@@ -379,7 +417,8 @@ pub fn get_schedules_by_project(project_id: i32, schedules: &[Schedule]) -> Vec<
 
 /// Получает cron формат по шаблону
 pub fn get_schedule_by_template(template_id: i32, schedules: &[Schedule]) -> Option<String> {
-    schedules.iter()
+    schedules
+        .iter()
         .find(|s| s.template_id == template_id)
         .and_then(|s| s.cron_format.clone())
 }
@@ -393,7 +432,11 @@ pub fn get_random_name(name: &str) -> String {
 }
 
 /// Уникализирует имена
-pub fn make_unique_names<T>(items: &mut [T], getter: impl Fn(&T) -> &String, setter: impl Fn(&mut T, String)) {
+pub fn make_unique_names<T>(
+    items: &mut [T],
+    getter: impl Fn(&T) -> &String,
+    setter: impl Fn(&mut T, String),
+) {
     for i in (0..items.len()).rev() {
         for k in 0..i {
             let name = getter(&items[i]);
@@ -408,7 +451,8 @@ pub fn make_unique_names<T>(items: &mut [T], getter: impl Fn(&T) -> &String, set
 
 /// Получает имя шаблона по ID
 fn get_template_name_by_id(template_id: i32, templates: &[Template]) -> Option<String> {
-    templates.iter()
+    templates
+        .iter()
         .find(|t| t.id == template_id)
         .map(|t| t.name.clone())
 }
@@ -426,28 +470,48 @@ pub trait BackupSluggedEntity: BackupEntity {
 
 // Реализация трейтов для моделей
 impl BackupEntity for Template {
-    fn get_id(&self) -> i32 { self.id }
-    fn get_name(&self) -> String { self.name.clone() }
+    fn get_id(&self) -> i32 {
+        self.id
+    }
+    fn get_name(&self) -> String {
+        self.name.clone()
+    }
 }
 
 impl BackupEntity for Repository {
-    fn get_id(&self) -> i32 { self.id }
-    fn get_name(&self) -> String { self.name.clone() }
+    fn get_id(&self) -> i32 {
+        self.id
+    }
+    fn get_name(&self) -> String {
+        self.name.clone()
+    }
 }
 
 impl BackupEntity for Inventory {
-    fn get_id(&self) -> i32 { self.id }
-    fn get_name(&self) -> String { self.name.clone() }
+    fn get_id(&self) -> i32 {
+        self.id
+    }
+    fn get_name(&self) -> String {
+        self.name.clone()
+    }
 }
 
 impl BackupEntity for Environment {
-    fn get_id(&self) -> i32 { self.id }
-    fn get_name(&self) -> String { self.name.clone() }
+    fn get_id(&self) -> i32 {
+        self.id
+    }
+    fn get_name(&self) -> String {
+        self.name.clone()
+    }
 }
 
 impl BackupEntity for AccessKey {
-    fn get_id(&self) -> i32 { self.id }
-    fn get_name(&self) -> String { self.name.clone() }
+    fn get_id(&self) -> i32 {
+        self.id
+    }
+    fn get_name(&self) -> String {
+        self.name.clone()
+    }
 }
 
 impl BackupSluggedEntity for Repository {
@@ -494,8 +558,26 @@ mod tests {
     #[test]
     fn test_make_unique_names() {
         let mut items = vec![
-            BackupTemplate { name: "Test".to_string(), playbook: String::new(), arguments: None, template_type: String::new(), inventory: None, repository: None, environment: None, cron: None },
-            BackupTemplate { name: "Test".to_string(), playbook: String::new(), arguments: None, template_type: String::new(), inventory: None, repository: None, environment: None, cron: None },
+            BackupTemplate {
+                name: "Test".to_string(),
+                playbook: String::new(),
+                arguments: None,
+                template_type: String::new(),
+                inventory: None,
+                repository: None,
+                environment: None,
+                cron: None,
+            },
+            BackupTemplate {
+                name: "Test".to_string(),
+                playbook: String::new(),
+                arguments: None,
+                template_type: String::new(),
+                inventory: None,
+                repository: None,
+                environment: None,
+                cron: None,
+            },
         ];
 
         make_unique_names(&mut items, |item| &item.name, |item, name| item.name = name);

@@ -2,29 +2,24 @@
 //!
 //! Handlers для управления кластером Kubernetes
 
-use axum::{
-    extract::State,
-    Json,
-};
-use std::sync::Arc;
+use crate::api::handlers::kubernetes::client::KubernetesClusterService;
 use crate::api::state::AppState;
 use crate::error::{Error, Result};
-use crate::api::handlers::kubernetes::client::KubernetesClusterService;
+use axum::{extract::State, Json};
 use k8s_openapi::api::core::v1::Node;
 use kube::api::{Api, ListParams};
+use std::sync::Arc;
 
-use super::types::{ClusterInfo, NodeSummary, ClusterSummary};
+use super::types::{ClusterInfo, ClusterSummary, NodeSummary};
 
 /// Получить информацию о кластере
 /// GET /api/kubernetes/cluster/info
-pub async fn get_cluster_info(
-    State(state): State<Arc<AppState>>,
-) -> Result<Json<ClusterInfo>> {
+pub async fn get_cluster_info(State(state): State<Arc<AppState>>) -> Result<Json<ClusterInfo>> {
     let client = state.kubernetes_client()?;
     let service = KubernetesClusterService::new(client);
 
     let info = service.get_cluster_info().await?;
-    
+
     let version = info
         .get("kubernetes_version")
         .and_then(|v| v.as_str())
@@ -38,11 +33,31 @@ pub async fn get_cluster_info(
     Ok(Json(ClusterInfo {
         kubernetes_version: version.to_string(),
         platform: platform.to_string(),
-        git_version: info.get("git_version").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
-        git_commit: info.get("git_commit").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
-        build_date: info.get("build_date").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
-        go_version: info.get("go_version").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
-        compiler: info.get("compiler").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
+        git_version: info
+            .get("git_version")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown")
+            .to_string(),
+        git_commit: info
+            .get("git_commit")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown")
+            .to_string(),
+        build_date: info
+            .get("build_date")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown")
+            .to_string(),
+        go_version: info
+            .get("go_version")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown")
+            .to_string(),
+        compiler: info
+            .get("compiler")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown")
+            .to_string(),
         platform_os: platform.split('/').next().unwrap_or("unknown").to_string(),
         architecture: platform.split('/').nth(1).unwrap_or("unknown").to_string(),
     }))
@@ -60,28 +75,61 @@ pub async fn get_cluster_nodes(
 
     let summaries = nodes
         .iter()
-        .map(|node| {
-            NodeSummary {
-                name: node.get("name").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
-                status: node.get("status").and_then(|v| v.as_str()).unwrap_or("Unknown").to_string(),
-                roles: node
-                    .get("roles")
-                    .and_then(|v| v.as_array())
-                    .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
-                    .unwrap_or_default(),
-                version: node.get("version").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
-                internal_ip: node.get("internal_ip").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
-                external_ip: node.get("external_ip").and_then(|v| v.as_str()).map(String::from),
-                os_image: node.get("os_image").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
-                kernel_version: node.get("kernel_version").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
-                container_runtime: node.get("container_runtime").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
-                cpu_capacity: "0".to_string(),
-                memory_capacity: "0".to_string(),
-                pods_capacity: 0,
-                cpu_allocatable: "0".to_string(),
-                memory_allocatable: "0".to_string(),
-                pods_allocatable: 0,
-            }
+        .map(|node| NodeSummary {
+            name: node
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
+                .to_string(),
+            status: node
+                .get("status")
+                .and_then(|v| v.as_str())
+                .unwrap_or("Unknown")
+                .to_string(),
+            roles: node
+                .get("roles")
+                .and_then(|v| v.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect()
+                })
+                .unwrap_or_default(),
+            version: node
+                .get("version")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
+                .to_string(),
+            internal_ip: node
+                .get("internal_ip")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
+                .to_string(),
+            external_ip: node
+                .get("external_ip")
+                .and_then(|v| v.as_str())
+                .map(String::from),
+            os_image: node
+                .get("os_image")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
+                .to_string(),
+            kernel_version: node
+                .get("kernel_version")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
+                .to_string(),
+            container_runtime: node
+                .get("container_runtime")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
+                .to_string(),
+            cpu_capacity: "0".to_string(),
+            memory_capacity: "0".to_string(),
+            pods_capacity: 0,
+            cpu_allocatable: "0".to_string(),
+            memory_allocatable: "0".to_string(),
+            pods_allocatable: 0,
         })
         .collect();
 

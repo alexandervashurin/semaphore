@@ -129,15 +129,24 @@ impl UserManager for MockStore {
     async fn get_user_count(&self) -> Result<usize> {
         Ok(self.users.read().unwrap().len())
     }
-    async fn get_project_users(&self, _project_id: i32, _params: RetrieveQueryParams) -> Result<Vec<ProjectUser>> {
+    async fn get_project_users(
+        &self,
+        _project_id: i32,
+        _params: RetrieveQueryParams,
+    ) -> Result<Vec<ProjectUser>> {
         Ok(vec![])
     }
-    
+
     async fn get_user_totp(&self, user_id: i32) -> Result<Option<UserTotp>> {
         // Mock implementation - возвращаем None
-        Ok(self.users.read().unwrap().get(&user_id).and_then(|u| u.totp.clone()))
+        Ok(self
+            .users
+            .read()
+            .unwrap()
+            .get(&user_id)
+            .and_then(|u| u.totp.clone()))
     }
-    
+
     async fn set_user_totp(&self, user_id: i32, totp: &UserTotp) -> Result<()> {
         // Mock implementation - обновляем пользователя
         if let Some(user) = self.users.write().unwrap().get_mut(&user_id) {
@@ -145,7 +154,7 @@ impl UserManager for MockStore {
         }
         Ok(())
     }
-    
+
     async fn delete_user_totp(&self, user_id: i32) -> Result<()> {
         // Mock implementation - удаляем TOTP
         if let Some(user) = self.users.write().unwrap().get_mut(&user_id) {
@@ -180,11 +189,17 @@ impl ProjectStore for MockStore {
         if project.id == 0 {
             project.id = (self.projects.read().unwrap().len() as i32) + 1;
         }
-        self.projects.write().unwrap().insert(project.id, project.clone());
+        self.projects
+            .write()
+            .unwrap()
+            .insert(project.id, project.clone());
         Ok(project)
     }
     async fn update_project(&self, project: Project) -> Result<()> {
-        self.projects.write().unwrap().insert(project.id, project.clone());
+        self.projects
+            .write()
+            .unwrap()
+            .insert(project.id, project.clone());
         Ok(())
     }
     async fn delete_project(&self, project_id: i32) -> Result<()> {
@@ -217,11 +232,17 @@ impl TemplateManager for MockStore {
         if template.id == 0 {
             template.id = (self.templates.read().unwrap().len() as i32) + 1;
         }
-        self.templates.write().unwrap().insert(template.id, template.clone());
+        self.templates
+            .write()
+            .unwrap()
+            .insert(template.id, template.clone());
         Ok(template)
     }
     async fn update_template(&self, template: Template) -> Result<()> {
-        self.templates.write().unwrap().insert(template.id, template.clone());
+        self.templates
+            .write()
+            .unwrap()
+            .insert(template.id, template.clone());
         Ok(())
     }
     async fn delete_template(&self, _project_id: i32, template_id: i32) -> Result<()> {
@@ -236,7 +257,10 @@ impl InventoryManager for MockStore {
         Ok(vec![])
     }
     async fn get_inventory(&self, _project_id: i32, inventory_id: i32) -> Result<Inventory> {
-        Err(Error::NotFound(format!("Inventory {} not found", inventory_id)))
+        Err(Error::NotFound(format!(
+            "Inventory {} not found",
+            inventory_id
+        )))
     }
     async fn create_inventory(&self, inventory: Inventory) -> Result<Inventory> {
         Ok(inventory)
@@ -256,7 +280,10 @@ impl RepositoryManager for MockStore {
         Ok(vec![])
     }
     async fn get_repository(&self, _project_id: i32, repository_id: i32) -> Result<Repository> {
-        Err(Error::NotFound(format!("Repository {} not found", repository_id)))
+        Err(Error::NotFound(format!(
+            "Repository {} not found",
+            repository_id
+        )))
     }
     async fn create_repository(&self, repository: Repository) -> Result<Repository> {
         Ok(repository)
@@ -276,7 +303,10 @@ impl EnvironmentManager for MockStore {
         Ok(vec![])
     }
     async fn get_environment(&self, _project_id: i32, environment_id: i32) -> Result<Environment> {
-        Err(Error::NotFound(format!("Environment {} not found", environment_id)))
+        Err(Error::NotFound(format!(
+            "Environment {} not found",
+            environment_id
+        )))
     }
     async fn create_environment(&self, environment: Environment) -> Result<Environment> {
         Ok(environment)
@@ -312,7 +342,11 @@ impl AccessKeyManager for MockStore {
 
 #[async_trait]
 impl TaskManager for MockStore {
-    async fn get_tasks(&self, _project_id: i32, template_id: Option<i32>) -> Result<Vec<TaskWithTpl>> {
+    async fn get_tasks(
+        &self,
+        _project_id: i32,
+        template_id: Option<i32>,
+    ) -> Result<Vec<TaskWithTpl>> {
         let tasks: Vec<Task> = self.tasks.read().unwrap().values().cloned().collect();
         Ok(tasks
             .into_iter()
@@ -356,19 +390,31 @@ impl TaskManager for MockStore {
     async fn create_task_output(&self, output: TaskOutput) -> Result<TaskOutput> {
         Ok(output)
     }
-    async fn update_task_status(&self, _project_id: i32, _task_id: i32, _status: TaskStatus) -> Result<()> {
+    async fn update_task_status(
+        &self,
+        _project_id: i32,
+        _task_id: i32,
+        _status: TaskStatus,
+    ) -> Result<()> {
         Ok(())
     }
-    async fn get_global_tasks(&self, _status_filter: Option<Vec<String>>, _limit: Option<i32>) -> Result<Vec<TaskWithTpl>> {
+    async fn get_global_tasks(
+        &self,
+        _status_filter: Option<Vec<String>>,
+        _limit: Option<i32>,
+    ) -> Result<Vec<TaskWithTpl>> {
         let tasks: Vec<Task> = self.tasks.read().unwrap().values().cloned().collect();
-        Ok(tasks.into_iter().map(|t| TaskWithTpl {
-            task: t,
-            tpl_playbook: None,
-            tpl_type: None,
-            tpl_app: None,
-            user_name: None,
-            build_task: None,
-        }).collect())
+        Ok(tasks
+            .into_iter()
+            .map(|t| TaskWithTpl {
+                task: t,
+                tpl_playbook: None,
+                tpl_type: None,
+                tpl_app: None,
+                user_name: None,
+                build_task: None,
+            })
+            .collect())
     }
 
     async fn get_running_tasks_count(&self) -> Result<usize> {
@@ -389,7 +435,10 @@ impl ScheduleManager for MockStore {
         Ok(vec![])
     }
     async fn get_schedule(&self, _project_id: i32, schedule_id: i32) -> Result<Schedule> {
-        Err(Error::NotFound(format!("Schedule {} not found", schedule_id)))
+        Err(Error::NotFound(format!(
+            "Schedule {} not found",
+            schedule_id
+        )))
     }
     async fn create_schedule(&self, schedule: Schedule) -> Result<Schedule> {
         Ok(schedule)
@@ -401,10 +450,20 @@ impl ScheduleManager for MockStore {
     async fn delete_schedule(&self, _project_id: i32, _schedule_id: i32) -> Result<()> {
         Ok(())
     }
-    async fn set_schedule_active(&self, _project_id: i32, _schedule_id: i32, _active: bool) -> Result<()> {
+    async fn set_schedule_active(
+        &self,
+        _project_id: i32,
+        _schedule_id: i32,
+        _active: bool,
+    ) -> Result<()> {
         Ok(())
     }
-    async fn set_schedule_commit_hash(&self, _project_id: i32, _schedule_id: i32, _hash: &str) -> Result<()> {
+    async fn set_schedule_commit_hash(
+        &self,
+        _project_id: i32,
+        _schedule_id: i32,
+        _hash: &str,
+    ) -> Result<()> {
         Ok(())
     }
 }
@@ -503,8 +562,12 @@ impl ViewManager for MockStore {
     async fn delete_view(&self, _project_id: i32, _view_id: i32) -> Result<()> {
         Ok(())
     }
-    
-    async fn set_view_positions(&self, _project_id: i32, _positions: Vec<(i32, i32)>) -> Result<()> {
+
+    async fn set_view_positions(
+        &self,
+        _project_id: i32,
+        _positions: Vec<(i32, i32)>,
+    ) -> Result<()> {
         Ok(())
     }
 }
@@ -515,7 +578,10 @@ impl IntegrationManager for MockStore {
         Ok(vec![])
     }
     async fn get_integration(&self, _project_id: i32, integration_id: i32) -> Result<Integration> {
-        Err(Error::NotFound(format!("Integration {} not found", integration_id)))
+        Err(Error::NotFound(format!(
+            "Integration {} not found",
+            integration_id
+        )))
     }
     async fn create_integration(&self, integration: Integration) -> Result<Integration> {
         Ok(integration)
@@ -531,14 +597,21 @@ impl IntegrationManager for MockStore {
 
 #[async_trait]
 impl ProjectInviteManager for MockStore {
-    async fn get_project_invites(&self, _project_id: i32, _params: RetrieveQueryParams) -> Result<Vec<ProjectInviteWithUser>> {
+    async fn get_project_invites(
+        &self,
+        _project_id: i32,
+        _params: RetrieveQueryParams,
+    ) -> Result<Vec<ProjectInviteWithUser>> {
         Ok(vec![])
     }
     async fn create_project_invite(&self, invite: ProjectInvite) -> Result<ProjectInvite> {
         Ok(invite)
     }
     async fn get_project_invite(&self, _project_id: i32, invite_id: i32) -> Result<ProjectInvite> {
-        Err(Error::NotFound(format!("ProjectInvite {} not found", invite_id)))
+        Err(Error::NotFound(format!(
+            "ProjectInvite {} not found",
+            invite_id
+        )))
     }
     async fn get_project_invite_by_token(&self, _token: &str) -> Result<ProjectInvite> {
         Err(Error::NotFound("ProjectInvite not found".to_string()))
@@ -554,14 +627,20 @@ impl ProjectInviteManager for MockStore {
 
 #[async_trait]
 impl TerraformInventoryManager for MockStore {
-    async fn create_terraform_inventory_alias(&self, alias: TerraformInventoryAlias) -> Result<TerraformInventoryAlias> {
+    async fn create_terraform_inventory_alias(
+        &self,
+        alias: TerraformInventoryAlias,
+    ) -> Result<TerraformInventoryAlias> {
         Ok(alias)
     }
     async fn update_terraform_inventory_alias(&self, alias: TerraformInventoryAlias) -> Result<()> {
         let _ = alias;
         Ok(())
     }
-    async fn get_terraform_inventory_alias_by_alias(&self, alias: &str) -> Result<TerraformInventoryAlias> {
+    async fn get_terraform_inventory_alias_by_alias(
+        &self,
+        alias: &str,
+    ) -> Result<TerraformInventoryAlias> {
         Err(Error::NotFound(format!("Alias {} not found", alias)))
     }
     async fn get_terraform_inventory_alias(
@@ -572,10 +651,19 @@ impl TerraformInventoryManager for MockStore {
     ) -> Result<TerraformInventoryAlias> {
         Err(Error::NotFound(format!("Alias {} not found", alias_id)))
     }
-    async fn get_terraform_inventory_aliases(&self, _project_id: i32, _inventory_id: i32) -> Result<Vec<TerraformInventoryAlias>> {
+    async fn get_terraform_inventory_aliases(
+        &self,
+        _project_id: i32,
+        _inventory_id: i32,
+    ) -> Result<Vec<TerraformInventoryAlias>> {
         Ok(vec![])
     }
-    async fn delete_terraform_inventory_alias(&self, _project_id: i32, _inventory_id: i32, _alias_id: &str) -> Result<()> {
+    async fn delete_terraform_inventory_alias(
+        &self,
+        _project_id: i32,
+        _inventory_id: i32,
+        _alias_id: &str,
+    ) -> Result<()> {
         Ok(())
     }
     async fn get_terraform_inventory_states(
@@ -586,10 +674,18 @@ impl TerraformInventoryManager for MockStore {
     ) -> Result<Vec<TerraformInventoryState>> {
         Ok(vec![])
     }
-    async fn create_terraform_inventory_state(&self, state: TerraformInventoryState) -> Result<TerraformInventoryState> {
+    async fn create_terraform_inventory_state(
+        &self,
+        state: TerraformInventoryState,
+    ) -> Result<TerraformInventoryState> {
         Ok(state)
     }
-    async fn delete_terraform_inventory_state(&self, _project_id: i32, _inventory_id: i32, _state_id: i32) -> Result<()> {
+    async fn delete_terraform_inventory_state(
+        &self,
+        _project_id: i32,
+        _inventory_id: i32,
+        _state_id: i32,
+    ) -> Result<()> {
         Ok(())
     }
     async fn get_terraform_inventory_state(
@@ -611,7 +707,10 @@ impl SecretStorageManager for MockStore {
         Ok(vec![])
     }
     async fn get_secret_storage(&self, _project_id: i32, storage_id: i32) -> Result<SecretStorage> {
-        Err(Error::NotFound(format!("SecretStorage {} not found", storage_id)))
+        Err(Error::NotFound(format!(
+            "SecretStorage {} not found",
+            storage_id
+        )))
     }
     async fn create_secret_storage(&self, storage: SecretStorage) -> Result<SecretStorage> {
         Ok(storage)
@@ -658,19 +757,37 @@ impl AuditLogManager for MockStore {
         })
     }
 
-    async fn get_audit_logs_by_project(&self, _project_id: i64, _limit: i64, _offset: i64) -> Result<Vec<AuditLog>> {
+    async fn get_audit_logs_by_project(
+        &self,
+        _project_id: i64,
+        _limit: i64,
+        _offset: i64,
+    ) -> Result<Vec<AuditLog>> {
         Ok(vec![])
     }
 
-    async fn get_audit_logs_by_user(&self, _user_id: i64, _limit: i64, _offset: i64) -> Result<Vec<AuditLog>> {
+    async fn get_audit_logs_by_user(
+        &self,
+        _user_id: i64,
+        _limit: i64,
+        _offset: i64,
+    ) -> Result<Vec<AuditLog>> {
         Ok(vec![])
     }
 
-    async fn get_audit_logs_by_action(&self, _action: &AuditAction, _limit: i64, _offset: i64) -> Result<Vec<AuditLog>> {
+    async fn get_audit_logs_by_action(
+        &self,
+        _action: &AuditAction,
+        _limit: i64,
+        _offset: i64,
+    ) -> Result<Vec<AuditLog>> {
         Ok(vec![])
     }
 
-    async fn delete_audit_logs_before(&self, _before: chrono::DateTime<chrono::Utc>) -> Result<u64> {
+    async fn delete_audit_logs_before(
+        &self,
+        _before: chrono::DateTime<chrono::Utc>,
+    ) -> Result<u64> {
         Ok(0)
     }
     async fn clear_audit_log(&self) -> Result<u64> {
@@ -680,32 +797,59 @@ impl AuditLogManager for MockStore {
 
 #[async_trait]
 impl IntegrationMatcherManager for MockStore {
-    async fn get_integration_matchers(&self, _project_id: i32, _integration_id: i32) -> Result<Vec<IntegrationMatcher>> {
+    async fn get_integration_matchers(
+        &self,
+        _project_id: i32,
+        _integration_id: i32,
+    ) -> Result<Vec<IntegrationMatcher>> {
         Ok(vec![])
     }
-    async fn create_integration_matcher(&self, matcher: IntegrationMatcher) -> Result<IntegrationMatcher> {
+    async fn create_integration_matcher(
+        &self,
+        matcher: IntegrationMatcher,
+    ) -> Result<IntegrationMatcher> {
         Ok(matcher)
     }
     async fn update_integration_matcher(&self, _matcher: IntegrationMatcher) -> Result<()> {
         Ok(())
     }
-    async fn delete_integration_matcher(&self, _project_id: i32, _integration_id: i32, _matcher_id: i32) -> Result<()> {
+    async fn delete_integration_matcher(
+        &self,
+        _project_id: i32,
+        _integration_id: i32,
+        _matcher_id: i32,
+    ) -> Result<()> {
         Ok(())
     }
 }
 
 #[async_trait]
 impl IntegrationExtractValueManager for MockStore {
-    async fn get_integration_extract_values(&self, _project_id: i32, _integration_id: i32) -> Result<Vec<IntegrationExtractValue>> {
+    async fn get_integration_extract_values(
+        &self,
+        _project_id: i32,
+        _integration_id: i32,
+    ) -> Result<Vec<IntegrationExtractValue>> {
         Ok(vec![])
     }
-    async fn create_integration_extract_value(&self, value: IntegrationExtractValue) -> Result<IntegrationExtractValue> {
+    async fn create_integration_extract_value(
+        &self,
+        value: IntegrationExtractValue,
+    ) -> Result<IntegrationExtractValue> {
         Ok(value)
     }
-    async fn update_integration_extract_value(&self, _value: IntegrationExtractValue) -> Result<()> {
+    async fn update_integration_extract_value(
+        &self,
+        _value: IntegrationExtractValue,
+    ) -> Result<()> {
         Ok(())
     }
-    async fn delete_integration_extract_value(&self, _project_id: i32, _integration_id: i32, _value_id: i32) -> Result<()> {
+    async fn delete_integration_extract_value(
+        &self,
+        _project_id: i32,
+        _integration_id: i32,
+        _value_id: i32,
+    ) -> Result<()> {
         Ok(())
     }
 }
@@ -740,7 +884,11 @@ impl OrganizationManager for MockStore {
     async fn create_organization(&self, _payload: OrganizationCreate) -> Result<Organization> {
         Err(Error::Other("not implemented in mock".to_string()))
     }
-    async fn update_organization(&self, _id: i32, _payload: OrganizationUpdate) -> Result<Organization> {
+    async fn update_organization(
+        &self,
+        _id: i32,
+        _payload: OrganizationUpdate,
+    ) -> Result<Organization> {
         Err(Error::Other("not implemented in mock".to_string()))
     }
     async fn delete_organization(&self, _id: i32) -> Result<()> {
@@ -749,13 +897,21 @@ impl OrganizationManager for MockStore {
     async fn get_organization_users(&self, _org_id: i32) -> Result<Vec<OrganizationUser>> {
         Ok(vec![])
     }
-    async fn add_user_to_organization(&self, _payload: OrganizationUserCreate) -> Result<OrganizationUser> {
+    async fn add_user_to_organization(
+        &self,
+        _payload: OrganizationUserCreate,
+    ) -> Result<OrganizationUser> {
         Err(Error::Other("not implemented in mock".to_string()))
     }
     async fn remove_user_from_organization(&self, _org_id: i32, _user_id: i32) -> Result<()> {
         Ok(())
     }
-    async fn update_user_organization_role(&self, _org_id: i32, _user_id: i32, _role: &str) -> Result<()> {
+    async fn update_user_organization_role(
+        &self,
+        _org_id: i32,
+        _user_id: i32,
+        _role: &str,
+    ) -> Result<()> {
         Ok(())
     }
     async fn get_user_organizations(&self, _user_id: i32) -> Result<Vec<Organization>> {
@@ -771,22 +927,85 @@ impl Store for MockStore {}
 
 #[async_trait]
 impl crate::db::store::DriftManager for MockStore {
-    async fn get_drift_configs(&self, _project_id: i32) -> Result<Vec<crate::models::drift::DriftConfig>> { Ok(Vec::new()) }
-    async fn get_drift_config(&self, _id: i32, _project_id: i32) -> Result<crate::models::drift::DriftConfig> { Err(Error::NotFound("DriftConfig not found".to_string())) }
-    async fn create_drift_config(&self, _project_id: i32, _payload: crate::models::drift::DriftConfigCreate) -> Result<crate::models::drift::DriftConfig> { Err(Error::Other("not implemented".to_string())) }
-    async fn update_drift_config_enabled(&self, _id: i32, _project_id: i32, _enabled: bool) -> Result<()> { Ok(()) }
-    async fn delete_drift_config(&self, _id: i32, _project_id: i32) -> Result<()> { Ok(()) }
-    async fn get_drift_results(&self, _drift_config_id: i32, _limit: i64) -> Result<Vec<crate::models::drift::DriftResult>> { Ok(Vec::new()) }
-    async fn create_drift_result(&self, _project_id: i32, _drift_config_id: i32, _template_id: i32, _status: &str, _summary: Option<String>, _task_id: Option<i32>) -> Result<crate::models::drift::DriftResult> { Err(Error::Other("not implemented".to_string())) }
-    async fn get_latest_drift_results(&self, _project_id: i32) -> Result<Vec<crate::models::drift::DriftResult>> { Ok(Vec::new()) }
+    async fn get_drift_configs(
+        &self,
+        _project_id: i32,
+    ) -> Result<Vec<crate::models::drift::DriftConfig>> {
+        Ok(Vec::new())
+    }
+    async fn get_drift_config(
+        &self,
+        _id: i32,
+        _project_id: i32,
+    ) -> Result<crate::models::drift::DriftConfig> {
+        Err(Error::NotFound("DriftConfig not found".to_string()))
+    }
+    async fn create_drift_config(
+        &self,
+        _project_id: i32,
+        _payload: crate::models::drift::DriftConfigCreate,
+    ) -> Result<crate::models::drift::DriftConfig> {
+        Err(Error::Other("not implemented".to_string()))
+    }
+    async fn update_drift_config_enabled(
+        &self,
+        _id: i32,
+        _project_id: i32,
+        _enabled: bool,
+    ) -> Result<()> {
+        Ok(())
+    }
+    async fn delete_drift_config(&self, _id: i32, _project_id: i32) -> Result<()> {
+        Ok(())
+    }
+    async fn get_drift_results(
+        &self,
+        _drift_config_id: i32,
+        _limit: i64,
+    ) -> Result<Vec<crate::models::drift::DriftResult>> {
+        Ok(Vec::new())
+    }
+    async fn create_drift_result(
+        &self,
+        _project_id: i32,
+        _drift_config_id: i32,
+        _template_id: i32,
+        _status: &str,
+        _summary: Option<String>,
+        _task_id: Option<i32>,
+    ) -> Result<crate::models::drift::DriftResult> {
+        Err(Error::Other("not implemented".to_string()))
+    }
+    async fn get_latest_drift_results(
+        &self,
+        _project_id: i32,
+    ) -> Result<Vec<crate::models::drift::DriftResult>> {
+        Ok(Vec::new())
+    }
 }
 
 #[async_trait]
 impl crate::db::store::LdapGroupMappingManager for MockStore {
-    async fn get_ldap_group_mappings(&self) -> Result<Vec<crate::models::ldap_group::LdapGroupMapping>> { Ok(Vec::new()) }
-    async fn create_ldap_group_mapping(&self, _payload: crate::models::ldap_group::LdapGroupMappingCreate) -> Result<crate::models::ldap_group::LdapGroupMapping> { Err(Error::Other("not implemented".to_string())) }
-    async fn delete_ldap_group_mapping(&self, _id: i32) -> Result<()> { Ok(()) }
-    async fn get_mappings_for_groups(&self, _group_dns: &[String]) -> Result<Vec<crate::models::ldap_group::LdapGroupMapping>> { Ok(Vec::new()) }
+    async fn get_ldap_group_mappings(
+        &self,
+    ) -> Result<Vec<crate::models::ldap_group::LdapGroupMapping>> {
+        Ok(Vec::new())
+    }
+    async fn create_ldap_group_mapping(
+        &self,
+        _payload: crate::models::ldap_group::LdapGroupMappingCreate,
+    ) -> Result<crate::models::ldap_group::LdapGroupMapping> {
+        Err(Error::Other("not implemented".to_string()))
+    }
+    async fn delete_ldap_group_mapping(&self, _id: i32) -> Result<()> {
+        Ok(())
+    }
+    async fn get_mappings_for_groups(
+        &self,
+        _group_dns: &[String],
+    ) -> Result<Vec<crate::models::ldap_group::LdapGroupMapping>> {
+        Ok(Vec::new())
+    }
 }
 
 #[async_trait]
@@ -795,28 +1014,50 @@ impl WebhookManager for MockStore {
         Err(Error::NotFound("Webhook not found".to_string()))
     }
 
-    async fn get_webhooks_by_project(&self, _project_id: i64) -> Result<Vec<crate::models::webhook::Webhook>> {
+    async fn get_webhooks_by_project(
+        &self,
+        _project_id: i64,
+    ) -> Result<Vec<crate::models::webhook::Webhook>> {
         Ok(Vec::new())
     }
 
-    async fn create_webhook(&self, _webhook: crate::models::webhook::Webhook) -> Result<crate::models::webhook::Webhook> {
-        Err(Error::Database(sqlx::Error::Protocol("Not implemented in mock".to_string())))
+    async fn create_webhook(
+        &self,
+        _webhook: crate::models::webhook::Webhook,
+    ) -> Result<crate::models::webhook::Webhook> {
+        Err(Error::Database(sqlx::Error::Protocol(
+            "Not implemented in mock".to_string(),
+        )))
     }
 
-    async fn update_webhook(&self, _webhook_id: i64, _webhook: crate::models::webhook::UpdateWebhook) -> Result<crate::models::webhook::Webhook> {
-        Err(Error::Database(sqlx::Error::Protocol("Not implemented in mock".to_string())))
+    async fn update_webhook(
+        &self,
+        _webhook_id: i64,
+        _webhook: crate::models::webhook::UpdateWebhook,
+    ) -> Result<crate::models::webhook::Webhook> {
+        Err(Error::Database(sqlx::Error::Protocol(
+            "Not implemented in mock".to_string(),
+        )))
     }
 
     async fn delete_webhook(&self, _webhook_id: i64) -> Result<()> {
         Ok(())
     }
 
-    async fn get_webhook_logs(&self, _webhook_id: i64) -> Result<Vec<crate::models::webhook::WebhookLog>> {
+    async fn get_webhook_logs(
+        &self,
+        _webhook_id: i64,
+    ) -> Result<Vec<crate::models::webhook::WebhookLog>> {
         Ok(Vec::new())
     }
 
-    async fn create_webhook_log(&self, _log: crate::models::webhook::WebhookLog) -> Result<crate::models::webhook::WebhookLog> {
-        Err(Error::Database(sqlx::Error::Protocol("Not implemented in mock".to_string())))
+    async fn create_webhook_log(
+        &self,
+        _log: crate::models::webhook::WebhookLog,
+    ) -> Result<crate::models::webhook::WebhookLog> {
+        Err(Error::Database(sqlx::Error::Protocol(
+            "Not implemented in mock".to_string(),
+        )))
     }
 }
 
@@ -830,12 +1071,25 @@ impl PlaybookManager for MockStore {
         Err(Error::NotFound("Playbook not found".to_string()))
     }
 
-    async fn create_playbook(&self, _project_id: i32, _playbook: crate::models::PlaybookCreate) -> Result<crate::models::Playbook> {
-        Err(Error::Database(sqlx::Error::Protocol("Not implemented in mock".to_string())))
+    async fn create_playbook(
+        &self,
+        _project_id: i32,
+        _playbook: crate::models::PlaybookCreate,
+    ) -> Result<crate::models::Playbook> {
+        Err(Error::Database(sqlx::Error::Protocol(
+            "Not implemented in mock".to_string(),
+        )))
     }
 
-    async fn update_playbook(&self, _id: i32, _project_id: i32, _playbook: crate::models::PlaybookUpdate) -> Result<crate::models::Playbook> {
-        Err(Error::Database(sqlx::Error::Protocol("Not implemented in mock".to_string())))
+    async fn update_playbook(
+        &self,
+        _id: i32,
+        _project_id: i32,
+        _playbook: crate::models::PlaybookUpdate,
+    ) -> Result<crate::models::Playbook> {
+        Err(Error::Database(sqlx::Error::Protocol(
+            "Not implemented in mock".to_string(),
+        )))
     }
 
     async fn delete_playbook(&self, _id: i32, _project_id: i32) -> Result<()> {
@@ -858,11 +1112,20 @@ impl PlaybookRunManager for MockStore {
     }
 
     async fn create_playbook_run(&self, _run: PlaybookRunCreate) -> Result<PlaybookRun> {
-        Err(Error::Database(sqlx::Error::Protocol("Not implemented in mock".to_string())))
+        Err(Error::Database(sqlx::Error::Protocol(
+            "Not implemented in mock".to_string(),
+        )))
     }
 
-    async fn update_playbook_run(&self, _id: i32, _project_id: i32, _update: PlaybookRunUpdate) -> Result<PlaybookRun> {
-        Err(Error::Database(sqlx::Error::Protocol("Not implemented in mock".to_string())))
+    async fn update_playbook_run(
+        &self,
+        _id: i32,
+        _project_id: i32,
+        _update: PlaybookRunUpdate,
+    ) -> Result<PlaybookRun> {
+        Err(Error::Database(sqlx::Error::Protocol(
+            "Not implemented in mock".to_string(),
+        )))
     }
 
     async fn update_playbook_run_status(&self, _id: i32, _status: PlaybookRunStatus) -> Result<()> {
@@ -886,99 +1149,191 @@ impl PlaybookRunManager for MockStore {
 
 #[async_trait]
 impl crate::db::store::WorkflowManager for MockStore {
-    async fn get_workflows(&self, _project_id: i32) -> Result<Vec<crate::models::workflow::Workflow>> {
+    async fn get_workflows(
+        &self,
+        _project_id: i32,
+    ) -> Result<Vec<crate::models::workflow::Workflow>> {
         Ok(Vec::new())
     }
-    async fn get_workflow(&self, _id: i32, _project_id: i32) -> Result<crate::models::workflow::Workflow> {
+    async fn get_workflow(
+        &self,
+        _id: i32,
+        _project_id: i32,
+    ) -> Result<crate::models::workflow::Workflow> {
         Err(Error::NotFound("Workflow not found".to_string()))
     }
-    async fn create_workflow(&self, _project_id: i32, _payload: crate::models::workflow::WorkflowCreate) -> Result<crate::models::workflow::Workflow> {
+    async fn create_workflow(
+        &self,
+        _project_id: i32,
+        _payload: crate::models::workflow::WorkflowCreate,
+    ) -> Result<crate::models::workflow::Workflow> {
         Err(Error::Other("not implemented".to_string()))
     }
-    async fn update_workflow(&self, _id: i32, _project_id: i32, _payload: crate::models::workflow::WorkflowUpdate) -> Result<crate::models::workflow::Workflow> {
+    async fn update_workflow(
+        &self,
+        _id: i32,
+        _project_id: i32,
+        _payload: crate::models::workflow::WorkflowUpdate,
+    ) -> Result<crate::models::workflow::Workflow> {
         Err(Error::Other("not implemented".to_string()))
     }
     async fn delete_workflow(&self, _id: i32, _project_id: i32) -> Result<()> {
         Ok(())
     }
-    async fn get_workflow_nodes(&self, _workflow_id: i32) -> Result<Vec<crate::models::workflow::WorkflowNode>> {
+    async fn get_workflow_nodes(
+        &self,
+        _workflow_id: i32,
+    ) -> Result<Vec<crate::models::workflow::WorkflowNode>> {
         Ok(Vec::new())
     }
-    async fn create_workflow_node(&self, _workflow_id: i32, _payload: crate::models::workflow::WorkflowNodeCreate) -> Result<crate::models::workflow::WorkflowNode> {
+    async fn create_workflow_node(
+        &self,
+        _workflow_id: i32,
+        _payload: crate::models::workflow::WorkflowNodeCreate,
+    ) -> Result<crate::models::workflow::WorkflowNode> {
         Err(Error::Other("not implemented".to_string()))
     }
-    async fn update_workflow_node(&self, _id: i32, _workflow_id: i32, _payload: crate::models::workflow::WorkflowNodeUpdate) -> Result<crate::models::workflow::WorkflowNode> {
+    async fn update_workflow_node(
+        &self,
+        _id: i32,
+        _workflow_id: i32,
+        _payload: crate::models::workflow::WorkflowNodeUpdate,
+    ) -> Result<crate::models::workflow::WorkflowNode> {
         Err(Error::Other("not implemented".to_string()))
     }
     async fn delete_workflow_node(&self, _id: i32, _workflow_id: i32) -> Result<()> {
         Ok(())
     }
-    async fn get_workflow_edges(&self, _workflow_id: i32) -> Result<Vec<crate::models::workflow::WorkflowEdge>> {
+    async fn get_workflow_edges(
+        &self,
+        _workflow_id: i32,
+    ) -> Result<Vec<crate::models::workflow::WorkflowEdge>> {
         Ok(Vec::new())
     }
-    async fn create_workflow_edge(&self, _workflow_id: i32, _payload: crate::models::workflow::WorkflowEdgeCreate) -> Result<crate::models::workflow::WorkflowEdge> {
+    async fn create_workflow_edge(
+        &self,
+        _workflow_id: i32,
+        _payload: crate::models::workflow::WorkflowEdgeCreate,
+    ) -> Result<crate::models::workflow::WorkflowEdge> {
         Err(Error::Other("not implemented".to_string()))
     }
     async fn delete_workflow_edge(&self, _id: i32, _workflow_id: i32) -> Result<()> {
         Ok(())
     }
-    async fn get_workflow_runs(&self, _workflow_id: i32, _project_id: i32) -> Result<Vec<crate::models::workflow::WorkflowRun>> {
+    async fn get_workflow_runs(
+        &self,
+        _workflow_id: i32,
+        _project_id: i32,
+    ) -> Result<Vec<crate::models::workflow::WorkflowRun>> {
         Ok(Vec::new())
     }
-    async fn create_workflow_run(&self, _workflow_id: i32, _project_id: i32) -> Result<crate::models::workflow::WorkflowRun> {
+    async fn create_workflow_run(
+        &self,
+        _workflow_id: i32,
+        _project_id: i32,
+    ) -> Result<crate::models::workflow::WorkflowRun> {
         Err(Error::Other("not implemented".to_string()))
     }
-    async fn update_workflow_run_status(&self, _id: i32, _status: &str, _message: Option<String>) -> Result<()> {
+    async fn update_workflow_run_status(
+        &self,
+        _id: i32,
+        _status: &str,
+        _message: Option<String>,
+    ) -> Result<()> {
         Ok(())
     }
 }
 
 #[async_trait]
 impl crate::db::store::NotificationPolicyManager for MockStore {
-    async fn get_notification_policies(&self, _project_id: i32) -> Result<Vec<crate::models::notification::NotificationPolicy>> {
+    async fn get_notification_policies(
+        &self,
+        _project_id: i32,
+    ) -> Result<Vec<crate::models::notification::NotificationPolicy>> {
         Ok(Vec::new())
     }
-    async fn get_notification_policy(&self, _id: i32, _project_id: i32) -> Result<crate::models::notification::NotificationPolicy> {
+    async fn get_notification_policy(
+        &self,
+        _id: i32,
+        _project_id: i32,
+    ) -> Result<crate::models::notification::NotificationPolicy> {
         Err(Error::NotFound("NotificationPolicy not found".to_string()))
     }
-    async fn create_notification_policy(&self, _project_id: i32, _payload: crate::models::notification::NotificationPolicyCreate) -> Result<crate::models::notification::NotificationPolicy> {
+    async fn create_notification_policy(
+        &self,
+        _project_id: i32,
+        _payload: crate::models::notification::NotificationPolicyCreate,
+    ) -> Result<crate::models::notification::NotificationPolicy> {
         Err(Error::Other("not implemented".to_string()))
     }
-    async fn update_notification_policy(&self, _id: i32, _project_id: i32, _payload: crate::models::notification::NotificationPolicyUpdate) -> Result<crate::models::notification::NotificationPolicy> {
+    async fn update_notification_policy(
+        &self,
+        _id: i32,
+        _project_id: i32,
+        _payload: crate::models::notification::NotificationPolicyUpdate,
+    ) -> Result<crate::models::notification::NotificationPolicy> {
         Err(Error::Other("not implemented".to_string()))
     }
     async fn delete_notification_policy(&self, _id: i32, _project_id: i32) -> Result<()> {
         Ok(())
     }
-    async fn get_matching_policies(&self, _project_id: i32, _trigger: &str, _template_id: Option<i32>) -> Result<Vec<crate::models::notification::NotificationPolicy>> {
+    async fn get_matching_policies(
+        &self,
+        _project_id: i32,
+        _trigger: &str,
+        _template_id: Option<i32>,
+    ) -> Result<Vec<crate::models::notification::NotificationPolicy>> {
         Ok(Vec::new())
     }
 }
 
 #[async_trait]
 impl crate::db::store::CredentialTypeManager for MockStore {
-    async fn get_credential_types(&self) -> Result<Vec<crate::models::credential_type::CredentialType>> {
+    async fn get_credential_types(
+        &self,
+    ) -> Result<Vec<crate::models::credential_type::CredentialType>> {
         Ok(Vec::new())
     }
-    async fn get_credential_type(&self, _id: i32) -> Result<crate::models::credential_type::CredentialType> {
+    async fn get_credential_type(
+        &self,
+        _id: i32,
+    ) -> Result<crate::models::credential_type::CredentialType> {
         Err(Error::NotFound("CredentialType not found".to_string()))
     }
-    async fn create_credential_type(&self, _payload: crate::models::credential_type::CredentialTypeCreate) -> Result<crate::models::credential_type::CredentialType> {
+    async fn create_credential_type(
+        &self,
+        _payload: crate::models::credential_type::CredentialTypeCreate,
+    ) -> Result<crate::models::credential_type::CredentialType> {
         Err(Error::Other("not implemented".to_string()))
     }
-    async fn update_credential_type(&self, _id: i32, _payload: crate::models::credential_type::CredentialTypeUpdate) -> Result<crate::models::credential_type::CredentialType> {
+    async fn update_credential_type(
+        &self,
+        _id: i32,
+        _payload: crate::models::credential_type::CredentialTypeUpdate,
+    ) -> Result<crate::models::credential_type::CredentialType> {
         Err(Error::Other("not implemented".to_string()))
     }
     async fn delete_credential_type(&self, _id: i32) -> Result<()> {
         Ok(())
     }
-    async fn get_credential_instances(&self, _project_id: i32) -> Result<Vec<crate::models::credential_type::CredentialInstance>> {
+    async fn get_credential_instances(
+        &self,
+        _project_id: i32,
+    ) -> Result<Vec<crate::models::credential_type::CredentialInstance>> {
         Ok(Vec::new())
     }
-    async fn get_credential_instance(&self, _id: i32, _project_id: i32) -> Result<crate::models::credential_type::CredentialInstance> {
+    async fn get_credential_instance(
+        &self,
+        _id: i32,
+        _project_id: i32,
+    ) -> Result<crate::models::credential_type::CredentialInstance> {
         Err(Error::NotFound("CredentialInstance not found".to_string()))
     }
-    async fn create_credential_instance(&self, _project_id: i32, _payload: crate::models::credential_type::CredentialInstanceCreate) -> Result<crate::models::credential_type::CredentialInstance> {
+    async fn create_credential_instance(
+        &self,
+        _project_id: i32,
+        _payload: crate::models::credential_type::CredentialInstanceCreate,
+    ) -> Result<crate::models::credential_type::CredentialInstance> {
         Err(Error::Other("not implemented".to_string()))
     }
     async fn delete_credential_instance(&self, _id: i32, _project_id: i32) -> Result<()> {
@@ -988,67 +1343,275 @@ impl crate::db::store::CredentialTypeManager for MockStore {
 
 #[async_trait]
 impl crate::db::store::SnapshotManager for MockStore {
-    async fn get_snapshots(&self, _project_id: i32, _template_id: Option<i32>, _limit: i64) -> Result<Vec<crate::models::snapshot::TaskSnapshot>> { Ok(Vec::new()) }
-    async fn get_snapshot(&self, _id: i32, _project_id: i32) -> Result<crate::models::snapshot::TaskSnapshot> { Err(Error::NotFound("Snapshot not found".to_string())) }
-    async fn create_snapshot(&self, _project_id: i32, _payload: crate::models::snapshot::TaskSnapshotCreate) -> Result<crate::models::snapshot::TaskSnapshot> { Err(Error::Other("not implemented".to_string())) }
-    async fn delete_snapshot(&self, _id: i32, _project_id: i32) -> Result<()> { Ok(()) }
+    async fn get_snapshots(
+        &self,
+        _project_id: i32,
+        _template_id: Option<i32>,
+        _limit: i64,
+    ) -> Result<Vec<crate::models::snapshot::TaskSnapshot>> {
+        Ok(Vec::new())
+    }
+    async fn get_snapshot(
+        &self,
+        _id: i32,
+        _project_id: i32,
+    ) -> Result<crate::models::snapshot::TaskSnapshot> {
+        Err(Error::NotFound("Snapshot not found".to_string()))
+    }
+    async fn create_snapshot(
+        &self,
+        _project_id: i32,
+        _payload: crate::models::snapshot::TaskSnapshotCreate,
+    ) -> Result<crate::models::snapshot::TaskSnapshot> {
+        Err(Error::Other("not implemented".to_string()))
+    }
+    async fn delete_snapshot(&self, _id: i32, _project_id: i32) -> Result<()> {
+        Ok(())
+    }
 }
 
 #[async_trait]
 impl crate::db::store::CostEstimateManager for MockStore {
-    async fn get_cost_estimates(&self, _project_id: i32, _limit: i64) -> Result<Vec<crate::models::cost_estimate::CostEstimate>> { Ok(Vec::new()) }
-    async fn get_cost_estimate_for_task(&self, _project_id: i32, _task_id: i32) -> Result<Option<crate::models::cost_estimate::CostEstimate>> { Ok(None) }
-    async fn create_cost_estimate(&self, _payload: crate::models::cost_estimate::CostEstimateCreate) -> Result<crate::models::cost_estimate::CostEstimate> { Err(crate::error::Error::Other("not implemented".to_string())) }
-    async fn get_cost_summaries(&self, _project_id: i32) -> Result<Vec<crate::models::cost_estimate::CostSummary>> { Ok(Vec::new()) }
+    async fn get_cost_estimates(
+        &self,
+        _project_id: i32,
+        _limit: i64,
+    ) -> Result<Vec<crate::models::cost_estimate::CostEstimate>> {
+        Ok(Vec::new())
+    }
+    async fn get_cost_estimate_for_task(
+        &self,
+        _project_id: i32,
+        _task_id: i32,
+    ) -> Result<Option<crate::models::cost_estimate::CostEstimate>> {
+        Ok(None)
+    }
+    async fn create_cost_estimate(
+        &self,
+        _payload: crate::models::cost_estimate::CostEstimateCreate,
+    ) -> Result<crate::models::cost_estimate::CostEstimate> {
+        Err(crate::error::Error::Other("not implemented".to_string()))
+    }
+    async fn get_cost_summaries(
+        &self,
+        _project_id: i32,
+    ) -> Result<Vec<crate::models::cost_estimate::CostSummary>> {
+        Ok(Vec::new())
+    }
 }
 
 #[async_trait]
 impl crate::db::store::TerraformStateManager for MockStore {
-    async fn get_terraform_state(&self, _pid: i32, _ws: &str) -> Result<Option<crate::models::TerraformState>> { Ok(None) }
-    async fn list_terraform_states(&self, _pid: i32, _ws: &str) -> Result<Vec<crate::models::TerraformStateSummary>> { Ok(Vec::new()) }
-    async fn get_terraform_state_by_serial(&self, _pid: i32, _ws: &str, _serial: i32) -> Result<Option<crate::models::TerraformState>> { Ok(None) }
-    async fn create_terraform_state(&self, state: crate::models::TerraformState) -> Result<crate::models::TerraformState> { Ok(state) }
-    async fn delete_terraform_state(&self, _pid: i32, _ws: &str) -> Result<()> { Ok(()) }
-    async fn delete_all_terraform_states(&self, _pid: i32, _ws: &str) -> Result<()> { Ok(()) }
-    async fn lock_terraform_state(&self, pid: i32, ws: &str, lock: crate::models::TerraformStateLock) -> Result<crate::models::TerraformStateLock> {
+    async fn get_terraform_state(
+        &self,
+        _pid: i32,
+        _ws: &str,
+    ) -> Result<Option<crate::models::TerraformState>> {
+        Ok(None)
+    }
+    async fn list_terraform_states(
+        &self,
+        _pid: i32,
+        _ws: &str,
+    ) -> Result<Vec<crate::models::TerraformStateSummary>> {
+        Ok(Vec::new())
+    }
+    async fn get_terraform_state_by_serial(
+        &self,
+        _pid: i32,
+        _ws: &str,
+        _serial: i32,
+    ) -> Result<Option<crate::models::TerraformState>> {
+        Ok(None)
+    }
+    async fn create_terraform_state(
+        &self,
+        state: crate::models::TerraformState,
+    ) -> Result<crate::models::TerraformState> {
+        Ok(state)
+    }
+    async fn delete_terraform_state(&self, _pid: i32, _ws: &str) -> Result<()> {
+        Ok(())
+    }
+    async fn delete_all_terraform_states(&self, _pid: i32, _ws: &str) -> Result<()> {
+        Ok(())
+    }
+    async fn lock_terraform_state(
+        &self,
+        pid: i32,
+        ws: &str,
+        lock: crate::models::TerraformStateLock,
+    ) -> Result<crate::models::TerraformStateLock> {
         let _ = (pid, ws);
         Ok(lock)
     }
-    async fn unlock_terraform_state(&self, _pid: i32, _ws: &str, _lock_id: &str) -> Result<()> { Ok(()) }
-    async fn get_terraform_lock(&self, _pid: i32, _ws: &str) -> Result<Option<crate::models::TerraformStateLock>> { Ok(None) }
-    async fn list_terraform_workspaces(&self, _pid: i32) -> Result<Vec<String>> { Ok(Vec::new()) }
-    async fn purge_expired_terraform_locks(&self) -> Result<u64> { Ok(0) }
+    async fn unlock_terraform_state(&self, _pid: i32, _ws: &str, _lock_id: &str) -> Result<()> {
+        Ok(())
+    }
+    async fn get_terraform_lock(
+        &self,
+        _pid: i32,
+        _ws: &str,
+    ) -> Result<Option<crate::models::TerraformStateLock>> {
+        Ok(None)
+    }
+    async fn list_terraform_workspaces(&self, _pid: i32) -> Result<Vec<String>> {
+        Ok(Vec::new())
+    }
+    async fn purge_expired_terraform_locks(&self) -> Result<u64> {
+        Ok(0)
+    }
 }
 
 #[async_trait]
 impl crate::db::store::PlanApprovalManager for MockStore {
-    async fn create_plan(&self, _plan: crate::models::TerraformPlan) -> Result<crate::models::TerraformPlan> {
+    async fn create_plan(
+        &self,
+        _plan: crate::models::TerraformPlan,
+    ) -> Result<crate::models::TerraformPlan> {
         Err(crate::error::Error::Other("not implemented".to_string()))
     }
-    async fn get_plan_by_task(&self, _project_id: i32, _task_id: i32) -> Result<Option<crate::models::TerraformPlan>> { Ok(None) }
-    async fn list_pending_plans(&self, _project_id: i32) -> Result<Vec<crate::models::TerraformPlan>> { Ok(Vec::new()) }
-    async fn approve_plan(&self, _id: i64, _reviewed_by: i32, _comment: Option<String>) -> Result<()> { Ok(()) }
-    async fn reject_plan(&self, _id: i64, _reviewed_by: i32, _comment: Option<String>) -> Result<()> { Ok(()) }
-    async fn update_plan_output(&self, _task_id: i32, _output: String, _json: Option<String>, _added: i32, _changed: i32, _removed: i32) -> Result<()> { Ok(()) }
+    async fn get_plan_by_task(
+        &self,
+        _project_id: i32,
+        _task_id: i32,
+    ) -> Result<Option<crate::models::TerraformPlan>> {
+        Ok(None)
+    }
+    async fn list_pending_plans(
+        &self,
+        _project_id: i32,
+    ) -> Result<Vec<crate::models::TerraformPlan>> {
+        Ok(Vec::new())
+    }
+    async fn approve_plan(
+        &self,
+        _id: i64,
+        _reviewed_by: i32,
+        _comment: Option<String>,
+    ) -> Result<()> {
+        Ok(())
+    }
+    async fn reject_plan(
+        &self,
+        _id: i64,
+        _reviewed_by: i32,
+        _comment: Option<String>,
+    ) -> Result<()> {
+        Ok(())
+    }
+    async fn update_plan_output(
+        &self,
+        _task_id: i32,
+        _output: String,
+        _json: Option<String>,
+        _added: i32,
+        _changed: i32,
+        _removed: i32,
+    ) -> Result<()> {
+        Ok(())
+    }
 }
 
 #[async_trait::async_trait]
 impl crate::db::store::DeploymentEnvironmentManager for MockStore {
-    async fn get_deployment_environments(&self, _project_id: i32) -> Result<Vec<crate::models::DeploymentEnvironment>> { Ok(Vec::new()) }
-    async fn get_deployment_environment(&self, _id: i32, _project_id: i32) -> Result<crate::models::DeploymentEnvironment> { Err(crate::error::Error::NotFound("not found".into())) }
-    async fn create_deployment_environment(&self, _project_id: i32, _payload: crate::models::DeploymentEnvironmentCreate) -> Result<crate::models::DeploymentEnvironment> { Err(crate::error::Error::Other("not implemented".into())) }
-    async fn update_deployment_environment(&self, _id: i32, _project_id: i32, _payload: crate::models::DeploymentEnvironmentUpdate) -> Result<crate::models::DeploymentEnvironment> { Err(crate::error::Error::Other("not implemented".into())) }
-    async fn delete_deployment_environment(&self, _id: i32, _project_id: i32) -> Result<()> { Ok(()) }
-    async fn get_deployment_history(&self, _env_id: i32, _project_id: i32) -> Result<Vec<crate::models::DeploymentRecord>> { Ok(Vec::new()) }
-    async fn record_deployment(&self, _env_id: i32, _task_id: i32, _project_id: i32, _version: Option<String>, _deployed_by: Option<i32>, _status: &str) -> Result<()> { Ok(()) }
+    async fn get_deployment_environments(
+        &self,
+        _project_id: i32,
+    ) -> Result<Vec<crate::models::DeploymentEnvironment>> {
+        Ok(Vec::new())
+    }
+    async fn get_deployment_environment(
+        &self,
+        _id: i32,
+        _project_id: i32,
+    ) -> Result<crate::models::DeploymentEnvironment> {
+        Err(crate::error::Error::NotFound("not found".into()))
+    }
+    async fn create_deployment_environment(
+        &self,
+        _project_id: i32,
+        _payload: crate::models::DeploymentEnvironmentCreate,
+    ) -> Result<crate::models::DeploymentEnvironment> {
+        Err(crate::error::Error::Other("not implemented".into()))
+    }
+    async fn update_deployment_environment(
+        &self,
+        _id: i32,
+        _project_id: i32,
+        _payload: crate::models::DeploymentEnvironmentUpdate,
+    ) -> Result<crate::models::DeploymentEnvironment> {
+        Err(crate::error::Error::Other("not implemented".into()))
+    }
+    async fn delete_deployment_environment(&self, _id: i32, _project_id: i32) -> Result<()> {
+        Ok(())
+    }
+    async fn get_deployment_history(
+        &self,
+        _env_id: i32,
+        _project_id: i32,
+    ) -> Result<Vec<crate::models::DeploymentRecord>> {
+        Ok(Vec::new())
+    }
+    async fn record_deployment(
+        &self,
+        _env_id: i32,
+        _task_id: i32,
+        _project_id: i32,
+        _version: Option<String>,
+        _deployed_by: Option<i32>,
+        _status: &str,
+    ) -> Result<()> {
+        Ok(())
+    }
 }
 
 #[async_trait::async_trait]
 impl crate::db::store::StructuredOutputManager for MockStore {
-    async fn get_task_structured_outputs(&self, _task_id: i32, _project_id: i32) -> Result<Vec<crate::models::TaskStructuredOutput>> { Ok(Vec::new()) }
-    async fn get_task_outputs_map(&self, task_id: i32, _project_id: i32) -> Result<crate::models::TaskOutputsMap> { Ok(crate::models::TaskOutputsMap { task_id, outputs: Default::default() }) }
-    async fn create_task_structured_output(&self, _task_id: i32, _project_id: i32, _payload: crate::models::TaskStructuredOutputCreate) -> Result<crate::models::TaskStructuredOutput> { Err(crate::error::Error::Other("not implemented".into())) }
-    async fn create_task_structured_outputs_batch(&self, _task_id: i32, _project_id: i32, _outputs: Vec<crate::models::TaskStructuredOutputCreate>) -> Result<()> { Ok(()) }
-    async fn delete_task_structured_outputs(&self, _task_id: i32, _project_id: i32) -> Result<()> { Ok(()) }
-    async fn get_template_last_outputs(&self, _template_id: i32, _project_id: i32) -> Result<crate::models::TaskOutputsMap> { Ok(crate::models::TaskOutputsMap { task_id: 0, outputs: Default::default() }) }
+    async fn get_task_structured_outputs(
+        &self,
+        _task_id: i32,
+        _project_id: i32,
+    ) -> Result<Vec<crate::models::TaskStructuredOutput>> {
+        Ok(Vec::new())
+    }
+    async fn get_task_outputs_map(
+        &self,
+        task_id: i32,
+        _project_id: i32,
+    ) -> Result<crate::models::TaskOutputsMap> {
+        Ok(crate::models::TaskOutputsMap {
+            task_id,
+            outputs: Default::default(),
+        })
+    }
+    async fn create_task_structured_output(
+        &self,
+        _task_id: i32,
+        _project_id: i32,
+        _payload: crate::models::TaskStructuredOutputCreate,
+    ) -> Result<crate::models::TaskStructuredOutput> {
+        Err(crate::error::Error::Other("not implemented".into()))
+    }
+    async fn create_task_structured_outputs_batch(
+        &self,
+        _task_id: i32,
+        _project_id: i32,
+        _outputs: Vec<crate::models::TaskStructuredOutputCreate>,
+    ) -> Result<()> {
+        Ok(())
+    }
+    async fn delete_task_structured_outputs(&self, _task_id: i32, _project_id: i32) -> Result<()> {
+        Ok(())
+    }
+    async fn get_template_last_outputs(
+        &self,
+        _template_id: i32,
+        _project_id: i32,
+    ) -> Result<crate::models::TaskOutputsMap> {
+        Ok(crate::models::TaskOutputsMap {
+            task_id: 0,
+            outputs: Default::default(),
+        })
+    }
 }

@@ -2,9 +2,9 @@
 //!
 //! Git клиент на базе go-git (Rust аналог: git2)
 
-use git2::{Repository, FetchOptions, RemoteCallbacks};
+use super::{AccessKeyInstallerTrait, GitClient, GitRepository};
 use crate::error::Result;
-use super::{GitClient, GitRepository, AccessKeyInstallerTrait};
+use git2::{FetchOptions, RemoteCallbacks, Repository};
 
 /// Go Git Client (в Rust используем git2)
 pub struct GoGitClient {
@@ -23,7 +23,7 @@ impl GoGitClient {
         // Загрузка AccessKey через ssh_key_id из хранилища
         // В полной реализации нужно получить ключ из БД по repo.repository.ssh_key_id
         // и настроить аутентификацию для Git
-        
+
         // Пока возвращаем None (без аутентификации)
         // Для публичных репозиториев этого достаточно
         Ok(None)

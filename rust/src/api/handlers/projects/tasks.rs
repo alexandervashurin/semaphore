@@ -2,19 +2,19 @@
 //!
 //! Обработчики для задач в проектах
 
+use crate::api::middleware::ErrorResponse;
+use crate::api::state::AppState;
+use crate::db::store::{RetrieveQueryParams, TaskManager};
+use crate::error::{Error, Result};
+use crate::models::{Task, TaskOutput, TaskWithTpl};
+use crate::services::task_logger::TaskStatus;
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
     Json,
 };
-use std::sync::Arc;
 use serde::{Deserialize, Serialize};
-use crate::api::state::AppState;
-use crate::models::{Task, TaskWithTpl, TaskOutput};
-use crate::error::{Error, Result};
-use crate::api::middleware::ErrorResponse;
-use crate::db::store::{RetrieveQueryParams, TaskManager};
-use crate::services::task_logger::TaskStatus;
+use std::sync::Arc;
 
 /// Получает задачи проекта
 pub async fn get_tasks(
@@ -22,12 +22,12 @@ pub async fn get_tasks(
     Path(project_id): Path<i32>,
     Query(_params): Query<RetrieveQueryParams>,
 ) -> std::result::Result<Json<Vec<TaskWithTpl>>, (StatusCode, Json<ErrorResponse>)> {
-    let tasks = state.store.get_tasks(project_id, None)
-        .await
-        .map_err(|e| (
+    let tasks = state.store.get_tasks(project_id, None).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     Ok(Json(tasks))
 }
@@ -39,16 +39,12 @@ pub async fn get_last_tasks(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
 ) -> std::result::Result<Json<Vec<TaskWithTpl>>, (StatusCode, Json<ErrorResponse>)> {
-    let tasks = state
-        .store
-        .get_tasks(project_id, None)
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse::new(e.to_string())),
-            )
-        })?;
+    let tasks = state.store.get_tasks(project_id, None).await.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     // Возвращаем только последние 20 записей
     let limited: Vec<TaskWithTpl> = tasks.into_iter().take(20).collect();
@@ -61,17 +57,19 @@ pub async fn get_task(
     State(state): State<Arc<AppState>>,
     Path((project_id, task_id)): Path<(i32, i32)>,
 ) -> std::result::Result<Json<Task>, (StatusCode, Json<ErrorResponse>)> {
-    let task = state.store.get_task(project_id, task_id)
+    let task = state
+        .store
+        .get_task(project_id, task_id)
         .await
         .map_err(|e| match e {
             Error::NotFound(_) => (
                 StatusCode::NOT_FOUND,
-                Json(ErrorResponse::new("Task not found".to_string()))
+                Json(ErrorResponse::new("Task not found".to_string())),
             ),
             _ => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse::new(e.to_string()))
-            )
+                Json(ErrorResponse::new(e.to_string())),
+            ),
         })?;
 
     Ok(Json(task))
@@ -110,12 +108,12 @@ pub async fn add_task(
         params: None,
     };
 
-    let created = state.store.create_task(task)
-        .await
-        .map_err(|e| (
+    let created = state.store.create_task(task).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     // Запускаем выполнение задачи в фоне
     let store_arc: Arc<dyn crate::db::store::Store + Send + Sync> = Arc::new(state.store.clone());
@@ -145,28 +143,30 @@ pub async fn confirm_task(
     State(state): State<Arc<AppState>>,
     Path((project_id, task_id)): Path<(i32, i32)>,
 ) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    let mut task = state.store.get_task(project_id, task_id)
+    let mut task = state
+        .store
+        .get_task(project_id, task_id)
         .await
         .map_err(|e| match e {
             Error::NotFound(_) => (
                 StatusCode::NOT_FOUND,
-                Json(ErrorResponse::new("Task not found".to_string()))
+                Json(ErrorResponse::new("Task not found".to_string())),
             ),
             _ => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse::new(e.to_string()))
-            )
+                Json(ErrorResponse::new(e.to_string())),
+            ),
         })?;
 
     // Подтверждение задачи - перевод в статус Waiting
     task.status = TaskStatus::Waiting;
-    
-    state.store.update_task(task)
-        .await
-        .map_err(|e| (
+
+    state.store.update_task(task).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     Ok(StatusCode::OK)
 }
@@ -178,29 +178,31 @@ pub async fn reject_task(
     State(state): State<Arc<AppState>>,
     Path((project_id, task_id)): Path<(i32, i32)>,
 ) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    let mut task = state.store.get_task(project_id, task_id)
+    let mut task = state
+        .store
+        .get_task(project_id, task_id)
         .await
         .map_err(|e| match e {
             Error::NotFound(_) => (
                 StatusCode::NOT_FOUND,
-                Json(ErrorResponse::new("Task not found".to_string()))
+                Json(ErrorResponse::new("Task not found".to_string())),
             ),
             _ => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse::new(e.to_string()))
-            )
+                Json(ErrorResponse::new(e.to_string())),
+            ),
         })?;
 
     // Отклонение задачи - перевод в статус Rejected
     task.status = TaskStatus::Rejected;
     task.end = Some(chrono::Utc::now());
-    
-    state.store.update_task(task)
-        .await
-        .map_err(|e| (
+
+    state.store.update_task(task).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     Ok(StatusCode::OK)
 }
@@ -210,12 +212,16 @@ pub async fn delete_task(
     State(state): State<Arc<AppState>>,
     Path((project_id, task_id)): Path<(i32, i32)>,
 ) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    state.store.delete_task(project_id, task_id)
+    state
+        .store
+        .delete_task(project_id, task_id)
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -228,12 +234,12 @@ pub async fn get_task_output(
     Path((project_id, task_id)): Path<(i32, i32)>,
 ) -> std::result::Result<Json<Vec<TaskOutput>>, (StatusCode, Json<ErrorResponse>)> {
     // Получаем вывод задачи
-    let outputs = state.store.get_task_outputs(task_id)
-        .await
-        .map_err(|e| (
+    let outputs = state.store.get_task_outputs(task_id).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     Ok(Json(outputs))
 }
@@ -245,15 +251,16 @@ pub async fn get_task_raw_output(
     State(state): State<Arc<AppState>>,
     Path((project_id, task_id)): Path<(i32, i32)>,
 ) -> std::result::Result<String, (StatusCode, Json<ErrorResponse>)> {
-    let outputs = state.store.get_task_outputs(task_id)
-        .await
-        .map_err(|e| (
+    let outputs = state.store.get_task_outputs(task_id).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     // Объединяем все строки вывода в plain text
-    let raw = outputs.iter()
+    let raw = outputs
+        .iter()
         .map(|o| o.output.as_str())
         .collect::<Vec<_>>()
         .join("\n");
@@ -282,12 +289,16 @@ pub async fn get_task_stages(
 pub async fn get_all_tasks(
     State(state): State<Arc<AppState>>,
 ) -> std::result::Result<Json<Vec<TaskWithTpl>>, (StatusCode, Json<ErrorResponse>)> {
-    let tasks = state.store.get_global_tasks(None, Some(200))
+    let tasks = state
+        .store
+        .get_global_tasks(None, Some(200))
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
     Ok(Json(tasks))
 }

@@ -1,13 +1,9 @@
 //! MCP tool implementations — calls the Velum store directly (no HTTP round-trips).
 
-use super::protocol::{
-    prop_bool, prop_int, prop_int_opt, prop_str, prop_str_opt, ToolContent,
-};
+use super::protocol::{prop_bool, prop_int, prop_int_opt, prop_str, prop_str_opt, ToolContent};
 use crate::api::state::AppState;
-use crate::models::{
-    Environment, Project, Repository, Schedule, Task,
-};
 use crate::models::repository::RepositoryType;
+use crate::models::{Environment, Project, Repository, Schedule, Task};
 use crate::services::task_logger::TaskStatus;
 use serde_json::{json, Value};
 use std::sync::Arc;
@@ -21,13 +17,22 @@ pub struct ToolResult {
 
 impl ToolResult {
     pub fn ok(v: &Value) -> Self {
-        Self { content: vec![ToolContent::json(v)], is_error: false }
+        Self {
+            content: vec![ToolContent::json(v)],
+            is_error: false,
+        }
     }
     pub fn text(s: impl Into<String>) -> Self {
-        Self { content: vec![ToolContent::text(s)], is_error: false }
+        Self {
+            content: vec![ToolContent::text(s)],
+            is_error: false,
+        }
     }
     pub fn error(s: impl Into<String>) -> Self {
-        Self { content: vec![ToolContent::text(s)], is_error: true }
+        Self {
+            content: vec![ToolContent::text(s)],
+            is_error: true,
+        }
     }
 }
 
@@ -297,9 +302,7 @@ async fn dispatch_inner(
 ) -> anyhow::Result<ToolResult> {
     let store = state.store.store();
 
-    let i32_arg = |key: &str| -> i32 {
-        args.get(key).and_then(Value::as_i64).unwrap_or(0) as i32
-    };
+    let i32_arg = |key: &str| -> i32 { args.get(key).and_then(Value::as_i64).unwrap_or(0) as i32 };
 
     match name {
         // ── Projects ─────────────────────────────────────────────────────────
@@ -349,7 +352,10 @@ async fn dispatch_inner(
         "run_template" => {
             let pid = i32_arg("project_id");
             let tid = i32_arg("template_id");
-            let message = args.get("message").and_then(Value::as_str).map(str::to_string);
+            let message = args
+                .get("message")
+                .and_then(Value::as_str)
+                .map(str::to_string);
             let task = Task {
                 id: 0,
                 template_id: tid,
@@ -383,7 +389,10 @@ async fn dispatch_inner(
         // ── Tasks ────────────────────────────────────────────────────────────
         "list_tasks" => {
             let pid = i32_arg("project_id");
-            let tid = args.get("template_id").and_then(Value::as_i64).map(|v| v as i32);
+            let tid = args
+                .get("template_id")
+                .and_then(Value::as_i64)
+                .map(|v| v as i32);
             let limit = args.get("limit").and_then(Value::as_u64).unwrap_or(50) as usize;
             let tasks = store.get_tasks(pid, tid).await?;
             let tasks: Vec<_> = tasks.into_iter().take(limit).collect();
@@ -397,10 +406,20 @@ async fn dispatch_inner(
         }
         "get_task_output" => {
             let tid = i32_arg("task_id");
-            let last_n = args.get("last_n").and_then(Value::as_u64).map(|v| v as usize);
+            let last_n = args
+                .get("last_n")
+                .and_then(Value::as_u64)
+                .map(|v| v as usize);
             let outputs = store.get_task_outputs(tid).await?;
             let outputs: Vec<_> = if let Some(n) = last_n {
-                outputs.into_iter().rev().take(n).collect::<Vec<_>>().into_iter().rev().collect()
+                outputs
+                    .into_iter()
+                    .rev()
+                    .take(n)
+                    .collect::<Vec<_>>()
+                    .into_iter()
+                    .rev()
+                    .collect()
             } else {
                 outputs
             };
@@ -410,13 +429,18 @@ async fn dispatch_inner(
         "stop_task" => {
             let pid = i32_arg("project_id");
             let tid = i32_arg("task_id");
-            store.update_task_status(pid, tid, TaskStatus::Stopped).await?;
+            store
+                .update_task_status(pid, tid, TaskStatus::Stopped)
+                .await?;
             Ok(ToolResult::text(format!("Task {tid} stopped.")))
         }
         "analyze_task_failure" => {
             let pid = i32_arg("project_id");
             let tid = i32_arg("task_id");
-            let n = args.get("last_n_lines").and_then(Value::as_u64).unwrap_or(100) as usize;
+            let n = args
+                .get("last_n_lines")
+                .and_then(Value::as_u64)
+                .unwrap_or(100) as usize;
             let task = store.get_task(pid, tid).await?;
             let status_str = format!("{:?}", task.status).to_lowercase();
             if status_str != "error" && status_str != "stopped" {
@@ -427,7 +451,15 @@ async fn dispatch_inner(
             let outputs = store.get_task_outputs(tid).await?;
             let lines: Vec<String> = outputs.into_iter().map(|o| o.output).collect();
             let total = lines.len();
-            let tail: Vec<&str> = lines.iter().rev().take(n).collect::<Vec<_>>().into_iter().rev().map(String::as_str).collect();
+            let tail: Vec<&str> = lines
+                .iter()
+                .rev()
+                .take(n)
+                .collect::<Vec<_>>()
+                .into_iter()
+                .rev()
+                .map(String::as_str)
+                .collect();
             let output_text = tail.join("\n");
             let displayed = tail.len();
             Ok(ToolResult::ok(&json!({
@@ -461,7 +493,9 @@ async fn dispatch_inner(
             let pid = i32_arg("project_id");
             let tid = i32_arg("template_id");
             let cron_expr = args["cron"].as_str().unwrap_or("0 0 * * *").to_string();
-            let name = args.get("name").and_then(Value::as_str)
+            let name = args
+                .get("name")
+                .and_then(Value::as_str)
                 .unwrap_or("MCP Schedule")
                 .to_string();
             let schedule = Schedule {
@@ -504,7 +538,10 @@ async fn dispatch_inner(
         }
         "create_repository" => {
             let pid = i32_arg("project_id");
-            let branch = args.get("git_branch").and_then(Value::as_str).map(str::to_string);
+            let branch = args
+                .get("git_branch")
+                .and_then(Value::as_str)
+                .map(str::to_string);
             let repo = Repository {
                 id: 0,
                 project_id: pid,
@@ -534,7 +571,11 @@ async fn dispatch_inner(
         }
         "create_environment" => {
             let pid = i32_arg("project_id");
-            let env_json = args.get("json").and_then(Value::as_str).unwrap_or("{}").to_string();
+            let env_json = args
+                .get("json")
+                .and_then(Value::as_str)
+                .unwrap_or("{}")
+                .to_string();
             let env = Environment {
                 id: 0,
                 project_id: pid,
@@ -573,12 +614,17 @@ async fn dispatch_inner(
             let pid = i32_arg("project_id");
             let keys = store.get_access_keys(pid).await?;
             // Sanitize: never return secret credential values
-            let safe: Vec<Value> = keys.iter().map(|k| json!({
-                "id": k.id,
-                "project_id": k.project_id,
-                "name": k.name,
-                "type": format!("{:?}", k.r#type)
-            })).collect();
+            let safe: Vec<Value> = keys
+                .iter()
+                .map(|k| {
+                    json!({
+                        "id": k.id,
+                        "project_id": k.project_id,
+                        "name": k.name,
+                        "type": format!("{:?}", k.r#type)
+                    })
+                })
+                .collect();
             Ok(ToolResult::ok(&json!(safe)))
         }
 
@@ -604,15 +650,33 @@ async fn dispatch_inner(
             let tasks = store.get_tasks(pid, None).await?;
             let recent: Vec<_> = tasks.iter().take(limit).collect();
             let total = recent.len() as f64;
-            let success = recent.iter().filter(|t| {
-                format!("{:?}", t.task.status).to_lowercase() == "success"
-            }).count() as f64;
-            let failure = recent.iter().filter(|t| {
-                format!("{:?}", t.task.status).to_lowercase() == "error"
-            }).count() as f64;
-            let rate = if total > 0.0 { (success / total * 1000.0).round() / 10.0 } else { 0.0 };
-            let health = if rate >= 95.0 { "healthy" } else if rate >= 80.0 { "degraded" } else { "critical" };
-            let emoji = if rate >= 95.0 { "✅" } else if rate >= 80.0 { "⚠️" } else { "🔴" };
+            let success = recent
+                .iter()
+                .filter(|t| format!("{:?}", t.task.status).to_lowercase() == "success")
+                .count() as f64;
+            let failure = recent
+                .iter()
+                .filter(|t| format!("{:?}", t.task.status).to_lowercase() == "error")
+                .count() as f64;
+            let rate = if total > 0.0 {
+                (success / total * 1000.0).round() / 10.0
+            } else {
+                0.0
+            };
+            let health = if rate >= 95.0 {
+                "healthy"
+            } else if rate >= 80.0 {
+                "degraded"
+            } else {
+                "critical"
+            };
+            let emoji = if rate >= 95.0 {
+                "✅"
+            } else if rate >= 80.0 {
+                "⚠️"
+            } else {
+                "🔴"
+            };
             Ok(ToolResult::ok(&json!({
                 "project_id": pid,
                 "health_status": health,
@@ -632,10 +696,14 @@ async fn dispatch_inner(
             let runner_count = store.get_runners(None).await.map(|r| r.len()).unwrap_or(0);
             let user_count = store.get_user_count().await.unwrap_or(0);
             let project_count = store.get_projects(None).await.map(|p| p.len()).unwrap_or(0);
-            let tasks = store.get_global_tasks(None, Some(1000)).await.unwrap_or_default();
-            let running = tasks.iter().filter(|t| {
-                format!("{:?}", t.task.status).to_lowercase() == "running"
-            }).count();
+            let tasks = store
+                .get_global_tasks(None, Some(1000))
+                .await
+                .unwrap_or_default();
+            let running = tasks
+                .iter()
+                .filter(|t| format!("{:?}", t.task.status).to_lowercase() == "running")
+                .count();
             Ok(ToolResult::ok(&json!({
                 "version": env!("CARGO_PKG_VERSION"),
                 "runner_count": runner_count,
@@ -647,7 +715,9 @@ async fn dispatch_inner(
 
         // ── MCP Settings ─────────────────────────────────────────────────────
         "get_mcp_settings" => {
-            let enabled = store.get_option("mcp.enabled").await
+            let enabled = store
+                .get_option("mcp.enabled")
+                .await
                 .unwrap_or(Some("true".into()))
                 .unwrap_or_else(|| "true".into());
             Ok(ToolResult::ok(&json!({
@@ -663,7 +733,10 @@ async fn dispatch_inner(
         "ai_create_template" => {
             let project_id = i32_arg("project_id");
             let description = args["description"].as_str().unwrap_or("").to_string();
-            let dry_run = args.get("dry_run").and_then(|v| v.as_bool()).unwrap_or(false);
+            let dry_run = args
+                .get("dry_run")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
 
             let template_suggestion = generate_template_suggestion(&description);
 
@@ -687,7 +760,9 @@ async fn dispatch_inner(
         // ── Deployment Environments (FI-GL-1) ────────────────────────────────
         "list_deploy_environments" => {
             let project_id = i32_arg("project_id");
-            let envs = store.get_deployment_environments(project_id).await
+            let envs = store
+                .get_deployment_environments(project_id)
+                .await
                 .map_err(|e| anyhow::anyhow!(e.to_string()))?;
             Ok(ToolResult::ok(&json!(envs)))
         }
@@ -696,7 +771,9 @@ async fn dispatch_inner(
         "get_template_last_outputs" => {
             let project_id = i32_arg("project_id");
             let template_id = i32_arg("template_id");
-            let map = store.get_template_last_outputs(template_id, project_id).await
+            let map = store
+                .get_template_last_outputs(template_id, project_id)
+                .await
                 .map_err(|e| anyhow::anyhow!(e.to_string()))?;
             Ok(ToolResult::ok(&json!(map)))
         }
@@ -710,16 +787,25 @@ fn generate_template_suggestion(description: &str) -> serde_json::Value {
     let desc_lower = description.to_lowercase();
 
     // Определяем тип приложения
-    let (app, playbook_hint) = if desc_lower.contains("terraform") || desc_lower.contains("infra") || desc_lower.contains("cloud") {
+    let (app, playbook_hint) = if desc_lower.contains("terraform")
+        || desc_lower.contains("infra")
+        || desc_lower.contains("cloud")
+    {
         ("terraform", "main.tf directory")
-    } else if desc_lower.contains("bash") || desc_lower.contains("script") || desc_lower.contains("shell") {
+    } else if desc_lower.contains("bash")
+        || desc_lower.contains("script")
+        || desc_lower.contains("shell")
+    {
         ("bash", "deploy.sh")
     } else {
         ("ansible", "deploy.yml")
     };
 
     // Определяем тип (deploy/build/test)
-    let template_type = if desc_lower.contains("test") || desc_lower.contains("check") || desc_lower.contains("verify") {
+    let template_type = if desc_lower.contains("test")
+        || desc_lower.contains("check")
+        || desc_lower.contains("verify")
+    {
         "build"
     } else {
         "deploy"
@@ -727,13 +813,23 @@ fn generate_template_suggestion(description: &str) -> serde_json::Value {
 
     // Предлагаем survey vars
     let mut survey_vars = vec![];
-    if desc_lower.contains("version") || desc_lower.contains("tag") || desc_lower.contains("release") {
+    if desc_lower.contains("version")
+        || desc_lower.contains("tag")
+        || desc_lower.contains("release")
+    {
         survey_vars.push(json!({"name": "app_version", "title": "Application Version", "type": "string", "required": true}));
     }
-    if desc_lower.contains("env") || desc_lower.contains("environment") || desc_lower.contains("prod") || desc_lower.contains("staging") {
+    if desc_lower.contains("env")
+        || desc_lower.contains("environment")
+        || desc_lower.contains("prod")
+        || desc_lower.contains("staging")
+    {
         survey_vars.push(json!({"name": "target_env", "title": "Target Environment", "type": "enum", "enum_values": ["production", "staging", "dev"], "required": true}));
     }
-    if desc_lower.contains("password") || desc_lower.contains("secret") || desc_lower.contains("token") {
+    if desc_lower.contains("password")
+        || desc_lower.contains("secret")
+        || desc_lower.contains("token")
+    {
         survey_vars.push(json!({"name": "app_secret", "title": "Application Secret", "type": "secret", "required": true}));
     }
 

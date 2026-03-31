@@ -2,10 +2,10 @@
 //!
 //! Локальная аутентификация пользователей по паролю
 
+use crate::api::store_wrapper::StoreWrapper;
+use crate::db::store::{Store, UserManager};
 use crate::error::{Error, Result};
 use crate::models::User;
-use crate::db::store::{Store, UserManager};
-use crate::api::store_wrapper::StoreWrapper;
 use std::sync::Arc;
 
 /// Сервис локальной аутентификации
@@ -53,16 +53,23 @@ impl LocalAuthService {
     /// Аутентифицирует пользователя по логину и паролю
     pub async fn login(&self, username: &str, password: &str) -> Result<User> {
         // Находим пользователя по логину или email
-        let user = self.store.get_user_by_login_or_email(username, username).await?;
+        let user = self
+            .store
+            .get_user_by_login_or_email(username, username)
+            .await?;
 
         // Проверяем пароль
         if !verify_password(password, &user.password) {
-            return Err(Error::Unauthorized("Invalid username or password".to_string()));
+            return Err(Error::Unauthorized(
+                "Invalid username or password".to_string(),
+            ));
         }
 
         // Проверяем, не внешний ли это пользователь
         if user.external {
-            return Err(Error::Unauthorized("External user cannot login with password".to_string()));
+            return Err(Error::Unauthorized(
+                "External user cannot login with password".to_string(),
+            ));
         }
 
         Ok(user)
@@ -114,7 +121,7 @@ impl LocalAuthService {
 
     /// Проверяет refresh token и возвращает user_id
     pub fn verify_refresh_token(&self, token: &str) -> Result<i32> {
-        use jsonwebtoken::{decode, Validation, DecodingKey};
+        use jsonwebtoken::{decode, DecodingKey, Validation};
 
         let secret = std::env::var("SEMAPHORE_JWT_SECRET")
             .unwrap_or_else(|_| "dev-secret-key-change-in-production".to_string());
@@ -135,27 +142,39 @@ impl LocalAuthService {
 
     /// Проверяет JWT токен и возвращает claims
     pub fn verify_token(&self, token: &str) -> Result<Claims> {
-        use jsonwebtoken::{decode, Validation, DecodingKey};
+        use jsonwebtoken::{decode, DecodingKey, Validation};
 
         // Получаем секретный ключ из окружения или используем дефолтный
         let secret = std::env::var("SEMAPHORE_JWT_SECRET")
             .unwrap_or_else(|_| "dev-secret-key-change-in-production".to_string());
 
-        let token_data = decode::<Claims>(token, &DecodingKey::from_secret(secret.as_bytes()), &Validation::default())
-            .map_err(|e| Error::Unauthorized(format!("Token verification error: {}", e)))?;
+        let token_data = decode::<Claims>(
+            token,
+            &DecodingKey::from_secret(secret.as_bytes()),
+            &Validation::default(),
+        )
+        .map_err(|e| Error::Unauthorized(format!("Token verification error: {}", e)))?;
 
         Ok(token_data.claims)
     }
 
     /// Регистрирует нового пользователя
-    pub async fn register(&self, username: &str, email: &str, name: &str, password: &str) -> Result<User> {
+    pub async fn register(
+        &self,
+        username: &str,
+        email: &str,
+        name: &str,
+        password: &str,
+    ) -> Result<User> {
         use crate::models::User;
         use chrono::Utc;
 
         // Проверяем, существует ли уже пользователь с таким username или email
         match self.store.get_user_by_login_or_email(username, email).await {
             Ok(_) => {
-                return Err(Error::Other("User with this username or email already exists".to_string()));
+                return Err(Error::Other(
+                    "User with this username or email already exists".to_string(),
+                ));
             }
             Err(Error::NotFound(_)) => {
                 // Пользователь не найден, продолжаем
@@ -197,8 +216,7 @@ pub fn verify_password(password: &str, hash: &str) -> bool {
 /// Хеширует пароль
 pub fn hash_password(password: &str) -> Result<String> {
     let cost = 12; // bcrypt cost factor
-    bcrypt::hash(password, cost)
-        .map_err(|e| Error::Other(format!("Password hashing error: {}", e)))
+    bcrypt::hash(password, cost).map_err(|e| Error::Other(format!("Password hashing error: {}", e)))
 }
 
 /// Меняет пароль пользователя
@@ -238,10 +256,10 @@ mod tests {
     fn test_hash_password() {
         let password = "test_password_123";
         let hash = hash_password(password).unwrap();
-        
+
         // Проверяем, что хэш не равен паролю
         assert_ne!(hash, password);
-        
+
         // Проверяем, что хэш имеет правильную длину
         assert_eq!(hash.len(), 60); // bcrypt hash length
     }
@@ -250,7 +268,7 @@ mod tests {
     fn test_verify_password_correct() {
         let password = "test_password_123";
         let hash = hash_password(password).unwrap();
-        
+
         assert!(verify_password(password, &hash));
     }
 
@@ -258,7 +276,7 @@ mod tests {
     fn test_verify_password_incorrect() {
         let password = "test_password_123";
         let hash = hash_password(password).unwrap();
-        
+
         assert!(!verify_password("wrong_password", &hash));
     }
 

@@ -2,9 +2,9 @@
 //!
 //! Команда для миграции БД
 
-use clap::Args;
 use crate::cli::CliResult;
 use crate::config::Config;
+use clap::Args;
 
 /// Команда migrate
 #[derive(Debug, Args)]
@@ -23,24 +23,26 @@ impl MigrateCommand {
     pub fn run(&self) -> CliResult<()> {
         if self.upgrade {
             println!("Applying migrations...");
-            
+
             // Загрузка конфигурации
             let config = Config::from_env().map_err(|e| anyhow::anyhow!("{}", e))?;
-            let database_url = config.database_url().map_err(|e| anyhow::anyhow!("{}", e))?;
-            
+            let database_url = config
+                .database_url()
+                .map_err(|e| anyhow::anyhow!("{}", e))?;
+
             // Создание хранилища и применение миграций
             let rt = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()
                 .map_err(|e| anyhow::anyhow!("{}", e))?;
-            
+
             rt.block_on(async {
                 let _store = crate::db::sql::SqlStore::new(&database_url)
                     .await
                     .map_err(|e| anyhow::anyhow!("Ошибка подключения к БД: {}", e))?;
                 Ok::<_, anyhow::Error>(())
             })?;
-            
+
             println!("Migrations applied successfully");
         }
 

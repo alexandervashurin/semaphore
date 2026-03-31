@@ -1,11 +1,11 @@
 //! Тесты для моделей (Models)
 
-use crate::models::*;
 use crate::models::access_key::{AccessKey, AccessKeyType};
+use crate::models::environment::Environment;
 use crate::models::inventory::{Inventory, InventoryType};
 use crate::models::repository::{Repository, RepositoryType};
-use crate::models::environment::Environment;
 use crate::models::schedule::Schedule;
+use crate::models::*;
 use serde_json::json;
 
 #[cfg(test)]
@@ -27,10 +27,19 @@ mod tests {
     #[test]
     fn test_access_key_type_from_str() {
         assert_eq!("ssh".parse::<AccessKeyType>().unwrap(), AccessKeyType::SSH);
-        assert_eq!("login_password".parse::<AccessKeyType>().unwrap(), AccessKeyType::LoginPassword);
-        assert_eq!("none".parse::<AccessKeyType>().unwrap(), AccessKeyType::None);
+        assert_eq!(
+            "login_password".parse::<AccessKeyType>().unwrap(),
+            AccessKeyType::LoginPassword
+        );
+        assert_eq!(
+            "none".parse::<AccessKeyType>().unwrap(),
+            AccessKeyType::None
+        );
         // unknown values fall back to None (no error)
-        assert_eq!("invalid".parse::<AccessKeyType>().unwrap(), AccessKeyType::None);
+        assert_eq!(
+            "invalid".parse::<AccessKeyType>().unwrap(),
+            AccessKeyType::None
+        );
     }
 
     #[test]
@@ -92,11 +101,23 @@ mod tests {
 
     #[test]
     fn test_inventory_type_from_str() {
-        assert_eq!("static".parse::<InventoryType>().unwrap(), InventoryType::Static);
-        assert_eq!("file".parse::<InventoryType>().unwrap(), InventoryType::File);
-        assert_eq!("static_yaml".parse::<InventoryType>().unwrap(), InventoryType::StaticYaml);
+        assert_eq!(
+            "static".parse::<InventoryType>().unwrap(),
+            InventoryType::Static
+        );
+        assert_eq!(
+            "file".parse::<InventoryType>().unwrap(),
+            InventoryType::File
+        );
+        assert_eq!(
+            "static_yaml".parse::<InventoryType>().unwrap(),
+            InventoryType::StaticYaml
+        );
         // unknown values fall back to Static (no error)
-        assert_eq!("invalid".parse::<InventoryType>().unwrap(), InventoryType::Static);
+        assert_eq!(
+            "invalid".parse::<InventoryType>().unwrap(),
+            InventoryType::Static
+        );
     }
 
     #[test]
@@ -160,11 +181,7 @@ mod tests {
 
     #[test]
     fn test_environment_json_parse() {
-        let env = Environment::new(
-            1,
-            "Test".to_string(),
-            r#"{"KEY": "value"}"#.to_string(),
-        );
+        let env = Environment::new(1, "Test".to_string(), r#"{"KEY": "value"}"#.to_string());
 
         let parsed: serde_json::Value = serde_json::from_str(&env.json).unwrap();
         assert_eq!(parsed["KEY"], "value");

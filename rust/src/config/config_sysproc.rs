@@ -3,10 +3,10 @@
 //! Системные атрибуты процесса для Unix/Linux
 
 #[cfg(unix)]
+use nix;
+#[cfg(unix)]
 use std::os::unix::process::CommandExt;
 use std::process::Command;
-#[cfg(unix)]
-use nix;
 
 /// Конфигурация процесса
 #[derive(Debug, Clone, Default)]
@@ -54,7 +54,9 @@ pub fn configure_process_command(cmd: &mut Command, config: &ProcessConfig) -> s
                 // Получаем UID пользователя
                 let user = nix::unistd::User::from_name(&username)
                     .map_err(std::io::Error::from)?
-                    .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "User not found"))?;
+                    .ok_or_else(|| {
+                        std::io::Error::new(std::io::ErrorKind::NotFound, "User not found")
+                    })?;
                 nix::unistd::setuid(user.uid).map_err(std::io::Error::from)?;
                 Ok(())
             });
@@ -69,7 +71,10 @@ pub fn configure_process_command(cmd: &mut Command, config: &ProcessConfig) -> s
 // ============================================================================
 
 #[cfg(not(unix))]
-pub fn configure_process_command(_cmd: &mut Command, _config: &ProcessConfig) -> std::io::Result<()> {
+pub fn configure_process_command(
+    _cmd: &mut Command,
+    _config: &ProcessConfig,
+) -> std::io::Result<()> {
     // Windows не поддерживает chroot и setuid/setgid
     Ok(())
 }
@@ -86,7 +91,10 @@ pub mod windows {
         pub gid: Option<u32>,
     }
 
-    pub fn configure_process_command(cmd: &mut Command, _config: &ProcessConfig) -> std::io::Result<()> {
+    pub fn configure_process_command(
+        cmd: &mut Command,
+        _config: &ProcessConfig,
+    ) -> std::io::Result<()> {
         // Windows не поддерживает chroot и setuid/setgid
         Ok(())
     }

@@ -17,7 +17,6 @@ pub struct ProjectFeatures {
     pub secret_storages: bool,
 }
 
-
 /// Получает доступные функции для пользователя
 pub fn get_features(user: &User, plan: &str) -> ProjectFeatures {
     // По умолчанию все функции отключены
@@ -28,7 +27,7 @@ pub fn get_features(user: &User, plan: &str) -> ProjectFeatures {
 /// Проверяет, доступна ли функция
 pub fn is_feature_enabled(user: &User, plan: &str, feature: &str) -> bool {
     let features = get_features(user, plan);
-    
+
     match feature {
         "project_runners" => features.project_runners,
         "terraform_backend" => features.terraform_backend,

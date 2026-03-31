@@ -2,18 +2,18 @@
 //!
 //! Обработчики для раннеров
 
+use crate::api::middleware::ErrorResponse;
+use crate::api::state::AppState;
+use crate::db::store::RunnerManager;
+use crate::error::{Error, Result};
+use crate::models::Runner;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
     Json,
 };
-use std::sync::Arc;
 use serde::{Deserialize, Serialize};
-use crate::api::state::AppState;
-use crate::models::Runner;
-use crate::error::{Error, Result};
-use crate::api::middleware::ErrorResponse;
-use crate::db::store::RunnerManager;
+use std::sync::Arc;
 
 /// Раннер с токеном
 #[derive(Debug, Serialize, Deserialize)]
@@ -28,12 +28,12 @@ pub struct RunnerWithToken {
 pub async fn get_all_runners(
     State(state): State<Arc<AppState>>,
 ) -> std::result::Result<Json<Vec<Runner>>, (StatusCode, Json<ErrorResponse>)> {
-    let runners = state.store.get_runners(None)
-        .await
-        .map_err(|e| (
+    let runners = state.store.get_runners(None).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     Ok(Json(runners))
 }
@@ -50,18 +50,21 @@ pub async fn add_global_runner(
     let token = uuid::Uuid::new_v4().to_string();
     let private_key = "-----BEGIN RSA PRIVATE KEY-----...".to_string();
 
-    let created = state.store.create_runner(runner)
-        .await
-        .map_err(|e| (
+    let created = state.store.create_runner(runner).await.map_err(|e| {
+        (
             StatusCode::BAD_REQUEST,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
-    Ok((StatusCode::CREATED, Json(RunnerWithToken {
-        runner: created,
-        token,
-        private_key,
-    })))
+    Ok((
+        StatusCode::CREATED,
+        Json(RunnerWithToken {
+            runner: created,
+            token,
+            private_key,
+        }),
+    ))
 }
 
 /// Обновляет раннер
@@ -73,12 +76,12 @@ pub async fn update_runner(
     let mut runner = payload;
     runner.id = runner_id;
 
-    state.store.update_runner(runner)
-        .await
-        .map_err(|e| (
+    state.store.update_runner(runner).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     Ok(StatusCode::OK)
 }
@@ -88,12 +91,12 @@ pub async fn delete_runner(
     State(state): State<Arc<AppState>>,
     Path(runner_id): Path<i32>,
 ) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    state.store.delete_runner(runner_id)
-        .await
-        .map_err(|e| (
+    state.store.delete_runner(runner_id).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -112,21 +115,21 @@ pub async fn toggle_runner_active(
     Path(runner_id): Path<i32>,
     Json(payload): Json<ActivePayload>,
 ) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    let mut runner = state.store.get_runner(runner_id)
-        .await
-        .map_err(|e| (
+    let mut runner = state.store.get_runner(runner_id).await.map_err(|e| {
+        (
             StatusCode::NOT_FOUND,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     runner.active = payload.active;
 
-    state.store.update_runner(runner)
-        .await
-        .map_err(|e| (
+    state.store.update_runner(runner).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     Ok(StatusCode::OK)
 }
@@ -167,7 +170,10 @@ pub async fn register_runner(
     Json(payload): Json<RunnerRegisterPayload>,
 ) -> std::result::Result<(StatusCode, Json<serde_json::Value>), (StatusCode, Json<ErrorResponse>)> {
     let _ = payload;
-    Ok((StatusCode::CREATED, Json(serde_json::json!({ "registered": true }))))
+    Ok((
+        StatusCode::CREATED,
+        Json(serde_json::json!({ "registered": true })),
+    ))
 }
 
 /// Heartbeat раннера (internal)

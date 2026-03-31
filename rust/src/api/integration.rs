@@ -2,17 +2,17 @@
 //!
 //! Обработчики для интеграций (общие, не project-specific)
 
+use crate::api::middleware::ErrorResponse;
+use crate::api::state::AppState;
+use crate::db::store::RetrieveQueryParams;
+use crate::error::{Error, Result};
+use crate::models::Integration;
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
     Json,
 };
 use std::sync::Arc;
-use crate::api::state::AppState;
-use crate::models::Integration;
-use crate::error::{Error, Result};
-use crate::api::middleware::ErrorResponse;
-use crate::db::store::RetrieveQueryParams;
 
 /// Получает все интеграции (глобальные)
 pub async fn get_integrations(
@@ -31,7 +31,7 @@ pub async fn get_integration(
     // В реальной реализации нужно получить интеграцию из БД
     Err((
         StatusCode::NOT_FOUND,
-        Json(ErrorResponse::new("Integration not found".to_string()))
+        Json(ErrorResponse::new("Integration not found".to_string())),
     ))
 }
 

@@ -9,12 +9,7 @@
 
 use crate::api::extractors::AuthUser;
 use crate::api::state::AppState;
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::IntoResponse,
-    Json,
-};
+use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::sync::Arc;
@@ -45,23 +40,37 @@ pub async fn get_ai_settings(
     _auth: AuthUser,
 ) -> impl IntoResponse {
     let store = state.store.store();
-    let enabled = store.get_option("ai.enabled").await
+    let enabled = store
+        .get_option("ai.enabled")
+        .await
         .unwrap_or(Some("false".into()))
-        .unwrap_or_else(|| "false".into()) == "true";
-    let provider = store.get_option("ai.provider").await
+        .unwrap_or_else(|| "false".into())
+        == "true";
+    let provider = store
+        .get_option("ai.provider")
+        .await
         .unwrap_or(Some("openai".into()))
         .unwrap_or_else(|| "openai".into());
-    let model = store.get_option("ai.model").await
+    let model = store
+        .get_option("ai.model")
+        .await
         .unwrap_or(None)
         .unwrap_or_else(|| default_model(&provider));
-    let base_url = store.get_option("ai.base_url").await
-        .unwrap_or(None);
-    let has_api_key = store.get_option("ai.api_key").await
+    let base_url = store.get_option("ai.base_url").await.unwrap_or(None);
+    let has_api_key = store
+        .get_option("ai.api_key")
+        .await
         .unwrap_or(None)
         .map(|k| !k.is_empty())
         .unwrap_or(false);
 
-    Json(AiSettings { enabled, provider, model, base_url, has_api_key })
+    Json(AiSettings {
+        enabled,
+        provider,
+        model,
+        base_url,
+        has_api_key,
+    })
 }
 
 pub async fn update_ai_settings(
@@ -71,7 +80,9 @@ pub async fn update_ai_settings(
 ) -> impl IntoResponse {
     let store = state.store.store();
     if let Some(enabled) = body.enabled {
-        let _ = store.set_option("ai.enabled", if enabled { "true" } else { "false" }).await;
+        let _ = store
+            .set_option("ai.enabled", if enabled { "true" } else { "false" })
+            .await;
     }
     if let Some(ref provider) = body.provider {
         let _ = store.set_option("ai.provider", provider).await;
@@ -117,9 +128,12 @@ pub async fn analyze_failure(
 ) -> impl IntoResponse {
     let store = state.store.store();
 
-    let enabled = store.get_option("ai.enabled").await
+    let enabled = store
+        .get_option("ai.enabled")
+        .await
         .unwrap_or(Some("false".into()))
-        .unwrap_or_else(|| "false".into()) == "true";
+        .unwrap_or_else(|| "false".into())
+        == "true";
     if !enabled {
         return (
             StatusCode::SERVICE_UNAVAILABLE,
@@ -127,17 +141,22 @@ pub async fn analyze_failure(
         );
     }
 
-    let provider = store.get_option("ai.provider").await
+    let provider = store
+        .get_option("ai.provider")
+        .await
         .unwrap_or(None)
         .unwrap_or_else(|| "openai".into());
-    let api_key = store.get_option("ai.api_key").await
+    let api_key = store
+        .get_option("ai.api_key")
+        .await
         .unwrap_or(None)
         .unwrap_or_default();
-    let model = store.get_option("ai.model").await
+    let model = store
+        .get_option("ai.model")
+        .await
         .unwrap_or(None)
         .unwrap_or_else(|| default_model(&provider));
-    let base_url = store.get_option("ai.base_url").await
-        .unwrap_or(None);
+    let base_url = store.get_option("ai.base_url").await.unwrap_or(None);
 
     if api_key.is_empty() && provider != "ollama" {
         return (
@@ -164,21 +183,27 @@ pub async fn analyze_failure(
     );
 
     let result = call_ai_api(
-        &provider, &api_key, &model,
+        &provider,
+        &api_key,
+        &model,
         base_url.as_deref(),
         &system_prompt,
         &user_prompt,
-    ).await;
+    )
+    .await;
 
     match result {
         Ok(text) => {
             let (analysis, suggestions) = parse_ai_response(&text);
-            (StatusCode::OK, Json(json!(AnalyzeResponse {
-                analysis,
-                suggestions,
-                provider: provider.clone(),
-                model,
-            })))
+            (
+                StatusCode::OK,
+                Json(json!(AnalyzeResponse {
+                    analysis,
+                    suggestions,
+                    provider: provider.clone(),
+                    model,
+                })),
+            )
         }
         Err(e) => (
             StatusCode::BAD_GATEWAY,
@@ -192,7 +217,7 @@ pub async fn analyze_failure(
 #[derive(Debug, Deserialize)]
 pub struct GenerateRequest {
     pub description: String,
-    pub app: Option<String>,      // "ansible" | "terraform" | "bash"
+    pub app: Option<String>, // "ansible" | "terraform" | "bash"
     pub lang: Option<String>,
 }
 
@@ -203,9 +228,12 @@ pub async fn generate_playbook(
 ) -> impl IntoResponse {
     let store = state.store.store();
 
-    let enabled = store.get_option("ai.enabled").await
+    let enabled = store
+        .get_option("ai.enabled")
+        .await
         .unwrap_or(Some("false".into()))
-        .unwrap_or_else(|| "false".into()) == "true";
+        .unwrap_or_else(|| "false".into())
+        == "true";
     if !enabled {
         return (
             StatusCode::SERVICE_UNAVAILABLE,
@@ -213,14 +241,22 @@ pub async fn generate_playbook(
         );
     }
 
-    let provider = store.get_option("ai.provider").await
-        .unwrap_or(None).unwrap_or_else(|| "openai".into());
-    let api_key = store.get_option("ai.api_key").await
-        .unwrap_or(None).unwrap_or_default();
-    let model = store.get_option("ai.model").await
-        .unwrap_or(None).unwrap_or_else(|| default_model(&provider));
-    let base_url = store.get_option("ai.base_url").await
-        .unwrap_or(None);
+    let provider = store
+        .get_option("ai.provider")
+        .await
+        .unwrap_or(None)
+        .unwrap_or_else(|| "openai".into());
+    let api_key = store
+        .get_option("ai.api_key")
+        .await
+        .unwrap_or(None)
+        .unwrap_or_default();
+    let model = store
+        .get_option("ai.model")
+        .await
+        .unwrap_or(None)
+        .unwrap_or_else(|| default_model(&provider));
+    let base_url = store.get_option("ai.base_url").await.unwrap_or(None);
 
     if api_key.is_empty() && provider != "ollama" {
         return (
@@ -237,9 +273,24 @@ pub async fn generate_playbook(
     );
     let user_prompt = format!("Generate {} code for: {}", app, body.description);
 
-    match call_ai_api(&provider, &api_key, &model, base_url.as_deref(), &system_prompt, &user_prompt).await {
-        Ok(code) => (StatusCode::OK, Json(json!({ "code": code, "app": app, "model": model }))),
-        Err(e) => (StatusCode::BAD_GATEWAY, Json(json!({ "error": format!("AI API error: {}", e) }))),
+    match call_ai_api(
+        &provider,
+        &api_key,
+        &model,
+        base_url.as_deref(),
+        &system_prompt,
+        &user_prompt,
+    )
+    .await
+    {
+        Ok(code) => (
+            StatusCode::OK,
+            Json(json!({ "code": code, "app": app, "model": model })),
+        ),
+        Err(e) => (
+            StatusCode::BAD_GATEWAY,
+            Json(json!({ "error": format!("AI API error: {}", e) })),
+        ),
     }
 }
 
@@ -258,7 +309,8 @@ async fn call_ai_api(
     match provider {
         "anthropic" => {
             let url = base_url.unwrap_or("https://api.anthropic.com/v1/messages");
-            let resp = client.post(url)
+            let resp = client
+                .post(url)
                 .header("x-api-key", api_key)
                 .header("anthropic-version", "2023-06-01")
                 .header("content-type", "application/json")
@@ -268,20 +320,26 @@ async fn call_ai_api(
                     "system": system,
                     "messages": [{ "role": "user", "content": user }]
                 }))
-                .send().await
+                .send()
+                .await
                 .map_err(|e| e.to_string())?;
             let data: Value = resp.json().await.map_err(|e| e.to_string())?;
             if let Some(err) = data.get("error") {
-                return Err(err["message"].as_str().unwrap_or("unknown error").to_string());
+                return Err(err["message"]
+                    .as_str()
+                    .unwrap_or("unknown error")
+                    .to_string());
             }
-            data["content"][0]["text"].as_str()
+            data["content"][0]["text"]
+                .as_str()
                 .map(|s| s.to_string())
                 .ok_or_else(|| "Empty response from Anthropic".to_string())
         }
         "ollama" => {
             let base = base_url.unwrap_or("http://localhost:11434");
             let url = format!("{}/api/chat", base);
-            let resp = client.post(&url)
+            let resp = client
+                .post(&url)
                 .json(&json!({
                     "model": model,
                     "stream": false,
@@ -290,17 +348,20 @@ async fn call_ai_api(
                         { "role": "user", "content": user }
                     ]
                 }))
-                .send().await
+                .send()
+                .await
                 .map_err(|e| e.to_string())?;
             let data: Value = resp.json().await.map_err(|e| e.to_string())?;
-            data["message"]["content"].as_str()
+            data["message"]["content"]
+                .as_str()
                 .map(|s| s.to_string())
                 .ok_or_else(|| "Empty response from Ollama".to_string())
         }
         _ => {
             // Default: OpenAI-compatible
             let url = base_url.unwrap_or("https://api.openai.com/v1/chat/completions");
-            let resp = client.post(url)
+            let resp = client
+                .post(url)
                 .bearer_auth(api_key)
                 .json(&json!({
                     "model": model,
@@ -310,13 +371,18 @@ async fn call_ai_api(
                     ],
                     "max_tokens": 1024
                 }))
-                .send().await
+                .send()
+                .await
                 .map_err(|e| e.to_string())?;
             let data: Value = resp.json().await.map_err(|e| e.to_string())?;
             if let Some(err) = data.get("error") {
-                return Err(err["message"].as_str().unwrap_or("unknown error").to_string());
+                return Err(err["message"]
+                    .as_str()
+                    .unwrap_or("unknown error")
+                    .to_string());
             }
-            data["choices"][0]["message"]["content"].as_str()
+            data["choices"][0]["message"]["content"]
+                .as_str()
                 .map(|s| s.to_string())
                 .ok_or_else(|| "Empty response from OpenAI".to_string())
         }
@@ -349,11 +415,20 @@ fn parse_ai_response(text: &str) -> (String, Vec<String>) {
 
     for line in text.lines() {
         let trimmed = line.trim();
-        if trimmed.starts_with("- ") || trimmed.starts_with("* ") ||
-           (trimmed.len() > 2 && trimmed.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false) && trimmed.contains(". ")) {
+        if trimmed.starts_with("- ")
+            || trimmed.starts_with("* ")
+            || (trimmed.len() > 2
+                && trimmed
+                    .chars()
+                    .next()
+                    .map(|c| c.is_ascii_digit())
+                    .unwrap_or(false)
+                && trimmed.contains(". "))
+        {
             in_list = true;
-            let content = trimmed
-                .trim_start_matches(|c: char| c.is_ascii_digit() || c == '.' || c == '-' || c == '*' || c == ' ');
+            let content = trimmed.trim_start_matches(|c: char| {
+                c.is_ascii_digit() || c == '.' || c == '-' || c == '*' || c == ' '
+            });
             if !content.is_empty() {
                 suggestions.push(content.to_string());
             }
@@ -363,6 +438,10 @@ fn parse_ai_response(text: &str) -> (String, Vec<String>) {
     }
     _ = in_list;
 
-    let analysis = if analysis_lines.is_empty() { text.to_string() } else { analysis_lines.join("\n") };
+    let analysis = if analysis_lines.is_empty() {
+        text.to_string()
+    } else {
+        analysis_lines.join("\n")
+    };
     (analysis, suggestions)
 }

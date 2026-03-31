@@ -2,14 +2,14 @@
 //!
 //! Аналог services/tasks/TaskPool.go из Go версии (часть 1: типы)
 
-use std::sync::Arc;
-use tokio::sync::{RwLock, Mutex};
 use chrono::{DateTime, Utc};
+use std::sync::Arc;
+use tokio::sync::{Mutex, RwLock};
 
-use crate::models::{Task, Template, Project};
-use crate::services::task_logger::TaskLogger;
-use crate::db::store::Store;
 use crate::api::websocket::WebSocketManager;
+use crate::db::store::Store;
+use crate::models::{Project, Task, Template};
+use crate::services::task_logger::TaskLogger;
 
 /// Пул задач - управляет очередью и выполнением задач
 pub struct TaskPool {
@@ -66,12 +66,12 @@ impl TaskPool {
             ws_manager,
         }
     }
-    
+
     /// Проверяет остановлен ли пул
     pub async fn is_shutdown(&self) -> bool {
         *self.shutdown.lock().await
     }
-    
+
     /// Останавливает пул
     pub async fn shutdown(&self) {
         let mut shutdown = self.shutdown.lock().await;
@@ -81,11 +81,7 @@ impl TaskPool {
 
 impl RunningTask {
     /// Создаёт новую RunningTask
-    pub fn new(
-        task: Task,
-        logger: Arc<dyn TaskLogger>,
-        template: Template,
-    ) -> Self {
+    pub fn new(task: Task, logger: Arc<dyn TaskLogger>, template: Template) -> Self {
         Self {
             task,
             logger,
@@ -94,12 +90,12 @@ impl RunningTask {
             killed: false,
         }
     }
-    
+
     /// Проверяет остановлена ли задача
     pub fn is_killed(&self) -> bool {
         self.killed
     }
-    
+
     /// Останавливает задачу
     pub fn kill(&mut self) {
         self.killed = true;
@@ -137,7 +133,7 @@ mod tests {
         let ws_manager = Arc::new(crate::api::websocket::WebSocketManager::new());
 
         let pool = TaskPool::new(store, project, ws_manager);
-        assert!(!pool.running_tasks.try_read().unwrap().is_empty() || true); // HashMap может быть пустым
+        assert_eq!(pool.project.id, 1); // Проверяем, что пул создан с правильным проектом
     }
 
     #[tokio::test]
@@ -147,11 +143,11 @@ mod tests {
         let ws_manager = Arc::new(crate::api::websocket::WebSocketManager::new());
 
         let pool = TaskPool::new(store, project, ws_manager);
-        
+
         assert!(!pool.is_shutdown().await);
-        
+
         pool.shutdown().await;
-        
+
         assert!(pool.is_shutdown().await);
     }
 
@@ -162,10 +158,10 @@ mod tests {
         task.project_id = 1;
         task.template_id = 1;
         task.status = TaskStatus::Waiting;
-        
+
         let logger = Arc::new(crate::services::task_logger::BasicLogger::new());
         let template = Template::default();
-        
+
         let running_task = RunningTask::new(task, logger, template);
         assert!(!running_task.is_killed());
     }
@@ -177,13 +173,13 @@ mod tests {
         task.project_id = 1;
         task.template_id = 1;
         task.status = TaskStatus::Waiting;
-        
+
         let logger = Arc::new(crate::services::task_logger::BasicLogger::new());
         let template = Template::default();
-        
+
         let mut running_task = RunningTask::new(task, logger, template);
         assert!(!running_task.is_killed());
-        
+
         running_task.kill();
         assert!(running_task.is_killed());
     }

@@ -1,5 +1,9 @@
 //! Handlers для истории запусков Playbook
 
+use crate::api::middleware::ErrorResponse;
+use crate::api::state::AppState;
+use crate::db::store::PlaybookRunManager;
+use crate::models::playbook_run_history::{PlaybookRun, PlaybookRunFilter, PlaybookRunStats};
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
@@ -7,10 +11,6 @@ use axum::{
 };
 use serde::Deserialize;
 use std::sync::Arc;
-use crate::api::state::AppState;
-use crate::api::middleware::ErrorResponse;
-use crate::db::store::PlaybookRunManager;
-use crate::models::playbook_run_history::{PlaybookRun, PlaybookRunStats, PlaybookRunFilter};
 
 /// GET /api/project/{project_id}/playbook-runs
 /// Получить список запусков playbook
@@ -33,7 +33,7 @@ pub async fn get_playbook_runs(
     let runs = state.store.get_playbook_runs(filter).await.map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
+            Json(ErrorResponse::new(e.to_string())),
         )
     })?;
 
@@ -46,12 +46,16 @@ pub async fn get_playbook_run(
     State(state): State<Arc<AppState>>,
     Path((project_id, id)): Path<(i32, i32)>,
 ) -> Result<Json<PlaybookRun>, (StatusCode, Json<ErrorResponse>)> {
-    let run = state.store.get_playbook_run(id, project_id).await.map_err(|e| {
-        (
-            StatusCode::NOT_FOUND,
-            Json(ErrorResponse::new(e.to_string()))
-        )
-    })?;
+    let run = state
+        .store
+        .get_playbook_run(id, project_id)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::NOT_FOUND,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
     Ok(Json(run))
 }
@@ -62,12 +66,16 @@ pub async fn get_playbook_run_stats(
     State(state): State<Arc<AppState>>,
     Path((project_id, playbook_id)): Path<(i32, i32)>,
 ) -> Result<Json<PlaybookRunStats>, (StatusCode, Json<ErrorResponse>)> {
-    let stats = state.store.get_playbook_run_stats(playbook_id).await.map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        )
-    })?;
+    let stats = state
+        .store
+        .get_playbook_run_stats(playbook_id)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
     Ok(Json(stats))
 }
@@ -77,12 +85,16 @@ pub async fn delete_playbook_run(
     State(state): State<Arc<AppState>>,
     Path((project_id, id)): Path<(i32, i32)>,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    state.store.delete_playbook_run(id, project_id).await.map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        )
-    })?;
+    state
+        .store
+        .delete_playbook_run(id, project_id)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
     Ok(StatusCode::NO_CONTENT)
 }

@@ -119,15 +119,19 @@ impl Email {
         // Парсим адреса (Address::new требует имя и домен)
         let from_addr = Mailbox::new(
             None,
-            from_clean.parse().map_err(|e: lettre::address::AddressError| {
-                MailerError::InvalidEmail(e.to_string())
-            })?,
+            from_clean
+                .parse()
+                .map_err(|e: lettre::address::AddressError| {
+                    MailerError::InvalidEmail(e.to_string())
+                })?,
         );
         let to_addr = Mailbox::new(
             None,
-            to_clean.parse().map_err(|e: lettre::address::AddressError| {
-                MailerError::InvalidEmail(e.to_string())
-            })?,
+            to_clean
+                .parse()
+                .map_err(|e: lettre::address::AddressError| {
+                    MailerError::InvalidEmail(e.to_string())
+                })?,
         );
 
         // Создаём сообщение
@@ -164,10 +168,7 @@ pub async fn send_email(config: &SmtpConfig, email: &Email) -> Result<(), Mailer
 }
 
 /// Отправка с TLS
-async fn send_with_tls(
-    config: &SmtpConfig,
-    message: Message,
-) -> Result<(), MailerError> {
+async fn send_with_tls(config: &SmtpConfig, message: Message) -> Result<(), MailerError> {
     // Создаём TLS параметры
     let tls_params = TlsParameters::new(config.host.clone())
         .map_err(|e| MailerError::ConnectionError(e.to_string()))?;
@@ -192,10 +193,7 @@ async fn send_with_tls(
 }
 
 /// Отправка с PLAIN/LOGIN аутентификацией без TLS
-async fn send_with_plain_auth(
-    config: &SmtpConfig,
-    message: Message,
-) -> Result<(), MailerError> {
+async fn send_with_plain_auth(config: &SmtpConfig, message: Message) -> Result<(), MailerError> {
     let mut builder = AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(&config.host)
         .port(config.port.parse().unwrap_or(587));
 
@@ -214,10 +212,7 @@ async fn send_with_plain_auth(
 }
 
 /// Анонимная отправка (без аутентификации)
-async fn send_anonymous(
-    config: &SmtpConfig,
-    message: Message,
-) -> Result<(), MailerError> {
+async fn send_anonymous(config: &SmtpConfig, message: Message) -> Result<(), MailerError> {
     let mailer = AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(&config.host)
         .port(config.port.parse().unwrap_or(25))
         .build();
@@ -278,7 +273,7 @@ mod tests {
         // Проверяем что sanitize_header удаляет опасные символы
         assert_eq!(sanitize_header("test\r\ninjection"), "testinjection");
         assert_eq!(sanitize_header("Subject\r\nInjection"), "SubjectInjection");
-        
+
         let email = Email::new(
             "from\r\n@example.com".to_string(),
             "to@example.com".to_string(),

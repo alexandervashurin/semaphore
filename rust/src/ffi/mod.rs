@@ -6,12 +6,12 @@ use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_int, c_void};
 use std::ptr;
 
-use crate::services::ssh_agent::{
-    AccessKeyInstallation, AccessKeyRole, AccessKeyType, AccessKey,
-    SshKeyData, LoginPasswordData, KeyInstaller,
-};
-use crate::services::task_logger::{TaskLogger, BasicLogger, TaskStatus};
 use crate::error::Error;
+use crate::services::ssh_agent::{
+    AccessKey, AccessKeyInstallation, AccessKeyRole, AccessKeyType, KeyInstaller,
+    LoginPasswordData, SshKeyData,
+};
+use crate::services::task_logger::{BasicLogger, TaskLogger, TaskStatus};
 
 // ============================================================================
 // C типы для Go
@@ -99,7 +99,9 @@ impl C_AccessKey {
             if self.private_key.is_null() {
                 String::new()
             } else {
-                CStr::from_ptr(self.private_key).to_string_lossy().into_owned()
+                CStr::from_ptr(self.private_key)
+                    .to_string_lossy()
+                    .into_owned()
             }
         };
 
@@ -107,7 +109,9 @@ impl C_AccessKey {
             if self.passphrase.is_null() {
                 String::new()
             } else {
-                CStr::from_ptr(self.passphrase).to_string_lossy().into_owned()
+                CStr::from_ptr(self.passphrase)
+                    .to_string_lossy()
+                    .into_owned()
             }
         };
 
@@ -133,17 +137,29 @@ impl C_AccessKey {
                 private_key,
                 passphrase,
                 login,
-                if self.project_id > 0 { Some(self.project_id) } else { None },
+                if self.project_id > 0 {
+                    Some(self.project_id)
+                } else {
+                    None
+                },
             )),
             C_AccessKeyType::LoginPassword => Ok(AccessKey::new_login_password(
                 self.id,
                 login,
                 password,
-                if self.project_id > 0 { Some(self.project_id) } else { None },
+                if self.project_id > 0 {
+                    Some(self.project_id)
+                } else {
+                    None
+                },
             )),
             C_AccessKeyType::None => Ok(AccessKey::new_none(
                 self.id,
-                if self.project_id > 0 { Some(self.project_id) } else { None },
+                if self.project_id > 0 {
+                    Some(self.project_id)
+                } else {
+                    None
+                },
             )),
         }
     }
@@ -152,13 +168,19 @@ impl C_AccessKey {
 impl C_AccessKeyInstallation {
     fn from_rust(installation: &AccessKeyInstallation, error: Option<&str>) -> Self {
         let login = installation.login.as_ref().and_then(|s| {
-            CString::new(s.as_str()).ok().map(|cs| cs.into_raw() as *const c_char)
+            CString::new(s.as_str())
+                .ok()
+                .map(|cs| cs.into_raw() as *const c_char)
         });
         let password = installation.password.as_ref().and_then(|s| {
-            CString::new(s.as_str()).ok().map(|cs| cs.into_raw() as *const c_char)
+            CString::new(s.as_str())
+                .ok()
+                .map(|cs| cs.into_raw() as *const c_char)
         });
         let error_str = error.and_then(|s| {
-            CString::new(s).ok().map(|cs| cs.into_raw() as *const c_char)
+            CString::new(s)
+                .ok()
+                .map(|cs| cs.into_raw() as *const c_char)
         });
 
         Self {
@@ -213,10 +235,9 @@ pub unsafe extern "C" fn rust_install_access_key(
 
     match installer.install(&access_key, role, &logger) {
         Ok(installation) => C_AccessKeyInstallation::from_rust(&installation, None),
-        Err(e) => C_AccessKeyInstallation::from_rust(
-            &AccessKeyInstallation::new(),
-            Some(&e.to_string()),
-        ),
+        Err(e) => {
+            C_AccessKeyInstallation::from_rust(&AccessKeyInstallation::new(), Some(&e.to_string()))
+        }
     }
 }
 
@@ -275,10 +296,7 @@ pub unsafe extern "C" fn rust_free_logger(logger: *mut C_Logger) {
 /// Работает с raw pointers. Копирует строку внутрь, поэтому вызывающая сторона
 /// должна освободить свою копию отдельно.
 #[no_mangle]
-pub unsafe extern "C" fn rust_logger_log(
-    logger: *mut C_Logger,
-    message: *const c_char,
-) {
+pub unsafe extern "C" fn rust_logger_log(logger: *mut C_Logger, message: *const c_char) {
     if logger.is_null() || message.is_null() {
         return;
     }
@@ -294,10 +312,7 @@ pub unsafe extern "C" fn rust_logger_log(
 /// # Safety
 /// Работает с raw pointers
 #[no_mangle]
-pub unsafe extern "C" fn rust_logger_set_status(
-    logger: *mut C_Logger,
-    status: C_TaskStatus,
-) {
+pub unsafe extern "C" fn rust_logger_set_status(logger: *mut C_Logger, status: C_TaskStatus) {
     if logger.is_null() {
         return;
     }
@@ -324,9 +339,7 @@ pub unsafe extern "C" fn rust_logger_set_status(
 /// # Safety
 /// Работает с raw pointers
 #[no_mangle]
-pub unsafe extern "C" fn rust_logger_get_status(
-    logger: *mut C_Logger,
-) -> C_TaskStatus {
+pub unsafe extern "C" fn rust_logger_get_status(logger: *mut C_Logger) -> C_TaskStatus {
     if logger.is_null() {
         return C_TaskStatus::Waiting;
     }
@@ -387,7 +400,10 @@ mod tests {
 
     #[test]
     fn test_rust_install_access_key_ssh() {
-        let private_key = CString::new("-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----").unwrap();
+        let private_key = CString::new(
+            "-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----",
+        )
+        .unwrap();
         let login = CString::new("git").unwrap();
 
         let c_key = C_AccessKey {
@@ -403,7 +419,7 @@ mod tests {
         unsafe {
             let logger = rust_create_logger();
             let result = rust_install_access_key(&c_key, C_AccessKeyRole::Git, logger);
-            
+
             // Проверяем, что SSH агент создан
             assert!(result.has_ssh_agent);
 
@@ -420,16 +436,16 @@ mod tests {
     fn test_rust_logger_functions() {
         unsafe {
             let logger = rust_create_logger();
-            
+
             // Проверяем установку и получение статуса
             rust_logger_set_status(logger, C_TaskStatus::Running);
             let status = rust_logger_get_status(logger);
             assert_eq!(status, C_TaskStatus::Running);
-            
+
             rust_logger_set_status(logger, C_TaskStatus::Success);
             let status = rust_logger_get_status(logger);
             assert_eq!(status, C_TaskStatus::Success);
-            
+
             rust_free_logger(logger);
         }
     }

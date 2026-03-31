@@ -1,13 +1,13 @@
 //! SQL-хранилище (PostgreSQL)
 
+pub mod audit_log;
+pub mod init;
+pub mod managers;
+pub mod migrations;
 pub mod runner;
 pub mod types;
-pub mod init;
-pub mod migrations;
 pub mod utils;
-pub mod audit_log;
 pub mod webhook;
-pub mod managers;
 
 #[cfg(test)]
 pub mod test_helpers;
@@ -16,41 +16,48 @@ pub mod test_helpers;
 pub mod postgres;
 
 // Legacy modules (to be removed)
-pub mod template_crud;
-pub mod template_vault;
-pub mod template_roles;
-pub mod template_utils;
-pub mod user_crud;
-pub mod user_auth;
-pub mod user_totp;
-pub mod task_crud;
-pub mod task_output;
-pub mod task_stage;
-pub mod integration_crud;
-pub mod integration_matcher;
-pub mod integration_extract;
-pub mod project_invite;
-pub mod terraform_inventory;
 pub mod access_key;
 pub mod environment;
 pub mod event;
+pub mod integration_crud;
+pub mod integration_extract;
+pub mod integration_matcher;
 pub mod inventory;
+pub mod project_invite;
 pub mod repository;
 pub mod schedule;
 pub mod session;
+pub mod task_crud;
+pub mod task_output;
+pub mod task_stage;
+pub mod template_crud;
+pub mod template_roles;
+pub mod template_utils;
+pub mod template_vault;
+pub mod terraform_inventory;
+pub mod user_auth;
+pub mod user_crud;
+pub mod user_totp;
 pub mod view;
 
-use crate::db::store::*;
-use crate::models::{User, UserTotp, Hook, Project, Task, TaskWithTpl, TaskOutput, TaskStage, Template, Inventory, Repository, Environment, AccessKey, Integration, Schedule, Session, APIToken, Event, Runner, View, Role, ProjectInvite, ProjectInviteWithUser, ProjectUser, RetrieveQueryParams, TerraformInventoryAlias, TerraformInventoryState, SecretStorage, SessionVerificationMethod};
-use crate::models::playbook::{Playbook, PlaybookCreate, PlaybookUpdate};
-use crate::models::audit_log::{AuditAction, AuditObjectType, AuditLevel, AuditLog, AuditLogFilter, AuditLogResult};
-use crate::error::{Error, Result};
-use crate::services::task_logger::TaskStatus;
 use crate::db::sql::types::SqlDb;
+use crate::db::store::*;
+use crate::error::{Error, Result};
+use crate::models::audit_log::{
+    AuditAction, AuditLevel, AuditLog, AuditLogFilter, AuditLogResult, AuditObjectType,
+};
+use crate::models::playbook::{Playbook, PlaybookCreate, PlaybookUpdate};
+use crate::models::{
+    APIToken, AccessKey, Environment, Event, Hook, Integration, Inventory, Project, ProjectInvite,
+    ProjectInviteWithUser, ProjectUser, Repository, RetrieveQueryParams, Role, Runner, Schedule,
+    SecretStorage, Session, SessionVerificationMethod, Task, TaskOutput, TaskStage, TaskWithTpl,
+    Template, TerraformInventoryAlias, TerraformInventoryState, User, UserTotp, View,
+};
+use crate::services::task_logger::TaskStatus;
 use async_trait::async_trait;
+use chrono::Utc;
 use sqlx::{PgPool, Row};
 use std::collections::HashMap;
-use chrono::Utc;
 
 /// SQL-хранилище данных (PostgreSQL)
 pub struct SqlStore {
@@ -799,12 +806,10 @@ impl SqlStore {
         .await
         .map_err(Error::Database)?;
 
-        sqlx::query(
-            "CREATE INDEX IF NOT EXISTS idx_tf_plan_task_id ON terraform_plan(task_id)",
-        )
-        .execute(pool)
-        .await
-        .map_err(Error::Database)?;
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_tf_plan_task_id ON terraform_plan(task_id)")
+            .execute(pool)
+            .await
+            .map_err(Error::Database)?;
 
         // organization — Multi-Tenancy организации (v4.0)
         sqlx::query(
@@ -849,12 +854,10 @@ impl SqlStore {
         .await
         .map_err(Error::Database)?;
 
-        sqlx::query(
-            "CREATE INDEX IF NOT EXISTS idx_project_org_id ON project(org_id)",
-        )
-        .execute(pool)
-        .await
-        .map_err(Error::Database)?;
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_project_org_id ON project(org_id)")
+            .execute(pool)
+            .await
+            .map_err(Error::Database)?;
 
         sqlx::query(
             "CREATE INDEX IF NOT EXISTS idx_tf_plan_project_status ON terraform_plan(project_id, status)",
@@ -881,7 +884,9 @@ impl SqlStore {
                 UNIQUE (project_id, name)
             )",
         )
-        .execute(pool).await.map_err(Error::Database)?;
+        .execute(pool)
+        .await
+        .map_err(Error::Database)?;
 
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS deployment_record (
@@ -915,34 +920,52 @@ impl SqlStore {
                 UNIQUE (task_id, key)
             )",
         )
-        .execute(pool).await.map_err(Error::Database)?;
+        .execute(pool)
+        .await
+        .map_err(Error::Database)?;
 
         sqlx::query("CREATE INDEX IF NOT EXISTS idx_struct_output_task ON task_structured_output(task_id, project_id)")
             .execute(pool).await.map_err(Error::Database)?;
 
         // ── FI-JEN-1: Template Inheritance ─────────────────────────────────
         sqlx::query("ALTER TABLE template ADD COLUMN IF NOT EXISTS parent_template_id INTEGER")
-            .execute(pool).await.map_err(Error::Database)?;
+            .execute(pool)
+            .await
+            .map_err(Error::Database)?;
 
         // ── FI-AWX-1: Execution Environments ───────────────────────────────
         sqlx::query("ALTER TABLE template ADD COLUMN IF NOT EXISTS execution_image TEXT")
-            .execute(pool).await.map_err(Error::Database)?;
+            .execute(pool)
+            .await
+            .map_err(Error::Database)?;
 
         // ── FI-ARGO-1: Sync Hooks ───────────────────────────────────────────
         sqlx::query("ALTER TABLE template ADD COLUMN IF NOT EXISTS pre_template_id INTEGER")
-            .execute(pool).await.map_err(Error::Database)?;
+            .execute(pool)
+            .await
+            .map_err(Error::Database)?;
         sqlx::query("ALTER TABLE template ADD COLUMN IF NOT EXISTS post_template_id INTEGER")
-            .execute(pool).await.map_err(Error::Database)?;
+            .execute(pool)
+            .await
+            .map_err(Error::Database)?;
         sqlx::query("ALTER TABLE template ADD COLUMN IF NOT EXISTS fail_template_id INTEGER")
-            .execute(pool).await.map_err(Error::Database)?;
+            .execute(pool)
+            .await
+            .map_err(Error::Database)?;
 
         // ── FI-GL-1: Template → DeploymentEnvironment link ─────────────────
         sqlx::query("ALTER TABLE template ADD COLUMN IF NOT EXISTS deploy_environment_id INTEGER")
-            .execute(pool).await.map_err(Error::Database)?;
+            .execute(pool)
+            .await
+            .map_err(Error::Database)?;
 
         // ── FI-ARGO-1: Sync Waves ───────────────────────────────────────────
-        sqlx::query("ALTER TABLE workflow_node ADD COLUMN IF NOT EXISTS wave INTEGER NOT NULL DEFAULT 0")
-            .execute(pool).await.map_err(Error::Database)?;
+        sqlx::query(
+            "ALTER TABLE workflow_node ADD COLUMN IF NOT EXISTS wave INTEGER NOT NULL DEFAULT 0",
+        )
+        .execute(pool)
+        .await
+        .map_err(Error::Database)?;
 
         tracing::info!("Схема БД инициализирована");
         Ok(())
@@ -950,7 +973,8 @@ impl SqlStore {
 
     /// Получает PostgreSQL pool
     fn get_postgres_pool(&self) -> Result<&PgPool> {
-        self.db.get_postgres_pool()
+        self.db
+            .get_postgres_pool()
             .ok_or_else(|| Error::Other("PostgreSQL pool not found".to_string()))
     }
 }
@@ -959,7 +983,7 @@ impl SqlStore {
 impl SecretStorageManager for SqlStore {
     async fn get_secret_storages(&self, project_id: i32) -> Result<Vec<SecretStorage>> {
         let storages = sqlx::query_as::<_, SecretStorage>(
-            "SELECT * FROM secret_storage WHERE project_id = $1 ORDER BY name"
+            "SELECT * FROM secret_storage WHERE project_id = $1 ORDER BY name",
         )
         .bind(project_id)
         .fetch_all(self.get_postgres_pool()?)
@@ -971,7 +995,7 @@ impl SecretStorageManager for SqlStore {
 
     async fn get_secret_storage(&self, project_id: i32, storage_id: i32) -> Result<SecretStorage> {
         let storage = sqlx::query_as::<_, SecretStorage>(
-            "SELECT * FROM secret_storage WHERE id = $1 AND project_id = $2"
+            "SELECT * FROM secret_storage WHERE id = $1 AND project_id = $2",
         )
         .bind(storage_id)
         .bind(project_id)
@@ -1070,16 +1094,35 @@ impl AuditLogManager for SqlStore {
         self.db.search_audit_logs(filter).await
     }
 
-    async fn get_audit_logs_by_project(&self, project_id: i64, limit: i64, offset: i64) -> Result<Vec<AuditLog>> {
-        self.db.get_audit_logs_by_project(project_id, limit, offset).await
+    async fn get_audit_logs_by_project(
+        &self,
+        project_id: i64,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<AuditLog>> {
+        self.db
+            .get_audit_logs_by_project(project_id, limit, offset)
+            .await
     }
 
-    async fn get_audit_logs_by_user(&self, user_id: i64, limit: i64, offset: i64) -> Result<Vec<AuditLog>> {
+    async fn get_audit_logs_by_user(
+        &self,
+        user_id: i64,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<AuditLog>> {
         self.db.get_audit_logs_by_user(user_id, limit, offset).await
     }
 
-    async fn get_audit_logs_by_action(&self, action: &AuditAction, limit: i64, offset: i64) -> Result<Vec<AuditLog>> {
-        self.db.get_audit_logs_by_action(action, limit, offset).await
+    async fn get_audit_logs_by_action(
+        &self,
+        action: &AuditAction,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<AuditLog>> {
+        self.db
+            .get_audit_logs_by_action(action, limit, offset)
+            .await
     }
 
     async fn delete_audit_logs_before(&self, before: chrono::DateTime<Utc>) -> Result<u64> {

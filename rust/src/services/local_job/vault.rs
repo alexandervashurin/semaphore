@@ -2,11 +2,11 @@
 //!
 //! Аналог services/tasks/local_job_vault.go из Go версии
 
+use crate::error::Result;
+use crate::services::local_job::LocalJob;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use tokio::fs;
-use crate::error::Result;
-use crate::services::local_job::LocalJob;
 
 impl LocalJob {
     /// Устанавливает файлы ключей Vault
@@ -25,7 +25,10 @@ impl LocalJob {
             match serde_json::from_value(vaults_val.clone()) {
                 Ok(v) => v,
                 Err(e) => {
-                    self.log(&format!("Warning: failed to parse template vault refs: {}", e));
+                    self.log(&format!(
+                        "Warning: failed to parse template vault refs: {}",
+                        e
+                    ));
                     return Ok(());
                 }
             }
@@ -58,10 +61,16 @@ impl LocalJob {
 
         for (i, vref) in vault_refs.iter().enumerate() {
             use crate::db::store::AccessKeyManager;
-            let key = match store.get_access_key(self.task.project_id, vref.vault_key_id).await {
+            let key = match store
+                .get_access_key(self.task.project_id, vref.vault_key_id)
+                .await
+            {
                 Ok(k) => k,
                 Err(e) => {
-                    self.log(&format!("Warning: vault key {} not found: {}", vref.vault_key_id, e));
+                    self.log(&format!(
+                        "Warning: vault key {} not found: {}",
+                        vref.vault_key_id, e
+                    ));
                     continue;
                 }
             };
@@ -72,27 +81,32 @@ impl LocalJob {
             } else {
                 vref.r#type.clone()
             };
-            let vault_name: String = raw_type.chars()
+            let vault_name: String = raw_type
+                .chars()
                 .filter(|c| c.is_alphanumeric() || *c == '_' || *c == '-')
                 .collect();
             if vault_name.is_empty() {
-                self.log(&format!("Warning: vault type '{}' contains no valid chars, skipping", raw_type));
+                self.log(&format!(
+                    "Warning: vault type '{}' contains no valid chars, skipping",
+                    raw_type
+                ));
                 continue;
             }
 
             // Получаем пароль из ключа
-            let password = key.login_password_password
-                .as_deref()
-                .unwrap_or("");
+            let password = key.login_password_password.as_deref().unwrap_or("");
 
             if !password.is_empty() {
-                let _vault_file = self.create_vault_password_file(&vault_name, password).await?;
+                let _vault_file = self
+                    .create_vault_password_file(&vault_name, password)
+                    .await?;
                 self.log(&format!("Vault key installed: {}", vault_name));
                 let installation = crate::services::ssh_agent::AccessKeyInstallation {
                     password: Some(password.to_string()),
                     ..Default::default()
                 };
-                self.vault_file_installations.insert(vault_name, installation);
+                self.vault_file_installations
+                    .insert(vault_name, installation);
             }
         }
 
@@ -105,13 +119,17 @@ impl LocalJob {
     }
 
     /// Создаёт временный файл для пароля Vault
-    pub async fn create_vault_password_file(&self, vault_name: &str, password: &str) -> Result<PathBuf> {
+    pub async fn create_vault_password_file(
+        &self,
+        vault_name: &str,
+        password: &str,
+    ) -> Result<PathBuf> {
         let tmp_dir = &self.tmp_dir;
         let vault_password_file = tmp_dir.join(format!("vault_{}_password", vault_name));
 
         fs::create_dir_all(tmp_dir).await?;
         fs::write(&vault_password_file, password).await?;
-        
+
         // Устанавливаем права 0600
         #[cfg(unix)]
         {
@@ -128,11 +146,11 @@ impl LocalJob {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Utc;
-    use std::sync::Arc;
-    use crate::services::task_logger::BasicLogger;
     use crate::db_lib::AccessKeyInstallerImpl;
+    use crate::services::task_logger::BasicLogger;
+    use chrono::Utc;
     use std::path::PathBuf;
+    use std::sync::Arc;
 
     fn create_test_job() -> LocalJob {
         let logger = Arc::new(BasicLogger::new());

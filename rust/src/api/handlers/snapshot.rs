@@ -3,7 +3,7 @@
 use crate::api::extractors::AuthUser;
 use crate::api::state::AppState;
 use crate::db::store::{SnapshotManager, TaskManager};
-use crate::models::snapshot::{TaskSnapshotCreate, RollbackRequest};
+use crate::models::snapshot::{RollbackRequest, TaskSnapshotCreate};
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
@@ -31,7 +31,11 @@ pub async fn list_snapshots(
     let limit = q.limit.unwrap_or(50).min(200);
     match store.get_snapshots(project_id, q.template_id, limit).await {
         Ok(list) => (StatusCode::OK, Json(json!(list))).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }
 
@@ -45,7 +49,11 @@ pub async fn create_snapshot(
     let store = state.store.store();
     match store.create_snapshot(project_id, body).await {
         Ok(s) => (StatusCode::CREATED, Json(json!(s))).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }
 
@@ -58,7 +66,11 @@ pub async fn delete_snapshot(
     let store = state.store.store();
     match store.delete_snapshot(id, project_id).await {
         Ok(_) => StatusCode::NO_CONTENT.into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }
 
@@ -75,13 +87,15 @@ pub async fn rollback_snapshot(
     // Get the snapshot
     let snap = match store.get_snapshot(id, project_id).await {
         Ok(s) => s,
-        Err(e) => return (StatusCode::NOT_FOUND, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => {
+            return (StatusCode::NOT_FOUND, Json(json!({"error": e.to_string()}))).into_response()
+        }
     };
 
     // Build task params from snapshot
-    let rollback_msg = body.message.unwrap_or_else(|| {
-        format!("Rollback to snapshot #{} (task #{})", id, snap.task_id)
-    });
+    let rollback_msg = body
+        .message
+        .unwrap_or_else(|| format!("Rollback to snapshot #{} (task #{})", id, snap.task_id));
 
     let mut task = crate::models::Task {
         id: 0,
@@ -111,13 +125,21 @@ pub async fn rollback_snapshot(
     };
 
     match store.create_task(task).await {
-        Ok(t) => (StatusCode::CREATED, Json(json!({
-            "message": "Rollback task created",
-            "task_id": t.id,
-            "snapshot_id": id,
-            "from_task": snap.task_id
-        }))).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Ok(t) => (
+            StatusCode::CREATED,
+            Json(json!({
+                "message": "Rollback task created",
+                "task_id": t.id,
+                "snapshot_id": id,
+                "from_task": snap.task_id
+            })),
+        )
+            .into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }
 
@@ -134,10 +156,15 @@ pub async fn snapshot_from_task(
     // Get the task
     let task = match store.get_task(task_id, project_id).await {
         Ok(t) => t,
-        Err(e) => return (StatusCode::NOT_FOUND, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => {
+            return (StatusCode::NOT_FOUND, Json(json!({"error": e.to_string()}))).into_response()
+        }
     };
 
-    let label = body.get("label").and_then(|v| v.as_str()).map(|s| s.to_string());
+    let label = body
+        .get("label")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
 
     let payload = TaskSnapshotCreate {
         template_id: task.template_id,
@@ -153,6 +180,10 @@ pub async fn snapshot_from_task(
 
     match store.create_snapshot(project_id, payload).await {
         Ok(s) => (StatusCode::CREATED, Json(json!(s))).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }

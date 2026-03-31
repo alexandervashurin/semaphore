@@ -14,11 +14,8 @@ pub fn find_velum() -> Option<String> {
 
 /// Получает версию Ansible
 pub fn get_ansible_version() -> Option<String> {
-    let output = Command::new("ansible")
-        .arg("--version")
-        .output()
-        .ok()?;
-    
+    let output = Command::new("ansible").arg("--version").output().ok()?;
+
     if output.status.success() {
         String::from_utf8(output.stdout).ok()
     } else {
@@ -51,7 +48,7 @@ pub fn check_update() -> Option<String> {
 /// Ищет и устанавливает приложения по умолчанию (ansible, terraform, etc.)
 pub fn lookup_default_apps() {
     let apps = vec!["ansible", "terraform", "tofu", "terragrunt"];
-    
+
     for app in apps {
         match which::which(app) {
             Ok(path) => info!("Found {}: {}", app, path.display()),
@@ -64,23 +61,25 @@ pub fn lookup_default_apps() {
 pub fn get_public_host() -> String {
     use std::env;
 
-    env::var("VELUM_WEB_HOST")
-        .unwrap_or_else(|_| "http://localhost:3000".to_string())
+    env::var("VELUM_WEB_HOST").unwrap_or_else(|_| "http://localhost:3000".to_string())
 }
 
 /// Генерирует код восстановления
 pub fn generate_recovery_code() -> (String, String) {
     use rand::RngCore;
-    
+
     // Генерируем случайный код
     let mut rng = rand::thread_rng();
     let mut bytes = [0u8; 16];
     rng.fill_bytes(&mut bytes);
 
-    let code = bytes.iter().map(|b| format!("{:02X}", b)).collect::<String>();
+    let code = bytes
+        .iter()
+        .map(|b| format!("{:02X}", b))
+        .collect::<String>();
 
     // Хешируем код
-    use sha2::{Sha256, Digest};
+    use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(&code);
     let hash = format!("{:x}", hasher.finalize());
@@ -90,16 +89,16 @@ pub fn generate_recovery_code() -> (String, String) {
 
 /// Проверяет код восстановления
 pub fn verify_recovery_code(input_code: &str, stored_hash: &str) -> bool {
-    use sha2::{Sha256, Digest};
-    
+    use sha2::{Digest, Sha256};
+
     // Нормализуем ввод (убираем пробелы, приводим к верхнему регистру)
     let normalized_code = input_code.replace(" ", "").to_uppercase();
-    
+
     // Хешируем введённый код
     let mut hasher = Sha256::new();
     hasher.update(&normalized_code);
     let input_hash = format!("{:x}", hasher.finalize());
-    
+
     // Сравниваем с сохранённым хешем
     input_hash == stored_hash
 }
@@ -117,10 +116,10 @@ mod tests {
     #[test]
     fn test_generate_recovery_code() {
         let (code, hash) = generate_recovery_code();
-        
+
         assert_eq!(code.len(), 32); // 16 bytes в hex
         assert_eq!(hash.len(), 64); // SHA256 hash
-        
+
         // Проверяем что код состоит из hex символов
         assert!(code.chars().all(|c| c.is_ascii_hexdigit()));
     }
@@ -140,9 +139,10 @@ mod tests {
     #[test]
     fn test_verify_recovery_code_normalization() {
         let (code, hash) = generate_recovery_code();
-        
+
         // Вставляем пробелы между группами по 4 символа (не заменяя символы)
-        let code_with_spaces: String = code.chars()
+        let code_with_spaces: String = code
+            .chars()
             .enumerate()
             .flat_map(|(i, c)| {
                 if i > 0 && i % 4 == 0 {
@@ -152,7 +152,7 @@ mod tests {
                 }
             })
             .collect();
-        
+
         assert!(verify_recovery_code(&code_with_spaces, &hash));
     }
 

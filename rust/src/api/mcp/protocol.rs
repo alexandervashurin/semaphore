@@ -26,14 +26,23 @@ pub struct McpResponse {
 
 impl McpResponse {
     pub fn ok(id: Option<Value>, result: Value) -> Self {
-        Self { jsonrpc: "2.0".into(), id, result: Some(result), error: None }
+        Self {
+            jsonrpc: "2.0".into(),
+            id,
+            result: Some(result),
+            error: None,
+        }
     }
     pub fn err(id: Option<Value>, code: i32, message: impl Into<String>) -> Self {
         Self {
             jsonrpc: "2.0".into(),
             id,
             result: None,
-            error: Some(RpcError { code, message: message.into(), data: None }),
+            error: Some(RpcError {
+                code,
+                message: message.into(),
+                data: None,
+            }),
         }
     }
 }
@@ -56,7 +65,10 @@ pub struct ToolContent {
 
 impl ToolContent {
     pub fn text(s: impl Into<String>) -> Self {
-        Self { kind: "text", text: s.into() }
+        Self {
+            kind: "text",
+            text: s.into(),
+        }
     }
     pub fn json(v: &Value) -> Self {
         Self {

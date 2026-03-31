@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes Deployments — Velum</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+    <style>
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-available { background: #d4edda; color: #155724; }
+        .status-progressing { background: #fff3cd; color: #856404; }
+        .status-failed { background: #f8d7da; color: #721c24; }
+        
+        .scaler-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .scaler-control button {
+            width: 28px;
+            height: 28px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .replicas-display {
+            min-width: 80px;
+            text-align: center;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar"></aside>
+    <div class="main-content">
+        <div class="main-header">
+            <h2><i class="fa-solid fa-layer-group"></i> Kubernetes Deployments</h2>
+            <div style="display: flex; gap: 8px;">
+                <button class="btn btn-primary" onclick="openCreateModal()">
+                    <i class="fa-solid fa-plus"></i> Создать
+                </button>
+                <button class="btn btn-secondary" onclick="loadDeployments()">
+                    <i class="fa-solid fa-rotate"></i> Обновить
+                </button>
+            </div>
+        </div>
+        <div class="main-body">
+            <!-- Фильтры -->
+            <div class="card" style="margin-bottom:12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <label>Namespace:
+                    <select id="namespace" class="form-control" style="max-width: 200px;" onchange="loadDeployments()"></select>
+                </label>
+                <input id="filter" class="form-control" placeholder="Фильтр по имени" style="min-width: 200px;" onkeyup="filterDeployments()">
+                <label>
+                    <input type="checkbox" id="auto-refresh" onchange="toggleAutoRefresh()"> Автообновление
+                </label>
+                <span id="last-update" style="color: #666; font-size: 12px;"></span>
+            </div>
+
+            <!-- Таблица Deployments -->
+            <div id="content" class="card">
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <p>Загрузка...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Update Modal -->
+<div id="create-modal" class="modal">
+    <div class="modal-content" style="max-width: 600px;">
+        <h3><i class="fa-solid fa-plus"></i> Создать Deployment</h3>
+        <form onsubmit="createDeployment(event)">
+            <div class="form-group">
+                <label>Name *</label>
+                <input type="text" id="deploy-name" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label>Namespace *</label>
+                <select id="deploy-namespace" class="form-control" required></select>
+            </div>
+            <div class="form-group">
+                <label>Replicas</label>
+                <input type="number" id="deploy-replicas" class="form-control" value="1" min="0">
+            </div>
+            <div class="form-group">
+                <label>Container Image *</label>
+                <input type="text" id="deploy-image" class="form-control" placeholder="nginx:latest" required>
+            </div>
+            <div class="form-group">
+                <label>Container Name</label>
+                <input type="text" id="deploy-container" class="form-control" value="app">
+            </div>
+            <div class="form-group">
+                <label>Ports (через запятую)</label>
+                <input type="text" id="deploy-ports" class="form-control" placeholder="80, 443">
+            </div>
+            <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px;">
+                <button type="button" class="btn btn-secondary" onclick="closeCreateModal()">Отмена</button>
+                <button type="submit" class="btn btn-primary">Создать</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Details Modal -->
+<div id="details-modal" class="modal">
+    <div class="modal-content" style="max-width: 800px;">
+        <h3><i class="fa-solid fa-layer-group"></i> Deployment: <span id="details-name"></span></h3>
+        <div id="details-content"></div>
+        <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px;">
+            <button class="btn btn-secondary" onclick="closeDetailsModal()">Закрыть</button>
+        </div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+checkAuth();
+let deploymentsData = [];
+let autoRefreshInterval = null;
+
+// Загрузка namespaces
+async function loadNamespaces() {
+    try {
+        const ns = await api.get('/kubernetes/namespaces');
+        const select = $('#namespace');
+        const deploySelect = $('#deploy-namespace');
+        const options = '<option value="default">default</option>' + ns.map(n => `<option value="${escapeHtml(n.name)}">${escapeHtml(n.name)}</option>`).join('');
+        select.innerHTML = options;
+        deploySelect.innerHTML = options;
+        loadDeployments();
+    } catch (e) {
+        console.error('Failed to load namespaces:', e);
+        $('#content').innerHTML = `<div class="alert alert-error"><i class="fa-solid fa-exclamation-triangle"></i> Ошибка: ${escapeHtml(e.message)}</div>`;
+    }
+}
+
+// Загрузка Deployments
+async function loadDeployments() {
+    const namespace = $('#namespace').value;
+    const content = $('#content');
+
+    content.innerHTML = '<div class="loading"><div class="loading-spinner"></div><p>Загрузка...</p></div>';
+
+    try {
+        deploymentsData = await api.get(`/kubernetes/namespaces/${namespace}/deployments`);
+        renderDeployments(deploymentsData);
+        updateLastUpdate();
+    } catch (e) {
+        console.error('Failed to load deployments:', e);
+        content.innerHTML = `<div class="alert alert-error"><i class="fa-solid fa-exclamation-triangle"></i> Ошибка: ${escapeHtml(e.message)}</div>`;
+    }
+}
+
+// Рендер Deployments
+function renderDeployments(deploys) {
+    const content = $('#content');
+    const filter = $('#filter').value.toLowerCase();
+
+    let filtered = deploys;
+    if (filter) {
+        filtered = deploys.filter(d => d.name.toLowerCase().includes(filter));
+    }
+
+    if (filtered.length === 0) {
+        content.innerHTML = '<div class="alert alert-info"><i class="fa-solid fa-info-circle"></i> Deployments не найдено</div>';
+        return;
+    }
+
+    content.innerHTML = `
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Namespace</th>
+                    <th>Replicas</th>
+                    <th>Ready</th>
+                    <th>Available</th>
+                    <th>Updated</th>
+                    <th>Age</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${filtered.map(deploy => `
+                    <tr>
+                        <td><strong>${escapeHtml(deploy.name)}</strong></td>
+                        <td>${escapeHtml(deploy.namespace)}</td>
+                        <td>
+                            <div class="scaler-control">
+                                <button class="btn btn-sm btn-secondary" onclick="scaleDeployment('${escapeHtml(deploy.name)}', ${deploy.replicas - 1})">
+                                    <i class="fa-solid fa-minus"></i>
+                                </button>
+                                <span class="replicas-display">${deploy.replicas}</span>
+                                <button class="btn btn-sm btn-secondary" onclick="scaleDeployment('${escapeHtml(deploy.name)}', ${deploy.replicas + 1})">
+                                    <i class="fa-solid fa-plus"></i>
+                                </button>
+                            </div>
+                        </td>
+                        <td>${deploy.ready_replicas || 0}</td>
+                        <td>${deploy.available_replicas || 0}</td>
+                        <td>${deploy.updated_replicas || 0}</td>
+                        <td>${escapeHtml(deploy.age)}</td>
+                        <td style="display: flex; gap: 4px; flex-wrap: wrap;">
+                            <button class="btn btn-sm btn-secondary" onclick="showDetails('${escapeHtml(deploy.name)}', '${escapeHtml(deploy.namespace)}')" title="Details">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                            <button class="btn btn-sm btn-warning" onclick="restartDeployment('${escapeHtml(deploy.name)}', '${escapeHtml(deploy.namespace)}')" title="Restart">
+                                <i class="fa-solid fa-rotate"></i>
+                            </button>
+                            <button class="btn btn-sm btn-info" onclick="rollbackDeployment('${escapeHtml(deploy.name)}', '${escapeHtml(deploy.namespace)}')" title="Rollback">
+                                <i class="fa-solid fa-rotate-left"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteDeployment('${escapeHtml(deploy.name)}', '${escapeHtml(deploy.namespace)}')" title="Delete">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+// Фильтр
+function filterDeployments() {
+    renderDeployments(deploymentsData);
+}
+
+// Scale
+async function scaleDeployment(name, newReplicas) {
+    if (newReplicas < 0) {
+        alert('Replicas cannot be negative');
+        return;
+    }
+    
+    const namespace = $('#namespace').value;
+    try {
+        await api.post(`/kubernetes/namespaces/${namespace}/deployments/${name}/scale`, { replicas: newReplicas });
+        alert(`Deployment ${namespace}/${name} scaled to ${newReplicas} replicas`);
+        loadDeployments();
+    } catch (e) {
+        alert(`Ошибка: ${e.message}`);
+    }
+}
+
+// Restart
+async function restartDeployment(name, namespace) {
+    if (!confirm(`Restart Deployment ${namespace}/${name}?`)) return;
+    
+    try {
+        await api.post(`/kubernetes/namespaces/${namespace}/deployments/${name}/restart`, {});
+        alert(`Deployment ${namespace}/${name} restarting...`);
+        loadDeployments();
+    } catch (e) {
+        alert(`Ошибка: ${e.message}`);
+    }
+}
+
+// Rollback
+async function rollbackDeployment(name, namespace) {
+    const revision = prompt('Rollback to revision (empty for previous):');
+    
+    try {
+        await api.post(`/kubernetes/namespaces/${namespace}/deployments/${name}/rollback`, {
+            revision: revision ? parseInt(revision) : null
+        });
+        alert(`Deployment ${namespace}/${name} rollback initiated`);
+        loadDeployments();
+    } catch (e) {
+        alert(`Ошибка: ${e.message}`);
+    }
+}
+
+// Delete
+async function deleteDeployment(name, namespace) {
+    if (!confirm(`Delete Deployment ${namespace}/${name}?`)) return;
+    
+    try {
+        await api.delete(`/kubernetes/namespaces/${namespace}/deployments/${name}`);
+        alert(`Deployment ${namespace}/${name} deleted`);
+        loadDeployments();
+    } catch (e) {
+        alert(`Ошибка: ${e.message}`);
+    }
+}
+
+// Show Details
+async function showDetails(name, namespace) {
+    try {
+        const data = await api.get(`/kubernetes/namespaces/${namespace}/deployments/${name}`);
+        
+        $('#details-name').textContent = `${namespace}/${name}`;
+        $('#details-content').innerHTML = `
+            <div class="card">
+                <h4>Overview</h4>
+                <table class="table">
+                    <tr><td>Replicas</td><td>${data.replicas}</td></tr>
+                    <tr><td>Ready</td><td>${data.ready_replicas}</td></tr>
+                    <tr><td>Available</td><td>${data.available_replicas}</td></tr>
+                    <tr><td>Updated</td><td>${data.updated_replicas}</td></tr>
+                    <tr><td>Unavailable</td><td>${data.unavailable_replicas}</td></tr>
+                    <tr><td>Strategy</td><td>${escapeHtml(data.strategy)}</td></tr>
+                </table>
+                
+                <h4>Containers</h4>
+                <table class="table">
+                    ${data.containers.map(c => `
+                        <tr>
+                            <td>${escapeHtml(c.name)}</td>
+                            <td>${escapeHtml(c.image || 'N/A')}</td>
+                            <td>${c.ports && c.ports.length ? c.ports.join(', ') : 'N/A'}</td>
+                        </tr>
+                    `).join('')}
+                </table>
+                
+                <h4>Selector</h4>
+                <pre>${JSON.stringify(data.selector, null, 2)}</pre>
+                
+                <h4>Conditions</h4>
+                <table class="table">
+                    ${data.conditions.map(c => `
+                        <tr>
+                            <td><strong>${escapeHtml(c.type)}</strong></td>
+                            <td><span class="status-badge status-${c.status.toLowerCase()}">${escapeHtml(c.status)}</span></td>
+                            <td>${escapeHtml(c.reason || '')}</td>
+                            <td>${escapeHtml(c.message || '')}</td>
+                        </tr>
+                    `).join('')}
+                </table>
+            </div>
+        `;
+        $('#details-modal').classList.add('active');
+    } catch (e) {
+        alert(`Ошибка: ${e.message}`);
+    }
+}
+
+// Create Modal
+function openCreateModal() {
+    $('#create-modal').classList.add('active');
+}
+
+function closeCreateModal() {
+    $('#create-modal').classList.remove('active');
+}
+
+// Create Deployment
+async function createDeployment(event) {
+    event.preventDefault();
+    
+    const ports = $('#deploy-ports').value.split(',').map(p => parseInt(p.trim())).filter(p => !isNaN(p));
+    
+    const payload = {
+        name: $('#deploy-name').value,
+        namespace: $('#deploy-namespace').value,
+        replicas: parseInt($('#deploy-replicas').value),
+        image: $('#deploy-image').value,
+        container_name: $('#deploy-container').value || 'app',
+        ports: ports.length ? ports : undefined
+    };
+    
+    try {
+        await api.post('/kubernetes/deployments', payload);
+        alert(`Deployment ${payload.namespace}/${payload.name} created`);
+        closeCreateModal();
+        loadDeployments();
+    } catch (e) {
+        alert(`Ошибка: ${e.message}`);
+    }
+}
+
+// Close Details
+function closeDetailsModal() {
+    $('#details-modal').classList.remove('active');
+}
+
+// Auto Refresh
+function toggleAutoRefresh() {
+    if ($('#auto-refresh').checked) {
+        autoRefreshInterval = setInterval(loadDeployments, 10000);
+    } else {
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+            autoRefreshInterval = null;
+        }
+    }
+}
+
+function updateLastUpdate() {
+    const now = new Date();
+    $('#last-update').textContent = 'Обновлено: ' + now.toLocaleTimeString();
+}
+
+// Init
+loadNamespaces();
+</script>
+</body>
+</html>

@@ -4,7 +4,7 @@
 
 use crate::db::sql::types::SqlDb;
 use crate::error::{Error, Result};
-use crate::models::{TerraformInventoryAlias, TerraformInventoryState, RetrieveQueryParams};
+use crate::models::{RetrieveQueryParams, TerraformInventoryAlias, TerraformInventoryState};
 use sqlx::Row;
 
 impl SqlDb {
@@ -14,11 +14,14 @@ impl SqlDb {
     }
 
     /// Создаёт псевдоним для Terraform Inventory
-    pub async fn create_terraform_inventory_alias(&self, alias: TerraformInventoryAlias) -> Result<TerraformInventoryAlias> {
+    pub async fn create_terraform_inventory_alias(
+        &self,
+        alias: TerraformInventoryAlias,
+    ) -> Result<TerraformInventoryAlias> {
         sqlx::query(
             "INSERT INTO terraform_inventory_alias (project_id, inventory_id, auth_key_id, alias) \
              VALUES ($1, $2, $3, $4) \
-             ON CONFLICT (alias) DO UPDATE SET auth_key_id = EXCLUDED.auth_key_id"
+             ON CONFLICT (alias) DO UPDATE SET auth_key_id = EXCLUDED.auth_key_id",
         )
         .bind(alias.project_id)
         .bind(alias.inventory_id)
@@ -32,10 +35,13 @@ impl SqlDb {
     }
 
     /// Обновляет псевдоним
-    pub async fn update_terraform_inventory_alias(&self, alias: TerraformInventoryAlias) -> Result<()> {
+    pub async fn update_terraform_inventory_alias(
+        &self,
+        alias: TerraformInventoryAlias,
+    ) -> Result<()> {
         sqlx::query(
             "UPDATE terraform_inventory_alias SET auth_key_id = $1 \
-             WHERE alias = $2 AND project_id = $3 AND inventory_id = $4"
+             WHERE alias = $2 AND project_id = $3 AND inventory_id = $4",
         )
         .bind(alias.auth_key_id)
         .bind(&alias.alias)
@@ -48,17 +54,20 @@ impl SqlDb {
     }
 
     /// Получает псевдоним по алиасу
-    pub async fn get_terraform_inventory_alias_by_alias(&self, alias: &str) -> Result<TerraformInventoryAlias> {
-        let row = sqlx::query(
-            "SELECT * FROM terraform_inventory_alias WHERE alias = $1"
-        )
-        .bind(alias)
-        .fetch_one(self.pg_pool_terraform()?)
-        .await
-        .map_err(|e| match e {
-            sqlx::Error::RowNotFound => Error::NotFound("Terraform inventory alias not found".to_string()),
-            _ => Error::Database(e),
-        })?;
+    pub async fn get_terraform_inventory_alias_by_alias(
+        &self,
+        alias: &str,
+    ) -> Result<TerraformInventoryAlias> {
+        let row = sqlx::query("SELECT * FROM terraform_inventory_alias WHERE alias = $1")
+            .bind(alias)
+            .fetch_one(self.pg_pool_terraform()?)
+            .await
+            .map_err(|e| match e {
+                sqlx::Error::RowNotFound => {
+                    Error::NotFound("Terraform inventory alias not found".to_string())
+                }
+                _ => Error::Database(e),
+            })?;
 
         Ok(TerraformInventoryAlias {
             project_id: row.get("project_id"),
@@ -70,7 +79,12 @@ impl SqlDb {
     }
 
     /// Получает псевдоним по ID
-    pub async fn get_terraform_inventory_alias(&self, project_id: i32, inventory_id: i32, alias_id: &str) -> Result<TerraformInventoryAlias> {
+    pub async fn get_terraform_inventory_alias(
+        &self,
+        project_id: i32,
+        inventory_id: i32,
+        alias_id: &str,
+    ) -> Result<TerraformInventoryAlias> {
         let row = sqlx::query(
             "SELECT * FROM terraform_inventory_alias WHERE alias = $1 AND project_id = $2 AND inventory_id = $3"
         )
@@ -94,9 +108,13 @@ impl SqlDb {
     }
 
     /// Получает все псевдонимы для инвентаря
-    pub async fn get_terraform_inventory_aliases(&self, project_id: i32, inventory_id: i32) -> Result<Vec<TerraformInventoryAlias>> {
+    pub async fn get_terraform_inventory_aliases(
+        &self,
+        project_id: i32,
+        inventory_id: i32,
+    ) -> Result<Vec<TerraformInventoryAlias>> {
         let rows = sqlx::query(
-            "SELECT * FROM terraform_inventory_alias WHERE project_id = $1 AND inventory_id = $2"
+            "SELECT * FROM terraform_inventory_alias WHERE project_id = $1 AND inventory_id = $2",
         )
         .bind(project_id)
         .bind(inventory_id)
@@ -104,17 +122,25 @@ impl SqlDb {
         .await
         .map_err(Error::Database)?;
 
-        Ok(rows.into_iter().map(|row| TerraformInventoryAlias {
-            project_id: row.get("project_id"),
-            inventory_id: row.get("inventory_id"),
-            auth_key_id: row.get("auth_key_id"),
-            alias: row.get("alias"),
-            task_id: None,
-        }).collect())
+        Ok(rows
+            .into_iter()
+            .map(|row| TerraformInventoryAlias {
+                project_id: row.get("project_id"),
+                inventory_id: row.get("inventory_id"),
+                auth_key_id: row.get("auth_key_id"),
+                alias: row.get("alias"),
+                task_id: None,
+            })
+            .collect())
     }
 
     /// Удаляет псевдоним
-    pub async fn delete_terraform_inventory_alias(&self, project_id: i32, inventory_id: i32, alias_id: &str) -> Result<()> {
+    pub async fn delete_terraform_inventory_alias(
+        &self,
+        project_id: i32,
+        inventory_id: i32,
+        alias_id: &str,
+    ) -> Result<()> {
         sqlx::query(
             "DELETE FROM terraform_inventory_alias WHERE alias = $1 AND project_id = $2 AND inventory_id = $3"
         )
@@ -128,13 +154,18 @@ impl SqlDb {
     }
 
     /// Получает состояния Terraform Inventory
-    pub async fn get_terraform_inventory_states(&self, project_id: i32, inventory_id: i32, params: RetrieveQueryParams) -> Result<Vec<TerraformInventoryState>> {
+    pub async fn get_terraform_inventory_states(
+        &self,
+        project_id: i32,
+        inventory_id: i32,
+        params: RetrieveQueryParams,
+    ) -> Result<Vec<TerraformInventoryState>> {
         let limit = params.count.unwrap_or(100) as i64;
         let offset = params.offset as i64;
 
         let rows = sqlx::query(
             "SELECT * FROM terraform_inventory_state WHERE project_id = $1 AND inventory_id = $2 \
-             ORDER BY created DESC LIMIT $3 OFFSET $4"
+             ORDER BY created DESC LIMIT $3 OFFSET $4",
         )
         .bind(project_id)
         .bind(inventory_id)
@@ -144,18 +175,24 @@ impl SqlDb {
         .await
         .map_err(Error::Database)?;
 
-        Ok(rows.into_iter().map(|row| TerraformInventoryState {
-            id: row.get("id"),
-            created: row.get("created"),
-            task_id: row.try_get("task_id").ok().flatten(),
-            project_id: row.get("project_id"),
-            inventory_id: row.get("inventory_id"),
-            state: row.try_get("state").ok().flatten(),
-        }).collect())
+        Ok(rows
+            .into_iter()
+            .map(|row| TerraformInventoryState {
+                id: row.get("id"),
+                created: row.get("created"),
+                task_id: row.try_get("task_id").ok().flatten(),
+                project_id: row.get("project_id"),
+                inventory_id: row.get("inventory_id"),
+                state: row.try_get("state").ok().flatten(),
+            })
+            .collect())
     }
 
     /// Создаёт состояние Terraform Inventory
-    pub async fn create_terraform_inventory_state(&self, mut state: TerraformInventoryState) -> Result<TerraformInventoryState> {
+    pub async fn create_terraform_inventory_state(
+        &self,
+        mut state: TerraformInventoryState,
+    ) -> Result<TerraformInventoryState> {
         let id: i32 = sqlx::query_scalar(
             "INSERT INTO terraform_inventory_state (created, task_id, project_id, inventory_id, state) \
              VALUES ($1, $2, $3, $4, $5) RETURNING id"
@@ -174,7 +211,12 @@ impl SqlDb {
     }
 
     /// Удаляет состояние
-    pub async fn delete_terraform_inventory_state(&self, project_id: i32, inventory_id: i32, state_id: i32) -> Result<()> {
+    pub async fn delete_terraform_inventory_state(
+        &self,
+        project_id: i32,
+        inventory_id: i32,
+        state_id: i32,
+    ) -> Result<()> {
         sqlx::query(
             "DELETE FROM terraform_inventory_state WHERE id = $1 AND project_id = $2 AND inventory_id = $3"
         )
@@ -188,7 +230,12 @@ impl SqlDb {
     }
 
     /// Получает состояние по ID
-    pub async fn get_terraform_inventory_state(&self, project_id: i32, inventory_id: i32, state_id: i32) -> Result<TerraformInventoryState> {
+    pub async fn get_terraform_inventory_state(
+        &self,
+        project_id: i32,
+        inventory_id: i32,
+        state_id: i32,
+    ) -> Result<TerraformInventoryState> {
         let row = sqlx::query(
             "SELECT * FROM terraform_inventory_state WHERE id = $1 AND project_id = $2 AND inventory_id = $3"
         )
@@ -214,12 +261,10 @@ impl SqlDb {
 
     /// Получает количество состояний
     pub async fn get_terraform_state_count(&self) -> Result<i32> {
-        let count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM terraform_inventory_state"
-        )
-        .fetch_one(self.pg_pool_terraform()?)
-        .await
-        .map_err(Error::Database)?;
+        let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM terraform_inventory_state")
+            .fetch_one(self.pg_pool_terraform()?)
+            .await
+            .map_err(Error::Database)?;
 
         Ok(count as i32)
     }

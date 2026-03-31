@@ -23,11 +23,11 @@ pub enum EnvironmentTier {
 impl std::fmt::Display for EnvironmentTier {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Production  => write!(f, "production"),
-            Self::Staging     => write!(f, "staging"),
+            Self::Production => write!(f, "production"),
+            Self::Staging => write!(f, "staging"),
             Self::Development => write!(f, "development"),
-            Self::Review      => write!(f, "review"),
-            Self::Other       => write!(f, "other"),
+            Self::Review => write!(f, "review"),
+            Self::Other => write!(f, "other"),
         }
     }
 }
@@ -94,7 +94,9 @@ pub struct DeploymentEnvironmentCreate {
     pub template_id: Option<i32>,
 }
 
-fn default_tier() -> String { "other".to_string() }
+fn default_tier() -> String {
+    "other".to_string()
+}
 
 /// Payload для обновления окружения деплоя
 #[derive(Debug, Clone, Serialize, Deserialize)]

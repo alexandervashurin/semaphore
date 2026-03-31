@@ -2,15 +2,15 @@
 //!
 //! Аналог services/tasks/TaskPool.go из Go версии (часть 4: статусы)
 
+use chrono::{DateTime, Utc};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{info, warn, error};
-use chrono::{DateTime, Utc};
+use tracing::{error, info, warn};
 
+use crate::api::websocket::WsMessage;
 use crate::models::Task;
 use crate::services::task_logger::TaskStatus;
 use crate::services::task_pool_types::TaskPool;
-use crate::api::websocket::WsMessage;
 
 /// Сообщение статуса задачи
 #[derive(Debug, Clone)]
@@ -47,11 +47,11 @@ impl TaskStatusMessage {
             version: task.version.clone(),
         }
     }
-    
+
     /// Сериализует сообщение в JSON
     pub fn to_json(&self) -> String {
         use serde::Serialize;
-        
+
         #[derive(Serialize)]
         struct SerializableMessage<'a> {
             #[serde(rename = "type")]
@@ -64,7 +64,7 @@ impl TaskStatusMessage {
             project_id: i32,
             version: Option<&'a str>,
         }
-        
+
         let status_string = self.status.to_string();
         let msg = SerializableMessage {
             message_type: &self.message_type,
@@ -85,18 +85,19 @@ impl TaskPool {
     /// Обновляет статус задачи и отправляет уведомление
     pub async fn update_task_status(&self, task_id: i32, status: TaskStatus) -> Result<(), String> {
         // Обновляем статус в БД
-        self.store.update_task_status(self.project.id, task_id, status)
+        self.store
+            .update_task_status(self.project.id, task_id, status)
             .await
             .map_err(|e| format!("Failed to update task status: {}", e))?;
-        
+
         info!("Task {} status updated to {:?}", task_id, status);
-        
+
         // Отправляем WebSocket уведомление
         self.notify_websocket(task_id, status).await;
-        
+
         Ok(())
     }
-    
+
     /// Отправляет WebSocket уведомление
     pub(crate) async fn notify_websocket(&self, task_id: i32, status: TaskStatus) {
         // Получаем задачу из БД
@@ -107,7 +108,7 @@ impl TaskPool {
                 return;
             }
         };
-        
+
         // Отправляем WebSocket уведомление через broadcast
         let ws_msg = WsMessage::Status {
             task_id,
@@ -121,7 +122,7 @@ impl TaskPool {
             info!("WebSocket notification sent for task {}", task_id);
         }
     }
-    
+
     /// Логирует задачу
     pub async fn log_task(&self, task_id: i32, output: &str) -> Result<(), String> {
         use crate::models::TaskOutput;
@@ -135,7 +136,8 @@ impl TaskPool {
             stage_id: None,
         };
 
-        self.store.create_task_output(task_output)
+        self.store
+            .create_task_output(task_output)
             .await
             .map_err(|e| format!("Failed to create task output: {}", e))?;
 
@@ -143,9 +145,12 @@ impl TaskPool {
 
         Ok(())
     }
-    
+
     /// Получает логи задачи
-    pub async fn get_task_logs(&self, task_id: i32) -> Result<Vec<crate::models::TaskOutput>, String> {
+    pub async fn get_task_logs(
+        &self,
+        task_id: i32,
+    ) -> Result<Vec<crate::models::TaskOutput>, String> {
         use crate::db::store::RetrieveQueryParams;
 
         let params = RetrieveQueryParams {
@@ -156,7 +161,8 @@ impl TaskPool {
             filter: None,
         };
 
-        self.store.get_task_outputs(task_id)
+        self.store
+            .get_task_outputs(task_id)
             .await
             .map_err(|e| format!("Failed to get task outputs: {}", e))
     }
@@ -233,7 +239,7 @@ mod tests {
 
         let message = TaskStatusMessage::new(&task);
         let json = message.to_json();
-        
+
         assert!(json.contains("\"type\":\"update\""));
         assert!(json.contains("\"task_id\":1"));
         assert!(json.contains("\"status\":\"success\""));

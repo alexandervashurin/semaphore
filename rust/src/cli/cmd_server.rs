@@ -2,12 +2,12 @@
 //!
 //! Команда для запуска сервера
 
-use clap::Parser;
-use std::sync::Arc;
+use crate::api;
 use crate::cli::CliResult;
 use crate::config::Config;
 use crate::db::SqlStore;
-use crate::api;
+use clap::Parser;
+use std::sync::Arc;
 
 /// Команда server
 #[derive(Debug, Parser)]
@@ -83,7 +83,7 @@ impl ServerCommand {
                 .await
                 .map_err(|e| crate::error::Error::Other(e.to_string()))?;
             println!("Server started at http://{}:{}/", self.host, self.port);
-            
+
             // Graceful shutdown с обработкой сигналов (кросс-платформенно)
             let shutdown_future = async {
                 #[cfg(unix)]
@@ -108,7 +108,7 @@ impl ServerCommand {
 
             // Запуск сервера с graceful shutdown
             let server_future = axum::serve(listener, app);
-            
+
             tokio::select! {
                 _ = server_future => {
                     println!("Server stopped");
@@ -119,19 +119,19 @@ impl ServerCommand {
                     if let Err(e) = scheduler.stop().await {
                         eprintln!("Warning: scheduler stop error: {}", e);
                     }
-                    
+
                     println!("Stopping backup service...");
                     if backup_enabled {
                         // Остановка backup сервиса
                     }
-                    
+
                     println!("Closing database connections...");
                     // Закрытие соединений с БД будет выполнено автоматически при дропе store
-                    
+
                     println!("Graceful shutdown completed");
                 }
             }
-            
+
             Ok::<(), crate::error::Error>(())
         })?;
 
@@ -145,11 +145,22 @@ impl ServerCommand {
         use bcrypt::hash;
 
         let admin_login = std::env::var("SEMAPHORE_ADMIN").unwrap_or_else(|_| "admin".to_string());
-        let admin_password = std::env::var("SEMAPHORE_ADMIN_PASSWORD").unwrap_or_else(|_| "admin123".to_string());
-        let admin_email = std::env::var("SEMAPHORE_ADMIN_EMAIL").unwrap_or_else(|_| "admin@localhost".to_string());
-        let admin_name = std::env::var("SEMAPHORE_ADMIN_NAME").unwrap_or_else(|_| admin_login.clone());
+        let admin_password =
+            std::env::var("SEMAPHORE_ADMIN_PASSWORD").unwrap_or_else(|_| "admin123".to_string());
+        let admin_email = std::env::var("SEMAPHORE_ADMIN_EMAIL")
+            .unwrap_or_else(|_| "admin@localhost".to_string());
+        let admin_name =
+            std::env::var("SEMAPHORE_ADMIN_NAME").unwrap_or_else(|_| admin_login.clone());
 
-        let existing = store.get_users(RetrieveQueryParams { count: Some(1), offset: 0, sort_by: None, sort_inverted: false, filter: None }).await;
+        let existing = store
+            .get_users(RetrieveQueryParams {
+                count: Some(1),
+                offset: 0,
+                sort_by: None,
+                sort_inverted: false,
+                filter: None,
+            })
+            .await;
         match existing {
             Ok(users) if !users.is_empty() => return,
             Err(e) => {
@@ -161,7 +172,10 @@ impl ServerCommand {
 
         let password_hash = match hash(&admin_password, 12) {
             Ok(h) => h,
-            Err(e) => { eprintln!("seed_admin: bcrypt error: {e}"); return; }
+            Err(e) => {
+                eprintln!("seed_admin: bcrypt error: {e}");
+                return;
+            }
         };
 
         let user = User {
@@ -186,12 +200,20 @@ impl ServerCommand {
     }
 
     /// Создаёт хранилище (async версия)
-    async fn create_store_async(config: &Config) -> Result<Box<dyn crate::db::Store + Send + Sync>, crate::error::Error> {
-        match config.database.dialect.clone().unwrap_or(crate::config::DbDialect::SQLite) {
-            crate::config::DbDialect::SQLite |
-            crate::config::DbDialect::MySQL |
-            crate::config::DbDialect::Postgres => {
-                let url = config.database_url()
+    async fn create_store_async(
+        config: &Config,
+    ) -> Result<Box<dyn crate::db::Store + Send + Sync>, crate::error::Error> {
+        match config
+            .database
+            .dialect
+            .clone()
+            .unwrap_or(crate::config::DbDialect::SQLite)
+        {
+            crate::config::DbDialect::SQLite
+            | crate::config::DbDialect::MySQL
+            | crate::config::DbDialect::Postgres => {
+                let url = config
+                    .database_url()
                     .map_err(|e| crate::error::Error::Other(e.to_string()))?;
                 let store = SqlStore::new(&url).await?;
                 Ok(Box::new(store))

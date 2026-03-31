@@ -2,18 +2,31 @@
 //!
 //! Агрегирует все специализированные трейты для работы с данными
 
-use crate::models::*;
-use crate::models::audit_log::{AuditAction, AuditObjectType, AuditLevel, AuditLog, AuditLogResult};
-use crate::models::playbook::{Playbook, PlaybookCreate, PlaybookUpdate};
-use crate::models::playbook_run_history::{PlaybookRun, PlaybookRunCreate, PlaybookRunUpdate, PlaybookRunStatus, PlaybookRunStats, PlaybookRunFilter};
-use crate::models::workflow::{Workflow, WorkflowCreate, WorkflowUpdate, WorkflowNode, WorkflowNodeCreate, WorkflowNodeUpdate, WorkflowEdge, WorkflowEdgeCreate, WorkflowRun};
-use crate::models::notification::{NotificationPolicy, NotificationPolicyCreate, NotificationPolicyUpdate};
-use crate::models::credential_type::{CredentialType, CredentialTypeCreate, CredentialTypeUpdate, CredentialInstance, CredentialInstanceCreate};
+use crate::error::Result;
+use crate::models::audit_log::{
+    AuditAction, AuditLevel, AuditLog, AuditLogResult, AuditObjectType,
+};
+use crate::models::credential_type::{
+    CredentialInstance, CredentialInstanceCreate, CredentialType, CredentialTypeCreate,
+    CredentialTypeUpdate,
+};
 use crate::models::drift::{DriftConfig, DriftConfigCreate, DriftResult};
 use crate::models::ldap_group::{LdapGroupMapping, LdapGroupMappingCreate};
+use crate::models::notification::{
+    NotificationPolicy, NotificationPolicyCreate, NotificationPolicyUpdate,
+};
+use crate::models::playbook::{Playbook, PlaybookCreate, PlaybookUpdate};
+use crate::models::playbook_run_history::{
+    PlaybookRun, PlaybookRunCreate, PlaybookRunFilter, PlaybookRunStats, PlaybookRunStatus,
+    PlaybookRunUpdate,
+};
 use crate::models::snapshot::{TaskSnapshot, TaskSnapshotCreate};
+use crate::models::workflow::{
+    Workflow, WorkflowCreate, WorkflowEdge, WorkflowEdgeCreate, WorkflowNode, WorkflowNodeCreate,
+    WorkflowNodeUpdate, WorkflowRun, WorkflowUpdate,
+};
 use crate::models::Hook;
-use crate::error::Result;
+use crate::models::*;
 use crate::services::task_logger::TaskStatus;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -89,8 +102,12 @@ pub trait UserManager: Send + Sync {
     async fn set_user_password(&self, user_id: i32, password: &str) -> Result<()>;
     async fn get_all_admins(&self) -> Result<Vec<User>>;
     async fn get_user_count(&self) -> Result<usize>;
-    async fn get_project_users(&self, project_id: i32, params: RetrieveQueryParams) -> Result<Vec<ProjectUser>>;
-    
+    async fn get_project_users(
+        &self,
+        project_id: i32,
+        params: RetrieveQueryParams,
+    ) -> Result<Vec<ProjectUser>>;
+
     /// TOTP методы
     async fn get_user_totp(&self, user_id: i32) -> Result<Option<UserTotp>>;
     async fn set_user_totp(&self, user_id: i32, totp: &UserTotp) -> Result<()>;
@@ -170,15 +187,28 @@ pub trait AccessKeyManager: Send + Sync {
 /// Менеджер задач
 #[async_trait]
 pub trait TaskManager: Send + Sync {
-    async fn get_tasks(&self, project_id: i32, template_id: Option<i32>) -> Result<Vec<TaskWithTpl>>;
-    async fn get_global_tasks(&self, status_filter: Option<Vec<String>>, limit: Option<i32>) -> Result<Vec<TaskWithTpl>>;
+    async fn get_tasks(
+        &self,
+        project_id: i32,
+        template_id: Option<i32>,
+    ) -> Result<Vec<TaskWithTpl>>;
+    async fn get_global_tasks(
+        &self,
+        status_filter: Option<Vec<String>>,
+        limit: Option<i32>,
+    ) -> Result<Vec<TaskWithTpl>>;
     async fn get_task(&self, project_id: i32, task_id: i32) -> Result<Task>;
     async fn create_task(&self, task: Task) -> Result<Task>;
     async fn update_task(&self, task: Task) -> Result<()>;
     async fn delete_task(&self, project_id: i32, task_id: i32) -> Result<()>;
     async fn get_task_outputs(&self, task_id: i32) -> Result<Vec<TaskOutput>>;
     async fn create_task_output(&self, output: TaskOutput) -> Result<TaskOutput>;
-    async fn update_task_status(&self, project_id: i32, task_id: i32, status: TaskStatus) -> Result<()>;
+    async fn update_task_status(
+        &self,
+        project_id: i32,
+        task_id: i32,
+        status: TaskStatus,
+    ) -> Result<()>;
     async fn get_running_tasks_count(&self) -> Result<usize>;
     async fn get_waiting_tasks_count(&self) -> Result<usize>;
 }
@@ -192,8 +222,18 @@ pub trait ScheduleManager: Send + Sync {
     async fn create_schedule(&self, schedule: Schedule) -> Result<Schedule>;
     async fn update_schedule(&self, schedule: Schedule) -> Result<()>;
     async fn delete_schedule(&self, project_id: i32, schedule_id: i32) -> Result<()>;
-    async fn set_schedule_active(&self, project_id: i32, schedule_id: i32, active: bool) -> Result<()>;
-    async fn set_schedule_commit_hash(&self, project_id: i32, schedule_id: i32, hash: &str) -> Result<()>;
+    async fn set_schedule_active(
+        &self,
+        project_id: i32,
+        schedule_id: i32,
+        active: bool,
+    ) -> Result<()>;
+    async fn set_schedule_commit_hash(
+        &self,
+        project_id: i32,
+        schedule_id: i32,
+        hash: &str,
+    ) -> Result<()>;
 }
 
 /// Менеджер сессий
@@ -259,7 +299,11 @@ pub trait IntegrationManager: Send + Sync {
 /// Менеджер приглашений проекта
 #[async_trait]
 pub trait ProjectInviteManager: Send + Sync {
-    async fn get_project_invites(&self, project_id: i32, params: RetrieveQueryParams) -> Result<Vec<ProjectInviteWithUser>>;
+    async fn get_project_invites(
+        &self,
+        project_id: i32,
+        params: RetrieveQueryParams,
+    ) -> Result<Vec<ProjectInviteWithUser>>;
     async fn create_project_invite(&self, invite: ProjectInvite) -> Result<ProjectInvite>;
     async fn get_project_invite(&self, project_id: i32, invite_id: i32) -> Result<ProjectInvite>;
     async fn get_project_invite_by_token(&self, token: &str) -> Result<ProjectInvite>;
@@ -270,16 +314,54 @@ pub trait ProjectInviteManager: Send + Sync {
 /// Менеджер Terraform Inventory (PRO)
 #[async_trait]
 pub trait TerraformInventoryManager: Send + Sync {
-    async fn create_terraform_inventory_alias(&self, alias: TerraformInventoryAlias) -> Result<TerraformInventoryAlias>;
+    async fn create_terraform_inventory_alias(
+        &self,
+        alias: TerraformInventoryAlias,
+    ) -> Result<TerraformInventoryAlias>;
     async fn update_terraform_inventory_alias(&self, alias: TerraformInventoryAlias) -> Result<()>;
-    async fn get_terraform_inventory_alias_by_alias(&self, alias: &str) -> Result<TerraformInventoryAlias>;
-    async fn get_terraform_inventory_alias(&self, project_id: i32, inventory_id: i32, alias_id: &str) -> Result<TerraformInventoryAlias>;
-    async fn get_terraform_inventory_aliases(&self, project_id: i32, inventory_id: i32) -> Result<Vec<TerraformInventoryAlias>>;
-    async fn delete_terraform_inventory_alias(&self, project_id: i32, inventory_id: i32, alias_id: &str) -> Result<()>;
-    async fn get_terraform_inventory_states(&self, project_id: i32, inventory_id: i32, params: RetrieveQueryParams) -> Result<Vec<TerraformInventoryState>>;
-    async fn create_terraform_inventory_state(&self, state: TerraformInventoryState) -> Result<TerraformInventoryState>;
-    async fn delete_terraform_inventory_state(&self, project_id: i32, inventory_id: i32, state_id: i32) -> Result<()>;
-    async fn get_terraform_inventory_state(&self, project_id: i32, inventory_id: i32, state_id: i32) -> Result<TerraformInventoryState>;
+    async fn get_terraform_inventory_alias_by_alias(
+        &self,
+        alias: &str,
+    ) -> Result<TerraformInventoryAlias>;
+    async fn get_terraform_inventory_alias(
+        &self,
+        project_id: i32,
+        inventory_id: i32,
+        alias_id: &str,
+    ) -> Result<TerraformInventoryAlias>;
+    async fn get_terraform_inventory_aliases(
+        &self,
+        project_id: i32,
+        inventory_id: i32,
+    ) -> Result<Vec<TerraformInventoryAlias>>;
+    async fn delete_terraform_inventory_alias(
+        &self,
+        project_id: i32,
+        inventory_id: i32,
+        alias_id: &str,
+    ) -> Result<()>;
+    async fn get_terraform_inventory_states(
+        &self,
+        project_id: i32,
+        inventory_id: i32,
+        params: RetrieveQueryParams,
+    ) -> Result<Vec<TerraformInventoryState>>;
+    async fn create_terraform_inventory_state(
+        &self,
+        state: TerraformInventoryState,
+    ) -> Result<TerraformInventoryState>;
+    async fn delete_terraform_inventory_state(
+        &self,
+        project_id: i32,
+        inventory_id: i32,
+        state_id: i32,
+    ) -> Result<()>;
+    async fn get_terraform_inventory_state(
+        &self,
+        project_id: i32,
+        inventory_id: i32,
+        state_id: i32,
+    ) -> Result<TerraformInventoryState>;
     async fn get_terraform_state_count(&self) -> Result<i32>;
 }
 
@@ -321,13 +403,28 @@ pub trait AuditLogManager: Send + Sync {
     async fn search_audit_logs(&self, filter: &AuditLogFilter) -> Result<AuditLogResult>;
 
     /// Получает записи audit log по project_id с пагинацией
-    async fn get_audit_logs_by_project(&self, project_id: i64, limit: i64, offset: i64) -> Result<Vec<AuditLog>>;
+    async fn get_audit_logs_by_project(
+        &self,
+        project_id: i64,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<AuditLog>>;
 
     /// Получает записи audit log по user_id с пагинацией
-    async fn get_audit_logs_by_user(&self, user_id: i64, limit: i64, offset: i64) -> Result<Vec<AuditLog>>;
+    async fn get_audit_logs_by_user(
+        &self,
+        user_id: i64,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<AuditLog>>;
 
     /// Получает записи audit log по action с пагинацией
-    async fn get_audit_logs_by_action(&self, action: &AuditAction, limit: i64, offset: i64) -> Result<Vec<AuditLog>>;
+    async fn get_audit_logs_by_action(
+        &self,
+        action: &AuditAction,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<AuditLog>>;
 
     /// Удаляет старые записи audit log (до указанной даты)
     async fn delete_audit_logs_before(&self, before: DateTime<Utc>) -> Result<u64>;
@@ -342,7 +439,12 @@ pub trait PlaybookManager: Send + Sync {
     async fn get_playbooks(&self, project_id: i32) -> Result<Vec<Playbook>>;
     async fn get_playbook(&self, id: i32, project_id: i32) -> Result<Playbook>;
     async fn create_playbook(&self, project_id: i32, playbook: PlaybookCreate) -> Result<Playbook>;
-    async fn update_playbook(&self, id: i32, project_id: i32, playbook: PlaybookUpdate) -> Result<Playbook>;
+    async fn update_playbook(
+        &self,
+        id: i32,
+        project_id: i32,
+        playbook: PlaybookUpdate,
+    ) -> Result<Playbook>;
     async fn delete_playbook(&self, id: i32, project_id: i32) -> Result<()>;
 }
 
@@ -353,7 +455,12 @@ pub trait PlaybookRunManager: Send + Sync {
     async fn get_playbook_run(&self, id: i32, project_id: i32) -> Result<PlaybookRun>;
     async fn get_playbook_run_by_task_id(&self, task_id: i32) -> Result<Option<PlaybookRun>>;
     async fn create_playbook_run(&self, run: PlaybookRunCreate) -> Result<PlaybookRun>;
-    async fn update_playbook_run(&self, id: i32, project_id: i32, update: PlaybookRunUpdate) -> Result<PlaybookRun>;
+    async fn update_playbook_run(
+        &self,
+        id: i32,
+        project_id: i32,
+        update: PlaybookRunUpdate,
+    ) -> Result<PlaybookRun>;
     async fn update_playbook_run_status(&self, id: i32, status: PlaybookRunStatus) -> Result<()>;
     async fn delete_playbook_run(&self, id: i32, project_id: i32) -> Result<()>;
     async fn get_playbook_run_stats(&self, playbook_id: i32) -> Result<PlaybookRunStats>;
@@ -366,40 +473,80 @@ pub trait WebhookManager: Send + Sync {
     async fn get_webhook(&self, webhook_id: i64) -> Result<crate::models::webhook::Webhook>;
 
     /// Получает webhook проекта
-    async fn get_webhooks_by_project(&self, project_id: i64) -> Result<Vec<crate::models::webhook::Webhook>>;
+    async fn get_webhooks_by_project(
+        &self,
+        project_id: i64,
+    ) -> Result<Vec<crate::models::webhook::Webhook>>;
 
     /// Создаёт webhook
-    async fn create_webhook(&self, webhook: crate::models::webhook::Webhook) -> Result<crate::models::webhook::Webhook>;
+    async fn create_webhook(
+        &self,
+        webhook: crate::models::webhook::Webhook,
+    ) -> Result<crate::models::webhook::Webhook>;
 
     /// Обновляет webhook
-    async fn update_webhook(&self, webhook_id: i64, webhook: crate::models::webhook::UpdateWebhook) -> Result<crate::models::webhook::Webhook>;
+    async fn update_webhook(
+        &self,
+        webhook_id: i64,
+        webhook: crate::models::webhook::UpdateWebhook,
+    ) -> Result<crate::models::webhook::Webhook>;
 
     /// Удаляет webhook
     async fn delete_webhook(&self, webhook_id: i64) -> Result<()>;
 
     /// Получает логи webhook
-    async fn get_webhook_logs(&self, webhook_id: i64) -> Result<Vec<crate::models::webhook::WebhookLog>>;
+    async fn get_webhook_logs(
+        &self,
+        webhook_id: i64,
+    ) -> Result<Vec<crate::models::webhook::WebhookLog>>;
 
     /// Создаёт лог webhook
-    async fn create_webhook_log(&self, log: crate::models::webhook::WebhookLog) -> Result<crate::models::webhook::WebhookLog>;
+    async fn create_webhook_log(
+        &self,
+        log: crate::models::webhook::WebhookLog,
+    ) -> Result<crate::models::webhook::WebhookLog>;
 }
 
 /// Менеджер матчеров интеграции
 #[async_trait]
 pub trait IntegrationMatcherManager: Send + Sync {
-    async fn get_integration_matchers(&self, project_id: i32, integration_id: i32) -> Result<Vec<IntegrationMatcher>>;
-    async fn create_integration_matcher(&self, matcher: IntegrationMatcher) -> Result<IntegrationMatcher>;
+    async fn get_integration_matchers(
+        &self,
+        project_id: i32,
+        integration_id: i32,
+    ) -> Result<Vec<IntegrationMatcher>>;
+    async fn create_integration_matcher(
+        &self,
+        matcher: IntegrationMatcher,
+    ) -> Result<IntegrationMatcher>;
     async fn update_integration_matcher(&self, matcher: IntegrationMatcher) -> Result<()>;
-    async fn delete_integration_matcher(&self, project_id: i32, integration_id: i32, matcher_id: i32) -> Result<()>;
+    async fn delete_integration_matcher(
+        &self,
+        project_id: i32,
+        integration_id: i32,
+        matcher_id: i32,
+    ) -> Result<()>;
 }
 
 /// Менеджер extract values интеграции
 #[async_trait]
 pub trait IntegrationExtractValueManager: Send + Sync {
-    async fn get_integration_extract_values(&self, project_id: i32, integration_id: i32) -> Result<Vec<IntegrationExtractValue>>;
-    async fn create_integration_extract_value(&self, value: IntegrationExtractValue) -> Result<IntegrationExtractValue>;
+    async fn get_integration_extract_values(
+        &self,
+        project_id: i32,
+        integration_id: i32,
+    ) -> Result<Vec<IntegrationExtractValue>>;
+    async fn create_integration_extract_value(
+        &self,
+        value: IntegrationExtractValue,
+    ) -> Result<IntegrationExtractValue>;
     async fn update_integration_extract_value(&self, value: IntegrationExtractValue) -> Result<()>;
-    async fn delete_integration_extract_value(&self, project_id: i32, integration_id: i32, value_id: i32) -> Result<()>;
+    async fn delete_integration_extract_value(
+        &self,
+        project_id: i32,
+        integration_id: i32,
+        value_id: i32,
+    ) -> Result<()>;
 }
 
 /// Менеджер ролей проекта
@@ -417,29 +564,71 @@ pub trait WorkflowManager: Send + Sync {
     async fn get_workflows(&self, project_id: i32) -> Result<Vec<Workflow>>;
     async fn get_workflow(&self, id: i32, project_id: i32) -> Result<Workflow>;
     async fn create_workflow(&self, project_id: i32, payload: WorkflowCreate) -> Result<Workflow>;
-    async fn update_workflow(&self, id: i32, project_id: i32, payload: WorkflowUpdate) -> Result<Workflow>;
+    async fn update_workflow(
+        &self,
+        id: i32,
+        project_id: i32,
+        payload: WorkflowUpdate,
+    ) -> Result<Workflow>;
     async fn delete_workflow(&self, id: i32, project_id: i32) -> Result<()>;
     async fn get_workflow_nodes(&self, workflow_id: i32) -> Result<Vec<WorkflowNode>>;
-    async fn create_workflow_node(&self, workflow_id: i32, payload: WorkflowNodeCreate) -> Result<WorkflowNode>;
-    async fn update_workflow_node(&self, id: i32, workflow_id: i32, payload: WorkflowNodeUpdate) -> Result<WorkflowNode>;
+    async fn create_workflow_node(
+        &self,
+        workflow_id: i32,
+        payload: WorkflowNodeCreate,
+    ) -> Result<WorkflowNode>;
+    async fn update_workflow_node(
+        &self,
+        id: i32,
+        workflow_id: i32,
+        payload: WorkflowNodeUpdate,
+    ) -> Result<WorkflowNode>;
     async fn delete_workflow_node(&self, id: i32, workflow_id: i32) -> Result<()>;
     async fn get_workflow_edges(&self, workflow_id: i32) -> Result<Vec<WorkflowEdge>>;
-    async fn create_workflow_edge(&self, workflow_id: i32, payload: WorkflowEdgeCreate) -> Result<WorkflowEdge>;
+    async fn create_workflow_edge(
+        &self,
+        workflow_id: i32,
+        payload: WorkflowEdgeCreate,
+    ) -> Result<WorkflowEdge>;
     async fn delete_workflow_edge(&self, id: i32, workflow_id: i32) -> Result<()>;
-    async fn get_workflow_runs(&self, workflow_id: i32, project_id: i32) -> Result<Vec<WorkflowRun>>;
+    async fn get_workflow_runs(
+        &self,
+        workflow_id: i32,
+        project_id: i32,
+    ) -> Result<Vec<WorkflowRun>>;
     async fn create_workflow_run(&self, workflow_id: i32, project_id: i32) -> Result<WorkflowRun>;
-    async fn update_workflow_run_status(&self, id: i32, status: &str, message: Option<String>) -> Result<()>;
+    async fn update_workflow_run_status(
+        &self,
+        id: i32,
+        status: &str,
+        message: Option<String>,
+    ) -> Result<()>;
 }
 
 /// Менеджер политик уведомлений
 #[async_trait]
 pub trait NotificationPolicyManager: Send + Sync {
     async fn get_notification_policies(&self, project_id: i32) -> Result<Vec<NotificationPolicy>>;
-    async fn get_notification_policy(&self, id: i32, project_id: i32) -> Result<NotificationPolicy>;
-    async fn create_notification_policy(&self, project_id: i32, payload: NotificationPolicyCreate) -> Result<NotificationPolicy>;
-    async fn update_notification_policy(&self, id: i32, project_id: i32, payload: NotificationPolicyUpdate) -> Result<NotificationPolicy>;
+    async fn get_notification_policy(&self, id: i32, project_id: i32)
+        -> Result<NotificationPolicy>;
+    async fn create_notification_policy(
+        &self,
+        project_id: i32,
+        payload: NotificationPolicyCreate,
+    ) -> Result<NotificationPolicy>;
+    async fn update_notification_policy(
+        &self,
+        id: i32,
+        project_id: i32,
+        payload: NotificationPolicyUpdate,
+    ) -> Result<NotificationPolicy>;
     async fn delete_notification_policy(&self, id: i32, project_id: i32) -> Result<()>;
-    async fn get_matching_policies(&self, project_id: i32, trigger: &str, template_id: Option<i32>) -> Result<Vec<NotificationPolicy>>;
+    async fn get_matching_policies(
+        &self,
+        project_id: i32,
+        trigger: &str,
+        template_id: Option<i32>,
+    ) -> Result<Vec<NotificationPolicy>>;
 }
 
 /// Менеджер пользовательских типов учётных данных
@@ -447,12 +636,22 @@ pub trait NotificationPolicyManager: Send + Sync {
 pub trait CredentialTypeManager: Send + Sync {
     async fn get_credential_types(&self) -> Result<Vec<CredentialType>>;
     async fn get_credential_type(&self, id: i32) -> Result<CredentialType>;
-    async fn create_credential_type(&self, payload: CredentialTypeCreate) -> Result<CredentialType>;
-    async fn update_credential_type(&self, id: i32, payload: CredentialTypeUpdate) -> Result<CredentialType>;
+    async fn create_credential_type(&self, payload: CredentialTypeCreate)
+        -> Result<CredentialType>;
+    async fn update_credential_type(
+        &self,
+        id: i32,
+        payload: CredentialTypeUpdate,
+    ) -> Result<CredentialType>;
     async fn delete_credential_type(&self, id: i32) -> Result<()>;
     async fn get_credential_instances(&self, project_id: i32) -> Result<Vec<CredentialInstance>>;
-    async fn get_credential_instance(&self, id: i32, project_id: i32) -> Result<CredentialInstance>;
-    async fn create_credential_instance(&self, project_id: i32, payload: CredentialInstanceCreate) -> Result<CredentialInstance>;
+    async fn get_credential_instance(&self, id: i32, project_id: i32)
+        -> Result<CredentialInstance>;
+    async fn create_credential_instance(
+        &self,
+        project_id: i32,
+        payload: CredentialInstanceCreate,
+    ) -> Result<CredentialInstance>;
     async fn delete_credential_instance(&self, id: i32, project_id: i32) -> Result<()>;
 }
 
@@ -507,11 +706,29 @@ pub trait Store:
 pub trait DriftManager: Send + Sync {
     async fn get_drift_configs(&self, project_id: i32) -> Result<Vec<DriftConfig>>;
     async fn get_drift_config(&self, id: i32, project_id: i32) -> Result<DriftConfig>;
-    async fn create_drift_config(&self, project_id: i32, payload: DriftConfigCreate) -> Result<DriftConfig>;
-    async fn update_drift_config_enabled(&self, id: i32, project_id: i32, enabled: bool) -> Result<()>;
+    async fn create_drift_config(
+        &self,
+        project_id: i32,
+        payload: DriftConfigCreate,
+    ) -> Result<DriftConfig>;
+    async fn update_drift_config_enabled(
+        &self,
+        id: i32,
+        project_id: i32,
+        enabled: bool,
+    ) -> Result<()>;
     async fn delete_drift_config(&self, id: i32, project_id: i32) -> Result<()>;
-    async fn get_drift_results(&self, drift_config_id: i32, limit: i64) -> Result<Vec<DriftResult>>;
-    async fn create_drift_result(&self, project_id: i32, drift_config_id: i32, template_id: i32, status: &str, summary: Option<String>, task_id: Option<i32>) -> Result<DriftResult>;
+    async fn get_drift_results(&self, drift_config_id: i32, limit: i64)
+        -> Result<Vec<DriftResult>>;
+    async fn create_drift_result(
+        &self,
+        project_id: i32,
+        drift_config_id: i32,
+        template_id: i32,
+        status: &str,
+        summary: Option<String>,
+        task_id: Option<i32>,
+    ) -> Result<DriftResult>;
     async fn get_latest_drift_results(&self, project_id: i32) -> Result<Vec<DriftResult>>;
 }
 
@@ -519,7 +736,10 @@ pub trait DriftManager: Send + Sync {
 #[async_trait]
 pub trait LdapGroupMappingManager: Send + Sync {
     async fn get_ldap_group_mappings(&self) -> Result<Vec<LdapGroupMapping>>;
-    async fn create_ldap_group_mapping(&self, payload: LdapGroupMappingCreate) -> Result<LdapGroupMapping>;
+    async fn create_ldap_group_mapping(
+        &self,
+        payload: LdapGroupMappingCreate,
+    ) -> Result<LdapGroupMapping>;
     async fn delete_ldap_group_mapping(&self, id: i32) -> Result<()>;
     async fn get_mappings_for_groups(&self, group_dns: &[String]) -> Result<Vec<LdapGroupMapping>>;
 }
@@ -527,9 +747,18 @@ pub trait LdapGroupMappingManager: Send + Sync {
 /// Менеджер снапшотов задач (для Rollback)
 #[async_trait]
 pub trait SnapshotManager: Send + Sync {
-    async fn get_snapshots(&self, project_id: i32, template_id: Option<i32>, limit: i64) -> Result<Vec<TaskSnapshot>>;
+    async fn get_snapshots(
+        &self,
+        project_id: i32,
+        template_id: Option<i32>,
+        limit: i64,
+    ) -> Result<Vec<TaskSnapshot>>;
     async fn get_snapshot(&self, id: i32, project_id: i32) -> Result<TaskSnapshot>;
-    async fn create_snapshot(&self, project_id: i32, payload: TaskSnapshotCreate) -> Result<TaskSnapshot>;
+    async fn create_snapshot(
+        &self,
+        project_id: i32,
+        payload: TaskSnapshotCreate,
+    ) -> Result<TaskSnapshot>;
     async fn delete_snapshot(&self, id: i32, project_id: i32) -> Result<()>;
 }
 
@@ -537,7 +766,11 @@ pub trait SnapshotManager: Send + Sync {
 #[async_trait]
 pub trait CostEstimateManager: Send + Sync {
     async fn get_cost_estimates(&self, project_id: i32, limit: i64) -> Result<Vec<CostEstimate>>;
-    async fn get_cost_estimate_for_task(&self, project_id: i32, task_id: i32) -> Result<Option<CostEstimate>>;
+    async fn get_cost_estimate_for_task(
+        &self,
+        project_id: i32,
+        task_id: i32,
+    ) -> Result<Option<CostEstimate>>;
     async fn create_cost_estimate(&self, payload: CostEstimateCreate) -> Result<CostEstimate>;
     async fn get_cost_summaries(&self, project_id: i32) -> Result<Vec<CostSummary>>;
 }
@@ -546,23 +779,53 @@ pub trait CostEstimateManager: Send + Sync {
 #[async_trait]
 pub trait TerraformStateManager: Send + Sync {
     /// Fetch the latest state for a workspace (returns raw bytes).
-    async fn get_terraform_state(&self, project_id: i32, workspace: &str) -> Result<Option<crate::models::TerraformState>>;
+    async fn get_terraform_state(
+        &self,
+        project_id: i32,
+        workspace: &str,
+    ) -> Result<Option<crate::models::TerraformState>>;
     /// Fetch all state versions for a workspace (summaries, no bytes).
-    async fn list_terraform_states(&self, project_id: i32, workspace: &str) -> Result<Vec<crate::models::TerraformStateSummary>>;
+    async fn list_terraform_states(
+        &self,
+        project_id: i32,
+        workspace: &str,
+    ) -> Result<Vec<crate::models::TerraformStateSummary>>;
     /// Fetch a specific state version by serial.
-    async fn get_terraform_state_by_serial(&self, project_id: i32, workspace: &str, serial: i32) -> Result<Option<crate::models::TerraformState>>;
+    async fn get_terraform_state_by_serial(
+        &self,
+        project_id: i32,
+        workspace: &str,
+        serial: i32,
+    ) -> Result<Option<crate::models::TerraformState>>;
     /// Store a new state version. Returns existing record if same serial+md5 (idempotent).
-    async fn create_terraform_state(&self, state: crate::models::TerraformState) -> Result<crate::models::TerraformState>;
+    async fn create_terraform_state(
+        &self,
+        state: crate::models::TerraformState,
+    ) -> Result<crate::models::TerraformState>;
     /// Delete the latest state for a workspace.
     async fn delete_terraform_state(&self, project_id: i32, workspace: &str) -> Result<()>;
     /// Delete all state versions for a workspace.
     async fn delete_all_terraform_states(&self, project_id: i32, workspace: &str) -> Result<()>;
     /// Try to acquire a lock. Returns Ok(lock) on success, Err with existing lock info on 423.
-    async fn lock_terraform_state(&self, project_id: i32, workspace: &str, lock: crate::models::TerraformStateLock) -> Result<crate::models::TerraformStateLock>;
+    async fn lock_terraform_state(
+        &self,
+        project_id: i32,
+        workspace: &str,
+        lock: crate::models::TerraformStateLock,
+    ) -> Result<crate::models::TerraformStateLock>;
     /// Release a lock (by lock_id). Returns Err if lock not found or wrong ID.
-    async fn unlock_terraform_state(&self, project_id: i32, workspace: &str, lock_id: &str) -> Result<()>;
+    async fn unlock_terraform_state(
+        &self,
+        project_id: i32,
+        workspace: &str,
+        lock_id: &str,
+    ) -> Result<()>;
     /// Get the current lock info for a workspace (None if unlocked).
-    async fn get_terraform_lock(&self, project_id: i32, workspace: &str) -> Result<Option<crate::models::TerraformStateLock>>;
+    async fn get_terraform_lock(
+        &self,
+        project_id: i32,
+        workspace: &str,
+    ) -> Result<Option<crate::models::TerraformStateLock>>;
     /// List all workspaces for a project.
     async fn list_terraform_workspaces(&self, project_id: i32) -> Result<Vec<String>>;
     /// Purge expired locks (called by SchedulePool every 5 min).
@@ -572,12 +835,30 @@ pub trait TerraformStateManager: Send + Sync {
 /// Менеджер Plan Approval (Phase 2)
 #[async_trait]
 pub trait PlanApprovalManager: Send + Sync {
-    async fn create_plan(&self, plan: crate::models::TerraformPlan) -> Result<crate::models::TerraformPlan>;
-    async fn get_plan_by_task(&self, project_id: i32, task_id: i32) -> Result<Option<crate::models::TerraformPlan>>;
-    async fn list_pending_plans(&self, project_id: i32) -> Result<Vec<crate::models::TerraformPlan>>;
+    async fn create_plan(
+        &self,
+        plan: crate::models::TerraformPlan,
+    ) -> Result<crate::models::TerraformPlan>;
+    async fn get_plan_by_task(
+        &self,
+        project_id: i32,
+        task_id: i32,
+    ) -> Result<Option<crate::models::TerraformPlan>>;
+    async fn list_pending_plans(
+        &self,
+        project_id: i32,
+    ) -> Result<Vec<crate::models::TerraformPlan>>;
     async fn approve_plan(&self, id: i64, reviewed_by: i32, comment: Option<String>) -> Result<()>;
     async fn reject_plan(&self, id: i64, reviewed_by: i32, comment: Option<String>) -> Result<()>;
-    async fn update_plan_output(&self, task_id: i32, output: String, json: Option<String>, added: i32, changed: i32, removed: i32) -> Result<()>;
+    async fn update_plan_output(
+        &self,
+        task_id: i32,
+        output: String,
+        json: Option<String>,
+        added: i32,
+        changed: i32,
+        removed: i32,
+    ) -> Result<()>;
 }
 
 /// Менеджер организаций (Multi-Tenancy v4.0)
@@ -587,12 +868,24 @@ pub trait OrganizationManager: Send + Sync {
     async fn get_organization(&self, id: i32) -> Result<Organization>;
     async fn get_organization_by_slug(&self, slug: &str) -> Result<Organization>;
     async fn create_organization(&self, payload: OrganizationCreate) -> Result<Organization>;
-    async fn update_organization(&self, id: i32, payload: OrganizationUpdate) -> Result<Organization>;
+    async fn update_organization(
+        &self,
+        id: i32,
+        payload: OrganizationUpdate,
+    ) -> Result<Organization>;
     async fn delete_organization(&self, id: i32) -> Result<()>;
     async fn get_organization_users(&self, org_id: i32) -> Result<Vec<OrganizationUser>>;
-    async fn add_user_to_organization(&self, payload: OrganizationUserCreate) -> Result<OrganizationUser>;
+    async fn add_user_to_organization(
+        &self,
+        payload: OrganizationUserCreate,
+    ) -> Result<OrganizationUser>;
     async fn remove_user_from_organization(&self, org_id: i32, user_id: i32) -> Result<()>;
-    async fn update_user_organization_role(&self, org_id: i32, user_id: i32, role: &str) -> Result<()>;
+    async fn update_user_organization_role(
+        &self,
+        org_id: i32,
+        user_id: i32,
+        role: &str,
+    ) -> Result<()>;
     async fn get_user_organizations(&self, user_id: i32) -> Result<Vec<Organization>>;
     async fn check_organization_quota(&self, org_id: i32, quota_type: &str) -> Result<bool>;
 }
@@ -600,22 +893,72 @@ pub trait OrganizationManager: Send + Sync {
 /// Менеджер deployment environments (GitLab Environments — FI-GL-1)
 #[async_trait]
 pub trait DeploymentEnvironmentManager: Send + Sync {
-    async fn get_deployment_environments(&self, project_id: i32) -> Result<Vec<crate::models::DeploymentEnvironment>>;
-    async fn get_deployment_environment(&self, id: i32, project_id: i32) -> Result<crate::models::DeploymentEnvironment>;
-    async fn create_deployment_environment(&self, project_id: i32, payload: crate::models::DeploymentEnvironmentCreate) -> Result<crate::models::DeploymentEnvironment>;
-    async fn update_deployment_environment(&self, id: i32, project_id: i32, payload: crate::models::DeploymentEnvironmentUpdate) -> Result<crate::models::DeploymentEnvironment>;
+    async fn get_deployment_environments(
+        &self,
+        project_id: i32,
+    ) -> Result<Vec<crate::models::DeploymentEnvironment>>;
+    async fn get_deployment_environment(
+        &self,
+        id: i32,
+        project_id: i32,
+    ) -> Result<crate::models::DeploymentEnvironment>;
+    async fn create_deployment_environment(
+        &self,
+        project_id: i32,
+        payload: crate::models::DeploymentEnvironmentCreate,
+    ) -> Result<crate::models::DeploymentEnvironment>;
+    async fn update_deployment_environment(
+        &self,
+        id: i32,
+        project_id: i32,
+        payload: crate::models::DeploymentEnvironmentUpdate,
+    ) -> Result<crate::models::DeploymentEnvironment>;
     async fn delete_deployment_environment(&self, id: i32, project_id: i32) -> Result<()>;
-    async fn get_deployment_history(&self, env_id: i32, project_id: i32) -> Result<Vec<crate::models::DeploymentRecord>>;
-    async fn record_deployment(&self, env_id: i32, task_id: i32, project_id: i32, version: Option<String>, deployed_by: Option<i32>, status: &str) -> Result<()>;
+    async fn get_deployment_history(
+        &self,
+        env_id: i32,
+        project_id: i32,
+    ) -> Result<Vec<crate::models::DeploymentRecord>>;
+    async fn record_deployment(
+        &self,
+        env_id: i32,
+        task_id: i32,
+        project_id: i32,
+        version: Option<String>,
+        deployed_by: Option<i32>,
+        status: &str,
+    ) -> Result<()>;
 }
 
 /// Менеджер structured outputs задачи (Pulumi Outputs — FI-PUL-1)
 #[async_trait]
 pub trait StructuredOutputManager: Send + Sync {
-    async fn get_task_structured_outputs(&self, task_id: i32, project_id: i32) -> Result<Vec<crate::models::TaskStructuredOutput>>;
-    async fn get_task_outputs_map(&self, task_id: i32, project_id: i32) -> Result<crate::models::TaskOutputsMap>;
-    async fn create_task_structured_output(&self, task_id: i32, project_id: i32, payload: crate::models::TaskStructuredOutputCreate) -> Result<crate::models::TaskStructuredOutput>;
-    async fn create_task_structured_outputs_batch(&self, task_id: i32, project_id: i32, outputs: Vec<crate::models::TaskStructuredOutputCreate>) -> Result<()>;
+    async fn get_task_structured_outputs(
+        &self,
+        task_id: i32,
+        project_id: i32,
+    ) -> Result<Vec<crate::models::TaskStructuredOutput>>;
+    async fn get_task_outputs_map(
+        &self,
+        task_id: i32,
+        project_id: i32,
+    ) -> Result<crate::models::TaskOutputsMap>;
+    async fn create_task_structured_output(
+        &self,
+        task_id: i32,
+        project_id: i32,
+        payload: crate::models::TaskStructuredOutputCreate,
+    ) -> Result<crate::models::TaskStructuredOutput>;
+    async fn create_task_structured_outputs_batch(
+        &self,
+        task_id: i32,
+        project_id: i32,
+        outputs: Vec<crate::models::TaskStructuredOutputCreate>,
+    ) -> Result<()>;
     async fn delete_task_structured_outputs(&self, task_id: i32, project_id: i32) -> Result<()>;
-    async fn get_template_last_outputs(&self, template_id: i32, project_id: i32) -> Result<crate::models::TaskOutputsMap>;
+    async fn get_template_last_outputs(
+        &self,
+        template_id: i32,
+        project_id: i32,
+    ) -> Result<crate::models::TaskOutputsMap>;
 }

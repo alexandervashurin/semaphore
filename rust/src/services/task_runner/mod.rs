@@ -2,12 +2,12 @@
 //!
 //! Выполнение задач
 
-pub mod types;
-pub mod lifecycle;
 pub mod details;
-pub mod logging;
-pub mod websocket;
-pub mod hooks;
 pub mod errors;
+pub mod hooks;
+pub mod lifecycle;
+pub mod logging;
+pub mod types;
+pub mod websocket;
 
-pub use types::{TaskRunner, Job};
+pub use types::{Job, TaskRunner};

@@ -2,7 +2,7 @@
 //!
 //! Аналог db/sql/SqlDb.go из Go версии (часть 2: инициализация)
 
-use crate::db::sql::types::{SqlDb, DbConnectionConfig};
+use crate::db::sql::types::{DbConnectionConfig, SqlDb};
 use crate::error::{Error, Result};
 use sqlx::postgres::PgPoolOptions;
 
@@ -38,8 +38,7 @@ impl SqlDb {
     /// Проверяет подключение к БД
     pub async fn ping(&self) -> Result<()> {
         if let Some(pool) = &self.postgres_pool {
-            pool.acquire().await
-                .map_err(Error::Database)?;
+            pool.acquire().await.map_err(Error::Database)?;
         }
         Ok(())
     }

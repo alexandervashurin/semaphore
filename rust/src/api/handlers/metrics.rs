@@ -1,15 +1,15 @@
 //! Prometheus Metrics API handler
 
+use crate::api::state::AppState;
+use crate::services::metrics::MetricsManager;
 use axum::{
     extract::State,
-    http::{StatusCode, header::CONTENT_TYPE},
+    http::{header::CONTENT_TYPE, StatusCode},
     response::Response,
     Json,
 };
-use std::sync::Arc;
 use prometheus::{Encoder, TextEncoder};
-use crate::api::state::AppState;
-use crate::services::metrics::MetricsManager;
+use std::sync::Arc;
 
 /// GET /api/metrics - Prometheus metrics endpoint
 pub async fn get_metrics(
@@ -17,23 +17,23 @@ pub async fn get_metrics(
 ) -> Result<Response<String>, StatusCode> {
     // Обновляем динамические метрики
     update_system_metrics(&state.metrics).await;
-    
+
     // Форматируем метрики
     let encoder = TextEncoder::new();
     let metric_families = MetricsManager::registry().gather();
     let mut buffer = Vec::new();
-    
-    encoder.encode(&metric_families, &mut buffer)
+
+    encoder
+        .encode(&metric_families, &mut buffer)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
+
     let output = String::from_utf8(buffer).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
+
     let mut response = Response::new(output);
-    response.headers_mut().insert(
-        CONTENT_TYPE,
-        "text/plain; version=0.0.4".parse().unwrap(),
-    );
-    
+    response
+        .headers_mut()
+        .insert(CONTENT_TYPE, "text/plain; version=0.0.4".parse().unwrap());
+
     Ok(response)
 }
 
@@ -43,9 +43,9 @@ pub async fn get_metrics_json(
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     // Обновляем динамические метрики
     update_system_metrics(&state.metrics).await;
-    
+
     let counters = state.metrics.get_task_counters().await;
-    
+
     Ok(Json(serde_json::json!({
         "tasks": {
             "total": counters.by_project.values().map(|c| c.total).sum::<u64>(),
@@ -62,13 +62,13 @@ pub async fn get_metrics_json(
 async fn update_system_metrics(metrics: &MetricsManager) {
     // Обновляем uptime
     metrics.update_uptime();
-    
+
     // Получаем системную информацию
     if let Ok(system_info) = get_system_info() {
         metrics.update_cpu_usage(system_info.cpu_usage);
         metrics.update_memory_usage(system_info.memory_usage_mb);
     }
-    
+
     // Обновляем статус здоровья
     metrics.update_health(true);
 }
@@ -83,10 +83,10 @@ struct SystemInfo {
 fn get_system_info() -> Result<SystemInfo, Box<dyn std::error::Error>> {
     // Простая оценка использования памяти
     let memory_usage_mb = get_memory_usage_mb().unwrap_or(0.0);
-    
+
     // Простая оценка использования CPU
     let cpu_usage = get_cpu_usage_percent().unwrap_or(0.0);
-    
+
     Ok(SystemInfo {
         cpu_usage,
         memory_usage_mb,
@@ -109,19 +109,19 @@ fn get_memory_usage_mb() -> Result<f64, Box<dyn std::error::Error>> {
             }
         }
     }
-    
+
     #[cfg(target_os = "windows")]
     {
         // Windows implementation would require additional crates
         return Ok(0.0);
     }
-    
+
     #[cfg(target_os = "macos")]
     {
         // macOS implementation would require additional crates
         return Ok(0.0);
     }
-    
+
     Ok(180.0) // Default estimate
 }
 
@@ -134,7 +134,7 @@ fn get_cpu_usage_percent() -> Result<f64, Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_system_info() {
         let info = get_system_info().unwrap();

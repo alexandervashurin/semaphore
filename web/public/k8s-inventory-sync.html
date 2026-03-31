@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes Inventory Sync — Velum</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+    <style>
+        .preview-box {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 12px;
+            margin: 12px 0;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow: auto;
+        }
+        .resource-item {
+            padding: 8px;
+            margin: 4px 0;
+            background: #fff;
+            border-left: 3px solid #2196F3;
+        }
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 12px;
+            margin: 12px 0;
+        }
+    </style>
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar"></aside>
+    <div class="main-content">
+        <div class="main-header">
+            <h2><i class="fa-solid fa-arrows-rotate"></i> Kubernetes Inventory Sync</h2>
+            <a href="inventory.html" class="btn btn-secondary">
+                <i class="fa-solid fa-list"></i> Инвентари
+            </a>
+        </div>
+        <div class="main-body">
+            <!-- Форма параметров синхронизации -->
+            <div class="card" style="margin-bottom:12px;">
+                <h3><i class="fa-solid fa-sliders"></i> Параметры синхронизации</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 12px;">
+                    <div>
+                        <label>Project</label>
+                        <select id="project-id" class="form-control"></select>
+                    </div>
+                    <div>
+                        <label>Тип синхронизации</label>
+                        <select id="sync-type" class="form-control" onchange="onSyncTypeChange()">
+                            <option value="nodes">Kubernetes Nodes</option>
+                            <option value="pods">Kubernetes Pods</option>
+                        </select>
+                    </div>
+                    <div id="namespace-div" style="display: none;">
+                        <label>Namespace</label>
+                        <select id="namespace" class="form-control"></select>
+                    </div>
+                    <div>
+                        <label>Label Selector</label>
+                        <input id="label-selector" class="form-control" placeholder="app=nginx">
+                    </div>
+                    <div>
+                        <label>Префикс имени</label>
+                        <input id="name-prefix" class="form-control" placeholder="K8s Nodes">
+                    </div>
+                </div>
+                <div style="margin-top: 12px; display: flex; gap: 8px;">
+                    <button class="btn btn-primary" onclick="getPreview()">
+                        <i class="fa-solid fa-eye"></i> Предпросмотр
+                    </button>
+                    <button class="btn btn-success" onclick="executeSync()" id="sync-btn" style="display: none;">
+                        <i class="fa-solid fa-download"></i> Синхронизировать
+                    </button>
+                </div>
+            </div>
+
+            <!-- Предупреждения -->
+            <div id="warnings" style="display: none;"></div>
+
+            <!-- Предпросмотр ресурсов -->
+            <div id="preview-resources" class="card" style="display: none;">
+                <h3><i class="fa-solid fa-list"></i> Ресурсы для синхронизации</h3>
+                <div id="resources-content" style="margin-top: 12px;"></div>
+            </div>
+
+            <!-- Предпросмотр инвентаря -->
+            <div id="preview-inventory" class="card" style="display: none;">
+                <h3><i class="fa-solid fa-file-code"></i> Генерируемый инвентарь</h3>
+                <div class="preview-box" id="inventory-content" style="margin-top: 12px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+checkAuth();
+let previewData = null;
+
+// Загрузка проектов
+async function loadProjects() {
+    try {
+        const projects = await api.get('/projects');
+        const select = $('#project-id');
+        select.innerHTML = '';
+        projects.forEach(p => {
+            select.innerHTML += `<option value="${p.id}">${escapeHtml(p.name)}</option>`;
+        });
+    } catch (e) {
+        console.error('Failed to load projects:', e);
+    }
+}
+
+// Загрузка namespaces
+async function loadNamespaces() {
+    try {
+        const ns = await api.get('/kubernetes/namespaces');
+        const select = $('#namespace');
+        select.innerHTML = '<option value="default">default</option>';
+        ns.forEach(n => {
+            select.innerHTML += `<option value="${escapeHtml(n.name)}">${escapeHtml(n.name)}</option>`;
+        });
+    } catch (e) {
+        console.error('Failed to load namespaces:', e);
+    }
+}
+
+// Изменение типа синхронизации
+function onSyncTypeChange() {
+    const syncType = $('#sync-type').value;
+    const namespaceDiv = $('#namespace-div');
+    
+    if (syncType === 'pods') {
+        namespaceDiv.style.display = 'block';
+    } else {
+        namespaceDiv.style.display = 'none';
+    }
+}
+
+// Получить предпросмотр
+async function getPreview() {
+    const projectId = $('#project-id').value;
+    const syncType = $('#sync-type').value;
+    const namespace = $('#namespace').value;
+    const labelSelector = $('#label-selector').value.trim();
+    const namePrefix = $('#name-prefix').value.trim();
+    
+    if (!projectId) {
+        alert('Выберите проект');
+        return;
+    }
+    
+    const params = new URLSearchParams({
+        project_id: projectId,
+        sync_type: syncType,
+        namespace: syncType === 'pods' ? namespace : undefined,
+        label_selector: labelSelector || undefined,
+        name_prefix: namePrefix || undefined,
+    });
+    
+    try {
+        previewData = await api.get(`/kubernetes/inventory/sync/preview?${params}`);
+        renderPreview();
+    } catch (e) {
+        console.error('Failed to get preview:', e);
+        alert('Ошибка получения предпросмотра: ' + e.message);
+    }
+}
+
+// Рендер предпросмотра
+function renderPreview() {
+    // Предупреждения
+    const warningsDiv = $('#warnings');
+    if (previewData.warnings && previewData.warnings.length > 0) {
+        warningsDiv.style.display = 'block';
+        warningsDiv.innerHTML = previewData.warnings.map(w => `
+            <div class="warning-box">
+                <i class="fa-solid fa-triangle-exclamation"></i> ${escapeHtml(w)}
+            </div>
+        `).join('');
+    } else {
+        warningsDiv.style.display = 'none';
+    }
+    
+    // Ресурсы
+    const resourcesDiv = $('#preview-resources');
+    const resourcesContent = $('#resources-content');
+    
+    if (previewData.examples && previewData.examples.length > 0) {
+        resourcesDiv.style.display = 'block';
+        resourcesContent.innerHTML = `
+            <p>Всего ресурсов: <strong>${previewData.resource_count}</strong></p>
+            <p>Примеры (показано ${previewData.examples.length} из ${previewData.resource_count}):</p>
+            ${previewData.examples.map(r => `
+                <div class="resource-item">
+                    <div><strong>${escapeHtml(r.name)}</strong></div>
+                    <div style="font-size: 13px; color: #666;">
+                        <i class="fa-solid fa-network-wired"></i> ${escapeHtml(r.ip)}
+                    </div>
+                    ${Object.keys(r.labels).length > 0 ? `
+                        <div style="font-size: 12px; color: #888; margin-top: 4px;">
+                            <i class="fa-solid fa-tags"></i> 
+                            ${Object.entries(r.labels).slice(0, 5).map(([k, v]) => `${escapeHtml(k)}=${escapeHtml(v)}`).join(', ')}
+                            ${Object.keys(r.labels).length > 5 ? ` +${Object.keys(r.labels) - 5} more` : ''}
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('')}
+        `;
+    } else {
+        resourcesDiv.style.display = 'none';
+    }
+    
+    // Инвентарь
+    const inventoryDiv = $('#preview-inventory');
+    const inventoryContent = $('#inventory-content');
+    
+    if (previewData.inventory_content) {
+        inventoryDiv.style.display = 'block';
+        inventoryContent.textContent = previewData.inventory_content;
+    } else {
+        inventoryDiv.style.display = 'none';
+    }
+    
+    // Показать кнопку синхронизации
+    $('#sync-btn').style.display = 'inline-block';
+}
+
+// Выполнить синхронизацию
+async function executeSync() {
+    if (!previewData) {
+        alert('Сначала получите предпросмотр');
+        return;
+    }
+    
+    const projectId = $('#project-id').value;
+    const syncType = $('#sync-type').value;
+    const namespace = $('#namespace').value;
+    const labelSelector = $('#label-selector').value.trim();
+    const namePrefix = $('#name-prefix').value.trim();
+    
+    const payload = {
+        project_id: parseInt(projectId),
+        sync_type: syncType,
+        namespace: syncType === 'pods' ? namespace : undefined,
+        label_selector: labelSelector || undefined,
+        name_prefix: namePrefix || undefined,
+        create_new: true
+    };
+    
+    try {
+        const result = await api.post('/kubernetes/inventory/sync', payload);
+        alert(`Успешно!\n\n${result.message}\n\nID инвентаря: ${result.inventory_id}`);
+        window.location.href = `inventory.html?id=${projectId}`;
+    } catch (e) {
+        console.error('Failed to execute sync:', e);
+        alert('Ошибка синхронизации: ' + e.message);
+    }
+}
+
+// Инициализация
+loadProjects();
+loadNamespaces();
+</script>
+</body>
+</html>

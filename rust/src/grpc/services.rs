@@ -2,10 +2,10 @@
 //!
 //! Примечание: Полная реализация требует protoc для генерации кода из .proto файлов.
 
+use crate::error::Result;
 use std::net::SocketAddr;
 use tonic::transport::Server;
 use tracing::info;
-use crate::error::Result;
 
 /// Конфигурация gRPC сервера
 #[derive(Debug, Clone)]
@@ -51,7 +51,7 @@ impl GrpcServer {
         info!("gRPC server configured on {}", self.config.address);
         info!("Note: Full gRPC implementation requires protoc");
         info!("To enable, install protoc and recompile with tonic-build");
-        
+
         // В полной реализации здесь будет запуск сервера
         // Пока просто блокируем задачу
         loop {
@@ -67,26 +67,38 @@ impl GrpcServer {
 /// Заглушки сервисов
 pub struct TaskServiceImpl;
 impl TaskServiceImpl {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 impl Default for TaskServiceImpl {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 pub struct ProjectServiceImpl;
 impl ProjectServiceImpl {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 impl Default for ProjectServiceImpl {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 pub struct RunnerServiceImpl;
 impl RunnerServiceImpl {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 impl Default for RunnerServiceImpl {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[cfg(test)]

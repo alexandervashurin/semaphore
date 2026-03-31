@@ -1,13 +1,23 @@
 //! Wrapper for Arc<Box<dyn Store>> to provide Store methods
 
 use crate::db::store::*;
-use crate::models::*;
-use crate::models::audit_log::{AuditAction, AuditObjectType, AuditLevel, AuditLog, AuditLogFilter, AuditLogResult};
-use crate::models::webhook::{Webhook, UpdateWebhook, WebhookLog};
-use crate::models::playbook_run_history::{PlaybookRun, PlaybookRunCreate, PlaybookRunUpdate, PlaybookRunStatus, PlaybookRunStats, PlaybookRunFilter};
-use crate::models::workflow::{Workflow, WorkflowCreate, WorkflowUpdate, WorkflowNode, WorkflowNodeCreate, WorkflowNodeUpdate, WorkflowEdge, WorkflowEdgeCreate, WorkflowRun};
-use crate::models::notification::{NotificationPolicy, NotificationPolicyCreate, NotificationPolicyUpdate};
 use crate::error::Result;
+use crate::models::audit_log::{
+    AuditAction, AuditLevel, AuditLog, AuditLogFilter, AuditLogResult, AuditObjectType,
+};
+use crate::models::notification::{
+    NotificationPolicy, NotificationPolicyCreate, NotificationPolicyUpdate,
+};
+use crate::models::playbook_run_history::{
+    PlaybookRun, PlaybookRunCreate, PlaybookRunFilter, PlaybookRunStats, PlaybookRunStatus,
+    PlaybookRunUpdate,
+};
+use crate::models::webhook::{UpdateWebhook, Webhook, WebhookLog};
+use crate::models::workflow::{
+    Workflow, WorkflowCreate, WorkflowEdge, WorkflowEdgeCreate, WorkflowNode, WorkflowNodeCreate,
+    WorkflowNodeUpdate, WorkflowRun, WorkflowUpdate,
+};
+use crate::models::*;
 use crate::services::task_logger::TaskStatus;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -105,7 +115,10 @@ impl UserManager for StoreWrapper {
     }
 
     async fn get_user_by_login_or_email(&self, login: &str, email: &str) -> Result<User> {
-        self.inner.as_ref().get_user_by_login_or_email(login, email).await
+        self.inner
+            .as_ref()
+            .get_user_by_login_or_email(login, email)
+            .await
     }
 
     async fn create_user(&self, user: User, password: &str) -> Result<User> {
@@ -121,7 +134,10 @@ impl UserManager for StoreWrapper {
     }
 
     async fn set_user_password(&self, user_id: i32, password: &str) -> Result<()> {
-        self.inner.as_ref().set_user_password(user_id, password).await
+        self.inner
+            .as_ref()
+            .set_user_password(user_id, password)
+            .await
     }
 
     async fn get_all_admins(&self) -> Result<Vec<User>> {
@@ -132,18 +148,25 @@ impl UserManager for StoreWrapper {
         self.inner.as_ref().get_user_count().await
     }
 
-    async fn get_project_users(&self, project_id: i32, params: RetrieveQueryParams) -> Result<Vec<ProjectUser>> {
-        self.inner.as_ref().get_project_users(project_id, params).await
+    async fn get_project_users(
+        &self,
+        project_id: i32,
+        params: RetrieveQueryParams,
+    ) -> Result<Vec<ProjectUser>> {
+        self.inner
+            .as_ref()
+            .get_project_users(project_id, params)
+            .await
     }
-    
+
     async fn get_user_totp(&self, user_id: i32) -> Result<Option<UserTotp>> {
         self.inner.as_ref().get_user_totp(user_id).await
     }
-    
+
     async fn set_user_totp(&self, user_id: i32, totp: &UserTotp) -> Result<()> {
         self.inner.as_ref().set_user_totp(user_id, totp).await
     }
-    
+
     async fn delete_user_totp(&self, user_id: i32) -> Result<()> {
         self.inner.as_ref().delete_user_totp(user_id).await
     }
@@ -176,7 +199,10 @@ impl ProjectStore for StoreWrapper {
     }
 
     async fn delete_project_user(&self, project_id: i32, user_id: i32) -> Result<()> {
-        self.inner.as_ref().delete_project_user(project_id, user_id).await
+        self.inner
+            .as_ref()
+            .delete_project_user(project_id, user_id)
+            .await
     }
 }
 
@@ -187,7 +213,10 @@ impl TemplateManager for StoreWrapper {
     }
 
     async fn get_template(&self, project_id: i32, template_id: i32) -> Result<Template> {
-        self.inner.as_ref().get_template(project_id, template_id).await
+        self.inner
+            .as_ref()
+            .get_template(project_id, template_id)
+            .await
     }
 
     async fn create_template(&self, template: Template) -> Result<Template> {
@@ -199,7 +228,10 @@ impl TemplateManager for StoreWrapper {
     }
 
     async fn delete_template(&self, project_id: i32, template_id: i32) -> Result<()> {
-        self.inner.as_ref().delete_template(project_id, template_id).await
+        self.inner
+            .as_ref()
+            .delete_template(project_id, template_id)
+            .await
     }
 }
 
@@ -217,7 +249,10 @@ impl InventoryManager for StoreWrapper {
     }
 
     async fn get_inventory(&self, project_id: i32, inventory_id: i32) -> Result<Inventory> {
-        self.inner.as_ref().get_inventory(project_id, inventory_id).await
+        self.inner
+            .as_ref()
+            .get_inventory(project_id, inventory_id)
+            .await
     }
 
     async fn create_inventory(&self, inventory: Inventory) -> Result<Inventory> {
@@ -229,7 +264,10 @@ impl InventoryManager for StoreWrapper {
     }
 
     async fn delete_inventory(&self, project_id: i32, inventory_id: i32) -> Result<()> {
-        self.inner.as_ref().delete_inventory(project_id, inventory_id).await
+        self.inner
+            .as_ref()
+            .delete_inventory(project_id, inventory_id)
+            .await
     }
 }
 
@@ -240,7 +278,10 @@ impl RepositoryManager for StoreWrapper {
     }
 
     async fn get_repository(&self, project_id: i32, repository_id: i32) -> Result<Repository> {
-        self.inner.as_ref().get_repository(project_id, repository_id).await
+        self.inner
+            .as_ref()
+            .get_repository(project_id, repository_id)
+            .await
     }
 
     async fn create_repository(&self, repository: Repository) -> Result<Repository> {
@@ -252,7 +293,10 @@ impl RepositoryManager for StoreWrapper {
     }
 
     async fn delete_repository(&self, project_id: i32, repository_id: i32) -> Result<()> {
-        self.inner.as_ref().delete_repository(project_id, repository_id).await
+        self.inner
+            .as_ref()
+            .delete_repository(project_id, repository_id)
+            .await
     }
 }
 
@@ -263,7 +307,10 @@ impl EnvironmentManager for StoreWrapper {
     }
 
     async fn get_environment(&self, project_id: i32, environment_id: i32) -> Result<Environment> {
-        self.inner.as_ref().get_environment(project_id, environment_id).await
+        self.inner
+            .as_ref()
+            .get_environment(project_id, environment_id)
+            .await
     }
 
     async fn create_environment(&self, environment: Environment) -> Result<Environment> {
@@ -275,7 +322,10 @@ impl EnvironmentManager for StoreWrapper {
     }
 
     async fn delete_environment(&self, project_id: i32, environment_id: i32) -> Result<()> {
-        self.inner.as_ref().delete_environment(project_id, environment_id).await
+        self.inner
+            .as_ref()
+            .delete_environment(project_id, environment_id)
+            .await
     }
 }
 
@@ -286,7 +336,10 @@ impl AccessKeyManager for StoreWrapper {
     }
 
     async fn get_access_key(&self, project_id: i32, access_key_id: i32) -> Result<AccessKey> {
-        self.inner.as_ref().get_access_key(project_id, access_key_id).await
+        self.inner
+            .as_ref()
+            .get_access_key(project_id, access_key_id)
+            .await
     }
 
     async fn create_access_key(&self, access_key: AccessKey) -> Result<AccessKey> {
@@ -298,13 +351,20 @@ impl AccessKeyManager for StoreWrapper {
     }
 
     async fn delete_access_key(&self, project_id: i32, access_key_id: i32) -> Result<()> {
-        self.inner.as_ref().delete_access_key(project_id, access_key_id).await
+        self.inner
+            .as_ref()
+            .delete_access_key(project_id, access_key_id)
+            .await
     }
 }
 
 #[async_trait]
 impl TaskManager for StoreWrapper {
-    async fn get_tasks(&self, project_id: i32, template_id: Option<i32>) -> Result<Vec<TaskWithTpl>> {
+    async fn get_tasks(
+        &self,
+        project_id: i32,
+        template_id: Option<i32>,
+    ) -> Result<Vec<TaskWithTpl>> {
         self.inner.as_ref().get_tasks(project_id, template_id).await
     }
 
@@ -332,12 +392,27 @@ impl TaskManager for StoreWrapper {
         self.inner.as_ref().create_task_output(output).await
     }
 
-    async fn update_task_status(&self, project_id: i32, task_id: i32, status: TaskStatus) -> Result<()> {
-        self.inner.as_ref().update_task_status(project_id, task_id, status).await
+    async fn update_task_status(
+        &self,
+        project_id: i32,
+        task_id: i32,
+        status: TaskStatus,
+    ) -> Result<()> {
+        self.inner
+            .as_ref()
+            .update_task_status(project_id, task_id, status)
+            .await
     }
 
-    async fn get_global_tasks(&self, status_filter: Option<Vec<String>>, limit: Option<i32>) -> Result<Vec<TaskWithTpl>> {
-        self.inner.as_ref().get_global_tasks(status_filter, limit).await
+    async fn get_global_tasks(
+        &self,
+        status_filter: Option<Vec<String>>,
+        limit: Option<i32>,
+    ) -> Result<Vec<TaskWithTpl>> {
+        self.inner
+            .as_ref()
+            .get_global_tasks(status_filter, limit)
+            .await
     }
 
     async fn get_running_tasks_count(&self) -> Result<usize> {
@@ -360,7 +435,10 @@ impl ScheduleManager for StoreWrapper {
     }
 
     async fn get_schedule(&self, project_id: i32, schedule_id: i32) -> Result<Schedule> {
-        self.inner.as_ref().get_schedule(project_id, schedule_id).await
+        self.inner
+            .as_ref()
+            .get_schedule(project_id, schedule_id)
+            .await
     }
 
     async fn create_schedule(&self, schedule: Schedule) -> Result<Schedule> {
@@ -372,15 +450,34 @@ impl ScheduleManager for StoreWrapper {
     }
 
     async fn delete_schedule(&self, project_id: i32, schedule_id: i32) -> Result<()> {
-        self.inner.as_ref().delete_schedule(project_id, schedule_id).await
+        self.inner
+            .as_ref()
+            .delete_schedule(project_id, schedule_id)
+            .await
     }
 
-    async fn set_schedule_active(&self, project_id: i32, schedule_id: i32, active: bool) -> Result<()> {
-        self.inner.as_ref().set_schedule_active(project_id, schedule_id, active).await
+    async fn set_schedule_active(
+        &self,
+        project_id: i32,
+        schedule_id: i32,
+        active: bool,
+    ) -> Result<()> {
+        self.inner
+            .as_ref()
+            .set_schedule_active(project_id, schedule_id, active)
+            .await
     }
 
-    async fn set_schedule_commit_hash(&self, project_id: i32, schedule_id: i32, hash: &str) -> Result<()> {
-        self.inner.as_ref().set_schedule_commit_hash(project_id, schedule_id, hash).await
+    async fn set_schedule_commit_hash(
+        &self,
+        project_id: i32,
+        schedule_id: i32,
+        hash: &str,
+    ) -> Result<()> {
+        self.inner
+            .as_ref()
+            .set_schedule_commit_hash(project_id, schedule_id, hash)
+            .await
     }
 }
 
@@ -395,11 +492,17 @@ impl SessionManager for StoreWrapper {
     }
 
     async fn expire_session(&self, user_id: i32, session_id: i32) -> Result<()> {
-        self.inner.as_ref().expire_session(user_id, session_id).await
+        self.inner
+            .as_ref()
+            .expire_session(user_id, session_id)
+            .await
     }
 
     async fn verify_session(&self, user_id: i32, session_id: i32) -> Result<()> {
-        self.inner.as_ref().verify_session(user_id, session_id).await
+        self.inner
+            .as_ref()
+            .verify_session(user_id, session_id)
+            .await
     }
 
     async fn touch_session(&self, user_id: i32, session_id: i32) -> Result<()> {
@@ -422,11 +525,17 @@ impl TokenManager for StoreWrapper {
     }
 
     async fn expire_api_token(&self, user_id: i32, token_id: i32) -> Result<()> {
-        self.inner.as_ref().expire_api_token(user_id, token_id).await
+        self.inner
+            .as_ref()
+            .expire_api_token(user_id, token_id)
+            .await
     }
 
     async fn delete_api_token(&self, user_id: i32, token_id: i32) -> Result<()> {
-        self.inner.as_ref().delete_api_token(user_id, token_id).await
+        self.inner
+            .as_ref()
+            .delete_api_token(user_id, token_id)
+            .await
     }
 }
 
@@ -493,9 +602,12 @@ impl ViewManager for StoreWrapper {
     async fn delete_view(&self, project_id: i32, view_id: i32) -> Result<()> {
         self.inner.as_ref().delete_view(project_id, view_id).await
     }
-    
+
     async fn set_view_positions(&self, project_id: i32, positions: Vec<(i32, i32)>) -> Result<()> {
-        self.inner.as_ref().set_view_positions(project_id, positions).await
+        self.inner
+            .as_ref()
+            .set_view_positions(project_id, positions)
+            .await
     }
 }
 
@@ -506,7 +618,10 @@ impl IntegrationManager for StoreWrapper {
     }
 
     async fn get_integration(&self, project_id: i32, integration_id: i32) -> Result<Integration> {
-        self.inner.as_ref().get_integration(project_id, integration_id).await
+        self.inner
+            .as_ref()
+            .get_integration(project_id, integration_id)
+            .await
     }
 
     async fn create_integration(&self, integration: Integration) -> Result<Integration> {
@@ -518,14 +633,24 @@ impl IntegrationManager for StoreWrapper {
     }
 
     async fn delete_integration(&self, project_id: i32, integration_id: i32) -> Result<()> {
-        self.inner.as_ref().delete_integration(project_id, integration_id).await
+        self.inner
+            .as_ref()
+            .delete_integration(project_id, integration_id)
+            .await
     }
 }
 
 #[async_trait]
 impl ProjectInviteManager for StoreWrapper {
-    async fn get_project_invites(&self, project_id: i32, params: RetrieveQueryParams) -> Result<Vec<ProjectInviteWithUser>> {
-        self.inner.as_ref().get_project_invites(project_id, params).await
+    async fn get_project_invites(
+        &self,
+        project_id: i32,
+        params: RetrieveQueryParams,
+    ) -> Result<Vec<ProjectInviteWithUser>> {
+        self.inner
+            .as_ref()
+            .get_project_invites(project_id, params)
+            .await
     }
 
     async fn create_project_invite(&self, invite: ProjectInvite) -> Result<ProjectInvite> {
@@ -533,7 +658,10 @@ impl ProjectInviteManager for StoreWrapper {
     }
 
     async fn get_project_invite(&self, project_id: i32, invite_id: i32) -> Result<ProjectInvite> {
-        self.inner.as_ref().get_project_invite(project_id, invite_id).await
+        self.inner
+            .as_ref()
+            .get_project_invite(project_id, invite_id)
+            .await
     }
 
     async fn get_project_invite_by_token(&self, token: &str) -> Result<ProjectInvite> {
@@ -545,50 +673,121 @@ impl ProjectInviteManager for StoreWrapper {
     }
 
     async fn delete_project_invite(&self, project_id: i32, invite_id: i32) -> Result<()> {
-        self.inner.as_ref().delete_project_invite(project_id, invite_id).await
+        self.inner
+            .as_ref()
+            .delete_project_invite(project_id, invite_id)
+            .await
     }
 }
 
 #[async_trait]
 impl TerraformInventoryManager for StoreWrapper {
-    async fn create_terraform_inventory_alias(&self, alias: TerraformInventoryAlias) -> Result<TerraformInventoryAlias> {
-        self.inner.as_ref().create_terraform_inventory_alias(alias).await
+    async fn create_terraform_inventory_alias(
+        &self,
+        alias: TerraformInventoryAlias,
+    ) -> Result<TerraformInventoryAlias> {
+        self.inner
+            .as_ref()
+            .create_terraform_inventory_alias(alias)
+            .await
     }
 
     async fn update_terraform_inventory_alias(&self, alias: TerraformInventoryAlias) -> Result<()> {
-        self.inner.as_ref().update_terraform_inventory_alias(alias).await
+        self.inner
+            .as_ref()
+            .update_terraform_inventory_alias(alias)
+            .await
     }
 
-    async fn get_terraform_inventory_alias_by_alias(&self, alias: &str) -> Result<TerraformInventoryAlias> {
-        self.inner.as_ref().get_terraform_inventory_alias_by_alias(alias).await
+    async fn get_terraform_inventory_alias_by_alias(
+        &self,
+        alias: &str,
+    ) -> Result<TerraformInventoryAlias> {
+        self.inner
+            .as_ref()
+            .get_terraform_inventory_alias_by_alias(alias)
+            .await
     }
 
-    async fn get_terraform_inventory_alias(&self, project_id: i32, inventory_id: i32, alias_id: &str) -> Result<TerraformInventoryAlias> {
-        self.inner.as_ref().get_terraform_inventory_alias(project_id, inventory_id, alias_id).await
+    async fn get_terraform_inventory_alias(
+        &self,
+        project_id: i32,
+        inventory_id: i32,
+        alias_id: &str,
+    ) -> Result<TerraformInventoryAlias> {
+        self.inner
+            .as_ref()
+            .get_terraform_inventory_alias(project_id, inventory_id, alias_id)
+            .await
     }
 
-    async fn get_terraform_inventory_aliases(&self, project_id: i32, inventory_id: i32) -> Result<Vec<TerraformInventoryAlias>> {
-        self.inner.as_ref().get_terraform_inventory_aliases(project_id, inventory_id).await
+    async fn get_terraform_inventory_aliases(
+        &self,
+        project_id: i32,
+        inventory_id: i32,
+    ) -> Result<Vec<TerraformInventoryAlias>> {
+        self.inner
+            .as_ref()
+            .get_terraform_inventory_aliases(project_id, inventory_id)
+            .await
     }
 
-    async fn delete_terraform_inventory_alias(&self, project_id: i32, inventory_id: i32, alias_id: &str) -> Result<()> {
-        self.inner.as_ref().delete_terraform_inventory_alias(project_id, inventory_id, alias_id).await
+    async fn delete_terraform_inventory_alias(
+        &self,
+        project_id: i32,
+        inventory_id: i32,
+        alias_id: &str,
+    ) -> Result<()> {
+        self.inner
+            .as_ref()
+            .delete_terraform_inventory_alias(project_id, inventory_id, alias_id)
+            .await
     }
 
-    async fn get_terraform_inventory_states(&self, project_id: i32, inventory_id: i32, params: RetrieveQueryParams) -> Result<Vec<TerraformInventoryState>> {
-        self.inner.as_ref().get_terraform_inventory_states(project_id, inventory_id, params).await
+    async fn get_terraform_inventory_states(
+        &self,
+        project_id: i32,
+        inventory_id: i32,
+        params: RetrieveQueryParams,
+    ) -> Result<Vec<TerraformInventoryState>> {
+        self.inner
+            .as_ref()
+            .get_terraform_inventory_states(project_id, inventory_id, params)
+            .await
     }
 
-    async fn create_terraform_inventory_state(&self, state: TerraformInventoryState) -> Result<TerraformInventoryState> {
-        self.inner.as_ref().create_terraform_inventory_state(state).await
+    async fn create_terraform_inventory_state(
+        &self,
+        state: TerraformInventoryState,
+    ) -> Result<TerraformInventoryState> {
+        self.inner
+            .as_ref()
+            .create_terraform_inventory_state(state)
+            .await
     }
 
-    async fn delete_terraform_inventory_state(&self, project_id: i32, inventory_id: i32, state_id: i32) -> Result<()> {
-        self.inner.as_ref().delete_terraform_inventory_state(project_id, inventory_id, state_id).await
+    async fn delete_terraform_inventory_state(
+        &self,
+        project_id: i32,
+        inventory_id: i32,
+        state_id: i32,
+    ) -> Result<()> {
+        self.inner
+            .as_ref()
+            .delete_terraform_inventory_state(project_id, inventory_id, state_id)
+            .await
     }
 
-    async fn get_terraform_inventory_state(&self, project_id: i32, inventory_id: i32, state_id: i32) -> Result<TerraformInventoryState> {
-        self.inner.as_ref().get_terraform_inventory_state(project_id, inventory_id, state_id).await
+    async fn get_terraform_inventory_state(
+        &self,
+        project_id: i32,
+        inventory_id: i32,
+        state_id: i32,
+    ) -> Result<TerraformInventoryState> {
+        self.inner
+            .as_ref()
+            .get_terraform_inventory_state(project_id, inventory_id, state_id)
+            .await
     }
 
     async fn get_terraform_state_count(&self) -> Result<i32> {
@@ -603,7 +802,10 @@ impl SecretStorageManager for StoreWrapper {
     }
 
     async fn get_secret_storage(&self, project_id: i32, storage_id: i32) -> Result<SecretStorage> {
-        self.inner.as_ref().get_secret_storage(project_id, storage_id).await
+        self.inner
+            .as_ref()
+            .get_secret_storage(project_id, storage_id)
+            .await
     }
 
     async fn create_secret_storage(&self, storage: SecretStorage) -> Result<SecretStorage> {
@@ -615,7 +817,10 @@ impl SecretStorageManager for StoreWrapper {
     }
 
     async fn delete_secret_storage(&self, project_id: i32, storage_id: i32) -> Result<()> {
-        self.inner.as_ref().delete_secret_storage(project_id, storage_id).await
+        self.inner
+            .as_ref()
+            .delete_secret_storage(project_id, storage_id)
+            .await
     }
 }
 
@@ -636,20 +841,23 @@ impl AuditLogManager for StoreWrapper {
         user_agent: Option<String>,
         details: Option<serde_json::Value>,
     ) -> Result<AuditLog> {
-        self.inner.as_ref().create_audit_log(
-            project_id,
-            user_id,
-            username,
-            action,
-            object_type,
-            object_id,
-            object_name,
-            description,
-            level,
-            ip_address,
-            user_agent,
-            details,
-        ).await
+        self.inner
+            .as_ref()
+            .create_audit_log(
+                project_id,
+                user_id,
+                username,
+                action,
+                object_type,
+                object_id,
+                object_name,
+                description,
+                level,
+                ip_address,
+                user_agent,
+                details,
+            )
+            .await
     }
 
     async fn get_audit_log(&self, id: i64) -> Result<AuditLog> {
@@ -660,16 +868,40 @@ impl AuditLogManager for StoreWrapper {
         self.inner.as_ref().search_audit_logs(filter).await
     }
 
-    async fn get_audit_logs_by_project(&self, project_id: i64, limit: i64, offset: i64) -> Result<Vec<AuditLog>> {
-        self.inner.as_ref().get_audit_logs_by_project(project_id, limit, offset).await
+    async fn get_audit_logs_by_project(
+        &self,
+        project_id: i64,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<AuditLog>> {
+        self.inner
+            .as_ref()
+            .get_audit_logs_by_project(project_id, limit, offset)
+            .await
     }
 
-    async fn get_audit_logs_by_user(&self, user_id: i64, limit: i64, offset: i64) -> Result<Vec<AuditLog>> {
-        self.inner.as_ref().get_audit_logs_by_user(user_id, limit, offset).await
+    async fn get_audit_logs_by_user(
+        &self,
+        user_id: i64,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<AuditLog>> {
+        self.inner
+            .as_ref()
+            .get_audit_logs_by_user(user_id, limit, offset)
+            .await
     }
 
-    async fn get_audit_logs_by_action(&self, action: &AuditAction, limit: i64, offset: i64) -> Result<Vec<AuditLog>> {
-        self.inner.as_ref().get_audit_logs_by_action(action, limit, offset).await
+    async fn get_audit_logs_by_action(
+        &self,
+        action: &AuditAction,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<AuditLog>> {
+        self.inner
+            .as_ref()
+            .get_audit_logs_by_action(action, limit, offset)
+            .await
     }
 
     async fn delete_audit_logs_before(&self, before: DateTime<Utc>) -> Result<u64> {
@@ -688,7 +920,10 @@ impl crate::db::store::WebhookManager for StoreWrapper {
     }
 
     async fn get_webhooks_by_project(&self, project_id: i64) -> Result<Vec<Webhook>> {
-        self.inner.as_ref().get_webhooks_by_project(project_id).await
+        self.inner
+            .as_ref()
+            .get_webhooks_by_project(project_id)
+            .await
     }
 
     async fn create_webhook(&self, webhook: Webhook) -> Result<Webhook> {
@@ -696,7 +931,10 @@ impl crate::db::store::WebhookManager for StoreWrapper {
     }
 
     async fn update_webhook(&self, webhook_id: i64, webhook: UpdateWebhook) -> Result<Webhook> {
-        self.inner.as_ref().update_webhook(webhook_id, webhook).await
+        self.inner
+            .as_ref()
+            .update_webhook(webhook_id, webhook)
+            .await
     }
 
     async fn delete_webhook(&self, webhook_id: i64) -> Result<()> {
@@ -712,7 +950,6 @@ impl crate::db::store::WebhookManager for StoreWrapper {
     }
 }
 
-
 #[async_trait]
 impl crate::db::store::PlaybookManager for StoreWrapper {
     async fn get_playbooks(&self, project_id: i32) -> Result<Vec<crate::models::Playbook>> {
@@ -723,12 +960,27 @@ impl crate::db::store::PlaybookManager for StoreWrapper {
         self.inner.as_ref().get_playbook(id, project_id).await
     }
 
-    async fn create_playbook(&self, project_id: i32, playbook: crate::models::PlaybookCreate) -> Result<crate::models::Playbook> {
-        self.inner.as_ref().create_playbook(project_id, playbook).await
+    async fn create_playbook(
+        &self,
+        project_id: i32,
+        playbook: crate::models::PlaybookCreate,
+    ) -> Result<crate::models::Playbook> {
+        self.inner
+            .as_ref()
+            .create_playbook(project_id, playbook)
+            .await
     }
 
-    async fn update_playbook(&self, id: i32, project_id: i32, playbook: crate::models::PlaybookUpdate) -> Result<crate::models::Playbook> {
-        self.inner.as_ref().update_playbook(id, project_id, playbook).await
+    async fn update_playbook(
+        &self,
+        id: i32,
+        project_id: i32,
+        playbook: crate::models::PlaybookUpdate,
+    ) -> Result<crate::models::Playbook> {
+        self.inner
+            .as_ref()
+            .update_playbook(id, project_id, playbook)
+            .await
     }
 
     async fn delete_playbook(&self, id: i32, project_id: i32) -> Result<()> {
@@ -747,59 +999,127 @@ impl crate::db::store::PlaybookRunManager for StoreWrapper {
     }
 
     async fn get_playbook_run_by_task_id(&self, task_id: i32) -> Result<Option<PlaybookRun>> {
-        self.inner.as_ref().get_playbook_run_by_task_id(task_id).await
+        self.inner
+            .as_ref()
+            .get_playbook_run_by_task_id(task_id)
+            .await
     }
 
     async fn create_playbook_run(&self, run: PlaybookRunCreate) -> Result<PlaybookRun> {
         self.inner.as_ref().create_playbook_run(run).await
     }
 
-    async fn update_playbook_run(&self, id: i32, project_id: i32, update: PlaybookRunUpdate) -> Result<PlaybookRun> {
-        self.inner.as_ref().update_playbook_run(id, project_id, update).await
+    async fn update_playbook_run(
+        &self,
+        id: i32,
+        project_id: i32,
+        update: PlaybookRunUpdate,
+    ) -> Result<PlaybookRun> {
+        self.inner
+            .as_ref()
+            .update_playbook_run(id, project_id, update)
+            .await
     }
 
     async fn update_playbook_run_status(&self, id: i32, status: PlaybookRunStatus) -> Result<()> {
-        self.inner.as_ref().update_playbook_run_status(id, status).await
+        self.inner
+            .as_ref()
+            .update_playbook_run_status(id, status)
+            .await
     }
 
     async fn delete_playbook_run(&self, id: i32, project_id: i32) -> Result<()> {
-        self.inner.as_ref().delete_playbook_run(id, project_id).await
+        self.inner
+            .as_ref()
+            .delete_playbook_run(id, project_id)
+            .await
     }
 
     async fn get_playbook_run_stats(&self, playbook_id: i32) -> Result<PlaybookRunStats> {
-        self.inner.as_ref().get_playbook_run_stats(playbook_id).await
+        self.inner
+            .as_ref()
+            .get_playbook_run_stats(playbook_id)
+            .await
     }
 }
 
 #[async_trait]
 impl IntegrationMatcherManager for StoreWrapper {
-    async fn get_integration_matchers(&self, project_id: i32, integration_id: i32) -> Result<Vec<IntegrationMatcher>> {
-        self.inner.as_ref().get_integration_matchers(project_id, integration_id).await
+    async fn get_integration_matchers(
+        &self,
+        project_id: i32,
+        integration_id: i32,
+    ) -> Result<Vec<IntegrationMatcher>> {
+        self.inner
+            .as_ref()
+            .get_integration_matchers(project_id, integration_id)
+            .await
     }
-    async fn create_integration_matcher(&self, matcher: IntegrationMatcher) -> Result<IntegrationMatcher> {
-        self.inner.as_ref().create_integration_matcher(matcher).await
+    async fn create_integration_matcher(
+        &self,
+        matcher: IntegrationMatcher,
+    ) -> Result<IntegrationMatcher> {
+        self.inner
+            .as_ref()
+            .create_integration_matcher(matcher)
+            .await
     }
     async fn update_integration_matcher(&self, matcher: IntegrationMatcher) -> Result<()> {
-        self.inner.as_ref().update_integration_matcher(matcher).await
+        self.inner
+            .as_ref()
+            .update_integration_matcher(matcher)
+            .await
     }
-    async fn delete_integration_matcher(&self, project_id: i32, integration_id: i32, matcher_id: i32) -> Result<()> {
-        self.inner.as_ref().delete_integration_matcher(project_id, integration_id, matcher_id).await
+    async fn delete_integration_matcher(
+        &self,
+        project_id: i32,
+        integration_id: i32,
+        matcher_id: i32,
+    ) -> Result<()> {
+        self.inner
+            .as_ref()
+            .delete_integration_matcher(project_id, integration_id, matcher_id)
+            .await
     }
 }
 
 #[async_trait]
 impl IntegrationExtractValueManager for StoreWrapper {
-    async fn get_integration_extract_values(&self, project_id: i32, integration_id: i32) -> Result<Vec<IntegrationExtractValue>> {
-        self.inner.as_ref().get_integration_extract_values(project_id, integration_id).await
+    async fn get_integration_extract_values(
+        &self,
+        project_id: i32,
+        integration_id: i32,
+    ) -> Result<Vec<IntegrationExtractValue>> {
+        self.inner
+            .as_ref()
+            .get_integration_extract_values(project_id, integration_id)
+            .await
     }
-    async fn create_integration_extract_value(&self, value: IntegrationExtractValue) -> Result<IntegrationExtractValue> {
-        self.inner.as_ref().create_integration_extract_value(value).await
+    async fn create_integration_extract_value(
+        &self,
+        value: IntegrationExtractValue,
+    ) -> Result<IntegrationExtractValue> {
+        self.inner
+            .as_ref()
+            .create_integration_extract_value(value)
+            .await
     }
     async fn update_integration_extract_value(&self, value: IntegrationExtractValue) -> Result<()> {
-        self.inner.as_ref().update_integration_extract_value(value).await
+        self.inner
+            .as_ref()
+            .update_integration_extract_value(value)
+            .await
     }
-    async fn delete_integration_extract_value(&self, project_id: i32, integration_id: i32, value_id: i32) -> Result<()> {
-        self.inner.as_ref().delete_integration_extract_value(project_id, integration_id, value_id).await
+    async fn delete_integration_extract_value(
+        &self,
+        project_id: i32,
+        integration_id: i32,
+        value_id: i32,
+    ) -> Result<()> {
+        self.inner
+            .as_ref()
+            .delete_integration_extract_value(project_id, integration_id, value_id)
+            .await
     }
 }
 
@@ -815,7 +1135,10 @@ impl ProjectRoleManager for StoreWrapper {
         self.inner.as_ref().update_project_role(role).await
     }
     async fn delete_project_role(&self, project_id: i32, role_id: i32) -> Result<()> {
-        self.inner.as_ref().delete_project_role(project_id, role_id).await
+        self.inner
+            .as_ref()
+            .delete_project_role(project_id, role_id)
+            .await
     }
 }
 
@@ -827,154 +1150,393 @@ impl crate::db::store::WorkflowManager for StoreWrapper {
     async fn get_workflow(&self, id: i32, project_id: i32) -> crate::error::Result<Workflow> {
         self.inner.as_ref().get_workflow(id, project_id).await
     }
-    async fn create_workflow(&self, project_id: i32, payload: WorkflowCreate) -> crate::error::Result<Workflow> {
-        self.inner.as_ref().create_workflow(project_id, payload).await
+    async fn create_workflow(
+        &self,
+        project_id: i32,
+        payload: WorkflowCreate,
+    ) -> crate::error::Result<Workflow> {
+        self.inner
+            .as_ref()
+            .create_workflow(project_id, payload)
+            .await
     }
-    async fn update_workflow(&self, id: i32, project_id: i32, payload: WorkflowUpdate) -> crate::error::Result<Workflow> {
-        self.inner.as_ref().update_workflow(id, project_id, payload).await
+    async fn update_workflow(
+        &self,
+        id: i32,
+        project_id: i32,
+        payload: WorkflowUpdate,
+    ) -> crate::error::Result<Workflow> {
+        self.inner
+            .as_ref()
+            .update_workflow(id, project_id, payload)
+            .await
     }
     async fn delete_workflow(&self, id: i32, project_id: i32) -> crate::error::Result<()> {
         self.inner.as_ref().delete_workflow(id, project_id).await
     }
-    async fn get_workflow_nodes(&self, workflow_id: i32) -> crate::error::Result<Vec<WorkflowNode>> {
+    async fn get_workflow_nodes(
+        &self,
+        workflow_id: i32,
+    ) -> crate::error::Result<Vec<WorkflowNode>> {
         self.inner.as_ref().get_workflow_nodes(workflow_id).await
     }
-    async fn create_workflow_node(&self, workflow_id: i32, payload: WorkflowNodeCreate) -> crate::error::Result<WorkflowNode> {
-        self.inner.as_ref().create_workflow_node(workflow_id, payload).await
+    async fn create_workflow_node(
+        &self,
+        workflow_id: i32,
+        payload: WorkflowNodeCreate,
+    ) -> crate::error::Result<WorkflowNode> {
+        self.inner
+            .as_ref()
+            .create_workflow_node(workflow_id, payload)
+            .await
     }
-    async fn update_workflow_node(&self, id: i32, workflow_id: i32, payload: WorkflowNodeUpdate) -> crate::error::Result<WorkflowNode> {
-        self.inner.as_ref().update_workflow_node(id, workflow_id, payload).await
+    async fn update_workflow_node(
+        &self,
+        id: i32,
+        workflow_id: i32,
+        payload: WorkflowNodeUpdate,
+    ) -> crate::error::Result<WorkflowNode> {
+        self.inner
+            .as_ref()
+            .update_workflow_node(id, workflow_id, payload)
+            .await
     }
     async fn delete_workflow_node(&self, id: i32, workflow_id: i32) -> crate::error::Result<()> {
-        self.inner.as_ref().delete_workflow_node(id, workflow_id).await
+        self.inner
+            .as_ref()
+            .delete_workflow_node(id, workflow_id)
+            .await
     }
-    async fn get_workflow_edges(&self, workflow_id: i32) -> crate::error::Result<Vec<WorkflowEdge>> {
+    async fn get_workflow_edges(
+        &self,
+        workflow_id: i32,
+    ) -> crate::error::Result<Vec<WorkflowEdge>> {
         self.inner.as_ref().get_workflow_edges(workflow_id).await
     }
-    async fn create_workflow_edge(&self, workflow_id: i32, payload: WorkflowEdgeCreate) -> crate::error::Result<WorkflowEdge> {
-        self.inner.as_ref().create_workflow_edge(workflow_id, payload).await
+    async fn create_workflow_edge(
+        &self,
+        workflow_id: i32,
+        payload: WorkflowEdgeCreate,
+    ) -> crate::error::Result<WorkflowEdge> {
+        self.inner
+            .as_ref()
+            .create_workflow_edge(workflow_id, payload)
+            .await
     }
     async fn delete_workflow_edge(&self, id: i32, workflow_id: i32) -> crate::error::Result<()> {
-        self.inner.as_ref().delete_workflow_edge(id, workflow_id).await
+        self.inner
+            .as_ref()
+            .delete_workflow_edge(id, workflow_id)
+            .await
     }
-    async fn get_workflow_runs(&self, workflow_id: i32, project_id: i32) -> crate::error::Result<Vec<WorkflowRun>> {
-        self.inner.as_ref().get_workflow_runs(workflow_id, project_id).await
+    async fn get_workflow_runs(
+        &self,
+        workflow_id: i32,
+        project_id: i32,
+    ) -> crate::error::Result<Vec<WorkflowRun>> {
+        self.inner
+            .as_ref()
+            .get_workflow_runs(workflow_id, project_id)
+            .await
     }
-    async fn create_workflow_run(&self, workflow_id: i32, project_id: i32) -> crate::error::Result<WorkflowRun> {
-        self.inner.as_ref().create_workflow_run(workflow_id, project_id).await
+    async fn create_workflow_run(
+        &self,
+        workflow_id: i32,
+        project_id: i32,
+    ) -> crate::error::Result<WorkflowRun> {
+        self.inner
+            .as_ref()
+            .create_workflow_run(workflow_id, project_id)
+            .await
     }
-    async fn update_workflow_run_status(&self, id: i32, status: &str, message: Option<String>) -> crate::error::Result<()> {
-        self.inner.as_ref().update_workflow_run_status(id, status, message).await
+    async fn update_workflow_run_status(
+        &self,
+        id: i32,
+        status: &str,
+        message: Option<String>,
+    ) -> crate::error::Result<()> {
+        self.inner
+            .as_ref()
+            .update_workflow_run_status(id, status, message)
+            .await
     }
 }
 
 #[async_trait]
 impl crate::db::store::NotificationPolicyManager for StoreWrapper {
-    async fn get_notification_policies(&self, project_id: i32) -> crate::error::Result<Vec<NotificationPolicy>> {
-        self.inner.as_ref().get_notification_policies(project_id).await
+    async fn get_notification_policies(
+        &self,
+        project_id: i32,
+    ) -> crate::error::Result<Vec<NotificationPolicy>> {
+        self.inner
+            .as_ref()
+            .get_notification_policies(project_id)
+            .await
     }
-    async fn get_notification_policy(&self, id: i32, project_id: i32) -> crate::error::Result<NotificationPolicy> {
-        self.inner.as_ref().get_notification_policy(id, project_id).await
+    async fn get_notification_policy(
+        &self,
+        id: i32,
+        project_id: i32,
+    ) -> crate::error::Result<NotificationPolicy> {
+        self.inner
+            .as_ref()
+            .get_notification_policy(id, project_id)
+            .await
     }
-    async fn create_notification_policy(&self, project_id: i32, payload: NotificationPolicyCreate) -> crate::error::Result<NotificationPolicy> {
-        self.inner.as_ref().create_notification_policy(project_id, payload).await
+    async fn create_notification_policy(
+        &self,
+        project_id: i32,
+        payload: NotificationPolicyCreate,
+    ) -> crate::error::Result<NotificationPolicy> {
+        self.inner
+            .as_ref()
+            .create_notification_policy(project_id, payload)
+            .await
     }
-    async fn update_notification_policy(&self, id: i32, project_id: i32, payload: NotificationPolicyUpdate) -> crate::error::Result<NotificationPolicy> {
-        self.inner.as_ref().update_notification_policy(id, project_id, payload).await
+    async fn update_notification_policy(
+        &self,
+        id: i32,
+        project_id: i32,
+        payload: NotificationPolicyUpdate,
+    ) -> crate::error::Result<NotificationPolicy> {
+        self.inner
+            .as_ref()
+            .update_notification_policy(id, project_id, payload)
+            .await
     }
-    async fn delete_notification_policy(&self, id: i32, project_id: i32) -> crate::error::Result<()> {
-        self.inner.as_ref().delete_notification_policy(id, project_id).await
+    async fn delete_notification_policy(
+        &self,
+        id: i32,
+        project_id: i32,
+    ) -> crate::error::Result<()> {
+        self.inner
+            .as_ref()
+            .delete_notification_policy(id, project_id)
+            .await
     }
-    async fn get_matching_policies(&self, project_id: i32, trigger: &str, template_id: Option<i32>) -> crate::error::Result<Vec<NotificationPolicy>> {
-        self.inner.as_ref().get_matching_policies(project_id, trigger, template_id).await
+    async fn get_matching_policies(
+        &self,
+        project_id: i32,
+        trigger: &str,
+        template_id: Option<i32>,
+    ) -> crate::error::Result<Vec<NotificationPolicy>> {
+        self.inner
+            .as_ref()
+            .get_matching_policies(project_id, trigger, template_id)
+            .await
     }
 }
 
 #[async_trait]
 impl crate::db::store::CredentialTypeManager for StoreWrapper {
-    async fn get_credential_types(&self) -> crate::error::Result<Vec<crate::models::credential_type::CredentialType>> {
+    async fn get_credential_types(
+        &self,
+    ) -> crate::error::Result<Vec<crate::models::credential_type::CredentialType>> {
         self.inner.as_ref().get_credential_types().await
     }
-    async fn get_credential_type(&self, id: i32) -> crate::error::Result<crate::models::credential_type::CredentialType> {
+    async fn get_credential_type(
+        &self,
+        id: i32,
+    ) -> crate::error::Result<crate::models::credential_type::CredentialType> {
         self.inner.as_ref().get_credential_type(id).await
     }
-    async fn create_credential_type(&self, payload: crate::models::credential_type::CredentialTypeCreate) -> crate::error::Result<crate::models::credential_type::CredentialType> {
+    async fn create_credential_type(
+        &self,
+        payload: crate::models::credential_type::CredentialTypeCreate,
+    ) -> crate::error::Result<crate::models::credential_type::CredentialType> {
         self.inner.as_ref().create_credential_type(payload).await
     }
-    async fn update_credential_type(&self, id: i32, payload: crate::models::credential_type::CredentialTypeUpdate) -> crate::error::Result<crate::models::credential_type::CredentialType> {
-        self.inner.as_ref().update_credential_type(id, payload).await
+    async fn update_credential_type(
+        &self,
+        id: i32,
+        payload: crate::models::credential_type::CredentialTypeUpdate,
+    ) -> crate::error::Result<crate::models::credential_type::CredentialType> {
+        self.inner
+            .as_ref()
+            .update_credential_type(id, payload)
+            .await
     }
     async fn delete_credential_type(&self, id: i32) -> crate::error::Result<()> {
         self.inner.as_ref().delete_credential_type(id).await
     }
-    async fn get_credential_instances(&self, project_id: i32) -> crate::error::Result<Vec<crate::models::credential_type::CredentialInstance>> {
-        self.inner.as_ref().get_credential_instances(project_id).await
+    async fn get_credential_instances(
+        &self,
+        project_id: i32,
+    ) -> crate::error::Result<Vec<crate::models::credential_type::CredentialInstance>> {
+        self.inner
+            .as_ref()
+            .get_credential_instances(project_id)
+            .await
     }
-    async fn get_credential_instance(&self, id: i32, project_id: i32) -> crate::error::Result<crate::models::credential_type::CredentialInstance> {
-        self.inner.as_ref().get_credential_instance(id, project_id).await
+    async fn get_credential_instance(
+        &self,
+        id: i32,
+        project_id: i32,
+    ) -> crate::error::Result<crate::models::credential_type::CredentialInstance> {
+        self.inner
+            .as_ref()
+            .get_credential_instance(id, project_id)
+            .await
     }
-    async fn create_credential_instance(&self, project_id: i32, payload: crate::models::credential_type::CredentialInstanceCreate) -> crate::error::Result<crate::models::credential_type::CredentialInstance> {
-        self.inner.as_ref().create_credential_instance(project_id, payload).await
+    async fn create_credential_instance(
+        &self,
+        project_id: i32,
+        payload: crate::models::credential_type::CredentialInstanceCreate,
+    ) -> crate::error::Result<crate::models::credential_type::CredentialInstance> {
+        self.inner
+            .as_ref()
+            .create_credential_instance(project_id, payload)
+            .await
     }
-    async fn delete_credential_instance(&self, id: i32, project_id: i32) -> crate::error::Result<()> {
-        self.inner.as_ref().delete_credential_instance(id, project_id).await
+    async fn delete_credential_instance(
+        &self,
+        id: i32,
+        project_id: i32,
+    ) -> crate::error::Result<()> {
+        self.inner
+            .as_ref()
+            .delete_credential_instance(id, project_id)
+            .await
     }
 }
 
 #[async_trait]
 impl crate::db::store::DriftManager for StoreWrapper {
-    async fn get_drift_configs(&self, project_id: i32) -> crate::error::Result<Vec<crate::models::drift::DriftConfig>> {
+    async fn get_drift_configs(
+        &self,
+        project_id: i32,
+    ) -> crate::error::Result<Vec<crate::models::drift::DriftConfig>> {
         self.inner.as_ref().get_drift_configs(project_id).await
     }
-    async fn get_drift_config(&self, id: i32, project_id: i32) -> crate::error::Result<crate::models::drift::DriftConfig> {
+    async fn get_drift_config(
+        &self,
+        id: i32,
+        project_id: i32,
+    ) -> crate::error::Result<crate::models::drift::DriftConfig> {
         self.inner.as_ref().get_drift_config(id, project_id).await
     }
-    async fn create_drift_config(&self, project_id: i32, payload: crate::models::drift::DriftConfigCreate) -> crate::error::Result<crate::models::drift::DriftConfig> {
-        self.inner.as_ref().create_drift_config(project_id, payload).await
+    async fn create_drift_config(
+        &self,
+        project_id: i32,
+        payload: crate::models::drift::DriftConfigCreate,
+    ) -> crate::error::Result<crate::models::drift::DriftConfig> {
+        self.inner
+            .as_ref()
+            .create_drift_config(project_id, payload)
+            .await
     }
-    async fn update_drift_config_enabled(&self, id: i32, project_id: i32, enabled: bool) -> crate::error::Result<()> {
-        self.inner.as_ref().update_drift_config_enabled(id, project_id, enabled).await
+    async fn update_drift_config_enabled(
+        &self,
+        id: i32,
+        project_id: i32,
+        enabled: bool,
+    ) -> crate::error::Result<()> {
+        self.inner
+            .as_ref()
+            .update_drift_config_enabled(id, project_id, enabled)
+            .await
     }
     async fn delete_drift_config(&self, id: i32, project_id: i32) -> crate::error::Result<()> {
-        self.inner.as_ref().delete_drift_config(id, project_id).await
+        self.inner
+            .as_ref()
+            .delete_drift_config(id, project_id)
+            .await
     }
-    async fn get_drift_results(&self, drift_config_id: i32, limit: i64) -> crate::error::Result<Vec<crate::models::drift::DriftResult>> {
-        self.inner.as_ref().get_drift_results(drift_config_id, limit).await
+    async fn get_drift_results(
+        &self,
+        drift_config_id: i32,
+        limit: i64,
+    ) -> crate::error::Result<Vec<crate::models::drift::DriftResult>> {
+        self.inner
+            .as_ref()
+            .get_drift_results(drift_config_id, limit)
+            .await
     }
-    async fn create_drift_result(&self, project_id: i32, drift_config_id: i32, template_id: i32, status: &str, summary: Option<String>, task_id: Option<i32>) -> crate::error::Result<crate::models::drift::DriftResult> {
-        self.inner.as_ref().create_drift_result(project_id, drift_config_id, template_id, status, summary, task_id).await
+    async fn create_drift_result(
+        &self,
+        project_id: i32,
+        drift_config_id: i32,
+        template_id: i32,
+        status: &str,
+        summary: Option<String>,
+        task_id: Option<i32>,
+    ) -> crate::error::Result<crate::models::drift::DriftResult> {
+        self.inner
+            .as_ref()
+            .create_drift_result(
+                project_id,
+                drift_config_id,
+                template_id,
+                status,
+                summary,
+                task_id,
+            )
+            .await
     }
-    async fn get_latest_drift_results(&self, project_id: i32) -> crate::error::Result<Vec<crate::models::drift::DriftResult>> {
-        self.inner.as_ref().get_latest_drift_results(project_id).await
+    async fn get_latest_drift_results(
+        &self,
+        project_id: i32,
+    ) -> crate::error::Result<Vec<crate::models::drift::DriftResult>> {
+        self.inner
+            .as_ref()
+            .get_latest_drift_results(project_id)
+            .await
     }
 }
 
 #[async_trait]
 impl crate::db::store::LdapGroupMappingManager for StoreWrapper {
-    async fn get_ldap_group_mappings(&self) -> crate::error::Result<Vec<crate::models::ldap_group::LdapGroupMapping>> {
+    async fn get_ldap_group_mappings(
+        &self,
+    ) -> crate::error::Result<Vec<crate::models::ldap_group::LdapGroupMapping>> {
         self.inner.as_ref().get_ldap_group_mappings().await
     }
-    async fn create_ldap_group_mapping(&self, payload: crate::models::ldap_group::LdapGroupMappingCreate) -> crate::error::Result<crate::models::ldap_group::LdapGroupMapping> {
+    async fn create_ldap_group_mapping(
+        &self,
+        payload: crate::models::ldap_group::LdapGroupMappingCreate,
+    ) -> crate::error::Result<crate::models::ldap_group::LdapGroupMapping> {
         self.inner.as_ref().create_ldap_group_mapping(payload).await
     }
     async fn delete_ldap_group_mapping(&self, id: i32) -> crate::error::Result<()> {
         self.inner.as_ref().delete_ldap_group_mapping(id).await
     }
-    async fn get_mappings_for_groups(&self, group_dns: &[String]) -> crate::error::Result<Vec<crate::models::ldap_group::LdapGroupMapping>> {
+    async fn get_mappings_for_groups(
+        &self,
+        group_dns: &[String],
+    ) -> crate::error::Result<Vec<crate::models::ldap_group::LdapGroupMapping>> {
         self.inner.as_ref().get_mappings_for_groups(group_dns).await
     }
 }
 
 #[async_trait]
 impl crate::db::store::SnapshotManager for StoreWrapper {
-    async fn get_snapshots(&self, project_id: i32, template_id: Option<i32>, limit: i64) -> crate::error::Result<Vec<crate::models::snapshot::TaskSnapshot>> {
-        self.inner.as_ref().get_snapshots(project_id, template_id, limit).await
+    async fn get_snapshots(
+        &self,
+        project_id: i32,
+        template_id: Option<i32>,
+        limit: i64,
+    ) -> crate::error::Result<Vec<crate::models::snapshot::TaskSnapshot>> {
+        self.inner
+            .as_ref()
+            .get_snapshots(project_id, template_id, limit)
+            .await
     }
-    async fn get_snapshot(&self, id: i32, project_id: i32) -> crate::error::Result<crate::models::snapshot::TaskSnapshot> {
+    async fn get_snapshot(
+        &self,
+        id: i32,
+        project_id: i32,
+    ) -> crate::error::Result<crate::models::snapshot::TaskSnapshot> {
         self.inner.as_ref().get_snapshot(id, project_id).await
     }
-    async fn create_snapshot(&self, project_id: i32, payload: crate::models::snapshot::TaskSnapshotCreate) -> crate::error::Result<crate::models::snapshot::TaskSnapshot> {
-        self.inner.as_ref().create_snapshot(project_id, payload).await
+    async fn create_snapshot(
+        &self,
+        project_id: i32,
+        payload: crate::models::snapshot::TaskSnapshotCreate,
+    ) -> crate::error::Result<crate::models::snapshot::TaskSnapshot> {
+        self.inner
+            .as_ref()
+            .create_snapshot(project_id, payload)
+            .await
     }
     async fn delete_snapshot(&self, id: i32, project_id: i32) -> crate::error::Result<()> {
         self.inner.as_ref().delete_snapshot(id, project_id).await
@@ -983,51 +1545,139 @@ impl crate::db::store::SnapshotManager for StoreWrapper {
 
 #[async_trait]
 impl crate::db::store::CostEstimateManager for StoreWrapper {
-    async fn get_cost_estimates(&self, project_id: i32, limit: i64) -> crate::error::Result<Vec<crate::models::cost_estimate::CostEstimate>> {
-        self.inner.as_ref().get_cost_estimates(project_id, limit).await
+    async fn get_cost_estimates(
+        &self,
+        project_id: i32,
+        limit: i64,
+    ) -> crate::error::Result<Vec<crate::models::cost_estimate::CostEstimate>> {
+        self.inner
+            .as_ref()
+            .get_cost_estimates(project_id, limit)
+            .await
     }
-    async fn get_cost_estimate_for_task(&self, project_id: i32, task_id: i32) -> crate::error::Result<Option<crate::models::cost_estimate::CostEstimate>> {
-        self.inner.as_ref().get_cost_estimate_for_task(project_id, task_id).await
+    async fn get_cost_estimate_for_task(
+        &self,
+        project_id: i32,
+        task_id: i32,
+    ) -> crate::error::Result<Option<crate::models::cost_estimate::CostEstimate>> {
+        self.inner
+            .as_ref()
+            .get_cost_estimate_for_task(project_id, task_id)
+            .await
     }
-    async fn create_cost_estimate(&self, payload: crate::models::cost_estimate::CostEstimateCreate) -> crate::error::Result<crate::models::cost_estimate::CostEstimate> {
+    async fn create_cost_estimate(
+        &self,
+        payload: crate::models::cost_estimate::CostEstimateCreate,
+    ) -> crate::error::Result<crate::models::cost_estimate::CostEstimate> {
         self.inner.as_ref().create_cost_estimate(payload).await
     }
-    async fn get_cost_summaries(&self, project_id: i32) -> crate::error::Result<Vec<crate::models::cost_estimate::CostSummary>> {
+    async fn get_cost_summaries(
+        &self,
+        project_id: i32,
+    ) -> crate::error::Result<Vec<crate::models::cost_estimate::CostSummary>> {
         self.inner.as_ref().get_cost_summaries(project_id).await
     }
 }
 
 #[async_trait]
 impl crate::db::store::TerraformStateManager for StoreWrapper {
-    async fn get_terraform_state(&self, project_id: i32, workspace: &str) -> crate::error::Result<Option<crate::models::TerraformState>> {
-        self.inner.as_ref().get_terraform_state(project_id, workspace).await
+    async fn get_terraform_state(
+        &self,
+        project_id: i32,
+        workspace: &str,
+    ) -> crate::error::Result<Option<crate::models::TerraformState>> {
+        self.inner
+            .as_ref()
+            .get_terraform_state(project_id, workspace)
+            .await
     }
-    async fn list_terraform_states(&self, project_id: i32, workspace: &str) -> crate::error::Result<Vec<crate::models::TerraformStateSummary>> {
-        self.inner.as_ref().list_terraform_states(project_id, workspace).await
+    async fn list_terraform_states(
+        &self,
+        project_id: i32,
+        workspace: &str,
+    ) -> crate::error::Result<Vec<crate::models::TerraformStateSummary>> {
+        self.inner
+            .as_ref()
+            .list_terraform_states(project_id, workspace)
+            .await
     }
-    async fn get_terraform_state_by_serial(&self, project_id: i32, workspace: &str, serial: i32) -> crate::error::Result<Option<crate::models::TerraformState>> {
-        self.inner.as_ref().get_terraform_state_by_serial(project_id, workspace, serial).await
+    async fn get_terraform_state_by_serial(
+        &self,
+        project_id: i32,
+        workspace: &str,
+        serial: i32,
+    ) -> crate::error::Result<Option<crate::models::TerraformState>> {
+        self.inner
+            .as_ref()
+            .get_terraform_state_by_serial(project_id, workspace, serial)
+            .await
     }
-    async fn create_terraform_state(&self, state: crate::models::TerraformState) -> crate::error::Result<crate::models::TerraformState> {
+    async fn create_terraform_state(
+        &self,
+        state: crate::models::TerraformState,
+    ) -> crate::error::Result<crate::models::TerraformState> {
         self.inner.as_ref().create_terraform_state(state).await
     }
-    async fn delete_terraform_state(&self, project_id: i32, workspace: &str) -> crate::error::Result<()> {
-        self.inner.as_ref().delete_terraform_state(project_id, workspace).await
+    async fn delete_terraform_state(
+        &self,
+        project_id: i32,
+        workspace: &str,
+    ) -> crate::error::Result<()> {
+        self.inner
+            .as_ref()
+            .delete_terraform_state(project_id, workspace)
+            .await
     }
-    async fn delete_all_terraform_states(&self, project_id: i32, workspace: &str) -> crate::error::Result<()> {
-        self.inner.as_ref().delete_all_terraform_states(project_id, workspace).await
+    async fn delete_all_terraform_states(
+        &self,
+        project_id: i32,
+        workspace: &str,
+    ) -> crate::error::Result<()> {
+        self.inner
+            .as_ref()
+            .delete_all_terraform_states(project_id, workspace)
+            .await
     }
-    async fn lock_terraform_state(&self, project_id: i32, workspace: &str, lock: crate::models::TerraformStateLock) -> crate::error::Result<crate::models::TerraformStateLock> {
-        self.inner.as_ref().lock_terraform_state(project_id, workspace, lock).await
+    async fn lock_terraform_state(
+        &self,
+        project_id: i32,
+        workspace: &str,
+        lock: crate::models::TerraformStateLock,
+    ) -> crate::error::Result<crate::models::TerraformStateLock> {
+        self.inner
+            .as_ref()
+            .lock_terraform_state(project_id, workspace, lock)
+            .await
     }
-    async fn unlock_terraform_state(&self, project_id: i32, workspace: &str, lock_id: &str) -> crate::error::Result<()> {
-        self.inner.as_ref().unlock_terraform_state(project_id, workspace, lock_id).await
+    async fn unlock_terraform_state(
+        &self,
+        project_id: i32,
+        workspace: &str,
+        lock_id: &str,
+    ) -> crate::error::Result<()> {
+        self.inner
+            .as_ref()
+            .unlock_terraform_state(project_id, workspace, lock_id)
+            .await
     }
-    async fn get_terraform_lock(&self, project_id: i32, workspace: &str) -> crate::error::Result<Option<crate::models::TerraformStateLock>> {
-        self.inner.as_ref().get_terraform_lock(project_id, workspace).await
+    async fn get_terraform_lock(
+        &self,
+        project_id: i32,
+        workspace: &str,
+    ) -> crate::error::Result<Option<crate::models::TerraformStateLock>> {
+        self.inner
+            .as_ref()
+            .get_terraform_lock(project_id, workspace)
+            .await
     }
-    async fn list_terraform_workspaces(&self, project_id: i32) -> crate::error::Result<Vec<String>> {
-        self.inner.as_ref().list_terraform_workspaces(project_id).await
+    async fn list_terraform_workspaces(
+        &self,
+        project_id: i32,
+    ) -> crate::error::Result<Vec<String>> {
+        self.inner
+            .as_ref()
+            .list_terraform_workspaces(project_id)
+            .await
     }
     async fn purge_expired_terraform_locks(&self) -> crate::error::Result<u64> {
         self.inner.as_ref().purge_expired_terraform_locks().await
@@ -1036,23 +1686,63 @@ impl crate::db::store::TerraformStateManager for StoreWrapper {
 
 #[async_trait]
 impl crate::db::store::PlanApprovalManager for StoreWrapper {
-    async fn create_plan(&self, plan: crate::models::TerraformPlan) -> crate::error::Result<crate::models::TerraformPlan> {
+    async fn create_plan(
+        &self,
+        plan: crate::models::TerraformPlan,
+    ) -> crate::error::Result<crate::models::TerraformPlan> {
         self.inner.as_ref().create_plan(plan).await
     }
-    async fn get_plan_by_task(&self, project_id: i32, task_id: i32) -> crate::error::Result<Option<crate::models::TerraformPlan>> {
-        self.inner.as_ref().get_plan_by_task(project_id, task_id).await
+    async fn get_plan_by_task(
+        &self,
+        project_id: i32,
+        task_id: i32,
+    ) -> crate::error::Result<Option<crate::models::TerraformPlan>> {
+        self.inner
+            .as_ref()
+            .get_plan_by_task(project_id, task_id)
+            .await
     }
-    async fn list_pending_plans(&self, project_id: i32) -> crate::error::Result<Vec<crate::models::TerraformPlan>> {
+    async fn list_pending_plans(
+        &self,
+        project_id: i32,
+    ) -> crate::error::Result<Vec<crate::models::TerraformPlan>> {
         self.inner.as_ref().list_pending_plans(project_id).await
     }
-    async fn approve_plan(&self, id: i64, reviewed_by: i32, comment: Option<String>) -> crate::error::Result<()> {
-        self.inner.as_ref().approve_plan(id, reviewed_by, comment).await
+    async fn approve_plan(
+        &self,
+        id: i64,
+        reviewed_by: i32,
+        comment: Option<String>,
+    ) -> crate::error::Result<()> {
+        self.inner
+            .as_ref()
+            .approve_plan(id, reviewed_by, comment)
+            .await
     }
-    async fn reject_plan(&self, id: i64, reviewed_by: i32, comment: Option<String>) -> crate::error::Result<()> {
-        self.inner.as_ref().reject_plan(id, reviewed_by, comment).await
+    async fn reject_plan(
+        &self,
+        id: i64,
+        reviewed_by: i32,
+        comment: Option<String>,
+    ) -> crate::error::Result<()> {
+        self.inner
+            .as_ref()
+            .reject_plan(id, reviewed_by, comment)
+            .await
     }
-    async fn update_plan_output(&self, task_id: i32, output: String, json: Option<String>, added: i32, changed: i32, removed: i32) -> crate::error::Result<()> {
-        self.inner.as_ref().update_plan_output(task_id, output, json, added, changed, removed).await
+    async fn update_plan_output(
+        &self,
+        task_id: i32,
+        output: String,
+        json: Option<String>,
+        added: i32,
+        changed: i32,
+        removed: i32,
+    ) -> crate::error::Result<()> {
+        self.inner
+            .as_ref()
+            .update_plan_output(task_id, output, json, added, changed, removed)
+            .await
     }
 }
 
@@ -1064,82 +1754,212 @@ impl crate::db::store::OrganizationManager for StoreWrapper {
     async fn get_organization(&self, id: i32) -> crate::error::Result<crate::models::Organization> {
         self.inner.as_ref().get_organization(id).await
     }
-    async fn get_organization_by_slug(&self, slug: &str) -> crate::error::Result<crate::models::Organization> {
+    async fn get_organization_by_slug(
+        &self,
+        slug: &str,
+    ) -> crate::error::Result<crate::models::Organization> {
         self.inner.as_ref().get_organization_by_slug(slug).await
     }
-    async fn create_organization(&self, payload: crate::models::OrganizationCreate) -> crate::error::Result<crate::models::Organization> {
+    async fn create_organization(
+        &self,
+        payload: crate::models::OrganizationCreate,
+    ) -> crate::error::Result<crate::models::Organization> {
         self.inner.as_ref().create_organization(payload).await
     }
-    async fn update_organization(&self, id: i32, payload: crate::models::OrganizationUpdate) -> crate::error::Result<crate::models::Organization> {
+    async fn update_organization(
+        &self,
+        id: i32,
+        payload: crate::models::OrganizationUpdate,
+    ) -> crate::error::Result<crate::models::Organization> {
         self.inner.as_ref().update_organization(id, payload).await
     }
     async fn delete_organization(&self, id: i32) -> crate::error::Result<()> {
         self.inner.as_ref().delete_organization(id).await
     }
-    async fn get_organization_users(&self, org_id: i32) -> crate::error::Result<Vec<crate::models::OrganizationUser>> {
+    async fn get_organization_users(
+        &self,
+        org_id: i32,
+    ) -> crate::error::Result<Vec<crate::models::OrganizationUser>> {
         self.inner.as_ref().get_organization_users(org_id).await
     }
-    async fn add_user_to_organization(&self, payload: crate::models::OrganizationUserCreate) -> crate::error::Result<crate::models::OrganizationUser> {
+    async fn add_user_to_organization(
+        &self,
+        payload: crate::models::OrganizationUserCreate,
+    ) -> crate::error::Result<crate::models::OrganizationUser> {
         self.inner.as_ref().add_user_to_organization(payload).await
     }
-    async fn remove_user_from_organization(&self, org_id: i32, user_id: i32) -> crate::error::Result<()> {
-        self.inner.as_ref().remove_user_from_organization(org_id, user_id).await
+    async fn remove_user_from_organization(
+        &self,
+        org_id: i32,
+        user_id: i32,
+    ) -> crate::error::Result<()> {
+        self.inner
+            .as_ref()
+            .remove_user_from_organization(org_id, user_id)
+            .await
     }
-    async fn update_user_organization_role(&self, org_id: i32, user_id: i32, role: &str) -> crate::error::Result<()> {
-        self.inner.as_ref().update_user_organization_role(org_id, user_id, role).await
+    async fn update_user_organization_role(
+        &self,
+        org_id: i32,
+        user_id: i32,
+        role: &str,
+    ) -> crate::error::Result<()> {
+        self.inner
+            .as_ref()
+            .update_user_organization_role(org_id, user_id, role)
+            .await
     }
-    async fn get_user_organizations(&self, user_id: i32) -> crate::error::Result<Vec<crate::models::Organization>> {
+    async fn get_user_organizations(
+        &self,
+        user_id: i32,
+    ) -> crate::error::Result<Vec<crate::models::Organization>> {
         self.inner.as_ref().get_user_organizations(user_id).await
     }
-    async fn check_organization_quota(&self, org_id: i32, quota_type: &str) -> crate::error::Result<bool> {
-        self.inner.as_ref().check_organization_quota(org_id, quota_type).await
+    async fn check_organization_quota(
+        &self,
+        org_id: i32,
+        quota_type: &str,
+    ) -> crate::error::Result<bool> {
+        self.inner
+            .as_ref()
+            .check_organization_quota(org_id, quota_type)
+            .await
     }
 }
 
 #[async_trait]
 impl crate::db::store::DeploymentEnvironmentManager for StoreWrapper {
-    async fn get_deployment_environments(&self, project_id: i32) -> Result<Vec<crate::models::DeploymentEnvironment>> {
-        self.inner.as_ref().get_deployment_environments(project_id).await
+    async fn get_deployment_environments(
+        &self,
+        project_id: i32,
+    ) -> Result<Vec<crate::models::DeploymentEnvironment>> {
+        self.inner
+            .as_ref()
+            .get_deployment_environments(project_id)
+            .await
     }
-    async fn get_deployment_environment(&self, id: i32, project_id: i32) -> Result<crate::models::DeploymentEnvironment> {
-        self.inner.as_ref().get_deployment_environment(id, project_id).await
+    async fn get_deployment_environment(
+        &self,
+        id: i32,
+        project_id: i32,
+    ) -> Result<crate::models::DeploymentEnvironment> {
+        self.inner
+            .as_ref()
+            .get_deployment_environment(id, project_id)
+            .await
     }
-    async fn create_deployment_environment(&self, project_id: i32, payload: crate::models::DeploymentEnvironmentCreate) -> Result<crate::models::DeploymentEnvironment> {
-        self.inner.as_ref().create_deployment_environment(project_id, payload).await
+    async fn create_deployment_environment(
+        &self,
+        project_id: i32,
+        payload: crate::models::DeploymentEnvironmentCreate,
+    ) -> Result<crate::models::DeploymentEnvironment> {
+        self.inner
+            .as_ref()
+            .create_deployment_environment(project_id, payload)
+            .await
     }
-    async fn update_deployment_environment(&self, id: i32, project_id: i32, payload: crate::models::DeploymentEnvironmentUpdate) -> Result<crate::models::DeploymentEnvironment> {
-        self.inner.as_ref().update_deployment_environment(id, project_id, payload).await
+    async fn update_deployment_environment(
+        &self,
+        id: i32,
+        project_id: i32,
+        payload: crate::models::DeploymentEnvironmentUpdate,
+    ) -> Result<crate::models::DeploymentEnvironment> {
+        self.inner
+            .as_ref()
+            .update_deployment_environment(id, project_id, payload)
+            .await
     }
     async fn delete_deployment_environment(&self, id: i32, project_id: i32) -> Result<()> {
-        self.inner.as_ref().delete_deployment_environment(id, project_id).await
+        self.inner
+            .as_ref()
+            .delete_deployment_environment(id, project_id)
+            .await
     }
-    async fn get_deployment_history(&self, env_id: i32, project_id: i32) -> Result<Vec<crate::models::DeploymentRecord>> {
-        self.inner.as_ref().get_deployment_history(env_id, project_id).await
+    async fn get_deployment_history(
+        &self,
+        env_id: i32,
+        project_id: i32,
+    ) -> Result<Vec<crate::models::DeploymentRecord>> {
+        self.inner
+            .as_ref()
+            .get_deployment_history(env_id, project_id)
+            .await
     }
-    async fn record_deployment(&self, env_id: i32, task_id: i32, project_id: i32, version: Option<String>, deployed_by: Option<i32>, status: &str) -> Result<()> {
-        self.inner.as_ref().record_deployment(env_id, task_id, project_id, version, deployed_by, status).await
+    async fn record_deployment(
+        &self,
+        env_id: i32,
+        task_id: i32,
+        project_id: i32,
+        version: Option<String>,
+        deployed_by: Option<i32>,
+        status: &str,
+    ) -> Result<()> {
+        self.inner
+            .as_ref()
+            .record_deployment(env_id, task_id, project_id, version, deployed_by, status)
+            .await
     }
 }
 
 #[async_trait]
 impl crate::db::store::StructuredOutputManager for StoreWrapper {
-    async fn get_task_structured_outputs(&self, task_id: i32, project_id: i32) -> Result<Vec<crate::models::TaskStructuredOutput>> {
-        self.inner.as_ref().get_task_structured_outputs(task_id, project_id).await
+    async fn get_task_structured_outputs(
+        &self,
+        task_id: i32,
+        project_id: i32,
+    ) -> Result<Vec<crate::models::TaskStructuredOutput>> {
+        self.inner
+            .as_ref()
+            .get_task_structured_outputs(task_id, project_id)
+            .await
     }
-    async fn get_task_outputs_map(&self, task_id: i32, project_id: i32) -> Result<crate::models::TaskOutputsMap> {
-        self.inner.as_ref().get_task_outputs_map(task_id, project_id).await
+    async fn get_task_outputs_map(
+        &self,
+        task_id: i32,
+        project_id: i32,
+    ) -> Result<crate::models::TaskOutputsMap> {
+        self.inner
+            .as_ref()
+            .get_task_outputs_map(task_id, project_id)
+            .await
     }
-    async fn create_task_structured_output(&self, task_id: i32, project_id: i32, payload: crate::models::TaskStructuredOutputCreate) -> Result<crate::models::TaskStructuredOutput> {
-        self.inner.as_ref().create_task_structured_output(task_id, project_id, payload).await
+    async fn create_task_structured_output(
+        &self,
+        task_id: i32,
+        project_id: i32,
+        payload: crate::models::TaskStructuredOutputCreate,
+    ) -> Result<crate::models::TaskStructuredOutput> {
+        self.inner
+            .as_ref()
+            .create_task_structured_output(task_id, project_id, payload)
+            .await
     }
-    async fn create_task_structured_outputs_batch(&self, task_id: i32, project_id: i32, outputs: Vec<crate::models::TaskStructuredOutputCreate>) -> Result<()> {
-        self.inner.as_ref().create_task_structured_outputs_batch(task_id, project_id, outputs).await
+    async fn create_task_structured_outputs_batch(
+        &self,
+        task_id: i32,
+        project_id: i32,
+        outputs: Vec<crate::models::TaskStructuredOutputCreate>,
+    ) -> Result<()> {
+        self.inner
+            .as_ref()
+            .create_task_structured_outputs_batch(task_id, project_id, outputs)
+            .await
     }
     async fn delete_task_structured_outputs(&self, task_id: i32, project_id: i32) -> Result<()> {
-        self.inner.as_ref().delete_task_structured_outputs(task_id, project_id).await
+        self.inner
+            .as_ref()
+            .delete_task_structured_outputs(task_id, project_id)
+            .await
     }
-    async fn get_template_last_outputs(&self, template_id: i32, project_id: i32) -> Result<crate::models::TaskOutputsMap> {
-        self.inner.as_ref().get_template_last_outputs(template_id, project_id).await
+    async fn get_template_last_outputs(
+        &self,
+        template_id: i32,
+        project_id: i32,
+    ) -> Result<crate::models::TaskOutputsMap> {
+        self.inner
+            .as_ref()
+            .get_template_last_outputs(template_id, project_id)
+            .await
     }
 }
 

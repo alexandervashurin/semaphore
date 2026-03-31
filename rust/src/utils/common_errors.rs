@@ -82,10 +82,7 @@ mod tests {
     #[test]
     fn test_invalid_subscription_error() {
         let err = InvalidSubscriptionError;
-        assert_eq!(
-            err.to_string(),
-            "has no active subscription"
-        );
+        assert_eq!(err.to_string(), "has no active subscription");
     }
 
     #[test]

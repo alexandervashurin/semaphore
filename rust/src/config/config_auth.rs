@@ -2,8 +2,8 @@
 //!
 //! Типы конфигурации приложения
 
-use serde::{Deserialize, Serialize};
 use crate::config::config_oidc::OidcProvider;
+use serde::{Deserialize, Serialize};
 
 /// Конфигурация reCAPTCHA
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

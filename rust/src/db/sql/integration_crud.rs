@@ -15,38 +15,41 @@ impl SqlDb {
 
     /// Получает все интеграции проекта
     pub async fn get_integrations(&self, project_id: i32) -> Result<Vec<Integration>> {
-        let rows = sqlx::query(
-            "SELECT * FROM integration WHERE project_id = $1 ORDER BY name"
-        )
-        .bind(project_id)
-        .fetch_all(self.pg_pool_integration()?)
-        .await
-        .map_err(Error::Database)?;
+        let rows = sqlx::query("SELECT * FROM integration WHERE project_id = $1 ORDER BY name")
+            .bind(project_id)
+            .fetch_all(self.pg_pool_integration()?)
+            .await
+            .map_err(Error::Database)?;
 
-        Ok(rows.into_iter().map(|row| Integration {
-            id: row.get("id"),
-            project_id: row.get("project_id"),
-            name: row.get("name"),
-            template_id: row.get("template_id"),
-            auth_method: row.try_get("auth_method").ok().unwrap_or_default(),
-            auth_header: row.try_get("auth_header").ok().flatten(),
-            auth_secret_id: row.try_get("auth_secret_id").ok().flatten(),
-        }).collect())
+        Ok(rows
+            .into_iter()
+            .map(|row| Integration {
+                id: row.get("id"),
+                project_id: row.get("project_id"),
+                name: row.get("name"),
+                template_id: row.get("template_id"),
+                auth_method: row.try_get("auth_method").ok().unwrap_or_default(),
+                auth_header: row.try_get("auth_header").ok().flatten(),
+                auth_secret_id: row.try_get("auth_secret_id").ok().flatten(),
+            })
+            .collect())
     }
 
     /// Получает интеграцию по ID
-    pub async fn get_integration(&self, project_id: i32, integration_id: i32) -> Result<Integration> {
-        let row = sqlx::query(
-            "SELECT * FROM integration WHERE id = $1 AND project_id = $2"
-        )
-        .bind(integration_id)
-        .bind(project_id)
-        .fetch_one(self.pg_pool_integration()?)
-        .await
-        .map_err(|e| match e {
-            sqlx::Error::RowNotFound => Error::NotFound("Интеграция не найдена".to_string()),
-            _ => Error::Database(e),
-        })?;
+    pub async fn get_integration(
+        &self,
+        project_id: i32,
+        integration_id: i32,
+    ) -> Result<Integration> {
+        let row = sqlx::query("SELECT * FROM integration WHERE id = $1 AND project_id = $2")
+            .bind(integration_id)
+            .bind(project_id)
+            .fetch_one(self.pg_pool_integration()?)
+            .await
+            .map_err(|e| match e {
+                sqlx::Error::RowNotFound => Error::NotFound("Интеграция не найдена".to_string()),
+                _ => Error::Database(e),
+            })?;
 
         Ok(Integration {
             id: row.get("id"),
@@ -83,7 +86,7 @@ impl SqlDb {
     pub async fn update_integration(&self, integration: Integration) -> Result<()> {
         sqlx::query(
             "UPDATE integration SET name = $1, template_id = $2, auth_method = $3, \
-             auth_header = $4, auth_secret_id = $5 WHERE id = $6 AND project_id = $7"
+             auth_header = $4, auth_secret_id = $5 WHERE id = $6 AND project_id = $7",
         )
         .bind(&integration.name)
         .bind(integration.template_id)
@@ -109,4 +112,3 @@ impl SqlDb {
         Ok(())
     }
 }
-

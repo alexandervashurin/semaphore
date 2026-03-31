@@ -37,13 +37,13 @@ pub fn convert_float_to_int_if_possible(v: &Value) -> Option<i64> {
 /// с ключами в формате "field.subfield.value"
 pub fn struct_to_flat_map(obj: &impl Serialize) -> Map<String, Value> {
     let mut result = Map::new();
-    
+
     // Сериализуем объект в Value
     let value = serde_json::to_value(obj).ok().unwrap_or(Value::Null);
-    
+
     // Рекурсивно flattening
     flatten_value(&value, "", &mut result);
-    
+
     result
 }
 
@@ -132,7 +132,7 @@ mod tests {
         };
 
         let flat = struct_to_flat_map(&obj);
-        
+
         assert_eq!(flat.get("name"), Some(&Value::String("John".to_string())));
         assert_eq!(flat.get("age"), Some(&Value::Number(30.into())));
     }
@@ -160,10 +160,16 @@ mod tests {
         };
 
         let flat = struct_to_flat_map(&obj);
-        
+
         assert_eq!(flat.get("name"), Some(&Value::String("John".to_string())));
-        assert_eq!(flat.get("address.city"), Some(&Value::String("Moscow".to_string())));
-        assert_eq!(flat.get("address.zip"), Some(&Value::String("101000".to_string())));
+        assert_eq!(
+            flat.get("address.city"),
+            Some(&Value::String("Moscow".to_string()))
+        );
+        assert_eq!(
+            flat.get("address.zip"),
+            Some(&Value::String("101000".to_string()))
+        );
     }
 
     #[test]
@@ -180,7 +186,7 @@ mod tests {
         };
 
         let flat = struct_to_flat_map(&obj);
-        
+
         assert!(flat.get("name").is_some());
         assert_eq!(flat.get("value"), Some(&Value::Number(42.into())));
     }

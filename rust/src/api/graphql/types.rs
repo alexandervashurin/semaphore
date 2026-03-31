@@ -1,6 +1,6 @@
 //! GraphQL типы
 
-use async_graphql::{SimpleObject, InputObject};
+use async_graphql::{InputObject, SimpleObject};
 
 /// Пользователь
 #[derive(SimpleObject, Debug, Clone)]

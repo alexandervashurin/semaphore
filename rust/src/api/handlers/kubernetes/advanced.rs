@@ -147,7 +147,10 @@ pub async fn get_hpa(
 ) -> Result<Json<HorizontalPodAutoscaler>> {
     let client = state.kubernetes_client()?;
     let api: Api<HorizontalPodAutoscaler> = client.api(Some(&namespace));
-    let item = api.get(&name).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let item = api
+        .get(&name)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
     Ok(Json(item))
 }
 
@@ -188,7 +191,9 @@ pub async fn delete_hpa(
     api.delete(&name, &DeleteParams::default())
         .await
         .map_err(|e| Error::Kubernetes(e.to_string()))?;
-    Ok(Json(serde_json::json!({"status":"ok","message":format!("HPA {namespace}/{name} deleted")})))
+    Ok(Json(
+        serde_json::json!({"status":"ok","message":format!("HPA {namespace}/{name} deleted")}),
+    ))
 }
 
 fn rq_summary(q: &ResourceQuota) -> ResourceQuotaSummary {
@@ -200,7 +205,11 @@ fn rq_summary(q: &ResourceQuota) -> ResourceQuotaSummary {
             .namespace
             .clone()
             .unwrap_or_else(|| "default".to_string()),
-        hard: q.spec.as_ref().and_then(|s| s.hard.as_ref()).map(|h| serde_json::to_value(h).unwrap_or_default()),
+        hard: q
+            .spec
+            .as_ref()
+            .and_then(|s| s.hard.as_ref())
+            .map(|h| serde_json::to_value(h).unwrap_or_default()),
         used: st
             .and_then(|s| s.used.as_ref())
             .map(|u| serde_json::to_value(u).unwrap_or_default()),
@@ -227,7 +236,10 @@ pub async fn get_resource_quota(
 ) -> Result<Json<ResourceQuota>> {
     let client = state.kubernetes_client()?;
     let api: Api<ResourceQuota> = client.api(Some(&namespace));
-    let item = api.get(&name).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let item = api
+        .get(&name)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
     Ok(Json(item))
 }
 
@@ -268,7 +280,9 @@ pub async fn delete_resource_quota(
     api.delete(&name, &DeleteParams::default())
         .await
         .map_err(|e| Error::Kubernetes(e.to_string()))?;
-    Ok(Json(serde_json::json!({"status":"ok","message":format!("ResourceQuota {namespace}/{name} deleted")})))
+    Ok(Json(
+        serde_json::json!({"status":"ok","message":format!("ResourceQuota {namespace}/{name} deleted")}),
+    ))
 }
 
 fn lr_summary(l: &LimitRange) -> LimitRangeSummary {
@@ -303,7 +317,10 @@ pub async fn get_limit_range(
 ) -> Result<Json<LimitRange>> {
     let client = state.kubernetes_client()?;
     let api: Api<LimitRange> = client.api(Some(&namespace));
-    let item = api.get(&name).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let item = api
+        .get(&name)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
     Ok(Json(item))
 }
 
@@ -344,16 +361,14 @@ pub async fn delete_limit_range(
     api.delete(&name, &DeleteParams::default())
         .await
         .map_err(|e| Error::Kubernetes(e.to_string()))?;
-    Ok(Json(serde_json::json!({"status":"ok","message":format!("LimitRange {namespace}/{name} deleted")})))
+    Ok(Json(
+        serde_json::json!({"status":"ok","message":format!("LimitRange {namespace}/{name} deleted")}),
+    ))
 }
 
 fn crd_summary(c: &CustomResourceDefinition) -> CrdSummary {
     let spec = &c.spec;
-    let versions: Vec<String> = spec
-        .versions
-        .iter()
-        .map(|x| x.name.clone())
-        .collect();
+    let versions: Vec<String> = spec.versions.iter().map(|x| x.name.clone()).collect();
     CrdSummary {
         name: c.metadata.name.clone().unwrap_or_default(),
         group: spec.group.clone(),
@@ -380,7 +395,10 @@ pub async fn get_crd(
 ) -> Result<Json<CustomResourceDefinition>> {
     let client = state.kubernetes_client()?;
     let api: Api<CustomResourceDefinition> = client.api_all();
-    let item = api.get(&name).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let item = api
+        .get(&name)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
     Ok(Json(item))
 }
 
@@ -408,10 +426,7 @@ pub async fn list_custom_objects(
         .await
         .map_err(|e| Error::Kubernetes(e.to_string()))?;
     Ok(Json(
-        list.items
-            .iter()
-            .map(|x| serde_json::json!(x))
-            .collect(),
+        list.items.iter().map(|x| serde_json::json!(x)).collect(),
     ))
 }
 
@@ -429,7 +444,10 @@ pub async fn get_custom_object(
         namespace: Some(namespace),
     };
     let api = dynamic_api(&client, &q)?;
-    let obj = api.get(&name).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let obj = api
+        .get(&name)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
     Ok(Json(serde_json::json!(obj)))
 }
 
@@ -454,7 +472,10 @@ pub async fn get_custom_object_cluster(
         namespace: None,
     };
     let api = dynamic_api(&client, &q)?;
-    let obj = api.get(&name).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let obj = api
+        .get(&name)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
     Ok(Json(serde_json::json!(obj)))
 }
 
@@ -618,10 +639,7 @@ pub async fn list_vertical_pod_autoscalers(
         .await
         .map_err(|e| Error::Kubernetes(format!("VPA API: {e}")))?;
     Ok(Json(
-        list.items
-            .iter()
-            .map(|x| serde_json::json!(x))
-            .collect(),
+        list.items.iter().map(|x| serde_json::json!(x)).collect(),
     ))
 }
 
@@ -636,8 +654,10 @@ pub async fn get_vertical_pod_autoscaler(
         "VerticalPodAutoscaler",
         "verticalpodautoscalers",
     );
-    let api: Api<DynamicObject> =
-        Api::namespaced_with(client.raw().clone(), &namespace, &api_res);
-    let obj = api.get(&name).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let api: Api<DynamicObject> = Api::namespaced_with(client.raw().clone(), &namespace, &api_res);
+    let obj = api
+        .get(&name)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
     Ok(Json(serde_json::json!(obj)))
 }

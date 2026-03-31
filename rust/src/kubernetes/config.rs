@@ -66,11 +66,14 @@ pub struct JobRunnerConfig {
 impl Default for JobRunnerConfig {
     fn default() -> Self {
         let mut annotations = HashMap::new();
-        annotations.insert("app.kubernetes.io/managed-by".to_string(), "velum".to_string());
-        
+        annotations.insert(
+            "app.kubernetes.io/managed-by".to_string(),
+            "velum".to_string(),
+        );
+
         let mut labels = HashMap::new();
         labels.insert("app.kubernetes.io/name".to_string(), "velum".to_string());
-        
+
         Self {
             default_image: "alpine:latest".to_string(),
             cpu_limit: "1000m".to_string(),
@@ -174,23 +177,23 @@ impl KubectlCommand {
     /// Строит команду для выполнения
     pub fn build(&self) -> Vec<String> {
         let mut cmd = vec![self.command.clone()];
-        
+
         if let Some(ns) = &self.namespace {
             cmd.push("-n".to_string());
             cmd.push(ns.clone());
         }
-        
+
         if self.wait {
             cmd.push("--wait".to_string());
         }
-        
+
         if let Some(timeout) = &self.timeout {
             cmd.push("--timeout".to_string());
             cmd.push(timeout.clone());
         }
-        
+
         cmd.extend(self.args.clone());
-        
+
         cmd
     }
 }
@@ -253,7 +256,7 @@ mod tests {
             .with_namespace("production")
             .with_wait(true)
             .with_timeout("5m");
-        
+
         let built = cmd.build();
         assert!(built.contains(&"kubectl".to_string()));
         assert!(built.contains(&"-n".to_string()));

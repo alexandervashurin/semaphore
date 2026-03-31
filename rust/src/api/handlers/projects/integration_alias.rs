@@ -2,17 +2,17 @@
 //!
 //! Обработчики для псевдонимов интеграций
 
+use crate::api::middleware::ErrorResponse;
+use crate::api::state::AppState;
+use crate::error::{Error, Result};
+use crate::models::IntegrationAlias;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
     Json,
 };
-use std::sync::Arc;
 use serde::{Deserialize, Serialize};
-use crate::api::state::AppState;
-use crate::models::IntegrationAlias;
-use crate::error::{Error, Result};
-use crate::api::middleware::ErrorResponse;
+use std::sync::Arc;
 
 /// Публичный псевдоним
 #[derive(Debug, Serialize, Deserialize)]
@@ -28,7 +28,7 @@ pub async fn get_integration_aliases(
 ) -> std::result::Result<Json<Vec<PublicAlias>>, (StatusCode, Json<ErrorResponse>)> {
     // В реальной реализации нужно получить псевдонимы из БД
     // let aliases = state.store.get_integration_aliases(project_id, None).await?;
-    
+
     Ok(Json(vec![]))
 }
 

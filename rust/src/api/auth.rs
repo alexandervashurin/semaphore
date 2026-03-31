@@ -4,15 +4,11 @@
 
 pub use crate::api::extractors::extract_token_from_header;
 
-use axum::{
-    extract::State,
-    http::StatusCode,
-    Json,
-};
-use std::sync::Arc;
-use serde::{Deserialize, Serialize};
-use crate::api::state::AppState;
 use crate::api::middleware::ErrorResponse;
+use crate::api::state::AppState;
+use axum::{extract::State, http::StatusCode, Json};
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 /// Информация об аутентификации
 #[derive(Debug, Clone, Serialize, Deserialize)]

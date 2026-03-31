@@ -35,7 +35,11 @@ impl PlanApprovalManager for SqlStore {
         Ok(row_to_plan(row))
     }
 
-    async fn get_plan_by_task(&self, project_id: i32, task_id: i32) -> Result<Option<TerraformPlan>> {
+    async fn get_plan_by_task(
+        &self,
+        project_id: i32,
+        task_id: i32,
+    ) -> Result<Option<TerraformPlan>> {
         let pool = self.get_postgres_pool()?;
         let row = sqlx::query(
             "SELECT id, task_id, project_id, plan_output, plan_json,
@@ -86,7 +90,10 @@ impl PlanApprovalManager for SqlStore {
         .await
         .map_err(Error::Database)?;
         if result.rows_affected() == 0 {
-            return Err(Error::NotFound(format!("Plan {} not found or already reviewed", id)));
+            return Err(Error::NotFound(format!(
+                "Plan {} not found or already reviewed",
+                id
+            )));
         }
         Ok(())
     }
@@ -105,19 +112,22 @@ impl PlanApprovalManager for SqlStore {
         .await
         .map_err(Error::Database)?;
         if result.rows_affected() == 0 {
-            return Err(Error::NotFound(format!("Plan {} not found or already reviewed", id)));
+            return Err(Error::NotFound(format!(
+                "Plan {} not found or already reviewed",
+                id
+            )));
         }
         Ok(())
     }
 
     async fn update_plan_output(
         &self,
-        task_id:  i32,
-        output:   String,
-        json:     Option<String>,
-        added:    i32,
-        changed:  i32,
-        removed:  i32,
+        task_id: i32,
+        output: String,
+        json: Option<String>,
+        added: i32,
+        changed: i32,
+        removed: i32,
     ) -> Result<()> {
         let pool = self.get_postgres_pool()?;
         sqlx::query(
@@ -141,18 +151,18 @@ impl PlanApprovalManager for SqlStore {
 
 fn row_to_plan(row: sqlx::postgres::PgRow) -> TerraformPlan {
     TerraformPlan {
-        id:                row.get("id"),
-        task_id:           row.get("task_id"),
-        project_id:        row.get("project_id"),
-        plan_output:       row.get("plan_output"),
-        plan_json:         row.try_get("plan_json").ok().flatten(),
-        resources_added:   row.get("resources_added"),
+        id: row.get("id"),
+        task_id: row.get("task_id"),
+        project_id: row.get("project_id"),
+        plan_output: row.get("plan_output"),
+        plan_json: row.try_get("plan_json").ok().flatten(),
+        resources_added: row.get("resources_added"),
         resources_changed: row.get("resources_changed"),
         resources_removed: row.get("resources_removed"),
-        status:            row.get("status"),
-        created_at:        row.get("created_at"),
-        reviewed_at:       row.try_get("reviewed_at").ok().flatten(),
-        reviewed_by:       row.try_get("reviewed_by").ok().flatten(),
-        review_comment:    row.try_get("review_comment").ok().flatten(),
+        status: row.get("status"),
+        created_at: row.get("created_at"),
+        reviewed_at: row.try_get("reviewed_at").ok().flatten(),
+        reviewed_by: row.try_get("reviewed_by").ok().flatten(),
+        review_comment: row.try_get("review_comment").ok().flatten(),
     }
 }

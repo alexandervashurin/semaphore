@@ -2,18 +2,18 @@
 //!
 //! Обработчики запросов для управления окружениями
 
+use crate::api::middleware::ErrorResponse;
+use crate::api::state::AppState;
+use crate::db::store::EnvironmentManager;
+use crate::error::Error;
+use crate::models::Environment;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
     Json,
 };
-use std::sync::Arc;
 use serde::{Deserialize, Serialize};
-use crate::api::state::AppState;
-use crate::models::Environment;
-use crate::error::Error;
-use crate::api::middleware::ErrorResponse;
-use crate::db::store::EnvironmentManager;
+use std::sync::Arc;
 
 /// Получить список окружений проекта
 ///
@@ -22,12 +22,16 @@ pub async fn get_environments(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
 ) -> Result<Json<Vec<Environment>>, (StatusCode, Json<ErrorResponse>)> {
-    let environments = state.store.get_environments(project_id)
+    let environments = state
+        .store
+        .get_environments(project_id)
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
     Ok(Json(environments))
 }
@@ -40,18 +44,18 @@ pub async fn create_environment(
     Path(project_id): Path<i32>,
     Json(payload): Json<EnvironmentCreatePayload>,
 ) -> Result<(StatusCode, Json<Environment>), (StatusCode, Json<ErrorResponse>)> {
-    let environment = Environment::new(
-        project_id,
-        payload.name,
-        payload.json,
-    );
+    let environment = Environment::new(project_id, payload.name, payload.json);
 
-    let created = state.store.create_environment(environment)
+    let created = state
+        .store
+        .create_environment(environment)
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
     Ok((StatusCode::CREATED, Json(created)))
 }
@@ -63,7 +67,9 @@ pub async fn get_environment(
     State(state): State<Arc<AppState>>,
     Path((project_id, environment_id)): Path<(i32, i32)>,
 ) -> Result<Json<Environment>, (StatusCode, Json<ErrorResponse>)> {
-    let environment = state.store.get_environment(project_id, environment_id)
+    let environment = state
+        .store
+        .get_environment(project_id, environment_id)
         .await
         .map_err(|e| match e {
             Error::NotFound(_) => (
@@ -87,7 +93,9 @@ pub async fn update_environment(
     Path((project_id, environment_id)): Path<(i32, i32)>,
     Json(payload): Json<EnvironmentUpdatePayload>,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    let mut environment = state.store.get_environment(project_id, environment_id)
+    let mut environment = state
+        .store
+        .get_environment(project_id, environment_id)
         .await
         .map_err(|e| match e {
             Error::NotFound(_) => (
@@ -107,12 +115,16 @@ pub async fn update_environment(
         environment.json = json;
     }
 
-    state.store.update_environment(environment)
+    state
+        .store
+        .update_environment(environment)
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
     Ok(StatusCode::OK)
 }
@@ -124,12 +136,16 @@ pub async fn delete_environment(
     State(state): State<Arc<AppState>>,
     Path((project_id, environment_id)): Path<(i32, i32)>,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    state.store.delete_environment(project_id, environment_id)
+    state
+        .store
+        .delete_environment(project_id, environment_id)
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -181,7 +197,10 @@ mod tests {
         }"#;
         let payload: EnvironmentUpdatePayload = serde_json::from_str(json).unwrap();
         assert_eq!(payload.name, Some("Staging".to_string()));
-        assert_eq!(payload.json, Some("{\"DB_HOST\": \"staging.db\"}".to_string()));
+        assert_eq!(
+            payload.json,
+            Some("{\"DB_HOST\": \"staging.db\"}".to_string())
+        );
     }
 
     #[test]

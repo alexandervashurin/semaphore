@@ -9,15 +9,15 @@ use axum::{
     Json,
 };
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use std::collections::HashMap;
+use std::sync::Arc;
 
-use oauth2::TokenResponse;
-use crate::api::state::AppState;
-use crate::error::Error;
-use crate::api::middleware::ErrorResponse;
 use crate::api::auth_local::LocalAuthService;
+use crate::api::middleware::ErrorResponse;
+use crate::api::state::AppState;
 use crate::db::store::UserManager;
+use crate::error::Error;
+use oauth2::TokenResponse;
 
 // ============================================================================
 // API Handlers
@@ -28,18 +28,28 @@ pub async fn oidc_login(
     State(state): State<Arc<AppState>>,
     Path(provider): Path<String>,
 ) -> std::result::Result<Redirect, (StatusCode, Json<ErrorResponse>)> {
-    let provider_config = state.config.auth.oidc_providers
+    let provider_config = state
+        .config
+        .auth
+        .oidc_providers
         .iter()
         .find(|p| p.display_name.to_lowercase() == provider.to_lowercase())
-        .ok_or_else(|| (
-            StatusCode::NOT_FOUND,
-            Json(ErrorResponse::new(format!("OIDC provider '{}' not found", provider)))
-        ))?;
+        .ok_or_else(|| {
+            (
+                StatusCode::NOT_FOUND,
+                Json(ErrorResponse::new(format!(
+                    "OIDC provider '{}' not found",
+                    provider
+                ))),
+            )
+        })?;
 
     if !provider_config.is_configured() {
         return Err((
             StatusCode::SERVICE_UNAVAILABLE,
-            Json(ErrorResponse::new("OIDC provider not configured".to_string()))
+            Json(ErrorResponse::new(
+                "OIDC provider not configured".to_string(),
+            )),
         ));
     }
 
@@ -48,7 +58,9 @@ pub async fn oidc_login(
     } else {
         return Err((
             StatusCode::SERVICE_UNAVAILABLE,
-            Json(ErrorResponse::new("OIDC auth URL not configured".to_string()))
+            Json(ErrorResponse::new(
+                "OIDC auth URL not configured".to_string(),
+            )),
         ));
     };
 
@@ -57,44 +69,65 @@ pub async fn oidc_login(
     } else {
         return Err((
             StatusCode::SERVICE_UNAVAILABLE,
-            Json(ErrorResponse::new("OIDC token URL not configured".to_string()))
+            Json(ErrorResponse::new(
+                "OIDC token URL not configured".to_string(),
+            )),
         ));
     };
 
-    let client = oauth2::basic::BasicClient::new(
-        oauth2::ClientId::new(provider_config.client_id.clone()),
-    )
-    .set_client_secret(oauth2::ClientSecret::new(provider_config.client_secret.clone()))
-    .set_auth_uri(oauth2::AuthUrl::new(auth_url.clone()).map_err(|e| (
-        StatusCode::INTERNAL_SERVER_ERROR,
-        Json(ErrorResponse::new(format!("Invalid auth URL: {}", e)))
-    ))?)
-    .set_token_uri(oauth2::TokenUrl::new(token_url.clone()).map_err(|e| (
-        StatusCode::INTERNAL_SERVER_ERROR,
-        Json(ErrorResponse::new(format!("Invalid token URL: {}", e)))
-    ))?)
-    .set_redirect_uri(oauth2::RedirectUrl::new(provider_config.redirect_url.clone()).map_err(|e| (
-        StatusCode::INTERNAL_SERVER_ERROR,
-        Json(ErrorResponse::new(format!("Invalid redirect URL: {}", e)))
-    ))?);
+    let client =
+        oauth2::basic::BasicClient::new(oauth2::ClientId::new(provider_config.client_id.clone()))
+            .set_client_secret(oauth2::ClientSecret::new(
+                provider_config.client_secret.clone(),
+            ))
+            .set_auth_uri(oauth2::AuthUrl::new(auth_url.clone()).map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(ErrorResponse::new(format!("Invalid auth URL: {}", e))),
+                )
+            })?)
+            .set_token_uri(oauth2::TokenUrl::new(token_url.clone()).map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(ErrorResponse::new(format!("Invalid token URL: {}", e))),
+                )
+            })?)
+            .set_redirect_uri(
+                oauth2::RedirectUrl::new(provider_config.redirect_url.clone()).map_err(|e| {
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(ErrorResponse::new(format!("Invalid redirect URL: {}", e))),
+                    )
+                })?,
+            );
 
     let (pkce_challenge, pkce_verifier) = oauth2::PkceCodeChallenge::new_random_sha256();
     let state_param = uuid::Uuid::new_v4().to_string();
 
     {
-        let mut cache = state.oidc_state.lock().map_err(|_| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new("Failed to lock OIDC state".to_string()))
-        ))?;
-        cache.insert(state_param.clone(), crate::api::state::OidcState {
-            pkce_verifier: pkce_verifier.secret().to_string(),
-            provider: provider.clone(),
-        });
+        let mut cache = state.oidc_state.lock().map_err(|_| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new("Failed to lock OIDC state".to_string())),
+            )
+        })?;
+        cache.insert(
+            state_param.clone(),
+            crate::api::state::OidcState {
+                pkce_verifier: pkce_verifier.secret().to_string(),
+                provider: provider.clone(),
+            },
+        );
     }
 
     let (auth_url, _) = client
         .authorize_url(|| oauth2::CsrfToken::new(state_param.clone()))
-        .add_scopes(provider_config.scopes.iter().map(|s| oauth2::Scope::new(s.clone())))
+        .add_scopes(
+            provider_config
+                .scopes
+                .iter()
+                .map(|s| oauth2::Scope::new(s.clone())),
+        )
         .set_pkce_challenge(pkce_challenge)
         .url();
 
@@ -107,72 +140,101 @@ pub async fn oidc_callback(
     Path(provider): Path<String>,
     Query(params): Query<HashMap<String, String>>,
 ) -> std::result::Result<
-    (AppendHeaders<[(axum::http::HeaderName, String); 1]>, Redirect),
+    (
+        AppendHeaders<[(axum::http::HeaderName, String); 1]>,
+        Redirect,
+    ),
     (StatusCode, Json<ErrorResponse>),
 > {
-    let code = params.get("code")
-        .ok_or_else(|| (
+    let code = params.get("code").ok_or_else(|| {
+        (
             StatusCode::BAD_REQUEST,
-            Json(ErrorResponse::new("Missing code parameter".to_string()))
-        ))?;
+            Json(ErrorResponse::new("Missing code parameter".to_string())),
+        )
+    })?;
 
-    let state_param = params.get("state")
-        .ok_or_else(|| (
+    let state_param = params.get("state").ok_or_else(|| {
+        (
             StatusCode::BAD_REQUEST,
-            Json(ErrorResponse::new("Missing state parameter".to_string()))
-        ))?;
+            Json(ErrorResponse::new("Missing state parameter".to_string())),
+        )
+    })?;
 
     let oidc_state = {
-        let mut cache = state.oidc_state.lock().map_err(|_| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new("Failed to lock OIDC state".to_string()))
-        ))?;
-        cache.remove(state_param).ok_or_else(|| (
-            StatusCode::BAD_REQUEST,
-            Json(ErrorResponse::new("Invalid or expired state".to_string()))
-        ))?
+        let mut cache = state.oidc_state.lock().map_err(|_| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new("Failed to lock OIDC state".to_string())),
+            )
+        })?;
+        cache.remove(state_param).ok_or_else(|| {
+            (
+                StatusCode::BAD_REQUEST,
+                Json(ErrorResponse::new("Invalid or expired state".to_string())),
+            )
+        })?
     };
 
     if oidc_state.provider != provider {
         return Err((
             StatusCode::BAD_REQUEST,
-            Json(ErrorResponse::new("State mismatch".to_string()))
+            Json(ErrorResponse::new("State mismatch".to_string())),
         ));
     }
 
-    let provider_config = state.config.auth.oidc_providers
+    let provider_config = state
+        .config
+        .auth
+        .oidc_providers
         .iter()
         .find(|p| p.display_name.to_lowercase() == provider.to_lowercase())
-        .ok_or_else(|| (
-            StatusCode::NOT_FOUND,
-            Json(ErrorResponse::new(format!("OIDC provider '{}' not found", provider)))
-        ))?;
+        .ok_or_else(|| {
+            (
+                StatusCode::NOT_FOUND,
+                Json(ErrorResponse::new(format!(
+                    "OIDC provider '{}' not found",
+                    provider
+                ))),
+            )
+        })?;
 
-    let client = oauth2::basic::BasicClient::new(
-        oauth2::ClientId::new(provider_config.client_id.clone()),
-    )
-    .set_client_secret(oauth2::ClientSecret::new(provider_config.client_secret.clone()))
-    .set_auth_uri(oauth2::AuthUrl::new(provider_config.endpoint.auth_url.clone()).unwrap())
-    .set_token_uri(oauth2::TokenUrl::new(provider_config.endpoint.token_url.clone()).unwrap())
-    .set_redirect_uri(oauth2::RedirectUrl::new(provider_config.redirect_url.clone()).unwrap());
+    let client =
+        oauth2::basic::BasicClient::new(oauth2::ClientId::new(provider_config.client_id.clone()))
+            .set_client_secret(oauth2::ClientSecret::new(
+                provider_config.client_secret.clone(),
+            ))
+            .set_auth_uri(oauth2::AuthUrl::new(provider_config.endpoint.auth_url.clone()).unwrap())
+            .set_token_uri(
+                oauth2::TokenUrl::new(provider_config.endpoint.token_url.clone()).unwrap(),
+            )
+            .set_redirect_uri(
+                oauth2::RedirectUrl::new(provider_config.redirect_url.clone()).unwrap(),
+            );
 
     let http_client = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
         .build()
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(format!("HTTP client build failed: {}", e)))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(format!(
+                    "HTTP client build failed: {}",
+                    e
+                ))),
+            )
+        })?;
 
     let token_result = client
         .exchange_code(oauth2::AuthorizationCode::new(code.clone()))
         .set_pkce_verifier(oauth2::PkceCodeVerifier::new(oidc_state.pkce_verifier))
         .request_async(&http_client)
         .await
-        .map_err(|e| (
-            StatusCode::BAD_REQUEST,
-            Json(ErrorResponse::new(format!("Token exchange failed: {}", e)))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::BAD_REQUEST,
+                Json(ErrorResponse::new(format!("Token exchange failed: {}", e))),
+            )
+        })?;
 
     let access_token = token_result.access_token().secret();
     let userinfo_url = if !provider_config.endpoint.userinfo_url.is_empty() {
@@ -180,7 +242,9 @@ pub async fn oidc_callback(
     } else {
         return Err((
             StatusCode::SERVICE_UNAVAILABLE,
-            Json(ErrorResponse::new("OIDC userinfo URL not configured".to_string()))
+            Json(ErrorResponse::new(
+                "OIDC userinfo URL not configured".to_string(),
+            )),
         ));
     };
 
@@ -190,29 +254,39 @@ pub async fn oidc_callback(
         .bearer_auth(access_token)
         .send()
         .await
-        .map_err(|e| (
-            StatusCode::BAD_GATEWAY,
-            Json(ErrorResponse::new(format!("Userinfo request failed: {}", e)))
-        ))?
+        .map_err(|e| {
+            (
+                StatusCode::BAD_GATEWAY,
+                Json(ErrorResponse::new(format!(
+                    "Userinfo request failed: {}",
+                    e
+                ))),
+            )
+        })?
         .json()
         .await
-        .map_err(|e| (
-            StatusCode::BAD_GATEWAY,
-            Json(ErrorResponse::new(format!("Userinfo parse failed: {}", e)))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::BAD_GATEWAY,
+                Json(ErrorResponse::new(format!("Userinfo parse failed: {}", e))),
+            )
+        })?;
 
-    let email = userinfo.get("email")
+    let email = userinfo
+        .get("email")
         .or_else(|| userinfo.get("preferred_username"))
         .and_then(|v| v.as_str())
         .unwrap_or("")
         .to_string();
-    let username = userinfo.get("preferred_username")
+    let username = userinfo
+        .get("preferred_username")
         .or_else(|| userinfo.get("email"))
         .or_else(|| userinfo.get("name"))
         .and_then(|v| v.as_str())
         .unwrap_or(&email)
         .to_string();
-    let name = userinfo.get("name")
+    let name = userinfo
+        .get("name")
         .and_then(|v| v.as_str())
         .unwrap_or(&username)
         .to_string();
@@ -220,18 +294,31 @@ pub async fn oidc_callback(
     if email.is_empty() && username.is_empty() {
         return Err((
             StatusCode::BAD_GATEWAY,
-            Json(ErrorResponse::new("OIDC userinfo missing email/username".to_string()))
+            Json(ErrorResponse::new(
+                "OIDC userinfo missing email/username".to_string(),
+            )),
         ));
     }
 
-    let user = match state.store.get_user_by_login_or_email(&username, &email).await {
+    let user = match state
+        .store
+        .get_user_by_login_or_email(&username, &email)
+        .await
+    {
         Ok(u) => u,
         Err(Error::NotFound(_)) => {
-            let password_hash = crate::api::auth_local::hash_password(&uuid::Uuid::new_v4().to_string())
-                .map_err(|e| (
+            let password_hash = crate::api::auth_local::hash_password(
+                &uuid::Uuid::new_v4().to_string(),
+            )
+            .map_err(|e| {
+                (
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(ErrorResponse::new(format!("Failed to hash password: {}", e)))
-                ))?;
+                    Json(ErrorResponse::new(format!(
+                        "Failed to hash password: {}",
+                        e
+                    ))),
+                )
+            })?;
             let new_user = crate::models::User {
                 id: 0,
                 created: chrono::Utc::now(),
@@ -246,30 +333,46 @@ pub async fn oidc_callback(
                 totp: None,
                 email_otp: None,
             };
-            state.store.create_user(new_user, &password_hash).await.map_err(|e| (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse::new(format!("Failed to create user: {}", e)))
-            ))?
+            state
+                .store
+                .create_user(new_user, &password_hash)
+                .await
+                .map_err(|e| {
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(ErrorResponse::new(format!("Failed to create user: {}", e))),
+                    )
+                })?
         }
-        Err(e) => return Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        )),
+        Err(e) => {
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            ))
+        }
     };
 
     let auth_service = LocalAuthService::new(state.store.clone());
-    let token_info = auth_service.generate_token(&user).map_err(|e| (
-        StatusCode::INTERNAL_SERVER_ERROR,
-        Json(ErrorResponse::new(format!("Token generation failed: {}", e)))
-    ))?;
+    let token_info = auth_service.generate_token(&user).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(format!(
+                "Token generation failed: {}",
+                e
+            ))),
+        )
+    })?;
 
     let base_url = std::env::var("SEMAPHORE_WEB_ROOT").unwrap_or_else(|_| "/".to_string());
-    let redirect_url = format!("{}?token={}", base_url.trim_end_matches('/'), token_info.token);
+    let redirect_url = format!(
+        "{}?token={}",
+        base_url.trim_end_matches('/'),
+        token_info.token
+    );
 
     let cookie_value = format!(
         "semaphore={}; Path=/; HttpOnly; SameSite=Lax; Max-Age={}",
-        token_info.token,
-        token_info.expires_in
+        token_info.token, token_info.expires_in
     );
 
     let headers = AppendHeaders([(header::SET_COOKIE, cookie_value)]);
@@ -282,7 +385,10 @@ pub async fn get_login_metadata(
     State(state): State<Arc<AppState>>,
 ) -> std::result::Result<Json<LoginMetadataResponse>, (StatusCode, Json<ErrorResponse>)> {
     // Получаем OIDC провайдеры из конфига
-    let oidc_providers: Vec<OidcProviderMetadata> = state.config.auth.oidc_providers
+    let oidc_providers: Vec<OidcProviderMetadata> = state
+        .config
+        .auth
+        .oidc_providers
         .iter()
         .map(|p| OidcProviderMetadata {
             name: p.display_name.clone(),
@@ -295,7 +401,7 @@ pub async fn get_login_metadata(
     Ok(Json(LoginMetadataResponse {
         oidc_providers,
         totp_enabled: state.config.auth.totp.enable,
-        email_enabled: false, // TODO: добавить email в AuthConfig
+        email_enabled: false,      // TODO: добавить email в AuthConfig
         login_with_password: true, // Включаем форму username+password для локальной аутентификации
     }))
 }

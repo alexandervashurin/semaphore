@@ -5,9 +5,9 @@ use sqlx::FromRow;
 /// A field in a custom credential type input schema
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CredentialField {
-    pub id: String,           // e.g. "username", "password", "token"
-    pub label: String,        // Display label for user
-    pub field_type: String,   // "string" | "password" | "boolean" | "integer"
+    pub id: String,         // e.g. "username", "password", "token"
+    pub label: String,      // Display label for user
+    pub field_type: String, // "string" | "password" | "boolean" | "integer"
     pub required: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_value: Option<String>,

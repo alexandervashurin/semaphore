@@ -7,8 +7,8 @@ use serde_json::Value;
 // ── JSON-RPC base ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct Request {
-    pub jsonrpc: String,
     pub id: Option<Value>,
     pub method: String,
     pub params: Option<Value>,
@@ -47,23 +47,6 @@ pub struct RpcError {
 }
 
 // ── MCP types ─────────────────────────────────────────────────────────────────
-
-#[derive(Debug, Serialize)]
-pub struct ServerInfo {
-    pub name: String,
-    pub version: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct Capabilities {
-    pub tools: ToolsCapability,
-}
-
-#[derive(Debug, Serialize)]
-pub struct ToolsCapability {
-    #[serde(rename = "listChanged")]
-    pub list_changed: bool,
-}
 
 #[derive(Debug, Serialize, Clone)]
 pub struct Tool {

@@ -1,9 +1,9 @@
 //! Бенчмарки для database операций
 
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};
+use serde::{Deserialize, Serialize};
 use std::hint::black_box;
 use tokio::runtime::Runtime;
-use serde::{Serialize, Deserialize};
 
 /// Бенчмарк простых операций
 fn bench_simple_operations(c: &mut Criterion) {
@@ -15,7 +15,7 @@ fn bench_simple_operations(c: &mut Criterion) {
             black_box(format!("{}:{}", s1, s2))
         })
     });
-    
+
     c.bench_function("vec_push_1000", |b| {
         b.iter(|| {
             let mut vec: Vec<i32> = Vec::with_capacity(1000);
@@ -35,21 +35,19 @@ fn bench_json_serialization(c: &mut Criterion) {
         name: String,
         value: f64,
     }
-    
+
     let data = TestData {
         id: 123,
         name: "test".to_string(),
         value: 42.0,
     };
-    
+
     c.bench_function("json_serialize", |b| {
-        b.iter(|| {
-            black_box(serde_json::to_string(&data).unwrap())
-        })
+        b.iter(|| black_box(serde_json::to_string(&data).unwrap()))
     });
-    
+
     let json = r#"{"id":123,"name":"test","value":42.0}"#;
-    
+
     c.bench_function("json_deserialize", |b| {
         b.iter(|| {
             let _: TestData = black_box(serde_json::from_str(json).unwrap());
@@ -59,10 +57,10 @@ fn bench_json_serialization(c: &mut Criterion) {
 
 /// Бенчмарк хэширования
 fn bench_hashing(c: &mut Criterion) {
-    use sha2::{Sha256, Digest};
-    
+    use sha2::{Digest, Sha256};
+
     let data = b"test data for hashing";
-    
+
     c.bench_function("sha256_hash", |b| {
         b.iter(|| {
             let mut hasher = Sha256::new();
@@ -75,7 +73,7 @@ fn bench_hashing(c: &mut Criterion) {
 /// Бенчмарк работы с HashMap
 fn bench_hashmap(c: &mut Criterion) {
     use std::collections::HashMap;
-    
+
     c.bench_function("hashmap_insert_100", |b| {
         b.iter(|| {
             let mut map: HashMap<String, i32> = HashMap::new();
@@ -85,13 +83,13 @@ fn bench_hashmap(c: &mut Criterion) {
             black_box(map.len())
         })
     });
-    
+
     c.bench_function("hashmap_get_100", |b| {
         let mut map: HashMap<String, i32> = HashMap::new();
         for i in 0..100 {
             map.insert(format!("key_{}", i), i);
         }
-        
+
         b.iter(|| {
             for i in 0..100 {
                 black_box(map.get(&format!("key_{}", i)));
@@ -104,10 +102,10 @@ fn bench_hashmap(c: &mut Criterion) {
 fn bench_arc_rwlock(c: &mut Criterion) {
     use std::sync::Arc;
     use tokio::sync::RwLock;
-    
+
     let rt = Runtime::new().unwrap();
     let data = Arc::new(RwLock::new(vec![1, 2, 3, 4, 5]));
-    
+
     c.bench_function("arc_rwlock_read", |b| {
         b.iter(|| {
             rt.block_on(async {

@@ -2,18 +2,18 @@
 //!
 //! Обработчики для шаблонов в проектах
 
+use crate::api::middleware::ErrorResponse;
+use crate::api::state::AppState;
+use crate::db::store::{RetrieveQueryParams, TaskManager, TemplateManager};
+use crate::error::{Error, Result};
+use crate::models::{Template, TemplateFilter, TemplateWithPerms};
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
     Json,
 };
-use std::sync::Arc;
 use serde::{Deserialize, Serialize};
-use crate::api::state::AppState;
-use crate::models::{Template, TemplateWithPerms, TemplateFilter};
-use crate::error::{Error, Result};
-use crate::api::middleware::ErrorResponse;
-use crate::db::store::{RetrieveQueryParams, TemplateManager, TaskManager};
+use std::sync::Arc;
 
 /// Query params с поддержкой фильтрации по app и view_id (B-BE-19)
 #[derive(Debug, Default, Deserialize)]
@@ -28,12 +28,12 @@ pub async fn get_templates(
     Path(project_id): Path<i32>,
     Query(_params): Query<RetrieveQueryParams>,
 ) -> std::result::Result<Json<Vec<Template>>, (StatusCode, Json<ErrorResponse>)> {
-    let templates = state.store.get_templates(project_id)
-        .await
-        .map_err(|e| (
+    let templates = state.store.get_templates(project_id).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     Ok(Json(templates))
 }
@@ -43,17 +43,19 @@ pub async fn get_template(
     State(state): State<Arc<AppState>>,
     Path((project_id, template_id)): Path<(i32, i32)>,
 ) -> std::result::Result<Json<Template>, (StatusCode, Json<ErrorResponse>)> {
-    let template = state.store.get_template(project_id, template_id)
+    let template = state
+        .store
+        .get_template(project_id, template_id)
         .await
         .map_err(|e| match e {
             Error::NotFound(_) => (
                 StatusCode::NOT_FOUND,
-                Json(ErrorResponse::new("Template not found".to_string()))
+                Json(ErrorResponse::new("Template not found".to_string())),
             ),
             _ => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse::new(e.to_string()))
-            )
+                Json(ErrorResponse::new(e.to_string())),
+            ),
         })?;
 
     Ok(Json(template))
@@ -68,12 +70,12 @@ pub async fn add_template(
     let mut template = payload;
     template.project_id = project_id;
 
-    let created = state.store.create_template(template)
-        .await
-        .map_err(|e| (
+    let created = state.store.create_template(template).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     Ok((StatusCode::CREATED, Json(created)))
 }
@@ -88,12 +90,12 @@ pub async fn update_template(
     template.id = template_id;
     template.project_id = project_id;
 
-    state.store.update_template(template)
-        .await
-        .map_err(|e| (
+    state.store.update_template(template).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     Ok(StatusCode::OK)
 }
@@ -103,12 +105,16 @@ pub async fn delete_template(
     State(state): State<Arc<AppState>>,
     Path((project_id, template_id)): Path<(i32, i32)>,
 ) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    state.store.delete_template(project_id, template_id)
+    state
+        .store
+        .delete_template(project_id, template_id)
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -127,27 +133,29 @@ pub async fn update_template_description(
     Path((project_id, template_id)): Path<(i32, i32)>,
     Json(payload): Json<UpdateDescriptionPayload>,
 ) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    let mut template = state.store.get_template(project_id, template_id)
+    let mut template = state
+        .store
+        .get_template(project_id, template_id)
         .await
         .map_err(|e| match e {
             Error::NotFound(_) => (
                 StatusCode::NOT_FOUND,
-                Json(ErrorResponse::new("Template not found".to_string()))
+                Json(ErrorResponse::new("Template not found".to_string())),
             ),
             _ => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse::new(e.to_string()))
-            )
+                Json(ErrorResponse::new(e.to_string())),
+            ),
         })?;
 
     template.description = payload.description;
 
-    state.store.update_template(template)
-        .await
-        .map_err(|e| (
+    state.store.update_template(template).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     Ok(StatusCode::OK)
 }
@@ -161,18 +169,25 @@ pub async fn stop_all_template_tasks(
 ) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     use crate::services::task_logger::TaskStatus;
 
-    let tasks = state.store.get_tasks(project_id, Some(template_id))
+    let tasks = state
+        .store
+        .get_tasks(project_id, Some(template_id))
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
     for task_with_tpl in tasks {
         let task = task_with_tpl.task;
         match task.status {
             TaskStatus::Running | TaskStatus::Waiting => {
-                let _ = state.store.update_task_status(project_id, task.id, TaskStatus::Stopping).await;
+                let _ = state
+                    .store
+                    .update_task_status(project_id, task.id, TaskStatus::Stopping)
+                    .await;
             }
             _ => {}
         }
@@ -190,19 +205,22 @@ pub async fn get_template_schedules(
 ) -> std::result::Result<Json<serde_json::Value>, (StatusCode, Json<ErrorResponse>)> {
     use crate::db::store::ScheduleManager;
 
-    let schedules = state.store.get_schedules(project_id)
-        .await
-        .map_err(|e| (
+    let schedules = state.store.get_schedules(project_id).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     // Фильтруем расписания по template_id
-    let template_schedules: Vec<_> = schedules.into_iter()
+    let template_schedules: Vec<_> = schedules
+        .into_iter()
         .filter(|s| s.template_id == template_id)
         .collect();
 
-    Ok(Json(serde_json::to_value(template_schedules).unwrap_or_default()))
+    Ok(Json(
+        serde_json::to_value(template_schedules).unwrap_or_default(),
+    ))
 }
 
 /// Получает задачи шаблона
@@ -212,12 +230,16 @@ pub async fn get_template_tasks(
     State(state): State<Arc<AppState>>,
     Path((project_id, template_id)): Path<(i32, i32)>,
 ) -> std::result::Result<Json<serde_json::Value>, (StatusCode, Json<ErrorResponse>)> {
-    let tasks = state.store.get_tasks(project_id, Some(template_id))
+    let tasks = state
+        .store
+        .get_tasks(project_id, Some(template_id))
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
     Ok(Json(serde_json::to_value(tasks).unwrap_or_default()))
 }
@@ -229,15 +251,21 @@ pub async fn get_template_last_task(
     State(state): State<Arc<AppState>>,
     Path((project_id, template_id)): Path<(i32, i32)>,
 ) -> std::result::Result<Json<serde_json::Value>, (StatusCode, Json<ErrorResponse>)> {
-    let tasks = state.store.get_tasks(project_id, Some(template_id))
+    let tasks = state
+        .store
+        .get_tasks(project_id, Some(template_id))
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
     let last = tasks.into_iter().next();
-    Ok(Json(serde_json::to_value(last).unwrap_or(serde_json::Value::Null)))
+    Ok(Json(
+        serde_json::to_value(last).unwrap_or(serde_json::Value::Null),
+    ))
 }
 
 /// Возвращает статистику шаблона
@@ -247,16 +275,26 @@ pub async fn get_template_stats(
     State(state): State<Arc<AppState>>,
     Path((project_id, template_id)): Path<(i32, i32)>,
 ) -> std::result::Result<Json<serde_json::Value>, (StatusCode, Json<ErrorResponse>)> {
-    let tasks = state.store.get_tasks(project_id, Some(template_id))
+    let tasks = state
+        .store
+        .get_tasks(project_id, Some(template_id))
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
     let total = tasks.len();
-    let success = tasks.iter().filter(|t| format!("{:?}", t.task.status) == "Success").count();
-    let failed = tasks.iter().filter(|t| format!("{:?}", t.task.status) == "Error").count();
+    let success = tasks
+        .iter()
+        .filter(|t| format!("{:?}", t.task.status) == "Success")
+        .count();
+    let failed = tasks
+        .iter()
+        .filter(|t| format!("{:?}", t.task.status) == "Error")
+        .count();
 
     Ok(Json(serde_json::json!({
         "template_id": template_id,

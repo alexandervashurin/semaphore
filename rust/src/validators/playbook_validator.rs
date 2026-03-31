@@ -71,7 +71,9 @@ impl PlaybookValidator {
         }
         // Если это имя файла (.yml/.yaml/.sh) — пропускаем YAML парсинг
         let trimmed = content.trim();
-        if !trimmed.contains('\n') && (trimmed.ends_with(".yml") || trimmed.ends_with(".yaml") || trimmed.ends_with(".sh")) {
+        if !trimmed.contains('\n')
+            && (trimmed.ends_with(".yml") || trimmed.ends_with(".yaml") || trimmed.ends_with(".sh"))
+        {
             return Ok(());
         }
         // Проверяем только синтаксис YAML, не структуру
@@ -178,10 +180,7 @@ impl PlaybookValidator {
                 if let Value::String(key_str) = key {
                     if !valid_keys.contains(&key_str.as_str()) {
                         // Предупреждение, но не ошибка
-                        tracing::warn!(
-                            "Необычный ключ верхнего уровня в Terraform: {}",
-                            key_str
-                        );
+                        tracing::warn!("Необычный ключ верхнего уровня в Terraform: {}", key_str);
                     }
                 }
             }
@@ -258,10 +257,7 @@ mod tests {
   invalid yaml: [
 "#;
         let result = PlaybookValidator::validate_ansible_playbook(content);
-        assert!(matches!(
-            result,
-            Err(PlaybookValidationError::YamlParse(_))
-        ));
+        assert!(matches!(result, Err(PlaybookValidationError::YamlParse(_))));
     }
 
     #[test]

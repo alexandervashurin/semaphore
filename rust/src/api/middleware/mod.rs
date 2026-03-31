@@ -17,9 +17,9 @@ pub use security_headers::*;
 pub use trace_id::{trace_id_middleware, TraceId};
 
 // Ре-экспорт ErrorResponse для обратной совместимости
+use crate::error::Error as CrateError;
 use axum::{http::StatusCode, response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
-use crate::error::Error as CrateError;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ErrorResponse {
@@ -48,46 +48,21 @@ impl ErrorResponse {
         self.details = Some(details);
         self
     }
-    
+
     /// Создаёт ErrorResponse из crate::Error
     pub fn from_crate_error(e: &CrateError) -> (StatusCode, Self) {
         match e {
-            CrateError::NotFound(_) => (
-                StatusCode::NOT_FOUND,
-                Self::new(e.to_string()),
-            ),
-            CrateError::Unauthorized(_) => (
-                StatusCode::UNAUTHORIZED,
-                Self::new(e.to_string()),
-            ),
-            CrateError::Forbidden(_) => (
-                StatusCode::FORBIDDEN,
-                Self::new(e.to_string()),
-            ),
-            CrateError::Validation(_) => (
-                StatusCode::BAD_REQUEST,
-                Self::new(e.to_string()),
-            ),
-            CrateError::Auth(_) => (
-                StatusCode::UNAUTHORIZED,
-                Self::new(e.to_string()),
-            ),
-            CrateError::Database(_) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Self::new(e.to_string()),
-            ),
-            CrateError::Config(_) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Self::new(e.to_string()),
-            ),
-            CrateError::Git(_) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Self::new(e.to_string()),
-            ),
-            _ => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Self::new(e.to_string()),
-            ),
+            CrateError::NotFound(_) => (StatusCode::NOT_FOUND, Self::new(e.to_string())),
+            CrateError::Unauthorized(_) => (StatusCode::UNAUTHORIZED, Self::new(e.to_string())),
+            CrateError::Forbidden(_) => (StatusCode::FORBIDDEN, Self::new(e.to_string())),
+            CrateError::Validation(_) => (StatusCode::BAD_REQUEST, Self::new(e.to_string())),
+            CrateError::Auth(_) => (StatusCode::UNAUTHORIZED, Self::new(e.to_string())),
+            CrateError::Database(_) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, Self::new(e.to_string()))
+            }
+            CrateError::Config(_) => (StatusCode::INTERNAL_SERVER_ERROR, Self::new(e.to_string())),
+            CrateError::Git(_) => (StatusCode::INTERNAL_SERVER_ERROR, Self::new(e.to_string())),
+            _ => (StatusCode::INTERNAL_SERVER_ERROR, Self::new(e.to_string())),
         }
     }
 }

@@ -2,21 +2,20 @@
 //!
 //! Экспорт и импорт всех сущностей проекта
 
+use crate::api::middleware::ErrorResponse;
+use crate::api::state::AppState;
+use crate::db::store::{
+    AccessKeyManager, EnvironmentManager, IntegrationManager, InventoryManager, ProjectStore,
+    RepositoryManager, ScheduleManager, SecretStorageManager, TemplateManager, ViewManager,
+};
+use crate::models::Project;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
     Json,
 };
-use std::sync::Arc;
 use serde::{Deserialize, Serialize};
-use crate::api::state::AppState;
-use crate::models::Project;
-use crate::api::middleware::ErrorResponse;
-use crate::db::store::{
-    ProjectStore, TemplateManager, RepositoryManager, AccessKeyManager,
-    InventoryManager, EnvironmentManager, ScheduleManager,
-    IntegrationManager, ViewManager, SecretStorageManager,
-};
+use std::sync::Arc;
 
 /// Формат бэкапа
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -41,7 +40,12 @@ pub async fn get_backup(
 ) -> std::result::Result<Json<BackupFormat>, (StatusCode, Json<ErrorResponse>)> {
     macro_rules! try_load {
         ($expr:expr) => {
-            $expr.await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse::new(e.to_string()))))?
+            $expr.await.map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(ErrorResponse::new(e.to_string())),
+                )
+            })?
         };
     }
 
@@ -57,22 +61,49 @@ pub async fn get_backup(
     let secret_storages = try_load!(state.store.get_secret_storages(project_id));
 
     // Маскируем секреты в ключах
-    let keys_masked: Vec<serde_json::Value> = keys.into_iter().map(|mut k| {
-        crate::services::key_encryption::mask_key_secrets(&mut k);
-        serde_json::to_value(k).unwrap_or(serde_json::Value::Null)
-    }).collect();
+    let keys_masked: Vec<serde_json::Value> = keys
+        .into_iter()
+        .map(|mut k| {
+            crate::services::key_encryption::mask_key_secrets(&mut k);
+            serde_json::to_value(k).unwrap_or(serde_json::Value::Null)
+        })
+        .collect();
 
     let backup = BackupFormat {
         meta: project,
-        templates: templates.into_iter().map(|t| serde_json::to_value(t).unwrap_or_default()).collect(),
-        repositories: repositories.into_iter().map(|r| serde_json::to_value(r).unwrap_or_default()).collect(),
+        templates: templates
+            .into_iter()
+            .map(|t| serde_json::to_value(t).unwrap_or_default())
+            .collect(),
+        repositories: repositories
+            .into_iter()
+            .map(|r| serde_json::to_value(r).unwrap_or_default())
+            .collect(),
         keys: keys_masked,
-        views: views.into_iter().map(|v| serde_json::to_value(v).unwrap_or_default()).collect(),
-        inventories: inventories.into_iter().map(|i| serde_json::to_value(i).unwrap_or_default()).collect(),
-        environments: environments.into_iter().map(|e| serde_json::to_value(e).unwrap_or_default()).collect(),
-        integrations: integrations.into_iter().map(|i| serde_json::to_value(i).unwrap_or_default()).collect(),
-        schedules: schedules.into_iter().map(|s| serde_json::to_value(s).unwrap_or_default()).collect(),
-        secret_storages: secret_storages.into_iter().map(|s| serde_json::to_value(s).unwrap_or_default()).collect(),
+        views: views
+            .into_iter()
+            .map(|v| serde_json::to_value(v).unwrap_or_default())
+            .collect(),
+        inventories: inventories
+            .into_iter()
+            .map(|i| serde_json::to_value(i).unwrap_or_default())
+            .collect(),
+        environments: environments
+            .into_iter()
+            .map(|e| serde_json::to_value(e).unwrap_or_default())
+            .collect(),
+        integrations: integrations
+            .into_iter()
+            .map(|i| serde_json::to_value(i).unwrap_or_default())
+            .collect(),
+        schedules: schedules
+            .into_iter()
+            .map(|s| serde_json::to_value(s).unwrap_or_default())
+            .collect(),
+        secret_storages: secret_storages
+            .into_iter()
+            .map(|s| serde_json::to_value(s).unwrap_or_default())
+            .collect(),
         roles: vec![],
     };
 
@@ -110,9 +141,15 @@ pub async fn restore_backup(
         if let Ok(mut key) = serde_json::from_value::<crate::models::AccessKey>(k.clone()) {
             key.id = 0;
             key.project_id = Some(project_id);
-            if key.ssh_key.as_deref() == Some("**SECRET**") { key.ssh_key = None; }
-            if key.login_password_password.as_deref() == Some("**SECRET**") { key.login_password_password = None; }
-            if key.access_key_secret_key.as_deref() == Some("**SECRET**") { key.access_key_secret_key = None; }
+            if key.ssh_key.as_deref() == Some("**SECRET**") {
+                key.ssh_key = None;
+            }
+            if key.login_password_password.as_deref() == Some("**SECRET**") {
+                key.login_password_password = None;
+            }
+            if key.access_key_secret_key.as_deref() == Some("**SECRET**") {
+                key.access_key_secret_key = None;
+            }
             match state.store.create_access_key(key).await {
                 Ok(_) => n_keys += 1,
                 Err(e) => errors.push(format!("key: {}", e)),

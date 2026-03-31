@@ -2,17 +2,13 @@
 //!
 //! Обработчики для системной информации
 
-use axum::{
-    extract::State,
-    http::StatusCode,
-    Json,
-};
-use std::sync::Arc;
-use serde::{Deserialize, Serialize};
+use crate::api::extractors::AuthUser;
+use crate::api::middleware::ErrorResponse;
 use crate::api::state::AppState;
 use crate::error::{Error, Result};
-use crate::api::middleware::ErrorResponse;
-use crate::api::extractors::AuthUser;
+use axum::{extract::State, http::StatusCode, Json};
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 /// Информация о системе
 #[derive(Debug, Clone, Serialize, Deserialize)]

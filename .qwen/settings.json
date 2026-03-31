@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git pull *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git stash)",
+      "Bash(cargo check)",
+      "Bash(git push *)",
+      "Bash(rm *)",
+      "Bash(git checkout *)",
+      "Bash(gh *)",
+      "Bash(git merge *)",
+      "Bash(git fetch *)",
+      "Bash(mkdir *)",
+      "Bash(mv *)",
+      "Bash(wc *)",
+      "Bash(git *)"
+    ]
+  },
+  "$version": 3
+}

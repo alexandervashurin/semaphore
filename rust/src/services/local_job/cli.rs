@@ -2,8 +2,8 @@
 //!
 //! Аналог services/tasks/local_job_cli.go из Go версии
 
-use std::collections::HashMap;
 use serde_json::Value;
+use std::collections::HashMap;
 
 use crate::error::Result;
 use crate::services::local_job::LocalJob;
@@ -33,7 +33,9 @@ impl LocalJob {
 
     /// Получает аргументы CLI в виде карты (для Terraform стадий)
     #[allow(clippy::type_complexity)]
-    pub fn get_cli_args_map(&self) -> Result<(HashMap<String, Vec<String>>, HashMap<String, Vec<String>>)> {
+    pub fn get_cli_args_map(
+        &self,
+    ) -> Result<(HashMap<String, Vec<String>>, HashMap<String, Vec<String>>)> {
         let mut template_args_map = HashMap::new();
         let mut task_args_map = HashMap::new();
 
@@ -68,16 +70,15 @@ impl LocalJob {
 
     /// Получает параметры шаблона (из задачи)
     pub fn get_template_params(&self) -> Result<Value> {
-        self.task
-            .params
-            .clone()
-            .map(Ok)
-            .unwrap_or(Ok(Value::Null))
+        self.task.params.clone().map(Ok).unwrap_or(Ok(Value::Null))
     }
 
     /// Получает параметры задачи
     pub fn get_params<T: serde::de::DeserializeOwned>(&self) -> Result<T> {
-        let params_str = self.task.params.as_ref()
+        let params_str = self
+            .task
+            .params
+            .as_ref()
             .map(|v| v.to_string())
             .unwrap_or_default();
         let params: T = serde_json::from_str(&params_str)?;
@@ -88,12 +89,12 @@ impl LocalJob {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::TemplateType;
-    use chrono::Utc;
-    use std::sync::Arc;
-    use crate::services::task_logger::BasicLogger;
     use crate::db_lib::AccessKeyInstallerImpl;
+    use crate::models::TemplateType;
+    use crate::services::task_logger::BasicLogger;
+    use chrono::Utc;
     use std::path::PathBuf;
+    use std::sync::Arc;
 
     fn create_test_job_with_args() -> LocalJob {
         let logger = Arc::new(BasicLogger::new());

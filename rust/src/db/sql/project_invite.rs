@@ -15,7 +15,11 @@ impl SqlDb {
     }
 
     /// Получает приглашения проекта
-    pub async fn get_project_invites(&self, project_id: i32, params: RetrieveQueryParams) -> Result<Vec<ProjectInviteWithUser>> {
+    pub async fn get_project_invites(
+        &self,
+        project_id: i32,
+        params: RetrieveQueryParams,
+    ) -> Result<Vec<ProjectInviteWithUser>> {
         let limit = params.count.unwrap_or(100) as i64;
         let offset = params.offset as i64;
 
@@ -25,7 +29,7 @@ impl SqlDb {
              LEFT JOIN \"user\" u ON pi.user_id = u.id \
              WHERE pi.project_id = $1 \
              ORDER BY pi.created DESC \
-             LIMIT $2 OFFSET $3"
+             LIMIT $2 OFFSET $3",
         )
         .bind(project_id)
         .bind(limit)
@@ -34,18 +38,21 @@ impl SqlDb {
         .await
         .map_err(Error::Database)?;
 
-        Ok(rows.into_iter().map(|row| ProjectInviteWithUser {
-            id: row.get("id"),
-            project_id: row.get("project_id"),
-            user_id: row.get("user_id"),
-            role: row.get("role"),
-            created: row.get("created"),
-            updated: row.get("updated"),
-            token: row.try_get("token").ok().unwrap_or_default(),
-            inviter_user_id: row.try_get("inviter_user_id").ok().unwrap_or(0),
-            user_name: row.try_get("user_name").ok().unwrap_or_default(),
-            user_email: row.try_get("user_email").ok().unwrap_or_default(),
-        }).collect())
+        Ok(rows
+            .into_iter()
+            .map(|row| ProjectInviteWithUser {
+                id: row.get("id"),
+                project_id: row.get("project_id"),
+                user_id: row.get("user_id"),
+                role: row.get("role"),
+                created: row.get("created"),
+                updated: row.get("updated"),
+                token: row.try_get("token").ok().unwrap_or_default(),
+                inviter_user_id: row.try_get("inviter_user_id").ok().unwrap_or(0),
+                user_name: row.try_get("user_name").ok().unwrap_or_default(),
+                user_email: row.try_get("user_email").ok().unwrap_or_default(),
+            })
+            .collect())
     }
 
     /// Создаёт приглашение проекта
@@ -78,18 +85,20 @@ impl SqlDb {
     }
 
     /// Получает приглашение по ID
-    pub async fn get_project_invite(&self, project_id: i32, invite_id: i32) -> Result<ProjectInvite> {
-        let row = sqlx::query(
-            "SELECT * FROM project_invite WHERE id = $1 AND project_id = $2"
-        )
-        .bind(invite_id)
-        .bind(project_id)
-        .fetch_one(self.pg_pool_invite()?)
-        .await
-        .map_err(|e| match e {
-            sqlx::Error::RowNotFound => Error::NotFound("Приглашение не найдено".to_string()),
-            _ => Error::Database(e),
-        })?;
+    pub async fn get_project_invite(
+        &self,
+        project_id: i32,
+        invite_id: i32,
+    ) -> Result<ProjectInvite> {
+        let row = sqlx::query("SELECT * FROM project_invite WHERE id = $1 AND project_id = $2")
+            .bind(invite_id)
+            .bind(project_id)
+            .fetch_one(self.pg_pool_invite()?)
+            .await
+            .map_err(|e| match e {
+                sqlx::Error::RowNotFound => Error::NotFound("Приглашение не найдено".to_string()),
+                _ => Error::Database(e),
+            })?;
 
         Ok(ProjectInvite {
             id: row.get("id"),
@@ -105,16 +114,14 @@ impl SqlDb {
 
     /// Получает приглашение по токену
     pub async fn get_project_invite_by_token(&self, token: &str) -> Result<ProjectInvite> {
-        let row = sqlx::query(
-            "SELECT * FROM project_invite WHERE token = $1"
-        )
-        .bind(token)
-        .fetch_one(self.pg_pool_invite()?)
-        .await
-        .map_err(|e| match e {
-            sqlx::Error::RowNotFound => Error::NotFound("Приглашение не найдено".to_string()),
-            _ => Error::Database(e),
-        })?;
+        let row = sqlx::query("SELECT * FROM project_invite WHERE token = $1")
+            .bind(token)
+            .fetch_one(self.pg_pool_invite()?)
+            .await
+            .map_err(|e| match e {
+                sqlx::Error::RowNotFound => Error::NotFound("Приглашение не найдено".to_string()),
+                _ => Error::Database(e),
+            })?;
 
         Ok(ProjectInvite {
             id: row.get("id"),
@@ -132,7 +139,7 @@ impl SqlDb {
     pub async fn update_project_invite(&self, invite: ProjectInvite) -> Result<()> {
         sqlx::query(
             "UPDATE project_invite SET user_id = $1, role = $2, updated = $3, \
-             token = $4, inviter_user_id = $5 WHERE id = $6 AND project_id = $7"
+             token = $4, inviter_user_id = $5 WHERE id = $6 AND project_id = $7",
         )
         .bind(invite.user_id)
         .bind(&invite.role)

@@ -36,14 +36,14 @@ impl TerraformStateManager for SqlStore {
         .map_err(Error::Database)?;
 
         Ok(row.map(|r| TerraformState {
-            id:         r.get("id"),
+            id: r.get("id"),
             project_id: r.get("project_id"),
-            workspace:  r.get("workspace"),
-            serial:     r.get("serial"),
-            lineage:    r.get("lineage"),
+            workspace: r.get("workspace"),
+            serial: r.get("serial"),
+            lineage: r.get("lineage"),
             state_data: r.get("state_data"),
-            encrypted:  r.get("encrypted"),
-            md5:        r.get("md5"),
+            encrypted: r.get("encrypted"),
+            md5: r.get("md5"),
             created_at: r.get("created_at"),
         }))
     }
@@ -69,13 +69,13 @@ impl TerraformStateManager for SqlStore {
         Ok(rows
             .into_iter()
             .map(|r| TerraformStateSummary {
-                id:         r.get("id"),
+                id: r.get("id"),
                 project_id: r.get("project_id"),
-                workspace:  r.get("workspace"),
-                serial:     r.get("serial"),
-                lineage:    r.get("lineage"),
-                encrypted:  r.get("encrypted"),
-                md5:        r.get("md5"),
+                workspace: r.get("workspace"),
+                serial: r.get("serial"),
+                lineage: r.get("lineage"),
+                encrypted: r.get("encrypted"),
+                md5: r.get("md5"),
                 created_at: r.get("created_at"),
             })
             .collect())
@@ -101,14 +101,14 @@ impl TerraformStateManager for SqlStore {
         .map_err(Error::Database)?;
 
         Ok(row.map(|r| TerraformState {
-            id:         r.get("id"),
+            id: r.get("id"),
             project_id: r.get("project_id"),
-            workspace:  r.get("workspace"),
-            serial:     r.get("serial"),
-            lineage:    r.get("lineage"),
+            workspace: r.get("workspace"),
+            serial: r.get("serial"),
+            lineage: r.get("lineage"),
             state_data: r.get("state_data"),
-            encrypted:  r.get("encrypted"),
-            md5:        r.get("md5"),
+            encrypted: r.get("encrypted"),
+            md5: r.get("md5"),
             created_at: r.get("created_at"),
         }))
     }
@@ -136,14 +136,14 @@ impl TerraformStateManager for SqlStore {
             if existing_md5 == state.md5 {
                 // Idempotent retry — same content.
                 return Ok(TerraformState {
-                    id:         r.get("id"),
+                    id: r.get("id"),
                     project_id: r.get("project_id"),
-                    workspace:  r.get("workspace"),
-                    serial:     r.get("serial"),
-                    lineage:    r.get("lineage"),
+                    workspace: r.get("workspace"),
+                    serial: r.get("serial"),
+                    lineage: r.get("lineage"),
                     state_data: r.get("state_data"),
-                    encrypted:  r.get("encrypted"),
-                    md5:        existing_md5,
+                    encrypted: r.get("encrypted"),
+                    md5: existing_md5,
                     created_at: r.get("created_at"),
                 });
             }
@@ -172,14 +172,14 @@ impl TerraformStateManager for SqlStore {
         .map_err(Error::Database)?;
 
         Ok(TerraformState {
-            id:         row.get("id"),
+            id: row.get("id"),
             project_id: row.get("project_id"),
-            workspace:  row.get("workspace"),
-            serial:     row.get("serial"),
-            lineage:    row.get("lineage"),
+            workspace: row.get("workspace"),
+            serial: row.get("serial"),
+            lineage: row.get("lineage"),
             state_data: row.get("state_data"),
-            encrypted:  row.get("encrypted"),
-            md5:        row.get("md5"),
+            encrypted: row.get("encrypted"),
+            md5: row.get("md5"),
             created_at: row.get("created_at"),
         })
     }
@@ -205,14 +205,12 @@ impl TerraformStateManager for SqlStore {
 
     async fn delete_all_terraform_states(&self, project_id: i32, workspace: &str) -> Result<()> {
         let pool = self.get_postgres_pool()?;
-        sqlx::query(
-            "DELETE FROM terraform_state WHERE project_id = $1 AND workspace = $2",
-        )
-        .bind(project_id)
-        .bind(workspace)
-        .execute(pool)
-        .await
-        .map_err(Error::Database)?;
+        sqlx::query("DELETE FROM terraform_state WHERE project_id = $1 AND workspace = $2")
+            .bind(project_id)
+            .bind(workspace)
+            .execute(pool)
+            .await
+            .map_err(Error::Database)?;
         Ok(())
     }
 
@@ -270,13 +268,13 @@ impl TerraformStateManager for SqlStore {
         match row {
             Some(r) => Ok(TerraformStateLock {
                 project_id: r.get("project_id"),
-                workspace:  r.get("workspace"),
-                lock_id:    r.get("lock_id"),
-                operation:  r.get("operation"),
-                info:       r.get("info"),
-                who:        r.get("who"),
-                version:    r.get("version"),
-                path:       r.get("path"),
+                workspace: r.get("workspace"),
+                lock_id: r.get("lock_id"),
+                operation: r.get("operation"),
+                info: r.get("info"),
+                who: r.get("who"),
+                version: r.get("version"),
+                path: r.get("path"),
                 created_at: r.get("created_at"),
                 expires_at: r.get("expires_at"),
             }),
@@ -340,13 +338,13 @@ impl TerraformStateManager for SqlStore {
 
         Ok(row.map(|r| TerraformStateLock {
             project_id: r.get("project_id"),
-            workspace:  r.get("workspace"),
-            lock_id:    r.get("lock_id"),
-            operation:  r.get("operation"),
-            info:       r.get("info"),
-            who:        r.get("who"),
-            version:    r.get("version"),
-            path:       r.get("path"),
+            workspace: r.get("workspace"),
+            lock_id: r.get("lock_id"),
+            operation: r.get("operation"),
+            info: r.get("info"),
+            who: r.get("who"),
+            version: r.get("version"),
+            path: r.get("path"),
             created_at: r.get("created_at"),
             expires_at: r.get("expires_at"),
         }))
@@ -364,19 +362,20 @@ impl TerraformStateManager for SqlStore {
         .await
         .map_err(Error::Database)?;
 
-        Ok(rows.into_iter().map(|r| r.get::<String, _>("workspace")).collect())
+        Ok(rows
+            .into_iter()
+            .map(|r| r.get::<String, _>("workspace"))
+            .collect())
     }
 
     // ── Maintenance ──────────────────────────────────────────────────────────
 
     async fn purge_expired_terraform_locks(&self) -> Result<u64> {
         let pool = self.get_postgres_pool()?;
-        let result = sqlx::query(
-            "DELETE FROM terraform_state_lock WHERE expires_at < NOW()",
-        )
-        .execute(pool)
-        .await
-        .map_err(Error::Database)?;
+        let result = sqlx::query("DELETE FROM terraform_state_lock WHERE expires_at < NOW()")
+            .execute(pool)
+            .await
+            .map_err(Error::Database)?;
         Ok(result.rows_affected())
     }
 }

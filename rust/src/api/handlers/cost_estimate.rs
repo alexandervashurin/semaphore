@@ -33,7 +33,11 @@ pub async fn list_cost_estimates(
         Ok(list) => (StatusCode::OK, Json(json!(list))).into_response(),
         Err(e) => {
             let e: crate::error::Error = e;
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response()
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": e.to_string()})),
+            )
+                .into_response()
         }
     }
 }
@@ -50,7 +54,11 @@ pub async fn cost_summary(
         Ok(list) => (StatusCode::OK, Json(json!(list))).into_response(),
         Err(e) => {
             let e: crate::error::Error = e;
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response()
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": e.to_string()})),
+            )
+                .into_response()
         }
     }
 }
@@ -65,10 +73,18 @@ pub async fn get_task_cost(
     let store = state.store.store();
     match store.get_cost_estimate_for_task(project_id, task_id).await {
         Ok(Some(cost)) => (StatusCode::OK, Json(json!(cost))).into_response(),
-        Ok(None) => (StatusCode::NOT_FOUND, Json(json!({"error": "No cost estimate for this task"}))).into_response(),
+        Ok(None) => (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "No cost estimate for this task"})),
+        )
+            .into_response(),
         Err(e) => {
             let e: crate::error::Error = e;
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response()
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": e.to_string()})),
+            )
+                .into_response()
         }
     }
 }
@@ -86,29 +102,56 @@ pub async fn create_task_cost(
     // First get the task to extract template_id
     let task = match store.get_task(task_id, project_id).await {
         Ok(t) => t,
-        Err(e) => return (StatusCode::NOT_FOUND, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => {
+            return (StatusCode::NOT_FOUND, Json(json!({"error": e.to_string()}))).into_response()
+        }
     };
 
     let payload = CostEstimateCreate {
         project_id,
         task_id,
         template_id: task.template_id,
-        currency: body.get("currency").and_then(|v| v.as_str()).map(|s| s.to_string()),
+        currency: body
+            .get("currency")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
         monthly_cost: body.get("monthly_cost").and_then(|v| v.as_f64()),
         monthly_cost_diff: body.get("monthly_cost_diff").and_then(|v| v.as_f64()),
-        resource_count: body.get("resource_count").and_then(|v| v.as_i64()).map(|n| n as i32),
-        resources_added: body.get("resources_added").and_then(|v| v.as_i64()).map(|n| n as i32),
-        resources_changed: body.get("resources_changed").and_then(|v| v.as_i64()).map(|n| n as i32),
-        resources_deleted: body.get("resources_deleted").and_then(|v| v.as_i64()).map(|n| n as i32),
-        breakdown_json: body.get("breakdown_json").and_then(|v| v.as_str()).map(|s| s.to_string()),
-        infracost_version: body.get("infracost_version").and_then(|v| v.as_str()).map(|s| s.to_string()),
+        resource_count: body
+            .get("resource_count")
+            .and_then(|v| v.as_i64())
+            .map(|n| n as i32),
+        resources_added: body
+            .get("resources_added")
+            .and_then(|v| v.as_i64())
+            .map(|n| n as i32),
+        resources_changed: body
+            .get("resources_changed")
+            .and_then(|v| v.as_i64())
+            .map(|n| n as i32),
+        resources_deleted: body
+            .get("resources_deleted")
+            .and_then(|v| v.as_i64())
+            .map(|n| n as i32),
+        breakdown_json: body
+            .get("breakdown_json")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
+        infracost_version: body
+            .get("infracost_version")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
     };
 
     match store.create_cost_estimate(payload).await {
         Ok(cost) => (StatusCode::CREATED, Json(json!(cost))).into_response(),
         Err(e) => {
             let e: crate::error::Error = e;
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response()
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": e.to_string()})),
+            )
+                .into_response()
         }
     }
 }

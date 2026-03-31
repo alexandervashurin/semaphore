@@ -2,17 +2,17 @@
 //!
 //! Обработчики для уведомлений в проектах
 
+use crate::api::middleware::ErrorResponse;
+use crate::api::state::AppState;
+use crate::db::store::ProjectStore;
+use crate::error::Error;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
     Json,
 };
-use std::sync::Arc;
 use serde::{Deserialize, Serialize};
-use crate::api::state::AppState;
-use crate::error::Error;
-use crate::api::middleware::ErrorResponse;
-use crate::db::store::ProjectStore;
+use std::sync::Arc;
 
 /// Отправляет тестовое уведомление
 ///
@@ -23,33 +23,38 @@ pub async fn send_test_notification(
     payload: Option<Json<TestNotificationPayload>>,
 ) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     // Получаем проект
-    let project = state.store.get_project(project_id)
+    let project = state
+        .store
+        .get_project(project_id)
         .await
         .map_err(|e| match e {
             Error::NotFound(_) => (
                 StatusCode::NOT_FOUND,
-                Json(ErrorResponse::new("Project not found".to_string()))
+                Json(ErrorResponse::new("Project not found".to_string())),
             ),
             _ => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse::new(e.to_string()))
-            )
+                Json(ErrorResponse::new(e.to_string())),
+            ),
         })?;
 
     // Проверяем, включены ли уведомления
     if !project.alert {
         return Err((
             StatusCode::BAD_REQUEST,
-            Json(ErrorResponse::new("Notifications are disabled for this project".to_string()))
+            Json(ErrorResponse::new(
+                "Notifications are disabled for this project".to_string(),
+            )),
         ));
     }
 
     // Получаем chat ID
-    let chat_id = project.alert_chat
-        .ok_or_else(|| (
+    let chat_id = project.alert_chat.ok_or_else(|| {
+        (
             StatusCode::BAD_REQUEST,
-            Json(ErrorResponse::new("Chat ID is not configured".to_string()))
-        ))?;
+            Json(ErrorResponse::new("Chat ID is not configured".to_string())),
+        )
+    })?;
 
     // Формируем тестовое сообщение
     let message = format!(

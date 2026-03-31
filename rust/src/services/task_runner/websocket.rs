@@ -2,20 +2,18 @@
 //!
 //! Аналог services/tasks/task_runner_websocket.go из Go версии
 
-use serde_json::json;
-use chrono::Utc;
-use crate::services::task_runner::TaskRunner;
-use crate::services::task_logger::TaskStatus;
 use crate::api::websocket::{WebSocketManager, WsMessage};
+use crate::services::task_logger::TaskStatus;
+use crate::services::task_runner::TaskRunner;
+use chrono::Utc;
+use serde_json::json;
 
 impl TaskRunner {
     /// send_websocket_update отправляет обновление статуса через WebSocket
     pub async fn send_websocket_update(&self) {
-        self.pool.ws_manager.send_status(
-            self.task.id,
-            self.task.status.to_string(),
-            Utc::now(),
-        );
+        self.pool
+            .ws_manager
+            .send_status(self.task.id, self.task.status.to_string(), Utc::now());
     }
 
     /// notify_status_change уведомляет об изменении статуса
@@ -31,7 +29,9 @@ impl TaskRunner {
     /// notify_log уведомляет о новом логе
     pub fn notify_log(&self, time: chrono::DateTime<Utc>, msg: &str) {
         // Отправка лога через WebSocketManager
-        self.pool.ws_manager.send_log(self.task.id, msg.to_string(), time);
+        self.pool
+            .ws_manager
+            .send_log(self.task.id, msg.to_string(), time);
 
         for listener in &self.log_listeners {
             listener(time, msg.to_string());
@@ -41,7 +41,9 @@ impl TaskRunner {
     /// broadcast_update отправляет обновление всем подключенным клиентам
     pub async fn broadcast_update(&self, event_type: &str, data: serde_json::Value) {
         let status = format!("{}: {}", event_type, data);
-        self.pool.ws_manager.send_status(self.task.id, status, Utc::now());
+        self.pool
+            .ws_manager
+            .send_status(self.task.id, status, Utc::now());
     }
 
     /// send_task_started уведомляет о старте задачи
@@ -75,12 +77,12 @@ impl TaskRunner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Utc;
-    use crate::services::task_logger::TaskStatus;
-    use crate::models::{Task, Project};
-    use crate::services::task_pool::TaskPool;
-    use crate::db_lib::AccessKeyInstallerImpl;
     use crate::db::MockStore;
+    use crate::db_lib::AccessKeyInstallerImpl;
+    use crate::models::{Project, Task};
+    use crate::services::task_logger::TaskStatus;
+    use crate::services::task_pool::TaskPool;
+    use chrono::Utc;
     use std::sync::Arc;
 
     fn create_test_task_runner() -> TaskRunner {
@@ -97,12 +99,14 @@ mod tests {
             ..Default::default()
         };
 
-        let pool = Arc::new(TaskPool::new(
-            Arc::new(MockStore::new()),
-            5,
-        ));
+        let pool = Arc::new(TaskPool::new(Arc::new(MockStore::new()), 5));
 
-        TaskRunner::new(task, pool, "testuser".to_string(), AccessKeyInstallerImpl::new())
+        TaskRunner::new(
+            task,
+            pool,
+            "testuser".to_string(),
+            AccessKeyInstallerImpl::new(),
+        )
     }
 
     #[tokio::test]

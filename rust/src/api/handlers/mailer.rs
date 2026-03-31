@@ -2,17 +2,13 @@
 //!
 //! Обработчики для тестирования отправки email
 
-use axum::{
-    extract::State,
-    http::StatusCode,
-    Json,
-};
-use std::sync::Arc;
-use serde::{Deserialize, Serialize};
+use crate::api::middleware::ErrorResponse;
 use crate::api::state::AppState;
 use crate::error::Error;
-use crate::api::middleware::ErrorResponse;
 use crate::utils::mailer::{send_email, Email, SmtpConfig};
+use axum::{extract::State, http::StatusCode, Json};
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 /// Отправляет тестовое email уведомление
 ///
@@ -62,12 +58,12 @@ pub async fn send_test_email(
     );
 
     // Отправляем email
-    send_email(&smtp_config, &email)
-        .await
-        .map_err(|e| (
+    send_email(&smtp_config, &email).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(format!("Failed to send email: {}", e)))
-        ))?;
+            Json(ErrorResponse::new(format!("Failed to send email: {}", e))),
+        )
+    })?;
 
     tracing::info!("Test email sent to {}", payload.to);
 

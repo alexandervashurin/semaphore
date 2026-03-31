@@ -3,15 +3,15 @@
 //! Этот модуль предоставляет среду выполнения для WASM плагинов,
 //! включая хост-функции, sandboxing и управление ресурсами.
 
+use crate::error::{Error, Result};
+use crate::plugins::base::{HookEvent, HookResult, PluginContext};
+use crate::plugins::wasm_loader::{LoadedWasmModule, WasmPluginLoader, WasmPluginMetadata};
+use serde_json::{json, Value as JsonValue};
 use std::sync::Arc;
+use tokio::sync::Mutex;
+use tracing::{debug, error, info, trace, warn};
 use wasmtime::{Engine, Store, Val};
 use wasmtime_wasi::WasiCtx;
-use tokio::sync::Mutex;
-use tracing::{info, warn, error, debug, trace};
-use serde_json::{json, Value as JsonValue};
-use crate::error::{Error, Result};
-use crate::plugins::base::{PluginContext, HookEvent, HookResult};
-use crate::plugins::wasm_loader::{WasmPluginLoader, WasmPluginMetadata, LoadedWasmModule};
 
 /// Контекст выполнения WASM плагина
 pub struct WasmPluginInstance {
@@ -61,14 +61,12 @@ impl HostFunctions {
     /// Создаёт новые хост-функции с замыканиями по умолчанию
     pub fn new() -> Self {
         Self {
-            log_function: Arc::new(|level, msg| {
-                match level {
-                    "error" => error!("[WASM] {}", msg),
-                    "warn" => warn!("[WASM] {}", msg),
-                    "info" => info!("[WASM] {}", msg),
-                    "debug" => debug!("[WASM] {}", msg),
-                    _ => trace!("[WASM] {}", msg),
-                }
+            log_function: Arc::new(|level, msg| match level {
+                "error" => error!("[WASM] {}", msg),
+                "warn" => warn!("[WASM] {}", msg),
+                "info" => info!("[WASM] {}", msg),
+                "debug" => debug!("[WASM] {}", msg),
+                _ => trace!("[WASM] {}", msg),
             }),
             config_getter: Arc::new(|_| None),
             config_setter: Arc::new(|_, _| Ok(())),
@@ -123,7 +121,7 @@ impl WasmRuntime {
     /// Создаёт новый WASM runtime
     pub fn new(loader: &WasmPluginLoader) -> Result<Self> {
         let engine = loader.engine().clone();
-        
+
         Ok(Self {
             engine,
             host_functions: HostFunctions::new(),
@@ -131,12 +129,12 @@ impl WasmRuntime {
     }
 
     /// Создаёт инстанс плагина
-    pub async fn create_instance(
-        &self,
-        module: &LoadedWasmModule,
-    ) -> Result<WasmPluginInstance> {
-        debug!("Creating WASM instance for plugin: {}", module.metadata.info.id);
-        
+    pub async fn create_instance(&self, module: &LoadedWasmModule) -> Result<WasmPluginInstance> {
+        debug!(
+            "Creating WASM instance for plugin: {}",
+            module.metadata.info.id
+        );
+
         Ok(WasmPluginInstance {
             metadata: module.metadata.clone(),
             store_data: PluginStoreData {
@@ -154,8 +152,12 @@ impl WasmRuntime {
         function_name: &str,
         args: &[Val],
     ) -> Result<Vec<Val>> {
-        debug!("Calling WASM function: {} with {} args", function_name, args.len());
-        
+        debug!(
+            "Calling WASM function: {} with {} args",
+            function_name,
+            args.len()
+        );
+
         // В полной реализации здесь будет настоящий вызов WASM функции
         // Для пока возвращаем заглушку
         Ok(vec![])
@@ -194,7 +196,10 @@ impl WasmRuntime {
     }
 
     /// Получает информацию о плагине
-    pub fn get_plugin_info<'a>(&'a self, instance: &'a WasmPluginInstance) -> &'a WasmPluginMetadata {
+    pub fn get_plugin_info<'a>(
+        &'a self,
+        instance: &'a WasmPluginInstance,
+    ) -> &'a WasmPluginMetadata {
         &instance.metadata
     }
 
@@ -241,7 +246,8 @@ impl WasmSandbox {
 
     /// Применяет ограничения к store
     pub fn apply_to_store(&self, store: &mut Store<PluginStore>) -> Result<()> {
-        store.set_fuel(self.max_fuel)
+        store
+            .set_fuel(self.max_fuel)
             .map_err(|e| Error::Other(format!("Failed to set fuel limit: {}", e)))?;
         Ok(())
     }
@@ -256,13 +262,13 @@ impl Default for WasmSandbox {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_sandbox_creation() {
         let sandbox = WasmSandbox::new()
             .with_max_memory(128 * 1024 * 1024)
             .with_max_fuel(2_000_000);
-        
+
         assert_eq!(sandbox.max_memory, 128 * 1024 * 1024);
         assert_eq!(sandbox.max_fuel, 2_000_000);
     }

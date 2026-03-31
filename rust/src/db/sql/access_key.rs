@@ -15,49 +15,48 @@ impl SqlDb {
 
     /// Получает ключи доступа проекта
     pub async fn get_access_keys(&self, project_id: i32) -> Result<Vec<AccessKey>> {
-        let rows = sqlx::query(
-            "SELECT * FROM access_key WHERE project_id = $1 ORDER BY name"
-        )
-        .bind(project_id)
-        .fetch_all(self.pg_pool_access_key()?)
-        .await
-        .map_err(Error::Database)?;
+        let rows = sqlx::query("SELECT * FROM access_key WHERE project_id = $1 ORDER BY name")
+            .bind(project_id)
+            .fetch_all(self.pg_pool_access_key()?)
+            .await
+            .map_err(Error::Database)?;
 
-        Ok(rows.into_iter().map(|row| AccessKey {
-            id: row.get("id"),
-            project_id: row.get("project_id"),
-            name: row.get("name"),
-            r#type: row.get("type"),
-            user_id: row.get("user_id"),
-            login_password_login: row.get("login_password_login"),
-            login_password_password: row.get("login_password_password"),
-            ssh_key: row.get("ssh_key"),
-            ssh_passphrase: row.get("ssh_passphrase"),
-            access_key_access_key: row.get("access_key_access_key"),
-            access_key_secret_key: row.get("access_key_secret_key"),
-            secret_storage_id: row.get("secret_storage_id"),
-            source_storage_type: row.try_get("source_storage_type").ok().flatten(),
-            source_storage_id: row.try_get("source_storage_id").ok().flatten(),
-            source_key: row.try_get("source_key").ok().flatten(),
-            owner: row.get("owner"),
-            environment_id: row.get("environment_id"),
-            created: row.get("created"),
-        }).collect())
+        Ok(rows
+            .into_iter()
+            .map(|row| AccessKey {
+                id: row.get("id"),
+                project_id: row.get("project_id"),
+                name: row.get("name"),
+                r#type: row.get("type"),
+                user_id: row.get("user_id"),
+                login_password_login: row.get("login_password_login"),
+                login_password_password: row.get("login_password_password"),
+                ssh_key: row.get("ssh_key"),
+                ssh_passphrase: row.get("ssh_passphrase"),
+                access_key_access_key: row.get("access_key_access_key"),
+                access_key_secret_key: row.get("access_key_secret_key"),
+                secret_storage_id: row.get("secret_storage_id"),
+                source_storage_type: row.try_get("source_storage_type").ok().flatten(),
+                source_storage_id: row.try_get("source_storage_id").ok().flatten(),
+                source_key: row.try_get("source_key").ok().flatten(),
+                owner: row.get("owner"),
+                environment_id: row.get("environment_id"),
+                created: row.get("created"),
+            })
+            .collect())
     }
 
     /// Получает ключ доступа по ID
     pub async fn get_access_key(&self, project_id: i32, key_id: i32) -> Result<AccessKey> {
-        let row = sqlx::query(
-            "SELECT * FROM access_key WHERE id = $1 AND project_id = $2"
-        )
-        .bind(key_id)
-        .bind(project_id)
-        .fetch_one(self.pg_pool_access_key()?)
-        .await
-        .map_err(|e| match e {
-            sqlx::Error::RowNotFound => Error::NotFound("Ключ доступа не найден".to_string()),
-            _ => Error::Database(e),
-        })?;
+        let row = sqlx::query("SELECT * FROM access_key WHERE id = $1 AND project_id = $2")
+            .bind(key_id)
+            .bind(project_id)
+            .fetch_one(self.pg_pool_access_key()?)
+            .await
+            .map_err(|e| match e {
+                sqlx::Error::RowNotFound => Error::NotFound("Ключ доступа не найден".to_string()),
+                _ => Error::Database(e),
+            })?;
 
         Ok(AccessKey {
             id: row.get("id"),
@@ -87,7 +86,7 @@ impl SqlDb {
             "INSERT INTO access_key (project_id, name, type, user_id, login_password_login, \
              login_password_password, ssh_key, ssh_passphrase, access_key_access_key, \
              access_key_secret_key, secret_storage_id, owner, environment_id) \
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id"
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id",
         )
         .bind(key.project_id)
         .bind(&key.name)
@@ -117,7 +116,7 @@ impl SqlDb {
              login_password_login = $4, login_password_password = $5, ssh_key = $6, \
              ssh_passphrase = $7, access_key_access_key = $8, access_key_secret_key = $9, \
              secret_storage_id = $10, owner = $11, environment_id = $12 \
-             WHERE id = $13 AND project_id = $14"
+             WHERE id = $13 AND project_id = $14",
         )
         .bind(&key.name)
         .bind(&key.r#type)

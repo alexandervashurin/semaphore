@@ -4,10 +4,10 @@
 //! Если переменная окружения SEMAPHORE_ACCESS_KEY_ENCRYPTION задана,
 //! все секретные поля ключей шифруются при сохранении и дешифруются при чтении.
 
-use std::sync::Arc;
+use crate::db::store::Store;
 use crate::error::{Error, Result};
 use crate::models::AccessKey;
-use crate::db::store::Store;
+use std::sync::Arc;
 
 /// Маркер зашифрованного значения
 const ENC_PREFIX: &str = "$enc$";
@@ -20,7 +20,7 @@ fn get_encryption_key() -> Option<[u8; 32]> {
         return None;
     }
     // SHA-256 хэш строки → 32 байта
-    use sha2::{Sha256, Digest};
+    use sha2::{Digest, Sha256};
     let hash = Sha256::digest(raw.as_bytes());
     let mut key = [0u8; 32];
     key.copy_from_slice(&hash);
@@ -75,7 +75,11 @@ pub trait AccessKeyEncryptionService: Send + Sync {
     fn deserialize_secret(&self, key: &mut AccessKey) -> Result<()>;
 
     /// Заполняет секреты окружения
-    fn fill_environment_secrets(&self, env: &mut crate::models::Environment, deserialize_secret: bool) -> Result<()>;
+    fn fill_environment_secrets(
+        &self,
+        env: &mut crate::models::Environment,
+        deserialize_secret: bool,
+    ) -> Result<()>;
 
     /// Удаляет секрет (no-op для DB-хранилища)
     fn delete_secret(&self, key: &AccessKey) -> Result<()>;
@@ -135,7 +139,11 @@ impl AccessKeyEncryptionService for AccessKeyEncryptionServiceImpl {
         Ok(())
     }
 
-    fn fill_environment_secrets(&self, _env: &mut crate::models::Environment, _deserialize_secret: bool) -> Result<()> {
+    fn fill_environment_secrets(
+        &self,
+        _env: &mut crate::models::Environment,
+        _deserialize_secret: bool,
+    ) -> Result<()> {
         Ok(())
     }
 
@@ -154,10 +162,18 @@ pub fn encrypt_key_secrets(key: &mut AccessKey) {
         Some(k) => k,
         None => return,
     };
-    if let Ok(v) = maybe_encrypt(&key.ssh_key, &enc_key) { key.ssh_key = v; }
-    if let Ok(v) = maybe_encrypt(&key.ssh_passphrase, &enc_key) { key.ssh_passphrase = v; }
-    if let Ok(v) = maybe_encrypt(&key.login_password_password, &enc_key) { key.login_password_password = v; }
-    if let Ok(v) = maybe_encrypt(&key.access_key_secret_key, &enc_key) { key.access_key_secret_key = v; }
+    if let Ok(v) = maybe_encrypt(&key.ssh_key, &enc_key) {
+        key.ssh_key = v;
+    }
+    if let Ok(v) = maybe_encrypt(&key.ssh_passphrase, &enc_key) {
+        key.ssh_passphrase = v;
+    }
+    if let Ok(v) = maybe_encrypt(&key.login_password_password, &enc_key) {
+        key.login_password_password = v;
+    }
+    if let Ok(v) = maybe_encrypt(&key.access_key_secret_key, &enc_key) {
+        key.access_key_secret_key = v;
+    }
 }
 
 /// Дешифрует секретные поля ключа после загрузки из БД
@@ -166,10 +182,18 @@ pub fn decrypt_key_secrets(key: &mut AccessKey) {
         Some(k) => k,
         None => return,
     };
-    if let Ok(v) = maybe_decrypt(&key.ssh_key, &enc_key) { key.ssh_key = v; }
-    if let Ok(v) = maybe_decrypt(&key.ssh_passphrase, &enc_key) { key.ssh_passphrase = v; }
-    if let Ok(v) = maybe_decrypt(&key.login_password_password, &enc_key) { key.login_password_password = v; }
-    if let Ok(v) = maybe_decrypt(&key.access_key_secret_key, &enc_key) { key.access_key_secret_key = v; }
+    if let Ok(v) = maybe_decrypt(&key.ssh_key, &enc_key) {
+        key.ssh_key = v;
+    }
+    if let Ok(v) = maybe_decrypt(&key.ssh_passphrase, &enc_key) {
+        key.ssh_passphrase = v;
+    }
+    if let Ok(v) = maybe_decrypt(&key.login_password_password, &enc_key) {
+        key.login_password_password = v;
+    }
+    if let Ok(v) = maybe_decrypt(&key.access_key_secret_key, &enc_key) {
+        key.access_key_secret_key = v;
+    }
 }
 
 /// Маскирует секретные поля для API-ответа (никогда не возвращать plaintext)

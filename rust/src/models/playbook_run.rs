@@ -163,21 +163,22 @@ mod tests {
         assert_eq!(request.inventory_id, Some(1));
         assert_eq!(request.environment_id, Some(2));
         assert_eq!(request.limit, Some("localhost".to_string()));
-        assert_eq!(request.tags, Some(vec!["deploy".to_string(), "web".to_string()]));
+        assert_eq!(
+            request.tags,
+            Some(vec!["deploy".to_string(), "web".to_string()])
+        );
     }
 
     #[test]
     fn test_validate_success() {
-        let request = PlaybookRunRequest::new()
-            .with_extra_vars(json!({"key": "value"}));
+        let request = PlaybookRunRequest::new().with_extra_vars(json!({"key": "value"}));
 
         assert!(request.validate().is_ok());
     }
 
     #[test]
     fn test_validate_invalid_extra_vars() {
-        let request = PlaybookRunRequest::new()
-            .with_extra_vars(json!(["array"]));
+        let request = PlaybookRunRequest::new().with_extra_vars(json!(["array"]));
 
         assert!(request.validate().is_err());
     }

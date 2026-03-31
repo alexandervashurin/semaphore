@@ -3,7 +3,7 @@
 //! Аналог services/export/Exporter.go из Go версии
 
 use std::collections::{HashMap, HashSet};
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 
 /// Константы для типов сущностей
 pub const USER: &str = "User";
@@ -48,11 +48,41 @@ pub trait Progress {
 
 /// KeyMapper - маппер ключей
 pub trait KeyMapper {
-    fn get_new_key(&mut self, name: &str, scope: &str, old_key: &EntityKey, err_handler: &dyn ErrorHandler) -> Result<EntityKey, String>;
-    fn get_new_key_int(&mut self, name: &str, scope: &str, old_key: i32, err_handler: &dyn ErrorHandler) -> Result<i32, String>;
-    fn get_new_key_int_ref(&mut self, name: &str, scope: &str, old_key: Option<i32>, err_handler: &dyn ErrorHandler) -> Result<Option<i32>, String>;
-    fn map_keys(&mut self, name: &str, scope: &str, old_key: &EntityKey, new_key: &EntityKey) -> Result<(), String>;
-    fn map_int_keys(&mut self, name: &str, scope: &str, old_key: i32, new_key: i32) -> Result<(), String>;
+    fn get_new_key(
+        &mut self,
+        name: &str,
+        scope: &str,
+        old_key: &EntityKey,
+        err_handler: &dyn ErrorHandler,
+    ) -> Result<EntityKey, String>;
+    fn get_new_key_int(
+        &mut self,
+        name: &str,
+        scope: &str,
+        old_key: i32,
+        err_handler: &dyn ErrorHandler,
+    ) -> Result<i32, String>;
+    fn get_new_key_int_ref(
+        &mut self,
+        name: &str,
+        scope: &str,
+        old_key: Option<i32>,
+        err_handler: &dyn ErrorHandler,
+    ) -> Result<Option<i32>, String>;
+    fn map_keys(
+        &mut self,
+        name: &str,
+        scope: &str,
+        old_key: &EntityKey,
+        new_key: &EntityKey,
+    ) -> Result<(), String>;
+    fn map_int_keys(
+        &mut self,
+        name: &str,
+        scope: &str,
+        old_key: i32,
+        new_key: i32,
+    ) -> Result<(), String>;
     fn ignore_key_not_found(&self) -> bool;
 }
 
@@ -65,8 +95,18 @@ pub trait DataExporter: KeyMapper {
 
 /// TypeExporter - экспорт типа
 pub trait TypeExporter {
-    fn load(&mut self, store: &dyn crate::db::Store, exporter: &dyn DataExporter, progress: &mut dyn Progress) -> Result<(), String>;
-    fn restore(&mut self, store: &dyn crate::db::Store, exporter: &dyn DataExporter, progress: &mut dyn Progress) -> Result<(), String>;
+    fn load(
+        &mut self,
+        store: &dyn crate::db::Store,
+        exporter: &dyn DataExporter,
+        progress: &mut dyn Progress,
+    ) -> Result<(), String>;
+    fn restore(
+        &mut self,
+        store: &dyn crate::db::Store,
+        exporter: &dyn DataExporter,
+        progress: &mut dyn Progress,
+    ) -> Result<(), String>;
     fn get_loaded_keys(&self, scope: &str) -> Result<Vec<EntityKey>, String>;
     fn get_loaded_values(&self, scope: &str) -> Result<Vec<Box<dyn std::any::Any>>, String>;
     fn get_name(&self) -> &str;
@@ -101,9 +141,15 @@ impl TypeKeyMapper {
 }
 
 impl KeyMapper for TypeKeyMapper {
-    fn get_new_key(&mut self, name: &str, scope: &str, old_key: &EntityKey, _err_handler: &dyn ErrorHandler) -> Result<EntityKey, String> {
+    fn get_new_key(
+        &mut self,
+        name: &str,
+        scope: &str,
+        old_key: &EntityKey,
+        _err_handler: &dyn ErrorHandler,
+    ) -> Result<EntityKey, String> {
         let key_map = self.get_key_map(name, scope);
-        
+
         if let Some(new_key) = key_map.get(old_key) {
             Ok(new_key.clone())
         } else {
@@ -111,13 +157,25 @@ impl KeyMapper for TypeKeyMapper {
         }
     }
 
-    fn get_new_key_int(&mut self, name: &str, scope: &str, old_key: i32, err_handler: &dyn ErrorHandler) -> Result<i32, String> {
+    fn get_new_key_int(
+        &mut self,
+        name: &str,
+        scope: &str,
+        old_key: i32,
+        err_handler: &dyn ErrorHandler,
+    ) -> Result<i32, String> {
         let old_key_str = new_key_from_int(old_key);
         let new_key_str = self.get_new_key(name, scope, &old_key_str, err_handler)?;
         new_key_str.parse::<i32>().map_err(|e| e.to_string())
     }
 
-    fn get_new_key_int_ref(&mut self, name: &str, scope: &str, old_key: Option<i32>, err_handler: &dyn ErrorHandler) -> Result<Option<i32>, String> {
+    fn get_new_key_int_ref(
+        &mut self,
+        name: &str,
+        scope: &str,
+        old_key: Option<i32>,
+        err_handler: &dyn ErrorHandler,
+    ) -> Result<Option<i32>, String> {
         match old_key {
             Some(key) => {
                 let new_key = self.get_new_key_int(name, scope, key, err_handler)?;
@@ -127,13 +185,25 @@ impl KeyMapper for TypeKeyMapper {
         }
     }
 
-    fn map_keys(&mut self, name: &str, scope: &str, old_key: &EntityKey, new_key: &EntityKey) -> Result<(), String> {
+    fn map_keys(
+        &mut self,
+        name: &str,
+        scope: &str,
+        old_key: &EntityKey,
+        new_key: &EntityKey,
+    ) -> Result<(), String> {
         let key_map = self.get_key_map(name, scope);
         key_map.insert(old_key.clone(), new_key.clone());
         Ok(())
     }
 
-    fn map_int_keys(&mut self, name: &str, scope: &str, old_key: i32, new_key: i32) -> Result<(), String> {
+    fn map_int_keys(
+        &mut self,
+        name: &str,
+        scope: &str,
+        old_key: i32,
+        new_key: i32,
+    ) -> Result<(), String> {
         let old_key_str = new_key_from_int(old_key);
         let new_key_str = new_key_from_int(new_key);
         self.map_keys(name, scope, &old_key_str, &new_key_str)
@@ -205,11 +275,21 @@ impl<T: Clone> ValueMap<T> {
 }
 
 impl<T: Clone + Send + 'static> TypeExporter for ValueMap<T> {
-    fn load(&mut self, _store: &dyn crate::db::Store, _exporter: &dyn DataExporter, _progress: &mut dyn Progress) -> Result<(), String> {
+    fn load(
+        &mut self,
+        _store: &dyn crate::db::Store,
+        _exporter: &dyn DataExporter,
+        _progress: &mut dyn Progress,
+    ) -> Result<(), String> {
         Ok(())
     }
 
-    fn restore(&mut self, _store: &dyn crate::db::Store, _exporter: &dyn DataExporter, _progress: &mut dyn Progress) -> Result<(), String> {
+    fn restore(
+        &mut self,
+        _store: &dyn crate::db::Store,
+        _exporter: &dyn DataExporter,
+        _progress: &mut dyn Progress,
+    ) -> Result<(), String> {
         Ok(())
     }
 
@@ -254,7 +334,13 @@ pub struct ExporterChain {
 }
 
 impl KeyMapper for ExporterChain {
-    fn get_new_key(&mut self, name: &str, _scope: &str, old_key: &EntityKey, _err_handler: &dyn ErrorHandler) -> Result<EntityKey, String> {
+    fn get_new_key(
+        &mut self,
+        name: &str,
+        _scope: &str,
+        old_key: &EntityKey,
+        _err_handler: &dyn ErrorHandler,
+    ) -> Result<EntityKey, String> {
         // Проверяем маппинг
         if let Some(mapping) = self.key_mapping.get(name) {
             if let Some(new_key) = mapping.get(old_key) {
@@ -265,7 +351,13 @@ impl KeyMapper for ExporterChain {
         Ok(old_key.clone())
     }
 
-    fn get_new_key_int(&mut self, name: &str, _scope: &str, old_key: i32, _err_handler: &dyn ErrorHandler) -> Result<i32, String> {
+    fn get_new_key_int(
+        &mut self,
+        name: &str,
+        _scope: &str,
+        old_key: i32,
+        _err_handler: &dyn ErrorHandler,
+    ) -> Result<i32, String> {
         // Проверяем маппинг
         if let Some(mapping) = self.int_key_mapping.get(name) {
             if let Some(new_key) = mapping.get(&old_key) {
@@ -276,7 +368,13 @@ impl KeyMapper for ExporterChain {
         Ok(old_key)
     }
 
-    fn get_new_key_int_ref(&mut self, name: &str, _scope: &str, old_key: Option<i32>, _err_handler: &dyn ErrorHandler) -> Result<Option<i32>, String> {
+    fn get_new_key_int_ref(
+        &mut self,
+        name: &str,
+        _scope: &str,
+        old_key: Option<i32>,
+        _err_handler: &dyn ErrorHandler,
+    ) -> Result<Option<i32>, String> {
         match old_key {
             Some(key) => {
                 let mapped = self.get_new_key_int(name, _scope, key, _err_handler)?;
@@ -286,7 +384,13 @@ impl KeyMapper for ExporterChain {
         }
     }
 
-    fn map_keys(&mut self, name: &str, _scope: &str, old_key: &EntityKey, new_key: &EntityKey) -> Result<(), String> {
+    fn map_keys(
+        &mut self,
+        name: &str,
+        _scope: &str,
+        old_key: &EntityKey,
+        new_key: &EntityKey,
+    ) -> Result<(), String> {
         // Сохраняем маппинг
         self.key_mapping
             .entry(name.to_string())
@@ -295,7 +399,13 @@ impl KeyMapper for ExporterChain {
         Ok(())
     }
 
-    fn map_int_keys(&mut self, name: &str, _scope: &str, old_key: i32, new_key: i32) -> Result<(), String> {
+    fn map_int_keys(
+        &mut self,
+        name: &str,
+        _scope: &str,
+        old_key: i32,
+        new_key: i32,
+    ) -> Result<(), String> {
         // Сохраняем маппинг integer ключей
         self.int_key_mapping
             .entry(name.to_string())
@@ -311,11 +421,12 @@ impl KeyMapper for ExporterChain {
 
 impl DataExporter for ExporterChain {
     fn get_type_exporter(&mut self, name: &str) -> &mut dyn TypeExporter {
-        self.exporters.get_mut(name)
+        self.exporters
+            .get_mut(name)
             .map(|b| b.as_mut())
             .unwrap_or_else(|| panic!("Exporter {} not found", name))
     }
-    
+
     fn get_loaded_keys(&self, name: &str, scope: &str) -> Result<Vec<EntityKey>, String> {
         if let Some(exporter) = self.exporters.get(name) {
             exporter.get_loaded_keys(scope)
@@ -323,10 +434,13 @@ impl DataExporter for ExporterChain {
             Err(format!("Exporter {} not found", name))
         }
     }
-    
+
     fn get_loaded_keys_int(&self, name: &str, scope: &str) -> Result<Vec<i32>, String> {
         let keys = self.get_loaded_keys(name, scope)?;
-        Ok(keys.into_iter().filter_map(|k| k.parse::<i32>().ok()).collect())
+        Ok(keys
+            .into_iter()
+            .filter_map(|k| k.parse::<i32>().ok())
+            .collect())
     }
 }
 
@@ -373,12 +487,22 @@ impl ExporterChain {
     }
 
     /// Сортирует ключи по зависимостям
-    pub fn get_sorted_keys(exporters: &HashMap<String, Box<dyn TypeExporter>>, depends_on: fn(&dyn TypeExporter) -> Vec<&str>) -> Result<Vec<String>, String> {
+    pub fn get_sorted_keys(
+        exporters: &HashMap<String, Box<dyn TypeExporter>>,
+        depends_on: fn(&dyn TypeExporter) -> Vec<&str>,
+    ) -> Result<Vec<String>, String> {
         let mut sorted = Vec::new();
         let mut visited = HashSet::new();
         let mut visiting = HashSet::new();
 
-        fn visit(name: &str, exporters: &HashMap<String, Box<dyn TypeExporter>>, sorted: &mut Vec<String>, visited: &mut HashSet<String>, visiting: &mut HashSet<String>, depends_on: fn(&dyn TypeExporter) -> Vec<&str>) -> Result<(), String> {
+        fn visit(
+            name: &str,
+            exporters: &HashMap<String, Box<dyn TypeExporter>>,
+            sorted: &mut Vec<String>,
+            visited: &mut HashSet<String>,
+            visiting: &mut HashSet<String>,
+            depends_on: fn(&dyn TypeExporter) -> Vec<&str>,
+        ) -> Result<(), String> {
             if visiting.contains(name) {
                 return Err(format!("Circular dependency detected: {}", name));
             }
@@ -403,7 +527,14 @@ impl ExporterChain {
         }
 
         for name in exporters.keys() {
-            visit(name, exporters, &mut sorted, &mut visited, &mut visiting, depends_on)?;
+            visit(
+                name,
+                exporters,
+                &mut sorted,
+                &mut visited,
+                &mut visiting,
+                depends_on,
+            )?;
         }
 
         Ok(sorted)
@@ -491,14 +622,35 @@ pub fn init_project_exporters(mapper: &mut dyn KeyMapper, skip_task_output: bool
 
     // Добавляем экспортеры в порядке зависимостей
     chain.add_exporter(USER, Box::new(ValueMap::<crate::models::User>::new()));
-    chain.add_exporter(ACCESS_KEY, Box::new(ValueMap::<crate::models::AccessKey>::new()));
-    chain.add_exporter(ENVIRONMENT, Box::new(ValueMap::<crate::models::Environment>::new()));
-    chain.add_exporter(REPOSITORY, Box::new(ValueMap::<crate::models::Repository>::new()));
-    chain.add_exporter(INVENTORY, Box::new(ValueMap::<crate::models::Inventory>::new()));
-    chain.add_exporter(TEMPLATE, Box::new(ValueMap::<crate::models::Template>::new()));
+    chain.add_exporter(
+        ACCESS_KEY,
+        Box::new(ValueMap::<crate::models::AccessKey>::new()),
+    );
+    chain.add_exporter(
+        ENVIRONMENT,
+        Box::new(ValueMap::<crate::models::Environment>::new()),
+    );
+    chain.add_exporter(
+        REPOSITORY,
+        Box::new(ValueMap::<crate::models::Repository>::new()),
+    );
+    chain.add_exporter(
+        INVENTORY,
+        Box::new(ValueMap::<crate::models::Inventory>::new()),
+    );
+    chain.add_exporter(
+        TEMPLATE,
+        Box::new(ValueMap::<crate::models::Template>::new()),
+    );
     chain.add_exporter(VIEW, Box::new(ValueMap::<crate::models::View>::new()));
-    chain.add_exporter(SCHEDULE, Box::new(ValueMap::<crate::models::Schedule>::new()));
-    chain.add_exporter(INTEGRATION, Box::new(ValueMap::<crate::models::Integration>::new()));
+    chain.add_exporter(
+        SCHEDULE,
+        Box::new(ValueMap::<crate::models::Schedule>::new()),
+    );
+    chain.add_exporter(
+        INTEGRATION,
+        Box::new(ValueMap::<crate::models::Integration>::new()),
+    );
 
     if !skip_task_output {
         chain.add_exporter(TASK, Box::new(ValueMap::<crate::models::Task>::new()));
@@ -542,18 +694,24 @@ mod tests {
         let old_key = new_key_from_int(1);
         let new_key = new_key_from_int(2);
 
-        mapper.map_keys("test", "scope1", &old_key, &new_key).unwrap();
+        mapper
+            .map_keys("test", "scope1", &old_key, &new_key)
+            .unwrap();
 
-        let result = mapper.get_new_key("test", "scope1", &old_key, &err_handler).unwrap();
+        let result = mapper
+            .get_new_key("test", "scope1", &old_key, &err_handler)
+            .unwrap();
         assert_eq!(result, new_key);
     }
 
     #[test]
     fn test_value_map() {
         let mut value_map: ValueMap<String> = ValueMap::new();
-        
-        value_map.append_values(vec!["a".to_string(), "b".to_string()], "scope1").unwrap();
-        
+
+        value_map
+            .append_values(vec!["a".to_string(), "b".to_string()], "scope1")
+            .unwrap();
+
         let keys = value_map.get_loaded_keys("scope1").unwrap();
         assert_eq!(keys.len(), 2);
     }

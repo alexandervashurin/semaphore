@@ -1,10 +1,10 @@
 //! Модель задачи (Task)
 
+use crate::models::template::{TemplateApp, TemplateType};
+use crate::services::task_logger::TaskStatus;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use crate::models::template::{TemplateType, TemplateApp};
-use crate::services::task_logger::TaskStatus;
 
 /// Задача - экземпляр выполнения шаблона
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -289,7 +289,9 @@ impl<'r, DB: sqlx::database::Database> sqlx::Decode<'r, DB> for TaskStatus
 where
     String: sqlx::Decode<'r, DB>,
 {
-    fn decode(value: <DB as sqlx::database::Database>::ValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
+    fn decode(
+        value: <DB as sqlx::database::Database>::ValueRef<'r>,
+    ) -> Result<Self, sqlx::error::BoxDynError> {
         let s = <String as sqlx::Decode<'r, DB>>::decode(value)?;
         Ok(s.parse().unwrap_or(TaskStatus::Waiting))
     }
@@ -300,7 +302,10 @@ where
     DB: 'q,
     String: sqlx::Encode<'q, DB>,
 {
-    fn encode_by_ref(&self, buf: &mut <DB as sqlx::database::Database>::ArgumentBuffer<'q>) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
+    fn encode_by_ref(
+        &self,
+        buf: &mut <DB as sqlx::database::Database>::ArgumentBuffer<'q>,
+    ) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
         let s = self.to_string();
         <String as sqlx::Encode<'q, DB>>::encode(s, buf)
     }
@@ -327,7 +332,9 @@ impl<'r, DB: sqlx::database::Database> sqlx::Decode<'r, DB> for TaskStageType
 where
     String: sqlx::Decode<'r, DB>,
 {
-    fn decode(value: <DB as sqlx::database::Database>::ValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
+    fn decode(
+        value: <DB as sqlx::database::Database>::ValueRef<'r>,
+    ) -> Result<Self, sqlx::error::BoxDynError> {
         let s = <String as sqlx::Decode<'r, DB>>::decode(value)?;
         Ok(match s.as_str() {
             "init" => TaskStageType::Init,
@@ -344,13 +351,17 @@ where
     DB: 'q,
     String: sqlx::Encode<'q, DB>,
 {
-    fn encode_by_ref(&self, buf: &mut <DB as sqlx::database::Database>::ArgumentBuffer<'q>) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
+    fn encode_by_ref(
+        &self,
+        buf: &mut <DB as sqlx::database::Database>::ArgumentBuffer<'q>,
+    ) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
         let s = match self {
             TaskStageType::Init => "init",
             TaskStageType::TerraformPlan => "terraform_plan",
             TaskStageType::Running => "running",
             TaskStageType::PrintResult => "print_result",
-        }.to_string();
+        }
+        .to_string();
         <String as sqlx::Encode<'q, DB>>::encode(s, buf)
     }
 }

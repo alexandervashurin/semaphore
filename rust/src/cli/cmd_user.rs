@@ -2,13 +2,13 @@
 //!
 //! Команды для управления пользователями
 
-use clap::{Args, Subcommand};
 use crate::cli::CliResult;
 use crate::config::Config;
-use crate::db::SqlStore;
 use crate::db::store::UserManager;
+use crate::db::SqlStore;
 use crate::models::User;
 use chrono::Utc;
+use clap::{Args, Subcommand};
 use std::sync::Arc;
 
 /// Команда user
@@ -86,7 +86,8 @@ impl UserAddCommand {
 
         runtime.block_on(async {
             // Создаём хранилище
-            let url = config.database_url()
+            let url = config
+                .database_url()
                 .map_err(|e| crate::error::Error::Other(e.to_string()))?;
             let store = SqlStore::new(&url).await?;
 

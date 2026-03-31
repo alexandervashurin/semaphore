@@ -3,7 +3,7 @@
 //! Аналог services/project/restore.go из Go версии
 
 use rand::RngCore;
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 
 use crate::error::{Error, Result};
 use crate::models::*;
@@ -22,7 +22,11 @@ pub trait RestoreEntry {
 /// Trait для асинхронного restore
 #[async_trait::async_trait]
 pub trait RestoreEntryAsync: RestoreEntry {
-    async fn restore_async(&self, store: &dyn crate::db::Store, backup_db: &mut RestoreDB) -> Result<Self::Output>;
+    async fn restore_async(
+        &self,
+        store: &dyn crate::db::Store,
+        backup_db: &mut RestoreDB,
+    ) -> Result<Self::Output>;
 }
 
 /// RestoreDB - база данных для восстановления
@@ -60,25 +64,29 @@ impl RestoreDB {
 }
 
 /// Получает сущность по имени
-pub fn get_entry_by_name<'a, T: RestoreEntry>(name: &'a Option<String>, items: &'a [T]) -> Option<&'a T> {
+pub fn get_entry_by_name<'a, T: RestoreEntry>(
+    name: &'a Option<String>,
+    items: &'a [T],
+) -> Option<&'a T> {
     if name.is_none() {
         return None;
     }
-    
+
     let target_name = name.as_ref().unwrap();
-    items.iter().find(|&item| item.get_name() == target_name).map(|v| v as _)
+    items
+        .iter()
+        .find(|&item| item.get_name() == target_name)
+        .map(|v| v as _)
 }
 
 /// Проверяет на дубликаты
 pub fn verify_duplicate<T: RestoreEntry>(name: &str, items: &[T]) -> Result<()> {
-    let count = items.iter()
-        .filter(|item| item.get_name() == name)
-        .count();
-    
+    let count = items.iter().filter(|item| item.get_name() == name).count();
+
     if count > 1 {
         return Err(Error::Other(format!("{} is duplicate", name)));
     }
-    
+
     Ok(())
 }
 
@@ -108,7 +116,11 @@ impl RestoreEntry for BackupEnvironment {
 
 #[async_trait::async_trait]
 impl RestoreEntryAsync for BackupEnvironment {
-    async fn restore_async(&self, store: &dyn crate::db::Store, backup_db: &mut RestoreDB) -> Result<Self::Output> {
+    async fn restore_async(
+        &self,
+        store: &dyn crate::db::Store,
+        backup_db: &mut RestoreDB,
+    ) -> Result<Self::Output> {
         let env = Environment {
             id: 0,
             project_id: backup_db.meta.id,
@@ -141,7 +153,11 @@ impl RestoreEntry for BackupView {
 
 #[async_trait::async_trait]
 impl RestoreEntryAsync for BackupView {
-    async fn restore_async(&self, store: &dyn crate::db::Store, backup_db: &mut RestoreDB) -> Result<Self::Output> {
+    async fn restore_async(
+        &self,
+        store: &dyn crate::db::Store,
+        backup_db: &mut RestoreDB,
+    ) -> Result<Self::Output> {
         let view = View {
             id: 0,
             project_id: backup_db.meta.id,
@@ -165,12 +181,17 @@ impl RestoreEntry for BackupSchedule {
 
     fn verify(&self, backup: &BackupFormat) -> Result<()> {
         // Проверка на дубликаты расписаний для шаблона
-        let count = backup.schedules.iter()
+        let count = backup
+            .schedules
+            .iter()
             .filter(|s| s.template == self.template)
             .count();
 
         if count > 1 {
-            return Err(Error::Other(format!("Schedule for template {} is duplicate", self.template)));
+            return Err(Error::Other(format!(
+                "Schedule for template {} is duplicate",
+                self.template
+            )));
         }
 
         Ok(())
@@ -179,9 +200,15 @@ impl RestoreEntry for BackupSchedule {
 
 #[async_trait::async_trait]
 impl RestoreEntryAsync for BackupSchedule {
-    async fn restore_async(&self, store: &dyn crate::db::Store, backup_db: &mut RestoreDB) -> Result<Self::Output> {
+    async fn restore_async(
+        &self,
+        store: &dyn crate::db::Store,
+        backup_db: &mut RestoreDB,
+    ) -> Result<Self::Output> {
         // Находим шаблон по имени
-        let template = backup_db.templates.iter()
+        let template = backup_db
+            .templates
+            .iter()
             .find(|t| t.name == self.template)
             .ok_or_else(|| Error::NotFound(format!("Template {} not found", self.template)))?;
 
@@ -209,11 +236,11 @@ impl RestoreEntryAsync for BackupSchedule {
 
 impl RestoreEntry for BackupAccessKey {
     type Output = AccessKey;
-    
+
     fn get_name(&self) -> &str {
         &self.name
     }
-    
+
     fn verify(&self, backup: &BackupFormat) -> Result<()> {
         verify_duplicate(&self.name, &backup.access_keys)
     }
@@ -221,7 +248,11 @@ impl RestoreEntry for BackupAccessKey {
 
 #[async_trait::async_trait]
 impl RestoreEntryAsync for BackupAccessKey {
-    async fn restore_async(&self, store: &dyn crate::db::Store, backup_db: &mut RestoreDB) -> Result<Self::Output> {
+    async fn restore_async(
+        &self,
+        store: &dyn crate::db::Store,
+        backup_db: &mut RestoreDB,
+    ) -> Result<Self::Output> {
         let key = AccessKey {
             id: 0,
             project_id: Some(backup_db.meta.id),
@@ -264,7 +295,11 @@ impl RestoreEntry for BackupInventory {
 
 #[async_trait::async_trait]
 impl RestoreEntryAsync for BackupInventory {
-    async fn restore_async(&self, store: &dyn crate::db::Store, backup_db: &mut RestoreDB) -> Result<Self::Output> {
+    async fn restore_async(
+        &self,
+        store: &dyn crate::db::Store,
+        backup_db: &mut RestoreDB,
+    ) -> Result<Self::Output> {
         let mut inv = Inventory {
             id: 0,
             project_id: backup_db.meta.id,
@@ -285,14 +320,22 @@ impl RestoreEntryAsync for BackupInventory {
 
         // Находим SSH ключ по имени
         if let Some(ref ssh_key_name) = self.ssh_key {
-            if let Some(ssh_key) = backup_db.access_keys.iter().find(|k| &k.name == ssh_key_name) {
+            if let Some(ssh_key) = backup_db
+                .access_keys
+                .iter()
+                .find(|k| &k.name == ssh_key_name)
+            {
                 inv.ssh_key_id = Some(ssh_key.id);
             }
         }
 
         // Находим Become ключ по имени
         if let Some(ref become_key_name) = self.become_key {
-            if let Some(become_key) = backup_db.access_keys.iter().find(|k| &k.name == become_key_name) {
+            if let Some(become_key) = backup_db
+                .access_keys
+                .iter()
+                .find(|k| &k.name == become_key_name)
+            {
                 inv.become_key_id = Some(become_key.id);
             }
         }
@@ -318,7 +361,11 @@ impl RestoreEntry for BackupRepository {
 
 #[async_trait::async_trait]
 impl RestoreEntryAsync for BackupRepository {
-    async fn restore_async(&self, store: &dyn crate::db::Store, backup_db: &mut RestoreDB) -> Result<Self::Output> {
+    async fn restore_async(
+        &self,
+        store: &dyn crate::db::Store,
+        backup_db: &mut RestoreDB,
+    ) -> Result<Self::Output> {
         let repo = Repository {
             id: 0,
             project_id: backup_db.meta.id,
@@ -353,7 +400,11 @@ impl RestoreEntry for BackupTemplate {
 
 #[async_trait::async_trait]
 impl RestoreEntryAsync for BackupTemplate {
-    async fn restore_async(&self, store: &dyn crate::db::Store, backup_db: &mut RestoreDB) -> Result<Self::Output> {
+    async fn restore_async(
+        &self,
+        store: &dyn crate::db::Store,
+        backup_db: &mut RestoreDB,
+    ) -> Result<Self::Output> {
         let tpl = Template {
             id: 0,
             project_id: backup_db.meta.id,
@@ -453,7 +504,10 @@ impl BackupFormat {
         };
 
         let new_project = store.create_project(project).await?;
-        info!("Project {} created with ID {}", new_project.name, new_project.id);
+        info!(
+            "Project {} created with ID {}",
+            new_project.name, new_project.id
+        );
 
         // Создаём базу данных для восстановления
         let mut restore_db = RestoreDB::new(new_project.clone());
@@ -540,7 +594,7 @@ mod tests {
     fn test_generate_random_slug() {
         let slug1 = generate_random_slug();
         let slug2 = generate_random_slug();
-        
+
         assert_eq!(slug1.len(), 32);
         assert_eq!(slug2.len(), 32);
         assert_ne!(slug1, slug2);
@@ -549,10 +603,16 @@ mod tests {
     #[test]
     fn test_verify_duplicate() {
         let items = vec![
-            BackupEnvironment { name: "Test".to_string(), json: String::new() },
-            BackupEnvironment { name: "Test".to_string(), json: String::new() },
+            BackupEnvironment {
+                name: "Test".to_string(),
+                json: String::new(),
+            },
+            BackupEnvironment {
+                name: "Test".to_string(),
+                json: String::new(),
+            },
         ];
-        
+
         let result = verify_duplicate("Test", &items);
         assert!(result.is_err());
     }
@@ -560,10 +620,16 @@ mod tests {
     #[test]
     fn test_get_entry_by_name() {
         let items = vec![
-            BackupEnvironment { name: "Test1".to_string(), json: String::new() },
-            BackupEnvironment { name: "Test2".to_string(), json: String::new() },
+            BackupEnvironment {
+                name: "Test1".to_string(),
+                json: String::new(),
+            },
+            BackupEnvironment {
+                name: "Test2".to_string(),
+                json: String::new(),
+            },
         ];
-        
+
         let name = Some("Test1".to_string());
         let result = get_entry_by_name(&name, &items);
         assert!(result.is_some());

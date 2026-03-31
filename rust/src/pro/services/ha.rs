@@ -85,9 +85,7 @@ pub struct BasicOrphanCleaner {
 impl BasicOrphanCleaner {
     /// Создаёт новую очистку осиротевших задач
     pub fn new(store: Box<dyn Store + Send + Sync>) -> Self {
-        Self {
-            _store: store,
-        }
+        Self { _store: store }
     }
 }
 

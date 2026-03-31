@@ -1,19 +1,18 @@
 //! Handlers для Workflow DAG API
 
+use crate::api::middleware::ErrorResponse;
+use crate::api::state::AppState;
+use crate::db::store::WorkflowManager;
+use crate::models::workflow::{
+    WorkflowCreate, WorkflowEdgeCreate, WorkflowFull, WorkflowNodeCreate, WorkflowNodeUpdate,
+    WorkflowUpdate,
+};
 use axum::{
     extract::{Path, State},
     http::StatusCode,
     Json,
 };
 use std::sync::Arc;
-use crate::api::state::AppState;
-use crate::api::middleware::ErrorResponse;
-use crate::db::store::WorkflowManager;
-use crate::models::workflow::{
-    WorkflowCreate, WorkflowUpdate, WorkflowFull,
-    WorkflowNodeCreate, WorkflowNodeUpdate,
-    WorkflowEdgeCreate,
-};
 
 /// GET /api/project/{project_id}/workflows
 pub async fn get_workflows(
@@ -34,19 +33,24 @@ pub async fn create_workflow(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
     Json(payload): Json<WorkflowCreate>,
-) -> Result<(StatusCode, Json<crate::models::workflow::Workflow>), (StatusCode, Json<ErrorResponse>)> {
+) -> Result<(StatusCode, Json<crate::models::workflow::Workflow>), (StatusCode, Json<ErrorResponse>)>
+{
     if payload.name.trim().is_empty() {
         return Err((
             StatusCode::BAD_REQUEST,
             Json(ErrorResponse::new("Workflow name is required".to_string())),
         ));
     }
-    let workflow = state.store.create_workflow(project_id, payload).await.map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string())),
-        )
-    })?;
+    let workflow = state
+        .store
+        .create_workflow(project_id, payload)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
     Ok((StatusCode::CREATED, Json(workflow)))
 }
 
@@ -56,12 +60,16 @@ pub async fn get_workflow(
     State(state): State<Arc<AppState>>,
     Path((project_id, id)): Path<(i32, i32)>,
 ) -> Result<Json<WorkflowFull>, (StatusCode, Json<ErrorResponse>)> {
-    let workflow = state.store.get_workflow(id, project_id).await.map_err(|e| {
-        (
-            StatusCode::NOT_FOUND,
-            Json(ErrorResponse::new(e.to_string())),
-        )
-    })?;
+    let workflow = state
+        .store
+        .get_workflow(id, project_id)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::NOT_FOUND,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
     let nodes = state.store.get_workflow_nodes(id).await.map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -74,7 +82,11 @@ pub async fn get_workflow(
             Json(ErrorResponse::new(e.to_string())),
         )
     })?;
-    Ok(Json(WorkflowFull { workflow, nodes, edges }))
+    Ok(Json(WorkflowFull {
+        workflow,
+        nodes,
+        edges,
+    }))
 }
 
 /// PUT /api/project/{project_id}/workflows/{id}
@@ -89,12 +101,16 @@ pub async fn update_workflow(
             Json(ErrorResponse::new("Workflow name is required".to_string())),
         ));
     }
-    let workflow = state.store.update_workflow(id, project_id, payload).await.map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string())),
-        )
-    })?;
+    let workflow = state
+        .store
+        .update_workflow(id, project_id, payload)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
     Ok(Json(workflow))
 }
 
@@ -103,12 +119,16 @@ pub async fn delete_workflow(
     State(state): State<Arc<AppState>>,
     Path((project_id, id)): Path<(i32, i32)>,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    state.store.delete_workflow(id, project_id).await.map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string())),
-        )
-    })?;
+    state
+        .store
+        .delete_workflow(id, project_id)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -117,20 +137,31 @@ pub async fn add_workflow_node(
     State(state): State<Arc<AppState>>,
     Path((project_id, id)): Path<(i32, i32)>,
     Json(payload): Json<WorkflowNodeCreate>,
-) -> Result<(StatusCode, Json<crate::models::workflow::WorkflowNode>), (StatusCode, Json<ErrorResponse>)> {
+) -> Result<
+    (StatusCode, Json<crate::models::workflow::WorkflowNode>),
+    (StatusCode, Json<ErrorResponse>),
+> {
     // Verify workflow belongs to project
-    state.store.get_workflow(id, project_id).await.map_err(|e| {
-        (
-            StatusCode::NOT_FOUND,
-            Json(ErrorResponse::new(e.to_string())),
-        )
-    })?;
-    let node = state.store.create_workflow_node(id, payload).await.map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string())),
-        )
-    })?;
+    state
+        .store
+        .get_workflow(id, project_id)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::NOT_FOUND,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
+    let node = state
+        .store
+        .create_workflow_node(id, payload)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
     Ok((StatusCode::CREATED, Json(node)))
 }
 
@@ -141,18 +172,26 @@ pub async fn update_workflow_node(
     Json(payload): Json<WorkflowNodeUpdate>,
 ) -> Result<Json<crate::models::workflow::WorkflowNode>, (StatusCode, Json<ErrorResponse>)> {
     // Verify workflow belongs to project
-    state.store.get_workflow(id, project_id).await.map_err(|e| {
-        (
-            StatusCode::NOT_FOUND,
-            Json(ErrorResponse::new(e.to_string())),
-        )
-    })?;
-    let node = state.store.update_workflow_node(node_id, id, payload).await.map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string())),
-        )
-    })?;
+    state
+        .store
+        .get_workflow(id, project_id)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::NOT_FOUND,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
+    let node = state
+        .store
+        .update_workflow_node(node_id, id, payload)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
     Ok(Json(node))
 }
 
@@ -162,18 +201,26 @@ pub async fn delete_workflow_node(
     Path((project_id, id, node_id)): Path<(i32, i32, i32)>,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     // Verify workflow belongs to project
-    state.store.get_workflow(id, project_id).await.map_err(|e| {
-        (
-            StatusCode::NOT_FOUND,
-            Json(ErrorResponse::new(e.to_string())),
-        )
-    })?;
-    state.store.delete_workflow_node(node_id, id).await.map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string())),
-        )
-    })?;
+    state
+        .store
+        .get_workflow(id, project_id)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::NOT_FOUND,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
+    state
+        .store
+        .delete_workflow_node(node_id, id)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -182,14 +229,21 @@ pub async fn add_workflow_edge(
     State(state): State<Arc<AppState>>,
     Path((project_id, id)): Path<(i32, i32)>,
     Json(payload): Json<WorkflowEdgeCreate>,
-) -> Result<(StatusCode, Json<crate::models::workflow::WorkflowEdge>), (StatusCode, Json<ErrorResponse>)> {
+) -> Result<
+    (StatusCode, Json<crate::models::workflow::WorkflowEdge>),
+    (StatusCode, Json<ErrorResponse>),
+> {
     // Verify workflow belongs to project
-    state.store.get_workflow(id, project_id).await.map_err(|e| {
-        (
-            StatusCode::NOT_FOUND,
-            Json(ErrorResponse::new(e.to_string())),
-        )
-    })?;
+    state
+        .store
+        .get_workflow(id, project_id)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::NOT_FOUND,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
     let valid_conditions = ["success", "failure", "always"];
     if !valid_conditions.contains(&payload.condition.as_str()) {
         return Err((
@@ -200,12 +254,16 @@ pub async fn add_workflow_edge(
             ))),
         ));
     }
-    let edge = state.store.create_workflow_edge(id, payload).await.map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string())),
-        )
-    })?;
+    let edge = state
+        .store
+        .create_workflow_edge(id, payload)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
     Ok((StatusCode::CREATED, Json(edge)))
 }
 
@@ -215,18 +273,26 @@ pub async fn delete_workflow_edge(
     Path((project_id, id, edge_id)): Path<(i32, i32, i32)>,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     // Verify workflow belongs to project
-    state.store.get_workflow(id, project_id).await.map_err(|e| {
-        (
-            StatusCode::NOT_FOUND,
-            Json(ErrorResponse::new(e.to_string())),
-        )
-    })?;
-    state.store.delete_workflow_edge(edge_id, id).await.map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string())),
-        )
-    })?;
+    state
+        .store
+        .get_workflow(id, project_id)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::NOT_FOUND,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
+    state
+        .store
+        .delete_workflow_edge(edge_id, id)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -235,27 +301,32 @@ pub async fn delete_workflow_edge(
 pub async fn run_workflow(
     State(state): State<Arc<AppState>>,
     Path((project_id, id)): Path<(i32, i32)>,
-) -> Result<(StatusCode, Json<crate::models::workflow::WorkflowRun>), (StatusCode, Json<ErrorResponse>)> {
+) -> Result<
+    (StatusCode, Json<crate::models::workflow::WorkflowRun>),
+    (StatusCode, Json<ErrorResponse>),
+> {
     // Verify workflow belongs to project
-    state.store.get_workflow(id, project_id).await.map_err(|e| {
-        (
-            StatusCode::NOT_FOUND,
-            Json(ErrorResponse::new(e.to_string())),
-        )
-    })?;
-    
+    state
+        .store
+        .get_workflow(id, project_id)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::NOT_FOUND,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
+
     // Запустить workflow executor
-    let run = crate::services::workflow_executor::run_workflow(
-        state.clone(),
-        id,
-        project_id,
-    ).await.map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string())),
-        )
-    })?;
-    
+    let run = crate::services::workflow_executor::run_workflow(state.clone(), id, project_id)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
+
     Ok((StatusCode::ACCEPTED, Json(run)))
 }
 
@@ -265,17 +336,25 @@ pub async fn get_workflow_runs(
     Path((project_id, id)): Path<(i32, i32)>,
 ) -> Result<Json<Vec<crate::models::workflow::WorkflowRun>>, (StatusCode, Json<ErrorResponse>)> {
     // Verify workflow belongs to project
-    state.store.get_workflow(id, project_id).await.map_err(|e| {
-        (
-            StatusCode::NOT_FOUND,
-            Json(ErrorResponse::new(e.to_string())),
-        )
-    })?;
-    let runs = state.store.get_workflow_runs(id, project_id).await.map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string())),
-        )
-    })?;
+    state
+        .store
+        .get_workflow(id, project_id)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::NOT_FOUND,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
+    let runs = state
+        .store
+        .get_workflow_runs(id, project_id)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
     Ok(Json(runs))
 }

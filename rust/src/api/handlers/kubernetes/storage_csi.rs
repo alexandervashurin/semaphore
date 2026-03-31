@@ -16,9 +16,7 @@ pub struct CsiApiStatus {
     pub volume_attachment: bool,
 }
 
-pub async fn get_csi_api_status(
-    State(state): State<Arc<AppState>>,
-) -> Result<Json<CsiApiStatus>> {
+pub async fn get_csi_api_status(State(state): State<Arc<AppState>>) -> Result<Json<CsiApiStatus>> {
     let client = state.kubernetes_client()?;
     let lp = ListParams::default().limit(1);
     let csi_driver = client.api_all::<CSIDriver>().list(&lp).await.is_ok();
@@ -40,7 +38,9 @@ pub async fn list_csi_drivers(
         .list(&ListParams::default())
         .await
         .map_err(|e| Error::Kubernetes(e.to_string()))?;
-    Ok(Json(items.items.iter().map(|x| serde_json::json!(x)).collect()))
+    Ok(Json(
+        items.items.iter().map(|x| serde_json::json!(x)).collect(),
+    ))
 }
 
 pub async fn list_csi_nodes(
@@ -52,7 +52,9 @@ pub async fn list_csi_nodes(
         .list(&ListParams::default())
         .await
         .map_err(|e| Error::Kubernetes(e.to_string()))?;
-    Ok(Json(items.items.iter().map(|x| serde_json::json!(x)).collect()))
+    Ok(Json(
+        items.items.iter().map(|x| serde_json::json!(x)).collect(),
+    ))
 }
 
 pub async fn list_volume_attachments(
@@ -64,5 +66,7 @@ pub async fn list_volume_attachments(
         .list(&ListParams::default())
         .await
         .map_err(|e| Error::Kubernetes(e.to_string()))?;
-    Ok(Json(items.items.iter().map(|x| serde_json::json!(x)).collect()))
+    Ok(Json(
+        items.items.iter().map(|x| serde_json::json!(x)).collect(),
+    ))
 }

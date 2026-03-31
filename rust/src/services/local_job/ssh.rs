@@ -2,9 +2,9 @@
 //!
 //! Аналог services/tasks/local_job_ssh.go из Go версии
 
+use crate::db_lib::{AccessKeyInstallerTrait, DbAccessKeyRole};
 use crate::error::Result;
 use crate::services::local_job::LocalJob;
-use crate::db_lib::{DbAccessKeyRole, AccessKeyInstallerTrait};
 
 impl LocalJob {
     /// Устанавливает SSH ключи
@@ -15,7 +15,11 @@ impl LocalJob {
                 match store.get_access_key(self.task.project_id, key_id).await {
                     Ok(ak) => {
                         let db_key = model_access_key_to_db(&ak);
-                        match self.key_installer.install(&db_key, DbAccessKeyRole::AnsibleUser, self.logger.as_ref()) {
+                        match self.key_installer.install(
+                            &db_key,
+                            DbAccessKeyRole::AnsibleUser,
+                            self.logger.as_ref(),
+                        ) {
                             Ok(installation) => {
                                 self.ssh_key_installation = Some(installation);
                                 self.log(&format!("SSH key {} installed", ak.name));
@@ -30,7 +34,10 @@ impl LocalJob {
                     }
                 }
             } else {
-                self.log(&format!("SSH key installation pending for key ID: {}", key_id));
+                self.log(&format!(
+                    "SSH key installation pending for key ID: {}",
+                    key_id
+                ));
             }
         }
 
@@ -40,7 +47,11 @@ impl LocalJob {
                 match store.get_access_key(self.task.project_id, key_id).await {
                     Ok(ak) => {
                         let db_key = model_access_key_to_db(&ak);
-                        match self.key_installer.install(&db_key, DbAccessKeyRole::AnsibleBecomeUser, self.logger.as_ref()) {
+                        match self.key_installer.install(
+                            &db_key,
+                            DbAccessKeyRole::AnsibleBecomeUser,
+                            self.logger.as_ref(),
+                        ) {
                             Ok(installation) => {
                                 self.become_key_installation = Some(installation);
                                 self.log(&format!("Become key {} installed", ak.name));
@@ -55,7 +66,10 @@ impl LocalJob {
                     }
                 }
             } else {
-                self.log(&format!("Become key installation pending for key ID: {}", key_id));
+                self.log(&format!(
+                    "Become key installation pending for key ID: {}",
+                    key_id
+                ));
             }
         }
 
@@ -71,7 +85,9 @@ impl LocalJob {
 
 /// Конвертирует AccessKey модель в DbAccessKey для установщика
 pub fn model_access_key_to_db(ak: &crate::models::AccessKey) -> crate::db_lib::DbAccessKey {
-    use crate::db_lib::{DbAccessKey, DbAccessKeyType, DbAccessKeyOwner, DbSshKey, DbLoginPassword};
+    use crate::db_lib::{
+        DbAccessKey, DbAccessKeyOwner, DbAccessKeyType, DbLoginPassword, DbSshKey,
+    };
     use crate::models::access_key::AccessKeyType;
 
     let key_type = match ak.r#type {
@@ -124,11 +140,11 @@ pub fn model_access_key_to_db(ak: &crate::models::AccessKey) -> crate::db_lib::D
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Utc;
-    use std::sync::Arc;
-    use crate::services::task_logger::BasicLogger;
     use crate::db_lib::AccessKeyInstallerImpl;
+    use crate::services::task_logger::BasicLogger;
+    use chrono::Utc;
     use std::path::PathBuf;
+    use std::sync::Arc;
 
     fn create_test_job() -> LocalJob {
         let logger = Arc::new(BasicLogger::new());

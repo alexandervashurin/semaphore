@@ -30,14 +30,14 @@ impl Validate for Config {
     fn validate(&self) -> std::result::Result<(), ValidationError> {
         // Валидация БД
         self.database.validate()?;
-        
+
         // Валидация LDAP (если включён)
         if let Some(ref ldap) = self.ldap {
             if ldap.enable {
                 ldap.validate()?;
             }
         }
-        
+
         // Валидация путей
         if self.tmp_path.is_empty() {
             return Err(ValidationError {
@@ -45,7 +45,7 @@ impl Validate for Config {
                 message: "Tmp path cannot be empty".to_string(),
             });
         }
-        
+
         // Валидация TCP адреса
         if !self.tcp_address.is_empty() {
             if let Err(e) = self.tcp_address.parse::<SocketAddr>() {
@@ -55,7 +55,7 @@ impl Validate for Config {
                 });
             }
         }
-        
+
         Ok(())
     }
 }
@@ -76,22 +76,24 @@ impl Validate for DbConfig {
         }
 
         // Проверка hostname для MySQL/Postgres
-        if matches!(self.dialect, Some(DbDialect::MySQL) | Some(DbDialect::Postgres))
-            && self.hostname.is_empty() {
-                return Err(ValidationError {
-                    field: "db.hostname".to_string(),
-                    message: "Hostname is required for MySQL/Postgres".to_string(),
-                });
-            }
+        if matches!(
+            self.dialect,
+            Some(DbDialect::MySQL) | Some(DbDialect::Postgres)
+        ) && self.hostname.is_empty()
+        {
+            return Err(ValidationError {
+                field: "db.hostname".to_string(),
+                message: "Hostname is required for MySQL/Postgres".to_string(),
+            });
+        }
 
         // Проверка db_name для SQLite
-        if matches!(self.dialect, Some(DbDialect::SQLite))
-            && self.db_name.is_empty() {
-                return Err(ValidationError {
-                    field: "db.name".to_string(),
-                    message: "Database name is required for SQLite".to_string(),
-                });
-            }
+        if matches!(self.dialect, Some(DbDialect::SQLite)) && self.db_name.is_empty() {
+            return Err(ValidationError {
+                field: "db.name".to_string(),
+                message: "Database name is required for SQLite".to_string(),
+            });
+        }
 
         Ok(())
     }
@@ -105,32 +107,35 @@ impl Validate for LdapConfig {
                 message: "LDAP server cannot be empty".to_string(),
             });
         }
-        
+
         if self.bind_dn.is_empty() {
             return Err(ValidationError {
                 field: "ldap.bind_dn".to_string(),
                 message: "LDAP bind DN cannot be empty".to_string(),
             });
         }
-        
+
         if self.search_dn.is_empty() {
             return Err(ValidationError {
                 field: "ldap.search_dn".to_string(),
                 message: "LDAP search DN cannot be empty".to_string(),
             });
         }
-        
+
         Ok(())
     }
 }
 
 /// Проверяет существование пути
-pub fn validate_path_exists(path: &str, create_if_not_exists: bool) -> std::result::Result<(), ValidationError> {
-    use std::path::Path;
+pub fn validate_path_exists(
+    path: &str,
+    create_if_not_exists: bool,
+) -> std::result::Result<(), ValidationError> {
     use std::fs;
-    
+    use std::path::Path;
+
     let path = Path::new(path);
-    
+
     if !path.exists() {
         if create_if_not_exists {
             if let Err(e) = fs::create_dir_all(path) {
@@ -146,14 +151,14 @@ pub fn validate_path_exists(path: &str, create_if_not_exists: bool) -> std::resu
             });
         }
     }
-    
+
     if !path.is_dir() {
         return Err(ValidationError {
             field: "path".to_string(),
             message: format!("Path is not a directory: {}", path.display()),
         });
     }
-    
+
     Ok(())
 }
 
@@ -171,15 +176,15 @@ pub fn validate_port(port: u16) -> std::result::Result<(), ValidationError> {
 /// Валидирует конфигурацию и возвращает ошибки
 pub fn validate_config(config: &Config) -> std::result::Result<(), Vec<ValidationError>> {
     let mut errors = Vec::new();
-    
+
     if let Err(e) = config.validate() {
         errors.push(e);
     }
-    
+
     if let Err(e) = validate_path_exists(&config.tmp_path, true) {
         errors.push(e);
     }
-    
+
     if errors.is_empty() {
         Ok(())
     } else {
@@ -188,16 +193,19 @@ pub fn validate_config(config: &Config) -> std::result::Result<(), Vec<Validatio
 }
 
 /// Валидирует и выводит предупреждения
-pub fn validate_config_with_warnings(config: &Config) -> (std::result::Result<(), Vec<ValidationError>>, Vec<String>) {
+pub fn validate_config_with_warnings(
+    config: &Config,
+) -> (std::result::Result<(), Vec<ValidationError>>, Vec<String>) {
     let mut warnings = Vec::new();
-    
+
     // Проверка на insecure настройки
     if config.cookie_hash.len() < 32 {
         warnings.push("Cookie hash is too short, should be at least 32 bytes".to_string());
     }
 
     if config.cookie_encryption.len() < 32 {
-        warnings.push("Cookie encryption key is too short, should be at least 32 bytes".to_string());
+        warnings
+            .push("Cookie encryption key is too short, should be at least 32 bytes".to_string());
     }
 
     let result = validate_config(config);
@@ -217,7 +225,7 @@ mod tests {
             db_name: "semaphore".to_string(),
             ..Default::default()
         };
-        
+
         assert!(config.validate().is_ok());
     }
 
@@ -227,7 +235,7 @@ mod tests {
             dialect: None,
             ..Default::default()
         };
-        
+
         let result = config.validate();
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("dialect"));
@@ -244,7 +252,7 @@ mod tests {
             },
             ..Default::default()
         };
-        
+
         let result = config.validate();
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("tmp_path"));

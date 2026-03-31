@@ -2,17 +2,17 @@
 //!
 //! Предоставляет инфраструктуру для автоматического запуска задач по расписанию (cron).
 
-use std::sync::Arc;
-use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use cron::Schedule as CronSchedule;
+use std::collections::HashMap;
+use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::time::{sleep, Duration};
 use tracing::{error, info};
 
+use crate::db::store::Store;
 use crate::error::{Error, Result};
 use crate::models::Schedule;
-use crate::db::store::Store;
 use crate::services::task_execution;
 
 /// Задача планировщика
@@ -87,22 +87,25 @@ impl SchedulePool {
     /// Загружает все активные расписания из БД
     async fn load_schedules(&self) -> Result<()> {
         let schedules = self.store.get_all_schedules().await?;
-        
+
         let mut jobs = self.jobs.write().await;
         jobs.clear();
 
         for schedule in schedules {
             if schedule.active {
                 if let Ok(next_run) = Self::calculate_next_run(&schedule.cron) {
-                    jobs.insert(schedule.id, ScheduledJob {
-                        schedule_id: schedule.id,
-                        template_id: schedule.template_id,
-                        project_id: schedule.project_id,
-                        cron: schedule.cron.clone(),
-                        name: schedule.name.clone(),
-                        active: schedule.active,
-                        next_run: Some(next_run),
-                    });
+                    jobs.insert(
+                        schedule.id,
+                        ScheduledJob {
+                            schedule_id: schedule.id,
+                            template_id: schedule.template_id,
+                            project_id: schedule.project_id,
+                            cron: schedule.cron.clone(),
+                            name: schedule.name.clone(),
+                            active: schedule.active,
+                            next_run: Some(next_run),
+                        },
+                    );
                 }
             }
         }
@@ -128,7 +131,7 @@ impl SchedulePool {
                 if let Some(next_run) = job.next_run {
                     if now >= next_run {
                         jobs_to_run.push((*id, job.template_id, job.project_id));
-                        
+
                         // Обновляем следующее время запуска
                         if let Ok(new_next) = Self::calculate_next_run(&job.cron) {
                             job.next_run = Some(new_next);
@@ -183,7 +186,10 @@ impl SchedulePool {
 
         let created_task = store.create_task(task).await?;
 
-        info!("Создана задача {} по расписанию {}", created_task.id, schedule_id);
+        info!(
+            "Создана задача {} по расписанию {}",
+            created_task.id, schedule_id
+        );
 
         // Запускаем задачу в фоновом потоке
         let store_clone = store.clone();
@@ -196,11 +202,16 @@ impl SchedulePool {
 
     /// Вычисляет следующее время запуска по cron выражению
     fn calculate_next_run(cron: &str) -> Result<DateTime<Utc>> {
-        let schedule: CronSchedule = cron.parse()
+        let schedule: CronSchedule = cron
+            .parse()
             .map_err(|e| Error::Other(format!("Неверное cron выражение '{}': {}", cron, e)))?;
-        
-        let next = schedule.upcoming(Utc).next()
-            .ok_or_else(|| Error::Other(format!("Не удалось вычислить следующее время для '{}'", cron)))?;
+
+        let next = schedule.upcoming(Utc).next().ok_or_else(|| {
+            Error::Other(format!(
+                "Не удалось вычислить следующее время для '{}'",
+                cron
+            ))
+        })?;
 
         Ok(next)
     }
@@ -212,17 +223,20 @@ impl SchedulePool {
         }
 
         let next_run = Self::calculate_next_run(&schedule.cron)?;
-        
+
         let mut jobs = self.jobs.write().await;
-        jobs.insert(schedule.id, ScheduledJob {
-            schedule_id: schedule.id,
-            template_id: schedule.template_id,
-            project_id: schedule.project_id,
-            cron: schedule.cron.clone(),
-            name: schedule.name.clone(),
-            active: schedule.active,
-            next_run: Some(next_run),
-        });
+        jobs.insert(
+            schedule.id,
+            ScheduledJob {
+                schedule_id: schedule.id,
+                template_id: schedule.template_id,
+                project_id: schedule.project_id,
+                cron: schedule.cron.clone(),
+                name: schedule.name.clone(),
+                active: schedule.active,
+                next_run: Some(next_run),
+            },
+        );
 
         Ok(())
     }

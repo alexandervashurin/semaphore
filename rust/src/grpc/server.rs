@@ -2,10 +2,10 @@
 //!
 //! Примечание: Полная реализация требует protoc для генерации кода.
 
-use std::net::SocketAddr;
-use tracing::info;
 use crate::error::Result;
 use crate::grpc::services::GrpcServerConfig;
+use std::net::SocketAddr;
+use tracing::info;
 
 /// gRPC сервер Velum
 pub struct GrpcServer {
@@ -32,7 +32,7 @@ impl GrpcServer {
     pub async fn serve(self) -> Result<()> {
         info!("gRPC server stub running on {}", self.config.address);
         info!("Full implementation requires protoc");
-        
+
         // Заглушка - просто ждём
         loop {
             tokio::time::sleep(tokio::time::Duration::from_secs(3600)).await;

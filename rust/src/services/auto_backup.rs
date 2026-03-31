@@ -6,11 +6,11 @@ use chrono::{DateTime, Utc};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::time::{sleep, Duration};
-use tracing::{info, warn, error, instrument};
+use tracing::{error, info, instrument, warn};
 
 use crate::db::store::Store;
-use crate::services::backup::BackupFormat;
 use crate::error::Result;
+use crate::services::backup::BackupFormat;
 
 /// Конфигурация автобэкапа
 #[derive(Debug, Clone)]
@@ -113,9 +113,7 @@ impl AutoBackupService {
                 }
 
                 // Ожидание следующего интервала
-                sleep(Duration::from_secs(
-                    config.interval_hours * 3600
-                )).await;
+                sleep(Duration::from_secs(config.interval_hours * 3600)).await;
             }
 
             info!("Auto backup service stopped");
@@ -166,8 +164,9 @@ impl AutoBackupService {
 
             // Получаем связанные сущности
             if let Ok(templates) = store.get_templates(project.id).await {
-                backup.templates = templates.into_iter().map(|t| {
-                    crate::services::backup::BackupTemplate {
+                backup.templates = templates
+                    .into_iter()
+                    .map(|t| crate::services::backup::BackupTemplate {
                         name: t.name,
                         playbook: t.playbook,
                         arguments: t.arguments,
@@ -176,8 +175,8 @@ impl AutoBackupService {
                         repository: None,
                         environment: None,
                         cron: None,
-                    }
-                }).collect();
+                    })
+                    .collect();
             }
 
             // Сохраняем бэкап
@@ -222,9 +221,8 @@ impl AutoBackupService {
             s.successful_backups += 1;
             s.last_backup_time = Some(Utc::now());
             s.last_backup_size_bytes = total_size;
-            s.next_backup_time = Some(
-                Utc::now() + chrono::Duration::hours(config.interval_hours as i64)
-            );
+            s.next_backup_time =
+                Some(Utc::now() + chrono::Duration::hours(config.interval_hours as i64));
         }
 
         // Очистка старых бэкапов

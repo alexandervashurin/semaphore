@@ -3,7 +3,7 @@
 use crate::error::{Error, Result};
 use crate::models::*;
 use chrono::{DateTime, Utc};
-use sqlx::{Row, Pool, Postgres};
+use sqlx::{Pool, Postgres, Row};
 
 /// Временная структура для загрузки пользователя из БД
 #[derive(Debug, sqlx::FromRow)]
@@ -83,7 +83,7 @@ pub async fn get_users(pool: &Pool<Postgres>, params: &RetrieveQueryParams) -> R
 /// Получает пользователя по ID PostgreSQL
 pub async fn get_user(pool: &Pool<Postgres>, user_id: i32) -> Result<User> {
     let query = "SELECT * FROM \"user\" WHERE id = $1";
-    
+
     let row = sqlx::query_as::<_, UserRow>(query)
         .bind(user_id)
         .fetch_one(pool)
@@ -97,9 +97,13 @@ pub async fn get_user(pool: &Pool<Postgres>, user_id: i32) -> Result<User> {
 }
 
 /// Получает пользователя по login или email PostgreSQL
-pub async fn get_user_by_login_or_email(pool: &Pool<Postgres>, login: &str, email: &str) -> Result<User> {
+pub async fn get_user_by_login_or_email(
+    pool: &Pool<Postgres>,
+    login: &str,
+    email: &str,
+) -> Result<User> {
     let query = "SELECT * FROM \"user\" WHERE username = $1 OR email = $2";
-    
+
     let row = sqlx::query_as::<_, UserRow>(query)
         .bind(login)
         .bind(email)
@@ -116,7 +120,7 @@ pub async fn get_user_by_login_or_email(pool: &Pool<Postgres>, login: &str, emai
 /// Создаёт пользователя PostgreSQL
 pub async fn create_user(pool: &Pool<Postgres>, user: User) -> Result<User> {
     let query = "INSERT INTO \"user\" (username, name, email, password, admin, external, alert, pro, created) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id";
-    
+
     let id: i32 = sqlx::query_scalar(query)
         .bind(&user.username)
         .bind(&user.name)
@@ -133,14 +137,14 @@ pub async fn create_user(pool: &Pool<Postgres>, user: User) -> Result<User> {
 
     let mut new_user = user;
     new_user.id = id;
-    
+
     Ok(new_user)
 }
 
 /// Обновляет пользователя PostgreSQL
 pub async fn update_user(pool: &Pool<Postgres>, user: User) -> Result<()> {
     let query = "UPDATE \"user\" SET username = $1, name = $2, email = $3, password = $4, admin = $5, external = $6, alert = $7, pro = $8 WHERE id = $9";
-    
+
     sqlx::query(query)
         .bind(&user.username)
         .bind(&user.name)

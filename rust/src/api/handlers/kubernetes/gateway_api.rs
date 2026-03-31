@@ -42,9 +42,18 @@ pub async fn get_gateway_api_status(
     let client = state.kubernetes_client()?;
     let lp = ListParams::default().limit(1);
 
-    let gw_api: Api<DynamicObject> = Api::all_with(client.raw().clone(), &ar("gateway.networking.k8s.io", "v1", "Gateway", "gateways"));
-    let hr_api: Api<DynamicObject> = Api::all_with(client.raw().clone(), &ar("gateway.networking.k8s.io", "v1", "HTTPRoute", "httproutes"));
-    let gr_api: Api<DynamicObject> = Api::all_with(client.raw().clone(), &ar("gateway.networking.k8s.io", "v1", "GRPCRoute", "grpcroutes"));
+    let gw_api: Api<DynamicObject> = Api::all_with(
+        client.raw().clone(),
+        &ar("gateway.networking.k8s.io", "v1", "Gateway", "gateways"),
+    );
+    let hr_api: Api<DynamicObject> = Api::all_with(
+        client.raw().clone(),
+        &ar("gateway.networking.k8s.io", "v1", "HTTPRoute", "httproutes"),
+    );
+    let gr_api: Api<DynamicObject> = Api::all_with(
+        client.raw().clone(),
+        &ar("gateway.networking.k8s.io", "v1", "GRPCRoute", "grpcroutes"),
+    );
 
     let gateway = gw_api.list(&lp).await.is_ok();
     let httproute = hr_api.list(&lp).await.is_ok();
@@ -80,7 +89,9 @@ pub async fn list_gateways(
         .await
         .map_err(|e| Error::Kubernetes(format!("Gateway API not available: {e}")))?;
 
-    Ok(Json(items.items.iter().map(|x| serde_json::json!(x)).collect()))
+    Ok(Json(
+        items.items.iter().map(|x| serde_json::json!(x)).collect(),
+    ))
 }
 
 pub async fn list_httproutes(
@@ -105,7 +116,9 @@ pub async fn list_httproutes(
         .await
         .map_err(|e| Error::Kubernetes(format!("HTTPRoute API not available: {e}")))?;
 
-    Ok(Json(items.items.iter().map(|x| serde_json::json!(x)).collect()))
+    Ok(Json(
+        items.items.iter().map(|x| serde_json::json!(x)).collect(),
+    ))
 }
 
 pub async fn list_grpcroutes(
@@ -130,5 +143,7 @@ pub async fn list_grpcroutes(
         .await
         .map_err(|e| Error::Kubernetes(format!("GRPCRoute API not available: {e}")))?;
 
-    Ok(Json(items.items.iter().map(|x| serde_json::json!(x)).collect()))
+    Ok(Json(
+        items.items.iter().map(|x| serde_json::json!(x)).collect(),
+    ))
 }

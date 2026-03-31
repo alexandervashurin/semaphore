@@ -24,7 +24,9 @@ impl LocalJob {
                     self.log(&format!("Copied local repository from {src_path}"));
                 }
             } else {
-                self.log(&format!("Warning: local path {src_path} not found, using empty directory"));
+                self.log(&format!(
+                    "Warning: local path {src_path} not found, using empty directory"
+                ));
             }
         } else if !self.repository.git_url.is_empty() {
             // Используем GitRepository для clone/pull
@@ -33,7 +35,8 @@ impl LocalJob {
                 self.repository.clone(),
                 self.task.project_id,
                 self.task.template_id,
-            ).with_tmp_dir(format!("task_{}", self.task.id));
+            )
+            .with_tmp_dir(format!("task_{}", self.task.id));
             let full_path = git_repo.get_full_path();
             let result = if full_path.exists() && full_path.join(".git").exists() {
                 git_repo.pull().await
@@ -48,7 +51,9 @@ impl LocalJob {
                         self.log(&format!("Warning: could not copy repo: {e}"));
                     }
                 }
-                Err(e) => self.log(&format!("Warning: git error: {e}, using existing directory")),
+                Err(e) => self.log(&format!(
+                    "Warning: git error: {e}, using existing directory"
+                )),
             }
         }
 
@@ -64,7 +69,8 @@ impl LocalJob {
             self.repository.clone(),
             self.task.project_id,
             self.task.template_id,
-        ).with_tmp_dir(format!("task_{}", self.task.id));
+        )
+        .with_tmp_dir(format!("task_{}", self.task.id));
 
         if let Some(commit_hash) = self.task.commit_hash.clone() {
             self.log(&format!("Checking out commit: {}", commit_hash));
@@ -106,11 +112,11 @@ fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> std::io::
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Utc;
-    use std::sync::Arc;
-    use crate::services::task_logger::BasicLogger;
     use crate::db_lib::AccessKeyInstallerImpl;
+    use crate::services::task_logger::BasicLogger;
+    use chrono::Utc;
     use std::path::PathBuf;
+    use std::sync::Arc;
 
     fn create_test_job() -> LocalJob {
         let logger = Arc::new(BasicLogger::new());
@@ -150,7 +156,6 @@ mod tests {
         let mut job = create_test_job();
         let result = futures::executor::block_on(job.update_repository());
         assert!(result.is_ok()); // Пока всегда Ok
-
     }
 
     #[tokio::test]

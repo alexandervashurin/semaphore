@@ -2,14 +2,11 @@
 //!
 //! Handlers для проверки здоровья подключения к Kubernetes кластеру
 
-use axum::{
-    extract::State,
-    Json,
-};
-use kube::api::ListParams;
-use std::sync::Arc;
 use crate::api::state::AppState;
 use crate::error::Result;
+use axum::{extract::State, Json};
+use kube::api::ListParams;
+use std::sync::Arc;
 
 use super::types::KubernetesHealth;
 
@@ -23,7 +20,8 @@ pub async fn kubernetes_health(
             match client.check_connection().await {
                 Ok(_) => {
                     // Получаем дополнительную информацию
-                    let nodes_count = match client.api_all::<k8s_openapi::api::core::v1::Node>()
+                    let nodes_count = match client
+                        .api_all::<k8s_openapi::api::core::v1::Node>()
                         .list(&Default::default())
                         .await
                     {
@@ -96,7 +94,8 @@ pub async fn kubernetes_health_detailed(
 
             if api_check {
                 // Проверка списка узлов
-                match client.api_all::<k8s_openapi::api::core::v1::Node>()
+                match client
+                    .api_all::<k8s_openapi::api::core::v1::Node>()
                     .list(&ListParams::default().limit(1))
                     .await
                 {
@@ -115,7 +114,8 @@ pub async fn kubernetes_health_detailed(
                 }
 
                 // Проверка списка namespace'ов
-                match client.api_all::<k8s_openapi::api::core::v1::Namespace>()
+                match client
+                    .api_all::<k8s_openapi::api::core::v1::Namespace>()
                     .list(&ListParams::default().limit(1))
                     .await
                 {

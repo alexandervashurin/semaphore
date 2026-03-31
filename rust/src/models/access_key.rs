@@ -2,7 +2,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::{FromRow, Type, decode::Decode, encode::Encode, database::Database};
+use sqlx::{database::Database, decode::Decode, encode::Encode, FromRow, Type};
 
 /// Данные SSH ключа
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -87,13 +87,17 @@ where
     DB: 'q,
     String: Encode<'q, DB>,
 {
-    fn encode_by_ref(&self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
+    fn encode_by_ref(
+        &self,
+        buf: &mut <DB as Database>::ArgumentBuffer<'q>,
+    ) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
         let s = match self {
             AccessKeyType::None => "none",
             AccessKeyType::LoginPassword => "login_password",
             AccessKeyType::SSH => "ssh",
             AccessKeyType::AccessKey => "access_key",
-        }.to_string();
+        }
+        .to_string();
         <String as Encode<'q, DB>>::encode(s, buf)
     }
 }
@@ -163,7 +167,10 @@ where
     DB: 'q,
     for<'a> &'a str: Encode<'q, DB>,
 {
-    fn encode_by_ref(&self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
+    fn encode_by_ref(
+        &self,
+        buf: &mut <DB as Database>::ArgumentBuffer<'q>,
+    ) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
         let s = match self {
             AccessKeyOwner::User => "user",
             AccessKeyOwner::Project => "project",
@@ -243,13 +250,17 @@ where
     DB: 'q,
     String: Encode<'q, DB>,
 {
-    fn encode_by_ref(&self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
+    fn encode_by_ref(
+        &self,
+        buf: &mut <DB as Database>::ArgumentBuffer<'q>,
+    ) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
         let s = match self {
             AccessKeySourceStorageType::DB => "db",
             AccessKeySourceStorageType::Storage => "storage",
             AccessKeySourceStorageType::Env => "env",
             AccessKeySourceStorageType::File => "file",
-        }.to_string();
+        }
+        .to_string();
         <String as Encode<'q, DB>>::encode(s, buf)
     }
 }
@@ -353,7 +364,14 @@ impl AccessKey {
     }
 
     /// Создаёт новый SSH ключ
-    pub fn new_ssh(project_id: i32, name: String, private_key: String, passphrase: String, login: String, user_id: Option<i32>) -> Self {
+    pub fn new_ssh(
+        project_id: i32,
+        name: String,
+        private_key: String,
+        passphrase: String,
+        login: String,
+        user_id: Option<i32>,
+    ) -> Self {
         Self {
             id: 0,
             project_id: Some(project_id),
@@ -363,7 +381,11 @@ impl AccessKey {
             login_password_login: Some(login),
             login_password_password: None,
             ssh_key: Some(private_key),
-            ssh_passphrase: if passphrase.is_empty() { None } else { Some(passphrase) },
+            ssh_passphrase: if passphrase.is_empty() {
+                None
+            } else {
+                Some(passphrase)
+            },
             access_key_access_key: None,
             access_key_secret_key: None,
             secret_storage_id: None,
@@ -377,7 +399,13 @@ impl AccessKey {
     }
 
     /// Создаёт новый ключ логин/пароль
-    pub fn new_login_password(project_id: i32, name: String, login: String, password: String, user_id: Option<i32>) -> Self {
+    pub fn new_login_password(
+        project_id: i32,
+        name: String,
+        login: String,
+        password: String,
+        user_id: Option<i32>,
+    ) -> Self {
         Self {
             id: 0,
             project_id: Some(project_id),

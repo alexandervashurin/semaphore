@@ -2,8 +2,8 @@
 //!
 //! Команды для управления проектами
 
-use clap::{Args, Subcommand};
 use crate::cli::CliResult;
+use clap::{Args, Subcommand};
 
 /// Команда project
 #[derive(Debug, Args)]

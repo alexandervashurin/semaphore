@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes ResourceQuota — Velum</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar"></aside>
+    <div class="main-content">
+        <div class="main-header">
+            <h2><i class="fa-solid fa-chart-pie"></i> Resource Quotas</h2>
+            <button class="btn btn-primary" onclick="openCreateModal()"><i class="fa-solid fa-plus"></i> Создать Quota</button>
+        </div>
+        <div class="main-body">
+            <div class="card" style="margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <label>Namespace: <select id="namespace" class="form-control" style="max-width:200px;"></select></label>
+                <input id="filter" class="form-control" placeholder="Фильтр по имени" style="min-width:160px;">
+                <button class="btn btn-primary" onclick="loadQuotas()"><i class="fa-solid fa-rotate"></i> Обновить</button>
+            </div>
+            <div id="content" class="card"><div class="loading"><div class="loading-spinner"></div><p>Загрузка...</p></div></div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Create/Edit Quota -->
+<div class="modal-overlay" id="quota-modal" style="display:none;">
+    <div class="modal" style="max-width:600px;">
+        <div class="modal-header">
+            <h3 id="modal-title">Создать ResourceQuota</h3>
+            <button class="modal-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+            <form id="quota-form" onsubmit="saveQuota(event)">
+                <div class="form-group">
+                    <label>Имя *</label>
+                    <input type="text" id="quota-name" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Namespace *</label>
+                    <select id="quota-namespace" class="form-control" required></select>
+                </div>
+                <fieldset class="form-group">
+                    <legend>CPU/Memory</legend>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                        <div>
+                            <label>CPU Request</label>
+                            <input type="text" id="cpu-request" class="form-control" placeholder="1">
+                        </div>
+                        <div>
+                            <label>CPU Limit</label>
+                            <input type="text" id="cpu-limit" class="form-control" placeholder="2">
+                        </div>
+                        <div>
+                            <label>Memory Request</label>
+                            <input type="text" id="mem-request" class="form-control" placeholder="1Gi">
+                        </div>
+                        <div>
+                            <label>Memory Limit</label>
+                            <input type="text" id="mem-limit" class="form-control" placeholder="2Gi">
+                        </div>
+                    </div>
+                </fieldset>
+                <fieldset class="form-group">
+                    <legend>Pods/Services</legend>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                        <div>
+                            <label>Max Pods</label>
+                            <input type="number" id="max-pods" class="form-control" min="0">
+                        </div>
+                        <div>
+                            <label>Max Services</label>
+                            <input type="number" id="max-services" class="form-control" min="0">
+                        </div>
+                        <div>
+                            <label>Max Secrets</label>
+                            <input type="number" id="max-secrets" class="form-control" min="0">
+                        </div>
+                        <div>
+                            <label>Max ConfigMaps</label>
+                            <input type="number" id="max-configmaps" class="form-control" min="0">
+                        </div>
+                    </div>
+                </fieldset>
+                <div class="modal-footer">
+                    <button type="button" class="btn" onclick="closeModal()">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+checkAuth();
+let editingName = null;
+
+async function loadNamespaces() {
+    const ns = await api.get('/kubernetes/namespaces');
+    const select = $('#namespace');
+    const quotaSelect = $('#quota-namespace');
+    select.innerHTML = '<option value="">— все —</option>';
+    quotaSelect.innerHTML = '';
+    ns.forEach(n => {
+        const opt = `<option value="${escapeHtml(n.name)}">${escapeHtml(n.name)}</option>`;
+        select.innerHTML += opt;
+        quotaSelect.innerHTML += opt;
+    });
+}
+
+async function loadQuotas() {
+    const ns = $('#namespace').value || 'default';
+    const filter = $('#filter').value.toLowerCase();
+    const content = $('#content');
+    
+    try {
+        const quotas = await api.get(`/kubernetes/resourcequotas?namespace=${ns}`);
+        const filtered = quotas.filter(q => !filter || q.name.toLowerCase().includes(filter));
+        
+        if (filtered.length === 0) {
+            ui.showEmpty(content, '<i class="fa-solid fa-chart-pie"></i>', 'Нет ResourceQuota', 'Создайте первую квоту ресурсов');
+            return;
+        }
+        
+        content.innerHTML = `
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Имя</th>
+                        <th>Namespace</th>
+                        <th>CPU (req/limit)</th>
+                        <th>Memory (req/limit)</th>
+                        <th>Pods</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${filtered.map(q => `
+                        <tr>
+                            <td><strong>${escapeHtml(q.name)}</strong></td>
+                            <td>${escapeHtml(q.namespace)}</td>
+                            <td>${formatResource(q.hard, 'requests.cpu')} / ${formatResource(q.hard, 'limits.cpu')}</td>
+                            <td>${formatResource(q.hard, 'requests.memory')} / ${formatResource(q.hard, 'limits.memory')}</td>
+                            <td>${formatResource(q.hard, 'pods')}</td>
+                            <td>
+                                <button class="btn btn-sm btn-secondary" onclick="editQuota('${escapeHtml(q.name)}','${escapeHtml(q.namespace)}')" title="Редактировать"><i class="fa-solid fa-pen"></i></button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteQuota('${escapeHtml(q.name)}','${escapeHtml(q.namespace)}')" title="Удалить"><i class="fa-solid fa-trash"></i></button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (e) {
+        ui.showError(content, e.message);
+    }
+}
+
+function formatResource(hard, key) {
+    if (!hard || !hard[key]) return '—';
+    const val = hard[key];
+    return typeof val === 'string' ? val : val.toString();
+}
+
+function openCreateModal() {
+    editingName = null;
+    $('#modal-title').textContent = 'Создать ResourceQuota';
+    $('#quota-form').reset();
+    $('#quota-modal').style.display = 'flex';
+}
+
+function closeModal() {
+    $('#quota-modal').style.display = 'none';
+}
+
+async function editQuota(name, namespace) {
+    editingName = name;
+    $('#modal-title').textContent = 'Редактировать ResourceQuota';
+    
+    try {
+        const quota = await api.get(`/kubernetes/namespaces/${namespace}/resourcequotas/${name}`);
+        $('#quota-name').value = quota.metadata.name;
+        $('#quota-namespace').value = quota.metadata.namespace || 'default';
+        
+        const hard = quota.spec.hard || {};
+        $('#cpu-request').value = hard['requests.cpu'] || '';
+        $('#cpu-limit').value = hard['limits.cpu'] || '';
+        $('#mem-request').value = hard['requests.memory'] || '';
+        $('#mem-limit').value = hard['limits.memory'] || '';
+        $('#max-pods').value = hard['pods'] || '';
+        $('#max-services').value = hard['services'] || '';
+        $('#max-secrets').value = hard['secrets'] || '';
+        $('#max-configmaps').value = hard['configmaps'] || '';
+        
+        $('#quota-modal').style.display = 'flex';
+    } catch (e) {
+        ui.showAlert('Ошибка: ' + e.message, 'danger');
+    }
+}
+
+async function saveQuota(e) {
+    e.preventDefault();
+    
+    const hard = {};
+    if ($('#cpu-request').value) hard['requests.cpu'] = $('#cpu-request').value;
+    if ($('#cpu-limit').value) hard['limits.cpu'] = $('#cpu-limit').value;
+    if ($('#mem-request').value) hard['requests.memory'] = $('#mem-request').value;
+    if ($('#mem-limit').value) hard['limits.memory'] = $('#mem-limit').value;
+    if ($('#max-pods').value) hard['pods'] = $('#max-pods').value;
+    if ($('#max-services').value) hard['services'] = $('#max-services').value;
+    if ($('#max-secrets').value) hard['secrets'] = $('#max-secrets').value;
+    if ($('#max-configmaps').value) hard['configmaps'] = $('#max-configmaps').value;
+    
+    const payload = {
+        apiVersion: 'v1',
+        kind: 'ResourceQuota',
+        metadata: {
+            name: $('#quota-name').value,
+            namespace: $('#quota-namespace').value
+        },
+        spec: { hard }
+    };
+    
+    const btn = document.querySelector('#quota-modal button[type="submit"]');
+    btn.disabled = true;
+    
+    try {
+        if (editingName) {
+            await api.put(`/kubernetes/namespaces/${$('#quota-namespace').value}/resourcequotas/${editingName}`, payload);
+        } else {
+            await api.post(`/kubernetes/namespaces/${$('#quota-namespace').value}/resourcequotas`, payload);
+        }
+        closeModal();
+        loadQuotas();
+        ui.showAlert('ResourceQuota сохранён', 'success');
+    } catch (e) {
+        ui.showAlert('Ошибка: ' + e.message, 'danger');
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function deleteQuota(name, namespace) {
+    if (!confirm(`Удалить ResourceQuota ${namespace}/${name}?`)) return;
+    
+    try {
+        await api.delete(`/kubernetes/namespaces/${namespace}/resourcequotas/${name}`);
+        loadQuotas();
+        ui.showAlert('ResourceQuota удалён', 'success');
+    } catch (e) {
+        ui.showAlert('Ошибка: ' + e.message, 'danger');
+    }
+}
+
+$('#namespace').addEventListener('change', loadQuotas);
+$('#filter').addEventListener('input', loadQuotas);
+
+loadNamespaces().then(loadQuotas);
+</script>
+</body>
+</html>

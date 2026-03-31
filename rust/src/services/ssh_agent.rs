@@ -7,11 +7,11 @@
 //! - SSH agent forwarding
 //! - Установки ключей доступа (KeyInstaller)
 
-use std::path::{Path, PathBuf};
 use ssh2::Session;
-use std::net::TcpStream;
-use std::io::prelude::*;
 use std::fmt;
+use std::io::prelude::*;
+use std::net::TcpStream;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use crate::error::{Error, Result};
@@ -152,34 +152,34 @@ impl SshAgent {
     /// Подключается к SSH серверу
     pub fn connect(&mut self) -> Result<()> {
         let addr = format!("{}:{}", self.config.host, self.config.port);
-        
+
         // Устанавливаем TCP подключение
-        let tcp = TcpStream::connect(&addr).map_err(|e| {
-            Error::Other(format!("Ошибка TCP подключения: {}", e))
-        })?;
+        let tcp = TcpStream::connect(&addr)
+            .map_err(|e| Error::Other(format!("Ошибка TCP подключения: {}", e)))?;
 
         // Устанавливаем таймаут
-        tcp.set_read_timeout(Some(std::time::Duration::from_secs(self.config.timeout_secs as u64)))
-            .map_err(|e| Error::Other(format!("Ошибка установки таймаута: {}", e)))?;
+        tcp.set_read_timeout(Some(std::time::Duration::from_secs(
+            self.config.timeout_secs as u64,
+        )))
+        .map_err(|e| Error::Other(format!("Ошибка установки таймаута: {}", e)))?;
 
         // Создаём SSH сессию
-        let mut session = Session::new().map_err(|e| {
-            Error::Other(format!("Ошибка создания SSH сессии: {}", e))
-        })?;
+        let mut session = Session::new()
+            .map_err(|e| Error::Other(format!("Ошибка создания SSH сессии: {}", e)))?;
 
         session.set_tcp_stream(tcp);
 
         // Рукопожатие
-        session.handshake().map_err(|e| {
-            Error::Other(format!("Ошибка SSH handshake: {}", e))
-        })?;
+        session
+            .handshake()
+            .map_err(|e| Error::Other(format!("Ошибка SSH handshake: {}", e)))?;
 
         // Пробуем аутентификацию с каждым ключом
         // Копируем ключи для избежания проблем с borrow checker
         let keys = self.config.keys.clone();
         let mut auth_error = None;
         let username = self.config.username.clone();
-        
+
         for key in &keys {
             match Self::authenticate_with_key_static(&mut session, &username, key) {
                 Ok(_) => {
@@ -199,15 +199,18 @@ impl SshAgent {
     }
 
     /// Аутентификация с использованием ключа (статический метод)
-    fn authenticate_with_key_static(session: &mut Session, username: &str, key: &SshKey) -> Result<()> {
+    fn authenticate_with_key_static(
+        session: &mut Session,
+        username: &str,
+        key: &SshKey,
+    ) -> Result<()> {
         // Создаём временный файл для ключа
         let temp_dir = std::env::temp_dir();
         let key_file = temp_dir.join(format!("ssh_key_{}", uuid::Uuid::new_v4()));
 
         // Записываем ключ в файл
-        std::fs::write(&key_file, &key.private_key).map_err(|e| {
-            Error::Other(format!("Ошибка записи ключа: {}", e))
-        })?;
+        std::fs::write(&key_file, &key.private_key)
+            .map_err(|e| Error::Other(format!("Ошибка записи ключа: {}", e)))?;
 
         // Устанавливаем права доступа (только чтение для владельца)
         #[cfg(unix)]
@@ -219,27 +222,15 @@ impl SshAgent {
 
         // Пытаемся аутентифицироваться
         let result = if let Some(passphrase) = &key.passphrase {
-            session.userauth_pubkey_file(
-                username,
-                None,
-                &key_file,
-                Some(passphrase),
-            )
+            session.userauth_pubkey_file(username, None, &key_file, Some(passphrase))
         } else {
-            session.userauth_pubkey_file(
-                username,
-                None,
-                &key_file,
-                None,
-            )
+            session.userauth_pubkey_file(username, None, &key_file, None)
         };
 
         // Удаляем временный файл
         let _ = std::fs::remove_file(&key_file);
 
-        result.map_err(|e| {
-            Error::Other(format!("Ошибка аутентификации: {}", e))
-        })?;
+        result.map_err(|e| Error::Other(format!("Ошибка аутентификации: {}", e)))?;
 
         // Проверяем успешность аутентификации
         if !session.authenticated() {
@@ -251,33 +242,34 @@ impl SshAgent {
 
     /// Выполняет команду на удалённом сервере
     pub fn execute_command(&self, command: &str) -> Result<SshCommandResult> {
-        let session = self.session.as_ref().ok_or_else(|| {
-            Error::Other("SSH сессия не установлена".to_string())
-        })?;
+        let session = self
+            .session
+            .as_ref()
+            .ok_or_else(|| Error::Other("SSH сессия не установлена".to_string()))?;
 
-        let mut channel = session.channel_session().map_err(|e| {
-            Error::Other(format!("Ошибка создания канала: {}", e))
-        })?;
+        let mut channel = session
+            .channel_session()
+            .map_err(|e| Error::Other(format!("Ошибка создания канала: {}", e)))?;
 
-        channel.exec(command).map_err(|e| {
-            Error::Other(format!("Ошибка выполнения команды: {}", e))
-        })?;
+        channel
+            .exec(command)
+            .map_err(|e| Error::Other(format!("Ошибка выполнения команды: {}", e)))?;
 
         let mut stdout = String::new();
         let mut stderr = String::new();
 
-        channel.read_to_string(&mut stdout).map_err(|e| {
-            Error::Other(format!("Ошибка чтения stdout: {}", e))
-        })?;
+        channel
+            .read_to_string(&mut stdout)
+            .map_err(|e| Error::Other(format!("Ошибка чтения stdout: {}", e)))?;
 
         let mut stderr_channel = channel.stderr();
-        stderr_channel.read_to_string(&mut stderr).map_err(|e| {
-            Error::Other(format!("Ошибка чтения stderr: {}", e))
-        })?;
+        stderr_channel
+            .read_to_string(&mut stderr)
+            .map_err(|e| Error::Other(format!("Ошибка чтения stderr: {}", e)))?;
 
-        channel.wait_close().map_err(|e| {
-            Error::Other(format!("Ошибка ожидания завершения: {}", e))
-        })?;
+        channel
+            .wait_close()
+            .map_err(|e| Error::Other(format!("Ошибка ожидания завершения: {}", e)))?;
 
         let exit_code = channel.exit_status().unwrap_or(-1);
 
@@ -289,11 +281,7 @@ impl SshAgent {
     }
 
     /// Клонирует Git репозиторий через SSH
-    pub fn clone_repository(
-        &self,
-        repo_url: &str,
-        target_path: &Path,
-    ) -> Result<()> {
+    pub fn clone_repository(&self, repo_url: &str, target_path: &Path) -> Result<()> {
         use git2::{build::RepoBuilder, FetchOptions, RemoteCallbacks};
 
         // Создаём callback для аутентификации
@@ -309,7 +297,7 @@ impl SshAgent {
 
             if let Some(key) = keys.first() {
                 let private_key_str = String::from_utf8_lossy(&key.private_key);
-                
+
                 if let Some(passphrase) = &key.passphrase {
                     return git2::Cred::ssh_key_from_memory(
                         user,
@@ -318,12 +306,7 @@ impl SshAgent {
                         None, // Публичный ключ не обязателен
                     );
                 } else {
-                    return git2::Cred::ssh_key_from_memory(
-                        user,
-                        None,
-                        &private_key_str,
-                        None,
-                    );
+                    return git2::Cred::ssh_key_from_memory(user, None, &private_key_str, None);
                 }
             }
 
@@ -336,9 +319,9 @@ impl SshAgent {
         let mut builder = RepoBuilder::new();
         builder.fetch_options(fetch_opts);
 
-        builder.clone(repo_url, target_path).map_err(|e| {
-            Error::Other(format!("Ошибка клонирования репозитория: {}", e))
-        })?;
+        builder
+            .clone(repo_url, target_path)
+            .map_err(|e| Error::Other(format!("Ошибка клонирования репозитория: {}", e)))?;
 
         Ok(())
     }
@@ -346,9 +329,9 @@ impl SshAgent {
     /// Закрывает подключение
     pub fn disconnect(&mut self) -> Result<()> {
         if let Some(session) = self.session.take() {
-            session.disconnect(None, "", None).map_err(|e| {
-                Error::Other(format!("Ошибка отключения: {}", e))
-            })?;
+            session
+                .disconnect(None, "", None)
+                .map_err(|e| Error::Other(format!("Ошибка отключения: {}", e)))?;
         }
         Ok(())
     }
@@ -377,14 +360,10 @@ pub mod utils {
 
     /// Загружает SSH ключ из файла
     pub fn load_key_from_file(path: &Path, passphrase: Option<&str>) -> Result<SshKey> {
-        let private_key = fs::read(path).map_err(|e| {
-            Error::Other(format!("Ошибка чтения ключа: {}", e))
-        })?;
+        let private_key =
+            fs::read(path).map_err(|e| Error::Other(format!("Ошибка чтения ключа: {}", e)))?;
 
-        Ok(SshKey::new(
-            private_key,
-            passphrase.map(String::from),
-        ))
+        Ok(SshKey::new(private_key, passphrase.map(String::from)))
     }
 
     /// Загружает SSH ключ из строки
@@ -396,7 +375,7 @@ pub mod utils {
     pub fn validate_key(key: &SshKey) -> Result<()> {
         // Простая проверка формата PEM
         let key_str = String::from_utf8_lossy(&key.private_key);
-        
+
         if !key_str.contains("BEGIN") || !key_str.contains("PRIVATE KEY") {
             return Err(Error::Other("Неверный формат SSH ключа".to_string()));
         }
@@ -406,12 +385,10 @@ pub mod utils {
 
     /// Создаёт временную директорию для SSH сокетов
     pub fn create_temp_ssh_dir() -> Result<PathBuf> {
-        let temp_dir = std::env::temp_dir()
-            .join(format!("ssh_agent_{}", uuid::Uuid::new_v4()));
-        
-        std::fs::create_dir_all(&temp_dir).map_err(|e| {
-            Error::Other(format!("Ошибка создания директории: {}", e))
-        })?;
+        let temp_dir = std::env::temp_dir().join(format!("ssh_agent_{}", uuid::Uuid::new_v4()));
+
+        std::fs::create_dir_all(&temp_dir)
+            .map_err(|e| Error::Other(format!("Ошибка создания директории: {}", e)))?;
 
         Ok(temp_dir)
     }
@@ -438,8 +415,7 @@ mod tests {
 
     #[test]
     fn test_ssh_config_with_port() {
-        let config = SshConfig::new("example.com".to_string(), "user".to_string())
-            .with_port(2222);
+        let config = SshConfig::new("example.com".to_string(), "user".to_string()).with_port(2222);
         assert_eq!(config.port, 2222);
     }
 
@@ -560,7 +536,8 @@ impl AccessKeyInstallation {
         if let Some(_agent) = &self.ssh_agent {
             // SSH агент создан, но сокет не доступен напрямую
             // В будущей реализации можно добавить socket_file в SshAgent
-            let mut ssh_cmd = "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null".to_string();
+            let mut ssh_cmd =
+                "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null".to_string();
             // if let Some(config_path) = crate::config::get_ssh_config_path() {
             //     ssh_cmd.push_str(&format!(" -F {}", config_path));
             // }
@@ -637,7 +614,13 @@ pub struct LoginPasswordData {
 
 impl AccessKey {
     /// Создаёт SSH ключ
-    pub fn new_ssh(id: i64, private_key: String, passphrase: String, login: String, project_id: Option<i64>) -> Self {
+    pub fn new_ssh(
+        id: i64,
+        private_key: String,
+        passphrase: String,
+        login: String,
+        project_id: Option<i64>,
+    ) -> Self {
         Self {
             id,
             key_type: AccessKeyType::Ssh,
@@ -652,7 +635,12 @@ impl AccessKey {
     }
 
     /// Создаёт ключ с логином/паролем
-    pub fn new_login_password(id: i64, login: String, password: String, project_id: Option<i64>) -> Self {
+    pub fn new_login_password(
+        id: i64,
+        login: String,
+        password: String,
+        project_id: Option<i64>,
+    ) -> Self {
         Self {
             id,
             key_type: AccessKeyType::LoginPassword,
@@ -745,7 +733,10 @@ impl KeyInstaller {
                             installation.ssh_agent = Some(agent);
                             installation.login = Some(ssh_key_data.login.clone());
 
-                            logger.logf("SSH агент запущен для ключа ID={}", format_args!("{}", key.id));
+                            logger.logf(
+                                "SSH агент запущен для ключа ID={}",
+                                format_args!("{}", key.id),
+                            );
                         } else {
                             return Err(Error::Validation("SSH ключ не найден".to_string()));
                         }
@@ -758,23 +749,21 @@ impl KeyInstaller {
                 }
             }
 
-            AccessKeyRole::AnsiblePasswordVault => {
-                match key.get_type() {
-                    AccessKeyType::LoginPassword => {
-                        if let Some(lp) = key.get_login_password_data() {
-                            installation.password = Some(lp.password.clone());
-                            logger.log("Пароль для Ansible vault установлен");
-                        } else {
-                            return Err(Error::Validation("Логин/пароль не найдены".to_string()));
-                        }
-                    }
-                    _ => {
-                        return Err(Error::Validation(
-                            "Неверный тип ключа для Ansible vault роли".to_string(),
-                        ));
+            AccessKeyRole::AnsiblePasswordVault => match key.get_type() {
+                AccessKeyType::LoginPassword => {
+                    if let Some(lp) = key.get_login_password_data() {
+                        installation.password = Some(lp.password.clone());
+                        logger.log("Пароль для Ansible vault установлен");
+                    } else {
+                        return Err(Error::Validation("Логин/пароль не найдены".to_string()));
                     }
                 }
-            }
+                _ => {
+                    return Err(Error::Validation(
+                        "Неверный тип ключа для Ansible vault роли".to_string(),
+                    ));
+                }
+            },
 
             AccessKeyRole::AnsibleBecomeUser => {
                 if key.get_type() != &AccessKeyType::LoginPassword {
@@ -813,7 +802,10 @@ impl KeyInstaller {
                             installation.ssh_agent = Some(agent);
                             installation.login = Some(ssh_key_data.login.clone());
 
-                            logger.logf("SSH агент запущен для Ansible user (ключ ID={})", format_args!("{}", key.id));
+                            logger.logf(
+                                "SSH агент запущен для Ansible user (ключ ID={})",
+                                format_args!("{}", key.id),
+                            );
                         } else {
                             return Err(Error::Validation("SSH ключ не найден".to_string()));
                         }
@@ -822,7 +814,10 @@ impl KeyInstaller {
                         if let Some(lp) = key.get_login_password_data() {
                             installation.login = Some(lp.login.clone());
                             installation.password = Some(lp.password.clone());
-                            logger.logf("Ansible user: {} (логин/пароль)", format_args!("{}", lp.login));
+                            logger.logf(
+                                "Ansible user: {} (логин/пароль)",
+                                format_args!("{}", lp.login),
+                            );
                         } else {
                             return Err(Error::Validation("Логин/пароль не найдены".to_string()));
                         }
@@ -852,10 +847,7 @@ mod key_installer_tests {
 
     #[test]
     fn test_access_key_role_from_str() {
-        assert_eq!(
-            AccessKeyRole::from_str("git").unwrap(),
-            AccessKeyRole::Git
-        );
+        assert_eq!(AccessKeyRole::from_str("git").unwrap(), AccessKeyRole::Git);
         assert_eq!(
             AccessKeyRole::from_str("ansible_password_vault").unwrap(),
             AccessKeyRole::AnsiblePasswordVault
@@ -893,12 +885,8 @@ mod key_installer_tests {
 
     #[test]
     fn test_access_key_new_login_password() {
-        let key = AccessKey::new_login_password(
-            1,
-            "admin".to_string(),
-            "secret".to_string(),
-            Some(1),
-        );
+        let key =
+            AccessKey::new_login_password(1, "admin".to_string(), "secret".to_string(), Some(1));
         assert_eq!(key.get_type(), &AccessKeyType::LoginPassword);
         assert!(key.get_login_password_data().is_some());
     }
@@ -910,7 +898,8 @@ mod key_installer_tests {
 
         let key = AccessKey::new_ssh(
             1,
-            "-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----".to_string(),
+            "-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----"
+                .to_string(),
             "".to_string(),
             "git".to_string(),
             Some(1),
@@ -979,12 +968,7 @@ mod key_installer_tests {
         let installer = KeyInstaller::new();
         let logger = BasicLogger::new();
 
-        let key = AccessKey::new_login_password(
-            1,
-            "user".to_string(),
-            "pass".to_string(),
-            Some(1),
-        );
+        let key = AccessKey::new_login_password(1, "user".to_string(), "pass".to_string(), Some(1));
 
         // Пытаемся использовать LoginPassword ключ для Git роли - должно быть ошибкой
         let result = installer.install(&key, AccessKeyRole::Git, &logger);

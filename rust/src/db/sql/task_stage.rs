@@ -16,7 +16,7 @@ impl SqlDb {
     /// Получает стадии задачи
     pub async fn get_task_stages(&self, project_id: i32, task_id: i32) -> Result<Vec<TaskStage>> {
         let rows = sqlx::query(
-            "SELECT * FROM task_stage WHERE task_id = $1 AND project_id = $2 ORDER BY id"
+            "SELECT * FROM task_stage WHERE task_id = $1 AND project_id = $2 ORDER BY id",
         )
         .bind(task_id)
         .bind(project_id)
@@ -24,23 +24,26 @@ impl SqlDb {
         .await
         .map_err(Error::Database)?;
 
-        Ok(rows.into_iter().map(|row| {
-            let type_str: String = row.try_get("type").ok().unwrap_or_default();
-            let stage_type = match type_str.as_str() {
-                "terraform_plan" => TaskStageType::TerraformPlan,
-                "running" => TaskStageType::Running,
-                "print_result" => TaskStageType::PrintResult,
-                _ => TaskStageType::Init,
-            };
-            TaskStage {
-                id: row.get("id"),
-                task_id: row.get("task_id"),
-                project_id: row.get("project_id"),
-                start: row.try_get("start").ok().flatten(),
-                end: row.try_get("end").ok().flatten(),
-                r#type: stage_type,
-            }
-        }).collect())
+        Ok(rows
+            .into_iter()
+            .map(|row| {
+                let type_str: String = row.try_get("type").ok().unwrap_or_default();
+                let stage_type = match type_str.as_str() {
+                    "terraform_plan" => TaskStageType::TerraformPlan,
+                    "running" => TaskStageType::Running,
+                    "print_result" => TaskStageType::PrintResult,
+                    _ => TaskStageType::Init,
+                };
+                TaskStage {
+                    id: row.get("id"),
+                    task_id: row.get("task_id"),
+                    project_id: row.get("project_id"),
+                    start: row.try_get("start").ok().flatten(),
+                    end: row.try_get("end").ok().flatten(),
+                    r#type: stage_type,
+                }
+            })
+            .collect())
     }
 
     /// Создаёт стадию задачи
@@ -54,7 +57,7 @@ impl SqlDb {
 
         let id: i32 = sqlx::query_scalar(
             "INSERT INTO task_stage (task_id, project_id, type, start, end) \
-             VALUES ($1, $2, $3, $4, $5) RETURNING id"
+             VALUES ($1, $2, $3, $4, $5) RETURNING id",
         )
         .bind(stage.task_id)
         .bind(stage.project_id)
@@ -94,7 +97,12 @@ impl SqlDb {
     }
 
     /// Получает результат стадии задачи
-    pub async fn get_task_stage_result(&self, project_id: i32, task_id: i32, stage_id: i32) -> Result<Option<TaskStageResult>> {
+    pub async fn get_task_stage_result(
+        &self,
+        project_id: i32,
+        task_id: i32,
+        stage_id: i32,
+    ) -> Result<Option<TaskStageResult>> {
         let row = sqlx::query(
             "SELECT * FROM task_stage_result WHERE stage_id = $1 AND task_id = $2 AND project_id = $3"
         )
@@ -119,13 +127,16 @@ impl SqlDb {
     }
 
     /// Создаёт или обновляет результат стадии
-    pub async fn upsert_task_stage_result(&self, mut result: TaskStageResult) -> Result<TaskStageResult> {
+    pub async fn upsert_task_stage_result(
+        &self,
+        mut result: TaskStageResult,
+    ) -> Result<TaskStageResult> {
         let id: i32 = sqlx::query_scalar(
             "INSERT INTO task_stage_result (stage_id, task_id, project_id, result) \
              VALUES ($1, $2, $3, $4) \
              ON CONFLICT (stage_id, task_id, project_id) \
              DO UPDATE SET result = EXCLUDED.result \
-             RETURNING id"
+             RETURNING id",
         )
         .bind(result.stage_id)
         .bind(result.task_id)
@@ -140,7 +151,12 @@ impl SqlDb {
     }
 
     /// Удаляет результат стадии
-    pub async fn delete_task_stage_result(&self, project_id: i32, task_id: i32, stage_id: i32) -> Result<()> {
+    pub async fn delete_task_stage_result(
+        &self,
+        project_id: i32,
+        task_id: i32,
+        stage_id: i32,
+    ) -> Result<()> {
         sqlx::query(
             "DELETE FROM task_stage_result WHERE stage_id = $1 AND task_id = $2 AND project_id = $3"
         )
@@ -153,4 +169,3 @@ impl SqlDb {
         Ok(())
     }
 }
-

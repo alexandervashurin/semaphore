@@ -8,10 +8,10 @@
 
 pub mod client;
 pub mod config;
-pub mod job;
 pub mod helm;
+pub mod job;
 
 pub use client::KubernetesClient;
-pub use config::{KubernetesConfig, JobRunnerConfig, HelmRunnerConfig, HelmRepository};
-pub use job::{KubernetesJob, JobConfig, JobStatus};
-pub use helm::{HelmClient, HelmRelease, HelmChart};
+pub use config::{HelmRepository, HelmRunnerConfig, JobRunnerConfig, KubernetesConfig};
+pub use helm::{HelmChart, HelmClient, HelmRelease};
+pub use job::{JobConfig, JobStatus, KubernetesJob};

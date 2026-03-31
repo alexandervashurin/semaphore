@@ -2,19 +2,15 @@
 //!
 //! Обработчики запросов для управления TOTP (2FA)
 
-use axum::{
-    extract::State,
-    http::StatusCode,
-    Json,
-};
-use std::sync::Arc;
-use serde::{Deserialize, Serialize};
-use chrono::Utc;
-use crate::api::state::AppState;
-use crate::models::user::UserTotp;
-use crate::error::Error;
 use crate::api::middleware::ErrorResponse;
+use crate::api::state::AppState;
 use crate::db::store::UserManager;
+use crate::error::Error;
+use crate::models::user::UserTotp;
+use axum::{extract::State, http::StatusCode, Json};
+use chrono::Utc;
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 /// Начать настройку TOTP
 ///
@@ -26,28 +22,31 @@ pub async fn start_totp_setup(
     use crate::services::totp::generate_totp_secret;
 
     // Получаем пользователя
-    let user = state.store.get_user(auth_user.user_id)
-        .await
-        .map_err(|e| (
+    let user = state.store.get_user(auth_user.user_id).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse::new(format!("Ошибка: {}", e))),
-        ))?;
+        )
+    })?;
 
     // Если TOTP уже настроен, возвращаем ошибку
     if user.totp.is_some() {
         return Err((
             StatusCode::BAD_REQUEST,
-            Json(ErrorResponse::new("TOTP уже настроен")
-                .with_code("TOTP_ALREADY_ENABLED")),
+            Json(ErrorResponse::new("TOTP уже настроен").with_code("TOTP_ALREADY_ENABLED")),
         ));
     }
 
     // Генерируем секрет
-    let totp_secret = generate_totp_secret(&user, "Velum UI")
-        .map_err(|e| (
+    let totp_secret = generate_totp_secret(&user, "Velum UI").map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(format!("Ошибка генерации секрета: {}", e))),
-        ))?;
+            Json(ErrorResponse::new(format!(
+                "Ошибка генерации секрета: {}",
+                e
+            ))),
+        )
+    })?;
 
     Ok(Json(TotpSetupResponse {
         secret: totp_secret.secret,
@@ -67,35 +66,37 @@ pub async fn confirm_totp_setup(
     use crate::services::totp::{generate_totp_secret, verify_totp_code};
 
     // Получаем пользователя
-    let user = state.store.get_user(auth_user.user_id)
-        .await
-        .map_err(|e| (
+    let user = state.store.get_user(auth_user.user_id).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse::new(format!("Ошибка: {}", e))),
-        ))?;
+        )
+    })?;
 
     // Если TOTP уже настроен, возвращаем ошибку
     if user.totp.is_some() {
         return Err((
             StatusCode::BAD_REQUEST,
-            Json(ErrorResponse::new("TOTP уже настроен")
-                .with_code("TOTP_ALREADY_ENABLED")),
+            Json(ErrorResponse::new("TOTP уже настроен").with_code("TOTP_ALREADY_ENABLED")),
         ));
     }
 
     // Генерируем секрет (временно)
-    let totp_secret = generate_totp_secret(&user, "Velum UI")
-        .map_err(|e| (
+    let totp_secret = generate_totp_secret(&user, "Velum UI").map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(format!("Ошибка генерации секрета: {}", e))),
-        ))?;
+            Json(ErrorResponse::new(format!(
+                "Ошибка генерации секрета: {}",
+                e
+            ))),
+        )
+    })?;
 
     // Проверяем код
     if !verify_totp_code(&totp_secret.secret, &payload.code) {
         return Err((
             StatusCode::BAD_REQUEST,
-            Json(ErrorResponse::new("Неверный TOTP код")
-                .with_code("INVALID_TOTP")),
+            Json(ErrorResponse::new("Неверный TOTP код").with_code("INVALID_TOTP")),
         ));
     }
 
@@ -110,10 +111,16 @@ pub async fn confirm_totp_setup(
     };
 
     // Сохраняем TOTP через store
-    state.store.set_user_totp(user.id, &totp).await.map_err(|e| (
-        StatusCode::INTERNAL_SERVER_ERROR,
-        Json(ErrorResponse::new(format!("Ошибка сохранения TOTP: {}", e))),
-    ))?;
+    state
+        .store
+        .set_user_totp(user.id, &totp)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(format!("Ошибка сохранения TOTP: {}", e))),
+            )
+        })?;
 
     Ok(StatusCode::OK)
 }
@@ -129,35 +136,37 @@ pub async fn disable_totp(
     use crate::services::totp::verify_recovery_code;
 
     // Получаем пользователя
-    let user = state.store.get_user(auth_user.user_id)
-        .await
-        .map_err(|e| (
+    let user = state.store.get_user(auth_user.user_id).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse::new(format!("Ошибка: {}", e))),
-        ))?;
+        )
+    })?;
 
     // Проверяем, что TOTP настроен
-    let totp = user.totp
-        .ok_or((
-            StatusCode::BAD_REQUEST,
-            Json(ErrorResponse::new("TOTP не настроен")
-                .with_code("TOTP_NOT_ENABLED")),
-        ))?;
+    let totp = user.totp.ok_or((
+        StatusCode::BAD_REQUEST,
+        Json(ErrorResponse::new("TOTP не настроен").with_code("TOTP_NOT_ENABLED")),
+    ))?;
 
     // Проверяем код восстановления
     if !verify_recovery_code(&payload.recovery_code, &totp.recovery_hash) {
         return Err((
             StatusCode::BAD_REQUEST,
-            Json(ErrorResponse::new("Неверный код восстановления")
-                .with_code("INVALID_RECOVERY_CODE")),
+            Json(
+                ErrorResponse::new("Неверный код восстановления")
+                    .with_code("INVALID_RECOVERY_CODE"),
+            ),
         ));
     }
 
     // Удаляем TOTP из store
-    state.store.delete_user_totp(user.id).await.map_err(|e| (
-        StatusCode::INTERNAL_SERVER_ERROR,
-        Json(ErrorResponse::new(format!("Ошибка удаления TOTP: {}", e))),
-    ))?;
+    state.store.delete_user_totp(user.id).await.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(format!("Ошибка удаления TOTP: {}", e))),
+        )
+    })?;
 
     Ok(StatusCode::OK)
 }

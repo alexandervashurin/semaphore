@@ -2,15 +2,15 @@
 //!
 //! Обработчики для приложений
 
+use crate::api::middleware::ErrorResponse;
+use crate::api::state::AppState;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
     Json,
 };
-use std::sync::Arc;
 use serde::{Deserialize, Serialize};
-use crate::api::state::AppState;
-use crate::api::middleware::ErrorResponse;
+use std::sync::Arc;
 
 /// Приложение
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -30,18 +30,16 @@ pub async fn get_apps(
     State(_state): State<Arc<AppState>>,
 ) -> std::result::Result<Json<Vec<App>>, (StatusCode, Json<ErrorResponse>)> {
     // В реальной реализации нужно получить приложения из конфига
-    let apps = vec![
-        App {
-            id: "ansible".to_string(),
-            priority: 10,
-            title: "Ansible".to_string(),
-            icon: "ansible".to_string(),
-            color: "#FF0000".to_string(),
-            dark_color: "#CC0000".to_string(),
-            path: "/usr/bin/ansible-playbook".to_string(),
-            args: vec![],
-        },
-    ];
+    let apps = vec![App {
+        id: "ansible".to_string(),
+        priority: 10,
+        title: "Ansible".to_string(),
+        icon: "ansible".to_string(),
+        color: "#FF0000".to_string(),
+        dark_color: "#CC0000".to_string(),
+        path: "/usr/bin/ansible-playbook".to_string(),
+        args: vec![],
+    }];
 
     Ok(Json(apps))
 }
@@ -109,7 +107,9 @@ pub async fn update_app(
         icon: payload.icon.unwrap_or_else(|| app_id.clone()),
         color: payload.color.unwrap_or_else(|| "#000000".to_string()),
         dark_color: payload.dark_color.unwrap_or_else(|| "#000000".to_string()),
-        path: payload.path.unwrap_or_else(|| format!("/usr/bin/{}", app_id)),
+        path: payload
+            .path
+            .unwrap_or_else(|| format!("/usr/bin/{}", app_id)),
         args: payload.args.unwrap_or_default(),
     };
     Ok(Json(app))

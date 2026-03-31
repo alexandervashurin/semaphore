@@ -1,11 +1,13 @@
 //! Audit Log - операции с журналом аудита в SQL (PostgreSQL)
 
-use sqlx::FromRow;
-use crate::error::{Error, Result};
-use crate::models::audit_log::{AuditLog, AuditAction, AuditObjectType, AuditLevel, AuditLogFilter, AuditLogResult};
 use crate::db::sql::types::SqlDb;
+use crate::error::{Error, Result};
+use crate::models::audit_log::{
+    AuditAction, AuditLevel, AuditLog, AuditLogFilter, AuditLogResult, AuditObjectType,
+};
 use chrono::Utc;
 use serde_json::Value as JsonValue;
+use sqlx::FromRow;
 
 /// SQL представление AuditLog для чтения из БД
 #[derive(Debug, Clone, FromRow)]
@@ -56,7 +58,7 @@ impl SqlDb {
                  description, level, ip_address, user_agent, details, created)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
             RETURNING *
-            "#
+            "#,
         )
         .bind(project_id)
         .bind(user_id)
@@ -80,13 +82,11 @@ impl SqlDb {
 
     /// Получает запись audit log по ID
     pub async fn get_audit_log(&self, id: i64) -> Result<AuditLog> {
-        let row = sqlx::query_as::<_, SqlAuditLog>(
-            r#"SELECT * FROM audit_log WHERE id = $1"#
-        )
-        .bind(id)
-        .fetch_one(self.audit_pg_pool()?)
-        .await
-        .map_err(Error::Database)?;
+        let row = sqlx::query_as::<_, SqlAuditLog>(r#"SELECT * FROM audit_log WHERE id = $1"#)
+            .bind(id)
+            .fetch_one(self.audit_pg_pool()?)
+            .await
+            .map_err(Error::Database)?;
 
         Ok(self.convert_sql_audit_log(row))
     }
@@ -105,25 +105,40 @@ impl SqlDb {
             where_clauses.push(format!("username LIKE '{}'", username.replace('\'', "''")));
         }
         if let Some(ref action) = filter.action {
-            where_clauses.push(format!("action = '{}'", action.to_string().replace('\'', "''")));
+            where_clauses.push(format!(
+                "action = '{}'",
+                action.to_string().replace('\'', "''")
+            ));
         }
         if let Some(ref object_type) = filter.object_type {
-            where_clauses.push(format!("object_type = '{}'", object_type.to_string().replace('\'', "''")));
+            where_clauses.push(format!(
+                "object_type = '{}'",
+                object_type.to_string().replace('\'', "''")
+            ));
         }
         if let Some(object_id) = filter.object_id {
             where_clauses.push(format!("object_id = {}", object_id));
         }
         if let Some(ref level) = filter.level {
-            where_clauses.push(format!("level = '{}'", level.to_string().replace('\'', "''")));
+            where_clauses.push(format!(
+                "level = '{}'",
+                level.to_string().replace('\'', "''")
+            ));
         }
         if let Some(ref search) = filter.search {
             where_clauses.push(format!("description LIKE '{}'", search.replace('\'', "''")));
         }
         if let Some(date_from) = filter.date_from {
-            where_clauses.push(format!("created >= '{}'", date_from.naive_utc().format("%Y-%m-%d %H:%M:%S")));
+            where_clauses.push(format!(
+                "created >= '{}'",
+                date_from.naive_utc().format("%Y-%m-%d %H:%M:%S")
+            ));
         }
         if let Some(date_to) = filter.date_to {
-            where_clauses.push(format!("created <= '{}'", date_to.naive_utc().format("%Y-%m-%d %H:%M:%S")));
+            where_clauses.push(format!(
+                "created <= '{}'",
+                date_to.naive_utc().format("%Y-%m-%d %H:%M:%S")
+            ));
         }
 
         let where_clause = if where_clauses.is_empty() {
@@ -133,11 +148,17 @@ impl SqlDb {
         };
 
         let sort = match filter.sort.as_str() {
-            "created" | "user_id" | "project_id" | "action" | "object_type" | "level" => filter.sort.clone(),
+            "created" | "user_id" | "project_id" | "action" | "object_type" | "level" => {
+                filter.sort.clone()
+            }
             _ => "created".to_string(),
         };
 
-        let order = if filter.order.to_lowercase() == "asc" { "ASC" } else { "DESC" };
+        let order = if filter.order.to_lowercase() == "asc" {
+            "ASC"
+        } else {
+            "DESC"
+        };
 
         let count_query = format!("SELECT COUNT(*) FROM audit_log {}", where_clause);
 
@@ -158,7 +179,10 @@ impl SqlDb {
             .await
             .map_err(Error::Database)?;
 
-        let records = rows.into_iter().map(|row| self.convert_sql_audit_log(row)).collect();
+        let records = rows
+            .into_iter()
+            .map(|row| self.convert_sql_audit_log(row))
+            .collect();
 
         Ok(AuditLogResult {
             total,
@@ -185,7 +209,10 @@ impl SqlDb {
         .await
         .map_err(Error::Database)?;
 
-        Ok(rows.into_iter().map(|row| self.convert_sql_audit_log(row)).collect())
+        Ok(rows
+            .into_iter()
+            .map(|row| self.convert_sql_audit_log(row))
+            .collect())
     }
 
     /// Получает записи audit log по user_id с пагинацией
@@ -196,7 +223,7 @@ impl SqlDb {
         offset: i64,
     ) -> Result<Vec<AuditLog>> {
         let rows = sqlx::query_as::<_, SqlAuditLog>(
-            "SELECT * FROM audit_log WHERE user_id = $1 ORDER BY created DESC LIMIT $2 OFFSET $3"
+            "SELECT * FROM audit_log WHERE user_id = $1 ORDER BY created DESC LIMIT $2 OFFSET $3",
         )
         .bind(user_id)
         .bind(limit)
@@ -205,7 +232,10 @@ impl SqlDb {
         .await
         .map_err(Error::Database)?;
 
-        Ok(rows.into_iter().map(|row| self.convert_sql_audit_log(row)).collect())
+        Ok(rows
+            .into_iter()
+            .map(|row| self.convert_sql_audit_log(row))
+            .collect())
     }
 
     /// Получает записи audit log по action с пагинацией
@@ -216,7 +246,7 @@ impl SqlDb {
         offset: i64,
     ) -> Result<Vec<AuditLog>> {
         let rows = sqlx::query_as::<_, SqlAuditLog>(
-            "SELECT * FROM audit_log WHERE action = $1 ORDER BY created DESC LIMIT $2 OFFSET $3"
+            "SELECT * FROM audit_log WHERE action = $1 ORDER BY created DESC LIMIT $2 OFFSET $3",
         )
         .bind(action.to_string())
         .bind(limit)
@@ -225,7 +255,10 @@ impl SqlDb {
         .await
         .map_err(Error::Database)?;
 
-        Ok(rows.into_iter().map(|row| self.convert_sql_audit_log(row)).collect())
+        Ok(rows
+            .into_iter()
+            .map(|row| self.convert_sql_audit_log(row))
+            .collect())
     }
 
     /// Удаляет старые записи audit log (до указанной даты)

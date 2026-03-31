@@ -10,14 +10,14 @@
 //! - Auth Providers - провайдеры аутентификации
 //! - API Extensions - расширения API
 
-use std::collections::HashMap;
-use std::sync::Arc;
+use crate::error::{Error, Result};
+use crate::models::Task;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use crate::error::{Error, Result};
-use crate::models::Task;
+use std::collections::HashMap;
+use std::sync::Arc;
 
 /// Информация о плагине
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -142,22 +142,22 @@ pub struct HookResult {
 pub trait Plugin: Send + Sync {
     /// Получает информацию о плагине
     fn info(&self) -> PluginInfo;
-    
+
     /// Инициализирует плагин
     async fn initialize(&mut self, config: PluginConfig) -> Result<()>;
-    
+
     /// Загружает плагин
     async fn load(&mut self) -> Result<()>;
-    
+
     /// Выгружает плагин
     async fn unload(&mut self) -> Result<()>;
-    
+
     /// Проверяет статус плагина
     fn status(&self) -> PluginStatus;
-    
+
     /// Получает конфигурацию
     fn get_config(&self) -> PluginConfig;
-    
+
     /// Обновляет конфигурацию
     async fn update_config(&mut self, config: PluginConfig) -> Result<()>;
 }
@@ -167,10 +167,10 @@ pub trait Plugin: Send + Sync {
 pub trait TaskExecutorPlugin: Plugin {
     /// Проверяет возможность выполнения задачи
     async fn can_execute(&self, task: &Task) -> bool;
-    
+
     /// Выполняет задачу
     async fn execute(&self, context: PluginContext, task: &Task) -> Result<TaskResult>;
-    
+
     /// Останавливает выполнение задачи
     async fn stop(&self, context: PluginContext, task_id: i64) -> Result<()>;
 }
@@ -190,7 +190,7 @@ pub struct TaskResult {
 pub trait NotificationPlugin: Plugin {
     /// Отправляет уведомление
     async fn send(&self, context: PluginContext, notification: Notification) -> Result<()>;
-    
+
     /// Получает доступные каналы уведомлений
     fn get_channels(&self) -> Vec<NotificationChannel>;
 }
@@ -229,7 +229,7 @@ pub struct NotificationChannel {
 pub trait HookPlugin: Plugin {
     /// Возвращает список поддерживаемых хуков
     fn get_hooks(&self) -> Vec<String>;
-    
+
     /// Выполняет хук
     async fn execute_hook(&self, event: HookEvent) -> Result<HookResult>;
 }
@@ -239,13 +239,13 @@ pub trait HookPlugin: Plugin {
 pub trait StoragePlugin: Plugin {
     /// Сохраняет данные
     async fn save(&self, key: &str, data: JsonValue) -> Result<()>;
-    
+
     /// Загружает данные
     async fn load(&self, key: &str) -> Result<Option<JsonValue>>;
-    
+
     /// Удаляет данные
     async fn delete(&self, key: &str) -> Result<()>;
-    
+
     /// Список всех ключей
     async fn list(&self, prefix: Option<&str>) -> Result<Vec<String>>;
 }
@@ -255,10 +255,10 @@ pub trait StoragePlugin: Plugin {
 pub trait AuthPlugin: Plugin {
     /// Аутентифицирует пользователя
     async fn authenticate(&self, credentials: AuthCredentials) -> Result<AuthResult>;
-    
+
     /// Проверяет токен
     async fn validate_token(&self, token: &str) -> Result<AuthResult>;
-    
+
     /// Создаёт токен
     async fn create_token(&self, user_id: i64) -> Result<String>;
 }
@@ -340,7 +340,10 @@ impl PluginManager {
         // Инициализируем WASM загрузчик если включено
         let (wasm_loader, wasm_runtime) = if config.wasm_enabled {
             let wasm_config = crate::plugins::wasm_loader::WasmLoaderConfig {
-                plugins_dir: config.wasm_plugins_dir.clone().map(std::path::PathBuf::from)
+                plugins_dir: config
+                    .wasm_plugins_dir
+                    .clone()
+                    .map(std::path::PathBuf::from)
                     .unwrap_or_else(|| std::path::PathBuf::from("./plugins")),
                 max_memory_pages: config.wasm_max_memory_mb * 16, // MB -> страницы (64KB)
                 max_execution_time_secs: config.wasm_max_execution_secs,
@@ -354,7 +357,7 @@ impl PluginManager {
                     "semaphore:call_hook".to_string(),
                 ],
             };
-            
+
             match crate::plugins::wasm_loader::WasmPluginLoader::new(wasm_config) {
                 Ok(loader) => {
                     tracing::info!("WASM plugin loader initialized");
@@ -368,7 +371,7 @@ impl PluginManager {
         } else {
             (None, None)
         };
-        
+
         Self {
             plugins: HashMap::new(),
             hooks: HashMap::new(),
@@ -398,7 +401,9 @@ impl PluginManager {
     }
 
     /// Загружает все WASM плагины
-    pub async fn load_wasm_plugins(&mut self) -> Result<Vec<crate::plugins::wasm_loader::WasmPluginMetadata>> {
+    pub async fn load_wasm_plugins(
+        &mut self,
+    ) -> Result<Vec<crate::plugins::wasm_loader::WasmPluginMetadata>> {
         if let Some(loader) = &mut self.wasm_loader {
             match loader.load_all_plugins().await {
                 Ok(plugins) => {
@@ -445,18 +450,21 @@ impl PluginManager {
         tracing::debug!("WASM hook triggered: {:?}", hook_type);
         Ok(Vec::new())
     }
-    
+
     /// Регистрирует плагин
     pub async fn register(&mut self, plugin: Arc<RwLock<dyn Plugin>>) -> Result<()> {
         let info = {
             let plugin_guard = plugin.read().await;
             plugin_guard.info()
         };
-        
+
         if self.plugins.contains_key(&info.id) {
-            return Err(Error::Other(format!("Plugin {} already registered", info.id)));
+            return Err(Error::Other(format!(
+                "Plugin {} already registered",
+                info.id
+            )));
         }
-        
+
         // Проверяем зависимости
         for dep in &info.dependencies {
             if !self.plugins.contains_key(dep) && !self.is_plugin_optional(dep) {
@@ -466,12 +474,12 @@ impl PluginManager {
                 )));
             }
         }
-        
+
         self.plugins.insert(info.id.clone(), plugin);
-        
+
         Ok(())
     }
-    
+
     /// Загружает все плагины
     pub async fn load_all(&mut self) -> Result<()> {
         for plugin_id in self.config.enabled_plugins.clone() {
@@ -484,7 +492,7 @@ impl PluginManager {
         }
         Ok(())
     }
-    
+
     /// Выгружает все плагины
     pub async fn unload_all(&mut self) -> Result<()> {
         let plugin_ids: Vec<String> = self.plugins.keys().cloned().collect();
@@ -499,52 +507,52 @@ impl PluginManager {
         self.plugins.clear();
         Ok(())
     }
-    
+
     /// Получает плагин по ID
     pub fn get_plugin(&self, plugin_id: &str) -> Option<Arc<RwLock<dyn Plugin>>> {
         self.plugins.get(plugin_id).cloned()
     }
-    
+
     /// Получает список всех плагинов (включая WASM)
     pub async fn list_plugins(&self) -> Vec<PluginInfo> {
         let mut infos = Vec::new();
-        
+
         // Добавляем нативные плагины
         for plugin in self.plugins.values() {
             let plugin_guard = plugin.read().await;
             infos.push(plugin_guard.info());
         }
-        
+
         // Добавляем WASM плагины
         if let Some(loader) = &self.wasm_loader {
             for wasm_plugin in loader.list_loaded_plugins() {
                 infos.push(wasm_plugin.info.clone());
             }
         }
-        
+
         infos
     }
-    
+
     /// Включает плагин
     pub fn enable_plugin(&mut self, plugin_id: &str) -> Result<()> {
         if !self.plugins.contains_key(plugin_id) {
             return Err(Error::NotFound(format!("Plugin {} not found", plugin_id)));
         }
-        
+
         self.config.enabled_plugins.push(plugin_id.to_string());
         self.config.disabled_plugins.retain(|id| id != plugin_id);
-        
+
         Ok(())
     }
-    
+
     /// Отключает плагин
     pub fn disable_plugin(&mut self, plugin_id: &str) -> Result<()> {
         self.config.enabled_plugins.retain(|id| id != plugin_id);
         self.config.disabled_plugins.push(plugin_id.to_string());
-        
+
         Ok(())
     }
-    
+
     /// Проверяет, является ли плагин опциональным
     fn is_plugin_optional(&self, plugin_id: &str) -> bool {
         !self.config.enabled_plugins.contains(&plugin_id.to_string())
@@ -1083,7 +1091,7 @@ mod tests {
     fn test_plugin_manager_creation() {
         let config = PluginManagerConfig::default();
         let manager = PluginManager::new(config);
-        
+
         // Проверяем, что менеджер создан
         assert!(manager.plugins.is_empty());
         assert!(manager.hooks.is_empty());
@@ -1093,23 +1101,29 @@ mod tests {
     fn test_plugin_manager_enable_disable_plugin() {
         let mut config = PluginManagerConfig::default();
         config.enabled_plugins = vec!["test_plugin".to_string()];
-        
+
         let mut manager = PluginManager::new(config);
-        
+
         // Добавим тестовый плагин вручную для проверки
-        manager.config.enabled_plugins.push("plugin_to_disable".to_string());
-        
+        manager
+            .config
+            .enabled_plugins
+            .push("plugin_to_disable".to_string());
+
         // Отключаем плагин
         let result = manager.disable_plugin("plugin_to_disable");
         assert!(result.is_ok());
-        assert!(manager.config.disabled_plugins.contains(&"plugin_to_disable".to_string()));
+        assert!(manager
+            .config
+            .disabled_plugins
+            .contains(&"plugin_to_disable".to_string()));
     }
 
     #[test]
     fn test_plugin_manager_enable_not_found() {
         let config = PluginManagerConfig::default();
         let mut manager = PluginManager::new(config);
-        
+
         // Пытаемся включить несуществующий плагин
         let result = manager.enable_plugin("nonexistent_plugin");
         assert!(result.is_err());

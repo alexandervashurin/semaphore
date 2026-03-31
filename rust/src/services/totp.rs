@@ -3,14 +3,14 @@
 //! Реализация Time-based One-Time Password (TOTP) согласно RFC 6238.
 //! Совместим с Google Authenticator, Authy и другими совместимыми приложениями.
 
+use base32;
 use chrono::Utc;
 use hmac::{Hmac, Mac};
-use sha1::Sha1;
-use base32;
 use rand::RngCore;
+use sha1::Sha1;
 
-use crate::models::User;
 use crate::error::{Error, Result};
+use crate::models::User;
 
 /// Длина TOTP кода
 const TOTP_CODE_LENGTH: usize = 6;
@@ -34,9 +34,7 @@ pub fn generate_totp_secret(user: &User, issuer: &str) -> Result<TotpSecret> {
     let label = format!("{}:{}", issuer, user.username);
     let url = format!(
         "otpauth://totp/{}?secret={}&issuer={}",
-        label,
-        secret,
-        issuer
+        label, secret, issuer
     );
 
     // Генерируем код восстановления
@@ -192,8 +190,11 @@ mod tests {
     #[test]
     fn test_totp_code_generation() {
         // Тест с известным секретом из RFC 6238
-        let secret = base32::decode(base32::Alphabet::Rfc4648 { padding: true }, "GEZDGNBVGY3TQOJQ")
-            .unwrap();
+        let secret = base32::decode(
+            base32::Alphabet::Rfc4648 { padding: true },
+            "GEZDGNBVGY3TQOJQ",
+        )
+        .unwrap();
 
         // Проверяем, что код генерируется корректно
         let now = Utc::now().timestamp() as u64;

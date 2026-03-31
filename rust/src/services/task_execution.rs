@@ -3,22 +3,25 @@
 //! Предоставляет единую точку запуска задач, используемую как HTTP-хендлером,
 //! так и планировщиком (scheduler).
 
+use chrono::Utc;
 use std::sync::{Arc, Mutex};
 use tracing::{error, info};
-use chrono::Utc;
 
-use crate::db::store::{Store, PlanApprovalManager};
-use crate::models::{Task, TaskOutput, Inventory, Repository, Environment, TerraformPlan};
-use crate::services::task_logger::{TaskStatus, BasicLogger, TaskLogger, LogListener};
-use crate::services::local_job::LocalJob;
+use crate::db::store::{PlanApprovalManager, Store};
 use crate::db_lib::AccessKeyInstallerImpl;
+use crate::models::{Environment, Inventory, Repository, Task, TaskOutput, TerraformPlan};
+use crate::services::local_job::LocalJob;
+use crate::services::task_logger::{BasicLogger, LogListener, TaskLogger, TaskStatus};
 
 /// Запускает задачу в фоновом потоке.
 ///
 /// Загружает шаблон, инвентарь, репозиторий и окружение, запускает LocalJob,
 /// сохраняет вывод в БД и обновляет статус задачи.
 pub async fn execute_task(store: Arc<dyn Store + Send + Sync>, mut task: Task) {
-    info!("[task_runner] Starting task {} (template {})", task.id, task.template_id);
+    info!(
+        "[task_runner] Starting task {} (template {})",
+        task.id, task.template_id
+    );
 
     // Обновляем статус → Running и фиксируем время начала
     task.status = TaskStatus::Running;
@@ -32,7 +35,10 @@ pub async fn execute_task(store: Arc<dyn Store + Send + Sync>, mut task: Task) {
     let template = match store.get_template(task.project_id, task.template_id).await {
         Ok(t) => t,
         Err(e) => {
-            error!("[task_runner] task {}: failed to get template: {e}", task.id);
+            error!(
+                "[task_runner] task {}: failed to get template: {e}",
+                task.id
+            );
             task.status = TaskStatus::Error;
             task.end = Some(Utc::now());
             let _ = store.update_task(task).await;
@@ -43,21 +49,35 @@ pub async fn execute_task(store: Arc<dyn Store + Send + Sync>, mut task: Task) {
     // Phase 2: Plan Approval gate — if template requires approval, pause before executing
     if template.require_approval {
         // Check if there's already an approved plan for this task
-        let existing_plan = store.get_plan_by_task(task.project_id, task.id).await.unwrap_or(None);
+        let existing_plan = store
+            .get_plan_by_task(task.project_id, task.id)
+            .await
+            .unwrap_or(None);
         match existing_plan {
             Some(ref plan) if plan.status == "approved" => {
                 // Plan was approved — proceed with execution
-                info!("[task_runner] task {}: plan approved, proceeding with execution", task.id);
+                info!(
+                    "[task_runner] task {}: plan approved, proceeding with execution",
+                    task.id
+                );
             }
             Some(ref plan) if plan.status == "rejected" => {
                 // Plan was rejected — stop task
-                info!("[task_runner] task {}: plan rejected, stopping task", task.id);
-                let _ = store.update_task_status(task.project_id, task.id, TaskStatus::Error).await;
+                info!(
+                    "[task_runner] task {}: plan rejected, stopping task",
+                    task.id
+                );
+                let _ = store
+                    .update_task_status(task.project_id, task.id, TaskStatus::Error)
+                    .await;
                 return;
             }
             None => {
                 // No plan yet — create pending record and set WaitingConfirmation
-                info!("[task_runner] task {}: require_approval=true, creating pending plan", task.id);
+                info!(
+                    "[task_runner] task {}: require_approval=true, creating pending plan",
+                    task.id
+                );
                 let pending_plan = TerraformPlan {
                     id: 0,
                     task_id: task.id,
@@ -74,13 +94,17 @@ pub async fn execute_task(store: Arc<dyn Store + Send + Sync>, mut task: Task) {
                     review_comment: None,
                 };
                 let _ = store.create_plan(pending_plan).await;
-                let _ = store.update_task_status(task.project_id, task.id, TaskStatus::WaitingConfirmation).await;
+                let _ = store
+                    .update_task_status(task.project_id, task.id, TaskStatus::WaitingConfirmation)
+                    .await;
                 return;
             }
             _ => {
                 // Plan pending — still waiting for review
                 info!("[task_runner] task {}: plan still pending review", task.id);
-                let _ = store.update_task_status(task.project_id, task.id, TaskStatus::WaitingConfirmation).await;
+                let _ = store
+                    .update_task_status(task.project_id, task.id, TaskStatus::WaitingConfirmation)
+                    .await;
                 return;
             }
         }
@@ -89,19 +113,28 @@ pub async fn execute_task(store: Arc<dyn Store + Send + Sync>, mut task: Task) {
     // Загружаем инвентарь, репозиторий, окружение
     let inventory_id = task.inventory_id.or(template.inventory_id);
     let inventory = match inventory_id {
-        Some(id) => store.get_inventory(task.project_id, id).await.unwrap_or_default(),
+        Some(id) => store
+            .get_inventory(task.project_id, id)
+            .await
+            .unwrap_or_default(),
         None => Inventory::default(),
     };
 
     let repository_id = task.repository_id.or(template.repository_id);
     let repository = match repository_id {
-        Some(id) => store.get_repository(task.project_id, id).await.unwrap_or_default(),
+        Some(id) => store
+            .get_repository(task.project_id, id)
+            .await
+            .unwrap_or_default(),
         None => Repository::default(),
     };
 
     let environment_id = task.environment_id.or(template.environment_id);
     let environment = match environment_id {
-        Some(id) => store.get_environment(task.project_id, id).await.unwrap_or_default(),
+        Some(id) => store
+            .get_environment(task.project_id, id)
+            .await
+            .unwrap_or_default(),
         None => Environment::default(),
     };
 
@@ -113,11 +146,15 @@ pub async fn execute_task(store: Arc<dyn Store + Send + Sync>, mut task: Task) {
         let _ = buf_clone.lock().map(|mut v| v.push(msg));
     }));
 
-    let work_dir = std::env::temp_dir().join(format!("semaphore_task_{}_{}", task.project_id, task.id));
+    let work_dir =
+        std::env::temp_dir().join(format!("semaphore_task_{}_{}", task.project_id, task.id));
     let tmp_dir = work_dir.join("tmp");
 
     if let Err(e) = tokio::fs::create_dir_all(&tmp_dir).await {
-        error!("[task_runner] task {}: failed to create workdir: {e}", task.id);
+        error!(
+            "[task_runner] task {}: failed to create workdir: {e}",
+            task.id
+        );
         task.status = TaskStatus::Error;
         task.end = Some(Utc::now());
         let _ = store.update_task(task).await;

@@ -25,10 +25,10 @@ pub mod cmd_user;
 pub mod cmd_vault;
 pub mod cmd_version;
 
-use clap::{Parser, Subcommand};
-use std::sync::Arc;
 use crate::config::{Config, DbDialect};
 use crate::db::SqlStore;
+use clap::{Parser, Subcommand};
+use std::sync::Arc;
 
 pub use cmd_migrate::MigrateCommand;
 pub use cmd_project::ProjectCommand;
@@ -360,7 +360,9 @@ fn cmd_runner(args: RunnerArgs, config: Config) -> anyhow::Result<()> {
 fn cmd_migrate(args: MigrateArgs, config: Config) -> anyhow::Result<()> {
     tracing::info!("Применение миграций...");
 
-    let database_url = config.database_url().map_err(|e| anyhow::anyhow!("{}", e))?;
+    let database_url = config
+        .database_url()
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
 
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -369,9 +371,10 @@ fn cmd_migrate(args: MigrateArgs, config: Config) -> anyhow::Result<()> {
             if args.upgrade {
                 tracing::info!("Применение миграций...");
                 // Создаём SqlStore и применяем миграции
-                let store = crate::db::sql::SqlStore::new(&database_url).await
+                let store = crate::db::sql::SqlStore::new(&database_url)
+                    .await
                     .map_err(|e| anyhow::anyhow!("Ошибка подключения к БД: {}", e))?;
-                
+
                 // Миграции применяются автоматически при создании SqlStore
                 tracing::info!("Миграции успешно применены");
             }
@@ -452,7 +455,10 @@ fn cmd_user_list(config: Config) -> anyhow::Result<()> {
             println!("{:<6} {:<20} {:<30} Name", "ID", "Username", "Email");
             println!("{}", "-".repeat(70));
             for user in users {
-                println!("{:<6} {:<20} {:<30} {}", user.id, user.username, user.email, user.name);
+                println!(
+                    "{:<6} {:<20} {:<30} {}",
+                    user.id, user.username, user.email, user.name
+                );
             }
 
             Ok::<_, anyhow::Error>(())
@@ -475,7 +481,7 @@ fn cmd_project(args: ProjectArgs, config: Config) -> anyhow::Result<()> {
 /// Команда: настройка
 fn cmd_setup(_args: SetupArgs, _config: Config) -> anyhow::Result<()> {
     tracing::info!("Мастер настройки Velum...");
-    
+
     println!("\n=== Мастер настройки Velum ===\n");
     println!("Создайте файл конфигурации вручную или используйте переменные окружения:");
     println!();
@@ -503,18 +509,19 @@ fn cmd_version() -> anyhow::Result<()> {
 
 /// Создаёт хранилище на основе конфигурации
 fn create_store(config: &Config) -> anyhow::Result<Box<dyn crate::db::Store + Send + Sync>> {
-    let database_url = config.database_url().map_err(|e| anyhow::anyhow!("{}", e))?;
+    let database_url = config
+        .database_url()
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
 
-    let store: Box<dyn crate::db::Store + Send + Sync> = match config.database.dialect.clone().unwrap_or(DbDialect::SQLite) {
-        DbDialect::SQLite | DbDialect::MySQL | DbDialect::Postgres => {
-            Box::new(
+    let store: Box<dyn crate::db::Store + Send + Sync> =
+        match config.database.dialect.clone().unwrap_or(DbDialect::SQLite) {
+            DbDialect::SQLite | DbDialect::MySQL | DbDialect::Postgres => Box::new(
                 tokio::runtime::Builder::new_current_thread()
                     .enable_all()
                     .build()?
-                    .block_on(SqlStore::new(&database_url))?
-            )
-        }
-    };
+                    .block_on(SqlStore::new(&database_url))?,
+            ),
+        };
 
     Ok(store)
 }

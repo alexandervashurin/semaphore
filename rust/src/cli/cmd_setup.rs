@@ -2,8 +2,8 @@
 //!
 //! Команда для настройки Velum
 
-use clap::Args;
 use crate::cli::CliResult;
+use clap::Args;
 
 /// Команда setup
 #[derive(Debug, Args)]

@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes Runbooks — Velum</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+    <style>
+        .runbook-card {
+            border-left: 4px solid;
+            padding: 16px;
+            margin-bottom: 16px;
+            background: #f9f9f9;
+            transition: transform 0.2s;
+        }
+        .runbook-card:hover {
+            transform: translateX(4px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .runbook-diagnostic { border-color: #2196F3; }
+        .runbook-remediation { border-color: #f44336; }
+        .runbook-maintenance { border-color: #ff9800; }
+        .runbook-scaling { border-color: #4caf50; }
+        .runbook-backup { border-color: #9c27b0; }
+        
+        .category-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        .cat-diagnostic { background: #e3f2fd; color: #1976d2; }
+        .cat-remediation { background: #ffebee; color: #d32f2f; }
+        .cat-maintenance { background: #fff3e0; color: #f57c00; }
+        .cat-scaling { background: #e8f5e9; color: #388e3c; }
+        .cat-backup { background: #f3e5f5; color: #7b1fa2; }
+        
+        .runbook-actions {
+            margin-top: 12px;
+            display: flex;
+            gap: 8px;
+        }
+    </style>
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar"></aside>
+    <div class="main-content">
+        <div class="main-header">
+            <h2><i class="fa-solid fa-book-medical"></i> Kubernetes Runbooks</h2>
+            <a href="k8s-troubleshoot.html" class="btn btn-secondary">
+                <i class="fa-solid fa-stethoscope"></i> Troubleshoot
+            </a>
+        </div>
+        <div class="main-body">
+            <!-- Форма выбора ресурса -->
+            <div class="card" style="margin-bottom:12px;">
+                <h3><i class="fa-solid fa-crosshairs"></i> Выбор ресурса</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 12px;">
+                    <div>
+                        <label>Project</label>
+                        <select id="project-id" class="form-control"></select>
+                    </div>
+                    <div>
+                        <label>Namespace</label>
+                        <select id="namespace" class="form-control"></select>
+                    </div>
+                    <div>
+                        <label>Тип ресурса</label>
+                        <select id="kind" class="form-control">
+                            <option value="Pod">Pod</option>
+                            <option value="Deployment">Deployment</option>
+                            <option value="StatefulSet">StatefulSet</option>
+                            <option value="DaemonSet">DaemonSet</option>
+                            <option value="ReplicaSet">ReplicaSet</option>
+                            <option value="Job">Job</option>
+                            <option value="CronJob">CronJob</option>
+                            <option value="Service">Service</option>
+                            <option value="Ingress">Ingress</option>
+                            <option value="ConfigMap">ConfigMap</option>
+                            <option value="Secret">Secret</option>
+                            <option value="PersistentVolumeClaim">PersistentVolumeClaim</option>
+                            <option value="Node">Node</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Имя ресурса</label>
+                        <input id="resource-name" class="form-control" placeholder="my-pod">
+                    </div>
+                </div>
+                <div style="margin-top: 12px;">
+                    <button class="btn btn-primary" onclick="loadRunbooks()">
+                        <i class="fa-solid fa-search"></i> Показать Runbooks
+                    </button>
+                </div>
+            </div>
+
+            <!-- Список доступных Runbooks -->
+            <div id="runbooks-list" class="card" style="display: none;">
+                <h3><i class="fa-solid fa-list-check"></i> Доступные Runbooks</h3>
+                <div id="runbooks-content" style="margin-top: 16px;"></div>
+            </div>
+
+            <!-- Форма запуска Runbook -->
+            <div id="runbook-execute" class="card" style="display: none;">
+                <h3><i class="fa-solid fa-play"></i> Запуск Runbook</h3>
+                <div id="runbook-details" style="margin: 16px 0;"></div>
+                <div style="margin-top: 16px;">
+                    <label>Сообщение</label>
+                    <input id="runbook-message" class="form-control" placeholder="Описание задачи">
+                </div>
+                <div style="margin-top: 16px; display: flex; gap: 8px;">
+                    <button class="btn btn-success" onclick="executeRunbook()">
+                        <i class="fa-solid fa-play"></i> Запустить
+                    </button>
+                    <button class="btn btn-secondary" onclick="cancelRunbook()">
+                        <i class="fa-solid fa-xmark"></i> Отмена
+                    </button>
+                </div>
+            </div>
+
+            <!-- Статус выполнения -->
+            <div id="task-status" class="card" style="display: none;">
+                <h3><i class="fa-solid fa-spinner fa-spin"></i> Статус задачи</h3>
+                <div id="task-status-content" style="margin-top: 16px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+checkAuth();
+let selectedRunbook = null;
+let taskCheckInterval = null;
+
+// Загрузка проектов
+async function loadProjects() {
+    try {
+        const projects = await api.get('/projects');
+        const select = $('#project-id');
+        select.innerHTML = '';
+        projects.forEach(p => {
+            select.innerHTML += `<option value="${p.id}">${escapeHtml(p.name)}</option>`;
+        });
+        if (projects.length > 0) {
+            loadNamespaces();
+        }
+    } catch (e) {
+        console.error('Failed to load projects:', e);
+    }
+}
+
+// Загрузка namespaces
+async function loadNamespaces() {
+    try {
+        const ns = await api.get('/kubernetes/namespaces');
+        const select = $('#namespace');
+        select.innerHTML = '<option value="default">default</option>';
+        ns.forEach(n => {
+            select.innerHTML += `<option value="${escapeHtml(n.name)}">${escapeHtml(n.name)}</option>`;
+        });
+    } catch (e) {
+        console.error('Failed to load namespaces:', e);
+    }
+}
+
+// Загрузка Runbooks
+async function loadRunbooks() {
+    const projectId = $('#project-id').value;
+    const kind = $('#kind').value;
+    const namespace = $('#namespace').value;
+    
+    if (!projectId) {
+        alert('Выберите проект');
+        return;
+    }
+
+    try {
+        const params = new URLSearchParams({ kind, namespace });
+        const runbooks = await api.get(`/kubernetes/runbooks?${params}`);
+        renderRunbooks(runbooks);
+    } catch (e) {
+        console.error('Failed to load runbooks:', e);
+        alert('Ошибка загрузки runbooks: ' + e.message);
+    }
+}
+
+// Рендер списка Runbooks
+function renderRunbooks(runbooks) {
+    const container = $('#runbooks-content');
+    const list = $('#runbooks-list');
+    
+    if (!runbooks || runbooks.length === 0) {
+        list.style.display = 'none';
+        container.innerHTML = '<div class="alert alert-info"><i class="fa-solid fa-info-circle"></i> Runbooks не найдены</div>';
+        return;
+    }
+    
+    list.style.display = 'block';
+    container.innerHTML = runbooks.map(rb => `
+        <div class="runbook-card runbook-${rb.category}">
+            <div style="display: flex; justify-content: space-between; align-items: start;">
+                <div>
+                    <h4 style="margin: 0 0 8px 0;">
+                        ${escapeHtml(rb.name)}
+                        <span class="category-badge cat-${rb.category}">${rb.category}</span>
+                    </h4>
+                    <p style="margin: 0; color: #666; font-size: 14px;">${escapeHtml(rb.description)}</p>
+                    <div style="margin-top: 8px; font-size: 13px; color: #888;">
+                        <i class="fa-solid fa-tags"></i> Ресурсы: ${rb.resource_kinds.join(', ')}
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="selectRunbook(${rb.id}, '${escapeJs(rb.name)}')">
+                    <i class="fa-solid fa-play"></i> Запустить
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Выбор Runbook
+function selectRunbook(id, name) {
+    selectedRunbook = id;
+    $('#runbooks-list').style.display = 'none';
+    $('#runbook-execute').style.display = 'block';
+    $('#runbook-details').innerHTML = `
+        <div class="alert alert-info">
+            <i class="fa-solid fa-circle-info"></i>
+            Выбран Runbook: <strong>${escapeHtml(name)}</strong>
+        </div>
+    `;
+}
+
+// Отмена выбора
+function cancelRunbook() {
+    selectedRunbook = null;
+    $('#runbook-execute').style.display = 'none';
+    $('#runbooks-list').style.display = 'block';
+}
+
+// Запуск Runbook
+async function executeRunbook() {
+    const projectId = $('#project-id').value;
+    const kind = $('#kind').value;
+    const namespace = $('#namespace').value;
+    const name = $('#resource-name').value.trim();
+    const message = $('#runbook-message').value.trim();
+    
+    if (!selectedRunbook) {
+        alert('Runbook не выбран');
+        return;
+    }
+    
+    if (!name) {
+        alert('Введите имя ресурса');
+        return;
+    }
+
+    const payload = {
+        template_id: selectedRunbook,
+        kubernetes_context: {
+            kind,
+            name,
+            namespace,
+            labels: {} // TODO: загрузить labels ресурса
+        },
+        task_params: {},
+        message: message || undefined
+    };
+
+    try {
+        const result = await api.post('/kubernetes/runbooks/execute', payload);
+        showTaskStatus(result.task_id);
+    } catch (e) {
+        console.error('Failed to execute runbook:', e);
+        alert('Ошибка запуска: ' + e.message);
+    }
+}
+
+// Показ статуса задачи
+function showTaskStatus(taskId) {
+    $('#runbook-execute').style.display = 'none';
+    $('#task-status').style.display = 'block';
+    
+    checkTaskStatus(taskId);
+    taskCheckInterval = setInterval(() => checkTaskStatus(taskId), 3000);
+}
+
+// Проверка статуса задачи
+async function checkTaskStatus(taskId) {
+    const projectId = $('#project-id').value;
+    
+    try {
+        const status = await api.get(`/kubernetes/runbooks/${taskId}/status`);
+        renderTaskStatus(status);
+        
+        if (status.status === 'success' || status.status === 'error' || status.status === 'stopped') {
+            clearInterval(taskCheckInterval);
+        }
+    } catch (e) {
+        console.error('Failed to check task status:', e);
+    }
+}
+
+// Рендер статуса задачи
+function renderTaskStatus(status) {
+    const container = $('#task-status-content');
+    const statusClass = {
+        'waiting': 'alert-info',
+        'running': 'alert-warning',
+        'success': 'alert-success',
+        'error': 'alert-error',
+        'stopped': 'alert-info',
+        'unknown': 'alert-info'
+    }[status.status] || 'alert-info';
+    
+    const icons = {
+        'waiting': 'fa-clock',
+        'running': 'fa-spinner fa-spin',
+        'success': 'fa-circle-check',
+        'error': 'fa-circle-xmark',
+        'stopped': 'fa-circle-stop',
+        'unknown': 'fa-circle-question'
+    }[status.status] || 'fa-circle-question';
+    
+    container.innerHTML = `
+        <div class="alert ${statusClass}">
+            <i class="fa-solid ${icons}"></i>
+            Статус: <strong>${status.status}</strong>
+            ${status.message ? `<br>${escapeHtml(status.message)}` : ''}
+        </div>
+        <div style="margin-top: 16px;">
+            <a href="${status.task_url}" class="btn btn-secondary" target="_blank">
+                <i class="fa-solid fa-up-right-from-square"></i> Открыть задачу
+            </a>
+        </div>
+    `;
+}
+
+// Инициализация
+loadProjects();
+</script>
+</body>
+</html>

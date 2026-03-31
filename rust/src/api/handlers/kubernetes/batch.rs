@@ -62,7 +62,11 @@ fn job_summary(job: &Job) -> JobSummary {
     let spec = job.spec.as_ref();
     let st = job.status.as_ref();
     JobSummary {
-        name: job.metadata.name.clone().unwrap_or_else(|| "unknown".to_string()),
+        name: job
+            .metadata
+            .name
+            .clone()
+            .unwrap_or_else(|| "unknown".to_string()),
         namespace: job
             .metadata
             .namespace
@@ -80,7 +84,11 @@ fn cron_summary(cj: &CronJob) -> CronJobSummary {
     let spec = cj.spec.as_ref();
     let st = cj.status.as_ref();
     CronJobSummary {
-        name: cj.metadata.name.clone().unwrap_or_else(|| "unknown".to_string()),
+        name: cj
+            .metadata
+            .name
+            .clone()
+            .unwrap_or_else(|| "unknown".to_string()),
         namespace: cj
             .metadata
             .namespace
@@ -88,7 +96,9 @@ fn cron_summary(cj: &CronJob) -> CronJobSummary {
             .unwrap_or_else(|| "default".to_string()),
         schedule: spec.map(|s| s.schedule.clone()).unwrap_or_default(),
         suspend: spec.and_then(|s| s.suspend).unwrap_or(false),
-        active: st.and_then(|s| s.active.as_ref().map(|a| a.len() as i32)).unwrap_or(0),
+        active: st
+            .and_then(|s| s.active.as_ref().map(|a| a.len() as i32))
+            .unwrap_or(0),
         last_schedule_time: st
             .and_then(|s| s.last_schedule_time.as_ref())
             .map(|t| t.0.to_rfc3339()),
@@ -97,7 +107,11 @@ fn cron_summary(cj: &CronJob) -> CronJobSummary {
 
 fn pc_summary(pc: &PriorityClass) -> PriorityClassSummary {
     PriorityClassSummary {
-        name: pc.metadata.name.clone().unwrap_or_else(|| "unknown".to_string()),
+        name: pc
+            .metadata
+            .name
+            .clone()
+            .unwrap_or_else(|| "unknown".to_string()),
         value: pc.value,
         global_default: pc.global_default.unwrap_or(false),
         description: pc.description.clone(),
@@ -107,14 +121,22 @@ fn pc_summary(pc: &PriorityClass) -> PriorityClassSummary {
 fn pdb_summary(pdb: &PodDisruptionBudget) -> PdbSummary {
     let spec = pdb.spec.as_ref();
     PdbSummary {
-        name: pdb.metadata.name.clone().unwrap_or_else(|| "unknown".to_string()),
+        name: pdb
+            .metadata
+            .name
+            .clone()
+            .unwrap_or_else(|| "unknown".to_string()),
         namespace: pdb
             .metadata
             .namespace
             .clone()
             .unwrap_or_else(|| "default".to_string()),
-        min_available: spec.and_then(|s| s.min_available.as_ref()).map(|v| format!("{v:?}")),
-        max_unavailable: spec.and_then(|s| s.max_unavailable.as_ref()).map(|v| format!("{v:?}")),
+        min_available: spec
+            .and_then(|s| s.min_available.as_ref())
+            .map(|v| format!("{v:?}")),
+        max_unavailable: spec
+            .and_then(|s| s.max_unavailable.as_ref())
+            .map(|v| format!("{v:?}")),
     }
 }
 
@@ -129,7 +151,10 @@ pub async fn list_jobs(
     if let Some(limit) = query.limit {
         lp = lp.limit(limit);
     }
-    let list = api.list(&lp).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let list = api
+        .list(&lp)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
     Ok(Json(list.items.iter().map(job_summary).collect()))
 }
 
@@ -139,7 +164,10 @@ pub async fn get_job(
 ) -> Result<Json<Job>> {
     let client = state.kubernetes_client()?;
     let api: Api<Job> = client.api(Some(&namespace));
-    let item = api.get(&name).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let item = api
+        .get(&name)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
     Ok(Json(item))
 }
 
@@ -166,7 +194,9 @@ pub async fn delete_job(
     api.delete(&name, &DeleteParams::default())
         .await
         .map_err(|e| Error::Kubernetes(e.to_string()))?;
-    Ok(Json(serde_json::json!({"status":"ok","message":format!("Job {}/{} deleted", namespace, name)})))
+    Ok(Json(
+        serde_json::json!({"status":"ok","message":format!("Job {}/{} deleted", namespace, name)}),
+    ))
 }
 
 pub async fn list_job_pods(
@@ -176,8 +206,13 @@ pub async fn list_job_pods(
     let client = state.kubernetes_client()?;
     let api: Api<Pod> = client.api(Some(&namespace));
     let lp = ListParams::default().labels(&format!("job-name={name}"));
-    let list = api.list(&lp).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
-    Ok(Json(list.items.iter().map(|p| serde_json::json!(p)).collect()))
+    let list = api
+        .list(&lp)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
+    Ok(Json(
+        list.items.iter().map(|p| serde_json::json!(p)).collect(),
+    ))
 }
 
 pub async fn list_cronjobs(
@@ -191,7 +226,10 @@ pub async fn list_cronjobs(
     if let Some(limit) = query.limit {
         lp = lp.limit(limit);
     }
-    let list = api.list(&lp).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let list = api
+        .list(&lp)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
     Ok(Json(list.items.iter().map(cron_summary).collect()))
 }
 
@@ -201,7 +239,10 @@ pub async fn get_cronjob(
 ) -> Result<Json<CronJob>> {
     let client = state.kubernetes_client()?;
     let api: Api<CronJob> = client.api(Some(&namespace));
-    let item = api.get(&name).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let item = api
+        .get(&name)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
     Ok(Json(item))
 }
 
@@ -225,7 +266,10 @@ pub async fn update_cronjob_suspend(
 ) -> Result<Json<CronJobSummary>> {
     let client = state.kubernetes_client()?;
     let api: Api<CronJob> = client.api(Some(&namespace));
-    let mut item = api.get(&name).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let mut item = api
+        .get(&name)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
     if let Some(spec) = item.spec.as_mut() {
         spec.suspend = Some(suspend);
     }
@@ -245,7 +289,9 @@ pub async fn delete_cronjob(
     api.delete(&name, &DeleteParams::default())
         .await
         .map_err(|e| Error::Kubernetes(e.to_string()))?;
-    Ok(Json(serde_json::json!({"status":"ok","message":format!("CronJob {}/{} deleted", namespace, name)})))
+    Ok(Json(
+        serde_json::json!({"status":"ok","message":format!("CronJob {}/{} deleted", namespace, name)}),
+    ))
 }
 
 pub async fn list_cronjob_history(
@@ -255,7 +301,10 @@ pub async fn list_cronjob_history(
     let client = state.kubernetes_client()?;
     let api: Api<Job> = client.api(Some(&namespace));
     let lp = ListParams::default().labels(&format!("cronjob.kubernetes.io/instance={name}"));
-    let list = api.list(&lp).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let list = api
+        .list(&lp)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
     Ok(Json(list.items.iter().map(job_summary).collect()))
 }
 
@@ -293,7 +342,9 @@ pub async fn delete_priority_class(
     api.delete(&name, &DeleteParams::default())
         .await
         .map_err(|e| Error::Kubernetes(e.to_string()))?;
-    Ok(Json(serde_json::json!({"status":"ok","message":format!("PriorityClass {} deleted", name)})))
+    Ok(Json(
+        serde_json::json!({"status":"ok","message":format!("PriorityClass {} deleted", name)}),
+    ))
 }
 
 pub async fn list_pdbs(
@@ -307,7 +358,10 @@ pub async fn list_pdbs(
     if let Some(limit) = query.limit {
         lp = lp.limit(limit);
     }
-    let list = api.list(&lp).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let list = api
+        .list(&lp)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
     Ok(Json(list.items.iter().map(pdb_summary).collect()))
 }
 
@@ -334,5 +388,7 @@ pub async fn delete_pdb(
     api.delete(&name, &DeleteParams::default())
         .await
         .map_err(|e| Error::Kubernetes(e.to_string()))?;
-    Ok(Json(serde_json::json!({"status":"ok","message":format!("PodDisruptionBudget {}/{} deleted", namespace, name)})))
+    Ok(Json(
+        serde_json::json!({"status":"ok","message":format!("PodDisruptionBudget {}/{} deleted", namespace, name)}),
+    ))
 }

@@ -2,13 +2,11 @@
 //!
 //! Утилиты для работы с ANSI escape sequences
 
-use regex::Regex;
 use once_cell::sync::Lazy;
+use regex::Regex;
 
 /// Regex для удаления ANSI escape sequences
-static ANSI_CODE_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"\x1b\[[0-9;]*[a-zA-Z]").unwrap()
-});
+static ANSI_CODE_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\x1b\[[0-9;]*[a-zA-Z]").unwrap());
 
 /// Удаляет ANSI escape sequences из строки
 ///

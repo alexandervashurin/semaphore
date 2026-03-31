@@ -45,9 +45,8 @@ impl PlaybookSyncService {
         let repository = store.get_repository(project_id, repository_id).await?;
 
         // 4. Клонируем репозиторий во временную директорию
-        let temp_dir = TempDir::new().map_err(|e| {
-            Error::Other(format!("Не удалось создать временную директорию: {}", e))
-        })?;
+        let temp_dir = TempDir::new()
+            .map_err(|e| Error::Other(format!("Не удалось создать временную директорию: {}", e)))?;
 
         info!(
             "Клонирование репозитория {} в {:?}",
@@ -82,10 +81,7 @@ impl PlaybookSyncService {
             )
             .await?;
 
-        info!(
-            "Playbook {} успешно синхронизирован из Git",
-            playbook.name
-        );
+        info!("Playbook {} успешно синхронизирован из Git", playbook.name);
 
         Ok(updated_playbook)
     }
@@ -119,9 +115,8 @@ impl PlaybookSyncService {
         let repository = store.get_repository(project_id, repository_id).await?;
 
         // 4. Клонируем репозиторий во временную директорию
-        let temp_dir = TempDir::new().map_err(|e| {
-            Error::Other(format!("Не удалось создать временную директорию: {}", e))
-        })?;
+        let temp_dir = TempDir::new()
+            .map_err(|e| Error::Other(format!("Не удалось создать временную директорию: {}", e)))?;
 
         clone_repository(&repository, temp_dir.path(), project_id, store).await?;
 
@@ -152,9 +147,17 @@ where
     // Загружаем данные ключа async перед входом в spawn_blocking
     let (ssh_key, ssh_passphrase, login, password) = if let Some(key_id) = repository.key_id {
         match store.get_access_key(project_id, key_id).await {
-            Ok(key) => (key.ssh_key, key.ssh_passphrase, key.login_password_login, key.login_password_password),
+            Ok(key) => (
+                key.ssh_key,
+                key.ssh_passphrase,
+                key.login_password_login,
+                key.login_password_password,
+            ),
             Err(e) => {
-                warn!("Failed to load access key {:?} for repository: {}", repository.key_id, e);
+                warn!(
+                    "Failed to load access key {:?} for repository: {}",
+                    repository.key_id, e
+                );
                 (None, None, None, None)
             }
         }
@@ -210,7 +213,9 @@ fn determine_playbook_path(repo_path: &Path, playbook_name: &str) -> PathBuf {
         repo_path.join(format!("{}.yml", playbook_name)),
         repo_path.join(format!("{}.yaml", playbook_name)),
         repo_path.join("playbooks").join(playbook_name),
-        repo_path.join("playbooks").join(format!("{}.yml", playbook_name)),
+        repo_path
+            .join("playbooks")
+            .join(format!("{}.yml", playbook_name)),
     ];
 
     for path in &possible_paths {

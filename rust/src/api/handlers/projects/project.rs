@@ -2,32 +2,32 @@
 //!
 //! Обработчики для проектов
 
+use crate::api::extractors::AuthUser;
+use crate::api::middleware::ErrorResponse;
+use crate::api::state::AppState;
+use crate::db::store::{ProjectStore, TaskManager, UserManager};
+use crate::models::{Project, ProjectUser, ProjectUserRole};
+use crate::services::backup::BackupFormat;
+use crate::Error;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
     Json,
 };
-use std::sync::Arc;
 use serde::Deserialize;
-use crate::api::state::AppState;
-use crate::api::extractors::AuthUser;
-use crate::models::{Project, ProjectUser, ProjectUserRole};
-use crate::Error;
-use crate::api::middleware::ErrorResponse;
-use crate::db::store::{ProjectStore, UserManager, TaskManager};
-use crate::services::backup::BackupFormat;
+use std::sync::Arc;
 
 /// Получает проекты пользователя
 pub async fn get_projects(
     State(state): State<Arc<AppState>>,
     _auth_user: AuthUser,
 ) -> std::result::Result<Json<Vec<Project>>, (StatusCode, Json<ErrorResponse>)> {
-    let projects = state.store.get_projects(None)
-        .await
-        .map_err(|e| (
+    let projects = state.store.get_projects(None).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     Ok(Json(projects))
 }
@@ -37,17 +37,19 @@ pub async fn get_project(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
 ) -> std::result::Result<Json<Project>, (StatusCode, Json<ErrorResponse>)> {
-    let project = state.store.get_project(project_id)
+    let project = state
+        .store
+        .get_project(project_id)
         .await
         .map_err(|e| match e {
             Error::NotFound(_) => (
                 StatusCode::NOT_FOUND,
-                Json(ErrorResponse::new("Project not found".to_string()))
+                Json(ErrorResponse::new("Project not found".to_string())),
             ),
             _ => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse::new(e.to_string()))
-            )
+                Json(ErrorResponse::new(e.to_string())),
+            ),
         })?;
 
     Ok(Json(project))
@@ -62,7 +64,9 @@ pub async fn add_project(
     if !admin && !state.config.non_admin_can_create_project() {
         return Err((
             StatusCode::UNAUTHORIZED,
-            Json(ErrorResponse::new("Not permitted to create projects".to_string())),
+            Json(ErrorResponse::new(
+                "Not permitted to create projects".to_string(),
+            )),
         ));
     }
 
@@ -77,21 +81,25 @@ pub async fn add_project(
         default_secret_storage_id: payload.default_secret_storage_id,
     };
 
-    let created = state
-        .store
-        .create_project(project)
-        .await
-        .map_err(|e| (
+    let created = state.store.create_project(project).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse::new(e.to_string())),
-        ))?;
+        )
+    })?;
 
     // Добавляем создателя в project_user с ролью owner (как в Go upstream)
     let project_user = ProjectUser::new(created.id, user_id, ProjectUserRole::Owner);
-    state.store.create_project_user(project_user).await.map_err(|e| (
-        StatusCode::INTERNAL_SERVER_ERROR,
-        Json(ErrorResponse::new(e.to_string())),
-    ))?;
+    state
+        .store
+        .create_project_user(project_user)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
     Ok((StatusCode::CREATED, Json(created)))
 }
@@ -136,17 +144,19 @@ pub async fn update_project(
     Json(payload): Json<UpdateProjectPayload>,
 ) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     // Получаем текущий проект
-    let mut project = state.store.get_project(project_id)
+    let mut project = state
+        .store
+        .get_project(project_id)
         .await
         .map_err(|e| match e {
             Error::NotFound(_) => (
                 StatusCode::NOT_FOUND,
-                Json(ErrorResponse::new("Project not found".to_string()))
+                Json(ErrorResponse::new("Project not found".to_string())),
             ),
             _ => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse::new(e.to_string()))
-            )
+                Json(ErrorResponse::new(e.to_string())),
+            ),
         })?;
 
     // Обновляем только указанные поля
@@ -169,12 +179,12 @@ pub async fn update_project(
         project.default_secret_storage_id = Some(default_secret_storage_id);
     }
 
-    state.store.update_project(project)
-        .await
-        .map_err(|e| (
+    state.store.update_project(project).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     Ok(StatusCode::OK)
 }
@@ -217,12 +227,12 @@ pub async fn delete_project(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
 ) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    state.store.delete_project(project_id)
-        .await
-        .map_err(|e| (
+    state.store.delete_project(project_id).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -233,12 +243,16 @@ pub async fn get_user_role(
     Path(project_id): Path<i32>,
     AuthUser { user_id, admin, .. }: AuthUser,
 ) -> std::result::Result<Json<String>, (StatusCode, Json<ErrorResponse>)> {
-    let users = state.store.get_project_users(project_id, crate::db::store::RetrieveQueryParams::default())
+    let users = state
+        .store
+        .get_project_users(project_id, crate::db::store::RetrieveQueryParams::default())
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
     if let Some(project_user) = users.into_iter().find(|u| u.user_id == user_id) {
         return Ok(Json(project_user.role.to_string()));
@@ -263,12 +277,16 @@ pub async fn leave_project(
     Path(project_id): Path<i32>,
     AuthUser { user_id, .. }: AuthUser,
 ) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    state.store.delete_project_user(project_id, user_id)
+    state
+        .store
+        .delete_project_user(project_id, user_id)
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -281,12 +299,12 @@ pub async fn get_project_stats(
 ) -> std::result::Result<Json<serde_json::Value>, (StatusCode, Json<ErrorResponse>)> {
     use crate::db::store::TaskManager;
 
-    let tasks = state.store.get_tasks(project_id, None)
-        .await
-        .map_err(|e| (
+    let tasks = state.store.get_tasks(project_id, None).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     Ok(Json(serde_json::json!({
         "project_id": project_id,

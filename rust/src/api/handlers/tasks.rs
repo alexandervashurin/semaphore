@@ -2,22 +2,25 @@
 //!
 //! Обработчики запросов для управления задачами
 
+use crate::api::middleware::ErrorResponse;
+use crate::api::state::AppState;
+use crate::db::store::{
+    EnvironmentManager, InventoryManager, ProjectStore, RepositoryManager, TaskManager,
+    TemplateManager,
+};
+use crate::db_lib::AccessKeyInstallerImpl;
+use crate::error::Error;
+use crate::models::{Environment, Inventory, Repository, Task, TaskOutput, TaskWithTpl};
+use crate::services::local_job::LocalJob;
+use crate::services::task_logger::{BasicLogger, LogListener, TaskLogger, TaskStatus};
 use axum::{
     extract::{Path, State},
     http::StatusCode,
     Json,
 };
-use std::sync::{Arc, Mutex};
-use serde::{Deserialize, Serialize};
 use chrono::Utc;
-use crate::api::state::AppState;
-use crate::models::{Task, TaskWithTpl, TaskOutput, Inventory, Repository, Environment};
-use crate::services::task_logger::{TaskStatus, BasicLogger, TaskLogger, LogListener};
-use crate::services::local_job::LocalJob;
-use crate::db_lib::AccessKeyInstallerImpl;
-use crate::error::Error;
-use crate::api::middleware::ErrorResponse;
-use crate::db::store::{TaskManager, TemplateManager, InventoryManager, RepositoryManager, EnvironmentManager, ProjectStore};
+use serde::{Deserialize, Serialize};
+use std::sync::{Arc, Mutex};
 
 /// Получить все активные задачи всех проектов
 ///
@@ -26,22 +29,26 @@ pub async fn get_all_tasks(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<Vec<TaskWithTpl>>, (StatusCode, Json<ErrorResponse>)> {
     // Получаем все проекты
-    let projects = state.store.get_projects(None)
-        .await
-        .map_err(|e| (
+    let projects = state.store.get_projects(None).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     // Собираем активные задачи из всех проектов
     let mut all_tasks = Vec::new();
     for project in projects {
-        let tasks = state.store.get_tasks(project.id, None::<i32>)
+        let tasks = state
+            .store
+            .get_tasks(project.id, None::<i32>)
             .await
-            .map_err(|e| (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse::new(e.to_string()))
-            ))?;
+            .map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(ErrorResponse::new(e.to_string())),
+                )
+            })?;
 
         // Фильтруем только активные задачи
         for task_with_tpl in tasks {
@@ -64,14 +71,15 @@ pub async fn get_tasks(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
 ) -> Result<Json<Vec<TaskWithTpl>>, (StatusCode, Json<ErrorResponse>)> {
-    let tasks: Result<Vec<TaskWithTpl>, Error> = state.store
-        .get_tasks(project_id, None::<i32>)
-        .await;
+    let tasks: Result<Vec<TaskWithTpl>, Error> =
+        state.store.get_tasks(project_id, None::<i32>).await;
 
-    let tasks = tasks.map_err(|e| (
-        StatusCode::INTERNAL_SERVER_ERROR,
-        Json(ErrorResponse::new(e.to_string()))
-    ))?;
+    let tasks = tasks.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     Ok(Json(tasks))
 }
@@ -111,14 +119,14 @@ pub async fn create_task(
         params: None,
     };
 
-    let created: Result<Task, Error> = state.store
-        .create_task(task)
-        .await;
+    let created: Result<Task, Error> = state.store.create_task(task).await;
 
-    let created = created.map_err(|e| (
-        StatusCode::INTERNAL_SERVER_ERROR,
-        Json(ErrorResponse::new(e.to_string()))
-    ))?;
+    let created = created.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     // Запускаем выполнение задачи в фоне
     let task_state = state.clone();
@@ -137,9 +145,7 @@ pub async fn get_task(
     State(state): State<Arc<AppState>>,
     Path((project_id, task_id)): Path<(i32, i32)>,
 ) -> Result<Json<Task>, (StatusCode, Json<ErrorResponse>)> {
-    let task: Result<Task, Error> = state.store
-        .get_task(project_id, task_id)
-        .await;
+    let task: Result<Task, Error> = state.store.get_task(project_id, task_id).await;
 
     let task = task.map_err(|e| match e {
         Error::NotFound(_) => (
@@ -162,14 +168,15 @@ pub async fn get_last_tasks(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
 ) -> Result<Json<Vec<TaskWithTpl>>, (StatusCode, Json<ErrorResponse>)> {
-    let tasks: Result<Vec<TaskWithTpl>, Error> = state.store
-        .get_tasks(project_id, None::<i32>)
-        .await;
+    let tasks: Result<Vec<TaskWithTpl>, Error> =
+        state.store.get_tasks(project_id, None::<i32>).await;
 
-    let tasks = tasks.map_err(|e| (
-        StatusCode::INTERNAL_SERVER_ERROR,
-        Json(ErrorResponse::new(e.to_string()))
-    ))?;
+    let tasks = tasks.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     let limited: Vec<TaskWithTpl> = tasks.into_iter().take(20).collect();
     Ok(Json(limited))
@@ -182,24 +189,30 @@ pub async fn delete_task(
     State(state): State<Arc<AppState>>,
     Path((project_id, task_id)): Path<(i32, i32)>,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    let result: Result<(), Error> = state.store
-        .delete_task(project_id, task_id)
-        .await;
+    let result: Result<(), Error> = state.store.delete_task(project_id, task_id).await;
 
-    result.map_err(|e| (
-        StatusCode::INTERNAL_SERVER_ERROR,
-        Json(ErrorResponse::new(e.to_string()))
-    ))?;
+    result.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     Ok(StatusCode::NO_CONTENT)
 }
 
 /// Выполняет задачу в фоновом потоке
 async fn execute_task_background(state: Arc<AppState>, task: Task) {
-    println!("[task_runner] Starting task {} (template {})", task.id, task.template_id);
+    println!(
+        "[task_runner] Starting task {} (template {})",
+        task.id, task.template_id
+    );
     let store = &state.store;
 
-    match store.update_task_status(task.project_id, task.id, TaskStatus::Running).await {
+    match store
+        .update_task_status(task.project_id, task.id, TaskStatus::Running)
+        .await
+    {
         Ok(()) => println!("[task_runner] task {} status → Running", task.id),
         Err(e) => println!("[task_runner] task {} failed to set Running: {e}", task.id),
     }
@@ -207,27 +220,41 @@ async fn execute_task_background(state: Arc<AppState>, task: Task) {
     let template = match store.get_template(task.project_id, task.template_id).await {
         Ok(t) => t,
         Err(e) => {
-            eprintln!("[task_runner] task {}: failed to get template: {e}", task.id);
-            let _ = store.update_task_status(task.project_id, task.id, TaskStatus::Error).await;
+            eprintln!(
+                "[task_runner] task {}: failed to get template: {e}",
+                task.id
+            );
+            let _ = store
+                .update_task_status(task.project_id, task.id, TaskStatus::Error)
+                .await;
             return;
         }
     };
 
     let inventory_id = task.inventory_id.or(template.inventory_id);
     let inventory = match inventory_id {
-        Some(id) => store.get_inventory(task.project_id, id).await.unwrap_or_default(),
+        Some(id) => store
+            .get_inventory(task.project_id, id)
+            .await
+            .unwrap_or_default(),
         None => Inventory::default(),
     };
 
     let repository_id = task.repository_id.or(template.repository_id);
     let repository = match repository_id {
-        Some(id) => store.get_repository(task.project_id, id).await.unwrap_or_default(),
+        Some(id) => store
+            .get_repository(task.project_id, id)
+            .await
+            .unwrap_or_default(),
         None => Repository::default(),
     };
 
     let environment_id = task.environment_id.or(template.environment_id);
     let environment = match environment_id {
-        Some(id) => store.get_environment(task.project_id, id).await.unwrap_or_default(),
+        Some(id) => store
+            .get_environment(task.project_id, id)
+            .await
+            .unwrap_or_default(),
         None => Environment::default(),
     };
 
@@ -238,12 +265,18 @@ async fn execute_task_background(state: Arc<AppState>, task: Task) {
         let _ = buf_clone.lock().map(|mut v| v.push(msg));
     }));
 
-    let work_dir = std::env::temp_dir().join(format!("semaphore_task_{}_{}", task.project_id, task.id));
+    let work_dir =
+        std::env::temp_dir().join(format!("semaphore_task_{}_{}", task.project_id, task.id));
     let tmp_dir = work_dir.join("tmp");
 
     if let Err(e) = tokio::fs::create_dir_all(&tmp_dir).await {
-        eprintln!("[task_runner] task {}: failed to create workdir: {e}", task.id);
-        let _ = store.update_task_status(task.project_id, task.id, TaskStatus::Error).await;
+        eprintln!(
+            "[task_runner] task {}: failed to create workdir: {e}",
+            task.id
+        );
+        let _ = store
+            .update_task_status(task.project_id, task.id, TaskStatus::Error)
+            .await;
         return;
     }
 
@@ -260,7 +293,8 @@ async fn execute_task_background(state: Arc<AppState>, task: Task) {
         tmp_dir,
     );
 
-    job.store = Some(Arc::new(state.store.clone()) as Arc<dyn crate::db::store::Store + Send + Sync>);
+    job.store =
+        Some(Arc::new(state.store.clone()) as Arc<dyn crate::db::store::Store + Send + Sync>);
     let result = job.run("runner", None, "default").await;
     job.cleanup();
 
@@ -279,12 +313,16 @@ async fn execute_task_background(state: Arc<AppState>, task: Task) {
 
     match result {
         Ok(()) => {
-            let _ = store.update_task_status(task.project_id, task.id, TaskStatus::Success).await;
+            let _ = store
+                .update_task_status(task.project_id, task.id, TaskStatus::Success)
+                .await;
             println!("[task_runner] task {} completed successfully", task.id);
         }
         Err(e) => {
             eprintln!("[task_runner] task {} failed: {e}", task.id);
-            let _ = store.update_task_status(task.project_id, task.id, TaskStatus::Error).await;
+            let _ = store
+                .update_task_status(task.project_id, task.id, TaskStatus::Error)
+                .await;
         }
     }
 }
@@ -299,17 +337,26 @@ pub async fn execute_task_background_with_template(
     repository: Repository,
     environment: Environment,
 ) -> TaskStatus {
-    use std::sync::Mutex;
-    use crate::services::task_logger::BasicLogger;
     use crate::db_lib::AccessKeyInstallerImpl;
     use crate::services::local_job::LocalJob;
-    
-    println!("[workflow_task] Starting task {} (template {})", task.id, task.template_id);
+    use crate::services::task_logger::BasicLogger;
+    use std::sync::Mutex;
+
+    println!(
+        "[workflow_task] Starting task {} (template {})",
+        task.id, task.template_id
+    );
     let store = &state.store;
 
-    match store.update_task_status(task.project_id, task.id, TaskStatus::Running).await {
+    match store
+        .update_task_status(task.project_id, task.id, TaskStatus::Running)
+        .await
+    {
         Ok(()) => println!("[workflow_task] task {} status → Running", task.id),
-        Err(e) => println!("[workflow_task] task {} failed to set Running: {e}", task.id),
+        Err(e) => println!(
+            "[workflow_task] task {} failed to set Running: {e}",
+            task.id
+        ),
     }
 
     let log_buffer: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
@@ -319,12 +366,18 @@ pub async fn execute_task_background_with_template(
         let _ = buf_clone.lock().map(|mut v| v.push(msg));
     }));
 
-    let work_dir = std::env::temp_dir().join(format!("semaphore_task_{}_{}", task.project_id, task.id));
+    let work_dir =
+        std::env::temp_dir().join(format!("semaphore_task_{}_{}", task.project_id, task.id));
     let tmp_dir = work_dir.join("tmp");
 
     if let Err(e) = tokio::fs::create_dir_all(&tmp_dir).await {
-        eprintln!("[workflow_task] task {}: failed to create workdir: {e}", task.id);
-        let _ = store.update_task_status(task.project_id, task.id, TaskStatus::Error).await;
+        eprintln!(
+            "[workflow_task] task {}: failed to create workdir: {e}",
+            task.id
+        );
+        let _ = store
+            .update_task_status(task.project_id, task.id, TaskStatus::Error)
+            .await;
         return TaskStatus::Error;
     }
 
@@ -341,7 +394,8 @@ pub async fn execute_task_background_with_template(
         tmp_dir,
     );
 
-    job.store = Some(Arc::new(state.store.clone()) as Arc<dyn crate::db::store::Store + Send + Sync>);
+    job.store =
+        Some(Arc::new(state.store.clone()) as Arc<dyn crate::db::store::Store + Send + Sync>);
     let result = job.run("runner", None, "default").await;
     job.cleanup();
 
@@ -361,13 +415,17 @@ pub async fn execute_task_background_with_template(
 
     match result {
         Ok(()) => {
-            let _ = store.update_task_status(task.project_id, task.id, TaskStatus::Success).await;
+            let _ = store
+                .update_task_status(task.project_id, task.id, TaskStatus::Success)
+                .await;
             println!("[workflow_task] task {} completed successfully", task.id);
             TaskStatus::Success
         }
         Err(e) => {
             eprintln!("[workflow_task] task {} failed: {e}", task.id);
-            let _ = store.update_task_status(task.project_id, task.id, TaskStatus::Error).await;
+            let _ = store
+                .update_task_status(task.project_id, task.id, TaskStatus::Error)
+                .await;
             TaskStatus::Error
         }
     }

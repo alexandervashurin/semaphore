@@ -4,13 +4,13 @@
 //! и структурированные логи (совместимо с Jaeger/Zipkin/ELK без внешних крейтов).
 
 use axum::{
-    http::{Request, HeaderValue},
+    body::Body,
+    http::{HeaderValue, Request},
     middleware::Next,
     response::Response,
-    body::Body,
 };
-use uuid::Uuid;
 use tracing::Span;
+use uuid::Uuid;
 
 /// Middleware: генерирует Trace-ID и добавляет в response + span
 pub async fn trace_id_middleware(mut req: Request<Body>, next: Next) -> Response {

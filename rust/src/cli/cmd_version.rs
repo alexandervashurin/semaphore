@@ -2,8 +2,8 @@
 //!
 //! Команда для вывода версии
 
-use clap::Args;
 use crate::cli::CliResult;
+use clap::Args;
 
 /// Команда version
 #[derive(Debug, Args)]

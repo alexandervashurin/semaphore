@@ -8,12 +8,15 @@
 //! - Telegram
 //! - Custom
 
-use reqwest::{Client, header::{HeaderMap, CONTENT_TYPE, AUTHORIZATION}};
+use crate::error::{Error, Result};
+use chrono::{DateTime, Utc};
+use reqwest::{
+    header::{HeaderMap, AUTHORIZATION, CONTENT_TYPE},
+    Client,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use chrono::{DateTime, Utc};
-use tracing::{info, warn, error};
-use crate::error::{Error, Result};
+use tracing::{error, info, warn};
 
 /// Тип webhook
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -123,28 +126,41 @@ impl WebhookService {
             match self.send_request(config, &payload).await {
                 Ok(result) => {
                     if result.success {
-                        info!("Webhook {} успешно отправлен (попытка {}/{})", 
-                              config.name, attempts, config.retry_count + 1);
+                        info!(
+                            "Webhook {} успешно отправлен (попытка {}/{})",
+                            config.name,
+                            attempts,
+                            config.retry_count + 1
+                        );
                         return Ok(result);
                     }
                     last_error = result.error.clone();
                 }
                 Err(e) => {
                     last_error = Some(e.to_string());
-                    warn!("Webhook {} ошибка отправки (попытка {}/{}): {}", 
-                          config.name, attempts, config.retry_count + 1, e);
+                    warn!(
+                        "Webhook {} ошибка отправки (попытка {}/{}): {}",
+                        config.name,
+                        attempts,
+                        config.retry_count + 1,
+                        e
+                    );
                 }
             }
 
             if attempts <= config.retry_count as u32 {
                 // Экспоненциальная задержка между попытками
-                tokio::time::sleep(
-                    std::time::Duration::from_millis(100 * 2u64.pow(attempts - 1))
-                ).await;
+                tokio::time::sleep(std::time::Duration::from_millis(
+                    100 * 2u64.pow(attempts - 1),
+                ))
+                .await;
             }
         }
 
-        error!("Webhook {} не отправлен после {} попыток", config.name, attempts);
+        error!(
+            "Webhook {} не отправлен после {} попыток",
+            config.name, attempts
+        );
         Ok(WebhookResult {
             success: false,
             status_code: None,
@@ -191,8 +207,16 @@ impl WebhookService {
             _ => "📢",
         };
 
-        let title = event.data.get("title").and_then(|v| v.as_str()).unwrap_or("Уведомление");
-        let text = event.data.get("text").and_then(|v| v.as_str()).unwrap_or("");
+        let title = event
+            .data
+            .get("title")
+            .and_then(|v| v.as_str())
+            .unwrap_or("Уведомление");
+        let text = event
+            .data
+            .get("text")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
 
         json!({
             "attachments": [{
@@ -227,8 +251,16 @@ impl WebhookService {
             _ => "439FE0",
         };
 
-        let title = event.data.get("title").and_then(|v| v.as_str()).unwrap_or("Уведомление");
-        let text = event.data.get("text").and_then(|v| v.as_str()).unwrap_or("");
+        let title = event
+            .data
+            .get("title")
+            .and_then(|v| v.as_str())
+            .unwrap_or("Уведомление");
+        let text = event
+            .data
+            .get("text")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
 
         json!({
             "@type": "MessageCard",
@@ -262,8 +294,16 @@ impl WebhookService {
             _ => 0x439FE0,
         };
 
-        let title = event.data.get("title").and_then(|v| v.as_str()).unwrap_or("Уведомление");
-        let text = event.data.get("text").and_then(|v| v.as_str()).unwrap_or("");
+        let title = event
+            .data
+            .get("title")
+            .and_then(|v| v.as_str())
+            .unwrap_or("Уведомление");
+        let text = event
+            .data
+            .get("text")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
 
         json!({
             "embeds": [{
@@ -299,8 +339,16 @@ impl WebhookService {
             _ => "📢",
         };
 
-        let title = event.data.get("title").and_then(|v| v.as_str()).unwrap_or("Уведомление");
-        let text = event.data.get("text").and_then(|v| v.as_str()).unwrap_or("");
+        let title = event
+            .data
+            .get("title")
+            .and_then(|v| v.as_str())
+            .unwrap_or("Уведомление");
+        let text = event
+            .data
+            .get("text")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
 
         let message = format!(
             "<b>{} {}</b>\n\n{}\n\n<i>Время: {}</i>",
@@ -326,7 +374,8 @@ impl WebhookService {
             if let Some(obj) = custom_headers.as_object() {
                 for (key, value) in obj {
                     if let Some(v) = value.as_str() {
-                        if let Ok(header_name) = key.as_str().parse::<reqwest::header::HeaderName>() {
+                        if let Ok(header_name) = key.as_str().parse::<reqwest::header::HeaderName>()
+                        {
                             if let Ok(header_value) = v.parse::<reqwest::header::HeaderValue>() {
                                 headers.insert(header_name, header_value);
                             }
@@ -338,19 +387,15 @@ impl WebhookService {
 
         // Добавляем секрет в заголовок (если указан)
         if let Some(secret) = &config.secret {
-            headers.insert(
-                AUTHORIZATION,
-                format!("Bearer {}", secret).parse().unwrap()
-            );
+            headers.insert(AUTHORIZATION, format!("Bearer {}", secret).parse().unwrap());
         }
 
-        let request = self.client.post(&config.url)
-            .headers(headers)
-            .json(payload);
+        let request = self.client.post(&config.url).headers(headers).json(payload);
 
-        let response = request.send().await.map_err(|e| {
-            Error::Other(format!("Ошибка отправки webhook: {}", e))
-        })?;
+        let response = request
+            .send()
+            .await
+            .map_err(|e| Error::Other(format!("Ошибка отправки webhook: {}", e)))?;
 
         let status_code = response.status().as_u16();
         let is_success = response.status().is_success();
@@ -547,7 +592,14 @@ mod tests {
             timeout_secs: 30,
         };
 
-        let event = create_task_event("task.completed", 1, "Test Task", None, None, Some("completed"));
+        let event = create_task_event(
+            "task.completed",
+            1,
+            "Test Task",
+            None,
+            None,
+            Some("completed"),
+        );
         let result = service.send_webhook(&config, &event).await.unwrap();
 
         assert!(!result.success);
@@ -584,7 +636,7 @@ mod tests {
         };
 
         let payload = service.build_payload(&config, &event);
-        
+
         assert_eq!(payload["event"], "test.event");
         assert!(payload["data"].is_object());
         assert!(payload["metadata"].is_object());
@@ -606,7 +658,14 @@ mod tests {
             timeout_secs: 30,
         };
 
-        let event = create_task_event("task.completed", 1, "Test Task", None, None, Some("completed"));
+        let event = create_task_event(
+            "task.completed",
+            1,
+            "Test Task",
+            None,
+            None,
+            Some("completed"),
+        );
         let payload = service.build_payload(&config, &event);
 
         assert!(payload["attachments"].is_array());
@@ -614,7 +673,14 @@ mod tests {
 
     #[test]
     fn test_create_task_event() {
-        let event = create_task_event("task.started", 42, "My Task", None, Some(10), Some("running"));
+        let event = create_task_event(
+            "task.started",
+            42,
+            "My Task",
+            None,
+            Some(10),
+            Some("running"),
+        );
 
         assert_eq!(event.event_type, "task.started");
         assert_eq!(event.metadata.user_id, Some(10));
@@ -628,6 +694,9 @@ mod tests {
         assert_eq!(event.event_type, "project.created");
         assert_eq!(event.metadata.project_id, Some(5));
         assert_eq!(event.metadata.user_id, Some(20));
-        assert!(event.data["project_name"].as_str().unwrap().contains("My Project"));
+        assert!(event.data["project_name"]
+            .as_str()
+            .unwrap()
+            .contains("My Project"));
     }
 }

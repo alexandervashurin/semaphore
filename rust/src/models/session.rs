@@ -2,7 +2,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::{FromRow, Type, decode::Decode, encode::Encode, database::Database};
+use sqlx::{database::Database, decode::Decode, encode::Encode, FromRow, Type};
 
 /// Метод верификации сессии
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -45,12 +45,16 @@ where
     DB: 'q,
     String: Encode<'q, DB>,
 {
-    fn encode_by_ref(&self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
+    fn encode_by_ref(
+        &self,
+        buf: &mut <DB as Database>::ArgumentBuffer<'q>,
+    ) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
         let s: String = match self {
             SessionVerificationMethod::None => "none",
             SessionVerificationMethod::Totp => "totp",
             SessionVerificationMethod::EmailOtp => "email_otp",
-        }.to_string();
+        }
+        .to_string();
         <String as Encode<'q, DB>>::encode(s, buf)
     }
 }

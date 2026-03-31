@@ -2,19 +2,15 @@
 //!
 //! Обработчики для опций
 
-use axum::{
-    extract::State,
-    http::StatusCode,
-    Json,
-};
-use std::sync::Arc;
-use serde::{Deserialize, Serialize};
-use crate::api::state::AppState;
-use crate::models::OptionItem;
-use crate::error::{Error, Result};
-use crate::api::middleware::ErrorResponse;
 use crate::api::extractors::AuthUser;
+use crate::api::middleware::ErrorResponse;
+use crate::api::state::AppState;
 use crate::db::store::OptionsManager;
+use crate::error::{Error, Result};
+use crate::models::OptionItem;
+use axum::{extract::State, http::StatusCode, Json};
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 /// Получает все опции
 pub async fn get_options(
@@ -25,19 +21,20 @@ pub async fn get_options(
     if !auth_user.admin {
         return Err((
             StatusCode::FORBIDDEN,
-            Json(ErrorResponse::new("User must be admin".to_string()))
+            Json(ErrorResponse::new("User must be admin".to_string())),
         ));
     }
 
-    let options = state.store.get_options()
-        .await
-        .map_err(|e| (
+    let options = state.store.get_options().await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     // Конвертируем HashMap в Vec
-    let options_vec: Vec<OptionItem> = options.into_iter()
+    let options_vec: Vec<OptionItem> = options
+        .into_iter()
         .map(|(key, value)| OptionItem::new(0, key, value))
         .collect();
 
@@ -54,16 +51,20 @@ pub async fn set_option(
     if !auth_user.admin {
         return Err((
             StatusCode::FORBIDDEN,
-            Json(ErrorResponse::new("User must be admin".to_string()))
+            Json(ErrorResponse::new("User must be admin".to_string())),
         ));
     }
 
-    state.store.set_option(&payload.key, &payload.value)
+    state
+        .store
+        .set_option(&payload.key, &payload.value)
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
     Ok(Json(payload))
 }

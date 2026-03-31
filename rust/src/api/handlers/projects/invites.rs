@@ -2,19 +2,19 @@
 //!
 //! Обработчики для приглашений в проект
 
+use crate::api::extractors::AuthUser;
+use crate::api::middleware::ErrorResponse;
+use crate::api::state::AppState;
+use crate::db::store::{ProjectInviteManager, ProjectStore, RetrieveQueryParams};
+use crate::error::{Error, Result};
+use crate::models::ProjectInvite;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
     Json,
 };
-use std::sync::Arc;
 use serde::{Deserialize, Serialize};
-use crate::api::state::AppState;
-use crate::api::extractors::AuthUser;
-use crate::models::ProjectInvite;
-use crate::error::{Error, Result};
-use crate::api::middleware::ErrorResponse;
-use crate::db::store::{RetrieveQueryParams, ProjectInviteManager, ProjectStore};
+use std::sync::Arc;
 
 /// Payload для создания приглашения
 #[derive(Debug, Serialize, Deserialize)]
@@ -36,16 +36,24 @@ pub struct InviteResponse {
 /// Получает приглашения проекта
 pub async fn get_invites(
     State(state): State<Arc<AppState>>,
-    AuthUser { user_id: _user_id, .. }: AuthUser,
+    AuthUser {
+        user_id: _user_id, ..
+    }: AuthUser,
     Path(project_id): Path<i32>,
-) -> std::result::Result<Json<Vec<crate::models::ProjectInviteWithUser>>, (StatusCode, Json<ErrorResponse>)> {
-    let invites = state.store
+) -> std::result::Result<
+    Json<Vec<crate::models::ProjectInviteWithUser>>,
+    (StatusCode, Json<ErrorResponse>),
+> {
+    let invites = state
+        .store
         .get_project_invites(project_id, RetrieveQueryParams::default())
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
     Ok(Json(invites))
 }
@@ -71,21 +79,27 @@ pub async fn create_invite(
         inviter_user_id: user_id,
     };
 
-    let created = state.store
+    let created = state
+        .store
         .create_project_invite(invite)
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
-    Ok((StatusCode::CREATED, Json(InviteResponse {
-        id: created.id,
-        project_id: created.project_id,
-        user_id: created.user_id,
-        role: created.role,
-        token: created.token,
-    })))
+    Ok((
+        StatusCode::CREATED,
+        Json(InviteResponse {
+            id: created.id,
+            project_id: created.project_id,
+            user_id: created.user_id,
+            role: created.role,
+            token: created.token,
+        }),
+    ))
 }
 
 /// Удаляет приглашение
@@ -94,13 +108,16 @@ pub async fn delete_invite(
     AuthUser { .. }: AuthUser,
     Path((project_id, invite_id)): Path<(i32, i32)>,
 ) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    state.store
+    state
+        .store
         .delete_project_invite(project_id, invite_id)
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -111,25 +128,30 @@ pub async fn accept_invite(
     AuthUser { user_id, .. }: AuthUser,
     Path(token): Path<String>,
 ) -> std::result::Result<Json<serde_json::Value>, (StatusCode, Json<ErrorResponse>)> {
-    let invite = state.store
+    let invite = state
+        .store
         .get_project_invite_by_token(&token)
         .await
         .map_err(|e| match e {
             Error::NotFound(_) => (
                 StatusCode::NOT_FOUND,
-                Json(ErrorResponse::new("Invite not found or expired".to_string()))
+                Json(ErrorResponse::new(
+                    "Invite not found or expired".to_string(),
+                )),
             ),
             _ => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse::new(e.to_string()))
-            )
+                Json(ErrorResponse::new(e.to_string())),
+            ),
         })?;
 
     // Проверяем что текущий пользователь - приглашённый
     if invite.user_id != user_id {
         return Err((
             StatusCode::FORBIDDEN,
-            Json(ErrorResponse::new("Invite belongs to another user".to_string()))
+            Json(ErrorResponse::new(
+                "Invite belongs to another user".to_string(),
+            )),
         ));
     }
 
@@ -147,12 +169,15 @@ pub async fn accept_invite(
     if let Err(e) = state.store.create_project_user(project_user).await {
         return Err((
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
+            Json(ErrorResponse::new(e.to_string())),
         ));
     }
 
     // Удаляем приглашение после принятия
-    let _ = state.store.delete_project_invite(invite.project_id, invite.id).await;
+    let _ = state
+        .store
+        .delete_project_invite(invite.project_id, invite.id)
+        .await;
 
     Ok(Json(serde_json::json!({
         "project_id": invite.project_id,

@@ -2,8 +2,8 @@
 //!
 //! Аналог services/tasks/local_job_environment.go из Go версии
 
-use std::collections::HashMap;
 use serde_json::{Map, Value};
+use std::collections::HashMap;
 
 use crate::error::Result;
 use crate::models::template::TemplateType;
@@ -11,7 +11,11 @@ use crate::services::local_job::LocalJob;
 
 impl LocalJob {
     /// Получает детали задачи в виде карты
-    pub fn get_task_details(&self, username: &str, incoming_version: Option<&str>) -> HashMap<String, Value> {
+    pub fn get_task_details(
+        &self,
+        username: &str,
+        incoming_version: Option<&str>,
+    ) -> HashMap<String, Value> {
         let mut details = HashMap::new();
 
         details.insert("id".to_string(), Value::Number(self.task.id.into()));
@@ -33,16 +37,34 @@ impl LocalJob {
             details.insert("commit_message".to_string(), Value::String(msg.clone()));
         }
 
-        details.insert("inventory_name".to_string(), Value::String(self.inventory.name.clone()));
-        details.insert("inventory_id".to_string(), Value::Number(self.inventory.id.into()));
-        details.insert("repository_name".to_string(), Value::String(self.repository.name.clone()));
-        details.insert("repository_id".to_string(), Value::Number(self.repository.id.into()));
+        details.insert(
+            "inventory_name".to_string(),
+            Value::String(self.inventory.name.clone()),
+        );
+        details.insert(
+            "inventory_id".to_string(),
+            Value::Number(self.inventory.id.into()),
+        );
+        details.insert(
+            "repository_name".to_string(),
+            Value::String(self.repository.name.clone()),
+        );
+        details.insert(
+            "repository_id".to_string(),
+            Value::Number(self.repository.id.into()),
+        );
 
         if self.template.r#type != TemplateType::Task {
-            details.insert("type".to_string(), Value::String(self.template.r#type.to_string()));
+            details.insert(
+                "type".to_string(),
+                Value::String(self.template.r#type.to_string()),
+            );
 
             if let Some(ver) = incoming_version {
-                details.insert("incoming_version".to_string(), Value::String(ver.to_string()));
+                details.insert(
+                    "incoming_version".to_string(),
+                    Value::String(ver.to_string()),
+                );
             }
 
             if self.template.r#type == TemplateType::Build {
@@ -66,7 +88,10 @@ impl LocalJob {
 
         let task_details = self.get_task_details(username, incoming_version);
         let mut semaphore_vars = Map::new();
-        semaphore_vars.insert("task_details".to_string(), serde_json::to_value(task_details)?);
+        semaphore_vars.insert(
+            "task_details".to_string(),
+            serde_json::to_value(task_details)?,
+        );
 
         extra_vars.insert("semaphore_vars".to_string(), Value::Object(semaphore_vars));
 
@@ -93,7 +118,10 @@ impl LocalJob {
 
         let task_details = self.get_task_details(username, incoming_version);
         let mut semaphore_vars = Map::new();
-        semaphore_vars.insert("task_details".to_string(), serde_json::to_value(task_details)?);
+        semaphore_vars.insert(
+            "task_details".to_string(),
+            serde_json::to_value(task_details)?,
+        );
         extra_vars.insert("semaphore_vars".to_string(), Value::Object(semaphore_vars));
 
         Ok(serde_json::to_string(&extra_vars)?)
@@ -114,7 +142,9 @@ impl LocalJob {
         // Секретные ENV переменные
         // secrets - это JSON строка со списком EnvironmentSecretValue
         if let Some(ref secrets_json) = self.environment.secrets {
-            if let Ok(secrets) = serde_json::from_str::<Vec<crate::models::EnvironmentSecretValue>>(secrets_json) {
+            if let Ok(secrets) =
+                serde_json::from_str::<Vec<crate::models::EnvironmentSecretValue>>(secrets_json)
+            {
                 for secret in secrets {
                     if secret.secret_type == crate::models::EnvironmentSecretType::Env {
                         res.push(format!("{}={}", secret.name, secret.secret));
@@ -150,7 +180,9 @@ impl LocalJob {
                     extra_shell_vars.push(format!(
                         "{}={}",
                         env_var_name,
-                        crate::utils::shell::shell_quote(&crate::utils::shell::shell_strip_unsafe(&detail_str))
+                        crate::utils::shell::shell_quote(&crate::utils::shell::shell_strip_unsafe(
+                            &detail_str
+                        ))
                     ));
                 }
             }
@@ -163,11 +195,11 @@ impl LocalJob {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Utc;
-    use std::sync::Arc;
-    use crate::services::task_logger::BasicLogger;
     use crate::db_lib::AccessKeyInstallerImpl;
+    use crate::services::task_logger::BasicLogger;
+    use chrono::Utc;
     use std::path::PathBuf;
+    use std::sync::Arc;
 
     fn create_test_job() -> LocalJob {
         let logger = Arc::new(BasicLogger::new());
@@ -233,9 +265,18 @@ mod tests {
         let details = job.get_task_details("testuser", None);
 
         assert_eq!(details.get("id").unwrap().as_i64().unwrap(), 1);
-        assert_eq!(details.get("username").unwrap().as_str().unwrap(), "testuser");
-        assert_eq!(details.get("inventory_name").unwrap().as_str().unwrap(), "Test Inventory");
-        assert_eq!(details.get("repository_name").unwrap().as_str().unwrap(), "Test Repo");
+        assert_eq!(
+            details.get("username").unwrap().as_str().unwrap(),
+            "testuser"
+        );
+        assert_eq!(
+            details.get("inventory_name").unwrap().as_str().unwrap(),
+            "Test Inventory"
+        );
+        assert_eq!(
+            details.get("repository_name").unwrap().as_str().unwrap(),
+            "Test Repo"
+        );
     }
 
     #[test]

@@ -2,18 +2,18 @@
 //!
 //! Обработчики для пользователей в проектах
 
+use crate::api::middleware::ErrorResponse;
+use crate::api::state::AppState;
+use crate::db::store::{ProjectStore, RetrieveQueryParams, UserManager};
+use crate::error::{Error, Result};
+use crate::models::{ProjectUser, ProjectUserRole, User};
 use axum::{
     extract::{Path, State},
     http::StatusCode,
     Json,
 };
-use std::sync::Arc;
 use serde::{Deserialize, Serialize};
-use crate::api::state::AppState;
-use crate::models::{User, ProjectUser, ProjectUserRole};
-use crate::error::{Error, Result};
-use crate::api::middleware::ErrorResponse;
-use crate::db::store::{RetrieveQueryParams, UserManager, ProjectStore};
+use std::sync::Arc;
 
 /// Проектный пользователь
 #[derive(Debug, Serialize, Deserialize)]
@@ -29,22 +29,26 @@ pub async fn get_users(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
 ) -> std::result::Result<Json<Vec<ProjectUserResponse>>, (StatusCode, Json<ErrorResponse>)> {
-    let users = state.store
+    let users = state
+        .store
         .get_project_users(project_id, RetrieveQueryParams::default())
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
-    let result: Vec<ProjectUserResponse> = users.into_iter().map(|user| {
-        ProjectUserResponse {
+    let result: Vec<ProjectUserResponse> = users
+        .into_iter()
+        .map(|user| ProjectUserResponse {
             id: user.id,
             username: user.username,
             name: user.name,
             role: user.role.to_string(),
-        }
-    }).collect();
+        })
+        .collect();
 
     Ok(Json(result))
 }
@@ -54,7 +58,8 @@ pub async fn add_user(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
     Json(payload): Json<AddUserPayload>,
-) -> std::result::Result<(StatusCode, Json<ProjectUserResponse>), (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<(StatusCode, Json<ProjectUserResponse>), (StatusCode, Json<ErrorResponse>)>
+{
     let project_user = ProjectUser {
         id: 0,
         project_id,

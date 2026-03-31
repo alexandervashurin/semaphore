@@ -42,7 +42,12 @@ pub async fn get_snapshot_api_status(
     let lp = ListParams::default().limit(1);
     let vs_api: Api<DynamicObject> = Api::all_with(
         client.raw().clone(),
-        &ar("snapshot.storage.k8s.io", "v1", "VolumeSnapshot", "volumesnapshots"),
+        &ar(
+            "snapshot.storage.k8s.io",
+            "v1",
+            "VolumeSnapshot",
+            "volumesnapshots",
+        ),
     );
     let vsc_api: Api<DynamicObject> = Api::all_with(
         client.raw().clone(),
@@ -67,7 +72,12 @@ pub async fn list_volume_snapshots(
     Query(query): Query<SnapshotListQuery>,
 ) -> Result<Json<Vec<serde_json::Value>>> {
     let client = state.kubernetes_client()?;
-    let api_res = ar("snapshot.storage.k8s.io", "v1", "VolumeSnapshot", "volumesnapshots");
+    let api_res = ar(
+        "snapshot.storage.k8s.io",
+        "v1",
+        "VolumeSnapshot",
+        "volumesnapshots",
+    );
     let api: Api<DynamicObject> = if let Some(ns) = query.namespace.as_deref() {
         Api::namespaced_with(client.raw().clone(), ns, &api_res)
     } else {
@@ -81,7 +91,9 @@ pub async fn list_volume_snapshots(
         .list(&lp)
         .await
         .map_err(|e| Error::Kubernetes(format!("VolumeSnapshot API not available: {e}")))?;
-    Ok(Json(items.items.iter().map(|x| serde_json::json!(x)).collect()))
+    Ok(Json(
+        items.items.iter().map(|x| serde_json::json!(x)).collect(),
+    ))
 }
 
 pub async fn list_volume_snapshot_classes(
@@ -104,5 +116,7 @@ pub async fn list_volume_snapshot_classes(
         .list(&lp)
         .await
         .map_err(|e| Error::Kubernetes(format!("VolumeSnapshotClass API not available: {e}")))?;
-    Ok(Json(items.items.iter().map(|x| serde_json::json!(x)).collect()))
+    Ok(Json(
+        items.items.iter().map(|x| serde_json::json!(x)).collect(),
+    ))
 }

@@ -3,15 +3,15 @@
 //! Хуки позволяют плагинам реагировать на события системы
 //! и модифицировать поведение приложения.
 
-use std::sync::Arc;
+use crate::error::{Error, Result};
+use crate::plugins::base::{HookEvent, HookResult, PluginContext};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
+use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{info, warn, error};
-use crate::error::{Error, Result};
-use crate::plugins::base::{HookEvent, HookResult, PluginContext};
+use tracing::{error, info, warn};
 
 /// Типы хуков
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -30,7 +30,7 @@ pub enum HookType {
     TaskAfterStop,
     TaskBeforeDelete,
     TaskAfterDelete,
-    
+
     // Проекты
     ProjectBeforeCreate,
     ProjectAfterCreate,
@@ -38,7 +38,7 @@ pub enum HookType {
     ProjectAfterUpdate,
     ProjectBeforeDelete,
     ProjectAfterDelete,
-    
+
     // Пользователи
     UserBeforeLogin,
     UserAfterLogin,
@@ -46,21 +46,21 @@ pub enum HookType {
     UserAfterLogout,
     UserBeforeCreate,
     UserAfterCreate,
-    
+
     // Шаблоны
     TemplateBeforeCreate,
     TemplateAfterCreate,
     TemplateBeforeRun,
     TemplateAfterRun,
-    
+
     // Уведомления
     NotificationBeforeSend,
     NotificationAfterSend,
-    
+
     // Webhook
     WebhookBeforeSend,
     WebhookAfterSend,
-    
+
     // Кастомные хуки
     Custom(String),
 }
@@ -110,12 +110,12 @@ impl std::fmt::Display for HookType {
 pub trait HookHandler: Send + Sync {
     /// Имя обработчика
     fn name(&self) -> &str;
-    
+
     /// Приоритет выполнения (меньше = раньше)
     fn priority(&self) -> i32 {
         0
     }
-    
+
     /// Выполнение обработчика
     async fn handle(&self, event: HookEvent) -> Result<HookResult>;
 }
@@ -132,26 +132,31 @@ impl HookRegistry {
             handlers: RwLock::new(Vec::new()),
         }
     }
-    
+
     /// Регистрирует обработчик
     pub async fn register(&self, handler: Arc<dyn HookHandler>) {
         let mut handlers = self.handlers.write().await;
         handlers.push(handler);
         handlers.sort_by_key(|h| h.priority());
     }
-    
+
     /// Вызывает хук
-    pub async fn trigger(&self, hook_type: HookType, data: JsonValue, context: PluginContext) -> Result<Vec<HookResult>> {
+    pub async fn trigger(
+        &self,
+        hook_type: HookType,
+        data: JsonValue,
+        context: PluginContext,
+    ) -> Result<Vec<HookResult>> {
         let handlers = self.handlers.read().await;
         let mut results = Vec::new();
-        
+
         let event = HookEvent {
             name: hook_type.to_string(),
             timestamp: Utc::now(),
             data,
             context,
         };
-        
+
         for handler in handlers.iter() {
             match handler.handle(event.clone()).await {
                 Ok(result) => {
@@ -170,10 +175,10 @@ impl HookRegistry {
                 }
             }
         }
-        
+
         Ok(results)
     }
-    
+
     /// Вызывает хук и останавливается при первой ошибке
     pub async fn trigger_until_failure(
         &self,
@@ -182,14 +187,14 @@ impl HookRegistry {
         context: PluginContext,
     ) -> Result<Option<HookResult>> {
         let handlers = self.handlers.read().await;
-        
+
         let event = HookEvent {
             name: hook_type.to_string(),
             timestamp: Utc::now(),
             data,
             context,
         };
-        
+
         for handler in handlers.iter() {
             match handler.handle(event.clone()).await {
                 Ok(result) => {
@@ -206,10 +211,10 @@ impl HookRegistry {
                 }
             }
         }
-        
+
         Ok(None)
     }
-    
+
     /// Получает количество зарегистрированных обработчиков
     pub async fn count(&self) -> usize {
         self.handlers.read().await.len()
@@ -235,7 +240,7 @@ pub fn create_task_event(
         "task_id": task_id,
         "task_name": task_name,
     });
-    
+
     if let Some(extra) = extra_data {
         if let Some(obj) = extra.as_object() {
             if let Some(data_obj) = data.as_object_mut() {
@@ -243,7 +248,7 @@ pub fn create_task_event(
             }
         }
     }
-    
+
     let event = HookEvent {
         name: hook_type.to_string(),
         timestamp: Utc::now(),
@@ -256,7 +261,7 @@ pub fn create_task_event(
             metadata: HashMap::new(),
         },
     };
-    
+
     (event, data)
 }
 
@@ -272,7 +277,7 @@ pub fn create_project_event(
         "project_id": project_id,
         "project_name": project_name,
     });
-    
+
     if let Some(extra) = extra_data {
         if let Some(obj) = extra.as_object() {
             if let Some(data_obj) = data.as_object_mut() {
@@ -280,7 +285,7 @@ pub fn create_project_event(
             }
         }
     }
-    
+
     let event = HookEvent {
         name: hook_type.to_string(),
         timestamp: Utc::now(),
@@ -293,7 +298,7 @@ pub fn create_project_event(
             metadata: HashMap::new(),
         },
     };
-    
+
     (event, data)
 }
 
@@ -318,8 +323,14 @@ mod tests {
         assert_eq!(HookType::TaskAfterCreate.to_string(), "task.after_create");
         assert_eq!(HookType::TaskBeforeStart.to_string(), "task.before_start");
         assert_eq!(HookType::TaskAfterStart.to_string(), "task.after_start");
-        assert_eq!(HookType::TaskBeforeComplete.to_string(), "task.before_complete");
-        assert_eq!(HookType::TaskAfterComplete.to_string(), "task.after_complete");
+        assert_eq!(
+            HookType::TaskBeforeComplete.to_string(),
+            "task.before_complete"
+        );
+        assert_eq!(
+            HookType::TaskAfterComplete.to_string(),
+            "task.after_complete"
+        );
         assert_eq!(HookType::TaskBeforeFail.to_string(), "task.before_fail");
         assert_eq!(HookType::TaskAfterFail.to_string(), "task.after_fail");
         assert_eq!(HookType::TaskBeforeStop.to_string(), "task.before_stop");
@@ -330,12 +341,30 @@ mod tests {
 
     #[test]
     fn test_hook_type_display_project() {
-        assert_eq!(HookType::ProjectBeforeCreate.to_string(), "project.before_create");
-        assert_eq!(HookType::ProjectAfterCreate.to_string(), "project.after_create");
-        assert_eq!(HookType::ProjectBeforeUpdate.to_string(), "project.before_update");
-        assert_eq!(HookType::ProjectAfterUpdate.to_string(), "project.after_update");
-        assert_eq!(HookType::ProjectBeforeDelete.to_string(), "project.before_delete");
-        assert_eq!(HookType::ProjectAfterDelete.to_string(), "project.after_delete");
+        assert_eq!(
+            HookType::ProjectBeforeCreate.to_string(),
+            "project.before_create"
+        );
+        assert_eq!(
+            HookType::ProjectAfterCreate.to_string(),
+            "project.after_create"
+        );
+        assert_eq!(
+            HookType::ProjectBeforeUpdate.to_string(),
+            "project.before_update"
+        );
+        assert_eq!(
+            HookType::ProjectAfterUpdate.to_string(),
+            "project.after_update"
+        );
+        assert_eq!(
+            HookType::ProjectBeforeDelete.to_string(),
+            "project.before_delete"
+        );
+        assert_eq!(
+            HookType::ProjectAfterDelete.to_string(),
+            "project.after_delete"
+        );
     }
 
     #[test]
@@ -350,17 +379,35 @@ mod tests {
 
     #[test]
     fn test_hook_type_display_template() {
-        assert_eq!(HookType::TemplateBeforeCreate.to_string(), "template.before_create");
-        assert_eq!(HookType::TemplateAfterCreate.to_string(), "template.after_create");
-        assert_eq!(HookType::TemplateBeforeRun.to_string(), "template.before_run");
+        assert_eq!(
+            HookType::TemplateBeforeCreate.to_string(),
+            "template.before_create"
+        );
+        assert_eq!(
+            HookType::TemplateAfterCreate.to_string(),
+            "template.after_create"
+        );
+        assert_eq!(
+            HookType::TemplateBeforeRun.to_string(),
+            "template.before_run"
+        );
         assert_eq!(HookType::TemplateAfterRun.to_string(), "template.after_run");
     }
 
     #[test]
     fn test_hook_type_display_notification() {
-        assert_eq!(HookType::NotificationBeforeSend.to_string(), "notification.before_send");
-        assert_eq!(HookType::NotificationAfterSend.to_string(), "notification.after_send");
-        assert_eq!(HookType::WebhookBeforeSend.to_string(), "webhook.before_send");
+        assert_eq!(
+            HookType::NotificationBeforeSend.to_string(),
+            "notification.before_send"
+        );
+        assert_eq!(
+            HookType::NotificationAfterSend.to_string(),
+            "notification.after_send"
+        );
+        assert_eq!(
+            HookType::WebhookBeforeSend.to_string(),
+            "webhook.before_send"
+        );
         assert_eq!(HookType::WebhookAfterSend.to_string(), "webhook.after_send");
     }
 
@@ -390,11 +437,11 @@ mod tests {
         assert_eq!(HookType::TaskBeforeCreate, HookType::TaskBeforeCreate);
         assert_eq!(HookType::TaskAfterCreate, HookType::TaskAfterCreate);
         assert_ne!(HookType::TaskBeforeCreate, HookType::TaskAfterCreate);
-        
+
         let custom1 = HookType::Custom("test".to_string());
         let custom2 = HookType::Custom("test".to_string());
         let custom3 = HookType::Custom("other".to_string());
-        
+
         assert_eq!(custom1, custom2);
         assert_ne!(custom1, custom3);
     }
@@ -412,20 +459,20 @@ mod tests {
     #[tokio::test]
     async fn test_hook_registry_register_handler() {
         let registry = HookRegistry::new();
-        
+
         // Создаём простой тестовый обработчик
         struct TestHandler;
-        
+
         #[async_trait::async_trait]
         impl HookHandler for TestHandler {
             fn name(&self) -> &str {
                 "test_handler"
             }
-            
+
             fn priority(&self) -> i32 {
                 0
             }
-            
+
             async fn handle(&self, _event: HookEvent) -> Result<HookResult> {
                 Ok(HookResult {
                     success: true,
@@ -434,7 +481,7 @@ mod tests {
                 })
             }
         }
-        
+
         registry.register(Arc::new(TestHandler)).await;
         assert_eq!(registry.count().await, 1);
     }
@@ -442,19 +489,19 @@ mod tests {
     #[tokio::test]
     async fn test_hook_registry_trigger() {
         let registry = HookRegistry::new();
-        
+
         struct TestHandler;
-        
+
         #[async_trait::async_trait]
         impl HookHandler for TestHandler {
             fn name(&self) -> &str {
                 "test_handler"
             }
-            
+
             fn priority(&self) -> i32 {
                 0
             }
-            
+
             async fn handle(&self, _event: HookEvent) -> Result<HookResult> {
                 Ok(HookResult {
                     success: true,
@@ -463,9 +510,9 @@ mod tests {
                 })
             }
         }
-        
+
         registry.register(Arc::new(TestHandler)).await;
-        
+
         let context = PluginContext {
             plugin_id: "test".to_string(),
             project_id: None,
@@ -473,13 +520,11 @@ mod tests {
             task_id: None,
             metadata: HashMap::new(),
         };
-        
-        let results = registry.trigger(
-            HookType::TaskBeforeCreate,
-            json!({"task_id": 1}),
-            context,
-        ).await;
-        
+
+        let results = registry
+            .trigger(HookType::TaskBeforeCreate, json!({"task_id": 1}), context)
+            .await;
+
         assert!(results.is_ok());
         let results = results.unwrap();
         assert_eq!(results.len(), 1);
@@ -489,19 +534,19 @@ mod tests {
     #[tokio::test]
     async fn test_hook_registry_trigger_until_failure() {
         let registry = HookRegistry::new();
-        
+
         struct SuccessHandler;
-        
+
         #[async_trait::async_trait]
         impl HookHandler for SuccessHandler {
             fn name(&self) -> &str {
                 "success_handler"
             }
-            
+
             fn priority(&self) -> i32 {
                 0
             }
-            
+
             async fn handle(&self, _event: HookEvent) -> Result<HookResult> {
                 Ok(HookResult {
                     success: true,
@@ -510,9 +555,9 @@ mod tests {
                 })
             }
         }
-        
+
         registry.register(Arc::new(SuccessHandler)).await;
-        
+
         let context = PluginContext {
             plugin_id: "test".to_string(),
             project_id: None,
@@ -520,13 +565,11 @@ mod tests {
             task_id: None,
             metadata: HashMap::new(),
         };
-        
-        let result = registry.trigger_until_failure(
-            HookType::TaskAfterCreate,
-            json!({}),
-            context,
-        ).await;
-        
+
+        let result = registry
+            .trigger_until_failure(HookType::TaskAfterCreate, json!({}), context)
+            .await;
+
         assert!(result.is_ok());
         // Все обработчики успешны, поэтому результат None
         assert!(result.unwrap().is_none());
@@ -535,20 +578,20 @@ mod tests {
     #[tokio::test]
     async fn test_hook_registry_multiple_handlers() {
         let registry = HookRegistry::new();
-        
+
         struct Handler1;
         struct Handler2;
-        
+
         #[async_trait::async_trait]
         impl HookHandler for Handler1 {
             fn name(&self) -> &str {
                 "handler1"
             }
-            
+
             fn priority(&self) -> i32 {
                 1
             }
-            
+
             async fn handle(&self, _event: HookEvent) -> Result<HookResult> {
                 Ok(HookResult {
                     success: true,
@@ -557,17 +600,17 @@ mod tests {
                 })
             }
         }
-        
+
         #[async_trait::async_trait]
         impl HookHandler for Handler2 {
             fn name(&self) -> &str {
                 "handler2"
             }
-            
+
             fn priority(&self) -> i32 {
                 2
             }
-            
+
             async fn handle(&self, _event: HookEvent) -> Result<HookResult> {
                 Ok(HookResult {
                     success: true,
@@ -576,10 +619,10 @@ mod tests {
                 })
             }
         }
-        
+
         registry.register(Arc::new(Handler1)).await;
         registry.register(Arc::new(Handler2)).await;
-        
+
         assert_eq!(registry.count().await, 2);
     }
 
@@ -597,12 +640,12 @@ mod tests {
             Some(42),
             None,
         );
-        
+
         assert_eq!(event.name, "task.before_create");
         assert_eq!(event.context.task_id, Some(100));
         assert_eq!(event.context.project_id, Some(1));
         assert_eq!(event.context.user_id, Some(42));
-        
+
         let data_obj = data.as_object().unwrap();
         assert_eq!(data_obj.get("task_id").unwrap(), &100);
         assert_eq!(data_obj.get("task_name").unwrap(), &"Test Task");
@@ -611,7 +654,7 @@ mod tests {
     #[test]
     fn test_create_task_event_with_extra_data() {
         let extra_data = json!({"extra_field": "extra_value", "number": 42});
-        
+
         let (event, data) = create_task_event(
             HookType::TaskAfterStart,
             200,
@@ -620,7 +663,7 @@ mod tests {
             Some(10),
             Some(extra_data.clone()),
         );
-        
+
         let data_obj = data.as_object().unwrap();
         assert_eq!(data_obj.get("task_id").unwrap(), &200);
         assert_eq!(data_obj.get("task_name").unwrap(), &"Task with Extra");
@@ -641,12 +684,12 @@ mod tests {
             Some(1),
             None,
         );
-        
+
         assert_eq!(event.name, "project.after_create");
         assert_eq!(event.context.project_id, Some(5));
         assert_eq!(event.context.user_id, Some(1));
         assert_eq!(event.context.task_id, None);
-        
+
         let data_obj = data.as_object().unwrap();
         assert_eq!(data_obj.get("project_id").unwrap(), &5);
         assert_eq!(data_obj.get("project_name").unwrap(), &"Test Project");
@@ -655,7 +698,7 @@ mod tests {
     #[test]
     fn test_create_project_event_with_extra_data() {
         let extra_data = json!({"description": "Test description", "active": true});
-        
+
         let (event, data) = create_project_event(
             HookType::ProjectBeforeUpdate,
             10,
@@ -663,7 +706,7 @@ mod tests {
             Some(5),
             Some(extra_data.clone()),
         );
-        
+
         let data_obj = data.as_object().unwrap();
         assert_eq!(data_obj.get("project_id").unwrap(), &10);
         assert_eq!(data_obj.get("project_name").unwrap(), &"Updated Project");

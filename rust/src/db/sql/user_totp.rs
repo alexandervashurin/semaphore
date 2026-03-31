@@ -78,8 +78,7 @@ impl SqlDb {
     /// Проверяет recovery code
     pub async fn verify_recovery_code(&self, user_id: i32, code: &str) -> Result<bool> {
         if let Some(totp) = self.get_user_totp(user_id).await? {
-            let is_valid = bcrypt::verify(code, &totp.recovery_hash)
-                .unwrap_or(false);
+            let is_valid = bcrypt::verify(code, &totp.recovery_hash).unwrap_or(false);
             Ok(is_valid)
         } else {
             Ok(false)
@@ -93,8 +92,8 @@ mod tests {
 
     #[test]
     fn test_totp_verification() {
-        use crate::services::totp;
         use crate::models::User;
+        use crate::services::totp;
         use chrono::Utc;
 
         // Создаём тестового пользователя

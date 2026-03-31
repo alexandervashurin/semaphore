@@ -2,18 +2,18 @@
 //!
 //! Аналог services/export/Exporter.go из Go версии
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use serde::{Serialize, Deserialize};
 
-use crate::models::*;
 use crate::db::store::Store;
+use crate::models::*;
 
 /// Цепочка экспортеров
 pub struct ExporterChain {
     /// Маппер ключей
     pub mapper: TypeKeyMapper,
-    
+
     /// Экспортеры по типам
     pub exporters: HashMap<String, Box<dyn TypeExporter>>,
 }
@@ -36,28 +36,28 @@ pub struct ValueMap<T> {
 pub trait TypeExporter {
     /// Загружает данные
     fn load(&mut self, store: &dyn Store, exporter: &dyn DataExporter) -> Result<(), String>;
-    
+
     /// Восстанавливает данные
     fn restore(&mut self, store: &dyn Store, exporter: &dyn DataExporter) -> Result<(), String>;
-    
+
     /// Получает загруженные ключи
     fn get_loaded_keys(&self, scope: &str) -> Result<Vec<String>, String>;
-    
+
     /// Получает загруженные значения
     fn get_loaded_values(&self, scope: &str) -> Result<Vec<Box<dyn std::any::Any>>, String>;
-    
+
     /// Получает имя
     fn get_name(&self) -> &str;
-    
+
     /// Получает зависимости экспорта
     fn export_depends_on(&self) -> Vec<&str>;
-    
+
     /// Получает зависимости импорта
     fn import_depends_on(&self) -> Vec<&str>;
-    
+
     /// Получает ошибки
     fn get_errors(&self) -> Vec<String>;
-    
+
     /// Очищает
     fn clear(&mut self);
 }
@@ -66,10 +66,10 @@ pub trait TypeExporter {
 pub trait DataExporter {
     /// Получает экспортер типа
     fn get_type_exporter(&mut self, name: &str) -> Option<&mut (dyn TypeExporter + '_)>;
-    
+
     /// Получает загруженные ключи
     fn get_loaded_keys(&self, name: &str, scope: &str) -> Result<Vec<String>, String>;
-    
+
     /// Получает загруженные ключи int
     fn get_loaded_keys_int(&self, name: &str, scope: &str) -> Result<Vec<i32>, String>;
 }
@@ -82,7 +82,7 @@ impl DataExporter for ExporterChain {
             None
         }
     }
-    
+
     fn get_loaded_keys(&self, name: &str, scope: &str) -> Result<Vec<String>, String> {
         if let Some(exporter) = self.exporters.get(name) {
             exporter.get_loaded_keys(scope)
@@ -90,10 +90,13 @@ impl DataExporter for ExporterChain {
             Err(format!("Exporter {} not found", name))
         }
     }
-    
+
     fn get_loaded_keys_int(&self, name: &str, scope: &str) -> Result<Vec<i32>, String> {
         let keys = self.get_loaded_keys(name, scope)?;
-        Ok(keys.into_iter().filter_map(|k| k.parse::<i32>().ok()).collect())
+        Ok(keys
+            .into_iter()
+            .filter_map(|k| k.parse::<i32>().ok())
+            .collect())
     }
 }
 
@@ -105,17 +108,17 @@ impl ExporterChain {
             exporters: HashMap::new(),
         }
     }
-    
+
     /// Добавляет экспортер
     pub fn add_exporter(&mut self, name: &str, exporter: Box<dyn TypeExporter>) {
         self.exporters.insert(name.to_string(), exporter);
     }
-    
+
     /// Получает экспортер
     pub fn get_type_exporter(&mut self, name: &str) -> Option<&mut Box<dyn TypeExporter>> {
         self.exporters.get_mut(name)
     }
-    
+
     /// Получает загруженные ключи
     pub fn get_loaded_keys(&self, name: &str, scope: &str) -> Result<Vec<String>, String> {
         if let Some(exporter) = self.exporters.get(name) {
@@ -124,7 +127,7 @@ impl ExporterChain {
             Err(format!("Exporter {} not found", name))
         }
     }
-    
+
     /// Загружает данные
     pub fn load(&mut self, store: &dyn Store) -> Result<(), String> {
         let sorted_keys = Self::get_sorted_keys(&self.exporters, |e| e.export_depends_on())?;
@@ -135,7 +138,8 @@ impl ExporterChain {
                 Some(e) => e,
                 None => continue,
             };
-            exporter.load(store, self)
+            exporter
+                .load(store, self)
                 .map_err(|e| format!("Failed to load {}: {}", key, e))?;
             self.exporters.insert(key, exporter);
         }
@@ -150,13 +154,14 @@ impl ExporterChain {
                 Some(e) => e,
                 None => continue,
             };
-            exporter.restore(store, self)
+            exporter
+                .restore(store, self)
                 .map_err(|e| format!("Failed to restore {}: {}", key, e))?;
             self.exporters.insert(key, exporter);
         }
         Ok(())
     }
-    
+
     /// Сортирует ключи по зависимостям
     pub fn get_sorted_keys(
         exporters: &HashMap<String, Box<dyn TypeExporter>>,
@@ -165,7 +170,7 @@ impl ExporterChain {
         let mut sorted = Vec::new();
         let mut visited = std::collections::HashSet::new();
         let mut visiting = std::collections::HashSet::new();
-        
+
         fn visit(
             name: &str,
             exporters: &HashMap<String, Box<dyn TypeExporter>>,
@@ -177,30 +182,37 @@ impl ExporterChain {
             if visiting.contains(name) {
                 return Err(format!("Circular dependency detected: {}", name));
             }
-            
+
             if visited.contains(name) {
                 return Ok(());
             }
-            
+
             visiting.insert(name.to_string());
-            
+
             if let Some(exporter) = exporters.get(name) {
                 for dep in depends_on(exporter.as_ref()) {
                     visit(dep, exporters, sorted, visited, visiting, depends_on)?;
                 }
             }
-            
+
             visiting.remove(name);
             visited.insert(name.to_string());
             sorted.push(name.to_string());
-            
+
             Ok(())
         }
-        
+
         for name in exporters.keys() {
-            visit(name, exporters, &mut sorted, &mut visited, &mut visiting, depends_on)?;
+            visit(
+                name,
+                exporters,
+                &mut sorted,
+                &mut visited,
+                &mut visiting,
+                depends_on,
+            )?;
         }
-        
+
         Ok(sorted)
     }
 }
@@ -218,27 +230,38 @@ impl TypeKeyMapper {
             key_maps: HashMap::new(),
         }
     }
-    
+
     /// Получает новый ключ
-    pub fn get_new_key(&mut self, name: &str, scope: &str, old_key: &str) -> Result<String, String> {
+    pub fn get_new_key(
+        &mut self,
+        name: &str,
+        scope: &str,
+        old_key: &str,
+    ) -> Result<String, String> {
         let key = format!("{}.{}", name, scope);
-        
+
         if let Some(map) = self.key_maps.get(&key) {
             if let Some(new_key) = map.get(old_key) {
                 return Ok(new_key.clone());
             }
         }
-        
+
         Ok(old_key.to_string())
     }
-    
+
     /// Мапит ключи
-    pub fn map_keys(&mut self, name: &str, scope: &str, old_key: &str, new_key: &str) -> Result<(), String> {
+    pub fn map_keys(
+        &mut self,
+        name: &str,
+        scope: &str,
+        old_key: &str,
+        new_key: &str,
+    ) -> Result<(), String> {
         let key = format!("{}.{}", name, scope);
-        
+
         let map = self.key_maps.entry(key).or_default();
         map.insert(old_key.to_string(), new_key.to_string());
-        
+
         Ok(())
     }
 }
@@ -257,7 +280,7 @@ impl<T> ValueMap<T> {
             errors: Vec::new(),
         }
     }
-    
+
     /// Получает загруженные ключи
     pub fn get_loaded_keys(&self, scope: &str) -> Result<Vec<String>, String> {
         if let Some(values) = self.values.get(scope) {
@@ -266,16 +289,19 @@ impl<T> ValueMap<T> {
             Ok(Vec::new())
         }
     }
-    
+
     /// Добавляет значения
     pub fn append_values(&mut self, values: Vec<T>, scope: &str) -> Result<(), String> {
         let entry = self.values.entry(scope.to_string()).or_default();
         entry.extend(values);
         Ok(())
     }
-    
+
     /// Возвращает все значения для scope (клонирует)
-    pub fn get_values(&self, scope: &str) -> Vec<T> where T: Clone {
+    pub fn get_values(&self, scope: &str) -> Vec<T>
+    where
+        T: Clone,
+    {
         self.values.get(scope).cloned().unwrap_or_default()
     }
 
@@ -338,40 +364,40 @@ impl<T: Clone + Send + 'static> TypeExporter for ValueMap<T> {
 /// Инициализирует экспортеры проекта
 pub fn init_project_exporters(mapper: &mut TypeKeyMapper, skip_task_output: bool) -> ExporterChain {
     let mut chain = ExporterChain::new();
-    
+
     // Добавляем экспортеры в порядке зависимостей
     // User должен быть первым
     chain.add_exporter("User", Box::new(ValueMap::<User>::new()));
-    
+
     // Затем AccessKey
     chain.add_exporter("AccessKey", Box::new(ValueMap::<AccessKey>::new()));
-    
+
     // Environment
     chain.add_exporter("Environment", Box::new(ValueMap::<Environment>::new()));
-    
+
     // Repository
     chain.add_exporter("Repository", Box::new(ValueMap::<Repository>::new()));
-    
+
     // Inventory
     chain.add_exporter("Inventory", Box::new(ValueMap::<Inventory>::new()));
-    
+
     // Template
     chain.add_exporter("Template", Box::new(ValueMap::<Template>::new()));
-    
+
     // View
     chain.add_exporter("View", Box::new(ValueMap::<View>::new()));
-    
+
     // Schedule
     chain.add_exporter("Schedule", Box::new(ValueMap::<Schedule>::new()));
-    
+
     // Integration
     chain.add_exporter("Integration", Box::new(ValueMap::<Integration>::new()));
-    
+
     // Task (опционально)
     if !skip_task_output {
         chain.add_exporter("Task", Box::new(ValueMap::<Task>::new()));
     }
-    
+
     chain
 }
 
@@ -388,9 +414,11 @@ mod tests {
     #[test]
     fn test_type_key_mapper() {
         let mut mapper = TypeKeyMapper::new();
-        
-        mapper.map_keys("test", "scope1", "old_key", "new_key").unwrap();
-        
+
+        mapper
+            .map_keys("test", "scope1", "old_key", "new_key")
+            .unwrap();
+
         let new_key = mapper.get_new_key("test", "scope1", "old_key").unwrap();
         assert_eq!(new_key, "new_key");
     }
@@ -398,9 +426,10 @@ mod tests {
     #[test]
     fn test_value_map() {
         let mut map: ValueMap<String> = ValueMap::new();
-        
-        map.append_values(vec!["a".to_string(), "b".to_string()], "scope1").unwrap();
-        
+
+        map.append_values(vec!["a".to_string(), "b".to_string()], "scope1")
+            .unwrap();
+
         let keys = map.get_loaded_keys("scope1").unwrap();
         assert_eq!(keys.len(), 2);
     }
@@ -409,7 +438,7 @@ mod tests {
     fn test_init_project_exporters() {
         let mut mapper = TypeKeyMapper::new();
         let chain = init_project_exporters(&mut mapper, false);
-        
+
         assert!(chain.exporters.contains_key("User"));
         assert!(chain.exporters.contains_key("AccessKey"));
         assert!(chain.exporters.contains_key("Task"));

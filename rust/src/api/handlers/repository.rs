@@ -2,18 +2,18 @@
 //!
 //! Обработчики запросов для управления репозиториями
 
+use crate::api::middleware::ErrorResponse;
+use crate::api::state::AppState;
+use crate::db::store::RepositoryManager;
+use crate::error::Error;
+use crate::models::Repository;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
     Json,
 };
-use std::sync::Arc;
 use serde::{Deserialize, Serialize};
-use crate::api::state::AppState;
-use crate::models::Repository;
-use crate::error::Error;
-use crate::api::middleware::ErrorResponse;
-use crate::db::store::RepositoryManager;
+use std::sync::Arc;
 
 /// Получить список репозиториев проекта
 ///
@@ -22,12 +22,16 @@ pub async fn get_repositories(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
 ) -> Result<Json<Vec<Repository>>, (StatusCode, Json<ErrorResponse>)> {
-    let repositories = state.store.get_repositories(project_id)
+    let repositories = state
+        .store
+        .get_repositories(project_id)
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
     Ok(Json(repositories))
 }
@@ -40,18 +44,18 @@ pub async fn create_repository(
     Path(project_id): Path<i32>,
     Json(payload): Json<RepositoryCreatePayload>,
 ) -> Result<(StatusCode, Json<Repository>), (StatusCode, Json<ErrorResponse>)> {
-    let repository = Repository::new(
-        project_id,
-        payload.name,
-        payload.git_url,
-    );
+    let repository = Repository::new(project_id, payload.name, payload.git_url);
 
-    let created = state.store.create_repository(repository)
+    let created = state
+        .store
+        .create_repository(repository)
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
     Ok((StatusCode::CREATED, Json(created)))
 }
@@ -63,7 +67,9 @@ pub async fn get_repository(
     State(state): State<Arc<AppState>>,
     Path((project_id, repository_id)): Path<(i32, i32)>,
 ) -> Result<Json<Repository>, (StatusCode, Json<ErrorResponse>)> {
-    let repository = state.store.get_repository(project_id, repository_id)
+    let repository = state
+        .store
+        .get_repository(project_id, repository_id)
         .await
         .map_err(|e| match e {
             Error::NotFound(_) => (
@@ -87,7 +93,9 @@ pub async fn update_repository(
     Path((project_id, repository_id)): Path<(i32, i32)>,
     Json(payload): Json<RepositoryUpdatePayload>,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    let mut repository = state.store.get_repository(project_id, repository_id)
+    let mut repository = state
+        .store
+        .get_repository(project_id, repository_id)
         .await
         .map_err(|e| match e {
             Error::NotFound(_) => (
@@ -107,12 +115,16 @@ pub async fn update_repository(
         repository.git_url = git_url;
     }
 
-    state.store.update_repository(repository)
+    state
+        .store
+        .update_repository(repository)
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
     Ok(StatusCode::OK)
 }
@@ -124,12 +136,16 @@ pub async fn delete_repository(
     State(state): State<Arc<AppState>>,
     Path((project_id, repository_id)): Path<(i32, i32)>,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    state.store.delete_repository(project_id, repository_id)
+    state
+        .store
+        .delete_repository(project_id, repository_id)
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -181,7 +197,10 @@ mod tests {
         }"#;
         let payload: RepositoryUpdatePayload = serde_json::from_str(json).unwrap();
         assert_eq!(payload.name, Some("Updated Repo".to_string()));
-        assert_eq!(payload.git_url, Some("https://github.com/user/new-repo.git".to_string()));
+        assert_eq!(
+            payload.git_url,
+            Some("https://github.com/user/new-repo.git".to_string())
+        );
     }
 
     #[test]

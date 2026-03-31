@@ -9,9 +9,9 @@ use axum::{
 use serde_json::json;
 use std::sync::Arc;
 
-use crate::api::state::AppState;
 use crate::api::extractors::AuthUser;
-use crate::db::store::{OrganizationManager};
+use crate::api::state::AppState;
+use crate::db::store::OrganizationManager;
 use crate::models::{OrganizationCreate, OrganizationUpdate, OrganizationUserCreate};
 
 /// GET /api/organizations — список всех организаций (только admin)
@@ -20,11 +20,19 @@ pub async fn get_organizations(
     auth: AuthUser,
 ) -> impl IntoResponse {
     if !auth.admin {
-        return (StatusCode::FORBIDDEN, Json(json!({"error": "Admin required"}))).into_response();
+        return (
+            StatusCode::FORBIDDEN,
+            Json(json!({"error": "Admin required"})),
+        )
+            .into_response();
     }
     match state.store.get_organizations().await {
         Ok(orgs) => Json(orgs).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }
 
@@ -35,11 +43,19 @@ pub async fn create_organization(
     Json(payload): Json<OrganizationCreate>,
 ) -> impl IntoResponse {
     if !auth.admin {
-        return (StatusCode::FORBIDDEN, Json(json!({"error": "Admin required"}))).into_response();
+        return (
+            StatusCode::FORBIDDEN,
+            Json(json!({"error": "Admin required"})),
+        )
+            .into_response();
     }
     match state.store.create_organization(payload).await {
         Ok(org) => (StatusCode::CREATED, Json(org)).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }
 
@@ -53,7 +69,13 @@ pub async fn get_organization(
     if !auth.admin {
         match state.store.get_user_organizations(auth.user_id).await {
             Ok(orgs) if orgs.iter().any(|o| o.id == id) => {}
-            _ => return (StatusCode::FORBIDDEN, Json(json!({"error": "Access denied"}))).into_response(),
+            _ => {
+                return (
+                    StatusCode::FORBIDDEN,
+                    Json(json!({"error": "Access denied"})),
+                )
+                    .into_response()
+            }
         }
     }
     match state.store.get_organization(id).await {
@@ -70,11 +92,19 @@ pub async fn update_organization(
     Json(payload): Json<OrganizationUpdate>,
 ) -> impl IntoResponse {
     if !auth.admin {
-        return (StatusCode::FORBIDDEN, Json(json!({"error": "Admin required"}))).into_response();
+        return (
+            StatusCode::FORBIDDEN,
+            Json(json!({"error": "Admin required"})),
+        )
+            .into_response();
     }
     match state.store.update_organization(id, payload).await {
         Ok(org) => Json(org).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }
 
@@ -85,11 +115,19 @@ pub async fn delete_organization(
     Path(id): Path<i32>,
 ) -> impl IntoResponse {
     if !auth.admin {
-        return (StatusCode::FORBIDDEN, Json(json!({"error": "Admin required"}))).into_response();
+        return (
+            StatusCode::FORBIDDEN,
+            Json(json!({"error": "Admin required"})),
+        )
+            .into_response();
     }
     match state.store.delete_organization(id).await {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }
 
@@ -102,12 +140,22 @@ pub async fn get_organization_users(
     if !auth.admin {
         match state.store.get_user_organizations(auth.user_id).await {
             Ok(orgs) if orgs.iter().any(|o| o.id == id) => {}
-            _ => return (StatusCode::FORBIDDEN, Json(json!({"error": "Access denied"}))).into_response(),
+            _ => {
+                return (
+                    StatusCode::FORBIDDEN,
+                    Json(json!({"error": "Access denied"})),
+                )
+                    .into_response()
+            }
         }
     }
     match state.store.get_organization_users(id).await {
         Ok(users) => Json(users).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }
 
@@ -119,12 +167,20 @@ pub async fn add_organization_user(
     Json(mut payload): Json<OrganizationUserCreate>,
 ) -> impl IntoResponse {
     if !auth.admin {
-        return (StatusCode::FORBIDDEN, Json(json!({"error": "Admin required"}))).into_response();
+        return (
+            StatusCode::FORBIDDEN,
+            Json(json!({"error": "Admin required"})),
+        )
+            .into_response();
     }
     payload.org_id = id;
     match state.store.add_user_to_organization(payload).await {
         Ok(ou) => (StatusCode::CREATED, Json(ou)).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }
 
@@ -135,11 +191,19 @@ pub async fn remove_organization_user(
     Path((id, user_id)): Path<(i32, i32)>,
 ) -> impl IntoResponse {
     if !auth.admin {
-        return (StatusCode::FORBIDDEN, Json(json!({"error": "Admin required"}))).into_response();
+        return (
+            StatusCode::FORBIDDEN,
+            Json(json!({"error": "Admin required"})),
+        )
+            .into_response();
     }
     match state.store.remove_user_from_organization(id, user_id).await {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }
 
@@ -151,15 +215,33 @@ pub async fn update_organization_user_role(
     Json(body): Json<serde_json::Value>,
 ) -> impl IntoResponse {
     if !auth.admin {
-        return (StatusCode::FORBIDDEN, Json(json!({"error": "Admin required"}))).into_response();
+        return (
+            StatusCode::FORBIDDEN,
+            Json(json!({"error": "Admin required"})),
+        )
+            .into_response();
     }
     let role = match body.get("role").and_then(|r| r.as_str()) {
         Some(r) => r.to_string(),
-        None => return (StatusCode::BAD_REQUEST, Json(json!({"error": "role is required"}))).into_response(),
+        None => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(json!({"error": "role is required"})),
+            )
+                .into_response()
+        }
     };
-    match state.store.update_user_organization_role(id, user_id, &role).await {
+    match state
+        .store
+        .update_user_organization_role(id, user_id, &role)
+        .await
+    {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }
 
@@ -170,7 +252,11 @@ pub async fn get_my_organizations(
 ) -> impl IntoResponse {
     match state.store.get_user_organizations(auth.user_id).await {
         Ok(orgs) => Json(orgs).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }
 
@@ -206,7 +292,11 @@ pub async fn update_organization_branding(
     Json(branding): Json<serde_json::Value>,
 ) -> impl IntoResponse {
     if !auth.admin {
-        return (StatusCode::FORBIDDEN, Json(json!({"error": "Admin required"}))).into_response();
+        return (
+            StatusCode::FORBIDDEN,
+            Json(json!({"error": "Admin required"})),
+        )
+            .into_response();
     }
     // Обновляем поле settings через OrganizationUpdate
     let payload = crate::models::OrganizationUpdate {
@@ -215,7 +305,11 @@ pub async fn update_organization_branding(
     };
     match state.store.update_organization(id, payload).await {
         Ok(org) => Json(org).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }
 
@@ -228,11 +322,21 @@ pub async fn check_organization_quota(
     if !auth.admin {
         match state.store.get_user_organizations(auth.user_id).await {
             Ok(orgs) if orgs.iter().any(|o| o.id == id) => {}
-            _ => return (StatusCode::FORBIDDEN, Json(json!({"error": "Access denied"}))).into_response(),
+            _ => {
+                return (
+                    StatusCode::FORBIDDEN,
+                    Json(json!({"error": "Access denied"})),
+                )
+                    .into_response()
+            }
         }
     }
     match state.store.check_organization_quota(id, &quota_type).await {
         Ok(ok) => Json(json!({"quota_type": quota_type, "within_limit": ok})).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }

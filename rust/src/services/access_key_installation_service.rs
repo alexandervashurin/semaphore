@@ -3,7 +3,9 @@
 //! Полная замена Go services/server/access_key_installation_svc.go
 //! Сервис для установки ключей доступа
 
-use crate::db_lib::{AccessKeyInstallerImpl, AccessKeyInstallerTrait, DbAccessKey, DbAccessKeyRole};
+use crate::db_lib::{
+    AccessKeyInstallerImpl, AccessKeyInstallerTrait, DbAccessKey, DbAccessKeyRole,
+};
 use crate::error::{Error, Result};
 use crate::services::ssh_agent::AccessKeyInstallation;
 use crate::services::task_logger::TaskLogger;
@@ -137,10 +139,10 @@ impl AccessKeyEncryptionService for SimpleEncryptionService {
     fn decrypt_secret(&self, key: &mut DbAccessKey) -> Result<()> {
         use crate::utils::encryption::aes256_decrypt;
         if let Some(ref encrypted) = key.secret {
-            let plaintext_bytes = aes256_decrypt(encrypted, &self.key)
-                .map_err(|e| Error::Other(e.to_string()))?;
-            key.secret = Some(String::from_utf8(plaintext_bytes)
-                .map_err(|e| Error::Other(e.to_string()))?);
+            let plaintext_bytes =
+                aes256_decrypt(encrypted, &self.key).map_err(|e| Error::Other(e.to_string()))?;
+            key.secret =
+                Some(String::from_utf8(plaintext_bytes).map_err(|e| Error::Other(e.to_string()))?);
         }
         Ok(())
     }
@@ -151,14 +153,15 @@ impl AccessKeyEncryptionService for SimpleEncryptionService {
         match key.key_type {
             DbAccessKeyType::Ssh => {
                 if let Some(ref ssh_key) = key.ssh_key {
-                    key.secret = Some(serde_json::to_string(ssh_key)
-                        .map_err(|e| Error::Other(e.to_string()))?);
+                    key.secret = Some(
+                        serde_json::to_string(ssh_key).map_err(|e| Error::Other(e.to_string()))?,
+                    );
                 }
             }
             DbAccessKeyType::LoginPassword => {
                 if let Some(ref lp) = key.login_password {
-                    key.secret = Some(serde_json::to_string(lp)
-                        .map_err(|e| Error::Other(e.to_string()))?);
+                    key.secret =
+                        Some(serde_json::to_string(lp).map_err(|e| Error::Other(e.to_string()))?);
                 }
             }
             _ => {}
@@ -168,17 +171,17 @@ impl AccessKeyEncryptionService for SimpleEncryptionService {
 
     /// Десериализует key.secret → ssh_key / login_password
     fn deserialize_secret(&self, key: &mut DbAccessKey) -> Result<()> {
-        use crate::db_lib::{DbAccessKeyType, DbSshKey, DbLoginPassword};
+        use crate::db_lib::{DbAccessKeyType, DbLoginPassword, DbSshKey};
         if let Some(ref secret) = key.secret.clone() {
             match key.key_type {
                 DbAccessKeyType::Ssh => {
-                    let ssh_key: DbSshKey = serde_json::from_str(secret)
-                        .map_err(|e| Error::Other(e.to_string()))?;
+                    let ssh_key: DbSshKey =
+                        serde_json::from_str(secret).map_err(|e| Error::Other(e.to_string()))?;
                     key.ssh_key = Some(ssh_key);
                 }
                 DbAccessKeyType::LoginPassword => {
-                    let lp: DbLoginPassword = serde_json::from_str(secret)
-                        .map_err(|e| Error::Other(e.to_string()))?;
+                    let lp: DbLoginPassword =
+                        serde_json::from_str(secret).map_err(|e| Error::Other(e.to_string()))?;
                     key.login_password = Some(lp);
                 }
                 _ => {}
@@ -201,11 +204,7 @@ pub trait AccessKeyServiceTrait: Send + Sync {
     fn create(&self, key: &DbAccessKey) -> Result<DbAccessKey>;
 
     /// Получает все ключи
-    fn get_all(
-        &self,
-        project_id: i32,
-        options: GetAccessKeyOptions,
-    ) -> Result<Vec<DbAccessKey>>;
+    fn get_all(&self, project_id: i32, options: GetAccessKeyOptions) -> Result<Vec<DbAccessKey>>;
 
     /// Удаляет ключ
     fn delete(&self, project_id: i32, key_id: i32) -> Result<()>;
@@ -227,9 +226,7 @@ pub struct AccessKeyServiceImpl {
 impl AccessKeyServiceImpl {
     /// Создаёт новый сервис
     pub fn new(encryption_service: Box<dyn AccessKeyEncryptionService>) -> Self {
-        Self {
-            encryption_service,
-        }
+        Self { encryption_service }
     }
 }
 
@@ -248,11 +245,7 @@ impl AccessKeyServiceTrait for AccessKeyServiceImpl {
         Ok(key_copy)
     }
 
-    fn get_all(
-        &self,
-        _project_id: i32,
-        _options: GetAccessKeyOptions,
-    ) -> Result<Vec<DbAccessKey>> {
+    fn get_all(&self, _project_id: i32, _options: GetAccessKeyOptions) -> Result<Vec<DbAccessKey>> {
         // TODO: Реализовать через repository
         Ok(vec![])
     }
@@ -270,7 +263,7 @@ impl AccessKeyServiceTrait for AccessKeyServiceImpl {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db_lib::{DbAccessKeyType, DbSshKey, DbLoginPassword};
+    use crate::db_lib::{DbAccessKeyType, DbLoginPassword, DbSshKey};
     use crate::services::task_logger::BasicLogger;
 
     #[test]
@@ -365,7 +358,9 @@ mod tests {
             ssh_key: Some(DbSshKey {
                 login: "git".to_string(),
                 passphrase: "".to_string(),
-                private_key: "-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----".to_string(),
+                private_key:
+                    "-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----"
+                        .to_string(),
             }),
             override_secret: false,
             storage_id: None,

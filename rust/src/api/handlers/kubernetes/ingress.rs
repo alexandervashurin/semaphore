@@ -55,7 +55,9 @@ pub struct IngressView {
     pub tls: Vec<IngressTlsView>,
 }
 
-fn parse_service_port(port: &k8s_openapi::api::networking::v1::ServiceBackendPort) -> Option<String> {
+fn parse_service_port(
+    port: &k8s_openapi::api::networking::v1::ServiceBackendPort,
+) -> Option<String> {
     if let Some(name) = port.name.as_deref() {
         return Some(name.to_string());
     }
@@ -81,7 +83,11 @@ fn to_ingress_view(ingress: &Ingress) -> IngressView {
                                 .map(|p| IngressPathBackend {
                                     path: p.path.clone().unwrap_or_else(|| "/".to_string()),
                                     path_type: Some(p.path_type.clone()),
-                                    service_name: p.backend.service.as_ref().map(|svc| svc.name.clone()),
+                                    service_name: p
+                                        .backend
+                                        .service
+                                        .as_ref()
+                                        .map(|svc| svc.name.clone()),
                                     service_port: p
                                         .backend
                                         .service
@@ -112,7 +118,11 @@ fn to_ingress_view(ingress: &Ingress) -> IngressView {
         .unwrap_or_default();
 
     IngressView {
-        name: ingress.metadata.name.clone().unwrap_or_else(|| "unknown".to_string()),
+        name: ingress
+            .metadata
+            .name
+            .clone()
+            .unwrap_or_else(|| "unknown".to_string()),
         namespace: ingress
             .metadata
             .namespace
@@ -149,13 +159,7 @@ pub async fn list_ingresses(
         .await
         .map_err(|e| Error::Other(format!("Kubernetes ingress list failed: {e}")))?;
 
-    Ok(Json(
-        ingresses
-            .items
-            .iter()
-            .map(to_ingress_view)
-            .collect(),
-    ))
+    Ok(Json(ingresses.items.iter().map(to_ingress_view).collect()))
 }
 
 pub async fn get_ingress(

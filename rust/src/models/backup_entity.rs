@@ -2,7 +2,7 @@
 //!
 //! Трейт для сущностей бэкапа
 
-use serde::{Serialize, de::DeserializeOwned};
+use serde::{de::DeserializeOwned, Serialize};
 
 /// Trait для сущностей, поддерживающих бэкап
 pub trait BackupEntity: Serialize + DeserializeOwned + Clone {

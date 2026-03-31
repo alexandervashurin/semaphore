@@ -2,30 +2,34 @@
 //!
 //! Обработчики для хранилищ секретов в проектах
 
+use crate::api::middleware::ErrorResponse;
+use crate::api::state::AppState;
+use crate::db::store::SecretStorageManager;
+use crate::error::{Error, Result};
+use crate::models::SecretStorage;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
     Json,
 };
-use std::sync::Arc;
-use crate::api::state::AppState;
-use crate::models::SecretStorage;
-use crate::error::{Error, Result};
-use crate::api::middleware::ErrorResponse;
-use crate::db::store::SecretStorageManager;
 use chrono;
+use std::sync::Arc;
 
 /// Получает хранилища секретов проекта
 pub async fn get_secret_storages(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
 ) -> std::result::Result<Json<Vec<SecretStorage>>, (StatusCode, Json<ErrorResponse>)> {
-    let storages = state.store.get_secret_storages(project_id)
+    let storages = state
+        .store
+        .get_secret_storages(project_id)
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
     Ok(Json(storages))
 }
@@ -35,17 +39,19 @@ pub async fn get_secret_storage(
     State(state): State<Arc<AppState>>,
     Path((project_id, storage_id)): Path<(i32, i32)>,
 ) -> std::result::Result<Json<SecretStorage>, (StatusCode, Json<ErrorResponse>)> {
-    let storage = state.store.get_secret_storage(project_id, storage_id)
+    let storage = state
+        .store
+        .get_secret_storage(project_id, storage_id)
         .await
         .map_err(|e| match e {
             Error::NotFound(_) => (
                 StatusCode::NOT_FOUND,
-                Json(ErrorResponse::new("Secret storage not found".to_string()))
+                Json(ErrorResponse::new("Secret storage not found".to_string())),
             ),
             _ => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse::new(e.to_string()))
-            )
+                Json(ErrorResponse::new(e.to_string())),
+            ),
         })?;
 
     Ok(Json(storage))
@@ -60,12 +66,16 @@ pub async fn add_secret_storage(
     let mut storage = payload;
     storage.project_id = project_id;
 
-    let created = state.store.create_secret_storage(storage)
+    let created = state
+        .store
+        .create_secret_storage(storage)
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
     Ok((StatusCode::CREATED, Json(created)))
 }
@@ -80,12 +90,16 @@ pub async fn update_secret_storage(
     storage.id = storage_id;
     storage.project_id = project_id;
 
-    state.store.update_secret_storage(storage)
+    state
+        .store
+        .update_secret_storage(storage)
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
     Ok(StatusCode::OK)
 }
@@ -95,12 +109,16 @@ pub async fn delete_secret_storage(
     State(state): State<Arc<AppState>>,
     Path((project_id, storage_id)): Path<(i32, i32)>,
 ) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    state.store.delete_secret_storage(project_id, storage_id)
+    state
+        .store
+        .delete_secret_storage(project_id, storage_id)
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -114,7 +132,11 @@ pub async fn sync_secret_storage(
 ) -> std::result::Result<Json<serde_json::Value>, (StatusCode, Json<ErrorResponse>)> {
     // Синхронизация с внешним хранилищем (Vault/DVLS)
     // В базовой реализации возвращаем статус синхронизации
-    tracing::info!("Secret storage sync requested: project={}, storage={}", project_id, storage_id);
+    tracing::info!(
+        "Secret storage sync requested: project={}, storage={}",
+        project_id,
+        storage_id
+    );
     Ok(Json(serde_json::json!({
         "status": "synced",
         "project_id": project_id,
@@ -131,17 +153,19 @@ pub async fn get_secret_storage_refs(
     Path((project_id, storage_id)): Path<(i32, i32)>,
 ) -> std::result::Result<Json<serde_json::Value>, (StatusCode, Json<ErrorResponse>)> {
     // Проверяем, что хранилище существует
-    state.store.get_secret_storage(project_id, storage_id)
+    state
+        .store
+        .get_secret_storage(project_id, storage_id)
         .await
         .map_err(|e| match e {
             crate::error::Error::NotFound(_) => (
                 StatusCode::NOT_FOUND,
-                Json(ErrorResponse::new("Secret storage not found".to_string()))
+                Json(ErrorResponse::new("Secret storage not found".to_string())),
             ),
             _ => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse::new(e.to_string()))
-            )
+                Json(ErrorResponse::new(e.to_string())),
+            ),
         })?;
 
     // Возвращаем refs (ссылки из environments и access_keys)

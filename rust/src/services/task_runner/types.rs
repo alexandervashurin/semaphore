@@ -2,12 +2,12 @@
 //!
 //! Аналог services/tasks/task_runner_types.go из Go версии
 
+use crate::db_lib::AccessKeyInstallerImpl;
+use crate::models::{Environment, Inventory, Repository, Task, Template};
+use crate::services::task_logger::{LogListener, StatusListener, TaskLogger, TaskStatus};
+use crate::services::task_pool::TaskPool;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use crate::models::{Task, Template, Inventory, Repository, Environment};
-use crate::services::task_logger::{TaskLogger, TaskStatus, StatusListener, LogListener};
-use crate::db_lib::AccessKeyInstallerImpl;
-use crate::services::task_pool::TaskPool;
 
 /// Job trait определяет интерфейс для выполнения задачи
 #[async_trait::async_trait]
@@ -161,7 +161,7 @@ mod tests {
         // Mock pool and key_installer would be needed here
         // For now, just test that we can create the struct
         let task = create_test_task();
-        
+
         // Basic assertion that task has correct ID
         assert_eq!(task.id, 1);
     }

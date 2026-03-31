@@ -2,18 +2,18 @@
 //!
 //! Обработчики запросов для управления кастомными ролями
 
+use crate::api::middleware::ErrorResponse;
+use crate::api::state::AppState;
+use crate::db::store::ProjectRoleManager;
+use crate::error::Error;
+use crate::models::Role;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
     Json,
 };
-use std::sync::Arc;
 use serde::{Deserialize, Serialize};
-use crate::api::state::AppState;
-use crate::models::Role;
-use crate::error::Error;
-use crate::api::middleware::ErrorResponse;
-use crate::db::store::ProjectRoleManager;
+use std::sync::Arc;
 
 /// Встроенные роли проекта (всегда доступны)
 fn builtin_roles(project_id: i32) -> Vec<Role> {
@@ -61,12 +61,16 @@ pub async fn get_all_roles(
     Path(project_id): Path<i32>,
 ) -> Result<Json<Vec<Role>>, (StatusCode, Json<ErrorResponse>)> {
     let mut roles = builtin_roles(project_id);
-    let custom = state.store.get_project_roles(project_id)
+    let custom = state
+        .store
+        .get_project_roles(project_id)
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
     roles.extend(custom);
     Ok(Json(roles))
 }
@@ -78,12 +82,16 @@ pub async fn get_roles(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
 ) -> Result<Json<Vec<Role>>, (StatusCode, Json<ErrorResponse>)> {
-    let roles = state.store.get_project_roles(project_id)
+    let roles = state
+        .store
+        .get_project_roles(project_id)
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
     Ok(Json(roles))
 }
 
@@ -103,12 +111,12 @@ pub async fn create_role(
         description: payload.description,
         permissions: payload.permissions,
     };
-    let created = state.store.create_project_role(role)
-        .await
-        .map_err(|e| (
+    let created = state.store.create_project_role(role).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
     Ok((StatusCode::CREATED, Json(created)))
 }
 
@@ -119,17 +127,22 @@ pub async fn get_role(
     State(state): State<Arc<AppState>>,
     Path((project_id, role_id)): Path<(i32, i32)>,
 ) -> Result<Json<Role>, (StatusCode, Json<ErrorResponse>)> {
-    let roles = state.store.get_project_roles(project_id)
+    let roles = state
+        .store
+        .get_project_roles(project_id)
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
-    let role = roles.into_iter().find(|r| r.id == role_id)
-        .ok_or_else(|| (
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
+    let role = roles.into_iter().find(|r| r.id == role_id).ok_or_else(|| {
+        (
             StatusCode::NOT_FOUND,
-            Json(ErrorResponse::new(format!("Role {} not found", role_id)))
-        ))?;
+            Json(ErrorResponse::new(format!("Role {} not found", role_id))),
+        )
+    })?;
     Ok(Json(role))
 }
 
@@ -141,26 +154,37 @@ pub async fn update_role(
     Path((project_id, role_id)): Path<(i32, i32)>,
     Json(payload): Json<RoleUpdatePayload>,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    let roles = state.store.get_project_roles(project_id)
+    let roles = state
+        .store
+        .get_project_roles(project_id)
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
-    let mut role = roles.into_iter().find(|r| r.id == role_id)
-        .ok_or_else(|| (
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
+    let mut role = roles.into_iter().find(|r| r.id == role_id).ok_or_else(|| {
+        (
             StatusCode::NOT_FOUND,
-            Json(ErrorResponse::new(format!("Role {} not found", role_id)))
-        ))?;
-    if let Some(name) = payload.name { role.name = name; }
-    if let Some(description) = payload.description { role.description = Some(description); }
-    if let Some(permissions) = payload.permissions { role.permissions = Some(permissions); }
-    state.store.update_project_role(role)
-        .await
-        .map_err(|e| (
+            Json(ErrorResponse::new(format!("Role {} not found", role_id))),
+        )
+    })?;
+    if let Some(name) = payload.name {
+        role.name = name;
+    }
+    if let Some(description) = payload.description {
+        role.description = Some(description);
+    }
+    if let Some(permissions) = payload.permissions {
+        role.permissions = Some(permissions);
+    }
+    state.store.update_project_role(role).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
     Ok(StatusCode::OK)
 }
 
@@ -171,17 +195,19 @@ pub async fn delete_role(
     State(state): State<Arc<AppState>>,
     Path((project_id, role_id)): Path<(i32, i32)>,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    state.store.delete_project_role(project_id, role_id)
+    state
+        .store
+        .delete_project_role(project_id, role_id)
         .await
         .map_err(|e| match e {
             Error::NotFound(_) => (
                 StatusCode::NOT_FOUND,
-                Json(ErrorResponse::new(format!("Role {} not found", role_id)))
+                Json(ErrorResponse::new(format!("Role {} not found", role_id))),
             ),
             _ => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse::new(e.to_string()))
-            )
+                Json(ErrorResponse::new(e.to_string())),
+            ),
         })?;
     Ok(StatusCode::NO_CONTENT)
 }

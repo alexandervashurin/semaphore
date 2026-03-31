@@ -3,17 +3,17 @@
 //! Центральный компонент управления очередью задач.
 //! Реализует очередь задач, логирование, управление состоянием.
 
+use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock, Semaphore};
-use chrono::{DateTime, Utc};
-use tracing::{info, warn, error, debug};
+use tracing::{debug, error, info, warn};
 
-use crate::error::{Error, Result};
-use crate::models::{Task, Project, TaskOutput};
-use crate::services::task_logger::TaskStatus;
-use crate::db::store::{Store, TaskManager};
 use crate::api::websocket::WebSocketManager;
+use crate::db::store::{Store, TaskManager};
+use crate::error::{Error, Result};
+use crate::models::{Project, Task, TaskOutput};
+use crate::services::task_logger::TaskStatus;
 
 /// Событие пула задач
 #[derive(Debug, Clone)]
@@ -112,20 +112,20 @@ impl TaskPool {
         let store_clone = store.clone();
         let events_tx_clone = events_tx.clone();
         let ws_manager_clone = ws_manager.clone();
-        
+
         tokio::spawn(async move {
             while let Some(task) = register_rx.recv().await {
                 debug!("Получена новая задача: {}", task.id);
-                
+
                 let mut state = state_clone.write().await;
                 let project_id = task.project_id;
-                
+
                 // Инициализируем очередь для проекта если нужно
                 state.queue.entry(project_id).or_insert_with(Vec::new);
-                
+
                 // Добавляем задачу в очередь
                 state.queue.get_mut(&project_id).unwrap().push(task.clone());
-                
+
                 // Отправляем событие
                 let _ = events_tx_clone.send(TaskPoolEvent::TaskCreated(task)).await;
             }
@@ -156,7 +156,15 @@ impl TaskPool {
             while let Some(event) = events_rx.recv().await {
                 match event {
                     TaskPoolEvent::TaskFinished { task_id, success } => {
-                        info!("Задача {} завершена: {}", task_id, if success { "успешно" } else { "с ошибками" });
+                        info!(
+                            "Задача {} завершена: {}",
+                            task_id,
+                            if success {
+                                "успешно"
+                            } else {
+                                "с ошибками"
+                            }
+                        );
 
                         // Удаляем из running
                         let mut state = state_events.write().await;
@@ -231,13 +239,17 @@ impl TaskPool {
 
     /// Добавляет задачу в очередь
     pub async fn add_task(&self, task: Task) -> Result<()> {
-        self.register.send(task).await
+        self.register
+            .send(task)
+            .await
             .map_err(|e| Error::Other(format!("Ошибка добавления задачи: {}", e)))
     }
 
     /// Записывает лог задачи
     pub async fn log(&self, record: TaskLogRecord) -> Result<()> {
-        self.logger.send(record).await
+        self.logger
+            .send(record)
+            .await
             .map_err(|e| Error::Other(format!("Ошибка логирования: {}", e)))
     }
 
@@ -250,12 +262,12 @@ impl TaskPool {
         // Собираем информацию о задачах для запуска
         let mut tasks_to_start: Vec<(Task, i32)> = {
             let state = state.read().await;
-            
+
             let mut result = Vec::new();
-            
+
             // Копируем данные для итерации
             let project_ids: Vec<i32> = state.queue.keys().copied().collect();
-            
+
             for project_id in project_ids {
                 let queue = match state.queue.get(&project_id) {
                     Some(q) if !q.is_empty() => q,
@@ -263,10 +275,7 @@ impl TaskPool {
                 };
 
                 // Проверяем лимит задач на проект
-                let running_count = state.running
-                    .get(&project_id)
-                    .map(|r| r.len())
-                    .unwrap_or(0);
+                let running_count = state.running.get(&project_id).map(|r| r.len()).unwrap_or(0);
 
                 if running_count >= max_tasks {
                     debug!("Проект {} достиг лимита задач ({})", project_id, max_tasks);
@@ -276,11 +285,12 @@ impl TaskPool {
                 // Берём первую задачу из очереди
                 if let Some(task) = queue.first() {
                     // Проверяем блокировки
-                    let has_blocks = state.blocks
+                    let has_blocks = state
+                        .blocks
                         .get(&task.template_id)
                         .map(|s| s.available_permits() == 0)
                         .unwrap_or(false);
-                    
+
                     if has_blocks {
                         debug!("Задача {} заблокирована", task.id);
                         continue;
@@ -289,14 +299,14 @@ impl TaskPool {
                     result.push((task.clone(), project_id));
                 }
             }
-            
+
             result
         };
 
         // Обрабатываем задачи вне блокировки
         {
             let mut state = state.write().await;
-            
+
             for (task, project_id) in tasks_to_start.drain(..) {
                 // Удаляем из очереди
                 if let Some(queue) = state.queue.get_mut(&project_id) {
@@ -348,22 +358,24 @@ impl TaskPool {
     pub async fn get_project_tasks(&self, project_id: i32) -> Vec<Task> {
         let state = self.state.read().await;
         let mut tasks = Vec::new();
-        
+
         if let Some(queue) = state.queue.get(&project_id) {
             tasks.extend(queue.clone());
         }
-        
+
         if let Some(running) = state.running.get(&project_id) {
             tasks.extend(running.iter().map(|rt| rt.task.clone()));
         }
-        
+
         tasks
     }
 
     /// Устанавливает блокировку для шаблона
     pub async fn set_block(&self, template_id: i32, permits: usize) {
         let mut state = self.state.write().await;
-        state.blocks.insert(template_id, Arc::new(Semaphore::new(permits)));
+        state
+            .blocks
+            .insert(template_id, Arc::new(Semaphore::new(permits)));
     }
 
     /// Снимает блокировку
@@ -405,7 +417,7 @@ mod tests {
             environment_id: None,
             params: None,
         });
-        
+
         match event {
             TaskPoolEvent::TaskCreated(t) => {
                 assert_eq!(t.id, 1);

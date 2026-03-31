@@ -34,76 +34,76 @@
 //! - `TerraformInventoryManager` - управление Terraform inventory
 //! - `WebhookManager` - управление webhook
 
-pub mod connection;
-pub mod migration;
-pub mod options;
-pub mod user;
-pub mod project;
-pub mod template;
-pub mod task;
-pub mod inventory;
-pub mod repository;
-pub mod environment;
 pub mod access_key;
-pub mod schedule;
-pub mod session;
-pub mod token;
-pub mod organization;
+pub mod connection;
+pub mod cost_estimate;
+pub mod credential_type;
+pub mod deployment_environment;
+pub mod drift;
+pub mod environment;
 pub mod event;
 pub mod hook;
-pub mod runner;
-pub mod view;
 pub mod integration;
-pub mod project_invite;
-pub mod terraform;
-pub mod webhook;
+pub mod integration_matcher;
+pub mod inventory;
+pub mod ldap_group;
+pub mod migration;
+pub mod notification;
+pub mod options;
+pub mod organization;
+pub mod plan_approval;
 pub mod playbook;
 pub mod playbook_run;
-pub mod integration_matcher;
-pub mod workflow;
-pub mod notification;
-pub mod credential_type;
-pub mod drift;
-pub mod ldap_group;
+pub mod project;
+pub mod project_invite;
+pub mod repository;
+pub mod runner;
+pub mod schedule;
+pub mod session;
 pub mod snapshot;
-pub mod cost_estimate;
 pub mod state_backend;
-pub mod plan_approval;
-pub mod deployment_environment;
+pub mod task;
 pub mod task_structured_output;
+pub mod template;
+pub mod terraform;
+pub mod token;
+pub mod user;
+pub mod view;
+pub mod webhook;
+pub mod workflow;
 
 // Ре-экспорт трейтов для удобства
-pub use connection::*;
-pub use migration::*;
-pub use options::*;
-pub use user::*;
-pub use project::*;
-pub use template::*;
-pub use task::*;
-pub use inventory::*;
-pub use repository::*;
-pub use environment::*;
 pub use access_key::*;
-pub use schedule::*;
-pub use session::*;
-pub use token::*;
+pub use connection::*;
+pub use environment::*;
 pub use event::*;
 pub use hook::*;
-pub use runner::*;
-pub use view::*;
 pub use integration::*;
-pub use project_invite::*;
-pub use terraform::*;
-pub use webhook::*;
+pub use inventory::*;
+pub use migration::*;
+pub use options::*;
 pub use playbook::*;
+pub use project::*;
+pub use project_invite::*;
+pub use repository::*;
+pub use runner::*;
+pub use schedule::*;
+pub use session::*;
+pub use task::*;
+pub use template::*;
+pub use terraform::*;
+pub use token::*;
+pub use user::*;
+pub use view::*;
+pub use webhook::*;
 
 // ============================================================================
 // Store trait implementation
 // ============================================================================
 
-use async_trait::async_trait;
-use crate::db::Store;
 use crate::db::sql::SqlStore;
+use crate::db::Store;
+use async_trait::async_trait;
 
 #[async_trait]
 impl Store for SqlStore {}

@@ -3,10 +3,10 @@
 //! Фабрика для создания приложений (Shell/Bash/Python/PowerShell).
 //! Ansible и Terraform создаются напрямую в LocalJob::prepare_run.
 
-use std::sync::Arc;
-use crate::models::{Template, Repository, Inventory};
-use crate::services::task_logger::TaskLogger;
 use super::{LocalApp, ShellApp};
+use crate::models::{Inventory, Repository, Template};
+use crate::services::task_logger::TaskLogger;
+use std::sync::Arc;
 
 /// Создаёт приложение для шаблона
 pub fn create_app(

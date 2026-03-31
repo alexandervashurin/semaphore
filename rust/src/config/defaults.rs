@@ -2,7 +2,9 @@
 //!
 //! Аналог util/config.go из Go версии (часть 4: значения по умолчанию)
 
-use crate::config::types::{Config, DbConfig, LdapMappings, AuthConfig, TotpConfig, HAConfig, HARedisConfig, AlertConfig};
+use crate::config::types::{
+    AlertConfig, AuthConfig, Config, DbConfig, HAConfig, HARedisConfig, LdapMappings, TotpConfig,
+};
 
 /// Загружает значения по умолчанию для конфигурации
 pub fn load_defaults(config: &mut Config) {
@@ -13,17 +15,17 @@ pub fn load_defaults(config: &mut Config) {
     if config.database.db_name.is_empty() {
         config.database.db_name = default_db_name();
     }
-    
+
     // TCP address default
     if config.tcp_address.is_empty() {
         config.tcp_address = default_tcp_address();
     }
-    
+
     // Tmp path default
     if config.tmp_path.is_empty() {
         config.tmp_path = default_tmp_path();
     }
-    
+
     // LDAP mappings defaults
     if let Some(ref mut ldap) = config.ldap {
         if ldap.mappings.dn.is_empty() {
@@ -136,19 +138,19 @@ pub fn apply_defaults(config: &mut Config) {
     if config.database.hostname.is_empty() {
         config.database.hostname = default_db_host();
     }
-    
+
     if config.database.db_name.is_empty() {
         config.database.db_name = default_db_name();
     }
-    
+
     if config.tcp_address.is_empty() {
         config.tcp_address = default_tcp_address();
     }
-    
+
     if config.tmp_path.is_empty() {
         config.tmp_path = default_tmp_path();
     }
-    
+
     if let Some(ref mut ldap) = config.ldap {
         if ldap.mappings.dn.is_empty() {
             ldap.mappings.dn = default_ldap_dn();

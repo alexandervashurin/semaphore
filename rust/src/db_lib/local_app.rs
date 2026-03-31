@@ -2,9 +2,9 @@
 //!
 //! Типы для локальных приложений
 
-use std::sync::Arc;
-use crate::services::task_logger::TaskLogger;
 use crate::error::Result;
+use crate::services::task_logger::TaskLogger;
+use std::sync::Arc;
 
 /// Аргументы для запуска локального приложения
 pub struct LocalAppRunningArgs {

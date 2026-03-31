@@ -5,13 +5,9 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
-use k8s_openapi::api::authorization::v1::{
-    SelfSubjectRulesReview, SelfSubjectRulesReviewSpec,
-};
+use k8s_openapi::api::authorization::v1::{SelfSubjectRulesReview, SelfSubjectRulesReviewSpec};
 use k8s_openapi::api::core::v1::{Namespace, Secret, ServiceAccount};
-use k8s_openapi::api::rbac::v1::{
-    ClusterRole, ClusterRoleBinding, PolicyRule, Role, RoleBinding,
-};
+use k8s_openapi::api::rbac::v1::{ClusterRole, ClusterRoleBinding, PolicyRule, Role, RoleBinding};
 use kube::api::{Api, DeleteParams, ListParams, PostParams};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -125,11 +121,7 @@ pub async fn list_service_accounts(
             .iter()
             .map(|sa| ServiceAccountSummary {
                 name: sa.metadata.name.clone().unwrap_or_default(),
-                namespace: sa
-                    .metadata
-                    .namespace
-                    .clone()
-                    .unwrap_or_else(|| ns.clone()),
+                namespace: sa.metadata.namespace.clone().unwrap_or_else(|| ns.clone()),
             })
             .collect(),
     ))
@@ -141,7 +133,10 @@ pub async fn get_service_account(
 ) -> Result<Json<ServiceAccount>> {
     let client = state.kubernetes_client()?;
     let api: Api<ServiceAccount> = client.api(Some(&namespace));
-    let item = api.get(&name).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let item = api
+        .get(&name)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
     Ok(Json(item))
 }
 
@@ -158,11 +153,7 @@ pub async fn create_service_account(
         .map_err(|e| Error::Kubernetes(e.to_string()))?;
     Ok(Json(ServiceAccountSummary {
         name: created.metadata.name.clone().unwrap_or_default(),
-        namespace: created
-            .metadata
-            .namespace
-            .clone()
-            .unwrap_or(namespace),
+        namespace: created.metadata.namespace.clone().unwrap_or(namespace),
     }))
 }
 
@@ -175,7 +166,9 @@ pub async fn delete_service_account(
     api.delete(&name, &DeleteParams::default())
         .await
         .map_err(|e| Error::Kubernetes(e.to_string()))?;
-    Ok(Json(serde_json::json!({"status":"ok","message":format!("ServiceAccount {namespace}/{name} deleted")})))
+    Ok(Json(
+        serde_json::json!({"status":"ok","message":format!("ServiceAccount {namespace}/{name} deleted")}),
+    ))
 }
 
 pub async fn list_service_account_secrets(
@@ -241,7 +234,10 @@ pub async fn get_role(
 ) -> Result<Json<Role>> {
     let client = state.kubernetes_client()?;
     let api: Api<Role> = client.api(Some(&namespace));
-    let item = api.get(&name).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let item = api
+        .get(&name)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
     Ok(Json(item))
 }
 
@@ -282,14 +278,12 @@ pub async fn delete_role(
     api.delete(&name, &DeleteParams::default())
         .await
         .map_err(|e| Error::Kubernetes(e.to_string()))?;
-    Ok(Json(serde_json::json!({"status":"ok","message":format!("Role {namespace}/{name} deleted")})))
+    Ok(Json(
+        serde_json::json!({"status":"ok","message":format!("Role {namespace}/{name} deleted")}),
+    ))
 }
 
-fn summarize_binding(
-    name: &str,
-    namespace: Option<&str>,
-    rb: &RoleBinding,
-) -> BindingSummary {
+fn summarize_binding(name: &str, namespace: Option<&str>, rb: &RoleBinding) -> BindingSummary {
     let r = &rb.role_ref;
     BindingSummary {
         name: name.to_string(),
@@ -339,7 +333,10 @@ pub async fn get_role_binding(
 ) -> Result<Json<RoleBinding>> {
     let client = state.kubernetes_client()?;
     let api: Api<RoleBinding> = client.api(Some(&namespace));
-    let item = api.get(&name).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let item = api
+        .get(&name)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
     Ok(Json(item))
 }
 
@@ -380,7 +377,9 @@ pub async fn delete_role_binding(
     api.delete(&name, &DeleteParams::default())
         .await
         .map_err(|e| Error::Kubernetes(e.to_string()))?;
-    Ok(Json(serde_json::json!({"status":"ok","message":format!("RoleBinding {namespace}/{name} deleted")})))
+    Ok(Json(
+        serde_json::json!({"status":"ok","message":format!("RoleBinding {namespace}/{name} deleted")}),
+    ))
 }
 
 fn summarize_cluster_role(name: &str, rules: &[PolicyRule]) -> RoleLikeSummary {
@@ -388,7 +387,9 @@ fn summarize_cluster_role(name: &str, rules: &[PolicyRule]) -> RoleLikeSummary {
     let is_system = is_system_cluster_name(name);
     let mut w = warning;
     if is_system {
-        w = Some("Системная или встроенная роль кластера — правка может сломать кластер.".to_string());
+        w = Some(
+            "Системная или встроенная роль кластера — правка может сломать кластер.".to_string(),
+        );
     }
     RoleLikeSummary {
         name: name.to_string(),
@@ -427,7 +428,10 @@ pub async fn get_cluster_role(
 ) -> Result<Json<ClusterRole>> {
     let client = state.kubernetes_client()?;
     let api: Api<ClusterRole> = client.api_all();
-    let item = api.get(&name).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let item = api
+        .get(&name)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
     Ok(Json(item))
 }
 
@@ -467,7 +471,9 @@ pub async fn delete_cluster_role(
     api.delete(&name, &DeleteParams::default())
         .await
         .map_err(|e| Error::Kubernetes(e.to_string()))?;
-    Ok(Json(serde_json::json!({"status":"ok","message":format!("ClusterRole {name} deleted")})))
+    Ok(Json(
+        serde_json::json!({"status":"ok","message":format!("ClusterRole {name} deleted")}),
+    ))
 }
 
 pub async fn list_cluster_role_bindings(
@@ -496,7 +502,10 @@ pub async fn get_cluster_role_binding(
 ) -> Result<Json<ClusterRoleBinding>> {
     let client = state.kubernetes_client()?;
     let api: Api<ClusterRoleBinding> = client.api_all();
-    let item = api.get(&name).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let item = api
+        .get(&name)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
     Ok(Json(item))
 }
 
@@ -536,7 +545,9 @@ pub async fn delete_cluster_role_binding(
     api.delete(&name, &DeleteParams::default())
         .await
         .map_err(|e| Error::Kubernetes(e.to_string()))?;
-    Ok(Json(serde_json::json!({"status":"ok","message":format!("ClusterRoleBinding {name} deleted")})))
+    Ok(Json(
+        serde_json::json!({"status":"ok","message":format!("ClusterRoleBinding {name} deleted")}),
+    ))
 }
 
 pub async fn post_self_subject_rules_review(
@@ -559,7 +570,9 @@ pub async fn post_self_subject_rules_review(
     Ok(Json(created))
 }
 
-fn labels_psa_view(labels: &std::collections::BTreeMap<String, String>) -> PodSecurityAdmissionView {
+fn labels_psa_view(
+    labels: &std::collections::BTreeMap<String, String>,
+) -> PodSecurityAdmissionView {
     PodSecurityAdmissionView {
         enforce: labels.get(PSA_ENFORCE).cloned(),
         audit: labels.get(PSA_AUDIT).cloned(),
@@ -573,7 +586,10 @@ pub async fn get_namespace_pod_security(
 ) -> Result<Json<PodSecurityAdmissionView>> {
     let client = state.kubernetes_client()?;
     let api: Api<Namespace> = client.api_all();
-    let ns = api.get(&name).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let ns = api
+        .get(&name)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
     let labels = ns.metadata.labels.as_ref().cloned().unwrap_or_default();
     Ok(Json(labels_psa_view(&labels)))
 }
@@ -585,7 +601,10 @@ pub async fn put_namespace_pod_security(
 ) -> Result<Json<PodSecurityAdmissionView>> {
     let client = state.kubernetes_client()?;
     let api: Api<Namespace> = client.api_all();
-    let mut ns = api.get(&name).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let mut ns = api
+        .get(&name)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
     let labels = ns.metadata.labels.get_or_insert_with(Default::default);
 
     fn merge_psa(

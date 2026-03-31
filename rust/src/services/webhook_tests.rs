@@ -3,8 +3,8 @@
 #[cfg(test)]
 mod tests {
     use crate::services::webhook::*;
-    use serde_json::json;
     use chrono::Utc;
+    use serde_json::json;
 
     #[test]
     fn test_webhook_config_creation() {
@@ -78,12 +78,7 @@ mod tests {
 
     #[test]
     fn test_create_user_event() {
-        let event = create_user_event(
-            "user_login",
-            1,
-            "testuser",
-            Some(1),
-        );
+        let event = create_user_event("user_login", 1, "testuser", Some(1));
 
         assert_eq!(event.event_type, "user_login");
         assert_eq!(event.metadata.user_id, Some(1));
@@ -91,12 +86,7 @@ mod tests {
 
     #[test]
     fn test_create_project_event() {
-        let event = create_project_event(
-            "project_created",
-            1,
-            "Test Project",
-            Some(1),
-        );
+        let event = create_project_event("project_created", 1, "Test Project", Some(1));
 
         assert_eq!(event.event_type, "project_created");
         assert_eq!(event.metadata.project_id, Some(1));
@@ -117,7 +107,7 @@ mod tests {
     #[tokio::test]
     async fn test_inactive_webhook() {
         let service = WebhookService::new();
-        
+
         let config = WebhookConfig {
             id: 1,
             name: "Inactive Webhook".to_string(),

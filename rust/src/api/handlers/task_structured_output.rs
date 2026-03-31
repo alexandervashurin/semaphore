@@ -15,7 +15,7 @@ use std::sync::Arc;
 use crate::api::extractors::AuthUser;
 use crate::api::state::AppState;
 use crate::db::store::StructuredOutputManager;
-use crate::models::{TaskStructuredOutputCreate, TaskStructuredOutputBatch};
+use crate::models::{TaskStructuredOutputBatch, TaskStructuredOutputCreate};
 
 /// GET /api/project/{project_id}/tasks/{task_id}/outputs
 pub async fn get_task_outputs(
@@ -23,10 +23,16 @@ pub async fn get_task_outputs(
     Path((project_id, task_id)): Path<(i32, i32)>,
     _auth: AuthUser,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let outputs = state.store
+    let outputs = state
+        .store
         .get_task_structured_outputs(task_id, project_id)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": e.to_string()})),
+            )
+        })?;
     Ok(Json(json!(outputs)))
 }
 
@@ -37,10 +43,16 @@ pub async fn get_task_outputs_map(
     Path((project_id, task_id)): Path<(i32, i32)>,
     _auth: AuthUser,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let map = state.store
+    let map = state
+        .store
         .get_task_outputs_map(task_id, project_id)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": e.to_string()})),
+            )
+        })?;
     Ok(Json(json!(map)))
 }
 
@@ -51,10 +63,16 @@ pub async fn create_task_output(
     _auth: AuthUser,
     Json(payload): Json<TaskStructuredOutputCreate>,
 ) -> Result<(StatusCode, Json<serde_json::Value>), (StatusCode, Json<serde_json::Value>)> {
-    let output = state.store
+    let output = state
+        .store
         .create_task_structured_output(task_id, project_id, payload)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": e.to_string()})),
+            )
+        })?;
     Ok((StatusCode::CREATED, Json(json!(output))))
 }
 
@@ -66,10 +84,16 @@ pub async fn create_task_outputs_batch(
     _auth: AuthUser,
     Json(payload): Json<TaskStructuredOutputBatch>,
 ) -> Result<StatusCode, (StatusCode, Json<serde_json::Value>)> {
-    state.store
+    state
+        .store
         .create_task_structured_outputs_batch(task_id, project_id, payload.outputs)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": e.to_string()})),
+            )
+        })?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -80,9 +104,15 @@ pub async fn get_template_last_outputs(
     Path((project_id, template_id)): Path<(i32, i32)>,
     _auth: AuthUser,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let map = state.store
+    let map = state
+        .store
         .get_template_last_outputs(template_id, project_id)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": e.to_string()})),
+            )
+        })?;
     Ok(Json(json!(map)))
 }

@@ -46,14 +46,30 @@ impl RolePermissions {
     /// Преобразует разрешения в bitmask
     pub fn to_bitmask(&self) -> i32 {
         let mut mask = 0;
-        if self.run_tasks { mask |= 0b0000_0001; }
-        if self.update_resources { mask |= 0b0000_0010; }
-        if self.manage_project { mask |= 0b0000_0100; }
-        if self.manage_users { mask |= 0b0000_1000; }
-        if self.manage_roles { mask |= 0b0001_0000; }
-        if self.view_audit_log { mask |= 0b0010_0000; }
-        if self.manage_integrations { mask |= 0b0100_0000; }
-        if self.manage_secret_storages { mask |= 0b1000_0000; }
+        if self.run_tasks {
+            mask |= 0b0000_0001;
+        }
+        if self.update_resources {
+            mask |= 0b0000_0010;
+        }
+        if self.manage_project {
+            mask |= 0b0000_0100;
+        }
+        if self.manage_users {
+            mask |= 0b0000_1000;
+        }
+        if self.manage_roles {
+            mask |= 0b0001_0000;
+        }
+        if self.view_audit_log {
+            mask |= 0b0010_0000;
+        }
+        if self.manage_integrations {
+            mask |= 0b0100_0000;
+        }
+        if self.manage_secret_storages {
+            mask |= 0b1000_0000;
+        }
         mask
     }
 
@@ -101,7 +117,12 @@ impl Role {
     }
 
     /// Создаёт новую роль с разрешениями
-    pub fn new_with_permissions(project_id: i32, slug: String, name: String, permissions: i32) -> Self {
+    pub fn new_with_permissions(
+        project_id: i32,
+        slug: String,
+        name: String,
+        permissions: i32,
+    ) -> Self {
         Self {
             id: 0,
             project_id,

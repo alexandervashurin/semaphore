@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes Troubleshooting — Velum</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .health-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .health-healthy { background: #d4edda; color: #155724; }
+        .health-degraded { background: #fff3cd; color: #856404; }
+        .health-critical { background: #f8d7da; color: #721c24; }
+        .health-unknown { background: #e2e3e5; color: #383d44; }
+        
+        .timeline-item {
+            position: relative;
+            padding-left: 30px;
+            margin-bottom: 16px;
+        }
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #e0e0e0;
+        }
+        .timeline-item::after {
+            content: '';
+            position: absolute;
+            left: -6px;
+            top: 4px;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #2196F3;
+        }
+        .timeline-item.critical::after { background: #f44336; }
+        .timeline-item.warning::after { background: #ff9800; }
+        .timeline-item.normal::after { background: #4caf50; }
+        
+        .recommendation-card {
+            border-left: 4px solid;
+            padding: 12px;
+            margin-bottom: 12px;
+            background: #f9f9f9;
+        }
+        .recommendation-high { border-color: #f44336; }
+        .recommendation-medium { border-color: #ff9800; }
+        .recommendation-low { border-color: #4caf50; }
+        
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        .severity-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .severity-critical { background: #f8d7da; color: #721c24; }
+        .severity-warning { background: #fff3cd; color: #856404; }
+        .severity-normal { background: #d4edda; color: #155724; }
+        .severity-info { background: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar"></aside>
+    <div class="main-content">
+        <div class="main-header">
+            <h2><i class="fa-solid fa-stethoscope"></i> Troubleshooting Dashboard</h2>
+            <button class="btn btn-secondary" onclick="window.history.back()"><i class="fa-solid fa-arrow-left"></i> Назад</button>
+        </div>
+        <div class="main-body">
+            <!-- Форма выбора ресурса -->
+            <div class="card" style="margin-bottom:12px;">
+                <h3><i class="fa-solid fa-crosshairs"></i> Выбор ресурса для диагностики</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 12px;">
+                    <div>
+                        <label>Namespace</label>
+                        <select id="namespace" class="form-control"></select>
+                    </div>
+                    <div>
+                        <label>Тип ресурса</label>
+                        <select id="kind" class="form-control">
+                            <option value="Pod">Pod</option>
+                            <option value="Deployment">Deployment</option>
+                            <option value="StatefulSet">StatefulSet</option>
+                            <option value="DaemonSet">DaemonSet</option>
+                            <option value="ReplicaSet">ReplicaSet</option>
+                            <option value="Job">Job</option>
+                            <option value="CronJob">CronJob</option>
+                            <option value="Service">Service</option>
+                            <option value="Ingress">Ingress</option>
+                            <option value="ConfigMap">ConfigMap</option>
+                            <option value="Secret">Secret</option>
+                            <option value="PersistentVolumeClaim">PersistentVolumeClaim</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Имя ресурса</label>
+                        <input id="resource-name" class="form-control" placeholder="my-pod">
+                    </div>
+                    <div>
+                        <label>Период (часы)</label>
+                        <input id="lookback" type="number" class="form-control" value="24" min="1" max="168">
+                    </div>
+                </div>
+                <div style="margin-top: 12px;">
+                    <button class="btn btn-primary" onclick="loadTroubleshooting()">
+                        <i class="fa-solid fa-search"></i> Диагностика
+                    </button>
+                    <label style="margin-left: 12px;">
+                        <input type="checkbox" id="include-metrics" checked> Метрики
+                    </label>
+                    <label style="margin-left: 12px;">
+                        <input type="checkbox" id="include-audit" checked> Audit Log
+                    </label>
+                </div>
+            </div>
+
+            <!-- Результаты диагностики -->
+            <div id="report" class="card" style="display: none;">
+                <!-- Заголовок с статусом здоровья -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h3><i class="fa-solid fa-heart-pulse"></i> Отчёт для <span id="target-name"></span></h3>
+                    <span id="health-status" class="health-status"></span>
+                </div>
+
+                <!-- Вкладки -->
+                <div class="tabs">
+                    <button class="tab active" onclick="switchTab('timeline')">
+                        <i class="fa-solid fa-timeline"></i> Timeline
+                    </button>
+                    <button class="tab" onclick="switchTab('events')">
+                        <i class="fa-solid fa-bell"></i> События
+                    </button>
+                    <button class="tab" onclick="switchTab('audit')">
+                        <i class="fa-solid fa-clipboard-check"></i> Audit Log
+                    </button>
+                    <button class="tab" onclick="switchTab('metrics')">
+                        <i class="fa-solid fa-chart-line"></i> Метрики
+                    </button>
+                    <button class="tab" onclick="switchTab('prometheus')">
+                        <i class="fa-solid fa-chart-area"></i> Prometheus
+                    </button>
+                    <button class="tab" onclick="switchTab('recommendations')">
+                        <i class="fa-solid fa-lightbulb"></i> Рекомендации
+                    </button>
+                </div>
+
+                <!-- Содержимое вкладок -->
+                <div id="tab-timeline" class="tab-content active" style="margin-top: 16px;"></div>
+                <div id="tab-events" class="tab-content" style="margin-top: 16px;"></div>
+                <div id="tab-audit" class="tab-content" style="margin-top: 16px;"></div>
+                <div id="tab-metrics" class="tab-content" style="margin-top: 16px;"></div>
+                <div id="tab-prometheus" class="tab-content" style="margin-top: 16px;"></div>
+                <div id="tab-recommendations" class="tab-content" style="margin-top: 16px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+checkAuth();
+let currentReport = null;
+
+// Загрузка namespaces при старте
+async function loadNamespaces() {
+    try {
+        const ns = await api.get('/kubernetes/namespaces');
+        const select = $('#namespace');
+        select.innerHTML = '<option value="default">default</option>';
+        ns.forEach(n => {
+            select.innerHTML += `<option value="${escapeHtml(n.name)}">${escapeHtml(n.name)}</option>`;
+        });
+    } catch (e) {
+        console.error('Failed to load namespaces:', e);
+    }
+}
+
+// Переключение вкладок
+function switchTab(tabName) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    
+    event.target.closest('.tab').classList.add('active');
+    $('#tab-' + tabName).classList.add('active');
+}
+
+// Загрузка отчёта по troubleshooting
+async function loadTroubleshooting() {
+    const namespace = $('#namespace').value;
+    const kind = $('#kind').value;
+    const name = $('#resource-name').value.trim();
+    const lookback = parseInt($('#lookback').value) || 24;
+    const includeMetrics = $('#include-metrics').checked;
+    const includeAudit = $('#include-audit').checked;
+
+    if (!name) {
+        alert('Введите имя ресурса');
+        return;
+    }
+
+    const report = $('#report');
+    report.style.display = 'block';
+    report.innerHTML = '<div class="loading"><div class="loading-spinner"></div><p>Загрузка диагностики...</p></div>';
+
+    try {
+        const params = new URLSearchParams({
+            namespace,
+            kind,
+            name,
+            lookback_hours: lookback.toString(),
+            include_metrics: includeMetrics.toString(),
+            include_audit: includeAudit.toString()
+        });
+
+        currentReport = await api.get(`/kubernetes/troubleshoot?${params}`);
+        renderReport(currentReport);
+    } catch (e) {
+        console.error('Troubleshooting error:', e);
+        report.innerHTML = `<div class="alert alert-error">
+            <i class="fa-solid fa-exclamation-triangle"></i>
+            Ошибка: ${escapeHtml(e.message || 'Не удалось загрузить отчёт')}
+        </div>`;
+    }
+}
+
+// Рендер отчёта
+function renderReport(report) {
+    const target = report.target;
+    const targetName = `${target.kind}/${target.name} (${target.namespace})`;
+    $('#target-name').textContent = targetName;
+
+    // Health status
+    const healthEl = $('#health-status');
+    const healthClass = 'health-' + report.health_status;
+    const healthLabels = {
+        'healthy': 'Здоров',
+        'degraded': 'Деградирован',
+        'critical': 'Критично',
+        'unknown': 'Неизвестно'
+    };
+    healthEl.className = 'health-status ' + healthClass;
+    healthEl.textContent = healthLabels[report.health_status] || report.health_status;
+
+    // Timeline
+    renderTimeline(report.timeline);
+
+    // Events
+    renderEvents(report.timeline.filter(e => e.event_type === 'kubernetes_event'));
+
+    // Audit
+    renderAudit(report.audit_records || []);
+
+    // Metrics
+    renderMetrics(report.metrics);
+
+    // Prometheus
+    loadPrometheusMetrics();
+
+    // Recommendations
+    renderRecommendations(report.recommendations || []);
+}
+
+// Рендер Timeline
+function renderTimeline(events) {
+    const container = $('#tab-timeline');
+    if (!events || events.length === 0) {
+        container.innerHTML = '<div class="alert alert-info"><i class="fa-solid fa-info-circle"></i> Событий не найдено</div>';
+        return;
+    }
+
+    container.innerHTML = '<h4><i class="fa-solid fa-timeline"></i> Временная шкала событий</h4>' +
+        events.map(e => `
+            <div class="timeline-item ${e.severity}">
+                <div style="font-size: 12px; color: #666;">
+                    <i class="fa-regular fa-clock"></i> ${formatDateTime(e.timestamp)}
+                    <span class="severity-badge severity-${e.severity}">${e.severity}</span>
+                    <span style="margin-left: 8px;">
+                        <i class="fa-solid fa-${e.source === 'kubernetes' ? 'bell' : 'clipboard-check'}"></i>
+                        ${e.source}
+                    </span>
+                </div>
+                <div style="font-weight: 600; margin-top: 4px;">${escapeHtml(e.summary)}</div>
+                ${e.details ? `<div style="font-size: 13px; color: #666; margin-top: 4px;">${escapeHtml(e.details)}</div>` : ''}
+            </div>
+        `).join('');
+}
+
+// Рендер Events
+function renderEvents(events) {
+    const container = $('#tab-events');
+    if (!events || events.length === 0) {
+        container.innerHTML = '<div class="alert alert-info"><i class="fa-solid fa-info-circle"></i> Событий Kubernetes не найдено</div>';
+        return;
+    }
+
+    container.innerHTML = '<h4><i class="fa-solid fa-bell"></i> События Kubernetes</h4>' +
+        events.map(e => `
+            <div class="timeline-item ${e.severity}">
+                <div style="font-size: 12px; color: #666;">
+                    <i class="fa-regular fa-clock"></i> ${formatDateTime(e.timestamp)}
+                    <span class="severity-badge severity-${e.severity}">${e.severity}</span>
+                </div>
+                <div style="font-weight: 600; margin-top: 4px;">${escapeHtml(e.summary)}</div>
+                ${e.details ? `<div style="font-size: 13px; color: #666; margin-top: 4px;">${escapeHtml(e.details)}</div>` : ''}
+            </div>
+        `).join('');
+}
+
+// Рендер Audit
+function renderAudit(records) {
+    const container = $('#tab-audit');
+    if (!records || records.length === 0) {
+        container.innerHTML = '<div class="alert alert-info"><i class="fa-solid fa-info-circle"></i> Audit записей не найдено</div>';
+        return;
+    }
+
+    container.innerHTML = '<h4><i class="fa-solid fa-clipboard-check"></i> Audit Log Velum</h4>' +
+        records.map(r => `
+            <div class="timeline-item">
+                <div style="font-size: 12px; color: #666;">
+                    <i class="fa-regular fa-clock"></i> ${formatDateTime(r.timestamp)}
+                    ${r.username ? `<span style="margin-left: 8px;"><i class="fa-solid fa-user"></i> ${escapeHtml(r.username)}</span>` : ''}
+                </div>
+                <div style="font-weight: 600; margin-top: 4px;">${escapeHtml(r.action)}</div>
+                <div style="font-size: 13px; color: #666; margin-top: 4px;">${escapeHtml(r.description)}</div>
+            </div>
+        `).join('');
+}
+
+// Рендер Metrics
+function renderMetrics(metrics) {
+    const container = $('#tab-metrics');
+    if (!metrics) {
+        container.innerHTML = '<div class="alert alert-info"><i class="fa-solid fa-info-circle"></i> Метрики недоступны</div>';
+        return;
+    }
+
+    container.innerHTML = '<h4><i class="fa-solid fa-chart-line"></i> Метрики ресурса</h4>' +
+        '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px;">' +
+        (metrics.cpu_usage ? `<div class="card"><div style="font-size: 12px; color: #666;">CPU Usage</div><div style="font-size: 18px; font-weight: 600;">${escapeHtml(metrics.cpu_usage)}</div></div>` : '') +
+        (metrics.memory_usage ? `<div class="card"><div style="font-size: 12px; color: #666;">Memory Usage</div><div style="font-size: 18px; font-weight: 600;">${escapeHtml(metrics.memory_usage)}</div></div>` : '') +
+        (metrics.cpu_request ? `<div class="card"><div style="font-size: 12px; color: #666;">CPU Request</div><div style="font-size: 18px; font-weight: 600;">${escapeHtml(metrics.cpu_request)}</div></div>` : '') +
+        (metrics.memory_request ? `<div class="card"><div style="font-size: 12px; color: #666;">Memory Request</div><div style="font-size: 18px; font-weight: 600;">${escapeHtml(metrics.memory_request)}</div></div>` : '') +
+        (metrics.cpu_limit ? `<div class="card"><div style="font-size: 12px; color: #666;">CPU Limit</div><div style="font-size: 18px; font-weight: 600;">${escapeHtml(metrics.cpu_limit)}</div></div>` : '') +
+        (metrics.memory_limit ? `<div class="card"><div style="font-size: 12px; color: #666;">Memory Limit</div><div style="font-size: 18px; font-weight: 600;">${escapeHtml(metrics.memory_limit)}</div></div>` : '') +
+        (metrics.restart_count !== undefined && metrics.restart_count !== null ? `<div class="card"><div style="font-size: 12px; color: #666;">Restarts</div><div style="font-size: 18px; font-weight: 600;">${metrics.restart_count}</div></div>` : '') +
+        '</div>';
+}
+
+// Рендер Recommendations
+function renderRecommendations(recommendations) {
+    const container = $('#tab-recommendations');
+    if (!recommendations || recommendations.length === 0) {
+        container.innerHTML = '<div class="alert alert-info"><i class="fa-solid fa-info-circle"></i> Рекомендаций нет</div>';
+        return;
+    }
+
+    container.innerHTML = '<h4><i class="fa-solid fa-lightbulb"></i> Рекомендации</h4>' +
+        recommendations.map(r => `
+            <div class="recommendation-card recommendation-${r.priority}">
+                <div style="font-weight: 600; margin-bottom: 8px;">
+                    <i class="fa-solid fa-${r.priority === 'high' ? 'triangle-exclamation' : r.priority === 'medium' ? 'exclamation-circle' : 'check-circle'}"></i>
+                    ${escapeHtml(r.title)}
+                </div>
+                <div style="font-size: 14px; color: #666; margin-bottom: 8px;">${escapeHtml(r.description)}</div>
+                ${r.suggested_actions && r.suggested_actions.length > 0 ? `
+                    <div style="font-size: 13px;">
+                        <strong>Рекомендуемые действия:</strong>
+                        <ul style="margin-top: 4px; margin-bottom: 0;">
+                            ${r.suggested_actions.map(a => `<li>${escapeHtml(a)}</li>`).join('')}
+                        </ul>
+                    </div>
+                ` : ''}
+            </div>
+        `).join('');
+}
+
+// Вспомогательные функции
+function formatDateTime(isoString) {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    return date.toLocaleString('ru-RU', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+// Загрузка Prometheus метрик
+let cpuChart = null;
+let memoryChart = null;
+
+async function loadPrometheusMetrics() {
+    const namespace = $('#namespace').value;
+    const kind = $('#kind').value;
+    const name = $('#resource-name').value.trim();
+    
+    if (!name || kind !== 'Pod') {
+        $('#tab-prometheus').innerHTML = '<div class="alert alert-info"><i class="fa-solid fa-info-circle"></i> Prometheus метрики доступны только для Pod</div>';
+        return;
+    }
+    
+    try {
+        const params = new URLSearchParams({
+            namespace,
+            kind,
+            name,
+            metric_type: 'all',
+            range: '1h'
+        });
+        
+        const data = await api.get(`/kubernetes/prometheus/metrics?${params}`);
+        renderPrometheusMetrics(data);
+    } catch (e) {
+        $('#tab-prometheus').innerHTML = `
+            <div class="alert alert-info">
+                <i class="fa-solid fa-circle-info"></i>
+                Prometheus метрики недоступны. Убедитесь, что Prometheus настроен и доступен.
+                <br><small>${escapeHtml(e.message || 'Ошибка загрузки')}</small>
+            </div>
+        `;
+    }
+}
+
+function renderPrometheusMetrics(data) {
+    const container = $('#tab-prometheus');
+    
+    // Фильтруем метрики по типу
+    const cpuMetrics = data.metrics.filter(m => m.metric.includes('cpu'));
+    const memoryMetrics = data.metrics.filter(m => m.metric.includes('memory'));
+    
+    let html = '<h4><i class="fa-solid fa-chart-area"></i> Prometheus Метрики</h4>';
+    
+    if (cpuMetrics.length > 0) {
+        html += '<div class="card" style="margin-bottom: 16px;">';
+        html += '<h5><i class="fa-solid fa-microchip"></i> CPU Usage</h5>';
+        html += '<canvas id="cpu-chart" height="80"></canvas>';
+        html += '</div>';
+    }
+    
+    if (memoryMetrics.length > 0) {
+        html += '<div class="card">';
+        html += '<h5><i class="fa-solid fa-memory"></i> Memory Usage</h5>';
+        html += '<canvas id="memory-chart" height="80"></canvas>';
+        html += '</div>';
+    }
+    
+    if (cpuMetrics.length === 0 && memoryMetrics.length === 0) {
+        html += '<div class="alert alert-info"><i class="fa-solid fa-circle-info"></i> Метрики не найдены</div>';
+    }
+    
+    container.innerHTML = html;
+    
+    // Создаём графики
+    setTimeout(() => {
+        if (cpuMetrics.length > 0) {
+            renderChart('cpu-chart', cpuMetrics, 'CPU Usage', 'cores');
+        }
+        if (memoryMetrics.length > 0) {
+            renderChart('memory-chart', memoryMetrics, 'Memory Usage', 'MiB');
+        }
+    }, 100);
+}
+
+function renderChart(canvasId, metrics, label, unit) {
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    
+    // Собираем данные временного ряда
+    const datasets = metrics.map((m, idx) => {
+        const color = idx === 0 ? 'rgb(54, 162, 235)' : 'rgb(255, 99, 132)';
+        
+        if (m.value.time_series) {
+            return {
+                label: m.labels.pod || m.metric,
+                data: m.value.time_series.map(p => ({
+                    x: new Date(p[0]).toISOString(),
+                    y: unit === 'MiB' ? p[1] / 1024 / 1024 : p[1]
+                })),
+                borderColor: color,
+                backgroundColor: color.replace('1)', '0.2)'),
+                tension: 0.4,
+                fill: true
+            };
+        }
+        return null;
+    }).filter(d => d !== null);
+    
+    if (datasets.length === 0) return;
+    
+    new Chart(ctx, {
+        type: 'line',
+        data: { datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            interaction: {
+                mode: 'nearest',
+                axis: 'x',
+                intersect: false
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.y.toFixed(3) + ' ' + unit;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: 'minute',
+                        displayFormats: {
+                            minute: 'HH:mm'
+                        }
+                    },
+                    adapters: {
+                        date: {
+                            locale: 'ru'
+                        }
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: unit
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Инициализация
+loadNamespaces();
+
+// Проверка параметров URL (?namespace=...&kind=...&name=...)
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('namespace')) {
+    $('#namespace').value = urlParams.get('namespace');
+}
+if (urlParams.get('kind')) {
+    $('#kind').value = urlParams.get('kind');
+}
+if (urlParams.get('name')) {
+    $('#resource-name').value = urlParams.get('name');
+    loadTroubleshooting();
+}
+</script>
+</body>
+</html>

@@ -2,7 +2,7 @@
 //!
 //! Фабрика для создания Git клиентов
 
-use super::{GitClient, CmdGitClient, GoGitClient, AccessKeyInstallerTrait};
+use super::{AccessKeyInstallerTrait, CmdGitClient, GitClient, GoGitClient};
 
 /// Тип клиента Git
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -14,7 +14,9 @@ pub enum GitClientType {
 }
 
 /// Создаёт Git клиент по умолчанию
-pub fn create_default_git_client(key_installer: Box<dyn AccessKeyInstallerTrait>) -> Box<dyn GitClient> {
+pub fn create_default_git_client(
+    key_installer: Box<dyn AccessKeyInstallerTrait>,
+) -> Box<dyn GitClient> {
     // По умолчанию используем CmdGitClient
     create_cmd_git_client(key_installer)
 }
@@ -25,7 +27,9 @@ pub fn create_go_git_client(key_installer: Box<dyn AccessKeyInstallerTrait>) -> 
 }
 
 /// Создаёт Command Line Git клиент
-pub fn create_cmd_git_client(key_installer: Box<dyn AccessKeyInstallerTrait>) -> Box<dyn GitClient> {
+pub fn create_cmd_git_client(
+    key_installer: Box<dyn AccessKeyInstallerTrait>,
+) -> Box<dyn GitClient> {
     Box::new(CmdGitClient::new(key_installer))
 }
 

@@ -2,20 +2,22 @@
 //!
 //! Обработчики HTTP запросов для управления audit log
 
+use crate::api::extractors::AdminUser;
+use crate::api::middleware::ErrorResponse;
+use crate::api::state::AppState;
+use crate::db::store::{AuditLogManager, ProjectStore};
+use crate::error::Error;
+use crate::models::audit_log::{
+    AuditAction, AuditLevel, AuditLog, AuditLogFilter, AuditLogResult, AuditObjectType,
+};
 use axum::{
     extract::{Path, Query, State},
-    http::{StatusCode, header},
+    http::{header, StatusCode},
     response::{IntoResponse, Response},
     Json,
 };
-use std::sync::Arc;
-use crate::api::state::AppState;
-use crate::api::extractors::AdminUser;
-use crate::api::middleware::ErrorResponse;
-use crate::db::store::{ProjectStore, AuditLogManager};
-use crate::models::audit_log::{AuditLogFilter, AuditAction, AuditObjectType, AuditLevel, AuditLog, AuditLogResult};
-use crate::error::Error;
 use serde::Deserialize;
+use std::sync::Arc;
 
 /// Query параметры для GET /api/audit-log
 #[derive(Debug, Deserialize)]
@@ -43,7 +45,6 @@ pub async fn get_audit_logs(
     _admin: AdminUser,
     Query(params): Query<AuditLogQueryParams>,
 ) -> std::result::Result<Json<AuditLogResult>, (StatusCode, Json<ErrorResponse>)> {
-    
     // Построение фильтра
     let action = params.action.map(|a| match a.as_str() {
         "login" => AuditAction::Login,
@@ -135,11 +136,12 @@ pub async fn get_audit_logs(
         order: params.order.unwrap_or_else(|| "desc".to_string()),
     };
 
-    let result = state.store.search_audit_logs(&filter).await
-        .map_err(|e| (
+    let result = state.store.search_audit_logs(&filter).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     Ok(Json(result))
 }
@@ -151,18 +153,17 @@ pub async fn get_audit_log(
     _admin: AdminUser,
     Path(id): Path<i64>,
 ) -> std::result::Result<Json<AuditLog>, (StatusCode, Json<ErrorResponse>)> {
-    let record = state.store.get_audit_log(id).await
-        .map_err(|e| match e {
-            Error::NotFound(_) => (
-                StatusCode::NOT_FOUND,
-                Json(ErrorResponse::new(e.to_string())),
-            ),
-            _ => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse::new(e.to_string())),
-            ),
-        })?;
-    
+    let record = state.store.get_audit_log(id).await.map_err(|e| match e {
+        Error::NotFound(_) => (
+            StatusCode::NOT_FOUND,
+            Json(ErrorResponse::new(e.to_string())),
+        ),
+        _ => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(e.to_string())),
+        ),
+    })?;
+
     Ok(Json(record))
 }
 
@@ -175,7 +176,10 @@ pub async fn get_project_audit_logs(
     Query(params): Query<AuditLogQueryParams>,
 ) -> std::result::Result<Json<Vec<AuditLog>>, (StatusCode, Json<ErrorResponse>)> {
     // Проверка доступа к проекту
-    state.store.get_project(project_id as i32).await
+    state
+        .store
+        .get_project(project_id as i32)
+        .await
         .map_err(|e| match e {
             Error::NotFound(_) => (
                 StatusCode::NOT_FOUND,
@@ -186,16 +190,21 @@ pub async fn get_project_audit_logs(
                 Json(ErrorResponse::new(e.to_string())),
             ),
         })?;
-    
+
     let limit = params.limit.unwrap_or(50);
     let offset = params.offset.unwrap_or(0);
-    
-    let records = state.store.get_audit_logs_by_project(project_id, limit, offset).await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
-    
+
+    let records = state
+        .store
+        .get_audit_logs_by_project(project_id, limit, offset)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
+
     Ok(Json(records))
 }
 
@@ -205,12 +214,13 @@ pub async fn clear_audit_log(
     State(state): State<Arc<AppState>>,
     _admin: AdminUser,
 ) -> std::result::Result<Json<serde_json::Value>, (StatusCode, Json<ErrorResponse>)> {
-    let deleted = state.store.clear_audit_log().await
-        .map_err(|e| (
+    let deleted = state.store.clear_audit_log().await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
-    
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
+
     Ok(Json(serde_json::json!({
         "deleted": deleted,
         "message": "Audit log очищен"
@@ -225,12 +235,17 @@ pub async fn delete_old_audit_logs(
     Query(params): Query<ExpiryParams>,
 ) -> std::result::Result<Json<serde_json::Value>, (StatusCode, Json<ErrorResponse>)> {
     let before = params.before;
-    let deleted = state.store.delete_audit_logs_before(before).await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
-    
+    let deleted = state
+        .store
+        .delete_audit_logs_before(before)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
+
     Ok(Json(serde_json::json!({
         "deleted": deleted,
         "before": before,
@@ -241,7 +256,7 @@ pub async fn delete_old_audit_logs(
 /// Query параметры для экспорта audit log
 #[derive(Debug, Deserialize)]
 pub struct ExportParams {
-    pub format: Option<String>,  // "csv" | "json" (default: json)
+    pub format: Option<String>, // "csv" | "json" (default: json)
     pub from: Option<chrono::DateTime<chrono::Utc>>,
     pub to: Option<chrono::DateTime<chrono::Utc>>,
     pub project_id: Option<i64>,
@@ -292,7 +307,8 @@ pub async fn export_audit_logs(
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(serde_json::json!({"error": e.to_string()})),
-            ).into_response();
+            )
+                .into_response();
         }
     };
 
@@ -317,23 +333,37 @@ pub async fn export_audit_logs(
             }
             (
                 StatusCode::OK,
-                [(header::CONTENT_TYPE, "text/csv; charset=utf-8"),
-                 (header::CONTENT_DISPOSITION, "attachment; filename=\"audit_log.csv\"")],
+                [
+                    (header::CONTENT_TYPE, "text/csv; charset=utf-8"),
+                    (
+                        header::CONTENT_DISPOSITION,
+                        "attachment; filename=\"audit_log.csv\"",
+                    ),
+                ],
                 csv,
-            ).into_response()
+            )
+                .into_response()
         }
         _ => {
             // JSON — NDJSON (newline-delimited) для совместимости с Logstash/Fluentd
-            let ndjson: String = result.records.iter()
+            let ndjson: String = result
+                .records
+                .iter()
                 .filter_map(|r| serde_json::to_string(r).ok())
                 .collect::<Vec<_>>()
                 .join("\n");
             (
                 StatusCode::OK,
-                [(header::CONTENT_TYPE, "application/x-ndjson"),
-                 (header::CONTENT_DISPOSITION, "attachment; filename=\"audit_log.ndjson\"")],
+                [
+                    (header::CONTENT_TYPE, "application/x-ndjson"),
+                    (
+                        header::CONTENT_DISPOSITION,
+                        "attachment; filename=\"audit_log.ndjson\"",
+                    ),
+                ],
                 ndjson,
-            ).into_response()
+            )
+                .into_response()
         }
     }
 }

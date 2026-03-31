@@ -1,6 +1,6 @@
 [package]
 name = "velum"
-version = "0.1.0"
+version = "2.4.0"
 edition = "2021"
 authors = ["Alexander Vashurin <alexandervashurin@yandex.ru>"]
 description = "Velum — Rust-port of Semaphore UI. DevOps task management with Ansible, Terraform, PowerShell support."
@@ -11,6 +11,11 @@ autotests = false
 [[test]]
 name = "api_integration"
 path = "tests/api_integration.rs"
+required-features = ["integration-api-tests"]
+
+[[test]]
+name = "kubernetes_integration"
+path = "tests/kubernetes_integration.rs"
 required-features = ["integration-api-tests"]
 
 [lib]

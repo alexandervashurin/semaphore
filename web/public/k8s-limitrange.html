@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes LimitRange — Velum</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar"></aside>
+    <div class="main-content">
+        <div class="main-header">
+            <h2><i class="fa-solid fa-sliders"></i> Limit Ranges</h2>
+            <button class="btn btn-primary" onclick="openCreateModal()"><i class="fa-solid fa-plus"></i> Создать LimitRange</button>
+        </div>
+        <div class="main-body">
+            <div class="card" style="margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <label>Namespace: <select id="namespace" class="form-control" style="max-width:200px;"></select></label>
+                <input id="filter" class="form-control" placeholder="Фильтр по имени" style="min-width:160px;">
+                <button class="btn btn-primary" onclick="loadLimitRanges()"><i class="fa-solid fa-rotate"></i> Обновить</button>
+            </div>
+            <div id="content" class="card"><div class="loading"><div class="loading-spinner"></div><p>Загрузка...</p></div></div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Create/Edit LimitRange -->
+<div class="modal-overlay" id="limitrange-modal" style="display:none;">
+    <div class="modal" style="max-width:600px;">
+        <div class="modal-header">
+            <h3 id="modal-title">Создать LimitRange</h3>
+            <button class="modal-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+            <form id="limitrange-form" onsubmit="saveLimitRange(event)">
+                <div class="form-group">
+                    <label>Имя *</label>
+                    <input type="text" id="lr-name" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Namespace *</label>
+                    <select id="lr-namespace" class="form-control" required></select>
+                </div>
+                <fieldset class="form-group">
+                    <legend>Container Limits</legend>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                        <div>
+                            <label>Min CPU</label>
+                            <input type="text" id="min-cpu" class="form-control" placeholder="100m">
+                        </div>
+                        <div>
+                            <label>Max CPU</label>
+                            <input type="text" id="max-cpu" class="form-control" placeholder="2">
+                        </div>
+                        <div>
+                            <label>Min Memory</label>
+                            <input type="text" id="min-mem" class="form-control" placeholder="128Mi">
+                        </div>
+                        <div>
+                            <label>Max Memory</label>
+                            <input type="text" id="max-mem" class="form-control" placeholder="4Gi">
+                        </div>
+                        <div>
+                            <label>Default CPU Request</label>
+                            <input type="text" id="default-cpu-req" class="form-control" placeholder="250m">
+                        </div>
+                        <div>
+                            <label>Default CPU Limit</label>
+                            <input type="text" id="default-cpu-lim" class="form-control" placeholder="500m">
+                        </div>
+                        <div>
+                            <label>Default Mem Request</label>
+                            <input type="text" id="default-mem-req" class="form-control" placeholder="256Mi">
+                        </div>
+                        <div>
+                            <label>Default Mem Limit</label>
+                            <input type="text" id="default-mem-lim" class="form-control" placeholder="512Mi">
+                        </div>
+                    </div>
+                </fieldset>
+                <div class="modal-footer">
+                    <button type="button" class="btn" onclick="closeModal()">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+checkAuth();
+let editingName = null;
+
+async function loadNamespaces() {
+    const ns = await api.get('/kubernetes/namespaces');
+    const select = $('#namespace');
+    const lrSelect = $('#lr-namespace');
+    select.innerHTML = '<option value="">— все —</option>';
+    lrSelect.innerHTML = '';
+    ns.forEach(n => {
+        const opt = `<option value="${escapeHtml(n.name)}">${escapeHtml(n.name)}</option>`;
+        select.innerHTML += opt;
+        lrSelect.innerHTML += opt;
+    });
+}
+
+async function loadLimitRanges() {
+    const ns = $('#namespace').value || 'default';
+    const filter = $('#filter').value.toLowerCase();
+    const content = $('#content');
+    
+    try {
+        const lrs = await api.get(`/kubernetes/limitranges?namespace=${ns}`);
+        const filtered = lrs.filter(lr => !filter || lr.name.toLowerCase().includes(filter));
+        
+        if (filtered.length === 0) {
+            ui.showEmpty(content, '<i class="fa-solid fa-sliders"></i>', 'Нет LimitRange', 'Создайте первый LimitRange');
+            return;
+        }
+        
+        content.innerHTML = `
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Имя</th>
+                        <th>Namespace</th>
+                        <th>Type</th>
+                        <th>CPU (min/max)</th>
+                        <th>Memory (min/max)</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${filtered.map(lr => `
+                        <tr>
+                            <td><strong>${escapeHtml(lr.name)}</strong></td>
+                            <td>${escapeHtml(lr.namespace)}</td>
+                            <td>${lr.type || 'Container'}</td>
+                            <td>${lr.minCpu || '—'} / ${lr.maxCpu || '—'}</td>
+                            <td>${lr.minMem || '—'} / ${lr.maxMem || '—'}</td>
+                            <td>
+                                <button class="btn btn-sm btn-secondary" onclick="editLimitRange('${escapeHtml(lr.name)}','${escapeHtml(lr.namespace)}')" title="Редактировать"><i class="fa-solid fa-pen"></i></button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteLimitRange('${escapeHtml(lr.name)}','${escapeHtml(lr.namespace)}')" title="Удалить"><i class="fa-solid fa-trash"></i></button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (e) {
+        ui.showError(content, e.message);
+    }
+}
+
+function openCreateModal() {
+    editingName = null;
+    $('#modal-title').textContent = 'Создать LimitRange';
+    $('#limitrange-form').reset();
+    $('#limitrange-modal').style.display = 'flex';
+}
+
+function closeModal() {
+    $('#limitrange-modal').style.display = 'none';
+}
+
+async function editLimitRange(name, namespace) {
+    editingName = name;
+    $('#modal-title').textContent = 'Редактировать LimitRange';
+    
+    try {
+        const lr = await api.get(`/kubernetes/namespaces/${namespace}/limitranges/${name}`);
+        $('#lr-name').value = lr.metadata.name;
+        $('#lr-namespace').value = lr.metadata.namespace || 'default';
+        
+        const limits = lr.spec.limits?.[0] || {};
+        $('#min-cpu').value = limits.min?.cpu || '';
+        $('#max-cpu').value = limits.max?.cpu || '';
+        $('#min-mem').value = limits.min?.memory || '';
+        $('#max-mem').value = limits.max?.memory || '';
+        $('#default-cpu-req').value = limits.defaultRequest?.cpu || '';
+        $('#default-cpu-lim').value = limits.default?.cpu || '';
+        $('#default-mem-req').value = limits.defaultRequest?.memory || '';
+        $('#default-mem-lim').value = limits.default?.memory || '';
+        
+        $('#limitrange-modal').style.display = 'flex';
+    } catch (e) {
+        ui.showAlert('Ошибка: ' + e.message, 'danger');
+    }
+}
+
+async function saveLimitRange(e) {
+    e.preventDefault();
+    
+    const limits = {
+        type: 'Container',
+        min: {},
+        max: {},
+        defaultRequest: {},
+        default: {}
+    };
+    
+    if ($('#min-cpu').value) limits.min.cpu = $('#min-cpu').value;
+    if ($('#max-cpu').value) limits.max.cpu = $('#max-cpu').value;
+    if ($('#min-mem').value) limits.min.memory = $('#min-mem').value;
+    if ($('#max-mem').value) limits.max.memory = $('#max-mem').value;
+    if ($('#default-cpu-req').value) limits.defaultRequest.cpu = $('#default-cpu-req').value;
+    if ($('#default-cpu-lim').value) limits.default.cpu = $('#default-cpu-lim').value;
+    if ($('#default-mem-req').value) limits.defaultRequest.memory = $('#default-mem-req').value;
+    if ($('#default-mem-lim').value) limits.default.memory = $('#default-mem-lim').value;
+    
+    // Remove empty objects
+    if (Object.keys(limits.min).length === 0) delete limits.min;
+    if (Object.keys(limits.max).length === 0) delete limits.max;
+    if (Object.keys(limits.defaultRequest).length === 0) delete limits.defaultRequest;
+    if (Object.keys(limits.default).length === 0) delete limits.default;
+    
+    const payload = {
+        apiVersion: 'v1',
+        kind: 'LimitRange',
+        metadata: {
+            name: $('#lr-name').value,
+            namespace: $('#lr-namespace').value
+        },
+        spec: {
+            limits: [limits]
+        }
+    };
+    
+    const btn = document.querySelector('#limitrange-modal button[type="submit"]');
+    btn.disabled = true;
+    
+    try {
+        if (editingName) {
+            await api.put(`/kubernetes/namespaces/${$('#lr-namespace').value}/limitranges/${editingName}`, payload);
+        } else {
+            await api.post(`/kubernetes/namespaces/${$('#lr-namespace').value}/limitranges`, payload);
+        }
+        closeModal();
+        loadLimitRanges();
+        ui.showAlert('LimitRange сохранён', 'success');
+    } catch (e) {
+        ui.showAlert('Ошибка: ' + e.message, 'danger');
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function deleteLimitRange(name, namespace) {
+    if (!confirm(`Удалить LimitRange ${namespace}/${name}?`)) return;
+    
+    try {
+        await api.delete(`/kubernetes/namespaces/${namespace}/limitranges/${name}`);
+        loadLimitRanges();
+        ui.showAlert('LimitRange удалён', 'success');
+    } catch (e) {
+        ui.showAlert('Ошибка: ' + e.message, 'danger');
+    }
+}
+
+$('#namespace').addEventListener('change', loadLimitRanges);
+$('#filter').addEventListener('input', loadLimitRanges);
+
+loadNamespaces().then(loadLimitRanges);
+</script>
+</body>
+</html>

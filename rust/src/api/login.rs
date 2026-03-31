@@ -2,16 +2,12 @@
 //!
 //! Обработчики для входа в систему
 
-use axum::{
-    extract::State,
-    http::StatusCode,
-    Json,
-};
-use std::sync::Arc;
-use serde::{Deserialize, Serialize};
+use crate::api::middleware::ErrorResponse;
 use crate::api::state::AppState;
 use crate::error::{Error, Result};
-use crate::api::middleware::ErrorResponse;
+use axum::{extract::State, http::StatusCode, Json};
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 /// Payload для входа
 #[derive(Debug, Deserialize)]
@@ -67,7 +63,7 @@ mod tests {
             "password": "password123",
             "totp_code": "123456"
         }"#;
-        
+
         let payload: LoginPayload = serde_json::from_str(json).unwrap();
         assert_eq!(payload.username, "admin");
         assert_eq!(payload.password, "password123");

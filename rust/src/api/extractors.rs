@@ -82,25 +82,21 @@ impl FromRequestParts<Arc<AppState>> for AuthUser {
         state: &Arc<AppState>,
     ) -> Result<Self, Self::Rejection> {
         // Токен из Authorization или Cookie (Vue upstream использует cookie)
-        let token = extract_token_from_parts(parts)
-            .ok_or((
-                StatusCode::UNAUTHORIZED,
-                Json(ErrorResponse::new("Требуется аутентификация")
-                    .with_code("AUTH_REQUIRED")),
-            ))?;
+        let token = extract_token_from_parts(parts).ok_or((
+            StatusCode::UNAUTHORIZED,
+            Json(ErrorResponse::new("Требуется аутентификация").with_code("AUTH_REQUIRED")),
+        ))?;
 
         // Получаем LocalAuthService из состояния
         let auth_service = LocalAuthService::new(state.store.clone());
 
         // Проверяем токен
-        let claims = auth_service.verify_token(&token)
-            .map_err(|_| {
-                (
-                    StatusCode::UNAUTHORIZED,
-                    Json(ErrorResponse::new("Неверный токен".to_string())
-                        .with_code("AUTH_FAILED")),
-                )
-            })?;
+        let claims = auth_service.verify_token(&token).map_err(|_| {
+            (
+                StatusCode::UNAUTHORIZED,
+                Json(ErrorResponse::new("Неверный токен".to_string()).with_code("AUTH_FAILED")),
+            )
+        })?;
 
         Ok(AuthUser {
             user_id: claims.sub,
@@ -149,12 +145,10 @@ impl FromRequestParts<Arc<AppState>> for AuthToken {
             .get(axum::http::header::AUTHORIZATION)
             .and_then(|v| v.to_str().ok());
 
-        let token = extract_token_from_header(auth_header)
-            .ok_or((
-                StatusCode::UNAUTHORIZED,
-                Json(ErrorResponse::new("Требуется аутентификация")
-                    .with_code("AUTH_REQUIRED")),
-            ))?;
+        let token = extract_token_from_header(auth_header).ok_or((
+            StatusCode::UNAUTHORIZED,
+            Json(ErrorResponse::new("Требуется аутентификация").with_code("AUTH_REQUIRED")),
+        ))?;
 
         Ok(AuthToken(token.to_string()))
     }
@@ -184,8 +178,10 @@ impl FromRequestParts<Arc<AppState>> for AdminUser {
         if !user.admin {
             return Err((
                 StatusCode::FORBIDDEN,
-                Json(ErrorResponse::new("Требуется права администратора")
-                    .with_code("ADMIN_REQUIRED")),
+                Json(
+                    ErrorResponse::new("Требуется права администратора")
+                        .with_code("ADMIN_REQUIRED"),
+                ),
             ));
         }
 

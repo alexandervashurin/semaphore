@@ -54,7 +54,9 @@ impl PlaybookRunStatusService {
             TaskStatus::NotExecuted => PlaybookRunStatus::Waiting,
         };
 
-        store.update_playbook_run_status(run.id, playbook_status).await?;
+        store
+            .update_playbook_run_status(run.id, playbook_status)
+            .await?;
 
         info!("Task {} status updated to {:?}", task_id, new_status);
 
@@ -96,7 +98,9 @@ impl PlaybookRunStatusService {
             error_message: None,
         };
 
-        store.update_playbook_run(run_id, project_id, update).await?;
+        store
+            .update_playbook_run(run_id, project_id, update)
+            .await?;
 
         info!(
             "Playbook run {} statistics updated: total={}, changed={}, unreachable={}, failed={}",
@@ -129,7 +133,7 @@ mod tests {
     fn test_calculate_duration() {
         let start = Utc::now();
         let end = start + chrono::Duration::seconds(30);
-        
+
         let duration = PlaybookRunStatusService::calculate_duration(Some(start), Some(end));
         assert_eq!(duration, Some(30));
     }

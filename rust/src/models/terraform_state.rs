@@ -12,29 +12,29 @@ use sqlx::FromRow;
 /// A single Terraform state version stored in the backend.
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct TerraformState {
-    pub id:         i64,
+    pub id: i64,
     pub project_id: i32,
-    pub workspace:  String,
-    pub serial:     i32,
-    pub lineage:    String,
+    pub workspace: String,
+    pub serial: i32,
+    pub lineage: String,
     /// Raw (possibly gzip-compressed, possibly AES-256-GCM encrypted) bytes.
     #[serde(skip)]
     pub state_data: Vec<u8>,
-    pub encrypted:  bool,
-    pub md5:        String,
+    pub encrypted: bool,
+    pub md5: String,
     pub created_at: DateTime<Utc>,
 }
 
 /// Summary row returned to the UI (no raw bytes).
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct TerraformStateSummary {
-    pub id:         i64,
+    pub id: i64,
     pub project_id: i32,
-    pub workspace:  String,
-    pub serial:     i32,
-    pub lineage:    String,
-    pub encrypted:  bool,
-    pub md5:        String,
+    pub workspace: String,
+    pub serial: i32,
+    pub lineage: String,
+    pub encrypted: bool,
+    pub md5: String,
     pub created_at: DateTime<Utc>,
 }
 
@@ -44,13 +44,13 @@ pub struct TerraformStateSummary {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct TerraformStateLock {
     pub project_id: i32,
-    pub workspace:  String,
-    pub lock_id:    String,
-    pub operation:  String,
-    pub info:       String,
-    pub who:        String,
-    pub version:    String,
-    pub path:       String,
+    pub workspace: String,
+    pub lock_id: String,
+    pub operation: String,
+    pub info: String,
+    pub who: String,
+    pub version: String,
+    pub path: String,
     pub created_at: DateTime<Utc>,
     pub expires_at: DateTime<Utc>,
 }
@@ -65,23 +65,23 @@ pub struct LockInfo {
     pub id: String,
     /// "OperationTypePlan", "OperationTypeApply", etc.
     pub operation: String,
-    pub info:      String,
-    pub who:       String,
-    pub version:   String,
-    pub created:   Option<String>,
-    pub path:      String,
+    pub info: String,
+    pub who: String,
+    pub version: String,
+    pub created: Option<String>,
+    pub path: String,
 }
 
 impl LockInfo {
     pub fn from_lock(lock: &TerraformStateLock) -> Self {
         Self {
-            id:        lock.lock_id.clone(),
+            id: lock.lock_id.clone(),
             operation: lock.operation.clone(),
-            info:      lock.info.clone(),
-            who:       lock.who.clone(),
-            version:   lock.version.clone(),
-            created:   Some(lock.created_at.to_rfc3339()),
-            path:      lock.path.clone(),
+            info: lock.info.clone(),
+            who: lock.who.clone(),
+            version: lock.version.clone(),
+            created: Some(lock.created_at.to_rfc3339()),
+            path: lock.path.clone(),
         }
     }
 }
@@ -91,19 +91,19 @@ impl LockInfo {
 /// Describes a resource change between two state versions.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StateDiffResource {
-    pub address:      String,
-    pub change_type:  String, // "added" | "changed" | "removed" | "unchanged"
+    pub address: String,
+    pub change_type: String, // "added" | "changed" | "removed" | "unchanged"
     pub resource_type: String,
-    pub name:         String,
+    pub name: String,
 }
 
 /// Result of diffing two state serials.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StateDiff {
     pub from_serial: i32,
-    pub to_serial:   i32,
-    pub resources:   Vec<StateDiffResource>,
-    pub added:       usize,
-    pub changed:     usize,
-    pub removed:     usize,
+    pub to_serial: i32,
+    pub resources: Vec<StateDiffResource>,
+    pub added: usize,
+    pub changed: usize,
+    pub removed: usize,
 }

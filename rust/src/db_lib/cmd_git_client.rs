@@ -3,15 +3,15 @@
 //! Полная замена Go db_lib/CmdGitClient.go
 //! Использует системную команду `git` для выполнения операций
 
+use std::env;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::env;
 use tokio::process::Command as TokioCommand;
 
+use super::access_key_installer::AccessKeyInstallerTrait;
 use crate::error::{Error, Result};
 use crate::services::ssh_agent::AccessKeyInstallation;
 use crate::services::task_logger::TaskLogger;
-use super::access_key_installer::AccessKeyInstallerTrait;
 
 // ============================================================================
 // Типы данных
@@ -53,11 +53,7 @@ pub struct DbRepository {
 
 impl GitRepository {
     /// Создаёт новый GitRepository
-    pub fn new(
-        repository: DbRepository,
-        project_id: i32,
-        template_id: i32,
-    ) -> Self {
+    pub fn new(repository: DbRepository, project_id: i32, template_id: i32) -> Self {
         Self {
             tmp_dir_name: None,
             repository,
@@ -76,13 +72,15 @@ impl GitRepository {
     pub fn get_full_path(&self) -> PathBuf {
         if let Some(ref tmp_name) = self.tmp_dir_name {
             // Временная директория проекта
-            PathBuf::from(format!("/tmp/velum/project_{}/{}", self.project_id, tmp_name))
+            PathBuf::from(format!(
+                "/tmp/velum/project_{}/{}",
+                self.project_id, tmp_name
+            ))
         } else {
             // Полная директория репозитория
             PathBuf::from(format!(
                 "/tmp/velum/repo_{}_{}",
-                self.repository.id,
-                self.template_id
+                self.repository.id, self.template_id
             ))
         }
     }
@@ -91,7 +89,10 @@ impl GitRepository {
     pub fn validate_repo(&self) -> Result<()> {
         let path = self.get_full_path();
         if !path.exists() {
-            return Err(Error::NotFound(format!("Repository not found at {:?}", path)));
+            return Err(Error::NotFound(format!(
+                "Repository not found at {:?}",
+                path
+            )));
         }
         Ok(())
     }
@@ -106,7 +107,9 @@ impl GitRepository {
                 // Для HTTPS нужно получить токен из AccessKey
                 // Пока возвращаем как есть - аутентификация через Git Credential Helper
                 self.repository.git_url.clone()
-            } else if self.repository.git_url.starts_with("ssh://") || self.repository.git_url.contains('@') {
+            } else if self.repository.git_url.starts_with("ssh://")
+                || self.repository.git_url.contains('@')
+            {
                 // SSH URL уже содержит аутентификацию
                 self.repository.git_url.clone()
             } else {
@@ -245,9 +248,7 @@ impl CmdGitClient {
 
     /// Получает переменные окружения
     fn get_environment_vars(&self) -> Vec<(String, String)> {
-        vec![
-            ("GIT_TERMINAL_PROMPT".to_string(), "0".to_string()),
-        ]
+        vec![("GIT_TERMINAL_PROMPT".to_string(), "0".to_string())]
     }
 
     /// Получает путь к временной директории проекта
@@ -272,9 +273,9 @@ impl CmdGitClient {
         let mut cmd = self.make_cmd(r, target_dir, &installation, args);
         logger.log_cmd(&cmd);
 
-        let output = cmd.output().map_err(|e| {
-            Error::Other(format!("Git command failed: {}", e))
-        })?;
+        let output = cmd
+            .output()
+            .map_err(|e| Error::Other(format!("Git command failed: {}", e)))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -301,9 +302,9 @@ impl CmdGitClient {
         let mut cmd = self.make_cmd(r, target_dir, &installation, args);
         logger.log_cmd(&cmd);
 
-        let output = cmd.output().map_err(|e| {
-            Error::Other(format!("Git command failed: {}", e))
-        })?;
+        let output = cmd
+            .output()
+            .map_err(|e| Error::Other(format!("Git command failed: {}", e)))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -327,9 +328,10 @@ impl CmdGitClient {
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
 
-        let output = cmd.output().await.map_err(|e| {
-            Error::Other(format!("Git command failed: {}", e))
-        })?;
+        let output = cmd
+            .output()
+            .await
+            .map_err(|e| Error::Other(format!("Git command failed: {}", e)))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -347,7 +349,9 @@ impl GitClient for CmdGitClient {
         // Логирование клонирования репозитория
         tracing::info!("Cloning repository {}", repo.repository.git_url);
 
-        let dir_name = repo.tmp_dir_name.clone()
+        let dir_name = repo
+            .tmp_dir_name
+            .clone()
             .unwrap_or_else(|| repo.repository.get_dir_name(repo.template_id));
 
         // Установка SSH ключа если указан
@@ -370,9 +374,10 @@ impl GitClient for CmdGitClient {
             ],
         );
 
-        let output = cmd.output().await.map_err(|e| {
-            Error::Other(format!("Git clone failed: {}", e))
-        })?;
+        let output = cmd
+            .output()
+            .await
+            .map_err(|e| Error::Other(format!("Git clone failed: {}", e)))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -393,9 +398,10 @@ impl GitClient for CmdGitClient {
             &["pull", "origin", &repo.repository.git_branch],
         );
 
-        let output = cmd.output().await.map_err(|e| {
-            Error::Other(format!("Git pull failed: {}", e))
-        })?;
+        let output = cmd
+            .output()
+            .await
+            .map_err(|e| Error::Other(format!("Git pull failed: {}", e)))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -410,13 +416,17 @@ impl GitClient for CmdGitClient {
             &["submodule", "update", "--init", "--recursive"],
         );
 
-        let output = cmd.output().await.map_err(|e| {
-            Error::Other(format!("Git submodule update failed: {}", e))
-        })?;
+        let output = cmd
+            .output()
+            .await
+            .map_err(|e| Error::Other(format!("Git submodule update failed: {}", e)))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(Error::Other(format!("Git submodule update failed: {}", stderr)));
+            return Err(Error::Other(format!(
+                "Git submodule update failed: {}",
+                stderr
+            )));
         }
 
         Ok(())
@@ -432,9 +442,10 @@ impl GitClient for CmdGitClient {
             &["checkout", target],
         );
 
-        let output = cmd.output().await.map_err(|e| {
-            Error::Other(format!("Git checkout failed: {}", e))
-        })?;
+        let output = cmd
+            .output()
+            .await
+            .map_err(|e| Error::Other(format!("Git checkout failed: {}", e)))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -449,12 +460,7 @@ impl GitClient for CmdGitClient {
         let installation = AccessKeyInstallation::new();
 
         // Fetch
-        let mut cmd = self.make_cmd(
-            repo,
-            GitRepositoryDirType::Full,
-            &installation,
-            &["fetch"],
-        );
+        let mut cmd = self.make_cmd(repo, GitRepositoryDirType::Full, &installation, &["fetch"]);
 
         if let Ok(output) = cmd.output() {
             if !output.status.success() {
@@ -485,11 +491,13 @@ impl GitClient for CmdGitClient {
     }
 
     async fn get_last_commit_message(&self, repo: &GitRepository) -> Result<String> {
-        let msg = self.async_output(
-            repo,
-            GitRepositoryDirType::Full,
-            &["show-branch", "--no-name", "HEAD"],
-        ).await?;
+        let msg = self
+            .async_output(
+                repo,
+                GitRepositoryDirType::Full,
+                &["show-branch", "--no-name", "HEAD"],
+            )
+            .await?;
 
         // Ограничиваем длину сообщения
         let msg = if msg.len() > 100 {
@@ -502,38 +510,41 @@ impl GitClient for CmdGitClient {
     }
 
     async fn get_last_commit_hash(&self, repo: &GitRepository) -> Result<String> {
-        self.async_output(
-            repo,
-            GitRepositoryDirType::Full,
-            &["rev-parse", "HEAD"],
-        ).await
+        self.async_output(repo, GitRepositoryDirType::Full, &["rev-parse", "HEAD"])
+            .await
     }
 
     async fn get_last_remote_commit_hash(&self, repo: &GitRepository) -> Result<String> {
-        let out = self.async_output(
-            repo,
-            GitRepositoryDirType::Tmp,
-            &[
-                "ls-remote",
-                &repo.get_git_url(false),
-                &repo.repository.git_branch,
-            ],
-        ).await?;
+        let out = self
+            .async_output(
+                repo,
+                GitRepositoryDirType::Tmp,
+                &[
+                    "ls-remote",
+                    &repo.get_git_url(false),
+                    &repo.repository.git_branch,
+                ],
+            )
+            .await?;
 
         // Парсим вывод: "hash\trefs/heads/branch"
         if let Some(tab_pos) = out.find('\t') {
             Ok(out[..tab_pos].to_string())
         } else {
-            Err(Error::Other("Can't retrieve remote commit hash".to_string()))
+            Err(Error::Other(
+                "Can't retrieve remote commit hash".to_string(),
+            ))
         }
     }
 
     async fn get_remote_branches(&self, repo: &GitRepository) -> Result<Vec<String>> {
-        let out = self.async_output(
-            repo,
-            GitRepositoryDirType::Tmp,
-            &["ls-remote", "--heads", &repo.get_git_url(false)],
-        ).await?;
+        let out = self
+            .async_output(
+                repo,
+                GitRepositoryDirType::Tmp,
+                &["ls-remote", "--heads", &repo.get_git_url(false)],
+            )
+            .await?;
 
         if out.is_empty() {
             return Ok(vec![]);
@@ -548,7 +559,9 @@ impl GitClient for CmdGitClient {
                 }
 
                 let ref_path = parts[1];
-                ref_path.rfind('/').map(|idx| ref_path[idx + 1..].to_string())
+                ref_path
+                    .rfind('/')
+                    .map(|idx| ref_path[idx + 1..].to_string())
             })
             .collect();
 
@@ -611,8 +624,7 @@ mod tests {
             git_path: None,
         };
 
-        let git_repo = GitRepository::new(repo, 1, 1)
-            .with_tmp_dir("test_tmp".to_string());
+        let git_repo = GitRepository::new(repo, 1, 1).with_tmp_dir("test_tmp".to_string());
 
         assert!(git_repo.tmp_dir_name.is_some());
         assert_eq!(git_repo.tmp_dir_name.unwrap(), "test_tmp");

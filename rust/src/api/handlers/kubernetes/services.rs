@@ -2,20 +2,20 @@
 //!
 //! Handlers для управления Kubernetes Services
 
+use crate::api::handlers::kubernetes::client::KubeClient;
+use crate::api::state::AppState;
+use crate::error::{Error, Result};
 use axum::{
     extract::{Path, Query, State},
     Json,
 };
-use std::sync::Arc;
-use std::collections::BTreeMap;
-use crate::api::state::AppState;
-use crate::error::{Error, Result};
-use crate::api::handlers::kubernetes::client::KubeClient;
-use k8s_openapi::api::core::v1::{Service, ServiceSpec, ServicePort};
-use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
+use k8s_openapi::api::core::v1::{Service, ServicePort, ServiceSpec};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
-use kube::api::{Api, ListParams, PostParams, DeleteParams};
+use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
+use kube::api::{Api, DeleteParams, ListParams, PostParams};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+use std::sync::Arc;
 
 /// Query параметры для list services
 #[derive(Debug, Deserialize)]
@@ -80,7 +80,7 @@ pub async fn list_services(
     Query(query): Query<ListServicesQuery>,
 ) -> Result<Json<Vec<ServiceSummary>>> {
     let client = state.kubernetes_client()?;
-    
+
     let namespace = query.namespace.as_deref();
     let api: Api<Service> = if let Some(ns) = namespace {
         client.api(Some(ns))
@@ -107,7 +107,7 @@ pub async fn list_services(
         .map(|svc| {
             let spec = &svc.spec;
             let meta = &svc.metadata;
-            
+
             let ports_str: Vec<String> = spec
                 .as_ref()
                 .and_then(|s| s.ports.as_ref())
@@ -116,7 +116,8 @@ pub async fn list_services(
                         .iter()
                         .map(|p| {
                             let protocol = p.protocol.as_deref().unwrap_or("TCP");
-                            let target = p.target_port
+                            let target = p
+                                .target_port
                                 .as_ref()
                                 .map(|tp| match tp {
                                     IntOrString::Int(i) => i.to_string(),
@@ -141,7 +142,7 @@ pub async fn list_services(
                 .map(|t| t.as_str())
                 .unwrap_or("ClusterIP")
                 .to_string();
-                
+
             let cluster_ip = spec
                 .as_ref()
                 .and_then(|s| s.cluster_ip.as_ref())
@@ -157,8 +158,12 @@ pub async fn list_services(
                 cluster_ip,
                 external_ips,
                 ports: ports_str,
-                selector: spec.as_ref().and_then(|s| s.selector.clone()).unwrap_or_default(),
-                age: meta.creation_timestamp
+                selector: spec
+                    .as_ref()
+                    .and_then(|s| s.selector.clone())
+                    .unwrap_or_default(),
+                age: meta
+                    .creation_timestamp
                     .as_ref()
                     .map(|t| t.0.to_rfc3339())
                     .unwrap_or_else(|| "unknown".to_string()),
@@ -184,7 +189,9 @@ pub async fn get_service(
         .await
         .map_err(|e| Error::Kubernetes(e.to_string()))?;
 
-    Ok(Json(serde_json::to_value(svc).map_err(|e| Error::Kubernetes(e.to_string()))?))
+    Ok(Json(
+        serde_json::to_value(svc).map_err(|e| Error::Kubernetes(e.to_string()))?,
+    ))
 }
 
 /// Создать Service
@@ -204,20 +211,26 @@ pub async fn create_service(
         .map(|p| ServicePort {
             name: p.name.clone(),
             port: p.port,
-            target_port: p.target_port.as_ref().map(|tp| IntOrString::String(tp.clone())),
+            target_port: p
+                .target_port
+                .as_ref()
+                .map(|tp| IntOrString::String(tp.clone())),
             protocol: p.protocol.clone(),
             node_port: p.node_port,
             ..Default::default()
         })
         .collect();
 
-    let svc_type = payload.spec.type_.map(|t| match t.as_str() {
-        "ClusterIP" => "ClusterIP",
-        "NodePort" => "NodePort",
-        "LoadBalancer" => "LoadBalancer",
-        "ExternalName" => "ExternalName",
-        _ => "ClusterIP",
-    }.to_string());
+    let svc_type = payload.spec.type_.map(|t| {
+        match t.as_str() {
+            "ClusterIP" => "ClusterIP",
+            "NodePort" => "NodePort",
+            "LoadBalancer" => "LoadBalancer",
+            "ExternalName" => "ExternalName",
+            _ => "ClusterIP",
+        }
+        .to_string()
+    });
 
     let service = Service {
         metadata: ObjectMeta {
@@ -244,7 +257,9 @@ pub async fn create_service(
         .await
         .map_err(|e| Error::Kubernetes(e.to_string()))?;
 
-    Ok(Json(serde_json::to_value(created).map_err(|e| Error::Kubernetes(e.to_string()))?))
+    Ok(Json(
+        serde_json::to_value(created).map_err(|e| Error::Kubernetes(e.to_string()))?,
+    ))
 }
 
 /// Обновить Service
@@ -273,20 +288,26 @@ pub async fn update_service(
         .map(|p| ServicePort {
             name: p.name.clone(),
             port: p.port,
-            target_port: p.target_port.as_ref().map(|tp| IntOrString::String(tp.clone())),
+            target_port: p
+                .target_port
+                .as_ref()
+                .map(|tp| IntOrString::String(tp.clone())),
             protocol: p.protocol.clone(),
             node_port: p.node_port,
             ..Default::default()
         })
         .collect();
 
-    let svc_type = payload.spec.type_.map(|t| match t.as_str() {
-        "ClusterIP" => "ClusterIP",
-        "NodePort" => "NodePort",
-        "LoadBalancer" => "LoadBalancer",
-        "ExternalName" => "ExternalName",
-        _ => "ClusterIP",
-    }.to_string());
+    let svc_type = payload.spec.type_.map(|t| {
+        match t.as_str() {
+            "ClusterIP" => "ClusterIP",
+            "NodePort" => "NodePort",
+            "LoadBalancer" => "LoadBalancer",
+            "ExternalName" => "ExternalName",
+            _ => "ClusterIP",
+        }
+        .to_string()
+    });
 
     if let Some(spec) = svc.spec.as_mut() {
         spec.type_ = svc_type;
@@ -302,7 +323,9 @@ pub async fn update_service(
         .await
         .map_err(|e| Error::Kubernetes(e.to_string()))?;
 
-    Ok(Json(serde_json::to_value(updated).map_err(|e| Error::Kubernetes(e.to_string()))?))
+    Ok(Json(
+        serde_json::to_value(updated).map_err(|e| Error::Kubernetes(e.to_string()))?,
+    ))
 }
 
 /// Удалить Service
@@ -331,12 +354,11 @@ pub async fn get_service_endpoints(
     Path((namespace, name)): Path<(String, String)>,
 ) -> Result<Json<Vec<serde_json::Value>>> {
     use k8s_openapi::api::discovery::v1::EndpointSlice;
-    
+
     let client = state.kubernetes_client()?;
     let api: Api<EndpointSlice> = client.api(Some(&namespace));
 
-    let list_params = ListParams::default()
-        .labels(&format!("kubernetes.io/service-name={}", name));
+    let list_params = ListParams::default().labels(&format!("kubernetes.io/service-name={}", name));
 
     let slices = api
         .list(&list_params)

@@ -6,7 +6,6 @@
 ///   VELUM_TIMEOUT_SECS — request timeout in seconds (default: 30)
 use anyhow::{anyhow, Context, Result};
 use reqwest::{Client, StatusCode};
-use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json::Value;
 use std::time::Duration;
@@ -98,11 +97,5 @@ impl VelumClient {
         } else {
             Err(anyhow!("API error {status}: {text}"))
         }
-    }
-
-    /// Typed GET helper.
-    pub async fn get_typed<T: DeserializeOwned>(&self, path: &str) -> Result<T> {
-        let v = self.get(path).await?;
-        serde_json::from_value(v).context("Type conversion failed")
     }
 }

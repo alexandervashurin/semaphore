@@ -3,297 +3,598 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kubernetes Jobs — Velum</title>
+    <title>Kubernetes Jobs & CronJobs — Velum</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+    <style>
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-complete { background: #d4edda; color: #155724; }
+        .status-running { background: #d1ecf1; color: #0c5460; }
+        .status-failed { background: #f8d7da; color: #721c24; }
+        .status-pending { background: #fff3cd; color: #856404; }
+        
+        .schedule-badge {
+            display: inline-block;
+            background: #e9ecef;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-family: monospace;
+        }
+    </style>
 </head>
 <body>
 <div class="layout">
     <aside class="sidebar"></aside>
     <div class="main-content">
-        <div class="main-header"><h2><i class="fa-solid fa-clock-rotate-left"></i> Kubernetes Jobs & Scheduling</h2></div>
+        <div class="main-header">
+            <h2><i class="fa-solid fa-clock-rotate-left"></i> Kubernetes Jobs & CronJobs</h2>
+            <div style="display: flex; gap: 8px;">
+                <button class="btn btn-primary" onclick="openCreateJobModal()">
+                    <i class="fa-solid fa-plus"></i> Создать Job
+                </button>
+                <button class="btn btn-primary" onclick="openCreateCronJobModal()">
+                    <i class="fa-solid fa-plus"></i> Создать CronJob
+                </button>
+                <button class="btn btn-secondary" onclick="loadCurrentTab()">
+                    <i class="fa-solid fa-rotate"></i> Обновить
+                </button>
+            </div>
+        </div>
         <div class="main-body">
-            <div id="rbac-bar" class="card" style="margin-bottom:12px;font-size:0.9rem;"></div>
-            <div class="card" style="margin-bottom:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
-                <select id="namespace" class="form-control" style="max-width:260px;"></select>
-                <select id="tab" class="form-control" style="max-width:220px;">
+            <!-- Фильтры -->
+            <div class="card" style="margin-bottom: 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <label>Namespace:
+                    <select id="namespace" class="form-control" style="max-width: 200px;" onchange="loadCurrentTab()"></select>
+                </label>
+                <select id="tab" class="form-control" style="max-width: 200px;" onchange="loadCurrentTab()">
                     <option value="jobs">Jobs</option>
                     <option value="cronjobs">CronJobs</option>
                     <option value="pdb">PodDisruptionBudget</option>
-                    <option value="priorityclass">PriorityClass</option>
                 </select>
-                <input id="filter" class="form-control" placeholder="Фильтр по имени">
-                <button class="btn btn-primary" id="btn-refresh"><i class="fa-solid fa-rotate"></i> Обновить</button>
+                <input id="filter" class="form-control" placeholder="Фильтр по имени" style="min-width: 200px;" onkeyup="filterItems()">
+                <label>
+                    <input type="checkbox" id="auto-refresh" onchange="toggleAutoRefresh()"> Автообновление
+                </label>
             </div>
-            <div id="content" class="card"><div class="loading"><div class="loading-spinner"></div><p>Загрузка...</p></div></div>
+
+            <!-- Таблица -->
+            <div id="content" class="card">
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <p>Загрузка...</p>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+
+<!-- Create Job Modal -->
+<div id="create-job-modal" class="modal">
+    <div class="modal-content" style="max-width: 700px;">
+        <h3><i class="fa-solid fa-clock-rotate-left"></i> Создать Job</h3>
+        <form onsubmit="createJob(event)">
+            <div class="form-group">
+                <label>Name *</label>
+                <input type="text" id="job-name" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label>Namespace *</label>
+                <select id="job-namespace" class="form-control" required></select>
+            </div>
+            <div class="form-group">
+                <label>Container Image *</label>
+                <input type="text" id="job-image" class="form-control" placeholder="busybox:latest" required>
+            </div>
+            <div class="form-group">
+                <label>Command (опционально)</label>
+                <input type="text" id="job-command" class="form-control" placeholder='["/bin/sh", "-c", "echo Hello"]'>
+            </div>
+            <div class="form-group">
+                <label>Backoff Limit</label>
+                <input type="number" id="job-backoff" class="form-control" value="6" min="0">
+            </div>
+            <div class="form-group">
+                <label>TTL Seconds After Finished</label>
+                <input type="number" id="job-ttl" class="form-control" value="3600" min="-1">
+                <small style="color: #666;">-1 = не удалять автоматически</small>
+            </div>
+            <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px;">
+                <button type="button" class="btn btn-secondary" onclick="closeCreateJobModal()">Отмена</button>
+                <button type="submit" class="btn btn-primary">Создать</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Create CronJob Modal -->
+<div id="create-cronjob-modal" class="modal">
+    <div class="modal-content" style="max-width: 700px;">
+        <h3><i class="fa-solid fa-calendar"></i> Создать CronJob</h3>
+        <form onsubmit="createCronJob(event)">
+            <div class="form-group">
+                <label>Name *</label>
+                <input type="text" id="cronjob-name" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label>Namespace *</label>
+                <select id="cronjob-namespace" class="form-control" required></select>
+            </div>
+            <div class="form-group">
+                <label>Schedule (cron) *</label>
+                <input type="text" id="cronjob-schedule" class="form-control" placeholder="*/5 * * * *" required>
+                <small style="color: #666;">Пример: */5 * * * * (каждые 5 минут), 0 2 * * * (ежедневно в 02:00)</small>
+            </div>
+            <div class="form-group">
+                <label>Container Image *</label>
+                <input type="text" id="cronjob-image" class="form-control" placeholder="busybox:latest" required>
+            </div>
+            <div class="form-group">
+                <label>Command (опционально)</label>
+                <input type="text" id="cronjob-command" class="form-control" placeholder='["/bin/sh", "-c", "echo Hello"]'>
+            </div>
+            <div class="form-group">
+                <label>Concurrency Policy</label>
+                <select id="cronjob-concurrency" class="form-control">
+                    <option value="Forbid">Forbid (запретить параллельные)</option>
+                    <option value="Allow">Allow (разрешить параллельные)</option>
+                    <option value="Replace">Replace (заменить текущий)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Successful Jobs History Limit</label>
+                <input type="number" id="cronjob-success-limit" class="form-control" value="3" min="0">
+            </div>
+            <div class="form-group">
+                <label>Failed Jobs History Limit</label>
+                <input type="number" id="cronjob-failed-limit" class="form-control" value="1" min="0">
+            </div>
+            <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px;">
+                <button type="button" class="btn btn-secondary" onclick="closeCreateCronJobModal()">Отмена</button>
+                <button type="submit" class="btn btn-primary">Создать</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script src="app.js"></script>
 <script>
 checkAuth();
-const KEY = 'k8s_namespace';
-let rbacData = null;
+let jobsData = [];
+let cronJobsData = [];
+let pdbData = [];
+let autoRefreshInterval = null;
+let currentTab = 'jobs';
 
-const RESOURCE_KEY = {
-    jobs: 'jobs',
-    cronjobs: 'cronjobs',
-    pdb: 'poddisruptionbudgets',
-    priorityclass: 'priorityclasses',
-};
-
-function verbsFor(tab) {
-    const key = RESOURCE_KEY[tab];
-    const row = (rbacData?.resources || []).find(r => r.resource === key);
-    return row?.verbs || { get:false, list:false, watch:false, create:false, update:false, patch:false, delete:false };
-}
-
-function renderRbacBar(tab) {
-    const v = verbsFor(tab);
-    const ns = $('#namespace').value || localStorage.getItem(KEY) || 'default';
-    const bits = ['list','get','create','update','patch','delete'].map(k => `${k}: ${v[k] ? '✓' : '—'}`).join(' · ');
-    const scope = tab === 'priorityclass' ? 'кластер' : `namespace: ${escapeHtml(ns)}`;
-    $('#rbac-bar').innerHTML = `<strong><i class="fa-solid fa-user-shield"></i> RBAC (${escapeHtml(RESOURCE_KEY[tab])})</strong> · ${escapeHtml(scope)}<br><span style="opacity:0.9">${escapeHtml(bits)}</span>`;
-}
-
-async function loadRbac(ns) {
-    try {
-        rbacData = await api.post('/kubernetes/rbac/check', { namespace: ns || null });
-    } catch (e) {
-        rbacData = null;
-        $('#rbac-bar').innerHTML = `<span style="color:var(--danger,#c62828);">RBAC: не удалось загрузить матрицу (${escapeHtml(e.message || 'ошибка')})</span>`;
-    }
-}
-
+// Загрузка namespaces
 async function loadNamespaces() {
-    const data = await api.get('/kubernetes/namespaces');
-    const names = (data || []).map(n => n.name).filter(Boolean);
-    const current = localStorage.getItem(KEY) || names[0] || 'default';
-    const sel = $('#namespace');
-    sel.innerHTML = names.map(n => `<option value="${escapeHtml(n)}"${n===current?' selected':''}>${escapeHtml(n)}</option>`).join('');
-    sel.addEventListener('change', async () => {
-        localStorage.setItem(KEY, sel.value);
-        await loadRbac(sel.value);
-        renderRbacBar($('#tab').value);
-        await loadData();
-    });
-}
-
-function renderTable(headers, rows) {
-    $('#content').innerHTML = `<table class="table"><thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>`;
-}
-
-async function showJobDetail(nameEnc) {
-    const ns = $('#namespace').value || 'default';
-    const name = decodeURIComponent(nameEnc);
-    const data = await api.get(`/kubernetes/namespaces/${encodeURIComponent(ns)}/jobs/${encodeURIComponent(name)}`);
-    ui.showModal('Job: ' + name, `<pre style="white-space:pre-wrap;">${escapeHtml(JSON.stringify(data, null, 2))}</pre>`);
-}
-
-async function showJobPods(nameEnc) {
-    if (!verbsFor('jobs').get) {
-        ui.showAlert('Нет права get на jobs', 'warning');
-        return;
+    try {
+        const ns = await api.get('/kubernetes/namespaces');
+        const select = $('#namespace');
+        const jobSelect = $('#job-namespace');
+        const cronJobSelect = $('#cronjob-namespace');
+        const options = '<option value="default">default</option>' + ns.map(n => `<option value="${escapeHtml(n.name)}">${escapeHtml(n.name)}</option>`).join('');
+        select.innerHTML = options;
+        jobSelect.innerHTML = options;
+        cronJobSelect.innerHTML = options;
+        loadCurrentTab();
+    } catch (e) {
+        console.error('Failed to load namespaces:', e);
+        $('#content').innerHTML = `<div class="alert alert-error"><i class="fa-solid fa-exclamation-triangle"></i> Ошибка: ${escapeHtml(e.message)}</div>`;
     }
-    const ns = $('#namespace').value || 'default';
-    const name = decodeURIComponent(nameEnc);
-    const pods = await api.get(`/kubernetes/namespaces/${encodeURIComponent(ns)}/jobs/${encodeURIComponent(name)}/pods`);
-    ui.showModal('Pods Job: ' + name, `<pre style="white-space:pre-wrap;">${escapeHtml(JSON.stringify(pods, null, 2))}</pre>`);
 }
 
-async function deleteJob(nameEnc) {
-    if (!verbsFor('jobs').delete) return;
-    if (!(await ui.confirm('Удалить Job?', decodeURIComponent(nameEnc)))) return;
-    const ns = $('#namespace').value || 'default';
-    const name = decodeURIComponent(nameEnc);
-    await api.request('DELETE', `/kubernetes/namespaces/${encodeURIComponent(ns)}/jobs/${encodeURIComponent(name)}`);
-    ui.showAlert('Job удалён', 'success');
-    await loadData();
-}
+// Загрузка текущей вкладки
+async function loadCurrentTab() {
+    currentTab = $('#tab').value;
+    const namespace = $('#namespace').value;
+    const content = $('#content');
 
-async function showCronDetail(nameEnc) {
-    const ns = $('#namespace').value || 'default';
-    const name = decodeURIComponent(nameEnc);
-    const data = await api.get(`/kubernetes/namespaces/${encodeURIComponent(ns)}/cronjobs/${encodeURIComponent(name)}`);
-    ui.showModal('CronJob: ' + name, `<pre style="white-space:pre-wrap;">${escapeHtml(JSON.stringify(data, null, 2))}</pre>`);
-}
-
-async function showCronHistory(nameEnc) {
-    const ns = $('#namespace').value || 'default';
-    const name = decodeURIComponent(nameEnc);
-    const hist = await api.get(`/kubernetes/namespaces/${encodeURIComponent(ns)}/cronjobs/${encodeURIComponent(name)}/history`);
-    ui.showModal('История Job: ' + name, `<pre style="white-space:pre-wrap;">${escapeHtml(JSON.stringify(hist, null, 2))}</pre>`);
-}
-
-async function toggleCronSuspend(nameEnc, wantSuspend) {
-    if (!verbsFor('cronjobs').update && !verbsFor('cronjobs').patch) {
-        ui.showAlert('Нужны права update или patch на cronjobs', 'warning');
-        return;
-    }
-    const ns = $('#namespace').value || 'default';
-    const name = decodeURIComponent(nameEnc);
-    await api.request('PUT', `/kubernetes/namespaces/${encodeURIComponent(ns)}/cronjobs/${encodeURIComponent(name)}/suspend/${wantSuspend}`);
-    await loadData();
-}
-
-async function deleteCron(nameEnc) {
-    if (!verbsFor('cronjobs').delete) return;
-    if (!(await ui.confirm('Удалить CronJob?', decodeURIComponent(nameEnc)))) return;
-    const ns = $('#namespace').value || 'default';
-    const name = decodeURIComponent(nameEnc);
-    await api.request('DELETE', `/kubernetes/namespaces/${encodeURIComponent(ns)}/cronjobs/${encodeURIComponent(name)}`);
-    await loadData();
-}
-
-async function showPdbDetail(nameEnc) {
-    const ns = $('#namespace').value || 'default';
-    const name = decodeURIComponent(nameEnc);
-    const rows = await api.get(`/kubernetes/poddisruptionbudgets?namespace=${encodeURIComponent(ns)}`);
-    const row = (rows || []).find(x => x.name === name);
-    ui.showModal('PDB: ' + name, `<pre style="white-space:pre-wrap;">${escapeHtml(JSON.stringify(row || { name }, null, 2))}</pre>`);
-}
-
-async function deletePdb(nameEnc) {
-    if (!verbsFor('pdb').delete) return;
-    if (!(await ui.confirm('Удалить PodDisruptionBudget?', decodeURIComponent(nameEnc)))) return;
-    const ns = $('#namespace').value || 'default';
-    const name = decodeURIComponent(nameEnc);
-    await api.request('DELETE', `/kubernetes/namespaces/${encodeURIComponent(ns)}/poddisruptionbudgets/${encodeURIComponent(name)}`);
-    await loadData();
-}
-
-async function showPcDetail(name) {
-    const rows = await api.get('/kubernetes/priorityclasses');
-    const row = (rows || []).find(x => x.name === decodeURIComponent(name));
-    ui.showModal('PriorityClass: ' + decodeURIComponent(name), `<pre style="white-space:pre-wrap;">${escapeHtml(JSON.stringify(row || {}, null, 2))}</pre>`);
-}
-
-async function deletePc(nameEnc) {
-    if (!verbsFor('priorityclass').delete) return;
-    if (!(await ui.confirm('Удалить PriorityClass?', decodeURIComponent(nameEnc)))) return;
-    const name = decodeURIComponent(nameEnc);
-    await api.request('DELETE', `/kubernetes/priorityclasses/${encodeURIComponent(name)}`);
-    await loadData();
-}
-
-async function loadData() {
-    const tab = $('#tab').value;
-    const f = ($('#filter').value || '').toLowerCase();
-    const ns = $('#namespace').value || localStorage.getItem(KEY) || 'default';
-
-    const v = verbsFor(tab);
-    if (!v.list) {
-        $('#content').innerHTML = '<p>Нет права <strong>list</strong> для этого ресурса.</p>';
-        return;
-    }
+    content.innerHTML = '<div class="loading"><div class="loading-spinner"></div><p>Загрузка...</p></div>';
 
     try {
-        if (tab === 'jobs') {
-            const rows = await api.get(`/kubernetes/jobs?namespace=${encodeURIComponent(ns)}`);
-            const filtered = (rows || []).filter(x => (x.name || '').toLowerCase().includes(f));
-            const del = v.delete ? (n) => `<button class="btn btn-sm btn-danger" onclick="deleteJob('${encodeURIComponent(n)}')"><i class="fa-solid fa-trash"></i></button>` : '';
-            renderTable(['Имя','Active','Succeeded','Failed','Completions','Parallelism',''],
-                filtered.map(x => {
-                    const n = x.name || '';
-                    const ne = encodeURIComponent(n);
-                    return `<tr>
-                        <td>${escapeHtml(n)}</td><td>${x.active ?? '—'}</td><td>${x.succeeded ?? '—'}</td><td>${x.failed ?? '—'}</td>
-                        <td>${escapeHtml(String(x.completions ?? '—'))}</td><td>${escapeHtml(String(x.parallelism ?? '—'))}</td>
-                        <td style="white-space:nowrap;">
-                            ${v.get ? `<button class="btn btn-sm" onclick="showJobDetail('${ne}')"><i class="fa-solid fa-eye"></i></button>` : ''}
-                            ${v.get ? `<button class="btn btn-sm" onclick="showJobPods('${ne}')" title="Pods"><i class="fa-solid fa-cube"></i></button>` : ''}
-                            ${v.delete ? del(n) : ''}
-                        </td></tr>`;
-                }));
-            return;
+        if (currentTab === 'jobs') {
+            jobsData = await api.get(`/kubernetes/namespaces/${namespace}/jobs`);
+            renderJobs(jobsData);
+        } else if (currentTab === 'cronjobs') {
+            cronJobsData = await api.get(`/kubernetes/namespaces/${namespace}/cronjobs`);
+            renderCronJobs(cronJobsData);
+        } else if (currentTab === 'pdb') {
+            pdbData = await api.get(`/kubernetes/namespaces/${namespace}/poddisruptionbudgets`);
+            renderPDBs(pdbData);
         }
-        if (tab === 'cronjobs') {
-            const rows = await api.get(`/kubernetes/cronjobs?namespace=${encodeURIComponent(ns)}`);
-            const filtered = (rows || []).filter(x => (x.name || '').toLowerCase().includes(f));
-            const canMut = v.update || v.patch;
-            renderTable(['Имя','Schedule','Suspend','Active','Last schedule',''],
-                filtered.map(x => {
-                    const n = x.name || '';
-                    const ne = encodeURIComponent(n);
-                    const suspBtn = canMut
-                        ? (x.suspend
-                            ? `<button class="btn btn-sm" onclick="toggleCronSuspend('${ne}', false)">Resume</button>`
-                            : `<button class="btn btn-sm" onclick="toggleCronSuspend('${ne}', true)">Suspend</button>`)
-                        : '';
-                    return `<tr>
-                        <td>${escapeHtml(n)}</td><td><code>${escapeHtml(x.schedule||'—')}</code></td>
-                        <td>${x.suspend ? 'да' : 'нет'}</td><td>${x.active ?? '—'}</td><td>${escapeHtml(x.last_schedule_time || '—')}</td>
-                        <td style="white-space:nowrap;">
-                            ${v.get ? `<button class="btn btn-sm" onclick="showCronDetail('${ne}')"><i class="fa-solid fa-eye"></i></button>` : ''}
-                            ${v.get ? `<button class="btn btn-sm" onclick="showCronHistory('${ne}')" title="История"><i class="fa-solid fa-clock-rotate-left"></i></button>` : ''}
-                            ${suspBtn}
-                            ${v.delete ? `<button class="btn btn-sm btn-danger" onclick="deleteCron('${ne}')"><i class="fa-solid fa-trash"></i></button>` : ''}
-                        </td></tr>`;
-                }));
-            return;
-        }
-        if (tab === 'pdb') {
-            const rows = await api.get(`/kubernetes/poddisruptionbudgets?namespace=${encodeURIComponent(ns)}`);
-            const filtered = (rows || []).filter(x => (x.name || '').toLowerCase().includes(f));
-            renderTable(['Имя','minAvailable','maxUnavailable',''],
-                filtered.map(x => {
-                    const n = x.name || '';
-                    const ne = encodeURIComponent(n);
-                    return `<tr>
-                        <td>${escapeHtml(n)}</td><td>${escapeHtml(x.min_available||'—')}</td><td>${escapeHtml(x.max_unavailable||'—')}</td>
-                        <td>
-                            ${v.get ? `<button class="btn btn-sm" onclick="showPdbDetail('${ne}')"><i class="fa-solid fa-eye"></i></button>` : ''}
-                            ${v.delete ? `<button class="btn btn-sm btn-danger" onclick="deletePdb('${ne}')"><i class="fa-solid fa-trash"></i></button>` : ''}
-                        </td></tr>`;
-                }));
-            return;
-        }
-        const rows = await api.get('/kubernetes/priorityclasses');
-        const filtered = (rows || []).filter(x => (x.name || '').toLowerCase().includes(f));
-        renderTable(['Имя','Value','Global default','Description',''],
-            filtered.map(x => {
-                const n = x.name || '';
-                const ne = encodeURIComponent(n);
-                return `<tr>
-                    <td>${escapeHtml(n)}</td><td>${x.value ?? '—'}</td><td>${x.global_default ? 'да' : 'нет'}</td>
-                    <td>${escapeHtml(x.description||'—')}</td>
-                    <td>
-                        ${v.get ? `<button class="btn btn-sm" onclick="showPcDetail('${ne}')"><i class="fa-solid fa-eye"></i></button>` : ''}
-                        ${v.delete ? `<button class="btn btn-sm btn-danger" onclick="deletePc('${ne}')"><i class="fa-solid fa-trash"></i></button>` : ''}
-                    </td></tr>`;
-            }));
+        updateLastUpdate();
     } catch (e) {
-        $('#content').innerHTML = `<p class="text-danger">Ошибка: ${escapeHtml(e.message||String(e))}</p>`;
+        console.error(`Failed to load ${currentTab}:`, e);
+        content.innerHTML = `<div class="alert alert-error"><i class="fa-solid fa-exclamation-triangle"></i> Ошибка: ${escapeHtml(e.message)}</div>`;
     }
 }
 
-function updateNsVisibility() {
-    const tab = $('#tab').value;
-    const ns = $('#namespace');
-    if (tab === 'priorityclass') {
-        ns.disabled = true;
-        ns.title = 'PriorityClass — кластерный ресурс (namespace не используется)';
+// Рендер Jobs
+function renderJobs(jobs) {
+    const content = $('#content');
+    const filter = $('#filter').value.toLowerCase();
+
+    let filtered = jobs;
+    if (filter) {
+        filtered = jobs.filter(j => j.name.toLowerCase().includes(filter));
+    }
+
+    if (filtered.length === 0) {
+        content.innerHTML = '<div class="alert alert-info"><i class="fa-solid fa-info-circle"></i> Jobs не найдено</div>';
+        return;
+    }
+
+    content.innerHTML = `
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Namespace</th>
+                    <th>Completions</th>
+                    <th>Duration</th>
+                    <th>Age</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${filtered.map(job => `
+                    <tr>
+                        <td><strong>${escapeHtml(job.name)}</strong></td>
+                        <td>${escapeHtml(job.namespace)}</td>
+                        <td>
+                            ${job.completions !== undefined ? `${job.completions}/${job.completions}` : '—'}
+                            ${job.succeeded > 0 ? '<span class="status-badge status-complete">✓</span>' : ''}
+                            ${job.failed > 0 ? '<span class="status-badge status-failed">✗</span>' : ''}
+                        </td>
+                        <td>${job.duration || 'N/A'}</td>
+                        <td>${escapeHtml(job.age || 'N/A')}</td>
+                        <td style="display: flex; gap: 4px;">
+                            <button class="btn btn-sm btn-secondary" onclick="viewJob('${escapeHtml(job.name)}', '${escapeHtml(job.namespace)}')" title="View">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                            <button class="btn btn-sm btn-warning" onclick="retryJob('${escapeHtml(job.name)}', '${escapeHtml(job.namespace)}')" title="Retry">
+                                <i class="fa-solid fa-rotate"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteJob('${escapeHtml(job.name)}', '${escapeHtml(job.namespace)}')" title="Delete">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+// Рендер CronJobs
+function renderCronJobs(cronJobs) {
+    const content = $('#content');
+    const filter = $('#filter').value.toLowerCase();
+
+    let filtered = cronJobs;
+    if (filter) {
+        filtered = cronJobs.filter(cj => cj.name.toLowerCase().includes(filter));
+    }
+
+    if (filtered.length === 0) {
+        content.innerHTML = '<div class="alert alert-info"><i class="fa-solid fa-info-circle"></i> CronJobs не найдено</div>';
+        return;
+    }
+
+    content.innerHTML = `
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Namespace</th>
+                    <th>Schedule</th>
+                    <th>Suspend</th>
+                    <th>Last Schedule</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${filtered.map(cj => `
+                    <tr>
+                        <td><strong>${escapeHtml(cj.name)}</strong></td>
+                        <td>${escapeHtml(cj.namespace)}</td>
+                        <td><span class="schedule-badge">${escapeHtml(cj.schedule)}</span></td>
+                        <td>${cj.suspend ? '<i class="fa-solid fa-pause"></i>' : '<i class="fa-solid fa-play"></i>'}</td>
+                        <td>${cj.last_schedule || 'N/A'}</td>
+                        <td style="display: flex; gap: 4px;">
+                            <button class="btn btn-sm btn-secondary" onclick="viewCronJob('${escapeHtml(cj.name)}', '${escapeHtml(cj.namespace)}')" title="View">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                            <button class="btn btn-sm btn-warning" onclick="toggleSuspendCronJob('${escapeHtml(cj.name)}', '${escapeHtml(cj.namespace)}', ${cj.suspend})" title="${cj.suspend ? 'Resume' : 'Suspend'}">
+                                <i class="fa-solid fa-${cj.suspend ? 'play' : 'pause'}"></i>
+                            </button>
+                            <button class="btn btn-sm btn-info" onclick="runCronJobNow('${escapeHtml(cj.name)}', '${escapeHtml(cj.namespace)}')" title="Run Now">
+                                <i class="fa-solid fa-bolt"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteCronJob('${escapeHtml(cj.name)}', '${escapeHtml(cj.namespace)}')" title="Delete">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+// Рендер PDBs
+function renderPDBs(pdbs) {
+    const content = $('#content');
+    const filter = $('#filter').value.toLowerCase();
+
+    let filtered = pdbs;
+    if (filter) {
+        filtered = pdbs.filter(p => p.name.toLowerCase().includes(filter));
+    }
+
+    if (filtered.length === 0) {
+        content.innerHTML = '<div class="alert alert-info"><i class="fa-solid fa-info-circle"></i> PDBs не найдено</div>';
+        return;
+    }
+
+    content.innerHTML = `
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Namespace</th>
+                    <th>Min Available</th>
+                    <th>Max Unavailable</th>
+                    <th>Current Healthy</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${filtered.map(pdb => `
+                    <tr>
+                        <td><strong>${escapeHtml(pdb.name)}</strong></td>
+                        <td>${escapeHtml(pdb.namespace)}</td>
+                        <td>${pdb.min_available !== undefined ? pdb.min_available : 'N/A'}</td>
+                        <td>${pdb.max_unavailable !== undefined ? pdb.max_unavailable : 'N/A'}</td>
+                        <td>${pdb.current_healthy !== undefined ? pdb.current_healthy : 'N/A'}</td>
+                        <td style="display: flex; gap: 4px;">
+                            <button class="btn btn-sm btn-secondary" onclick="viewPDB('${escapeHtml(pdb.name)}', '${escapeHtml(pdb.namespace)}')" title="View">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="deletePDB('${escapeHtml(pdb.name)}', '${escapeHtml(pdb.namespace)}')" title="Delete">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+// Фильтр
+function filterItems() {
+    if (currentTab === 'jobs') renderJobs(jobsData);
+    else if (currentTab === 'cronjobs') renderCronJobs(cronJobsData);
+    else if (currentTab === 'pdb') renderPDBs(pdbData);
+}
+
+// Job actions
+async function viewJob(name, namespace) {
+    try {
+        const data = await api.get(`/kubernetes/namespaces/${namespace}/jobs/${name}`);
+        alert(`Job: ${namespace}/${name}\n\nCompletions: ${data.completions || 'N/A'}\nSucceeded: ${data.succeeded || 0}\nFailed: ${data.failed || 0}\nDuration: ${data.duration || 'N/A'}`);
+    } catch (e) {
+        alert(`Ошибка: ${e.message}`);
+    }
+}
+
+async function retryJob(name, namespace) {
+    if (!confirm(`Retry Job ${namespace}/${name}?`)) return;
+    try {
+        await api.post(`/kubernetes/namespaces/${namespace}/jobs/${name}/retry`, {});
+        alert(`Job ${namespace}/${name} retry initiated`);
+        loadCurrentTab();
+    } catch (e) {
+        alert(`Ошибка: ${e.message}`);
+    }
+}
+
+async function deleteJob(name, namespace) {
+    if (!confirm(`Delete Job ${namespace}/${name}?`)) return;
+    try {
+        await api.delete(`/kubernetes/namespaces/${namespace}/jobs/${name}`);
+        alert(`Job ${namespace}/${name} deleted`);
+        loadCurrentTab();
+    } catch (e) {
+        alert(`Ошибка: ${e.message}`);
+    }
+}
+
+// CronJob actions
+async function viewCronJob(name, namespace) {
+    try {
+        const data = await api.get(`/kubernetes/namespaces/${namespace}/cronjobs/${name}`);
+        alert(`CronJob: ${namespace}/${name}\n\nSchedule: ${data.schedule}\nSuspend: ${data.suspend}\nConcurrency: ${data.concurrency_policy || 'Forbid'}`);
+    } catch (e) {
+        alert(`Ошибка: ${e.message}`);
+    }
+}
+
+async function toggleSuspendCronJob(name, namespace, currentlySuspended) {
+    const action = currentlySuspended ? 'resume' : 'suspend';
+    if (!confirm(`${currentlySuspended ? 'Resume' : 'Suspend'} CronJob ${namespace}/${name}?`)) return;
+    try {
+        await api.put(`/kubernetes/namespaces/${namespace}/cronjobs/${name}/suspend`, { suspend: !currentlySuspended });
+        alert(`CronJob ${namespace}/${name} ${action}ed`);
+        loadCurrentTab();
+    } catch (e) {
+        alert(`Ошибка: ${e.message}`);
+    }
+}
+
+async function runCronJobNow(name, namespace) {
+    if (!confirm(`Run CronJob ${namespace}/${name} now?`)) return;
+    try {
+        await api.post(`/kubernetes/namespaces/${namespace}/cronjobs/${name}/run`, {});
+        alert(`CronJob ${namespace}/${name} triggered`);
+        loadCurrentTab();
+    } catch (e) {
+        alert(`Ошибка: ${e.message}`);
+    }
+}
+
+async function deleteCronJob(name, namespace) {
+    if (!confirm(`Delete CronJob ${namespace}/${name}?`)) return;
+    try {
+        await api.delete(`/kubernetes/namespaces/${namespace}/cronjobs/${name}`);
+        alert(`CronJob ${namespace}/${name} deleted`);
+        loadCurrentTab();
+    } catch (e) {
+        alert(`Ошибка: ${e.message}`);
+    }
+}
+
+// PDB actions
+async function viewPDB(name, namespace) {
+    try {
+        const data = await api.get(`/kubernetes/namespaces/${namespace}/poddisruptionbudgets/${name}`);
+        alert(`PDB: ${namespace}/${name}\n\nMin Available: ${data.min_available || 'N/A'}\nMax Unavailable: ${data.max_unavailable || 'N/A'}\nCurrent Healthy: ${data.current_healthy || 'N/A'}`);
+    } catch (e) {
+        alert(`Ошибка: ${e.message}`);
+    }
+}
+
+async function deletePDB(name, namespace) {
+    if (!confirm(`Delete PDB ${namespace}/${name}?`)) return;
+    try {
+        await api.delete(`/kubernetes/namespaces/${namespace}/poddisruptionbudgets/${name}`);
+        alert(`PDB ${namespace}/${name} deleted`);
+        loadCurrentTab();
+    } catch (e) {
+        alert(`Ошибка: ${e.message}`);
+    }
+}
+
+// Create Job
+function openCreateJobModal() {
+    $('#create-job-modal').classList.add('active');
+}
+
+function closeCreateJobModal() {
+    $('#create-job-modal').classList.remove('active');
+}
+
+async function createJob(event) {
+    event.preventDefault();
+    
+    const payload = {
+        name: $('#job-name').value,
+        namespace: $('#job-namespace').value,
+        image: $('#job-image').value,
+        backoff_limit: parseInt($('#job-backoff').value),
+        ttl_seconds: parseInt($('#job-ttl').value)
+    };
+    
+    const command = $('#job-command').value.trim();
+    if (command) {
+        try {
+            payload.command = JSON.parse(command);
+        } catch (e) {
+            alert(`Invalid command JSON: ${e.message}`);
+            return;
+        }
+    }
+    
+    try {
+        await api.post('/kubernetes/jobs', payload);
+        alert(`Job ${payload.namespace}/${payload.name} created`);
+        closeCreateJobModal();
+        loadCurrentTab();
+    } catch (e) {
+        alert(`Ошибка: ${e.message}`);
+    }
+}
+
+// Create CronJob
+function openCreateCronJobModal() {
+    $('#create-cronjob-modal').classList.add('active');
+}
+
+function closeCreateCronJobModal() {
+    $('#create-cronjob-modal').classList.remove('active');
+}
+
+async function createCronJob(event) {
+    event.preventDefault();
+    
+    const payload = {
+        name: $('#cronjob-name').value,
+        namespace: $('#cronjob-namespace').value,
+        schedule: $('#cronjob-schedule').value,
+        image: $('#cronjob-image').value,
+        concurrency_policy: $('#cronjob-concurrency').value,
+        successful_jobs_history_limit: parseInt($('#cronjob-success-limit').value),
+        failed_jobs_history_limit: parseInt($('#cronjob-failed-limit').value)
+    };
+    
+    const command = $('#cronjob-command').value.trim();
+    if (command) {
+        try {
+            payload.command = JSON.parse(command);
+        } catch (e) {
+            alert(`Invalid command JSON: ${e.message}`);
+            return;
+        }
+    }
+    
+    try {
+        await api.post('/kubernetes/cronjobs', payload);
+        alert(`CronJob ${payload.namespace}/${payload.name} created`);
+        closeCreateCronJobModal();
+        loadCurrentTab();
+    } catch (e) {
+        alert(`Ошибка: ${e.message}`);
+    }
+}
+
+// Auto Refresh
+function toggleAutoRefresh() {
+    if ($('#auto-refresh').checked) {
+        autoRefreshInterval = setInterval(loadCurrentTab, 10000);
     } else {
-        ns.disabled = false;
-        ns.title = '';
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+            autoRefreshInterval = null;
+        }
     }
 }
 
-$('#tab').addEventListener('change', () => {
-    updateNsVisibility();
-    renderRbacBar($('#tab').value);
-    loadData();
-});
-$('#filter').addEventListener('input', loadData);
-$('#btn-refresh').addEventListener('click', loadData);
+function updateLastUpdate() {
+    const now = new Date();
+    let el = document.getElementById('last-update');
+    if (!el) {
+        el = document.createElement('span');
+        el.id = 'last-update';
+        el.style.color = '#666';
+        el.style.fontSize = '12px';
+        document.querySelector('.card[style*="margin-bottom: 12px"]').appendChild(el);
+    }
+    el.textContent = 'Обновлено: ' + now.toLocaleTimeString();
+}
 
-(async function init() {
-    await loadNamespaces();
-    await loadRbac($('#namespace').value);
-    updateNsVisibility();
-    renderRbacBar($('#tab').value);
-    await loadData();
-})();
+// Init
+loadNamespaces();
+
+// Event listeners
+$('#btn-refresh').addEventListener('click', loadCurrentTab);
 </script>
 </body>
 </html>

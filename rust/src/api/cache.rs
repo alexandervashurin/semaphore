@@ -2,16 +2,16 @@
 //!
 //! Обработчики для кэша
 
+use crate::api::extractors::AuthUser;
+use crate::api::middleware::ErrorResponse;
+use crate::api::state::AppState;
+use crate::error::{Error, Result};
 use axum::{
     extract::{Path, State},
     http::StatusCode,
     Json,
 };
 use std::sync::Arc;
-use crate::api::state::AppState;
-use crate::error::{Error, Result};
-use crate::api::middleware::ErrorResponse;
-use crate::api::extractors::AuthUser;
 
 /// Очищает кэш
 pub async fn clear_cache(
@@ -22,7 +22,7 @@ pub async fn clear_cache(
     if !auth_user.admin {
         return Err((
             StatusCode::FORBIDDEN,
-            Json(ErrorResponse::new("User must be admin".to_string()))
+            Json(ErrorResponse::new("User must be admin".to_string())),
         ));
     }
 

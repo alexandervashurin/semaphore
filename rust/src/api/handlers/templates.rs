@@ -2,21 +2,21 @@
 //!
 //! Обработчики запросов для управления шаблонами
 
+use crate::api::middleware::ErrorResponse;
+use crate::api::state::AppState;
+use crate::db::store::{ProjectStore, TaskManager, TemplateManager};
+use crate::error::Error;
+use crate::models::template::{TemplateApp, TemplateType};
+use crate::models::Template;
+use crate::services::task_logger::TaskStatus;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
     Json,
 };
-use std::sync::Arc;
-use serde::{Deserialize, Serialize};
 use chrono::Utc;
-use crate::api::state::AppState;
-use crate::models::Template;
-use crate::models::template::{TemplateType, TemplateApp};
-use crate::error::Error;
-use crate::api::middleware::ErrorResponse;
-use crate::db::store::{TemplateManager, ProjectStore, TaskManager};
-use crate::services::task_logger::TaskStatus;
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 /// Получить список шаблонов проекта
 ///
@@ -25,12 +25,12 @@ pub async fn get_templates(
     State(state): State<Arc<AppState>>,
     Path(project_id): Path<i32>,
 ) -> Result<Json<Vec<Template>>, (StatusCode, Json<ErrorResponse>)> {
-    let templates = state.store.get_templates(project_id)
-        .await
-        .map_err(|e| (
+    let templates = state.store.get_templates(project_id).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     Ok(Json(templates))
 }
@@ -52,8 +52,18 @@ pub async fn create_template(
         inventory_id: payload.inventory_id,
         repository_id: payload.repository_id,
         environment_id: payload.environment_id,
-        r#type: payload.r#type.as_deref().unwrap_or("ansible").parse().unwrap_or(TemplateType::Default),
-        app: payload.app.as_deref().unwrap_or("ansible").parse().unwrap_or(TemplateApp::Ansible),
+        r#type: payload
+            .r#type
+            .as_deref()
+            .unwrap_or("ansible")
+            .parse()
+            .unwrap_or(TemplateType::Default),
+        app: payload
+            .app
+            .as_deref()
+            .unwrap_or("ansible")
+            .parse()
+            .unwrap_or(TemplateApp::Ansible),
         git_branch: payload.git_branch.or_else(|| Some("main".to_string())),
         created: Utc::now(),
         arguments: payload.arguments,
@@ -78,12 +88,12 @@ pub async fn create_template(
         deploy_environment_id: payload.deploy_environment_id,
     };
 
-    let created = state.store.create_template(template)
-        .await
-        .map_err(|e| (
+    let created = state.store.create_template(template).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     Ok((StatusCode::CREATED, Json(created)))
 }
@@ -95,7 +105,9 @@ pub async fn get_template(
     State(state): State<Arc<AppState>>,
     Path((project_id, template_id)): Path<(i32, i32)>,
 ) -> Result<Json<Template>, (StatusCode, Json<ErrorResponse>)> {
-    let template = state.store.get_template(project_id, template_id)
+    let template = state
+        .store
+        .get_template(project_id, template_id)
         .await
         .map_err(|e| match e {
             Error::NotFound(_) => (
@@ -119,7 +131,9 @@ pub async fn update_template(
     Path((project_id, template_id)): Path<(i32, i32)>,
     Json(payload): Json<TemplateUpdatePayload>,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    let mut template = state.store.get_template(project_id, template_id)
+    let mut template = state
+        .store
+        .get_template(project_id, template_id)
         .await
         .map_err(|e| match e {
             Error::NotFound(_) => (
@@ -132,37 +146,85 @@ pub async fn update_template(
             ),
         })?;
 
-    if let Some(name) = payload.name { template.name = name; }
-    if let Some(playbook) = payload.playbook { template.playbook = playbook; }
-    if let Some(description) = payload.description { template.description = description; }
-    if let Some(v) = payload.inventory_id { template.inventory_id = Some(v); }
-    if let Some(v) = payload.repository_id { template.repository_id = Some(v); }
-    if let Some(v) = payload.environment_id { template.environment_id = Some(v); }
-    if let Some(v) = payload.vault_key_id { template.vault_key_id = Some(v); }
-    if let Some(v) = payload.view_id { template.view_id = Some(v); }
-    if payload.view_id == Some(0) { template.view_id = None; }
-    if let Some(v) = payload.build_template_id { template.build_template_id = Some(v); }
-    if let Some(v) = payload.git_branch { template.git_branch = Some(v); }
-    if let Some(v) = payload.arguments { template.arguments = Some(v); }
-    if let Some(v) = payload.r#type { template.r#type = v.parse().unwrap_or(TemplateType::Default); }
-    if let Some(v) = payload.app { template.app = v.parse().unwrap_or(TemplateApp::Ansible); }
-    if let Some(v) = payload.autorun { template.autorun = v; }
-    if let Some(v) = payload.allow_override_args_in_task { template.allow_override_args_in_task = v; }
-    if let Some(v) = payload.allow_override_branch_in_task { template.allow_override_branch_in_task = v; }
-    if let Some(v) = payload.allow_inventory_in_task { template.allow_inventory_in_task = v; }
-    if let Some(v) = payload.allow_parallel_tasks { template.allow_parallel_tasks = v; }
-    if let Some(v) = payload.suppress_success_alerts { template.suppress_success_alerts = v; }
-    if let Some(v) = payload.require_approval { template.require_approval = v; }
-    if let Some(v) = payload.task_params { template.task_params = Some(v); }
-    if let Some(v) = payload.survey_vars { template.survey_vars = Some(v); }
-    if let Some(v) = payload.vaults { template.vaults = Some(v); }
+    if let Some(name) = payload.name {
+        template.name = name;
+    }
+    if let Some(playbook) = payload.playbook {
+        template.playbook = playbook;
+    }
+    if let Some(description) = payload.description {
+        template.description = description;
+    }
+    if let Some(v) = payload.inventory_id {
+        template.inventory_id = Some(v);
+    }
+    if let Some(v) = payload.repository_id {
+        template.repository_id = Some(v);
+    }
+    if let Some(v) = payload.environment_id {
+        template.environment_id = Some(v);
+    }
+    if let Some(v) = payload.vault_key_id {
+        template.vault_key_id = Some(v);
+    }
+    if let Some(v) = payload.view_id {
+        template.view_id = Some(v);
+    }
+    if payload.view_id == Some(0) {
+        template.view_id = None;
+    }
+    if let Some(v) = payload.build_template_id {
+        template.build_template_id = Some(v);
+    }
+    if let Some(v) = payload.git_branch {
+        template.git_branch = Some(v);
+    }
+    if let Some(v) = payload.arguments {
+        template.arguments = Some(v);
+    }
+    if let Some(v) = payload.r#type {
+        template.r#type = v.parse().unwrap_or(TemplateType::Default);
+    }
+    if let Some(v) = payload.app {
+        template.app = v.parse().unwrap_or(TemplateApp::Ansible);
+    }
+    if let Some(v) = payload.autorun {
+        template.autorun = v;
+    }
+    if let Some(v) = payload.allow_override_args_in_task {
+        template.allow_override_args_in_task = v;
+    }
+    if let Some(v) = payload.allow_override_branch_in_task {
+        template.allow_override_branch_in_task = v;
+    }
+    if let Some(v) = payload.allow_inventory_in_task {
+        template.allow_inventory_in_task = v;
+    }
+    if let Some(v) = payload.allow_parallel_tasks {
+        template.allow_parallel_tasks = v;
+    }
+    if let Some(v) = payload.suppress_success_alerts {
+        template.suppress_success_alerts = v;
+    }
+    if let Some(v) = payload.require_approval {
+        template.require_approval = v;
+    }
+    if let Some(v) = payload.task_params {
+        template.task_params = Some(v);
+    }
+    if let Some(v) = payload.survey_vars {
+        template.survey_vars = Some(v);
+    }
+    if let Some(v) = payload.vaults {
+        template.vaults = Some(v);
+    }
 
-    state.store.update_template(template)
-        .await
-        .map_err(|e| (
+    state.store.update_template(template).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     Ok(StatusCode::OK)
 }
@@ -174,12 +236,16 @@ pub async fn delete_template(
     State(state): State<Arc<AppState>>,
     Path((project_id, template_id)): Path<(i32, i32)>,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    state.store.delete_template(project_id, template_id)
+    state
+        .store
+        .delete_template(project_id, template_id)
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -192,22 +258,30 @@ pub async fn stop_all_template_tasks(
     Path((project_id, template_id)): Path<(i32, i32)>,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     // Получаем все активные задачи шаблона
-    let tasks = state.store.get_tasks(project_id, Some(template_id))
+    let tasks = state
+        .store
+        .get_tasks(project_id, Some(template_id))
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
     // Останавливаем каждую активную задачу
     for task_with_tpl in tasks {
         if task_with_tpl.task.status.is_active() {
-            state.store.update_task_status(project_id, task_with_tpl.task.id, TaskStatus::Stopped)
+            state
+                .store
+                .update_task_status(project_id, task_with_tpl.task.id, TaskStatus::Stopped)
                 .await
-                .map_err(|e| (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(ErrorResponse::new(e.to_string()))
-                ))?;
+                .map_err(|e| {
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(ErrorResponse::new(e.to_string())),
+                    )
+                })?;
         }
     }
 

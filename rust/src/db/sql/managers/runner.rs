@@ -29,11 +29,13 @@ impl RunnerManager for SqlStore {
     async fn get_runners(&self, project_id: Option<i32>) -> Result<Vec<Runner>> {
         let pool = self.get_postgres_pool()?;
         let rows = if let Some(pid) = project_id {
-            sqlx::query("SELECT * FROM runner WHERE project_id = $1 OR project_id IS NULL ORDER BY name")
-                .bind(pid)
-                .fetch_all(pool)
-                .await
-                .map_err(Error::Database)?
+            sqlx::query(
+                "SELECT * FROM runner WHERE project_id = $1 OR project_id IS NULL ORDER BY name",
+            )
+            .bind(pid)
+            .fetch_all(pool)
+            .await
+            .map_err(Error::Database)?
         } else {
             sqlx::query("SELECT * FROM runner ORDER BY name")
                 .fetch_all(pool)

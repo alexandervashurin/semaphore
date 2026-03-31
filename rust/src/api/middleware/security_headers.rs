@@ -11,17 +11,14 @@
 //! - Cache-Control: no-store для API
 
 use axum::{
-    http::{Request, HeaderValue},
+    body::Body,
+    http::{HeaderValue, Request},
     middleware::Next,
     response::Response,
-    body::Body,
 };
 
 /// Middleware функция для добавления security headers
-pub async fn security_headers(
-    req: Request<Body>,
-    next: Next,
-) -> Response {
+pub async fn security_headers(req: Request<Body>, next: Next) -> Response {
     let is_api = req.uri().path().starts_with("/api/");
     let mut response = next.run(req).await;
     let headers = response.headers_mut();
@@ -30,10 +27,16 @@ pub async fn security_headers(
     headers.insert("X-Frame-Options", HeaderValue::from_static("DENY"));
 
     // X-Content-Type-Options (защита от MIME sniffing)
-    headers.insert("X-Content-Type-Options", HeaderValue::from_static("nosniff"));
+    headers.insert(
+        "X-Content-Type-Options",
+        HeaderValue::from_static("nosniff"),
+    );
 
     // X-XSS-Protection (XSS filter)
-    headers.insert("X-XSS-Protection", HeaderValue::from_static("1; mode=block"));
+    headers.insert(
+        "X-XSS-Protection",
+        HeaderValue::from_static("1; mode=block"),
+    );
 
     // Strict-Transport-Security (HSTS)
     headers.insert(
@@ -76,17 +79,11 @@ pub async fn security_headers(
 ///
 /// Разрешает запросы с любых доменов (для development)
 /// Для production рекомендуется настроить конкретные домены
-pub async fn cors_headers(
-    req: Request<Body>,
-    next: Next,
-) -> Response {
+pub async fn cors_headers(req: Request<Body>, next: Next) -> Response {
     let mut response = next.run(req).await;
     let headers = response.headers_mut();
 
-    headers.insert(
-        "Access-Control-Allow-Origin",
-        HeaderValue::from_static("*"),
-    );
+    headers.insert("Access-Control-Allow-Origin", HeaderValue::from_static("*"));
 
     headers.insert(
         "Access-Control-Allow-Methods",
@@ -110,7 +107,8 @@ pub async fn strict_cors_headers(
     next: Next,
 ) -> Response {
     // Сохраняем Origin до вызова next.run()
-    let origin_value = req.headers()
+    let origin_value = req
+        .headers()
         .get("Origin")
         .and_then(|h| h.to_str().ok())
         .filter(|origin_str| allowed_origins.contains(origin_str))
@@ -149,10 +147,10 @@ pub async fn strict_cors_headers(
 mod tests {
     use super::*;
     use axum::{
-        routing::get,
-        Router,
         body::Body,
         http::{Request, StatusCode},
+        routing::get,
+        Router,
     };
     use tower::ServiceExt;
 

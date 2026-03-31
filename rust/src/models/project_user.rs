@@ -2,10 +2,10 @@
 //!
 //! Пользователь проекта
 
+use crate::models::user::ProjectUserRole;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use crate::models::user::ProjectUserRole;
 
 /// Пользователь проекта
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]

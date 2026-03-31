@@ -5,14 +5,14 @@
 //! - Кэширования результатов запросов
 //! - Инвалидации кэша
 
+use crate::cache::{CacheStats, RedisCache};
+use crate::error::{Error, Result};
+use crate::models::User;
+use chrono::{DateTime, Duration, Utc};
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use chrono::{DateTime, Utc, Duration};
-use serde::{Serialize, Deserialize};
 use tokio::sync::RwLock;
 use tracing::{debug, info};
-use crate::cache::{RedisCache, CacheStats};
-use crate::models::User;
-use crate::error::{Error, Result};
 
 /// Кэш сервис
 pub struct CacheService {
@@ -36,10 +36,10 @@ pub struct CacheServiceConfig {
 impl Default for CacheServiceConfig {
     fn default() -> Self {
         Self {
-            session_ttl_secs: 3600, // 1 час
-            query_cache_ttl_secs: 300, // 5 минут
+            session_ttl_secs: 3600,      // 1 час
+            query_cache_ttl_secs: 300,   // 5 минут
             project_cache_ttl_secs: 600, // 10 минут
-            task_cache_ttl_secs: 60, // 1 минута
+            task_cache_ttl_secs: 60,     // 1 минута
         }
     }
 }
@@ -60,7 +60,7 @@ impl SessionData {
     pub fn new(user: &User, ttl_secs: u64) -> Self {
         let now = Utc::now();
         let expires_at = now + Duration::seconds(ttl_secs as i64);
-        
+
         Self {
             user_id: user.id,
             username: user.username.clone(),
@@ -158,8 +158,13 @@ impl CacheService {
     /// Сохраняет сессию пользователя
     pub async fn save_session(&self, token: &str, session: &SessionData) -> Result<()> {
         let key = CacheKeys::session(token);
-        self.redis.set_with_ttl(&key, session, self.config.session_ttl_secs).await?;
-        debug!("Saved session for user {} with token {}", session.user_id, token);
+        self.redis
+            .set_with_ttl(&key, session, self.config.session_ttl_secs)
+            .await?;
+        debug!(
+            "Saved session for user {} with token {}",
+            session.user_id, token
+        );
         Ok(())
     }
 
@@ -167,7 +172,7 @@ impl CacheService {
     pub async fn get_session(&self, token: &str) -> Result<Option<SessionData>> {
         let key = CacheKeys::session(token);
         let session = self.redis.get::<SessionData>(&key).await?;
-        
+
         // Проверяем не истекла ли сессия
         if let Some(ref s) = session {
             if s.is_expired() {
@@ -175,7 +180,7 @@ impl CacheService {
                 return Ok(None);
             }
         }
-        
+
         Ok(session)
     }
 
@@ -203,12 +208,16 @@ impl CacheService {
     pub async fn cache_user(&self, user: &User) -> Result<()> {
         // По ID
         let id_key = CacheKeys::user_id(user.id);
-        self.redis.set_with_ttl(&id_key, user, self.config.query_cache_ttl_secs).await?;
-        
+        self.redis
+            .set_with_ttl(&id_key, user, self.config.query_cache_ttl_secs)
+            .await?;
+
         // По username
         let username_key = CacheKeys::user_username(&user.username);
-        self.redis.set_with_ttl(&username_key, user, self.config.query_cache_ttl_secs).await?;
-        
+        self.redis
+            .set_with_ttl(&username_key, user, self.config.query_cache_ttl_secs)
+            .await?;
+
         debug!("Cached user {} ({})", user.id, user.username);
         Ok(())
     }
@@ -228,7 +237,9 @@ impl CacheService {
     /// Инвалидирует кэш пользователя
     pub async fn invalidate_user(&self, user_id: i32, username: &str) -> Result<()> {
         self.redis.delete(&CacheKeys::user_id(user_id)).await?;
-        self.redis.delete(&CacheKeys::user_username(username)).await?;
+        self.redis
+            .delete(&CacheKeys::user_username(username))
+            .await?;
         Ok(())
     }
 
@@ -239,7 +250,9 @@ impl CacheService {
     /// Кэширует проект
     pub async fn cache_project<T: Serialize>(&self, id: i64, project: &T) -> Result<()> {
         let key = CacheKeys::project(id);
-        self.redis.set_with_ttl(&key, project, self.config.project_cache_ttl_secs).await?;
+        self.redis
+            .set_with_ttl(&key, project, self.config.project_cache_ttl_secs)
+            .await?;
         debug!("Cached project {}", id);
         Ok(())
     }
@@ -253,7 +266,9 @@ impl CacheService {
     /// Инвалидирует кэш проекта и связанных данных
     pub async fn invalidate_project(&self, project_id: i64) -> Result<()> {
         self.redis.delete(&CacheKeys::project(project_id)).await?;
-        self.redis.delete_pattern(&CacheKeys::project_pattern(project_id)).await?;
+        self.redis
+            .delete_pattern(&CacheKeys::project_pattern(project_id))
+            .await?;
         info!("Invalidated cache for project {}", project_id);
         Ok(())
     }
@@ -270,8 +285,13 @@ impl CacheService {
         tasks: &T,
     ) -> Result<()> {
         let key = CacheKeys::project_tasks(project_id, status);
-        self.redis.set_with_ttl(&key, tasks, self.config.task_cache_ttl_secs).await?;
-        debug!("Cached tasks for project {} (status: {:?})", project_id, status);
+        self.redis
+            .set_with_ttl(&key, tasks, self.config.task_cache_ttl_secs)
+            .await?;
+        debug!(
+            "Cached tasks for project {} (status: {:?})",
+            project_id, status
+        );
         Ok(())
     }
 
@@ -287,11 +307,21 @@ impl CacheService {
 
     /// Инвалидирует кэш задач проекта
     pub async fn invalidate_project_tasks(&self, project_id: i64) -> Result<()> {
-        self.redis.delete(&CacheKeys::project_tasks(project_id, None)).await?;
-        self.redis.delete(&CacheKeys::project_tasks(project_id, Some("running"))).await?;
-        self.redis.delete(&CacheKeys::project_tasks(project_id, Some("pending"))).await?;
-        self.redis.delete(&CacheKeys::project_tasks(project_id, Some("success"))).await?;
-        self.redis.delete(&CacheKeys::project_tasks(project_id, Some("failed"))).await?;
+        self.redis
+            .delete(&CacheKeys::project_tasks(project_id, None))
+            .await?;
+        self.redis
+            .delete(&CacheKeys::project_tasks(project_id, Some("running")))
+            .await?;
+        self.redis
+            .delete(&CacheKeys::project_tasks(project_id, Some("pending")))
+            .await?;
+        self.redis
+            .delete(&CacheKeys::project_tasks(project_id, Some("success")))
+            .await?;
+        self.redis
+            .delete(&CacheKeys::project_tasks(project_id, Some("failed")))
+            .await?;
         Ok(())
     }
 
@@ -302,7 +332,9 @@ impl CacheService {
     /// Кэширует шаблон
     pub async fn cache_template<T: Serialize>(&self, id: i64, template: &T) -> Result<()> {
         let key = CacheKeys::template(id);
-        self.redis.set_with_ttl(&key, template, self.config.query_cache_ttl_secs).await?;
+        self.redis
+            .set_with_ttl(&key, template, self.config.query_cache_ttl_secs)
+            .await?;
         Ok(())
     }
 
@@ -321,12 +353,17 @@ impl CacheService {
     /// Кэширует инвентарь
     pub async fn cache_inventory<T: Serialize>(&self, id: i64, inventory: &T) -> Result<()> {
         let key = CacheKeys::inventory(id);
-        self.redis.set_with_ttl(&key, inventory, self.config.query_cache_ttl_secs).await?;
+        self.redis
+            .set_with_ttl(&key, inventory, self.config.query_cache_ttl_secs)
+            .await?;
         Ok(())
     }
 
     /// Получает инвентарь из кэша
-    pub async fn get_inventory<T: serde::de::DeserializeOwned>(&self, id: i64) -> Result<Option<T>> {
+    pub async fn get_inventory<T: serde::de::DeserializeOwned>(
+        &self,
+        id: i64,
+    ) -> Result<Option<T>> {
         let key = CacheKeys::inventory(id);
         self.redis.get(&key).await
     }
@@ -340,12 +377,17 @@ impl CacheService {
     /// Кэширует репозиторий
     pub async fn cache_repository<T: Serialize>(&self, id: i64, repo: &T) -> Result<()> {
         let key = CacheKeys::repository(id);
-        self.redis.set_with_ttl(&key, repo, self.config.query_cache_ttl_secs).await?;
+        self.redis
+            .set_with_ttl(&key, repo, self.config.query_cache_ttl_secs)
+            .await?;
         Ok(())
     }
 
     /// Получает репозиторий из кэша
-    pub async fn get_repository<T: serde::de::DeserializeOwned>(&self, id: i64) -> Result<Option<T>> {
+    pub async fn get_repository<T: serde::de::DeserializeOwned>(
+        &self,
+        id: i64,
+    ) -> Result<Option<T>> {
         let key = CacheKeys::repository(id);
         self.redis.get(&key).await
     }
@@ -359,12 +401,17 @@ impl CacheService {
     /// Кэширует окружение
     pub async fn cache_environment<T: Serialize>(&self, id: i64, env: &T) -> Result<()> {
         let key = CacheKeys::environment(id);
-        self.redis.set_with_ttl(&key, env, self.config.query_cache_ttl_secs).await?;
+        self.redis
+            .set_with_ttl(&key, env, self.config.query_cache_ttl_secs)
+            .await?;
         Ok(())
     }
 
     /// Получает окружение из кэша
-    pub async fn get_environment<T: serde::de::DeserializeOwned>(&self, id: i64) -> Result<Option<T>> {
+    pub async fn get_environment<T: serde::de::DeserializeOwned>(
+        &self,
+        id: i64,
+    ) -> Result<Option<T>> {
         let key = CacheKeys::environment(id);
         self.redis.get(&key).await
     }
@@ -405,7 +452,10 @@ mod tests {
         assert_eq!(CacheKeys::user_id(1), "user:id:1");
         assert_eq!(CacheKeys::project(42), "project:42");
         assert_eq!(CacheKeys::project_tasks(1, None), "project:1:tasks");
-        assert_eq!(CacheKeys::project_tasks(1, Some("running")), "project:1:tasks:running");
+        assert_eq!(
+            CacheKeys::project_tasks(1, Some("running")),
+            "project:1:tasks:running"
+        );
     }
 
     #[test]
@@ -473,7 +523,7 @@ mod tests {
         };
 
         let session = SessionData::new(&user, 7200);
-        
+
         assert_eq!(session.username, "fieldtest");
         assert_eq!(session.email, "fields@test.com");
         assert!(session.is_admin);
@@ -483,7 +533,7 @@ mod tests {
     #[test]
     fn test_cache_service_config_default() {
         let config = CacheServiceConfig::default();
-        
+
         assert_eq!(config.session_ttl_secs, 3600);
         assert_eq!(config.query_cache_ttl_secs, 300);
         assert_eq!(config.project_cache_ttl_secs, 600);
@@ -511,7 +561,10 @@ mod tests {
         assert_eq!(CacheKeys::user_username("john"), "user:username:john");
         assert_eq!(CacheKeys::project(456), "project:456");
         assert_eq!(CacheKeys::project_tasks(1, None), "project:1:tasks");
-        assert_eq!(CacheKeys::project_tasks(1, Some("success")), "project:1:tasks:success");
+        assert_eq!(
+            CacheKeys::project_tasks(1, Some("success")),
+            "project:1:tasks:success"
+        );
         assert_eq!(CacheKeys::template(789), "template:789");
         assert_eq!(CacheKeys::inventory(111), "inventory:111");
         assert_eq!(CacheKeys::repository(222), "repository:222");

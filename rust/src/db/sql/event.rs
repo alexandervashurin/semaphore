@@ -16,33 +16,32 @@ impl SqlDb {
     /// Получает события проекта
     pub async fn get_events(&self, project_id: Option<i32>, limit: usize) -> Result<Vec<Event>> {
         let rows = if let Some(pid) = project_id {
-            sqlx::query(
-                "SELECT * FROM event WHERE project_id = $1 ORDER BY created DESC LIMIT $2"
-            )
-            .bind(pid)
-            .bind(limit as i64)
-            .fetch_all(self.pg_pool_event()?)
-            .await
-            .map_err(Error::Database)?
+            sqlx::query("SELECT * FROM event WHERE project_id = $1 ORDER BY created DESC LIMIT $2")
+                .bind(pid)
+                .bind(limit as i64)
+                .fetch_all(self.pg_pool_event()?)
+                .await
+                .map_err(Error::Database)?
         } else {
-            sqlx::query(
-                "SELECT * FROM event ORDER BY created DESC LIMIT $1"
-            )
-            .bind(limit as i64)
-            .fetch_all(self.pg_pool_event()?)
-            .await
-            .map_err(Error::Database)?
+            sqlx::query("SELECT * FROM event ORDER BY created DESC LIMIT $1")
+                .bind(limit as i64)
+                .fetch_all(self.pg_pool_event()?)
+                .await
+                .map_err(Error::Database)?
         };
 
-        Ok(rows.into_iter().map(|row| Event {
-            id: row.get("id"),
-            project_id: row.try_get("project_id").ok(),
-            user_id: row.try_get("user_id").ok(),
-            object_id: row.try_get("object_id").ok(),
-            object_type: row.get("object_type"),
-            description: row.get("description"),
-            created: row.get("created"),
-        }).collect())
+        Ok(rows
+            .into_iter()
+            .map(|row| Event {
+                id: row.get("id"),
+                project_id: row.try_get("project_id").ok(),
+                user_id: row.try_get("user_id").ok(),
+                object_id: row.try_get("object_id").ok(),
+                object_type: row.get("object_type"),
+                description: row.get("description"),
+                created: row.get("created"),
+            })
+            .collect())
     }
 
     /// Создаёт событие
