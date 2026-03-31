@@ -92,7 +92,9 @@ chmod +x velum-linux-x86_64
 ### Из исходного кода
 
 ```bash
-# Клонируйте репозиторий
+# Клонируйте репозиторий (основной или форк)
+# Основной: git clone https://github.com/tnl-o/velum.git
+# Форк:     git clone https://github.com/alexandervashurin/semaphore.git
 git clone https://github.com/tnl-o/velum.git
 cd velum
 
@@ -363,7 +365,8 @@ cargo build --release
 
 | Ресурс | Ссылка |
 |--------|--------|
-| **Этот репозиторий** | https://github.com/tnl-o/velum |
+| **Основной репозиторий** | https://github.com/tnl-o/velum |
+| **Текущий форк** | https://github.com/alexandervashurin/semaphore |
 | **Go оригинал** | https://github.com/semaphoreui/semaphore |
 | **Документация** | https://github.com/tnl-o/velum/wiki |
 
