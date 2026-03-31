@@ -202,7 +202,7 @@ pub async fn delete_task(
 }
 
 /// Выполняет задачу в фоновом потоке
-async fn execute_task_background(state: Arc<AppState>, task: Task) {
+async fn execute_task_background(state: Arc<AppState>, mut task: Task) {
     println!(
         "[task_runner] Starting task {} (template {})",
         task.id, task.template_id
@@ -311,7 +311,6 @@ async fn execute_task_background(state: Arc<AppState>, task: Task) {
         let _ = store.create_task_output(output).await;
     }
 
-    let task_id = task.id;
     task.end = Some(Utc::now());
     match result {
         Ok(()) => {

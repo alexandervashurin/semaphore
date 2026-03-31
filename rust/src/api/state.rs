@@ -2,6 +2,7 @@
 
 use super::middleware::rate_limiter::{RateLimitConfig, RateLimiter};
 use super::store_wrapper::StoreWrapper;
+use super::token_blacklist::TokenBlacklist;
 use super::websocket::WebSocketManager;
 use crate::api::handlers::kubernetes::client::{KubeClient, KubeConfig};
 use crate::cache::RedisCache;

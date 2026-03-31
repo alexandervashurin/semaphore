@@ -15,6 +15,7 @@
 
 use async_graphql::{Context, Object, Result, Subscription};
 use futures_util::stream::{self, Stream, StreamExt};
+use once_cell::sync::Lazy;
 use tokio::sync::broadcast;
 
 use super::types::{Task, TaskOutputLine, TaskStatusEvent};

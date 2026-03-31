@@ -78,7 +78,4 @@ pub use storage_csi::*;
 pub use storage_snapshots::*;
 pub use troubleshooting::*;
 pub use types::*;
-pub use workloads_k8s::*;
-pub use observability::*;
-pub use helm_handler::*;
 pub use apply::*;
