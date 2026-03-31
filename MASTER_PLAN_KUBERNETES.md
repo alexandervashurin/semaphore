@@ -1540,21 +1540,20 @@ kubectl auth can-i get pods --as system:serviceaccount:default:velum
 - [x] k8s-observability.html (3 tabs) ✅ 2026-03-30
 
 ### Phase 6-8 (Advanced)
-- [ ] CRD support
-- [ ] HPA/VPA
-- [ ] Events stream
-- [ ] Metrics charts
-- [ ] Topology map
+- [x] CRD support ✅ 2026-03-30
+- [x] HPA/VPA ✅ 2026-03-30
+- [x] Events stream ✅ 2026-03-30
+- [x] Metrics (node/pod) ✅ 2026-03-30
+- [x] Topology map ✅ 2026-03-30
 
 ### Phase 9-10 (Enterprise)
-- [ ] Helm integration
-- [ ] Multi-cluster
-- [ ] Audit logging
-- [ ] Backup/Restore
-- [ ] Dark/Light theme
-- [ ] Mobile responsive
-- [ ] i18n
-- [ ] Accessibility
+- [x] Helm integration ✅ 2026-03-30
+- [x] Multi-cluster switcher ✅ 2026-03-30
+- [ ] K8s Audit logging (10.2 — backlog)
+- [ ] Backup/Restore (10.3 — backlog)
+- [x] Dark/Light theme ✅ (in styles.css + sidebar toggle)
+- [x] i18n EN/RU ✅ 2026-03-30
+- [ ] Full mobile responsiveness + WCAG 2.1 AA — backlog v2
 
 ### Security Checklist
 - [ ] Kubeconfig шифрование

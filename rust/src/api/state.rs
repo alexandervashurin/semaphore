@@ -32,6 +32,8 @@ pub struct AppState {
     pub rate_limiter_api: Arc<RateLimiter>,
     /// Rate limiter для auth эндпоинтов (5 req/min per IP)
     pub rate_limiter_auth: Arc<RateLimiter>,
+    /// JWT blacklist — отозванные токены до истечения их TTL
+    pub token_blacklist: TokenBlacklist,
 }
 
 impl AppState {
@@ -58,6 +60,7 @@ impl AppState {
                 period_secs: 60,
                 burst_size: None,
             })),
+            token_blacklist: TokenBlacklist::new(),
         }
     }
 

@@ -11,6 +11,9 @@ node_modules/
 .claude/skills/gstack/node_modules/
 .claude/skills/gstack/.agents/
 
+# Git worktrees (managed by claude code, not tracked)
+.claude/worktrees/
+
 # Editors
 .vscode/
 

@@ -55,7 +55,7 @@
 <script src="/app.js"></script>
 <script>
 const params = new URLSearchParams(location.search);
-const projectId = params.get('project_id') || params.get('projectId');
+const projectId = params.get('project_id') || params.get('projectId') || params.get('id');
 
 async function apiFetch(url, opts = {}) {
   const token = localStorage.getItem('token');

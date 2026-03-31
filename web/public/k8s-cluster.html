@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes — Velum</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+    <style>
+        /* ── Kubernetes-специфичные стили ── */
+        .k8s-header-icon { color: #326ce5; font-size: 22px; }
+        .cluster-card {
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 4px rgba(0,0,0,.07);
+        }
+        .cluster-card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .cluster-icon {
+            width: 40px; height: 40px;
+            border-radius: 8px;
+            background: #e8f0fe;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; color: #326ce5;
+            flex-shrink: 0;
+        }
+        .cluster-title { font-size: 16px; font-weight: 600; color: var(--text); }
+        .cluster-subtitle { font-size: 12px; color: var(--text-light); margin-top: 2px; }
+        .version-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: #e8f0fe; color: #1a56db;
+            padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;
+        }
+        .status-pill {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
+        }
+        .status-ok       { background: #e8f5e9; color: #2e7d32; }
+        .status-error    { background: #ffebee; color: #c62828; }
+        .status-loading  { background: #f5f5f5; color: #757575; }
+        .status-dot {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: currentColor; opacity: .75;
+        }
+
+        /* Namespace таблица */
+        .ns-table td, .ns-table th { padding: 8px 12px; font-size: 13px; }
+        .ns-badge {
+            display: inline-block; padding: 2px 8px;
+            border-radius: 10px; font-size: 11px; font-weight: 600;
+        }
+        .ns-active      { background: #e8f5e9; color: #2e7d32; }
+        .ns-terminating { background: #ffebee; color: #c62828; }
+        .ns-unknown     { background: #f5f5f5; color: #757575; }
+
+        /* PSA label badges */
+        .psa-label {
+            display: inline-block; padding: 1px 6px;
+            border-radius: 6px; font-size: 10px; font-weight: 600;
+            background: #fff3e0; color: #e65100;
+            margin-left: 4px;
+        }
+
+        /* Мета-инфо блок */
+        .meta-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px; margin-top: 12px;
+        }
+        .meta-item { display: flex; flex-direction: column; gap: 3px; }
+        .meta-label { font-size: 11px; color: var(--text-light); text-transform: uppercase; letter-spacing: .5px; }
+        .meta-value { font-size: 13px; font-weight: 500; color: var(--text); font-family: monospace; }
+
+        /* Placeholder / Loading / Error */
+        .k8s-placeholder { text-align: center; padding: 64px 16px; color: var(--text-light); }
+        .k8s-placeholder i { font-size: 52px; margin-bottom: 16px; opacity: .3; display: block; }
+        .k8s-placeholder h3 { margin: 0 0 8px; font-size: 18px; }
+
+        /* Pagination bar */
+        .pagination-bar { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+        .pagination-bar button { min-width: 80px; }
+    </style>
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar"></aside>
+
+    <div class="main-content">
+        <div class="main-header">
+            <h2 id="page-title">
+                <i class="fa-solid fa-dharmachakra k8s-header-icon"></i>
+                Kubernetes
+            </h2>
+            <div class="header-actions">
+                <select id="cluster-select" class="form-control" style="width:auto;min-width:160px;" onchange="onClusterChange()">
+                    <option value="">Загрузка...</option>
+                </select>
+                <button class="btn btn-sm" onclick="refreshAll()" title="Обновить">
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="main-body">
+
+            <!-- Карточка кластера -->
+            <div class="cluster-card" id="cluster-card">
+                <div class="cluster-card-header">
+                    <div class="cluster-icon">
+                        <i class="fa-solid fa-dharmachakra"></i>
+                    </div>
+                    <div>
+                        <div class="cluster-title" id="cluster-display-name">—</div>
+                        <div class="cluster-subtitle" id="cluster-auth-method"></div>
+                    </div>
+                    <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+                        <span class="status-pill status-loading" id="cluster-status-pill">
+                            <span class="status-dot"></span>
+                            <span id="cluster-status-text">Проверка...</span>
+                        </span>
+                        <span class="version-badge" id="cluster-version" style="display:none">
+                            <i class="fa-brands fa-docker"></i>
+                            <span id="cluster-version-text"></span>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="meta-grid" id="cluster-meta"></div>
+            </div>
+
+            <!-- Namespace список -->
+            <div class="cluster-card">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                    <h3 style="margin:0;font-size:15px;">
+                        <i class="fa-solid fa-layer-group" style="color:#326ce5;"></i>
+                        Namespaces
+                        <span id="ns-count" style="font-size:13px;color:var(--text-light);font-weight:400;margin-left:6px;"></span>
+                    </h3>
+                    <input type="text" id="ns-filter" class="form-control"
+                        placeholder="Фильтр по имени…"
+                        style="width:200px;font-size:13px;"
+                        oninput="filterNamespaces()">
+                </div>
+
+                <div id="ns-container">
+                    <div class="k8s-placeholder">
+                        <i class="fa-solid fa-circle-notch fa-spin" style="opacity:.5;"></i>
+                        <p>Загрузка namespace'ов…</p>
+                    </div>
+                </div>
+
+                <div class="pagination-bar" id="ns-pagination" style="display:none;">
+                    <span id="ns-page-info" style="font-size:13px;color:var(--text-light);"></span>
+                    <button class="btn btn-sm" id="ns-next-btn" onclick="loadNextPage()">Следующая →</button>
+                </div>
+            </div>
+
+        </div><!-- /main-body -->
+    </div><!-- /main-content -->
+</div><!-- /layout -->
+
+<script src="app.js"></script>
+<script>
+checkAuth();
+
+const params = new URLSearchParams(location.search);
+
+let clusters = [];
+let currentClusterId = params.get('cluster') || 'default';
+let allNamespaces = [];
+let nextContinueToken = null;
+let nsPages = [null]; // stack of continue tokens (null = first page)
+let currentPageIdx = 0;
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+    if (typeof renderSidebar === 'function') renderSidebar();
+    await loadClusters();
+    await refreshAll();
+});
+
+// ── Clusters ──────────────────────────────────────────────────────────────────
+async function loadClusters() {
+    try {
+        const data = await apiFetch('/api/kubernetes/clusters');
+        clusters = data.clusters || [];
+        const sel = document.getElementById('cluster-select');
+
+        if (clusters.length === 0) {
+            sel.innerHTML = '<option value="">Кластер не настроен</option>';
+            showNotConfigured();
+            return;
+        }
+
+        sel.innerHTML = clusters.map(c =>
+            `<option value="${escapeHtml(c.id)}"${c.id === currentClusterId ? ' selected' : ''}>
+                ${escapeHtml(c.name)}
+             </option>`
+        ).join('');
+
+        const meta = clusters.find(c => c.id === currentClusterId) || clusters[0];
+        currentClusterId = meta.id;
+        document.getElementById('cluster-display-name').textContent = meta.name;
+        document.getElementById('cluster-auth-method').textContent = meta.auth_method || '';
+
+    } catch (e) {
+        showError('Не удалось загрузить список кластеров: ' + e.message);
+    }
+}
+
+function onClusterChange() {
+    const sel = document.getElementById('cluster-select');
+    currentClusterId = sel.value;
+    // Reset pagination
+    nsPages = [null];
+    currentPageIdx = 0;
+    refreshAll();
+}
+
+// ── Refresh ───────────────────────────────────────────────────────────────────
+async function refreshAll() {
+    if (!currentClusterId) return;
+    await Promise.all([loadClusterInfo(), loadNamespaces(null)]);
+}
+
+// ── Cluster Info ──────────────────────────────────────────────────────────────
+async function loadClusterInfo() {
+    const pill = document.getElementById('cluster-status-pill');
+    const pillText = document.getElementById('cluster-status-text');
+    const versionEl = document.getElementById('cluster-version');
+    const versionText = document.getElementById('cluster-version-text');
+    const metaEl = document.getElementById('cluster-meta');
+
+    pill.className = 'status-pill status-loading';
+    pillText.textContent = 'Проверка...';
+    versionEl.style.display = 'none';
+    metaEl.innerHTML = '';
+
+    try {
+        const info = await apiFetch(`/api/kubernetes/clusters/${encodeURIComponent(currentClusterId)}/info`);
+
+        if (info.reachable) {
+            pill.className = 'status-pill status-ok';
+            pillText.textContent = 'Доступен';
+        } else {
+            pill.className = 'status-pill status-error';
+            pillText.textContent = info.status === 'unauthorized' ? 'Нет прав' : 'Недоступен';
+        }
+
+        if (info.version) {
+            versionEl.style.display = '';
+            versionText.textContent = `v${info.version.major}.${info.version.minor}  ${info.version.git_version}`;
+            metaEl.innerHTML = `
+                <div class="meta-item">
+                    <div class="meta-label">Версия</div>
+                    <div class="meta-value">${escapeHtml(info.version.git_version)}</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">Платформа</div>
+                    <div class="meta-value">${escapeHtml(info.version.platform)}</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">Major / Minor</div>
+                    <div class="meta-value">${escapeHtml(info.version.major)}.${escapeHtml(info.version.minor)}</div>
+                </div>
+            `;
+        }
+
+        if (info.message && !info.reachable) {
+            metaEl.innerHTML += `<div class="meta-item" style="grid-column:1/-1;">
+                <div class="meta-label">Ошибка</div>
+                <div class="meta-value" style="color:#c62828;font-size:12px;">${escapeHtml(info.message)}</div>
+            </div>`;
+        }
+
+    } catch (e) {
+        pill.className = 'status-pill status-error';
+        pillText.textContent = 'Ошибка';
+        metaEl.innerHTML = `<div style="color:#c62828;font-size:13px;">${escapeHtml(e.message)}</div>`;
+    }
+}
+
+// ── Namespaces ────────────────────────────────────────────────────────────────
+async function loadNamespaces(continueToken) {
+    const container = document.getElementById('ns-container');
+    const countEl = document.getElementById('ns-count');
+    container.innerHTML = `<div class="k8s-placeholder">
+        <i class="fa-solid fa-circle-notch fa-spin" style="opacity:.5;"></i>
+        <p>Загрузка namespace'ов…</p>
+    </div>`;
+
+    let url = `/api/kubernetes/clusters/${encodeURIComponent(currentClusterId)}/namespaces?limit=50`;
+    if (continueToken) url += `&continue_token=${encodeURIComponent(continueToken)}`;
+
+    try {
+        const data = await apiFetch(url);
+        allNamespaces = data.items || [];
+        nextContinueToken = data.continue_token || null;
+
+        countEl.textContent = allNamespaces.length > 0 ? `(${allNamespaces.length})` : '';
+        renderNamespaceTable(allNamespaces);
+        updatePagination();
+
+    } catch (e) {
+        if (e.message && (e.message.includes('503') || e.message.includes('не сконфигурирован'))) {
+            showNotConfigured();
+        } else if (e.message && e.message.includes('403')) {
+            container.innerHTML = `<div class="k8s-placeholder">
+                <i class="fa-solid fa-lock"></i>
+                <h3>Нет прав</h3>
+                <p>Сервис-аккаунт не имеет доступа к list namespaces.<br>Добавьте ClusterRole с <code>verbs: [get, list]</code> на <code>namespaces</code>.</p>
+            </div>`;
+        } else {
+            container.innerHTML = `<div class="k8s-placeholder">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <h3>Ошибка загрузки</h3>
+                <p>${escapeHtml(e.message)}</p>
+            </div>`;
+        }
+    }
+}
+
+function renderNamespaceTable(items) {
+    const container = document.getElementById('ns-container');
+    if (!items || items.length === 0) {
+        container.innerHTML = `<div class="k8s-placeholder">
+            <i class="fa-solid fa-layer-group"></i>
+            <h3>Нет namespace'ов</h3>
+        </div>`;
+        return;
+    }
+
+    const rows = items.map(ns => {
+        const phaseClass = ns.phase === 'Active' ? 'ns-active'
+            : ns.phase === 'Terminating' ? 'ns-terminating' : 'ns-unknown';
+
+        // PSA labels
+        const psaLabels = Object.entries(ns.labels || {})
+            .filter(([k]) => k.startsWith('pod-security.kubernetes.io/'))
+            .map(([k, v]) => {
+                const short = k.replace('pod-security.kubernetes.io/', '');
+                return `<span class="psa-label" title="${escapeHtml(k)}">${escapeHtml(short)}: ${escapeHtml(v)}</span>`;
+            }).join('');
+
+        return `<tr>
+            <td style="font-weight:500;">
+                ${escapeHtml(ns.name)}
+                ${psaLabels}
+            </td>
+            <td><span class="ns-badge ${phaseClass}">${escapeHtml(ns.phase)}</span></td>
+            <td style="font-size:12px;color:var(--text-light);">
+                ${Object.keys(ns.labels || {}).length} меток
+            </td>
+        </tr>`;
+    }).join('');
+
+    container.innerHTML = `<table class="table ns-table">
+        <thead>
+            <tr>
+                <th>Имя</th>
+                <th>Статус</th>
+                <th>Labels</th>
+            </tr>
+        </thead>
+        <tbody id="ns-tbody">${rows}</tbody>
+    </table>`;
+}
+
+function filterNamespaces() {
+    const q = document.getElementById('ns-filter').value.toLowerCase();
+    const filtered = q
+        ? allNamespaces.filter(ns => ns.name.toLowerCase().includes(q))
+        : allNamespaces;
+    renderNamespaceTable(filtered);
+    document.getElementById('ns-count').textContent = filtered.length > 0 ? `(${filtered.length})` : '';
+}
+
+function updatePagination() {
+    const bar = document.getElementById('ns-pagination');
+    const info = document.getElementById('ns-page-info');
+    const nextBtn = document.getElementById('ns-next-btn');
+
+    if (nextContinueToken) {
+        bar.style.display = 'flex';
+        info.textContent = `Показано ${allNamespaces.length} namespace'ов`;
+        nextBtn.style.display = '';
+    } else {
+        bar.style.display = 'none';
+    }
+}
+
+function loadNextPage() {
+    if (nextContinueToken) {
+        nsPages.push(nextContinueToken);
+        loadNamespaces(nextContinueToken);
+    }
+}
+
+// ── Error / Empty states ──────────────────────────────────────────────────────
+function showNotConfigured() {
+    document.getElementById('ns-container').innerHTML = `
+        <div class="k8s-placeholder">
+            <i class="fa-solid fa-dharmachakra"></i>
+            <h3>Kubernetes не настроен</h3>
+            <p>Задайте переменную окружения <code>VELUM_K8S_KUBECONFIG</code><br>
+            (путь к kubeconfig) или <code>VELUM_K8S_IN_CLUSTER=true</code><br>
+            для автоматической настройки внутри кластера.</p>
+        </div>`;
+    document.getElementById('cluster-status-pill').className = 'status-pill status-error';
+    document.getElementById('cluster-status-text').textContent = 'Не настроен';
+}
+
+function showError(msg) {
+    document.getElementById('ns-container').innerHTML = `<div class="k8s-placeholder">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <p>${escapeHtml(msg)}</p>
+    </div>`;
+}
+
+// ── API helper ────────────────────────────────────────────────────────────────
+async function apiFetch(url, opts = {}) {
+    const token = localStorage.getItem('token');
+    opts.headers = Object.assign(
+        { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        opts.headers || {}
+    );
+    const res = await fetch(url, opts);
+    if (!res.ok) {
+        const body = await res.text();
+        let msg = body;
+        try { msg = JSON.parse(body).error || body; } catch (_) {}
+        const err = new Error(msg);
+        err.status = res.status;
+        throw err;
+    }
+    return res.status === 204 ? null : res.json();
+}
+</script>
+</body>
+</html>

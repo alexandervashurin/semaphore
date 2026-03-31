@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes StatefulSets — Velum</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+    <style>
+        .k8s-icon { color: #326ce5; font-size: 22px; }
+        .sts-status { display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:600; }
+        .sts-ok       { background:#e8f5e9;color:#2e7d32; }
+        .sts-degraded { background:#ffebee;color:#c62828; }
+        .sts-progress { background:#fff8e1;color:#f57f17; }
+        .replicas-bar { display:flex;align-items:center;gap:6px; }
+        .replicas-track { width:80px;height:6px;border-radius:3px;background:#e0e0e0;overflow:hidden;flex-shrink:0; }
+        .replicas-fill { height:100%;border-radius:3px;background:#2e7d32;transition:width .3s; }
+        .replicas-fill.partial { background:#f57f17; }
+        .replicas-fill.none   { background:#c62828; }
+        .replicas-label { font-size:12px;color:var(--text-light);white-space:nowrap; }
+        .image-pill { display:inline-block;background:#f3f4f6;border:1px solid var(--border);border-radius:6px;padding:2px 8px;font-family:monospace;font-size:11px;margin:2px;word-break:break-all; }
+        .tbl-icon-btn { background:none;border:none;cursor:pointer;color:var(--text-light);padding:4px 6px;border-radius:4px;font-size:14px; }
+        .tbl-icon-btn:hover { color:var(--primary); }
+        .toolbar { display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px; }
+        .detail-overlay { position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:900;display:flex;justify-content:flex-end; }
+        .detail-panel { width:480px;max-width:96vw;background:var(--surface);height:100vh;overflow-y:auto;box-shadow:-4px 0 20px rgba(0,0,0,.15);padding:24px;display:flex;flex-direction:column;gap:16px; }
+        .detail-header { display:flex;align-items:center;justify-content:space-between; }
+        .detail-title { font-size:16px;font-weight:600;word-break:break-all; }
+        .kv-table { width:100%;font-size:13px;border-collapse:collapse; }
+        .kv-table td { padding:4px 0;vertical-align:top; }
+        .kv-table td:first-child { color:var(--text-light);width:42%;padding-right:8px; }
+        .label-chip { display:inline-block;padding:1px 8px;background:#e8f0fe;color:#1a56db;border-radius:10px;font-size:11px;margin:2px; }
+        .scale-input { width:64px;text-align:center;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:14px; }
+    </style>
+</head>
+<body>
+<div class="layout">
+    <nav class="sidebar"></nav>
+    <main class="main-content">
+        <div class="page-header">
+            <div style="display:flex;align-items:center;gap:10px">
+                <i class="fa-solid fa-database k8s-icon"></i>
+                <div>
+                    <h1 class="page-title">StatefulSets</h1>
+                    <p class="page-subtitle">Kubernetes — управление StatefulSet'ами</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="toolbar">
+            <select class="form-control" id="clusterSelect" style="min-width:180px"><option value="">— Кластер —</option></select>
+            <select class="form-control" id="namespaceSelect" style="min-width:180px" disabled><option value="">— Namespace —</option></select>
+            <input type="text" class="form-control" id="filter" placeholder="Фильтр…" style="flex:1;min-width:160px" disabled>
+            <button class="btn btn-secondary" id="refreshBtn" disabled><i class="fa-solid fa-rotate-right"></i> Обновить</button>
+        </div>
+
+        <div id="stateNotConfigured" class="empty-state" style="display:none">
+            <i class="fa-solid fa-dharmachakra" style="font-size:48px;color:#326ce5;opacity:.4;margin-bottom:12px"></i><p>Kubernetes не сконфигурирован.</p>
+        </div>
+        <div id="stateSelectCluster" class="empty-state" style="display:none">
+            <i class="fa-solid fa-circle-info" style="font-size:36px;color:#aaa;margin-bottom:10px"></i><p>Выберите кластер и namespace.</p>
+        </div>
+        <div id="stateLoading" class="empty-state" style="display:none">
+            <i class="fa-solid fa-circle-notch fa-spin" style="font-size:36px;color:#aaa;margin-bottom:10px"></i><p>Загрузка…</p>
+        </div>
+        <div id="stateForbidden" class="empty-state" style="display:none">
+            <i class="fa-solid fa-ban" style="font-size:36px;color:#c62828;opacity:.5;margin-bottom:10px"></i><p>Нет прав.</p>
+        </div>
+        <div id="stateError" class="empty-state" style="display:none">
+            <i class="fa-solid fa-triangle-exclamation" style="font-size:36px;color:#f57f17;opacity:.6;margin-bottom:10px"></i><p id="stateErrorMsg">Ошибка.</p>
+        </div>
+        <div id="stateEmpty" class="empty-state" style="display:none">
+            <i class="fa-solid fa-database" style="font-size:36px;color:#aaa;opacity:.5;margin-bottom:10px"></i><p>Нет StatefulSet'ов.</p>
+        </div>
+
+        <div id="tableWrap" style="display:none">
+            <div class="table-container">
+                <table class="data-table">
+                    <thead><tr><th>Имя</th><th>Статус</th><th>Реплики</th><th>Service</th><th>Образы</th><th>Создан</th><th></th></tr></thead>
+                    <tbody id="tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Scale modal -->
+<div id="scaleModal" style="display:none" class="modal-overlay">
+    <div class="modal-dialog" style="max-width:360px">
+        <div class="modal-header">
+            <h3 class="modal-title">Масштабировать StatefulSet</h3>
+            <button class="modal-close" onclick="closeScale()">×</button>
+        </div>
+        <div class="modal-body">
+            <p id="scaleModalName" style="font-weight:600;margin-bottom:12px"></p>
+            <label class="form-label">Реплики</label>
+            <input type="number" class="form-control scale-input" id="scaleInput" min="0" max="100" value="1">
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeScale()">Отмена</button>
+            <button class="btn btn-primary" onclick="doScale()">Применить</button>
+        </div>
+    </div>
+</div>
+
+<div id="detailOverlay" class="detail-overlay" style="display:none" onclick="closeDetail(event)">
+    <div class="detail-panel" onclick="event.stopPropagation()">
+        <div class="detail-header">
+            <span class="detail-title" id="detailName"></span>
+            <button class="btn btn-secondary btn-sm" onclick="closeDetail()">✕</button>
+        </div>
+        <div id="detailContent"></div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+let currentClusterId = null, currentNamespace = null, cache = [], scaleTarget = null;
+
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadClusters();
+    document.getElementById('clusterSelect').addEventListener('change', onClusterChange);
+    document.getElementById('namespaceSelect').addEventListener('change', onNsChange);
+    document.getElementById('filter').addEventListener('input', renderTable);
+    document.getElementById('refreshBtn').addEventListener('click', load);
+});
+
+async function loadClusters() {
+    try {
+        const data = await api.get('/kubernetes/clusters');
+        const sel = document.getElementById('clusterSelect');
+        if (!data.clusters || !data.clusters.length) { showState('notConfigured'); return; }
+        data.clusters.forEach(c => { const o = document.createElement('option'); o.value=c.id; o.textContent=c.display_name||c.id; sel.appendChild(o); });
+        showState('selectCluster');
+    } catch { showState('notConfigured'); }
+}
+
+async function onClusterChange() {
+    currentClusterId = document.getElementById('clusterSelect').value || null;
+    const nsSel = document.getElementById('namespaceSelect');
+    nsSel.innerHTML = '<option value="">— Namespace —</option>'; nsSel.disabled=true; hide();
+    if (!currentClusterId) { showState('selectCluster'); return; }
+    showState('loading');
+    try {
+        const data = await api.get(`/kubernetes/clusters/${enc(currentClusterId)}/namespaces?limit=500`);
+        (data.items||[]).forEach(ns => { const o=document.createElement('option'); o.value=ns.name; o.textContent=ns.name; nsSel.appendChild(o); });
+        nsSel.disabled=false; showState('selectCluster');
+    } catch(e) { showState('error', e.message); }
+}
+
+async function onNsChange() {
+    currentNamespace = document.getElementById('namespaceSelect').value || null;
+    if (!currentNamespace) { hide(); showState('selectCluster'); return; }
+    await load();
+}
+
+async function load() {
+    if (!currentClusterId || !currentNamespace) return;
+    showState('loading'); hide();
+    try {
+        const data = await api.get(`/kubernetes/clusters/${enc(currentClusterId)}/namespaces/${enc(currentNamespace)}/statefulsets?limit=100`);
+        cache = data.items || [];
+        if (!cache.length) { showState('empty'); return; }
+        renderTable(); show();
+        document.getElementById('filter').disabled=false;
+        document.getElementById('refreshBtn').disabled=false;
+    } catch(e) {
+        const m=e.message||'';
+        if (m.includes('FORBIDDEN')||m.includes('403')) showState('forbidden');
+        else showState('error', m);
+    }
+}
+
+function renderTable() {
+    const f=(document.getElementById('filter').value||'').toLowerCase();
+    const rows=cache.filter(d=>!f||d.name.toLowerCase().includes(f));
+    const tbody=document.getElementById('tbody');
+    if (!rows.length) { tbody.innerHTML=`<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-light)">Нет совпадений</td></tr>`; return; }
+    tbody.innerHTML=rows.map(d => {
+        const des=d.replicas_desired||0, rdy=d.replicas_ready||0;
+        const pct=des>0?Math.round(rdy/des*100):0;
+        const fillCls=pct===100?'':pct===0?' none':' partial';
+        const statusCls=pct===100?'sts-ok':pct===0&&des>0?'sts-degraded':'sts-progress';
+        const statusLabel=pct===100?'OK':des===0?'Scaled to 0':pct===0?'Unavailable':'Progressing';
+        const repl=`<div class="replicas-bar"><div class="replicas-track"><div class="replicas-fill${fillCls}" style="width:${pct}%"></div></div><span class="replicas-label">${rdy}/${des}</span></div>`;
+        const imgs=(d.images||[]).slice(0,2).map(i=>`<span class="image-pill" title="${escapeHtml(i)}">${escapeHtml(shortImg(i))}</span>`).join('')+(d.images&&d.images.length>2?`<span class="image-pill">+${d.images.length-2}</span>`:'');
+        return `<tr>
+            <td><a href="#" onclick="showDetail(${JSON.stringify(d.name)});return false" style="font-weight:500;font-size:13px">${escapeHtml(d.name)}</a></td>
+            <td><span class="sts-status ${statusCls}">${statusLabel}</span></td>
+            <td>${repl}</td>
+            <td><code style="font-size:11px">${escapeHtml(d.service_name||'—')}</code></td>
+            <td>${imgs}</td>
+            <td>${d.created_at?`<span style="font-size:11px;color:var(--text-light)">${formatDate(d.created_at)}</span>`:'—'}</td>
+            <td><button class="tbl-icon-btn" title="Масштабировать" onclick="openScale(${JSON.stringify(d.name)},${d.replicas_desired})"><i class="fa-solid fa-sliders"></i></button></td>
+        </tr>`;
+    }).join('');
+}
+
+function shortImg(img){const p=img.split('/');const l=p[p.length-1];return l.length>40?l.substring(0,37)+'…':l;}
+
+async function showDetail(name) {
+    document.getElementById('detailName').textContent=name;
+    document.getElementById('detailContent').innerHTML='<p style="color:var(--text-light)">Загрузка…</p>';
+    document.getElementById('detailOverlay').style.display='flex';
+    try {
+        const d=await api.get(`/kubernetes/clusters/${enc(currentClusterId)}/namespaces/${enc(currentNamespace)}/statefulsets/${enc(name)}`);
+        const labels=Object.entries(d.labels||{}).map(([k,v])=>`<span class="label-chip">${escapeHtml(k)}=${escapeHtml(v)}</span>`).join('')||'—';
+        const imgs=(d.images||[]).map(i=>`<div><span class="image-pill">${escapeHtml(i)}</span></div>`).join('')||'—';
+        document.getElementById('detailContent').innerHTML=`
+            <div><h4 style="font-size:12px;font-weight:600;text-transform:uppercase;color:var(--text-light);margin-bottom:8px">Статус</h4>
+            <table class="kv-table">
+                <tr><td>Desired</td><td>${d.replicas_desired}</td></tr>
+                <tr><td>Ready</td><td>${d.replicas_ready}</td></tr>
+                <tr><td>Current</td><td>${d.replicas_current}</td></tr>
+                <tr><td>Service</td><td><code>${escapeHtml(d.service_name||'—')}</code></td></tr>
+                <tr><td>Создан</td><td>${d.created_at?formatDate(d.created_at):'—'}</td></tr>
+            </table></div>
+            <div style="margin-top:12px"><h4 style="font-size:12px;font-weight:600;text-transform:uppercase;color:var(--text-light);margin-bottom:8px">Образы</h4>${imgs}</div>
+            <div style="margin-top:12px"><h4 style="font-size:12px;font-weight:600;text-transform:uppercase;color:var(--text-light);margin-bottom:8px">Labels</h4><div>${labels}</div></div>
+            <div style="margin-top:16px">
+                <button class="btn btn-secondary btn-sm" onclick="openScale(${JSON.stringify(d.name)},${d.replicas_desired})"><i class="fa-solid fa-sliders"></i> Масштабировать</button>
+            </div>`;
+    } catch(e) { document.getElementById('detailContent').innerHTML=`<p style="color:#c62828">Ошибка: ${escapeHtml(e.message||'')}</p>`; }
+}
+
+function closeDetail(event) {
+    if (!event||event.target===document.getElementById('detailOverlay'))
+        document.getElementById('detailOverlay').style.display='none';
+}
+
+function openScale(name, cur) { scaleTarget=name; document.getElementById('scaleModalName').textContent=name; document.getElementById('scaleInput').value=cur||1; document.getElementById('scaleModal').style.display='flex'; }
+function closeScale() { document.getElementById('scaleModal').style.display='none'; scaleTarget=null; }
+async function doScale() {
+    const r=parseInt(document.getElementById('scaleInput').value);
+    if (isNaN(r)||r<0) { alert('Введите корректное число'); return; }
+    const name=scaleTarget; closeScale();
+    try {
+        await api.post(`/kubernetes/clusters/${enc(currentClusterId)}/namespaces/${enc(currentNamespace)}/statefulsets/${enc(name)}/scale`, {replicas:r});
+        await load();
+    } catch(e) { alert(`Ошибка: ${e.message||e}`); }
+}
+
+const enc=s=>encodeURIComponent(s);
+function showState(s,msg){['notConfigured','selectCluster','loading','forbidden','error','empty'].forEach(x=>{document.getElementById('state'+x.charAt(0).toUpperCase()+x.slice(1)).style.display='none';});const el=document.getElementById('state'+s.charAt(0).toUpperCase()+s.slice(1));if(el)el.style.display='';if(s==='error'&&msg)document.getElementById('stateErrorMsg').textContent=msg;}
+function show(){document.getElementById('tableWrap').style.display='';}
+function hide(){document.getElementById('tableWrap').style.display='none';}
+</script>
+</body>
+</html>

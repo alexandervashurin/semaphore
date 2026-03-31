@@ -16,7 +16,7 @@ impl TerraformInventoryManager for SqlStore {
     }
 
     async fn update_terraform_inventory_alias(&self, alias: TerraformInventoryAlias) -> Result<()> {
-        self.update_terraform_inventory_alias(alias).await
+        self.db.update_terraform_inventory_alias(alias).await
     }
 
     async fn get_terraform_inventory_alias_by_alias(
@@ -93,6 +93,6 @@ impl TerraformInventoryManager for SqlStore {
     }
 
     async fn get_terraform_state_count(&self) -> Result<i32> {
-        self.get_terraform_state_count().await
+        self.db.get_terraform_state_count().await
     }
 }

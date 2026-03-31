@@ -32,6 +32,8 @@ pub struct Claims {
     pub admin: bool,
     pub exp: usize,
     pub iat: usize,
+    /// JWT ID — уникальный идентификатор токена для blacklist
+    pub jti: String,
 }
 
 /// Claims для refresh токена (долгоживущий, без admin/email для минимального размера)
@@ -42,6 +44,8 @@ pub struct RefreshClaims {
     pub typ: String,
     pub exp: usize,
     pub iat: usize,
+    /// JWT ID — для blacklist при logout
+    pub jti: String,
 }
 
 impl LocalAuthService {
@@ -95,6 +99,7 @@ impl LocalAuthService {
             admin: user.admin,
             exp: now + ACCESS_TTL as usize,
             iat: now,
+            jti: uuid::Uuid::new_v4().to_string(),
         };
         let token = encode(&Header::default(), &access_claims, &key)
             .map_err(|e| Error::Other(format!("Token generation error: {}", e)))?;
@@ -106,6 +111,7 @@ impl LocalAuthService {
             typ: "refresh".to_string(),
             exp: now + REFRESH_TTL as usize,
             iat: now,
+            jti: uuid::Uuid::new_v4().to_string(),
         };
         let refresh_token = encode(&Header::default(), &refresh_claims, &key)
             .map_err(|e| Error::Other(format!("Refresh token generation error: {}", e)))?;

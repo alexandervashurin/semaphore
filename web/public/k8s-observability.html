@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Observability — Kubernetes — Velum</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+    <style>
+        .obs-tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--border); margin-bottom: 20px; }
+        .obs-tab {
+            padding: 8px 18px; border-radius: 6px 6px 0 0; cursor: pointer;
+            font-size: 13px; font-weight: 500; color: var(--text-light);
+            border: 1px solid transparent; border-bottom: none;
+            transition: all .15s;
+        }
+        .obs-tab.active { color: #326ce5; border-color: var(--border); border-bottom: 2px solid #fff; background: #fff; margin-bottom: -2px; }
+        .obs-panel { display: none; }
+        .obs-panel.active { display: block; }
+
+        .metrics-status { display: flex; align-items: center; gap: 8px; padding: 10px 16px;
+            border-radius: 8px; font-size: 13px; margin-bottom: 20px; }
+        .metrics-status.ok { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+        .metrics-status.err { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+        .metrics-status.loading { background: #f8fafc; border: 1px solid var(--border); color: var(--text-light); }
+
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .metrics-card {
+            background: #fff; border: 1px solid var(--border); border-radius: 10px;
+            padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,.06);
+        }
+        .metrics-card-name { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 14px;
+            display: flex; align-items: center; gap: 8px; }
+        .metrics-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .metrics-icon { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+        .metrics-icon.cpu { background: #eff6ff; color: #2563eb; }
+        .metrics-icon.mem { background: #f0fdf4; color: #16a34a; }
+        .metrics-label { font-size: 11px; color: var(--text-light); }
+        .metrics-value { font-size: 14px; font-weight: 600; color: var(--text); }
+        .metrics-bar { height: 4px; border-radius: 2px; background: var(--border); margin-top: 4px; width: 120px; }
+        .metrics-bar-fill { height: 100%; border-radius: 2px; background: #326ce5; }
+        .metrics-bar-fill.high { background: #f59e0b; }
+        .metrics-bar-fill.critical { background: #ef4444; }
+
+        .pod-metrics-table { width: 100%; border-collapse: collapse; }
+        .pod-metrics-table th, .pod-metrics-table td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 12px; }
+        .pod-metrics-table th { font-weight: 600; color: var(--text-light); background: #f8fafc; position: sticky; top: 0; }
+        .pod-metrics-table tr:hover td { background: #f8fafc; }
+
+        .event-row { display: grid; grid-template-columns: 70px 1fr 120px 80px 60px; gap: 8px;
+            padding: 8px 12px; border-bottom: 1px solid #f1f5f9; align-items: start; font-size: 12px; }
+        .event-row:hover { background: #f8fafc; }
+        .event-row.header { font-weight: 600; color: var(--text-light); background: #f8fafc;
+            position: sticky; top: 0; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+        .badge-warning { background: #fef3c7; color: #92400e; padding: 2px 7px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+        .badge-normal { background: #f0fdf4; color: #166534; padding: 2px 7px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+        .event-message { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+        .event-obj { color: #2563eb; font-size: 11px; }
+        .event-filters { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+        .event-filters input, .event-filters select { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; }
+
+        /* Topology */
+        #topology-svg { width: 100%; border: 1px solid var(--border); border-radius: 10px; background: #fafafa; min-height: 460px; }
+        .topo-controls { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; flex-wrap: wrap; }
+        .topo-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; font-size: 12px; }
+        .topo-legend-item { display: flex; align-items: center; gap: 6px; }
+        .topo-dot { width: 12px; height: 12px; border-radius: 3px; }
+        .topo-dot.svc { background: #3b82f6; }
+        .topo-dot.deploy { background: #8b5cf6; }
+        .topo-dot.pod-ok { background: #22c55e; }
+        .topo-dot.pod-err { background: #ef4444; }
+        .topo-dot.pod-other { background: #94a3b8; }
+        .topo-empty { text-align: center; padding: 60px; color: var(--text-light); }
+
+        .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+        .section-title { font-size: 14px; font-weight: 600; color: var(--text); }
+        .section-count { font-size: 12px; color: var(--text-light); background: #f1f5f9; padding: 2px 8px; border-radius: 10px; }
+
+        .table-wrap { max-height: 460px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; }
+
+        .ns-select { padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; }
+        .btn-sm { padding: 5px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px;
+            background: #fff; cursor: pointer; }
+        .btn-sm:hover { background: #f8fafc; }
+        .btn-primary-sm { background: #326ce5; color: #fff; border-color: #326ce5; }
+        .btn-primary-sm:hover { background: #1d4ed8; }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div id="sidebar"></div>
+    <div class="main-content">
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">
+                    <i class="fa-solid fa-chart-line" style="color:#326ce5;margin-right:10px"></i>
+                    Observability
+                </h1>
+                <div class="page-subtitle">Метрики, события и топология кластера</div>
+            </div>
+        </div>
+
+        <!-- Metrics status banner -->
+        <div id="metrics-status" class="metrics-status loading">
+            <i class="fa-solid fa-circle-notch fa-spin"></i> Проверка metrics-server…
+        </div>
+
+        <!-- Tabs -->
+        <div class="obs-tabs">
+            <div class="obs-tab active" data-tab="metrics">
+                <i class="fa-solid fa-gauge-high" style="margin-right:6px"></i>Метрики
+            </div>
+            <div class="obs-tab" data-tab="events">
+                <i class="fa-solid fa-bell" style="margin-right:6px"></i>События
+            </div>
+            <div class="obs-tab" data-tab="topology">
+                <i class="fa-solid fa-diagram-project" style="margin-right:6px"></i>Топология
+            </div>
+        </div>
+
+        <!-- Metrics panel -->
+        <div class="obs-panel active" id="panel-metrics">
+            <div class="section-header">
+                <div class="section-title"><i class="fa-solid fa-server" style="color:#326ce5;margin-right:6px"></i>Узлы</div>
+                <button class="btn-sm btn-primary-sm" onclick="loadNodeMetrics()"><i class="fa-solid fa-rotate-right"></i></button>
+            </div>
+            <div id="node-metrics-grid" class="metrics-grid">
+                <div style="color:var(--text-light);font-size:13px;padding:20px">Загрузка…</div>
+            </div>
+
+            <div class="section-header" style="margin-top:8px">
+                <div class="section-title"><i class="fa-solid fa-box" style="color:#8b5cf6;margin-right:6px"></i>Поды</div>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <select id="pod-metrics-ns" class="ns-select" onchange="loadPodMetrics()">
+                        <option value="">Все namespace</option>
+                    </select>
+                    <button class="btn-sm btn-primary-sm" onclick="loadPodMetrics()"><i class="fa-solid fa-rotate-right"></i></button>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table class="pod-metrics-table">
+                    <thead>
+                        <tr>
+                            <th>Pod</th>
+                            <th>Namespace</th>
+                            <th>CPU (cores)</th>
+                            <th>Memory</th>
+                            <th>Контейнеры</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pod-metrics-tbody">
+                        <tr><td colspan="5" style="text-align:center;color:var(--text-light);padding:20px">Загрузка…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Events panel -->
+        <div class="obs-panel" id="panel-events">
+            <div class="event-filters">
+                <select id="ev-ns" class="ns-select" onchange="loadEvents()">
+                    <option value="">Все namespace</option>
+                </select>
+                <select id="ev-type" class="ns-select" onchange="loadEvents()">
+                    <option value="">Все типы</option>
+                    <option value="Warning">Warning</option>
+                    <option value="Normal">Normal</option>
+                </select>
+                <input id="ev-kind" placeholder="Kind (Pod, Node…)" style="padding:5px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px" oninput="loadEvents()">
+                <input id="ev-search" placeholder="Поиск по сообщению…" style="padding:5px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;flex:1;min-width:200px" oninput="filterEventsUI()">
+                <button class="btn-sm btn-primary-sm" onclick="loadEvents()"><i class="fa-solid fa-rotate-right"></i></button>
+            </div>
+            <div class="table-wrap">
+                <div class="event-row header">
+                    <div>Тип</div>
+                    <div>Сообщение</div>
+                    <div>Объект</div>
+                    <div>Возраст</div>
+                    <div>Кол-во</div>
+                </div>
+                <div id="events-list">
+                    <div style="text-align:center;color:var(--text-light);padding:30px;font-size:13px">Загрузка…</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Topology panel -->
+        <div class="obs-panel" id="panel-topology">
+            <div class="topo-controls">
+                <select id="topo-ns" class="ns-select" onchange="loadTopology()">
+                    <option value="">Все namespace</option>
+                </select>
+                <button class="btn-sm btn-primary-sm" onclick="loadTopology()">
+                    <i class="fa-solid fa-rotate-right" style="margin-right:5px"></i>Обновить
+                </button>
+                <span id="topo-stats" style="font-size:12px;color:var(--text-light)"></span>
+            </div>
+            <div class="topo-legend">
+                <div class="topo-legend-item"><div class="topo-dot svc"></div>Service</div>
+                <div class="topo-legend-item"><div class="topo-dot deploy"></div>Deployment</div>
+                <div class="topo-legend-item"><div class="topo-dot pod-ok"></div>Pod (Running)</div>
+                <div class="topo-legend-item"><div class="topo-dot pod-err"></div>Pod (Failed)</div>
+                <div class="topo-legend-item"><div class="topo-dot pod-other"></div>Pod (Other)</div>
+            </div>
+            <svg id="topology-svg" viewBox="0 0 900 460">
+                <text x="450" y="230" text-anchor="middle" fill="#94a3b8" font-size="14">Загрузка топологии…</text>
+            </svg>
+        </div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+// ── Init ──────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+    renderSidebar();
+
+    // Tab switching
+    document.querySelectorAll('.obs-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.obs-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.obs-panel').forEach(p => p.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+        });
+    });
+
+    await loadNamespaces();
+    checkMetricsStatus();
+    loadNodeMetrics();
+    loadPodMetrics();
+    loadEvents();
+    loadTopology();
+});
+
+// ── Metrics status ───────────────────────────────────────────────
+async function checkMetricsStatus() {
+    const el = document.getElementById('metrics-status');
+    try {
+        const data = await api.get('/api/kubernetes/metrics/status');
+        if (data.available) {
+            el.className = 'metrics-status ok';
+            el.innerHTML = '<i class="fa-solid fa-circle-check"></i> metrics-server доступен — показываются актуальные данные';
+        } else {
+            el.className = 'metrics-status err';
+            el.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> metrics-server недоступен: ' + escapeHtml(data.message) +
+                ' <span style="opacity:.7">(метрики — заглушка)</span>';
+        }
+    } catch (e) {
+        el.className = 'metrics-status err';
+        el.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Не удалось проверить metrics-server';
+    }
+}
+
+// ── Namespaces ───────────────────────────────────────────────────
+async function loadNamespaces() {
+    try {
+        const nsList = await api.get('/api/kubernetes/namespaces');
+        const ns = Array.isArray(nsList) ? nsList.map(n => n.name || n) : [];
+        ['pod-metrics-ns', 'ev-ns', 'topo-ns'].forEach(id => {
+            const sel = document.getElementById(id);
+            const cur = sel.value;
+            sel.innerHTML = '<option value="">Все namespace</option>' +
+                ns.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+            if (cur) sel.value = cur;
+        });
+    } catch (_) {}
+}
+
+// ── Node metrics ─────────────────────────────────────────────────
+async function loadNodeMetrics() {
+    const grid = document.getElementById('node-metrics-grid');
+    grid.innerHTML = '<div style="color:var(--text-light);font-size:13px;padding:20px">Загрузка…</div>';
+    try {
+        const data = await api.get('/api/kubernetes/metrics/nodes');
+        if (!data || !data.length) {
+            grid.innerHTML = '<div style="color:var(--text-light);padding:20px;font-size:13px">metrics-server недоступен или нет узлов</div>';
+            return;
+        }
+        // Find max cpu/mem for bar scaling
+        const maxCpu = Math.max(...data.map(n => n.cpu_usage_cores), 1);
+        const maxMem = Math.max(...data.map(n => n.memory_usage_bytes), 1);
+
+        grid.innerHTML = data.map(n => {
+            const cpuPct = Math.min(100, (n.cpu_usage_cores / maxCpu) * 100);
+            const memPct = Math.min(100, (n.memory_usage_bytes / maxMem) * 100);
+            const cpuClass = cpuPct > 80 ? 'critical' : cpuPct > 60 ? 'high' : '';
+            const memClass = memPct > 80 ? 'critical' : memPct > 60 ? 'high' : '';
+            return `
+            <div class="metrics-card">
+                <div class="metrics-card-name">
+                    <i class="fa-solid fa-server" style="color:#64748b;font-size:14px"></i>
+                    ${escapeHtml(n.name)}
+                </div>
+                <div class="metrics-row">
+                    <div class="metrics-icon cpu"><i class="fa-solid fa-microchip"></i></div>
+                    <div>
+                        <div class="metrics-label">CPU</div>
+                        <div class="metrics-value">${escapeHtml(n.cpu_usage)}</div>
+                        <div class="metrics-bar"><div class="metrics-bar-fill ${cpuClass}" style="width:${cpuPct.toFixed(0)}%"></div></div>
+                    </div>
+                </div>
+                <div class="metrics-row">
+                    <div class="metrics-icon mem"><i class="fa-solid fa-memory"></i></div>
+                    <div>
+                        <div class="metrics-label">Memory</div>
+                        <div class="metrics-value">${escapeHtml(n.memory_usage)}</div>
+                        <div class="metrics-bar"><div class="metrics-bar-fill ${memClass}" style="width:${memPct.toFixed(0)}%"></div></div>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+    } catch (e) {
+        grid.innerHTML = `<div style="color:var(--text-light);padding:20px;font-size:13px">Ошибка загрузки метрик узлов: ${escapeHtml(String(e))}</div>`;
+    }
+}
+
+// ── Pod metrics ──────────────────────────────────────────────────
+let allPodMetrics = [];
+async function loadPodMetrics() {
+    const ns = document.getElementById('pod-metrics-ns').value;
+    const tbody = document.getElementById('pod-metrics-tbody');
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-light);padding:20px">Загрузка…</td></tr>';
+    try {
+        const url = ns ? `/api/kubernetes/metrics/pods?namespace=${encodeURIComponent(ns)}&limit=100`
+                       : '/api/kubernetes/metrics/pods?limit=100';
+        const data = await api.get(url);
+        allPodMetrics = data || [];
+        renderPodMetrics(allPodMetrics);
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-light);padding:20px">Ошибка: ${escapeHtml(String(e))}</td></tr>`;
+    }
+}
+
+function renderPodMetrics(data) {
+    const tbody = document.getElementById('pod-metrics-tbody');
+    if (!data.length) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-light);padding:20px">metrics-server недоступен или нет данных</td></tr>';
+        return;
+    }
+    // Sort by cpu desc
+    const sorted = [...data].sort((a, b) => b.cpu_total - a.cpu_total);
+    tbody.innerHTML = sorted.map(p => {
+        const cpuStr = p.cpu_total < 0.001 ? '0m' : `${(p.cpu_total * 1000).toFixed(1)}m`;
+        const memStr = formatBytes(p.memory_total);
+        const ctrs = p.containers.map(c =>
+            `<span title="${escapeHtml(c.name)}: CPU ${escapeHtml(c.cpu_usage)}, Mem ${escapeHtml(c.memory_usage)}">${escapeHtml(c.name)}</span>`
+        ).join(', ');
+        return `<tr>
+            <td><code style="font-size:11px">${escapeHtml(p.name)}</code></td>
+            <td><span class="badge">${escapeHtml(p.namespace)}</span></td>
+            <td>${escapeHtml(cpuStr)}</td>
+            <td>${escapeHtml(memStr)}</td>
+            <td style="color:var(--text-light)">${ctrs}</td>
+        </tr>`;
+    }).join('');
+}
+
+function formatBytes(b) {
+    if (b >= 1024*1024*1024) return (b/1024/1024/1024).toFixed(1)+'Gi';
+    if (b >= 1024*1024) return (b/1024/1024).toFixed(1)+'Mi';
+    if (b >= 1024) return (b/1024).toFixed(1)+'Ki';
+    return b+'B';
+}
+
+// ── Events ───────────────────────────────────────────────────────
+let allEvents = [];
+async function loadEvents() {
+    const ns = document.getElementById('ev-ns').value;
+    const type = document.getElementById('ev-type').value;
+    const kind = document.getElementById('ev-kind').value;
+    let url = '/api/kubernetes/k8s-events?limit=200';
+    if (ns) url += `&namespace=${encodeURIComponent(ns)}`;
+    if (type) url += `&type_=${encodeURIComponent(type)}`;
+    if (kind) url += `&kind=${encodeURIComponent(kind)}`;
+
+    const list = document.getElementById('events-list');
+    list.innerHTML = '<div style="text-align:center;color:var(--text-light);padding:30px;font-size:13px">Загрузка…</div>';
+    try {
+        allEvents = await api.get(url) || [];
+        filterEventsUI();
+    } catch (e) {
+        list.innerHTML = `<div style="text-align:center;color:var(--text-light);padding:20px">Ошибка: ${escapeHtml(String(e))}</div>`;
+    }
+}
+
+function filterEventsUI() {
+    const search = (document.getElementById('ev-search').value || '').toLowerCase();
+    const filtered = search ? allEvents.filter(e =>
+        (e.message||'').toLowerCase().includes(search) ||
+        (e.reason||'').toLowerCase().includes(search)
+    ) : allEvents;
+    renderEvents(filtered);
+}
+
+function renderEvents(events) {
+    const list = document.getElementById('events-list');
+    if (!events.length) {
+        list.innerHTML = '<div style="text-align:center;color:var(--text-light);padding:30px;font-size:13px">Событий нет</div>';
+        return;
+    }
+    list.innerHTML = events.map(e => {
+        const badge = e.type_ === 'Warning'
+            ? `<span class="badge-warning">Warning</span>`
+            : `<span class="badge-normal">Normal</span>`;
+        return `<div class="event-row">
+            <div>${badge}</div>
+            <div>
+                <div class="event-message" title="${escapeHtml(e.message)}">${escapeHtml(e.reason)}: ${escapeHtml(e.message)}</div>
+                <div style="font-size:11px;color:var(--text-light)">${escapeHtml(e.source)}</div>
+            </div>
+            <div class="event-obj"><i class="fa-solid fa-cube" style="margin-right:4px;opacity:.6"></i>${escapeHtml(e.involved_kind)}/${escapeHtml(e.involved_name)}</div>
+            <div style="color:var(--text-light)">${escapeHtml(e.age)}</div>
+            <div style="font-weight:600;color:${e.count > 10 ? '#ef4444' : 'var(--text)'}">${e.count}</div>
+        </div>`;
+    }).join('');
+}
+
+// ── Topology (SVG-based) ─────────────────────────────────────────
+let topoData = null;
+async function loadTopology() {
+    const ns = document.getElementById('topo-ns').value;
+    const url = ns ? `/api/kubernetes/topology/namespaces/${encodeURIComponent(ns)}`
+                   : '/api/kubernetes/topology';
+    document.getElementById('topo-stats').textContent = 'Загрузка…';
+    try {
+        topoData = await api.get(url);
+        renderTopology(topoData);
+    } catch (e) {
+        renderTopologyError(String(e));
+    }
+}
+
+function renderTopologyError(msg) {
+    const svg = document.getElementById('topology-svg');
+    svg.innerHTML = `<text x="450" y="230" text-anchor="middle" fill="#94a3b8" font-size="14">${escapeHtml(msg)}</text>`;
+    document.getElementById('topo-stats').textContent = '';
+}
+
+function renderTopology(data) {
+    const svg = document.getElementById('topology-svg');
+    const stats = document.getElementById('topo-stats');
+
+    if (!data || !data.nodes || !data.nodes.length) {
+        svg.innerHTML = `<g><text x="450" y="210" text-anchor="middle" fill="#94a3b8" font-size="14">Нет данных</text>
+            <text x="450" y="235" text-anchor="middle" fill="#cbd5e1" font-size="12">Выберите namespace или дождитесь деплоя</text></g>`;
+        stats.textContent = '';
+        return;
+    }
+
+    const nodes = data.nodes;
+    const edges = data.edges || [];
+    stats.textContent = `${nodes.length} узлов, ${edges.length} связей`;
+
+    // Group nodes by kind
+    const services = nodes.filter(n => n.kind === 'Service');
+    const deploys  = nodes.filter(n => n.kind === 'Deployment');
+    const pods     = nodes.filter(n => n.kind === 'Pod');
+
+    // Layout: Services(col 0), Deployments(col 1), Pods(col 2)
+    const W = 900, H = 460;
+    const cols = [120, 400, 680];
+    const nodePos = {};
+
+    function layoutCol(items, colX, color) {
+        const step = Math.min(70, (H - 80) / Math.max(items.length, 1));
+        const startY = (H - step * (items.length - 1)) / 2;
+        items.forEach((n, i) => {
+            nodePos[n.id] = { x: colX, y: startY + i * step, color };
+        });
+    }
+
+    layoutCol(services, cols[0], '#3b82f6');
+    layoutCol(deploys, cols[1], '#8b5cf6');
+    layoutCol(pods, cols[2], null); // color varies
+
+    function podColor(n) {
+        if (n.status === 'Running') return '#22c55e';
+        if (n.status === 'Failed') return '#ef4444';
+        return '#94a3b8';
+    }
+    pods.forEach(n => { nodePos[n.id].color = podColor(n); });
+
+    const NS = 28; // node size
+    let html = '';
+
+    // Edges
+    edges.forEach(e => {
+        const s = nodePos[e.source];
+        const t = nodePos[e.target];
+        if (!s || !t) return;
+        html += `<line x1="${s.x + NS}" y1="${s.y}" x2="${t.x - NS}" y2="${t.y}" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="${e.label === 'selects' ? '5,3' : 'none'}"/>`;
+    });
+
+    // Nodes
+    nodes.forEach(n => {
+        const pos = nodePos[n.id];
+        if (!pos) return;
+        const icon = n.kind === 'Service' ? '⚡' : n.kind === 'Deployment' ? '🚀' : '📦';
+        const shortName = n.name.length > 14 ? n.name.substring(0, 13) + '…' : n.name;
+        html += `
+            <g class="topo-node" transform="translate(${pos.x},${pos.y})">
+                <rect x="${-NS}" y="${-NS}" width="${NS*2}" height="${NS*2}" rx="6"
+                      fill="${pos.color}" fill-opacity=".15" stroke="${pos.color}" stroke-width="1.5"/>
+                <text x="0" y="5" text-anchor="middle" font-size="14">${icon}</text>
+                <text x="0" y="${NS + 14}" text-anchor="middle" font-size="9" fill="#475569">${escapeHtml(shortName)}</text>
+            </g>`;
+    });
+
+    // Column labels
+    if (services.length) html += `<text x="${cols[0]}" y="22" text-anchor="middle" font-size="10" fill="#3b82f6" font-weight="600">Services</text>`;
+    if (deploys.length) html += `<text x="${cols[1]}" y="22" text-anchor="middle" font-size="10" fill="#8b5cf6" font-weight="600">Deployments</text>`;
+    if (pods.length) html += `<text x="${cols[2]}" y="22" text-anchor="middle" font-size="10" fill="#22c55e" font-weight="600">Pods</text>`;
+
+    svg.innerHTML = html;
+}
+</script>
+</body>
+</html>

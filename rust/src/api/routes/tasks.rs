@@ -401,4 +401,10 @@ pub fn task_routes() -> Router<Arc<AppState>> {
         //     "/api/project/{project_id}/backup",
         //     get(handlers::backup::create_backup),
         // )
+
+        // Internal Runner API (Remote Runners F-03)
+        .route("/api/internal/runners", post(crate::api::runners::register_runner))
+        .route("/api/internal/runners/{id}", post(crate::api::runners::runner_heartbeat))
+        .route("/api/internal/runners/{id}/task", get(crate::api::runners::runner_get_task))
+        .route("/api/internal/tasks/{task_id}/log", post(crate::api::runners::runner_submit_log))
 }

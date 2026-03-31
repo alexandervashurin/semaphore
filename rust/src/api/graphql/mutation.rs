@@ -278,4 +278,122 @@ impl MutationRoot {
         store.delete_task(project_id, id).await?;
         Ok(true)
     }
+
+    /// Остановить задачу (перевести в статус stopped)
+    async fn stop_task(&self, ctx: &Context<'_>, project_id: i32, task_id: i32) -> Result<bool> {
+        use crate::db::store::TaskManager;
+        let state = ctx.data::<AppState>()?;
+        let store = &state.store;
+
+        let mut task = store.get_task(project_id, task_id).await
+            .map_err(|_| async_graphql::Error::new("Task not found"))?;
+
+        if matches!(task.status,
+            crate::services::task_logger::TaskStatus::Running |
+            crate::services::task_logger::TaskStatus::Waiting)
+        {
+            task.status = crate::services::task_logger::TaskStatus::Stopped;
+            store.update_task(task).await
+                .map_err(|e| async_graphql::Error::new(e.to_string()))?;
+        }
+
+        Ok(true)
+    }
+
+    /// Запустить шаблон с дополнительными параметрами
+    async fn run_template(
+        &self,
+        ctx: &Context<'_>,
+        project_id: i32,
+        template_id: i32,
+        extra_vars: Option<String>,
+        debug: Option<bool>,
+        dry_run: Option<bool>,
+    ) -> Result<Task> {
+        let state = ctx.data::<AppState>()?;
+        let store = &state.store;
+
+        let new_task = DbTask {
+            id: 0,
+            template_id,
+            project_id,
+            status: crate::services::task_logger::TaskStatus::Waiting,
+            playbook: None,
+            environment: extra_vars,
+            secret: None,
+            arguments: None,
+            git_branch: None,
+            user_id: None,
+            integration_id: None,
+            schedule_id: None,
+            created: Utc::now(),
+            start: None,
+            end: None,
+            message: None,
+            commit_hash: None,
+            commit_message: None,
+            build_task_id: None,
+            version: None,
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+            params: debug.map(|d| serde_json::json!({"debug": d, "dry_run": dry_run.unwrap_or(false)})),
+        };
+
+        let created = store.create_task(new_task).await
+            .map_err(|e| async_graphql::Error::new(e.to_string()))?;
+
+        // Publish to subscription channel
+        super::subscription::publish_task_created(Task {
+            id: created.id,
+            template_id: created.template_id,
+            project_id: created.project_id,
+            status: created.status.to_string(),
+        });
+
+        Ok(Task {
+            id: created.id,
+            template_id: created.template_id,
+            project_id: created.project_id,
+            status: created.status.to_string(),
+        })
+    }
+
+    /// Одобрить Terraform план
+    async fn approve_plan(
+        &self,
+        ctx: &Context<'_>,
+        plan_id: i32,
+        reviewed_by: i32,
+        comment: Option<String>,
+    ) -> Result<bool> {
+        use crate::db::store::PlanApprovalManager;
+        let state = ctx.data::<AppState>()?;
+        let store = &state.store;
+
+        store.approve_plan(plan_id as i64, reviewed_by, comment)
+            .await
+            .map_err(|e| async_graphql::Error::new(e.to_string()))?;
+
+        Ok(true)
+    }
+
+    /// Отклонить Terraform план
+    async fn reject_plan(
+        &self,
+        ctx: &Context<'_>,
+        plan_id: i32,
+        reviewed_by: i32,
+        reason: Option<String>,
+    ) -> Result<bool> {
+        use crate::db::store::PlanApprovalManager;
+        let state = ctx.data::<AppState>()?;
+        let store = &state.store;
+
+        store.reject_plan(plan_id as i64, reviewed_by, reason)
+            .await
+            .map_err(|e| async_graphql::Error::new(e.to_string()))?;
+
+        Ok(true)
+    }
 }

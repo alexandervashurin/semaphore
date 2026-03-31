@@ -861,4 +861,10 @@ pub fn kubernetes_routes() -> Router<Arc<AppState>> {
             "/api/kubernetes/cluster/aggregate",
             get(handlers::get_aggregate_view),
         )
+
+        // Phase 10 — Apply manifest, Diff, kubectl generator, Cluster context switcher
+        .route("/api/kubernetes/apply", post(handlers::apply_manifest))
+        .route("/api/kubernetes/apply/diff", post(handlers::diff_manifest))
+        .route("/api/kubernetes/apply/kubectl", get(handlers::generate_kubectl_command))
+        .route("/api/kubernetes/clusters/switch", post(handlers::switch_cluster_context))
 }

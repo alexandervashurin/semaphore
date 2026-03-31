@@ -120,4 +120,25 @@ impl RunnerManager for SqlStore {
             .map_err(Error::Database)?;
         Ok(count as usize)
     }
+
+    async fn find_runner_by_token(&self, token: &str) -> Result<Runner> {
+        let pool = self.get_postgres_pool()?;
+        let row = sqlx::query("SELECT * FROM runner WHERE token = $1")
+            .bind(token)
+            .fetch_optional(pool)
+            .await
+            .map_err(Error::Database)?
+            .ok_or_else(|| Error::NotFound("Раннер с таким токеном не найден".to_string()))?;
+        Ok(row_to_runner(row))
+    }
+
+    async fn touch_runner(&self, runner_id: i32) -> Result<()> {
+        let pool = self.get_postgres_pool()?;
+        sqlx::query("UPDATE runner SET last_active = NOW() WHERE id = $1")
+            .bind(runner_id)
+            .execute(pool)
+            .await
+            .map_err(Error::Database)?;
+        Ok(())
+    }
 }

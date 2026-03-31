@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kubernetes Clusters — Velum</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .cluster-card {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,.12);
+      padding: 20px 24px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .cluster-card.current {
+      border-left: 4px solid #009688;
+    }
+    .cluster-name {
+      font-size: 1.05rem;
+      font-weight: 500;
+      color: #212121;
+    }
+    .cluster-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: .75rem;
+      font-weight: 600;
+      background: #e0f2f1;
+      color: #00695c;
+      margin-left: 8px;
+    }
+    .cluster-actions {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .btn-switch {
+      background: #009688;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 6px 16px;
+      cursor: pointer;
+      font-size: .875rem;
+    }
+    .btn-switch:hover { background: #00796b; }
+    .btn-switch:disabled { background: #ccc; cursor: default; }
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .section-title {
+      font-size: 1.25rem;
+      font-weight: 500;
+      color: #212121;
+    }
+    .info-row {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+    }
+    .info-chip {
+      background: #f5f5f5;
+      border-radius: 16px;
+      padding: 6px 14px;
+      font-size: .85rem;
+      color: #555;
+    }
+    .info-chip strong { color: #212121; }
+    .empty-state {
+      text-align: center;
+      padding: 48px;
+      color: #888;
+    }
+    .refresh-btn {
+      background: none;
+      border: 1px solid #009688;
+      color: #009688;
+      border-radius: 4px;
+      padding: 6px 14px;
+      cursor: pointer;
+      font-size: .875rem;
+    }
+    .refresh-btn:hover { background: #e0f2f1; }
+  </style>
+</head>
+<body>
+<div id="sidebar"></div>
+<div class="main-content">
+  <div class="page-header">
+    <h1>Kubernetes Clusters</h1>
+  </div>
+
+  <div class="content-area">
+    <!-- Current context info -->
+    <div class="info-row" id="infoRow" style="display:none">
+      <div class="info-chip">Текущий контекст: <strong id="currentCtx">—</strong></div>
+    </div>
+
+    <div class="section-header">
+      <span class="section-title">Доступные контексты</span>
+      <button class="refresh-btn" onclick="loadClusters()">↻ Обновить</button>
+    </div>
+
+    <div id="clusterList">
+      <div class="empty-state">Загрузка...</div>
+    </div>
+  </div>
+</div>
+
+<!-- Switch confirm modal -->
+<div id="switchModal" class="modal-overlay" style="display:none">
+  <div class="modal-card" style="max-width:420px">
+    <div class="modal-header">
+      <h3>Переключить контекст</h3>
+      <button class="modal-close" onclick="closeSwitchModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p>Переключить активный кластер на <strong id="switchTarget"></strong>?</p>
+      <p style="color:#888;font-size:.85rem">Это изменит текущий kubectl-контекст в kubeconfig.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeSwitchModal()">Отмена</button>
+      <button class="btn-primary" id="confirmSwitchBtn" onclick="confirmSwitch()">Переключить</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+let pendingContext = null;
+
+async function loadClusters() {
+  const list = document.getElementById('clusterList');
+  list.innerHTML = '<div class="empty-state">Загрузка...</div>';
+
+  try {
+    const data = await apiFetch('/api/kubernetes/clusters');
+    renderClusters(data);
+  } catch (e) {
+    list.innerHTML = `<div class="empty-state" style="color:#e53935">Ошибка: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function renderClusters(data) {
+  const list = document.getElementById('clusterList');
+  const infoRow = document.getElementById('infoRow');
+  const currentCtx = document.getElementById('currentCtx');
+
+  currentCtx.textContent = data.current || '—';
+  infoRow.style.display = 'flex';
+
+  const clusters = data.clusters || [];
+  if (!clusters.length) {
+    list.innerHTML = '<div class="empty-state">Нет настроенных кластеров. Убедитесь, что kubeconfig доступен.</div>';
+    return;
+  }
+
+  list.innerHTML = clusters.map(c => `
+    <div class="cluster-card ${c.current ? 'current' : ''}">
+      <div>
+        <span class="cluster-name">${escapeHtml(c.name)}</span>
+        ${c.current ? '<span class="cluster-badge">active</span>' : ''}
+      </div>
+      <div class="cluster-actions">
+        <button class="btn-switch" ${c.current ? 'disabled' : ''}
+          onclick="openSwitchModal(${JSON.stringify(c.name)})">
+          ${c.current ? 'Текущий' : 'Переключить'}
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openSwitchModal(name) {
+  pendingContext = name;
+  document.getElementById('switchTarget').textContent = name;
+  document.getElementById('switchModal').style.display = 'flex';
+}
+
+function closeSwitchModal() {
+  document.getElementById('switchModal').style.display = 'none';
+  pendingContext = null;
+}
+
+async function confirmSwitch() {
+  if (!pendingContext) return;
+  const btn = document.getElementById('confirmSwitchBtn');
+  btn.disabled = true;
+  btn.textContent = 'Переключаем...';
+  try {
+    await apiFetch('/api/kubernetes/clusters/switch', {
+      method: 'POST',
+      body: JSON.stringify({ context: pendingContext })
+    });
+    closeSwitchModal();
+    await loadClusters();
+  } catch (e) {
+    alert('Ошибка: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = 'Переключить';
+  }
+}
+
+renderSidebar();
+loadClusters();
+</script>
+</body>
+</html>

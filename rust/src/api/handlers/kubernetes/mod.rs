@@ -34,6 +34,10 @@ pub mod storage_csi;
 pub mod storage_snapshots;
 pub mod troubleshooting;
 pub mod types;
+pub mod workloads_k8s;
+pub mod observability;
+pub mod helm_handler;
+pub mod apply;
 
 pub use advanced::*;
 pub use audit::*;
@@ -70,3 +74,7 @@ pub use storage_csi::*;
 pub use storage_snapshots::*;
 pub use troubleshooting::*;
 pub use types::*;
+pub use workloads_k8s::*;
+pub use observability::*;
+pub use helm_handler::*;
+pub use apply::*;

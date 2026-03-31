@@ -17,22 +17,22 @@ impl ProjectInviteManager for SqlStore {
     }
 
     async fn create_project_invite(&self, invite: ProjectInvite) -> Result<ProjectInvite> {
-        self.create_project_invite(invite).await
+        self.db.create_project_invite(invite).await
     }
 
     async fn get_project_invite(&self, project_id: i32, invite_id: i32) -> Result<ProjectInvite> {
-        self.get_project_invite(project_id, invite_id).await
+        self.db.get_project_invite(project_id, invite_id).await
     }
 
     async fn get_project_invite_by_token(&self, token: &str) -> Result<ProjectInvite> {
-        self.get_project_invite_by_token(token).await
+        self.db.get_project_invite_by_token(token).await
     }
 
     async fn update_project_invite(&self, invite: ProjectInvite) -> Result<()> {
-        self.update_project_invite(invite).await
+        self.db.update_project_invite(invite).await
     }
 
     async fn delete_project_invite(&self, project_id: i32, invite_id: i32) -> Result<()> {
-        self.delete_project_invite(project_id, invite_id).await
+        self.db.delete_project_invite(project_id, invite_id).await
     }
 }

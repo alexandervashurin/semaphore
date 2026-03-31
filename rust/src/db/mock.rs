@@ -542,6 +542,14 @@ impl RunnerManager for MockStore {
     async fn get_active_runners_count(&self) -> Result<usize> {
         Ok(0)
     }
+
+    async fn find_runner_by_token(&self, _token: &str) -> Result<Runner> {
+        Err(Error::NotFound("Runner not found".to_string()))
+    }
+
+    async fn touch_runner(&self, _runner_id: i32) -> Result<()> {
+        Ok(())
+    }
 }
 
 #[async_trait]

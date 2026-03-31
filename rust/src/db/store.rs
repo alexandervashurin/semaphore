@@ -273,6 +273,10 @@ pub trait RunnerManager: Send + Sync {
     async fn delete_runner(&self, runner_id: i32) -> Result<()>;
     async fn get_runners_count(&self) -> Result<usize>;
     async fn get_active_runners_count(&self) -> Result<usize>;
+    /// Найти раннер по токену (для аутентификации internal API)
+    async fn find_runner_by_token(&self, token: &str) -> Result<Runner>;
+    /// Обновить время последней активности раннера
+    async fn touch_runner(&self, runner_id: i32) -> Result<()>;
 }
 
 /// Менеджер представлений

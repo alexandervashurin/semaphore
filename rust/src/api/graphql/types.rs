@@ -36,3 +36,22 @@ pub struct Task {
     pub project_id: i32,
     pub status: String,
 }
+
+/// Строка лога задачи — для subscription taskOutput
+#[derive(SimpleObject, Debug, Clone)]
+pub struct TaskOutputLine {
+    pub task_id: i32,
+    pub line: String,
+    pub timestamp: String,
+    /// Уровень: "info" | "warning" | "error" | "debug"
+    pub level: String,
+}
+
+/// Изменение статуса задачи — для subscription taskStatus
+#[derive(SimpleObject, Debug, Clone)]
+pub struct TaskStatusEvent {
+    pub task_id: i32,
+    pub project_id: i32,
+    pub status: String,
+    pub updated_at: String,
+}

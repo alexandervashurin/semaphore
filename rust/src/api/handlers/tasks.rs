@@ -311,6 +311,8 @@ async fn execute_task_background(state: Arc<AppState>, task: Task) {
         let _ = store.create_task_output(output).await;
     }
 
+    let task_id = task.id;
+    task.end = Some(Utc::now());
     match result {
         Ok(()) => {
             let _ = store

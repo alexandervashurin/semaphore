@@ -579,6 +579,14 @@ impl RunnerManager for StoreWrapper {
     async fn get_active_runners_count(&self) -> Result<usize> {
         self.inner.as_ref().get_active_runners_count().await
     }
+
+    async fn find_runner_by_token(&self, token: &str) -> Result<Runner> {
+        self.inner.as_ref().find_runner_by_token(token).await
+    }
+
+    async fn touch_runner(&self, runner_id: i32) -> Result<()> {
+        self.inner.as_ref().touch_runner(runner_id).await
+    }
 }
 
 #[async_trait]

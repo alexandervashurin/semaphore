@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kubernetes Apply — Velum</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .apply-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      height: calc(100vh - 140px);
+    }
+    @media (max-width: 1100px) {
+      .apply-layout { grid-template-columns: 1fr; height: auto; }
+    }
+    .panel {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,.12);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .panel-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid #e0e0e0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #fafafa;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .panel-title {
+      font-weight: 500;
+      font-size: .95rem;
+      color: #212121;
+    }
+    .panel-body {
+      flex: 1;
+      overflow: auto;
+      padding: 0;
+    }
+    textarea#manifestEditor {
+      width: 100%;
+      height: 100%;
+      border: none;
+      outline: none;
+      resize: none;
+      font-family: 'Roboto Mono', 'Courier New', monospace;
+      font-size: .82rem;
+      padding: 16px;
+      box-sizing: border-box;
+      tab-size: 2;
+      color: #212121;
+      background: #fefefe;
+    }
+    .output-area {
+      padding: 16px;
+      height: 100%;
+      box-sizing: border-box;
+      overflow: auto;
+    }
+    .output-placeholder {
+      color: #aaa;
+      font-style: italic;
+      text-align: center;
+      margin-top: 60px;
+    }
+    .result-section {
+      margin-bottom: 20px;
+    }
+    .result-section h4 {
+      font-size: .8rem;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: #888;
+      margin: 0 0 8px;
+    }
+    .result-success { color: #2e7d32; }
+    .result-error { color: #c62828; }
+    .resource-list { list-style: none; padding: 0; margin: 0; }
+    .resource-list li {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 4px 0;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: .875rem;
+    }
+    .action-badge {
+      display: inline-block;
+      padding: 1px 8px;
+      border-radius: 10px;
+      font-size: .72rem;
+      font-weight: 600;
+    }
+    .action-created { background: #e8f5e9; color: #2e7d32; }
+    .action-configured { background: #e3f2fd; color: #1565c0; }
+    .action-unchanged { background: #f5f5f5; color: #757575; }
+    .diff-output {
+      font-family: 'Roboto Mono', 'Courier New', monospace;
+      font-size: .78rem;
+      white-space: pre;
+      overflow: auto;
+    }
+    .diff-add { color: #2e7d32; background: #f1f8e9; }
+    .diff-del { color: #c62828; background: #ffebee; }
+    .diff-hunk { color: #1565c0; background: #e3f2fd; }
+    .diff-ctx { color: #555; }
+    .kubectl-box {
+      background: #263238;
+      color: #80cbc4;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-family: 'Roboto Mono', monospace;
+      font-size: .82rem;
+      word-break: break-all;
+      position: relative;
+    }
+    .copy-btn {
+      position: absolute;
+      top: 6px;
+      right: 8px;
+      background: none;
+      border: 1px solid #546e7a;
+      color: #90a4ae;
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: .72rem;
+      cursor: pointer;
+    }
+    .copy-btn:hover { background: #37474f; color: #fff; }
+    .warning-list { list-style: none; padding: 0; margin: 0; }
+    .warning-list li {
+      background: #fff8e1;
+      border-left: 3px solid #f9a825;
+      padding: 6px 10px;
+      margin-bottom: 4px;
+      font-size: .85rem;
+      color: #5d4037;
+      border-radius: 0 4px 4px 0;
+    }
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .btn-apply {
+      background: #009688;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 6px 16px;
+      cursor: pointer;
+      font-size: .875rem;
+      font-weight: 500;
+    }
+    .btn-apply:hover { background: #00796b; }
+    .btn-apply:disabled { background: #ccc; cursor: default; }
+    .btn-diff {
+      background: none;
+      border: 1px solid #009688;
+      color: #009688;
+      border-radius: 4px;
+      padding: 6px 14px;
+      cursor: pointer;
+      font-size: .875rem;
+    }
+    .btn-diff:hover { background: #e0f2f1; }
+    .btn-diff:disabled { background: #f5f5f5; color: #aaa; border-color: #ccc; cursor: default; }
+    .dry-run-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: .85rem;
+      color: #555;
+    }
+    .dry-run-toggle input { cursor: pointer; }
+
+    /* Kubectl generator tab */
+    .tabs { display: flex; border-bottom: 2px solid #e0e0e0; margin-bottom: 0; }
+    .tab-btn {
+      padding: 10px 18px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-size: .875rem;
+      color: #666;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+    }
+    .tab-btn.active { color: #009688; border-bottom-color: #009688; font-weight: 500; }
+    .tab-panel { display: none; padding: 16px; overflow: auto; }
+    .tab-panel.active { display: block; }
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .form-group { display: flex; flex-direction: column; gap: 4px; }
+    .form-group label { font-size: .78rem; color: #666; font-weight: 500; }
+    .form-group input, .form-group select {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 6px 10px;
+      font-size: .875rem;
+      outline: none;
+    }
+    .form-group input:focus, .form-group select:focus { border-color: #009688; }
+    .generated-cmd {
+      background: #263238;
+      color: #a5d6a7;
+      border-radius: 6px;
+      padding: 12px 16px;
+      font-family: 'Roboto Mono', monospace;
+      font-size: .82rem;
+      margin-top: 12px;
+      word-break: break-all;
+      min-height: 48px;
+      position: relative;
+    }
+    .cmd-desc {
+      font-size: .78rem;
+      color: #90a4ae;
+      margin-top: 6px;
+    }
+    .templates-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .tpl-btn {
+      background: #f5f5f5;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      padding: 8px 10px;
+      cursor: pointer;
+      font-size: .78rem;
+      text-align: left;
+      color: #333;
+      transition: background .15s;
+    }
+    .tpl-btn:hover { background: #e0f2f1; border-color: #009688; }
+    .tpl-btn .tpl-action { font-weight: 600; color: #00695c; font-size: .8rem; }
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid #ccc;
+      border-top-color: #009688;
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    pre { margin: 0; }
+  </style>
+</head>
+<body>
+<div id="sidebar"></div>
+<div class="main-content">
+  <div class="page-header">
+    <h1>Apply Manifest</h1>
+  </div>
+
+  <div class="content-area" style="padding:0 20px 20px">
+    <div class="apply-layout">
+      <!-- Left: editor -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">YAML / JSON Манифест</span>
+          <div class="toolbar">
+            <label class="dry-run-toggle">
+              <input type="checkbox" id="dryRunCheck"> Dry-run
+            </label>
+            <button class="btn-diff" id="diffBtn" onclick="runDiff()">Diff</button>
+            <button class="btn-apply" id="applyBtn" onclick="runApply()">Apply</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <textarea id="manifestEditor" spellcheck="false" placeholder="apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      labels:
+        app: my-app
+    spec:
+      containers:
+      - name: my-app
+        image: nginx:latest"></textarea>
+        </div>
+      </div>
+
+      <!-- Right: output + kubectl gen -->
+      <div class="panel">
+        <div class="tabs">
+          <button class="tab-btn active" onclick="switchTab('output', this)">Результат</button>
+          <button class="tab-btn" onclick="switchTab('kubectl', this)">kubectl generator</button>
+        </div>
+
+        <!-- Output tab -->
+        <div class="tab-panel active" id="tab-output" style="padding:0;overflow:auto;flex:1">
+          <div class="output-area" id="outputArea">
+            <div class="output-placeholder">Нажмите Apply или Diff для просмотра результата</div>
+          </div>
+        </div>
+
+        <!-- Kubectl generator tab -->
+        <div class="tab-panel" id="tab-kubectl" style="flex:1;overflow:auto">
+          <p style="margin:0 0 12px;font-size:.875rem;color:#555">Сгенерируй команду kubectl для любого действия:</p>
+
+          <!-- Quick action templates -->
+          <div class="templates-grid">
+            <button class="tpl-btn" onclick="fillGenerator('apply')"><div class="tpl-action">apply</div>Применить манифест</button>
+            <button class="tpl-btn" onclick="fillGenerator('delete')"><div class="tpl-action">delete</div>Удалить ресурс</button>
+            <button class="tpl-btn" onclick="fillGenerator('scale')"><div class="tpl-action">scale</div>Масштабировать</button>
+            <button class="tpl-btn" onclick="fillGenerator('rollout-restart')"><div class="tpl-action">rollout-restart</div>Перезапустить</button>
+            <button class="tpl-btn" onclick="fillGenerator('rollout-undo')"><div class="tpl-action">rollout-undo</div>Откатить</button>
+            <button class="tpl-btn" onclick="fillGenerator('get-yaml')"><div class="tpl-action">get-yaml</div>Получить YAML</button>
+            <button class="tpl-btn" onclick="fillGenerator('logs')"><div class="tpl-action">logs</div>Логи пода</button>
+            <button class="tpl-btn" onclick="fillGenerator('exec')"><div class="tpl-action">exec</div>Shell в поде</button>
+            <button class="tpl-btn" onclick="fillGenerator('port-forward')"><div class="tpl-action">port-forward</div>Port Forward</button>
+            <button class="tpl-btn" onclick="fillGenerator('describe')"><div class="tpl-action">describe</div>Describe</button>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Action</label>
+              <select id="genAction" onchange="generateCmd()">
+                <option value="apply">apply</option>
+                <option value="delete">delete</option>
+                <option value="scale">scale</option>
+                <option value="rollout-restart">rollout-restart</option>
+                <option value="rollout-undo">rollout-undo</option>
+                <option value="get-yaml">get-yaml</option>
+                <option value="logs">logs</option>
+                <option value="exec">exec</option>
+                <option value="port-forward">port-forward</option>
+                <option value="describe">describe</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Kind</label>
+              <input type="text" id="genKind" placeholder="deployment" oninput="generateCmd()">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Name</label>
+              <input type="text" id="genName" placeholder="my-app" oninput="generateCmd()">
+            </div>
+            <div class="form-group">
+              <label>Namespace</label>
+              <input type="text" id="genNs" placeholder="default" oninput="generateCmd()">
+            </div>
+          </div>
+          <div class="form-group" id="replicasGroup" style="display:none;margin-bottom:12px">
+            <label>Replicas</label>
+            <input type="number" id="genReplicas" value="1" min="0" oninput="generateCmd()">
+          </div>
+
+          <div class="generated-cmd" id="generatedCmd">
+            <span style="color:#546e7a">Выберите действие выше...</span>
+            <button class="copy-btn" onclick="copyCmd()">Copy</button>
+          </div>
+          <div class="cmd-desc" id="cmdDesc"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+// ── Tab switching ──────────────────────────────────────────
+function switchTab(id, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-' + id).classList.add('active');
+}
+
+// ── Apply ─────────────────────────────────────────────────
+async function runApply() {
+  const manifest = document.getElementById('manifestEditor').value.trim();
+  if (!manifest) { alert('Введите манифест'); return; }
+  const dryRun = document.getElementById('dryRunCheck').checked;
+  const btn = document.getElementById('applyBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Applying...';
+  setOutput('<div class="output-placeholder"><span class="spinner"></span> Выполняется...</div>');
+  try {
+    const res = await apiFetch('/api/kubernetes/apply', {
+      method: 'POST',
+      body: JSON.stringify({ manifest, dry_run: dryRun })
+    });
+    renderApplyResult(res, dryRun);
+    // switch to output tab
+    document.querySelectorAll('.tab-btn')[0].click();
+  } catch (e) {
+    setOutput(`<div class="result-section"><p class="result-error">Ошибка: ${escapeHtml(e.message)}</p></div>`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Apply';
+  }
+}
+
+function renderApplyResult(res, dryRun) {
+  let html = '';
+  const statusClass = res.success ? 'result-success' : 'result-error';
+  const statusText = res.success ? (dryRun ? '✓ Dry-run прошёл успешно' : '✓ Применено') : '✗ Ошибка';
+  html += `<div class="result-section"><p class="${statusClass}" style="font-weight:500;margin:0 0 4px">${statusText}</p></div>`;
+
+  if (res.kubectl_command) {
+    html += `<div class="result-section">
+      <h4>Команда</h4>
+      <div class="kubectl-box">${escapeHtml(res.kubectl_command)}<button class="copy-btn" onclick="navigator.clipboard.writeText(${JSON.stringify(res.kubectl_command)})">Copy</button></div>
+    </div>`;
+  }
+
+  if (res.resources && res.resources.length) {
+    html += `<div class="result-section"><h4>Ресурсы (${res.resources.length})</h4><ul class="resource-list">`;
+    res.resources.forEach(r => {
+      const actionClass = `action-${r.action}`;
+      const ns = r.namespace ? `<span style="color:#888">${escapeHtml(r.namespace)}/</span>` : '';
+      html += `<li><span class="action-badge ${actionClass}">${escapeHtml(r.action)}</span>${ns}<strong>${escapeHtml(r.kind)}</strong>/${escapeHtml(r.name)}</li>`;
+    });
+    html += '</ul></div>';
+  }
+
+  if (res.warnings && res.warnings.length) {
+    html += `<div class="result-section"><h4>Предупреждения</h4><ul class="warning-list">`;
+    res.warnings.forEach(w => { html += `<li>${escapeHtml(w)}</li>`; });
+    html += '</ul></div>';
+  }
+
+  if (res.output) {
+    html += `<div class="result-section"><h4>Вывод</h4><pre style="font-size:.78rem;background:#f5f5f5;padding:10px;border-radius:4px;overflow:auto;max-height:200px">${escapeHtml(res.output)}</pre></div>`;
+  }
+
+  setOutput(html);
+}
+
+// ── Diff ──────────────────────────────────────────────────
+async function runDiff() {
+  const manifest = document.getElementById('manifestEditor').value.trim();
+  if (!manifest) { alert('Введите манифест'); return; }
+  const btn = document.getElementById('diffBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+  setOutput('<div class="output-placeholder"><span class="spinner"></span> Вычисляем diff...</div>');
+  // switch to output tab
+  document.querySelectorAll('.tab-btn')[0].click();
+  try {
+    const res = await apiFetch('/api/kubernetes/apply/diff', {
+      method: 'POST',
+      body: JSON.stringify({ manifest })
+    });
+    renderDiff(res);
+  } catch (e) {
+    setOutput(`<div class="result-section"><p class="result-error">Ошибка: ${escapeHtml(e.message)}</p></div>`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Diff';
+  }
+}
+
+function renderDiff(res) {
+  let html = '';
+  html += `<div class="result-section">
+    <h4>Команда</h4>
+    <div class="kubectl-box">${escapeHtml(res.kubectl_command)}</div>
+  </div>`;
+
+  if (!res.has_diff) {
+    html += `<p class="result-success" style="font-weight:500">✓ Нет изменений — кластер актуален</p>`;
+    setOutput(html);
+    return;
+  }
+
+  html += `<div class="result-section"><h4>Diff</h4><div class="diff-output">`;
+  res.diff.split('\n').forEach(line => {
+    if (line.startsWith('+')) html += `<div class="diff-add">${escapeHtml(line)}</div>`;
+    else if (line.startsWith('-')) html += `<div class="diff-del">${escapeHtml(line)}</div>`;
+    else if (line.startsWith('@@')) html += `<div class="diff-hunk">${escapeHtml(line)}</div>`;
+    else html += `<div class="diff-ctx">${escapeHtml(line)}</div>`;
+  });
+  html += '</div></div>';
+  setOutput(html);
+}
+
+function setOutput(html) {
+  document.getElementById('outputArea').innerHTML = html;
+}
+
+// ── Kubectl generator ─────────────────────────────────────
+function fillGenerator(action) {
+  document.getElementById('genAction').value = action;
+  document.getElementById('replicasGroup').style.display = action === 'scale' ? 'flex' : 'none';
+  generateCmd();
+}
+
+async function generateCmd() {
+  const action = document.getElementById('genAction').value;
+  const kind = document.getElementById('genKind').value;
+  const name = document.getElementById('genName').value;
+  const ns = document.getElementById('genNs').value;
+  const replicas = document.getElementById('genReplicas').value;
+  document.getElementById('replicasGroup').style.display = action === 'scale' ? 'flex' : 'none';
+
+  const params = new URLSearchParams({ action });
+  if (kind) params.append('kind', kind);
+  if (name) params.append('name', name);
+  if (ns) params.append('namespace', ns);
+  if (action === 'scale' && replicas) params.append('replicas', replicas);
+
+  try {
+    const res = await apiFetch('/api/kubernetes/apply/kubectl?' + params.toString());
+    document.getElementById('generatedCmd').innerHTML =
+      `<span>${escapeHtml(res.command)}</span><button class="copy-btn" onclick="copyCmd()">Copy</button>`;
+    document.getElementById('cmdDesc').textContent = res.description || '';
+  } catch (_) {}
+}
+
+function copyCmd() {
+  const cmd = document.getElementById('generatedCmd').querySelector('span');
+  if (cmd) navigator.clipboard.writeText(cmd.textContent);
+}
+
+renderSidebar();
+generateCmd();
+</script>
+</body>
+</html>

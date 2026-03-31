@@ -348,8 +348,10 @@ pub async fn login(
 /// Выход из системы
 ///
 /// POST /api/auth/logout
+/// Отзывает текущий JWT токен через blacklist до истечения его TTL.
 pub async fn logout(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
+    req: axum::extract::Request<axum::body::Body>,
 ) -> Result<
     (
         AppendHeaders<[(axum::http::HeaderName, &'static str); 1]>,
@@ -357,6 +359,21 @@ pub async fn logout(
     ),
     (StatusCode, Json<ErrorResponse>),
 > {
+    // Try to revoke the bearer token from this request
+    let auth_header = req.headers()
+        .get(header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "))
+        .map(|s| s.to_string());
+
+    if let Some(token) = auth_header {
+        let auth_service = crate::api::auth_local::LocalAuthService::new(state.store.clone());
+        if let Ok(claims) = auth_service.verify_token(&token) {
+            state.token_blacklist.revoke(&claims.jti, claims.exp);
+            tracing::info!(user_id = claims.sub, jti = %claims.jti, "JWT revoked on logout");
+        }
+    }
+
     // Очищаем cookie для Vue (как в Go backend)
     let headers = AppendHeaders([(
         header::SET_COOKIE,

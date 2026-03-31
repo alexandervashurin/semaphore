@@ -47,6 +47,7 @@ pub mod system_info;
 pub mod user;
 pub mod users;
 pub mod websocket;
+pub mod token_blacklist;
 
 use axum::{middleware as axum_middleware, Router};
 use std::sync::Arc;
@@ -96,6 +97,12 @@ pub fn create_app(store: Arc<dyn crate::db::Store + Send + Sync>) -> Router {
     };
 
     let state = Arc::new(AppState::new(store, config, cache));
+
+    // Start JWT blacklist pruner — cleans up expired entries every 5 minutes
+    token_blacklist::spawn_pruner(
+        state.token_blacklist.clone(),
+        std::time::Duration::from_secs(300),
+    );
 
     let cors = CorsLayer::new()
         .allow_origin(Any)

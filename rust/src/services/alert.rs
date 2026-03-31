@@ -354,6 +354,81 @@ impl AlertService {
         Ok(())
     }
 
+    /// Вычисляет HMAC-SHA256 подпись тела запроса
+    ///
+    /// Возвращает `sha256=<hex>` как используется в GitHub-стиле webhook подписях.
+    pub fn compute_hmac_signature(secret: &str, body: &[u8]) -> String {
+        use hmac::{Hmac, Mac};
+        use sha2::Sha256;
+        type HmacSha256 = Hmac<Sha256>;
+
+        let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
+            .expect("HMAC accepts any key length");
+        mac.update(body);
+        let result = mac.finalize().into_bytes();
+        format!("sha256={}", hex::encode(result))
+    }
+
+    /// Отправляет generic webhook с HMAC-SHA256 подписью (если задан секрет)
+    ///
+    /// Заголовки при наличии `webhook_secret`:
+    /// - `X-Velum-Signature: sha256=<HMAC-SHA256(secret, body)>`
+    /// - `X-Velum-Timestamp: <unix_timestamp>`
+    pub async fn send_generic_webhook(
+        &self,
+        webhook_url: &str,
+        webhook_secret: Option<&str>,
+    ) -> Result<()> {
+        let alert = self.create_alert();
+
+        let payload = serde_json::json!({
+            "event": "task_result",
+            "task": {
+                "id": alert.task.id,
+                "result": alert.task.result,
+                "version": alert.task.version,
+                "description": alert.task.desc,
+                "url": alert.task.url,
+            },
+            "template": {
+                "name": alert.name,
+            },
+            "author": alert.author,
+        });
+
+        let body = serde_json::to_vec(&payload)
+            .map_err(|e| Error::Other(format!("JSON serialization error: {e}")))?;
+
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs()
+            .to_string();
+
+        let mut req = self.client
+            .post(webhook_url)
+            .header("Content-Type", "application/json")
+            .header("X-Velum-Timestamp", &timestamp);
+
+        if let Some(secret) = webhook_secret {
+            let sig = Self::compute_hmac_signature(secret, &body);
+            req = req.header("X-Velum-Signature", sig);
+        }
+
+        let response = req.body(body).send().await?;
+
+        if !response.status().is_success() {
+            return Err(Error::Other(format!(
+                "Generic webhook error {}: {}",
+                response.status(),
+                response.text().await?
+            )));
+        }
+
+        info!("Generic webhook sent to {}", webhook_url);
+        Ok(())
+    }
+
     /// Отправляет Gotify уведомление
     pub async fn send_gotify_alert(&self, server_url: &str, app_token: &str) -> Result<()> {
         let alert = self.create_alert();

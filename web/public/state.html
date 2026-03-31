@@ -142,7 +142,7 @@ let stateHistory = [];
 // ── Init ──────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
     const params = new URLSearchParams(location.search);
-    projectId = params.get('project_id');
+    projectId = params.get('project_id') || params.get('id');
     if (!projectId) { location.href = '/index.html'; return; }
 
     if (typeof renderSidebar === 'function') renderSidebar(projectId);
