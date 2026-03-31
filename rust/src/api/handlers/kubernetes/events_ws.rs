@@ -43,7 +43,7 @@ pub enum EventStreamMessage {
         count: i32,
         first_seen: Option<String>,
         last_seen: Option<String>,
-        involved_object: EventInvolvedObject,
+        involved_object: Box<EventInvolvedObject>,
     },
     /// Ошибка
     Error { message: String },
@@ -268,11 +268,11 @@ fn convert_event(event: &Event) -> Option<EventStreamMessage> {
         count: event.count.unwrap_or(1),
         first_seen: event.first_timestamp.as_ref().map(|t| t.0.to_rfc3339()),
         last_seen: event.last_timestamp.as_ref().map(|t| t.0.to_rfc3339()),
-        involved_object: EventInvolvedObject {
+        involved_object: Box::new(EventInvolvedObject {
             kind: involved.kind.clone()?,
             name: involved.name.clone()?,
             api_version: involved.api_version.clone(),
             uid: involved.uid.clone(),
-        },
+        }),
     })
 }

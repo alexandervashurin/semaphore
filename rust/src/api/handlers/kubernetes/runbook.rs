@@ -273,7 +273,7 @@ pub async fn execute_runbook(
         playbook: Some(template.playbook.clone()),
         environment: payload.task_params.environment_id.map(|id| id.to_string()),
         secret: None,
-        arguments: arguments,
+        arguments,
         git_branch: payload.task_params.git_branch.or(template.git_branch),
         user_id: None, // TODO: получить из сессии
         integration_id: None,

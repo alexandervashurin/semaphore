@@ -421,8 +421,8 @@ pub async fn get_helm_release_history(
             values: None,
         },
         HelmRelease {
-            name: name,
-            namespace: namespace,
+            name,
+            namespace,
             chart: "mychart".to_string(),
             chart_version: "1.1.0".to_string(),
             app_version: Some("1.1.0".to_string()),
@@ -455,8 +455,8 @@ pub async fn update_helm_release_values(
     Json(values): Json<serde_json::Value>,
 ) -> Result<Json<HelmRelease>> {
     Ok(Json(HelmRelease {
-        name: name,
-        namespace: namespace,
+        name,
+        namespace,
         chart: "updated".to_string(),
         chart_version: "1.0.0".to_string(),
         app_version: None,

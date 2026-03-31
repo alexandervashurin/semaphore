@@ -264,14 +264,14 @@ async fn get_kubernetes_events(
     let client = kube_client.raw().clone();
     let api: Api<Event> = Api::namespaced(client, &query.namespace);
 
-    let mut lp = ListParams::default();
-    lp.limit = Some(100);
-    
-    // Field selector для фильтрации по объекту
-    lp.field_selector = Some(format!(
-        "involvedObject.kind={},involvedObject.name={}",
-        query.kind, query.name
-    ));
+    let lp = ListParams {
+        limit: Some(100),
+        field_selector: Some(format!(
+            "involvedObject.kind={},involvedObject.name={}",
+            query.kind, query.name
+        )),
+        ..Default::default()
+    };
 
     let event_list = api.list(&lp).await
         .map_err(|e| Error::Kubernetes(format!("Failed to list events: {}", e)))?;

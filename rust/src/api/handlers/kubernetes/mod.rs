@@ -35,6 +35,7 @@ pub use audit::*;
 pub use batch::*;
 pub use client::*;
 pub use cluster::*;
+#[allow(ambiguous_glob_reexports)]
 pub use cluster_management::*;
 pub use configmaps::*;
 pub use error::*;

@@ -172,6 +172,7 @@ impl KubernetesAuditLogger {
     }
 
     /// Базовый метод логирования
+    #[allow(clippy::too_many_arguments)]
     async fn log(
         state: &Arc<AppState>,
         user_id: Option<i64>,
