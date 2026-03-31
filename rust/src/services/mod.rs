@@ -17,6 +17,7 @@ pub mod playbook_run_service;
 pub mod playbook_run_status_service;
 pub mod playbook_sync_service;
 pub mod restore;
+pub mod runners;
 pub mod scheduler;
 pub mod ssh_agent;
 pub mod ssh_auth_service;

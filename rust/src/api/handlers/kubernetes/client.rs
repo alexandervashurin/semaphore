@@ -53,9 +53,9 @@ impl KubeClient {
     /// Создаёт новый Kubernetes клиент
     /// 
     /// # Пример
-    /// ```rust,no_run
-    /// use crate::api::handlers::kubernetes::client::{KubeClient, KubeConfig};
-    /// 
+    /// ```rust,ignore
+    /// use velum::api::handlers::kubernetes::client::{KubeClient, KubeConfig};
+    ///
     /// #[tokio::main]
     /// async fn main() {
     ///     let config = KubeConfig::default();

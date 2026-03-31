@@ -2,16 +2,16 @@
 //!
 //! Пул задач для раннеров
 
-use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::time::{interval, Duration};
 
-use crate::error::{Error, Result};
-use crate::services::task_logger::{TaskLogger, TaskStatus};
-use super::running_job::RunningJob;
-use super::types::{JobData, RunnerState, RunnerProgress, JobProgress, LogRecord, CommitInfo};
+use crate::db::store::Store;
+use crate::error::Result;
+use crate::models::Task;
+use crate::services::task_execution;
+use crate::services::task_logger::TaskStatus;
 
 /// Логгер задач
 pub struct JobLogger {
@@ -40,34 +40,49 @@ impl JobLogger {
 
 /// Пул задач
 pub struct JobPool {
-    running_jobs: Arc<Mutex<HashMap<i32, RunningJob>>>,
-    queue: Arc<Mutex<Vec<Job>>>,
-    processing: AtomicU32,
+    /// Очередь задач, ожидающих запуска
+    queue: Arc<Mutex<Vec<QueuedTask>>>,
+    /// ID задач, которые сейчас выполняются (трекер параллелизма)
+    running_ids: Arc<Mutex<HashSet<i32>>>,
+    /// Хранилище данных
+    store: Arc<dyn Store + Send + Sync>,
+    /// Максимальное число параллельных задач
+    max_parallel: usize,
 }
 
 impl JobPool {
     /// Создаёт новый пул задач
-    pub fn new() -> Self {
+    pub fn new(store: Arc<dyn Store + Send + Sync>) -> Self {
         Self {
-            running_jobs: Arc::new(Mutex::new(HashMap::new())),
             queue: Arc::new(Mutex::new(Vec::new())),
-            processing: AtomicU32::new(0),
+            running_ids: Arc::new(Mutex::new(HashSet::new())),
+            store,
+            max_parallel: 10,
+        }
+    }
+
+    /// Создаёт пул задач с ограничением параллелизма
+    pub fn with_max_parallel(store: Arc<dyn Store + Send + Sync>, max_parallel: usize) -> Self {
+        Self {
+            queue: Arc::new(Mutex::new(Vec::new())),
+            running_ids: Arc::new(Mutex::new(HashSet::new())),
+            store,
+            max_parallel,
         }
     }
 
     /// Проверяет, есть ли задача в очереди
     pub async fn exists_in_queue(&self, task_id: i32) -> bool {
         let queue = self.queue.lock().await;
-        queue.iter().any(|j| j.job.task.id == task_id)
+        queue.iter().any(|j| j.task.id == task_id)
     }
 
     /// Проверяет, есть ли запущенные задачи
     pub async fn has_running_jobs(&self) -> bool {
-        let running = self.running_jobs.lock().await;
-        running.values().any(|j| !j.status.is_finished())
+        !self.running_ids.lock().await.is_empty()
     }
 
-    /// Запускает пул задач
+    /// Запускает пул задач (бесконечный цикл)
     pub async fn run(&self) -> Result<()> {
         let logger = JobLogger::new("running");
         let mut queue_interval = interval(Duration::from_secs(5));
@@ -85,42 +100,105 @@ impl JobPool {
         }
     }
 
-    /// Проверяет очередь задач
+    /// Запускает ожидающие задачи из очереди
     async fn check_queue(&self, logger: &JobLogger) {
         logger.debug("Checking queue");
+
+        let running_count = self.running_ids.lock().await.len();
+        if running_count >= self.max_parallel {
+            logger.debug("Max parallel tasks reached, skipping");
+            return;
+        }
 
         let mut queue = self.queue.lock().await;
         if queue.is_empty() {
             return;
         }
 
-        let task = queue[0].clone();
-        if task.status == TaskStatus::Error {
-            queue.remove(0);
-            logger.task_info("Task dequeued", task.job.task.id, "failed");
+        let queued = queue.remove(0);
+        if queued.status == TaskStatus::Error {
+            logger.task_info("Task dequeued (error)", queued.task.id, "failed");
             return;
         }
 
-        // Запускаем задачу
-        // TODO: Реализовать запуск задачи
-        queue.remove(0);
+        let task_id = queued.task.id;
+        logger.task_info("Launching task", task_id, "starting");
+
+        // Регистрируем как запущенную
+        self.running_ids.lock().await.insert(task_id);
+
+        // Снимаем блокировку очереди до запуска задачи
+        drop(queue);
+
+        let store = self.store.clone();
+        let task = queued.task;
+        let running_ids = self.running_ids.clone();
+
+        tokio::spawn(async move {
+            task_execution::execute_task(store, task).await;
+            // После завершения убираем из трекера
+            running_ids.lock().await.remove(&task_id);
+        });
     }
 
-    /// Проверяет новые задачи
+    /// Ищет новые задачи в БД и добавляет их в очередь
     async fn check_new_jobs(&self, logger: &JobLogger) {
-        // TODO: Реализовать проверку новых задач
+        let running_count = self.running_ids.lock().await.len();
+        if running_count >= self.max_parallel {
+            return;
+        }
+
+        let queue_len = self.queue.lock().await.len();
+        let available_slots = (self.max_parallel - running_count).saturating_sub(queue_len);
+        if available_slots == 0 {
+            return;
+        }
+
+        let limit = available_slots.min(50) as i32;
+        let tasks = match self.store.get_global_tasks(
+            Some(vec!["waiting".to_string()]),
+            Some(limit),
+        ).await {
+            Ok(t) => t,
+            Err(e) => {
+                tracing::warn!("[job_pool] Failed to fetch waiting tasks: {e}");
+                return;
+            }
+        };
+
+        if tasks.is_empty() {
+            return;
+        }
+
+        let mut queue = self.queue.lock().await;
+        let running = self.running_ids.lock().await;
+
+        for task_with_tpl in tasks {
+            let task_id = task_with_tpl.task.id;
+            if queue.iter().any(|j| j.task.id == task_id) || running.contains(&task_id) {
+                continue;
+            }
+
+            logger.task_info("Queueing task", task_id, "waiting");
+            queue.push(QueuedTask {
+                task: task_with_tpl.task,
+                status: TaskStatus::Waiting,
+            });
+        }
     }
 }
 
 /// Задача в очереди
 #[derive(Clone)]
-pub struct Job {
-    pub username: String,
-    pub incoming_version: Option<String>,
-    pub alias: Option<String>,
-    pub job: JobData,
+pub struct QueuedTask {
+    /// Задача для запуска
+    pub task: Task,
+    /// Статус в очереди
     pub status: TaskStatus,
 }
+
+// Обратная совместимость
+pub type Job = QueuedTask;
 
 // ============================================================================
 // Tests
@@ -129,16 +207,32 @@ pub struct Job {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::db::mock::MockStore;
+
+    fn make_store() -> Arc<dyn Store + Send + Sync> {
+        Arc::new(MockStore::new())
+    }
 
     #[test]
     fn test_job_pool_creation() {
-        let pool = JobPool::new();
-        assert!(true);
+        let _pool = JobPool::new(make_store());
     }
 
     #[test]
     fn test_job_logger_creation() {
         let logger = JobLogger::new("test");
         assert_eq!(logger.context, "test");
+    }
+
+    #[tokio::test]
+    async fn test_exists_in_queue_empty() {
+        let pool = JobPool::new(make_store());
+        assert!(!pool.exists_in_queue(1).await);
+    }
+
+    #[tokio::test]
+    async fn test_has_running_jobs_empty() {
+        let pool = JobPool::new(make_store());
+        assert!(!pool.has_running_jobs().await);
     }
 }
