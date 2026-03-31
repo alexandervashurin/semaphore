@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes Pods — Velum</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+    <style>
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-running { background: #d4edda; color: #155724; }
+        .status-pending { background: #fff3cd; color: #856404; }
+        .status-failed { background: #f8d7da; color: #721c24; }
+        .status-succeeded { background: #d1ecf1; color: #0c5460; }
+        .status-unknown { background: #e2e3e5; color: #383d44; }
+        
+        .pod-actions {
+            display: flex;
+            gap: 4px;
+        }
+        .pod-actions button {
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+        
+        .logs-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            z-index: 1000;
+        }
+        .logs-modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .logs-content {
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            max-width: 90%;
+            max-height: 90%;
+            overflow: auto;
+        }
+        .logs-output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 12px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow: auto;
+        }
+    </style>
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar"></aside>
+    <div class="main-content">
+        <div class="main-header">
+            <h2><i class="fa-solid fa-box"></i> Kubernetes Pods</h2>
+            <div style="display: flex; gap: 8px;">
+                <a href="k8s-troubleshoot.html" class="btn btn-secondary">
+                    <i class="fa-solid fa-stethoscope"></i> Troubleshoot
+                </a>
+                <button class="btn btn-primary" onclick="loadPods()">
+                    <i class="fa-solid fa-rotate"></i> Обновить
+                </button>
+            </div>
+        </div>
+        <div class="main-body">
+            <!-- Фильтры -->
+            <div class="card" style="margin-bottom:12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <label>Namespace:
+                    <select id="namespace" class="form-control" style="max-width: 200px;" onchange="loadPods()"></select>
+                </label>
+                <input id="filter" class="form-control" placeholder="Фильтр по имени" style="min-width: 200px;" onkeyup="filterPods()">
+                <label>
+                    <input type="checkbox" id="auto-refresh" onchange="toggleAutoRefresh()"> Автообновление
+                </label>
+                <span id="last-update" style="color: #666; font-size: 12px;"></span>
+            </div>
+
+            <!-- Таблица Pod -->
+            <div id="content" class="card">
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <p>Загрузка...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Logs Modal -->
+<div id="logs-modal" class="logs-modal">
+    <div class="logs-content">
+        <h3><i class="fa-solid fa-file-lines"></i> Логи Pod: <span id="logs-pod-name"></span></h3>
+        <div style="margin-bottom: 12px;">
+            <label>Container:
+                <select id="logs-container" class="form-control" style="max-width: 200px;"></select>
+            </label>
+            <button class="btn btn-primary" onclick="loadLogs()">
+                <i class="fa-solid fa-rotate"></i> Обновить
+            </button>
+            <button class="btn btn-secondary" onclick="closeLogsModal()">
+                <i class="fa-solid fa-xmark"></i> Закрыть
+            </button>
+        </div>
+        <div id="logs-output" class="logs-output"></div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+checkAuth();
+let podsData = [];
+let autoRefreshInterval = null;
+let currentPodName = null;
+let currentNamespace = null;
+
+// Загрузка namespaces
+async function loadNamespaces() {
+    try {
+        const ns = await api.get('/kubernetes/namespaces');
+        const select = $('#namespace');
+        select.innerHTML = '<option value="default">default</option>';
+        ns.forEach(n => {
+            select.innerHTML += `<option value="${escapeHtml(n.name)}">${escapeHtml(n.name)}</option>`;
+        });
+        loadPods();
+    } catch (e) {
+        console.error('Failed to load namespaces:', e);
+        $('#content').innerHTML = `<div class="alert alert-error"><i class="fa-solid fa-exclamation-triangle"></i> Ошибка загрузки namespaces: ${escapeHtml(e.message)}</div>`;
+    }
+}
+
+// Загрузка Pod
+async function loadPods() {
+    const namespace = $('#namespace').value;
+    const content = $('#content');
+    
+    content.innerHTML = '<div class="loading"><div class="loading-spinner"></div><p>Загрузка...</p></div>';
+    
+    try {
+        podsData = await api.get(`/kubernetes/namespaces/${namespace}/pods`);
+        renderPods(podsData);
+        updateLastUpdate();
+    } catch (e) {
+        console.error('Failed to load pods:', e);
+        content.innerHTML = `<div class="alert alert-error"><i class="fa-solid fa-exclamation-triangle"></i> Ошибка загрузки pods: ${escapeHtml(e.message)}</div>`;
+    }
+}
+
+// Рендер Pod
+function renderPods(pods) {
+    const content = $('#content');
+    const filter = $('#filter').value.toLowerCase();
+    
+    let filtered = pods;
+    if (filter) {
+        filtered = pods.filter(p => p.name.toLowerCase().includes(filter));
+    }
+    
+    if (filtered.length === 0) {
+        content.innerHTML = '<div class="alert alert-info"><i class="fa-solid fa-info-circle"></i> Pod не найдено</div>';
+        return;
+    }
+    
+    content.innerHTML = `
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Namespace</th>
+                    <th>Status</th>
+                    <th>IP</th>
+                    <th>Node</th>
+                    <th>Restarts</th>
+                    <th>Age</th>
+                    <th>Containers</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${filtered.map(pod => `
+                    <tr>
+                        <td><strong>${escapeHtml(pod.name)}</strong></td>
+                        <td>${escapeHtml(pod.namespace)}</td>
+                        <td><span class="status-badge status-${getPodStatusClass(pod.phase)}">${escapeHtml(pod.phase)}</span></td>
+                        <td>${escapeHtml(pod.ip || 'N/A')}</td>
+                        <td>${escapeHtml(pod.node || 'N/A')}</td>
+                        <td>${pod.restart_count || 0}</td>
+                        <td>${escapeHtml(pod.age)}</td>
+                        <td>
+                            ${pod.containers && pod.containers.length > 0 ? pod.containers.map(c => `
+                                <span class="status-badge status-${c.ready ? 'running' : 'pending'}" title="${escapeHtml(c.image)}">
+                                    ${escapeHtml(c.name)}
+                                </span>
+                            `).join(' ') : 'N/A'}
+                        </td>
+                        <td class="pod-actions">
+                            <button class="btn btn-secondary" onclick="showLogs('${escapeJs(pod.name)}', '${escapeJs(pod.namespace)}')" title="View Logs">
+                                <i class="fa-solid fa-file-lines"></i>
+                            </button>
+                            <button class="btn btn-secondary" onclick="showDetails('${escapeJs(pod.name)}', '${escapeJs(pod.namespace)}')" title="View Details">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                            <button class="btn btn-warning" onclick="restartPod('${escapeJs(pod.name)}', '${escapeJs(pod.namespace)}')" title="Restart Pod">
+                                <i class="fa-solid fa-rotate"></i>
+                            </button>
+                            <button class="btn btn-danger" onclick="deletePod('${escapeJs(pod.name)}', '${escapeJs(pod.namespace)}')" title="Delete Pod">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+// Фильтрация
+function filterPods() {
+    renderPods(podsData);
+}
+
+// Получить CSS класс для статуса
+function getPodStatusClass(phase) {
+    const classes = {
+        'Running': 'running',
+        'Pending': 'pending',
+        'Failed': 'failed',
+        'Succeeded': 'succeeded',
+        'Unknown': 'unknown'
+    };
+    return classes[phase] || 'unknown';
+}
+
+// Показать логи
+async function showLogs(podName, namespace) {
+    currentPodName = podName;
+    currentNamespace = namespace;
+    
+    $('#logs-pod-name').textContent = `${namespace}/${podName}`;
+    $('#logs-modal').classList.add('active');
+    $('#logs-output').innerHTML = '<div class="loading"><div class="loading-spinner"></div></div>';
+    
+    try {
+        const data = await api.get(`/kubernetes/namespaces/${namespace}/pods/${podName}`);
+        
+        // Заполняем контейнеры
+        const containerSelect = $('#logs-container');
+        containerSelect.innerHTML = '';
+        
+        if (data.spec && data.spec.containers) {
+            data.spec.containers.forEach(c => {
+                containerSelect.innerHTML += `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`;
+            });
+        }
+        
+        // Загружаем логи
+        loadLogs();
+    } catch (e) {
+        console.error('Failed to get pod details:', e);
+        $('#logs-output').innerHTML = `<div class="alert alert-error">Ошибка: ${escapeHtml(e.message)}</div>`;
+    }
+}
+
+// Загрузить логи
+async function loadLogs() {
+    const container = $('#logs-container').value;
+    const output = $('#logs-output');
+    
+    output.innerHTML = '<div class="loading"><div class="loading-spinner"></div></div>';
+    
+    try {
+        const params = new URLSearchParams({
+            container: container,
+            tail: '100',
+            timestamps: 'true'
+        });
+        
+        const data = await api.get(`/kubernetes/namespaces/${currentNamespace}/pods/${currentPodName}/logs?${params}`);
+        output.textContent = data.logs || 'No logs available';
+    } catch (e) {
+        output.innerHTML = `<div class="alert alert-error">Ошибка загрузки логов: ${escapeHtml(e.message)}</div>`;
+    }
+}
+
+// Закрыть модальное окно
+function closeLogsModal() {
+    $('#logs-modal').classList.remove('active');
+}
+
+// Показать детали
+function showDetails(podName, namespace) {
+    window.location.href = `k8s-troubleshoot.html?namespace=${namespace}&kind=Pod&name=${podName}`;
+}
+
+// Перезапустить Pod
+async function restartPod(podName, namespace) {
+    if (!confirm(`Перезапустить Pod ${namespace}/${podName}?`)) {
+        return;
+    }
+    
+    try {
+        await api.post(`/kubernetes/namespaces/${namespace}/pods/${podName}/restart`, {});
+        alert(`Pod ${namespace}/${podName} перезапускается`);
+        loadPods();
+    } catch (e) {
+        alert(`Ошибка: ${e.message}`);
+    }
+}
+
+// Удалить Pod
+async function deletePod(podName, namespace) {
+    if (!confirm(`Удалить Pod ${namespace}/${podName}?`)) {
+        return;
+    }
+    
+    try {
+        await api.delete(`/kubernetes/namespaces/${namespace}/pods/${podName}`);
+        alert(`Pod ${namespace}/${podName} удалён`);
+        loadPods();
+    } catch (e) {
+        alert(`Ошибка: ${e.message}`);
+    }
+}
+
+// Автообновление
+function toggleAutoRefresh() {
+    if ($('#auto-refresh').checked) {
+        autoRefreshInterval = setInterval(loadPods, 10000);
+    } else {
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+            autoRefreshInterval = null;
+        }
+    }
+}
+
+function updateLastUpdate() {
+    const now = new Date();
+    $('#last-update').textContent = 'Обновлено: ' + now.toLocaleTimeString();
+}
+
+// Инициализация
+loadNamespaces();
+</script>
+</body>
+</html>
