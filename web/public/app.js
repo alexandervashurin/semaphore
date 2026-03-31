@@ -729,6 +729,8 @@ const SIDEBAR_SECTIONS = [
         label: 'Kubernetes',
         collapsible: true,
         items: [
+            { href: 'k8s-pods.html',          icon: 'fa-solid fa-box',           label: 'Pods' },
+            { href: 'k8s-deployments.html',   icon: 'fa-solid fa-layer-group',   label: 'Deployments' },
             { href: 'k8s-services.html',      icon: 'fa-solid fa-network-wired', label: 'Services' },
             { href: 'k8s-configmaps.html',    icon: 'fa-solid fa-map',           label: 'ConfigMaps' },
             { href: 'k8s-secrets.html',       icon: 'fa-solid fa-user-secret',   label: 'Secrets' },
