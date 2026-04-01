@@ -230,7 +230,7 @@ sprints:
         title: "Kubernetes runbook integration"
         priority: medium
         estimate: medium
-        status: todo
+        status: in_progress
         subtasks:
           - "Реализовать user session в runbook.rs:278"
           - "Добавить params поддержку runbook.rs:297"
