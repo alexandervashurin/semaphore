@@ -875,7 +875,8 @@ task_index:
     title: "OIDC email claim"
     priority: medium
     estimate: small
-    status: todo
+    status: in_progress
+    assignee: assistant
   - sprint_id: S1
     sprint_title: "Спринт 1 — Stabilization (2-4 недели)"
     task_id: TD-01
