@@ -11,10 +11,7 @@ use axum::{
 };
 use futures::{SinkExt, StreamExt};
 use k8s_openapi::api::core::v1::Event;
-use kube::{
-    api::{Api, ListParams, WatchEvent, WatchParams},
-    Client,
-};
+use kube::api::{Api, ListParams, WatchEvent, WatchParams};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::{error, info, warn};
@@ -69,7 +66,7 @@ pub async fn events_websocket(
     Path(namespace): Path<String>,
     Query(query): Query<EventStreamQuery>,
 ) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| handle_event_stream(socket, state, namespace, query))
+    ws.on_upgrade(move |socket| handle_event_stream(socket, state, false, query, Some(namespace)))
 }
 
 /// Обработчик WebSocket подключения для стриминга событий — кластерный (все namespace'ы, K-01)
@@ -78,22 +75,28 @@ pub async fn cluster_events_websocket(
     State(state): State<Arc<AppState>>,
     Query(query): Query<EventStreamQuery>,
 ) -> impl IntoResponse {
-    // Пустая строка namespace означает все namespace'ы в kube-rs Api::all()
-    ws.on_upgrade(move |socket| handle_event_stream(socket, state, "_all".to_string(), query))
+    ws.on_upgrade(move |socket| handle_event_stream(socket, state, true, query, None))
 }
 
-/// Обработка потока событий
+/// Обработка потока событий (namespace или весь кластер).
 async fn handle_event_stream(
     socket: WebSocket,
     state: Arc<AppState>,
-    namespace: String,
+    cluster_wide: bool,
     query: EventStreamQuery,
+    namespace: Option<String>,
 ) {
     let (mut sender, mut receiver) = socket.split();
 
+    let connected_label = if cluster_wide {
+        "*".to_string()
+    } else {
+        namespace.clone().unwrap_or_default()
+    };
+
     // Отправляем подтверждение подключения
     let connected_msg = EventStreamMessage::Connected {
-        namespace: namespace.clone(),
+        namespace: connected_label.clone(),
         count: 0,
     };
 
@@ -118,8 +121,13 @@ async fn handle_event_stream(
         }
     };
 
-    // Создаем API для событий
-    let api: Api<Event> = Api::namespaced(client.raw().clone(), &namespace);
+    // Создаем API для событий (namespaced или кластерный watch)
+    let api: Api<Event> = if cluster_wide {
+        Api::all(client.raw().clone())
+    } else {
+        let ns = namespace.as_deref().unwrap_or("");
+        Api::namespaced(client.raw().clone(), ns)
+    };
 
     // Настраиваем параметры watch
     let mut watch_params = ListParams::default()
@@ -136,7 +144,14 @@ async fn handle_event_stream(
         }
     }
 
-    info!("Starting event watch for namespace: {}", namespace);
+    if cluster_wide {
+        info!("Starting cluster-wide event watch (all namespaces)");
+    } else {
+        info!(
+            "Starting event watch for namespace: {}",
+            namespace.as_deref().unwrap_or("")
+        );
+    }
 
     // Запускаем watch цикл
     loop {
@@ -151,7 +166,14 @@ async fn handle_event_stream(
                         }
                     }
                     Some(Ok(Message::Close(_))) | None => {
-                        info!("WebSocket connection closed for namespace: {}", namespace);
+                        if cluster_wide {
+                            info!("WebSocket connection closed (cluster-wide events)");
+                        } else {
+                            info!(
+                                "WebSocket connection closed for namespace: {}",
+                                namespace.as_deref().unwrap_or("")
+                            );
+                        }
                         break;
                     }
                     Some(Ok(Message::Text(text))) => {
@@ -178,7 +200,14 @@ async fn handle_event_stream(
                             break;
                         }
                         // Переподключаемся после завершения watch (reconnect)
-                        info!("Reconnecting event watch for namespace: {}", namespace);
+                        if cluster_wide {
+                            info!("Reconnecting cluster-wide event watch");
+                        } else {
+                            info!(
+                                "Reconnecting event watch for namespace: {}",
+                                namespace.as_deref().unwrap_or("")
+                            );
+                        }
                         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
                     }
                     Err(e) => {
