@@ -93,9 +93,10 @@ sprints:
         title: "Alert HMAC signature"
         priority: high
         estimate: small
-        status: in_progress
+        status: completed
         assignee: agent-3714
         started_at: "2026-04-01T20:10:00Z"
+        completed_at: "2026-04-01T20:45:00Z"
         subtasks:
           - "Добавить X-Semaphore-Signature заголовок"
           - "Реализовать HMAC-SHA256 подпись webhook payload"
@@ -103,6 +104,10 @@ sprints:
         done_when:
           - "Webhooks подписываются корректно"
           - "Тесты подтверждают валидацию подписи"
+        completion_notes:
+          - "Подпись: HMAC-SHA256(secret, \"{unix_ts}.\" + raw_body), заголовки X-Semaphore-Signature (sha256=hex), X-Semaphore-Timestamp."
+          - "alert.rs: send_generic_webhook; webhook.rs: исходящие project webhooks при config.secret (вместо Bearer)."
+          - "Unit-тесты: alert (legacy body-only + timestamp-aware); webhook suite зелёный."
 
       - task_id: SEC-05
         title: "Cron validation"
@@ -903,9 +908,10 @@ task_index:
     title: "Alert HMAC signature"
     priority: high
     estimate: small
-    status: in_progress
+    status: completed
     assignee: agent-3714
     started_at: "2026-04-01T20:10:00Z"
+    completed_at: "2026-04-01T20:45:00Z"
   - sprint_id: S0
     sprint_title: "Спринт 0 — Critical Security Fixes (1-2 недели)"
     task_id: SEC-05

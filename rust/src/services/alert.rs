@@ -374,9 +374,8 @@ impl AlertService {
         Ok(())
     }
 
-    /// Вычисляет HMAC-SHA256 подпись тела запроса
-    ///
-    /// Возвращает `sha256=<hex>` как используется в GitHub-стиле webhook подписях.
+    /// Вычисляет HMAC-SHA256 только по телу (без timestamp). Для новых интеграций используйте
+    /// [`Self::compute_webhook_request_signature`].
     pub fn compute_hmac_signature(secret: &str, body: &[u8]) -> String {
         use hmac::{Hmac, Mac};
         use sha2::Sha256;
@@ -389,11 +388,31 @@ impl AlertService {
         format!("sha256={}", hex::encode(result))
     }
 
+    /// HMAC-SHA256(secret, `{timestamp_unix}.` + body) — защита от replay: получатель сверяет время.
+    /// Заголовки исходящего запроса: `X-Semaphore-Signature: sha256=<hex>`, `X-Semaphore-Timestamp`.
+    pub fn compute_webhook_request_signature(
+        secret: &str,
+        timestamp_unix: &str,
+        body: &[u8],
+    ) -> String {
+        use hmac::{Hmac, Mac};
+        use sha2::Sha256;
+        type HmacSha256 = Hmac<Sha256>;
+
+        let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
+            .expect("HMAC accepts any key length");
+        mac.update(timestamp_unix.as_bytes());
+        mac.update(b".");
+        mac.update(body);
+        let result = mac.finalize().into_bytes();
+        format!("sha256={}", hex::encode(result))
+    }
+
     /// Отправляет generic webhook с HMAC-SHA256 подписью (если задан секрет)
     ///
     /// Заголовки при наличии `webhook_secret`:
-    /// - `X-Velum-Signature: sha256=<HMAC-SHA256(secret, body)>`
-    /// - `X-Velum-Timestamp: <unix_timestamp>`
+    /// - `X-Semaphore-Signature: sha256=<HMAC(secret, "{ts}." + body)>`
+    /// - `X-Semaphore-Timestamp: <unix_secs>`
     pub async fn send_generic_webhook(
         &self,
         webhook_url: &str,
@@ -425,14 +444,15 @@ impl AlertService {
             .as_secs()
             .to_string();
 
-        let mut req = self.client
+        let mut req = self
+            .client
             .post(webhook_url)
             .header("Content-Type", "application/json")
-            .header("X-Velum-Timestamp", &timestamp);
+            .header("X-Semaphore-Timestamp", &timestamp);
 
         if let Some(secret) = webhook_secret {
-            let sig = Self::compute_hmac_signature(secret, &body);
-            req = req.header("X-Velum-Signature", sig);
+            let sig = Self::compute_webhook_request_signature(secret, &timestamp, &body);
+            req = req.header("X-Semaphore-Signature", sig);
         }
 
         let response = req.body(body).send().await?;
@@ -523,11 +543,24 @@ mod tests {
     }
 
     #[test]
-    fn test_hmac_webhook() {
+    fn test_hmac_webhook_body_only_legacy() {
         let signature = AlertService::compute_hmac_signature("secret", br#"{"ping":"pong"}"#);
         assert_eq!(
             signature,
             "sha256=d4a0a190424950646d97770a70dbd0b331d19775a0024a3e762fd0cdf933c498"
         );
+    }
+
+    #[test]
+    fn test_webhook_request_signature_includes_timestamp() {
+        let secret = "mysecret";
+        let ts = "1704067200";
+        let body = br#"{"event":"task_result"}"#;
+        let s1 = AlertService::compute_webhook_request_signature(secret, ts, body);
+        let s2 = AlertService::compute_webhook_request_signature(secret, ts, body);
+        assert_eq!(s1, s2);
+        assert!(s1.starts_with("sha256="));
+        let s3 = AlertService::compute_webhook_request_signature(secret, "1704067201", body);
+        assert_ne!(s1, s3);
     }
 }
