@@ -17,17 +17,12 @@ use crate::error::{Error, Result};
 use crate::models::User;
 
 /// Контроллер пользователей
-pub struct UsersController {
-    /// Сервис подписок (опционально)
-    pub subscription_service: Option<()>,
-}
+pub struct UsersController {}
 
 impl UsersController {
     /// Создаёт новый контроллер
     pub fn new() -> Self {
-        Self {
-            subscription_service: None,
-        }
+        Self {}
     }
 
     /// Получает список пользователей
@@ -60,21 +55,17 @@ impl UsersController {
             ));
         }
 
-        // TODO: Проверка подписки для PRO пользователей
-        // if user.pro {
-        //     let ok = state.subscription_service.can_add_pro_user().await?;
-        //     if !ok {
-        //         return Err(Error::Other("You have reached the limit of Pro users".to_string()));
-        //     }
-        // }
+        let wants_pro = user.pro || user.user.pro;
+        if wants_pro && !state.subscription.can_add_pro_user()? {
+            return Err(Error::Other(
+                "You have reached the limit of Pro users".to_string(),
+            ));
+        }
 
-        // Создаём пользователя
-        // let new_user = if user.external {
-        //     state.store.create_user_without_password(user.user).await?
-        // } else {
-        //     state.store.create_user(user.user, "").await?
-        // };
-        let new_user = state.store.create_user(user.user, "").await?;
+        let mut to_create = user.user;
+        to_create.pro = wants_pro;
+
+        let new_user = state.store.create_user(to_create, "").await?;
 
         Ok((StatusCode::CREATED, Json(new_user)))
     }
@@ -228,8 +219,7 @@ mod tests {
 
     #[test]
     fn test_users_controller_creation() {
-        let controller = UsersController::new();
-        assert!(controller.subscription_service.is_none());
+        let _ = UsersController::new();
     }
 
     #[test]

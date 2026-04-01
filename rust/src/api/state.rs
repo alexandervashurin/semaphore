@@ -9,7 +9,7 @@ use crate::cache::RedisCache;
 use crate::config::Config;
 use crate::db::Store;
 use crate::error::{Error, Result};
-use crate::pro::services::{new_subscription_service, SubscriptionService};
+use crate::pro::services::{SubscriptionService, SubscriptionServiceImpl};
 use crate::services::metrics::MetricsManager;
 use crate::services::telegram_bot::TelegramBot;
 use dashmap::DashMap;
@@ -55,7 +55,7 @@ impl AppState {
     ) -> Self {
         let telegram_bot = TelegramBot::new(&config);
         let subscription: Arc<dyn SubscriptionService + Send + Sync> =
-            Arc::from(new_subscription_service());
+            Arc::new(SubscriptionServiceImpl::new());
 
         Self {
             store: StoreWrapper::new(store),
