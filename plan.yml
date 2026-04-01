@@ -235,7 +235,8 @@ sprints:
         title: "Kubernetes runbook integration"
         priority: medium
         estimate: medium
-        status: in_progress
+        status: completed
+        assignee: assistant
         subtasks:
           - "Реализовать user session в runbook.rs:278"
           - "Добавить params поддержку runbook.rs:297"
@@ -243,6 +244,10 @@ sprints:
         done_when:
           - "Kubernetes runbooks работают"
           - "Тесты проходят"
+        completion_notes:
+          - "execute_runbook: AuthUser, user_id, params JSON, фон execute_task + Telegram"
+          - "Маршруты /api/kubernetes/project/{project_id}/runbooks/..."
+          - "k8s-runbooks.html обновлён под новые URL"
 
       - task_id: TD-06
         title: "Prometheus label aggregation"
@@ -942,7 +947,8 @@ task_index:
     title: "Kubernetes runbook integration"
     priority: medium
     estimate: medium
-    status: todo
+    status: completed
+    assignee: assistant
   - sprint_id: S1
     sprint_title: "Спринт 1 — Stabilization (2-4 недели)"
     task_id: TD-06

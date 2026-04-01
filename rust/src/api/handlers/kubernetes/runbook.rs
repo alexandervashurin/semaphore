@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 use crate::api::extractors::AuthUser;
 use crate::api::state::AppState;
-use crate::db::store::{ProjectStore, TaskManager, TemplateManager};
+use crate::db::store::{TaskManager, TemplateManager};
 use crate::error::{Error, Result};
 use crate::models::{Task, Template};
 use crate::services::task_logger::TaskStatus;
@@ -307,12 +307,13 @@ pub async fn execute_runbook(
         .map_err(|e| Error::Other(format!("Failed to create task: {}", e)))?;
 
     // Запускаем задачу в фоне
-    let store_arc: Arc<dyn crate::db::store::Store + Send + Sync> = Arc::new(state.store.clone());
+    let store_arc = state.store.as_arc();
     let task_to_run = created_task.clone();
     let telegram_bot = state.telegram_bot.clone();
     let project_id_for_notify = created_task.project_id;
     let task_id_for_notify = created_task.id;
     let template_id_for_notify = created_task.template_id;
+    let author = user.username.clone();
     tokio::spawn(async move {
         crate::services::task_execution::execute_task(store_arc.clone(), task_to_run).await;
 
@@ -338,7 +339,7 @@ pub async fn execute_runbook(
                     &completed_task,
                     &template_name,
                     &project_name,
-                    "system",
+                    &author,
                 )
                 .await;
             }
