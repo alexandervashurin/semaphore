@@ -177,10 +177,6 @@ features = [
     "uuid"
 ]
 
-# BoltDB-подобное хранилище (ключ-значение)
-[dependencies.sled]
-version = "0.34"
-
 # CLI
 [dependencies.clap]
 version = "4.5"
@@ -261,6 +257,5 @@ RUSTSEC-2023-0071 = "rsa pulled by sqlx-postgres for SCRAM auth only, not our RS
 [features]
 default = ["postgres"]
 postgres = ["sqlx/postgres"]
-bolt = []  # Sled для BoltDB-подобного режима
 # API integration tests (tests/api_integration.rs) — пока требуют доработки под PostgreSQL-only
 integration-api-tests = []
