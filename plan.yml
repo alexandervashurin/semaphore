@@ -229,7 +229,9 @@ sprints:
         title: "Prometheus label aggregation"
         priority: low
         estimate: small
-        status: todo
+        status: in_progress
+        assignee: agent-2048
+        started_at: "2026-04-02T03:00:00Z"
         subtasks:
           - "Реализовать aggregate by label selectors"
           - "Тесты метрик"
@@ -993,7 +995,9 @@ task_index:
     title: "Prometheus label aggregation"
     priority: low
     estimate: small
-    status: todo
+    status: in_progress
+    assignee: agent-2048
+    started_at: "2026-04-02T03:00:00Z"
   - sprint_id: S1
     sprint_title: "Спринт 1 — Stabilization (2-4 недели)"
     task_id: TD-07
