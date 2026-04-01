@@ -372,7 +372,7 @@ async fn test_kubernetes_deployments_api_endpoints() {
             &"DELETE" => {
                 let request = Request::builder()
                     .method("DELETE")
-                    .uri(path)
+                    .uri(*path)
                     .body(Body::empty())
                     .unwrap();
                 let response = app.clone().oneshot(request).await.expect("oneshot");
@@ -462,7 +462,7 @@ async fn test_kubernetes_statefulsets_api_endpoints() {
             &"DELETE" => {
                 let request = Request::builder()
                     .method("DELETE")
-                    .uri(path)
+                    .uri(*path)
                     .body(Body::empty())
                     .unwrap();
                 let response = app.clone().oneshot(request).await.expect("oneshot");
@@ -507,7 +507,7 @@ async fn test_kubernetes_configmaps_api_endpoints() {
             &"DELETE" => {
                 let request = Request::builder()
                     .method("DELETE")
-                    .uri(path)
+                    .uri(*path)
                     .body(Body::empty())
                     .unwrap();
                 let response = app.clone().oneshot(request).await.expect("oneshot");
@@ -550,7 +550,7 @@ async fn test_kubernetes_secrets_api_endpoints() {
             &"DELETE" => {
                 let request = Request::builder()
                     .method("DELETE")
-                    .uri(path)
+                    .uri(*path)
                     .body(Body::empty())
                     .unwrap();
                 let response = app.clone().oneshot(request).await.expect("oneshot");
@@ -601,7 +601,7 @@ async fn test_kubernetes_jobs_cronjobs_api_endpoints() {
             &"DELETE" => {
                 let request = Request::builder()
                     .method("DELETE")
-                    .uri(path)
+                    .uri(*path)
                     .body(Body::empty())
                     .unwrap();
                 let response = app.clone().oneshot(request).await.expect("oneshot");
