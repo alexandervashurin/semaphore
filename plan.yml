@@ -244,7 +244,9 @@ sprints:
         title: "Kubernetes runbook integration"
         priority: medium
         estimate: medium
-        status: todo
+        status: in_progress
+        assignee: agent-7412
+        started_at: "2026-04-02T07:00:00Z"
         subtasks:
           - "Реализовать user session в runbook.rs:278"
           - "Добавить params поддержку runbook.rs:297"
@@ -1035,7 +1037,9 @@ task_index:
     title: "Kubernetes runbook integration"
     priority: medium
     estimate: medium
-    status: todo
+    status: in_progress
+    assignee: agent-7412
+    started_at: "2026-04-02T07:00:00Z"
   - sprint_id: S1
     sprint_title: "Спринт 1 — Stabilization (2-4 недели)"
     task_id: TD-06
