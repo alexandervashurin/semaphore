@@ -357,9 +357,10 @@ sprints:
         title: "Cross-platform builds (Linux, macOS)"
         priority: high
         estimate: small
-        status: in_progress
+        status: completed
         assignee: agent-5523
         started_at: "2026-04-01T22:00:00Z"
+        completed_at: "2026-04-01T22:10:00Z"
         subtasks:
           - "Настроить GitHub Actions для macOS"
           - "Добавить cross-compilation для ARM64"
@@ -368,6 +369,11 @@ sprints:
           - "Linux amd64/arm64 binaries"
           - "macOS amd64/arm64 binaries"
           - "Автоматическая публикация в release"
+        completion_notes:
+          - "build-macos job: macos-13 (amd64) + macos-latest (arm64)"
+          - "velum-darwin-amd64 и velum-darwin-arm64 артефакты"
+          - "PKG_CONFIG_PATH: /opt/homebrew + /usr/local для обоих типов runner"
+          - "publish-release needs: [build-linux, build-macos], все 4 бинаря в release"
 
       - task_id: PROD-03
         title: "Redis-backed task queue"
@@ -970,9 +976,10 @@ task_index:
     title: "Cross-platform builds (Linux, macOS)"
     priority: high
     estimate: small
-    status: in_progress
+    status: completed
     assignee: agent-5523
     started_at: "2026-04-01T22:00:00Z"
+    completed_at: "2026-04-01T22:10:00Z"
   - sprint_id: S3
     sprint_title: "Спринт 3 — Production Hardening & Docs (6-8 недель)"
     task_id: PROD-03
