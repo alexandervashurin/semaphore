@@ -440,13 +440,21 @@ pub async fn execute_inventory_sync(
         runner_tag: None,
     };
     
-    let created_inventory = if params.create_new || params.inventory_id.is_none() {
+    let created_inventory = if params.create_new {
         state.store.create_inventory(inventory).await
             .map_err(|e| Error::Other(format!("Failed to create inventory: {}", e)))?
+    } else if let Some(inventory_id) = params.inventory_id {
+        // Update existing inventory
+        let mut inventory = inventory;
+        inventory.id = inventory_id;
+        state.store.update_inventory(inventory).await
+            .map_err(|e| Error::Other(format!("Failed to update inventory: {}", e)))?;
+        state.store.get_inventory(params.project_id, inventory_id).await
+            .map_err(|e| Error::Other(format!("Failed to get updated inventory: {}", e)))?
     } else {
-        // TODO: update inventory
+        // Fallback: create new inventory
         state.store.create_inventory(inventory).await
-            .map_err(|e| Error::Other(format!("Failed to update inventory: {}", e)))?
+            .map_err(|e| Error::Other(format!("Failed to create inventory: {}", e)))?
     };
     
     let inventory_name_result = created_inventory.name.clone();
