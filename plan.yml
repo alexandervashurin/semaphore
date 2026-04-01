@@ -36,7 +36,9 @@ sprints:
         title: "Обновить уязвимые зависимости"
         priority: critical
         estimate: small
-        status: todo
+        status: in_progress
+        assignee: agent-8472
+        started_at: "2026-04-02T10:00:00Z"
         subtasks:
           - "quinn-proto: обновить до версии без CVE-2024-memory-safety"
           - "wasmtime: обновить до версии без CVE-6.x"
@@ -843,7 +845,9 @@ task_index:
     title: "Обновить уязвимые зависимости"
     priority: critical
     estimate: small
-    status: todo
+    status: in_progress
+    assignee: agent-8472
+    started_at: "2026-04-02T10:00:00Z"
   - sprint_id: S0
     sprint_title: "Спринт 0 — Critical Security Fixes (1-2 недели)"
     task_id: SEC-02
