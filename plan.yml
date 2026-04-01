@@ -134,7 +134,9 @@ sprints:
         title: "OIDC email claim"
         priority: medium
         estimate: small
-        status: todo
+        status: in_progress
+        assignee: agent-2847
+        started_at: "2026-04-01T18:45:00Z"
         subtasks:
           - "Добавить email в AuthConfig"
           - "Извлекать email из OIDC claims"
@@ -970,7 +972,9 @@ task_index:
     title: "OIDC email claim"
     priority: medium
     estimate: small
-    status: todo
+    status: in_progress
+    assignee: agent-2847
+    started_at: "2026-04-01T18:45:00Z"
   - sprint_id: S1
     sprint_title: "Спринт 1 — Stabilization (2-4 недели)"
     task_id: TD-01
