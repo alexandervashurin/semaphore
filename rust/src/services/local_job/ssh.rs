@@ -98,7 +98,7 @@ pub fn model_access_key_to_db(ak: &crate::models::AccessKey) -> crate::db_lib::D
 
     let ssh_key = if key_type == DbAccessKeyType::Ssh {
         Some(DbSshKey {
-            login: String::new(),
+            login: ak.login_password_login.clone().unwrap_or_default(),
             passphrase: ak.ssh_passphrase.clone().unwrap_or_default(),
             private_key: ak.ssh_key.clone().unwrap_or_default(),
         })
@@ -184,5 +184,22 @@ mod tests {
         job.clear_ssh_keys();
         assert!(job.ssh_key_installation.is_none());
         assert!(job.become_key_installation.is_none());
+    }
+
+    #[test]
+    fn test_model_access_key_to_db_preserves_ssh_login() {
+        let ak = crate::models::AccessKey::new_ssh(
+            1,
+            "k".to_string(),
+            "private".to_string(),
+            "".to_string(),
+            "ubuntu".to_string(),
+            None,
+        );
+        let db = model_access_key_to_db(&ak);
+        assert_eq!(
+            db.ssh_key.as_ref().map(|s| s.login.clone()),
+            Some("ubuntu".to_string())
+        );
     }
 }

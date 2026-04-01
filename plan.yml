@@ -180,9 +180,10 @@ sprints:
         title: "SSH Key Installation service"
         priority: high
         estimate: medium
-        status: in_progress
+        status: completed
         assignee: agent-9347
         started_at: "2026-04-02T13:10:00Z"
+        completed_at: "2026-04-02T14:20:00Z"
         subtasks:
           - "Завершить 5 стабов в access_key_installation_service.rs"
           - "Интеграция с task runner"
@@ -190,6 +191,10 @@ sprints:
         done_when:
           - "SSH ключи устанавливаются корректно"
           - "Тесты проходят"
+        completion_notes:
+          - "AccessKeyInstallationService: fallback deserialize->decrypt->deserialize для encrypted secret."
+          - "local_job SSH conversion сохраняет login из AccessKey в DbSshKey."
+          - "Добавлены unit-тесты для encrypted serialized SSH secret и для сохранения SSH login."
 
       - task_id: TD-03
         title: "Exporter/Importer fix (T-BE-15)"
@@ -982,9 +987,10 @@ task_index:
     title: "SSH Key Installation service"
     priority: high
     estimate: medium
-    status: in_progress
+    status: completed
     assignee: agent-9347
     started_at: "2026-04-02T13:10:00Z"
+    completed_at: "2026-04-02T14:20:00Z"
   - sprint_id: S1
     sprint_title: "Спринт 1 — Stabilization (2-4 недели)"
     task_id: TD-03

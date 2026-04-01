@@ -64,7 +64,17 @@ impl AccessKeyInstallationServiceTrait for AccessKeyInstallationServiceImpl {
         }
 
         let mut key_copy = key.clone();
-        self.encryption_service.deserialize_secret(&mut key_copy)?;
+        // Secret может храниться как JSON (plain), либо в зашифрованном виде.
+        // Сначала пробуем fast-path (plain JSON), затем fallback с decrypt.
+        if self
+            .encryption_service
+            .deserialize_secret(&mut key_copy)
+            .is_err()
+            && key_copy.secret.is_some()
+        {
+            self.encryption_service.decrypt_secret(&mut key_copy)?;
+            self.encryption_service.deserialize_secret(&mut key_copy)?;
+        }
         self.key_installer.install(&key_copy, usage, logger)
     }
 }
@@ -233,7 +243,9 @@ mod tests {
             source_storage_type: None,
         };
 
-        let installation = service.install(&key, DbAccessKeyRole::Git, &logger).unwrap();
+        let installation = service
+            .install(&key, DbAccessKeyRole::AnsibleUser, &logger)
+            .unwrap();
         assert!(installation.ssh_agent.is_none());
     }
 
@@ -344,5 +356,47 @@ mod tests {
 
         encryption.serialize_secret(&mut key).unwrap();
         assert!(key.secret.as_ref().is_some_and(|secret| secret.contains("\"login\":\"user\"")));
+    }
+
+    #[test]
+    fn test_access_key_install_service_accepts_encrypted_serialized_secret() {
+        let encryption = Box::new(SimpleEncryptionService::default());
+        let service = AccessKeyInstallationServiceImpl::new(encryption);
+        let logger = BasicLogger::new();
+
+        let mut key = DbAccessKey {
+            id: 1,
+            name: "Encrypted SSH".to_string(),
+            key_type: DbAccessKeyType::Ssh,
+            project_id: Some(1),
+            secret: None,
+            plain: None,
+            string_value: None,
+            login_password: None,
+            ssh_key: Some(DbSshKey {
+                login: "git".to_string(),
+                passphrase: "".to_string(),
+                private_key:
+                    "-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----"
+                        .to_string(),
+            }),
+            override_secret: false,
+            storage_id: None,
+            environment_id: None,
+            user_id: None,
+            empty: false,
+            owner: crate::db_lib::DbAccessKeyOwner::Shared,
+            source_storage_id: None,
+            source_storage_key: None,
+            source_storage_type: None,
+        };
+
+        let serializer = SimpleEncryptionService::default();
+        serializer.serialize_secret(&mut key).unwrap();
+        serializer.encrypt_secret(&mut key).unwrap();
+        key.ssh_key = None;
+
+        let installation = service.install(&key, DbAccessKeyRole::Git, &logger).unwrap();
+        assert!(installation.ssh_agent.is_some());
     }
 }
