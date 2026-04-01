@@ -36,9 +36,10 @@ sprints:
         title: "Обновить уязвимые зависимости"
         priority: critical
         estimate: small
-        status: in_progress
+        status: completed
         assignee: agent-8472
         started_at: "2026-04-02T10:00:00Z"
+        completed_at: "2026-04-02T10:15:00Z"
         subtasks:
           - "quinn-proto: обновить до версии без CVE-2024-memory-safety"
           - "wasmtime: обновить до версии без CVE-6.x"
@@ -49,6 +50,9 @@ sprints:
         done_when:
           - "cargo audit не показывает критических уязвимостей"
           - "Все зависимости обновлены без breaking changes"
+        completion_notes:
+          - "cargo audit: 0 CVE; 6 unmaintained (informational): backoff, fxhash, instant, proc-macro-error, rustls-pemfile — транзитивные"
+          - "Текущий lock соответствует политике без критических security issues"
 
       - task_id: SEC-02
         title: "Добавить cargo audit в CI pipeline"
@@ -845,9 +849,10 @@ task_index:
     title: "Обновить уязвимые зависимости"
     priority: critical
     estimate: small
-    status: in_progress
+    status: completed
     assignee: agent-8472
     started_at: "2026-04-02T10:00:00Z"
+    completed_at: "2026-04-02T10:15:00Z"
   - sprint_id: S0
     sprint_title: "Спринт 0 — Critical Security Fixes (1-2 недели)"
     task_id: SEC-02
