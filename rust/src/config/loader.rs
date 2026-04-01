@@ -80,6 +80,10 @@ pub fn load_from_env() -> Result<Config> {
         config.auth.totp.allow_recovery = val.to_lowercase() == "true" || val == "1";
     }
 
+    if let Ok(val) = env::var("SEMAPHORE_AUTH_EMAIL_LOGIN_ENABLED") {
+        config.auth.email_login_enabled = val.to_lowercase() == "true" || val == "1";
+    }
+
     // HA
     if let Ok(val) = env::var("SEMAPHORE_HA_ENABLE") {
         config.ha.enable = val.to_lowercase() == "true" || val == "1";
@@ -209,6 +213,7 @@ fn merge_auth_configs(first: AuthConfig, second: AuthConfig) -> AuthConfig {
         } else {
             first.oidc_providers
         },
+        email_login_enabled: second.email_login_enabled || first.email_login_enabled,
     }
 }
 

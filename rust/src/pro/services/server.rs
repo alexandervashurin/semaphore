@@ -85,23 +85,24 @@ impl SubscriptionService for SubscriptionServiceImpl {
     }
 
     fn has_active_subscription(&self) -> bool {
-        false
+        // Community / open-source: полный доступ без внешнего license-сервера
+        true
     }
 
     fn can_add_pro_user(&self) -> Result<bool> {
-        Ok(false)
+        Ok(true)
     }
 
     fn can_add_role(&self) -> Result<bool> {
-        Ok(false)
+        Ok(true)
     }
 
     fn can_add_runner(&self) -> Result<bool> {
-        Ok(false)
+        Ok(true)
     }
 
     fn can_add_terraform_http_backend(&self) -> Result<bool> {
-        Ok(false)
+        Ok(true)
     }
 
     fn start_validation_cron(&self) {
@@ -207,13 +208,13 @@ mod tests {
     #[test]
     fn test_subscription_service_has_active_subscription() {
         let service = SubscriptionServiceImpl::new();
-        assert!(!service.has_active_subscription());
+        assert!(service.has_active_subscription());
     }
 
     #[test]
     fn test_subscription_service_can_add_pro_user() {
         let service = SubscriptionServiceImpl::new();
-        assert_eq!(service.can_add_pro_user().unwrap(), false);
+        assert!(service.can_add_pro_user().unwrap());
     }
 
     #[test]

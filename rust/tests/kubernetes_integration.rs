@@ -46,6 +46,22 @@ async fn post_json(app: axum::Router, uri: &str, body: Value) -> (StatusCode, Va
     (status, json)
 }
 
+async fn post_json_auth(app: axum::Router, uri: &str, body: Value, token: &str) -> (StatusCode, Value) {
+    let body_str = serde_json::to_string(&body).unwrap();
+    let request = Request::builder()
+        .method("POST")
+        .uri(uri)
+        .header(header::CONTENT_TYPE, "application/json")
+        .header(header::AUTHORIZATION, format!("Bearer {}", token))
+        .body(Body::from(body_str))
+        .unwrap();
+    let response = app.oneshot(request).await.expect("oneshot");
+    let status = response.status();
+    let bytes = response.into_body().collect().await.unwrap().to_bytes();
+    let json: Value = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
+    (status, json)
+}
+
 async fn get_json(app: axum::Router, uri: &str) -> (StatusCode, Value) {
     let request = Request::builder()
         .method("GET")
@@ -145,8 +161,9 @@ async fn test_runbook_list_endpoint() {
     // Test without auth
     let (status, _) = get_json(
         app.clone(),
-        "/api/kubernetes/runbooks?kind=Pod&namespace=default"
-    ).await;
+        "/api/kubernetes/project/1/runbooks?kind=Pod&namespace=default",
+    )
+    .await;
     
     // Endpoint should exist
     assert!(status != StatusCode::NOT_FOUND);
@@ -166,10 +183,10 @@ async fn test_runbook_execute_no_template() {
         return;
     }
 
-    // Try to execute runbook without existing template
-    let (status, _body) = post_json(
+    let uri = format!("/api/kubernetes/project/{}/runbooks/execute", project_id);
+    let (status, _body) = post_json_auth(
         app.clone(),
-        "/api/kubernetes/runbooks/execute",
+        &uri,
         json!({
             "template_id": 99999,
             "kubernetes_context": {
@@ -180,7 +197,9 @@ async fn test_runbook_execute_no_template() {
             "task_params": {},
             "message": "Test runbook"
         }),
-    ).await;
+        &token,
+    )
+    .await;
     
     // Should return 404 for non-existent template
     assert_eq!(status, StatusCode::NOT_FOUND);
@@ -274,8 +293,8 @@ async fn test_kubernetes_api_endpoints_exist() {
     // Verify all new endpoints exist (return something other than 404 for route not found)
     let endpoints = vec![
         ("GET", "/api/kubernetes/troubleshoot?namespace=default&kind=Pod&name=test"),
-        ("GET", "/api/kubernetes/runbooks?kind=Pod&namespace=default"),
-        ("POST", "/api/kubernetes/runbooks/execute"),
+        ("GET", "/api/kubernetes/project/1/runbooks?kind=Pod&namespace=default"),
+        ("POST", "/api/kubernetes/project/1/runbooks/execute"),
         ("GET", "/api/kubernetes/prometheus/health"),
         ("GET", "/api/kubernetes/prometheus/metrics?namespace=default&kind=Pod&name=test"),
         ("GET", "/api/kubernetes/inventory/sync/preview?project_id=1&sync_type=nodes"),
@@ -372,7 +391,7 @@ async fn test_kubernetes_deployments_api_endpoints() {
             &"DELETE" => {
                 let request = Request::builder()
                     .method("DELETE")
-                    .uri(path)
+                    .uri(*path)
                     .body(Body::empty())
                     .unwrap();
                 let response = app.clone().oneshot(request).await.expect("oneshot");
@@ -462,7 +481,7 @@ async fn test_kubernetes_statefulsets_api_endpoints() {
             &"DELETE" => {
                 let request = Request::builder()
                     .method("DELETE")
-                    .uri(path)
+                    .uri(*path)
                     .body(Body::empty())
                     .unwrap();
                 let response = app.clone().oneshot(request).await.expect("oneshot");
@@ -507,7 +526,7 @@ async fn test_kubernetes_configmaps_api_endpoints() {
             &"DELETE" => {
                 let request = Request::builder()
                     .method("DELETE")
-                    .uri(path)
+                    .uri(*path)
                     .body(Body::empty())
                     .unwrap();
                 let response = app.clone().oneshot(request).await.expect("oneshot");
@@ -550,7 +569,7 @@ async fn test_kubernetes_secrets_api_endpoints() {
             &"DELETE" => {
                 let request = Request::builder()
                     .method("DELETE")
-                    .uri(path)
+                    .uri(*path)
                     .body(Body::empty())
                     .unwrap();
                 let response = app.clone().oneshot(request).await.expect("oneshot");
@@ -601,7 +620,7 @@ async fn test_kubernetes_jobs_cronjobs_api_endpoints() {
             &"DELETE" => {
                 let request = Request::builder()
                     .method("DELETE")
-                    .uri(path)
+                    .uri(*path)
                     .body(Body::empty())
                     .unwrap();
                 let response = app.clone().oneshot(request).await.expect("oneshot");

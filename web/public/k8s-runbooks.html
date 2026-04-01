@@ -181,7 +181,7 @@ async function loadRunbooks() {
 
     try {
         const params = new URLSearchParams({ kind, namespace });
-        const runbooks = await api.get(`/kubernetes/runbooks?${params}`);
+        const runbooks = await api.get(`/kubernetes/project/${projectId}/runbooks?${params}`);
         renderRunbooks(runbooks);
     } catch (e) {
         console.error('Failed to load runbooks:', e);
@@ -273,7 +273,7 @@ async function executeRunbook() {
     };
 
     try {
-        const result = await api.post('/kubernetes/runbooks/execute', payload);
+        const result = await api.post(`/kubernetes/project/${projectId}/runbooks/execute`, payload);
         showTaskStatus(result.task_id);
     } catch (e) {
         console.error('Failed to execute runbook:', e);
@@ -295,7 +295,7 @@ async function checkTaskStatus(taskId) {
     const projectId = $('#project-id').value;
     
     try {
-        const status = await api.get(`/kubernetes/runbooks/${taskId}/status`);
+        const status = await api.get(`/kubernetes/project/${projectId}/runbooks/${taskId}/status`);
         renderTaskStatus(status);
         
         if (status.status === 'success' || status.status === 'error' || status.status === 'stopped') {

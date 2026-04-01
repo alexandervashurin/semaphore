@@ -241,6 +241,10 @@ pub struct AuthConfig {
 
     #[serde(default)]
     pub oidc_providers: Vec<crate::config::config_oidc::OidcProvider>,
+
+    /// Показывать на login metadata флаг `email_enabled` (email-сценарии в UI)
+    #[serde(rename = "emailLoginEnabled", default)]
+    pub email_login_enabled: bool,
 }
 
 /// Конфигурация HA (High Availability)

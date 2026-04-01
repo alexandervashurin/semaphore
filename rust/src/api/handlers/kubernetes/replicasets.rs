@@ -192,8 +192,10 @@ pub async fn list_replicaset_pods(
         .collect::<Vec<_>>()
         .join(",");
 
-    let mut lp = ListParams::default();
-    lp.label_selector = Some(label_selector);
+    let lp = ListParams {
+        label_selector: Some(label_selector),
+        ..Default::default()
+    };
 
     let pod_list = pod_api
         .list(&lp)

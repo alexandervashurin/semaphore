@@ -19,6 +19,21 @@ use crate::db::store::UserManager;
 use crate::error::Error;
 use oauth2::TokenResponse;
 
+/// Первое непустое строковое значение claim по списку ключей (для OIDC userinfo).
+fn oidc_first_str_claim(info: &serde_json::Value, keys: &[&str]) -> String {
+    for k in keys {
+        if k.is_empty() {
+            continue;
+        }
+        if let Some(s) = info.get(*k).and_then(|v| v.as_str()) {
+            if !s.is_empty() {
+                return s.to_string();
+            }
+        }
+    }
+    String::new()
+}
+
 // ============================================================================
 // API Handlers
 // ============================================================================
@@ -289,24 +304,19 @@ pub async fn oidc_callback(
             )
         })?;
 
-    let email = userinfo
-        .get("email")
-        .or_else(|| userinfo.get("preferred_username"))
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
-    let username = userinfo
-        .get("preferred_username")
-        .or_else(|| userinfo.get("email"))
-        .or_else(|| userinfo.get("name"))
-        .and_then(|v| v.as_str())
-        .unwrap_or(&email)
-        .to_string();
-    let name = userinfo
-        .get("name")
-        .and_then(|v| v.as_str())
-        .unwrap_or(&username)
-        .to_string();
+    let ec = provider_config.email_claim.as_str();
+    let uc = provider_config.username_claim.as_str();
+    let nc = provider_config.name_claim.as_str();
+
+    let email = oidc_first_str_claim(&userinfo, &[ec, "email", "mail", "upn"]);
+    let mut username = oidc_first_str_claim(&userinfo, &[uc, "preferred_username", "name", "sub"]);
+    if username.is_empty() {
+        username = email.clone();
+    }
+    let mut name = oidc_first_str_claim(&userinfo, &[nc, "name", "preferred_username"]);
+    if name.is_empty() {
+        name = username.clone();
+    }
 
     if email.is_empty() && username.is_empty() {
         return Err((
@@ -418,7 +428,7 @@ pub async fn get_login_metadata(
     Ok(Json(LoginMetadataResponse {
         oidc_providers,
         totp_enabled: state.config.auth.totp.enable,
-        email_enabled: false,      // TODO: добавить email в AuthConfig
+        email_enabled: state.config.auth.email_login_enabled,
         login_with_password: true, // Включаем форму username+password для локальной аутентификации
     }))
 }
@@ -454,6 +464,19 @@ pub struct LoginMetadataResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn oidc_first_str_claim_respects_key_order() {
+        let v = serde_json::json!({"upn": "u@corp.example", "email": "e@corp.example"});
+        assert_eq!(
+            oidc_first_str_claim(&v, &["upn", "email"]),
+            "u@corp.example"
+        );
+        assert_eq!(
+            oidc_first_str_claim(&v, &["email", "upn"]),
+            "e@corp.example"
+        );
+    }
 
     #[test]
     fn test_oidc_provider_metadata_serialization() {

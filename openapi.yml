@@ -50,12 +50,82 @@ tags:
     description: Журнал аудита
   - name: Analytics
     description: Аналитика и метрики
+  - name: Health
+    description: Liveness/readiness и диагностика (часть путей без префикса /api — см. servers у операций)
   - name: Kubernetes
     description: Kubernetes ресурсы и операции кластера
   - name: Kubernetes WebSocket
-    description: WebSocket endpoints для real-time операций (exec/port-forward)
+    description: WebSocket — exec, port-forward, поток Events (namespace и cluster-wide)
 
 paths:
+  /healthz:
+    get:
+      tags: [Health]
+      summary: Liveness probe (Kubernetes)
+      description: |
+        HTTP liveness: процесс отвечает. Путь от корня приложения (не под `/api`).
+      operationId: healthz
+      servers:
+        - url: http://localhost:3000
+          description: Корень приложения
+      responses:
+        '200':
+          description: Процесс жив
+
+  /readyz:
+    get:
+      tags: [Health]
+      summary: Readiness probe (БД и зависимости)
+      description: |
+        `200` — БД доступна; `503` — не готов принимать трафик. Путь от корня приложения.
+      operationId: readyz
+      servers:
+        - url: http://localhost:3000
+          description: Корень приложения
+      responses:
+        '200':
+          description: Готов
+        '503':
+          description: Не готов
+
+  /health:
+    get:
+      tags: [Health]
+      summary: Общий health (под базовым /api)
+      operationId: healthApiRoot
+      responses:
+        '200':
+          description: OK
+
+  /health/live:
+    get:
+      tags: [Health]
+      summary: Live probe (без проверки БД)
+      operationId: healthLive
+      responses:
+        '200':
+          description: OK
+
+  /health/ready:
+    get:
+      tags: [Health]
+      summary: Ready probe (проверка БД)
+      operationId: healthReadyApi
+      responses:
+        '200':
+          description: Готов
+        '503':
+          description: Не готов
+
+  /health/full:
+    get:
+      tags: [Health]
+      summary: Расширенный отчёт о состоянии
+      operationId: healthFull
+      responses:
+        '200':
+          description: OK
+
   /auth/login:
     post:
       tags: [Authentication]
@@ -552,6 +622,52 @@ paths:
             type: integer
             minimum: 1
             maximum: 65535
+      responses:
+        '101':
+          description: Switching Protocols (WebSocket upgraded)
+
+  /kubernetes/events/stream:
+    get:
+      tags: [Kubernetes WebSocket]
+      summary: Поток событий кластера (все namespace, WebSocket)
+      description: |
+        Cluster-wide watch событий Kubernetes. После upgrade клиент получает JSON-сообщения
+        (`Event`, `connected`, `error`, `heartbeat`). Query `types` — фильтр по типам, например `Normal,Warning`.
+      operationId: k8sClusterEventsStreamWs
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: types
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Через запятую, например Normal,Warning"
+      responses:
+        '101':
+          description: Switching Protocols (WebSocket upgraded)
+
+  /kubernetes/namespaces/{namespace}/events/stream:
+    get:
+      tags: [Kubernetes WebSocket]
+      summary: Поток событий Kubernetes в namespace (WebSocket)
+      description: |
+        Watch событий в одном namespace. Query `types` — опциональный фильтр.
+      operationId: k8sNamespaceEventsStreamWs
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: namespace
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: types
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Через запятую, например Normal,Warning"
       responses:
         '101':
           description: Switching Protocols (WebSocket upgraded)

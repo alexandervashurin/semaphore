@@ -5,6 +5,18 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+fn default_oidc_email_claim() -> String {
+    "email".to_string()
+}
+
+fn default_oidc_username_claim() -> String {
+    "preferred_username".to_string()
+}
+
+fn default_oidc_name_claim() -> String {
+    "name".to_string()
+}
+
 /// OIDC провайдер
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OidcProvider {
@@ -43,6 +55,18 @@ pub struct OidcProvider {
     /// Icon
     #[serde(default)]
     pub icon: String,
+
+    /// Имя claim для email в userinfo (например `email`, `mail`, `upn` для AAD)
+    #[serde(default = "default_oidc_email_claim")]
+    pub email_claim: String,
+
+    /// Имя claim для логина (например `preferred_username`, `sub`)
+    #[serde(default = "default_oidc_username_claim")]
+    pub username_claim: String,
+
+    /// Имя claim для отображаемого имени
+    #[serde(default = "default_oidc_name_claim")]
+    pub name_claim: String,
 }
 
 /// OIDC Endpoint
@@ -89,6 +113,9 @@ impl Default for OidcProvider {
             endpoint: OidcEndpoint::default(),
             color: String::new(),
             icon: String::new(),
+            email_claim: default_oidc_email_claim(),
+            username_claim: default_oidc_username_claim(),
+            name_claim: default_oidc_name_claim(),
         }
     }
 }

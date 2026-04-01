@@ -206,3 +206,59 @@ pub async fn execute_task(store: Arc<dyn Store + Send + Sync>, mut task: Task) {
         }
     }
 }
+
+/// Отправляет Telegram уведомление о завершении задачи
+pub async fn send_telegram_notification(
+    telegram_bot: Option<&std::sync::Arc<crate::services::telegram_bot::TelegramBot>>,
+    task: &Task,
+    template_name: &str,
+    project_name: &str,
+    author: &str,
+) {
+    let Some(bot) = telegram_bot else {
+        return;
+    };
+
+    let task_url = format!(
+        "{}/project/{}/tasks/{}",
+        crate::config::get_public_host(),
+        task.project_id,
+        task.id
+    );
+
+    let duration_secs = task
+        .end
+        .zip(task.start)
+        .map(|(end, start)| (end - start).num_seconds() as u64)
+        .unwrap_or(0);
+
+    match task.status {
+        TaskStatus::Success => {
+            bot.notify_task_success(
+                project_name,
+                template_name,
+                task.id,
+                author,
+                duration_secs,
+                &task_url,
+            )
+            .await;
+        }
+        TaskStatus::Error => {
+            bot.notify_task_failed(
+                project_name,
+                template_name,
+                task.id,
+                author,
+                duration_secs,
+                &task_url,
+            )
+            .await;
+        }
+        TaskStatus::Stopped => {
+            bot.notify_task_stopped(project_name, template_name, task.id, &task_url)
+                .await;
+        }
+        _ => {}
+    }
+}

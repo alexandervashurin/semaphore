@@ -104,9 +104,7 @@ pub async fn delete_api_token(
 // ============================================================================
 
 /// Контроллер пользователя
-pub struct UserController {
-    // TODO: Интеграция с subscription service
-}
+pub struct UserController {}
 
 impl UserController {
     /// Создаёт новый контроллер
@@ -125,7 +123,7 @@ impl UserController {
         let response = UserResponse {
             user: full_user,
             can_create_project: admin || state.config.non_admin_can_create_project(),
-            has_active_subscription: false, // TODO: Интеграция с subscription service
+            has_active_subscription: state.subscription.has_active_subscription(),
         };
 
         Ok(Json(response))

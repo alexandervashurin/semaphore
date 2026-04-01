@@ -463,7 +463,10 @@ sudo systemctl enable --now velum
 | `VELUM_ADMIN_EMAIL` | — | Email первого администратора |
 | `VELUM_LDAP_*` | — | LDAP-настройки (опционально) |
 | `VELUM_OIDC_*` | — | OIDC-настройки (опционально) |
+| `SEMAPHORE_AUTH_EMAIL_LOGIN_ENABLED` | `false` | `true` — в login metadata включается `emailEnabled` для UI |
 | `RUST_LOG` | `info` | Уровень логирования |
+
+В JSON-конфиге у объектов `auth.oidc_providers[]` можно задать поля **`email_claim`**, **`username_claim`**, **`name_claim`** (имена claims в OIDC userinfo; по умолчанию `email`, `preferred_username`, `name`). Также **`auth.emailLoginEnabled`** — то же, что переменная `SEMAPHORE_AUTH_EMAIL_LOGIN_ENABLED`.
 
 ---
 

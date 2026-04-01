@@ -15,6 +15,20 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+/// Проверяет `cron` до записи в БД. Для `cron_format = run_at` выражение не парсится как cron.
+fn schedule_cron_must_parse(schedule: &Schedule) -> Option<String> {
+    if schedule.cron_format.as_deref() == Some("run_at") {
+        return None;
+    }
+    if schedule.cron.trim().is_empty() {
+        return Some("Cron expression cannot be empty".to_string());
+    }
+    match schedule.cron.parse::<cron::Schedule>() {
+        Ok(_) => None,
+        Err(e) => Some(format!("Invalid cron expression: {}", e)),
+    }
+}
+
 /// Получает расписания проекта
 pub async fn get_project_schedules(
     State(state): State<Arc<AppState>>,
@@ -62,6 +76,10 @@ pub async fn add_schedule(
     let mut schedule = payload;
     schedule.project_id = project_id;
 
+    if let Some(err) = schedule_cron_must_parse(&schedule) {
+        return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse::new(err))));
+    }
+
     let created = state.store.create_schedule(schedule).await.map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -81,6 +99,10 @@ pub async fn update_schedule(
     let mut schedule = payload;
     schedule.id = schedule_id;
     schedule.project_id = project_id;
+
+    if let Some(err) = schedule_cron_must_parse(&schedule) {
+        return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse::new(err))));
+    }
 
     state.store.update_schedule(schedule).await.map_err(|e| {
         (
@@ -194,9 +216,44 @@ pub struct ValidateCronResponse {
 mod tests {
     use super::*;
 
+    fn sample_schedule(cron: &str, cron_format: Option<&str>) -> Schedule {
+        Schedule {
+            id: 0,
+            template_id: 1,
+            project_id: 1,
+            cron: cron.to_string(),
+            cron_format: cron_format.map(String::from),
+            name: "t".to_string(),
+            active: true,
+            last_commit_hash: None,
+            repository_id: None,
+            created: None,
+            run_at: None,
+            delete_after_run: false,
+        }
+    }
+
     #[test]
-    fn test_schedules_handler() {
-        // Тест для проверки обработчиков расписаний
-        assert!(true);
+    fn cron_validation_rejects_invalid_expression() {
+        let s = sample_schedule("not valid cron syntax", None);
+        assert!(schedule_cron_must_parse(&s).is_some());
+    }
+
+    #[test]
+    fn cron_validation_accepts_standard_expression() {
+        let s = sample_schedule("0 0 * * * *", None);
+        assert!(schedule_cron_must_parse(&s).is_none());
+    }
+
+    #[test]
+    fn cron_validation_skips_when_run_at_format() {
+        let s = sample_schedule("", Some("run_at"));
+        assert!(schedule_cron_must_parse(&s).is_none());
+    }
+
+    #[test]
+    fn cron_validation_rejects_empty_cron_when_not_run_at() {
+        let s = sample_schedule("   ", None);
+        assert!(schedule_cron_must_parse(&s).is_some());
     }
 }

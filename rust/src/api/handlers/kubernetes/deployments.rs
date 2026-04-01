@@ -398,14 +398,12 @@ pub async fn restart_deployment(
             "kubectl.kubernetes.io/restartedAt".to_string(),
             restart_time,
         );
-    } else {
-        if let Some(spec) = deployment.spec.as_mut() {
-            if let Some(meta) = spec.template.metadata.as_mut() {
-                meta.annotations = Some(BTreeMap::from([(
-                    "kubectl.kubernetes.io/restartedAt".to_string(),
-                    restart_time,
-                )]));
-            }
+    } else if let Some(spec) = deployment.spec.as_mut() {
+        if let Some(meta) = spec.template.metadata.as_mut() {
+            meta.annotations = Some(BTreeMap::from([(
+                "kubectl.kubernetes.io/restartedAt".to_string(),
+                restart_time,
+            )]));
         }
     }
 

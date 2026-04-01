@@ -57,6 +57,12 @@ impl RbacCache {
     }
 }
 
+impl Default for RbacCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 // Глобальный кэш с безопасной инициализацией
 static RBAC_CACHE: OnceCell<Arc<RbacCache>> = OnceCell::new();
 
