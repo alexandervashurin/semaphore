@@ -216,7 +216,7 @@ sprints:
         title: "Subscription service integration"
         priority: medium
         estimate: medium
-        status: in_progress
+        status: completed
         assignee: assistant
         subtasks:
           - "Интеграция в auth.rs:610"
@@ -225,6 +225,11 @@ sprints:
         done_when:
           - "PRO функции проверяют подписку"
           - "Тесты проходят"
+        completion_notes:
+          - "AppState.subscription: Arc<dyn SubscriptionService>"
+          - "get_current_user / UserController — has_active_subscription"
+          - "UsersController.add_user — can_add_pro_user при pro"
+          - "SubscriptionServiceImpl: community (без лимитов); get_token по-прежнему NotFound"
 
       - task_id: TD-05
         title: "Kubernetes runbook integration"
@@ -929,7 +934,7 @@ task_index:
     title: "Subscription service integration"
     priority: medium
     estimate: medium
-    status: in_progress
+    status: completed
     assignee: assistant
   - sprint_id: S1
     sprint_title: "Спринт 1 — Stabilization (2-4 недели)"
