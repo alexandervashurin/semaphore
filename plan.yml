@@ -178,7 +178,9 @@ sprints:
         title: "Exporter/Importer fix (T-BE-15)"
         priority: high
         estimate: small
-        status: todo
+        status: in_progress
+        assignee: agent-7734
+        started_at: "2026-04-01T12:00:00Z"
         subtasks:
           - "Исправить async/sync конфликт в exporter_entities.rs"
           - "Удалить dead code"
@@ -946,7 +948,9 @@ task_index:
     title: "Exporter/Importer fix (T-BE-15)"
     priority: high
     estimate: small
-    status: todo
+    status: in_progress
+    assignee: agent-7734
+    started_at: "2026-04-01T12:00:00Z"
   - sprint_id: S1
     sprint_title: "Спринт 1 — Stabilization (2-4 недели)"
     task_id: TD-04
