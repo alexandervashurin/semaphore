@@ -1,0 +1,5 @@
+{
+  "name": "Demo Playbook",
+  "content": "- hosts: ansible-target\n  tasks:\n    - name: Hello World\n      debug:\n        msg: \"Hello from Velum!\"",
+  "playbook_type": "ansible"
+}

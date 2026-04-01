@@ -172,6 +172,27 @@
             background: #e8f0fe; color: #1a56db;
             border-radius: 10px; font-size: 11px; margin: 2px;
         }
+        .yaml-editor {
+            width: 100%;
+            min-height: 360px;
+            font-family: "Courier New", monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px;
+            resize: vertical;
+        }
+        .yaml-result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            background: var(--background);
+            color: var(--text-light);
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
     </style>
 </head>
 <body>
@@ -363,6 +384,25 @@
     </div>
 </div>
 
+<!-- Pod YAML dry-run modal -->
+<div id="podYamlModal" class="log-modal-overlay" style="display:none">
+    <div class="pf-modal" style="width:860px;max-width:96vw;max-height:88vh;overflow:auto">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <h3 style="margin:0;font-size:16px"><i class="fa-solid fa-code"></i> Pod YAML Dry-run</h3>
+            <button class="btn btn-secondary btn-sm" onclick="closePodYamlModal()">✕</button>
+        </div>
+        <div id="podYamlMeta" style="font-size:12px;color:var(--text-light);margin-bottom:8px"></div>
+        <textarea id="podYamlEditor" class="yaml-editor" spellcheck="false"></textarea>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+            <button class="btn btn-secondary" onclick="closePodYamlModal()">Закрыть</button>
+            <button class="btn btn-primary" id="podYamlDryRunBtn" onclick="runPodYamlDryRun()">
+                <i class="fa-solid fa-vial"></i> Dry-run
+            </button>
+        </div>
+        <div id="podYamlResult" class="yaml-result">Нажмите Dry-run для проверки манифеста.</div>
+    </div>
+</div>
+
 <script src="app.js"></script>
 <script>
 // ── State ──────────────────────────────────────────────────────────────────
@@ -372,6 +412,7 @@ let podsCache = [];       // all loaded pods
 let continueStack = [];   // pagination stack
 let nextContinue = null;
 let currentLogPod = null;
+let currentYamlPod = null;
 
 const LIMIT = 100;
 
@@ -539,6 +580,9 @@ function renderPodsTable() {
                 <button class="tbl-icon-btn" title="Port Forward" onclick="openPortForward(${JSON.stringify(pod.name)})">
                     <i class="fa-solid fa-network-wired"></i>
                 </button>
+                <button class="tbl-icon-btn" title="YAML dry-run" onclick="openPodYamlModal(${JSON.stringify(pod.name)})">
+                    <i class="fa-solid fa-file-code"></i>
+                </button>
                 <button class="tbl-icon-btn" title="Evict" onclick="confirmEvict(${JSON.stringify(pod.name)})">
                     <i class="fa-solid fa-person-walking-arrow-right"></i>
                 </button>
@@ -632,6 +676,9 @@ function renderPodDetail(pod) {
             </button>
             <button class="btn btn-secondary btn-sm" style="margin-left:8px" onclick="openPortForward(${JSON.stringify(pod.name)})">
                 <i class="fa-solid fa-network-wired"></i> Port Forward
+            </button>
+            <button class="btn btn-secondary btn-sm" style="margin-left:8px" onclick="openPodYamlModal(${JSON.stringify(pod.name)})">
+                <i class="fa-solid fa-file-code"></i> YAML dry-run
             </button>
             <button class="btn btn-danger btn-sm" style="margin-left:8px" onclick="confirmDelete(${JSON.stringify(pod.name)})">
                 <i class="fa-solid fa-trash"></i> Удалить
@@ -944,6 +991,63 @@ function pfLog(msg) {
 function setPfStatus(state, text) {
     document.getElementById('pfStatusDot').className = `exec-status-dot ${state}`;
     document.getElementById('pfStatusText').textContent = text;
+}
+
+// ── Inline YAML dry-run ─────────────────────────────────────────────────────
+async function openPodYamlModal(podName) {
+    currentYamlPod = podName;
+    document.getElementById('podYamlMeta').textContent = `Pod: ${currentNamespace}/${podName}`;
+    document.getElementById('podYamlEditor').value = '';
+    document.getElementById('podYamlResult').textContent = 'Загрузка текущего манифеста...';
+    document.getElementById('podYamlModal').style.display = 'flex';
+    try {
+        const pod = await api.get(
+            `/kubernetes/clusters/${encodeURIComponent(currentClusterId)}/namespaces/${encodeURIComponent(currentNamespace)}/pods/${encodeURIComponent(podName)}`
+        );
+        // Убираем поля, которые сервер не даст применить обратно.
+        if (pod.metadata) {
+            delete pod.metadata.managedFields;
+            delete pod.metadata.resourceVersion;
+            delete pod.metadata.uid;
+            delete pod.metadata.creationTimestamp;
+        }
+        delete pod.status;
+        document.getElementById('podYamlEditor').value = JSON.stringify(pod, null, 2);
+        document.getElementById('podYamlResult').textContent = 'Манифест загружен. Отредактируйте и нажмите Dry-run.';
+    } catch (e) {
+        document.getElementById('podYamlResult').textContent = `Ошибка загрузки: ${e.message || String(e)}`;
+    }
+}
+
+function closePodYamlModal() {
+    document.getElementById('podYamlModal').style.display = 'none';
+    currentYamlPod = null;
+}
+
+async function runPodYamlDryRun() {
+    const manifest = (document.getElementById('podYamlEditor').value || '').trim();
+    if (!manifest) {
+        alert('Манифест пуст');
+        return;
+    }
+    const btn = document.getElementById('podYamlDryRunBtn');
+    const out = document.getElementById('podYamlResult');
+    btn.disabled = true;
+    out.textContent = 'Выполняется server dry-run...';
+    try {
+        const res = await api.post('/kubernetes/apply', {
+            manifest,
+            dry_run: true,
+        });
+        const resources = (res.resources || [])
+            .map(r => `${r.action}: ${r.kind}/${r.name}${r.namespace ? ` (${r.namespace})` : ''}`)
+            .join('\n');
+        out.textContent = `OK: dry-run прошел успешно\n\n${resources || '(ресурсы не распознаны)'}`;
+    } catch (e) {
+        out.textContent = `Ошибка dry-run:\n${e.message || String(e)}`;
+    } finally {
+        btn.disabled = false;
+    }
 }
 
 // ── UI helpers ─────────────────────────────────────────────────────────────

@@ -336,12 +336,32 @@ impl AlertService {
             }
         });
 
-        if let Some(secret_key) = secret {
-            // TODO: Добавить подпись для безопасности
-            payload["sign"] = serde_json::json!(secret_key);
-        }
+        // DingTalk requires timestamp-based HMAC-SHA256: sign = base64(HMAC(timestamp+"\n"+secret, secret))
+        let url = if let Some(secret_key) = secret {
+            use base64::Engine as _;
+            use hmac::{Hmac, Mac};
+            use sha2::Sha256;
+            type HmacSha256 = Hmac<Sha256>;
 
-        let response = self.client.post(webhook_url).json(&payload).send().await?;
+            let timestamp = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis()
+                .to_string();
+            let string_to_sign = format!("{}\n{}", timestamp, secret_key);
+            let mut mac = HmacSha256::new_from_slice(secret_key.as_bytes())
+                .expect("HMAC accepts any key length");
+            mac.update(string_to_sign.as_bytes());
+            let sign_bytes = mac.finalize().into_bytes();
+            let sign = base64::engine::general_purpose::STANDARD.encode(sign_bytes);
+            // Percent-encode base64 chars that are unsafe in URL query params
+            let encoded_sign = sign.replace('+', "%2B").replace('/', "%2F").replace('=', "%3D");
+            format!("{webhook_url}&timestamp={timestamp}&sign={encoded_sign}")
+        } else {
+            webhook_url.to_string()
+        };
+
+        let response = self.client.post(&url).json(&payload).send().await?;
 
         if !response.status().is_success() {
             return Err(Error::Other(format!(
@@ -500,5 +520,14 @@ mod tests {
         let (author, version) = service.alert_infos();
         assert_eq!(author, "testuser");
         assert_eq!(version, "1.0.0");
+    }
+
+    #[test]
+    fn test_hmac_webhook() {
+        let signature = AlertService::compute_hmac_signature("secret", br#"{"ping":"pong"}"#);
+        assert_eq!(
+            signature,
+            "sha256=d4a0a190424950646d97770a70dbd0b331d19775a0024a3e762fd0cdf933c498"
+        );
     }
 }

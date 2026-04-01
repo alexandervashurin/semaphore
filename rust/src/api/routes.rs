@@ -845,6 +845,9 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         // WebSocket: exec terminal + port-forward
         .route("/api/kubernetes/clusters/{cluster_id}/namespaces/{namespace}/pods/{name}/exec", get(handlers::pod_exec))
         .route("/api/kubernetes/clusters/{cluster_id}/namespaces/{namespace}/pods/{name}/portforward", get(handlers::pod_portforward))
+        // K-01: WebSocket: cluster-wide and namespace-scoped real-time events stream
+        .route("/api/kubernetes/namespaces/{namespace}/events/stream", get(handlers::events_websocket))
+        .route("/api/kubernetes/events/stream", get(handlers::cluster_events_websocket))
         .route("/api/kubernetes/deployments", get(handlers::list_deployments))
         .route("/api/kubernetes/namespaces/{namespace}/deployments/{name}", get(handlers::get_deployment))
         .route("/api/kubernetes/namespaces/{namespace}/deployments/{name}/scale", put(handlers::scale_deployment))

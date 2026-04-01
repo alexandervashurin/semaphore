@@ -30,6 +30,7 @@ impl PlaybookRunService {
     pub async fn run_playbook<S>(
         playbook_id: i32,
         project_id: i32,
+        user_id: i32,
         request: PlaybookRunRequest,
         store: &S,
     ) -> Result<PlaybookRunResult>
@@ -58,8 +59,7 @@ impl PlaybookRunService {
             store.get_environment(project_id, environment_id).await?;
         }
 
-        // 5. Получаем пользователя (если указан)
-        let user_id = request.user_id.unwrap_or(1); // TODO: получить из контекста аутентификации
+        // 5. Проверяем пользователя из контекста аутентификации
         let _user = store.get_user(user_id).await?;
 
         // 6. Создаем template для playbook (если нет)

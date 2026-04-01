@@ -85,14 +85,13 @@ pub async fn list_kubernetes_clusters(
 }
 
 pub async fn add_kubernetes_cluster(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
     Json(payload): Json<AddClusterRequest>,
 ) -> Result<Json<KubernetesCluster>> {
-    // В реальной реализации:
-    // 1. Парсим kubeconfig
-    // 2. Проверяем подключение к кластеру
-    // 3. Сохраняем в конфиг/БД
-    
+    // Encrypt kubeconfig blob with AES-256-GCM before storing in memory
+    let encrypted = encrypt_kubeconfig(&state, &payload.kubeconfig)?;
+    state.kubeconfigs.insert(payload.name.clone(), encrypted);
+
     Ok(Json(KubernetesCluster {
         name: payload.name.clone(),
         context: payload.name.clone(),
@@ -102,6 +101,41 @@ pub async fn add_kubernetes_cluster(
         is_reachable: true,
         namespaces_count: Some(0),
     }))
+}
+
+/// Encrypts a kubeconfig string with AES-256-GCM using the app encryption key
+fn encrypt_kubeconfig(state: &AppState, kubeconfig: &str) -> Result<String> {
+    use crate::utils::encryption::aes256_encrypt;
+    let key = derive_encryption_key(&state.config);
+    aes256_encrypt(kubeconfig.as_bytes(), &key)
+        .map_err(|e| Error::Other(format!("Kubeconfig encryption failed: {e}")))
+}
+
+/// Decrypts a stored kubeconfig string
+#[allow(dead_code)]
+fn decrypt_kubeconfig(state: &AppState, encrypted: &str) -> Result<String> {
+    use crate::utils::encryption::aes256_decrypt;
+    let key = derive_encryption_key(&state.config);
+    let bytes = aes256_decrypt(encrypted, &key)
+        .map_err(|e| Error::Other(format!("Kubeconfig decryption failed: {e}")))?;
+    String::from_utf8(bytes).map_err(|e| Error::Other(format!("Kubeconfig UTF-8 error: {e}")))
+}
+
+/// Derives a 32-byte AES key from env var SEMAPHORE_KUBECONFIG_KEY or cookie_hash
+fn derive_encryption_key(config: &crate::config::Config) -> [u8; 32] {
+    let mut key = [0u8; 32];
+    if let Ok(raw) = std::env::var("SEMAPHORE_KUBECONFIG_KEY")
+        .or_else(|_| std::env::var("SEMAPHORE_ACCESS_KEY_ENCRYPTION"))
+    {
+        let b = raw.as_bytes();
+        let len = b.len().min(32);
+        key[..len].copy_from_slice(&b[..len]);
+    } else {
+        // Fall back to cookie_hash (Vec<u8>, already 32 bytes or less)
+        let len = config.cookie_hash.len().min(32);
+        key[..len].copy_from_slice(&config.cookie_hash[..len]);
+    }
+    key
 }
 
 pub async fn switch_kubernetes_cluster(

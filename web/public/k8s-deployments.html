@@ -36,6 +36,27 @@
             text-align: center;
             font-weight: 600;
         }
+        .yaml-editor {
+            width: 100%;
+            min-height: 360px;
+            font-family: "Courier New", monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px;
+            resize: vertical;
+        }
+        .yaml-result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            background: var(--background);
+            color: var(--text-light);
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
     </style>
 </head>
 <body>
@@ -125,11 +146,28 @@
     </div>
 </div>
 
+<!-- Deployment YAML dry-run modal -->
+<div id="deploy-yaml-modal" class="modal">
+    <div class="modal-content" style="max-width: 900px;">
+        <h3><i class="fa-solid fa-file-code"></i> Deployment YAML Dry-run</h3>
+        <div id="deploy-yaml-meta" style="font-size:12px;color:#666;margin-bottom:8px"></div>
+        <textarea id="deploy-yaml-editor" class="yaml-editor" spellcheck="false"></textarea>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+            <button class="btn btn-secondary" onclick="closeDeploymentYamlModal()">Закрыть</button>
+            <button class="btn btn-primary" id="deploy-yaml-dryrun-btn" onclick="runDeploymentYamlDryRun()">
+                <i class="fa-solid fa-vial"></i> Dry-run
+            </button>
+        </div>
+        <div id="deploy-yaml-result" class="yaml-result">Нажмите Dry-run для проверки манифеста.</div>
+    </div>
+</div>
+
 <script src="app.js"></script>
 <script>
 checkAuth();
 let deploymentsData = [];
 let autoRefreshInterval = null;
+let currentYamlDeployment = null;
 
 // Загрузка namespaces
 async function loadNamespaces() {
@@ -216,6 +254,9 @@ function renderDeployments(deploys) {
                         <td style="display: flex; gap: 4px; flex-wrap: wrap;">
                             <button class="btn btn-sm btn-secondary" onclick="showDetails('${escapeHtml(deploy.name)}', '${escapeHtml(deploy.namespace)}')" title="Details">
                                 <i class="fa-solid fa-eye"></i>
+                            </button>
+                            <button class="btn btn-sm btn-secondary" onclick="openDeploymentYamlModal('${escapeHtml(deploy.name)}', '${escapeHtml(deploy.namespace)}')" title="YAML dry-run">
+                                <i class="fa-solid fa-file-code"></i>
                             </button>
                             <button class="btn btn-sm btn-info" onclick="showDeploymentEvents('${escapeHtml(deploy.name)}', '${escapeHtml(deploy.namespace)}')" title="Recent Events">
                                 <i class="fa-solid fa-bell"></i>
@@ -384,6 +425,11 @@ async function showDetails(name, namespace) {
                 
                 <h4>Selector</h4>
                 <pre>${JSON.stringify(data.selector, null, 2)}</pre>
+                <div style="margin:12px 0 4px">
+                    <button class="btn btn-sm btn-secondary" onclick="openDeploymentYamlModal('${escapeHtml(name)}', '${escapeHtml(namespace)}')">
+                        <i class="fa-solid fa-file-code"></i> YAML dry-run
+                    </button>
+                </div>
                 
                 <h4>Conditions</h4>
                 <table class="table">
@@ -458,6 +504,59 @@ function toggleAutoRefresh() {
 function updateLastUpdate() {
     const now = new Date();
     $('#last-update').textContent = 'Обновлено: ' + now.toLocaleTimeString();
+}
+
+async function openDeploymentYamlModal(name, namespace) {
+    currentYamlDeployment = { name, namespace };
+    $('#deploy-yaml-meta').textContent = `Deployment: ${namespace}/${name}`;
+    $('#deploy-yaml-editor').value = '';
+    $('#deploy-yaml-result').textContent = 'Загрузка текущего манифеста...';
+    $('#deploy-yaml-modal').classList.add('active');
+    try {
+        const deployment = await api.get(`/kubernetes/namespaces/${encodeURIComponent(namespace)}/deployments/${encodeURIComponent(name)}`);
+        if (deployment.metadata) {
+            delete deployment.metadata.managedFields;
+            delete deployment.metadata.resourceVersion;
+            delete deployment.metadata.uid;
+            delete deployment.metadata.creationTimestamp;
+        }
+        delete deployment.status;
+        $('#deploy-yaml-editor').value = JSON.stringify(deployment, null, 2);
+        $('#deploy-yaml-result').textContent = 'Манифест загружен. Отредактируйте и нажмите Dry-run.';
+    } catch (e) {
+        $('#deploy-yaml-result').textContent = `Ошибка загрузки: ${e.message || String(e)}`;
+    }
+}
+
+function closeDeploymentYamlModal() {
+    $('#deploy-yaml-modal').classList.remove('active');
+    currentYamlDeployment = null;
+}
+
+async function runDeploymentYamlDryRun() {
+    const manifest = ($('#deploy-yaml-editor').value || '').trim();
+    if (!manifest) {
+        alert('Манифест пуст');
+        return;
+    }
+    const btn = $('#deploy-yaml-dryrun-btn');
+    const out = $('#deploy-yaml-result');
+    btn.disabled = true;
+    out.textContent = 'Выполняется server dry-run...';
+    try {
+        const res = await api.post('/kubernetes/apply', {
+            manifest,
+            dry_run: true,
+        });
+        const resources = (res.resources || [])
+            .map(r => `${r.action}: ${r.kind}/${r.name}${r.namespace ? ` (${r.namespace})` : ''}`)
+            .join('\n');
+        out.textContent = `OK: dry-run прошел успешно\n\n${resources || '(ресурсы не распознаны)'}`;
+    } catch (e) {
+        out.textContent = `Ошибка dry-run:\n${e.message || String(e)}`;
+    } finally {
+        btn.disabled = false;
+    }
 }
 
 // Pause Deployment

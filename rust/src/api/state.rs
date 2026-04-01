@@ -10,6 +10,7 @@ use crate::config::Config;
 use crate::db::Store;
 use crate::error::{Error, Result};
 use crate::services::metrics::MetricsManager;
+use dashmap::DashMap;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -35,6 +36,8 @@ pub struct AppState {
     pub rate_limiter_auth: Arc<RateLimiter>,
     /// JWT blacklist — отозванные токены до истечения их TTL
     pub token_blacklist: TokenBlacklist,
+    /// Зашифрованные kubeconfig'и (name → AES-256-GCM encrypted base64)
+    pub kubeconfigs: Arc<DashMap<String, String>>,
 }
 
 impl AppState {
@@ -62,6 +65,7 @@ impl AppState {
                 burst_size: None,
             })),
             token_blacklist: TokenBlacklist::new(),
+            kubeconfigs: Arc::new(DashMap::new()),
         }
     }
 

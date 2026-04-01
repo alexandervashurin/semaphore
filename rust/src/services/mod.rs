@@ -36,8 +36,7 @@ pub mod workflow_executor;
 
 pub use access_key_installation_service::{
     AccessKeyEncryptionService, AccessKeyInstallationServiceImpl,
-    AccessKeyInstallationServiceTrait, AccessKeyServiceImpl, AccessKeyServiceTrait,
-    GetAccessKeyOptions, SimpleEncryptionService,
+    AccessKeyInstallationServiceTrait, SimpleEncryptionService,
 };
 pub use alert::AlertService;
 pub use backup::{BackupDB, BackupEntity, BackupFormat, BackupSluggedEntity};

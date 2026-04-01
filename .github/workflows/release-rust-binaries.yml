@@ -1,0 +1,98 @@
+name: Release Rust Binaries
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v1.0.0)"
+        required: true
+        default: "v1.0.0"
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    name: Build Linux binaries
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+            asset_name: velum-linux-amd64
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            asset_name: velum-linux-arm64
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends \
+            libssl-dev \
+            pkg-config \
+            libsqlite3-dev
+
+      - name: Build release binary
+        working-directory: rust
+        run: cargo build --release
+
+      - name: Prepare asset
+        run: |
+          cp "rust/target/release/velum" "${{ matrix.asset_name }}"
+          chmod +x "${{ matrix.asset_name }}"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: ${{ matrix.asset_name }}
+          retention-days: 7
+
+  publish-release:
+    name: Publish GitHub Release
+    needs: build-linux
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Resolve release tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "value=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Flatten artifacts
+        run: |
+          mkdir -p release-assets
+          cp dist/velum-linux-amd64/velum-linux-amd64 release-assets/
+          cp dist/velum-linux-arm64/velum-linux-arm64 release-assets/
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.tag.outputs.value }}" \
+            --title "Velum ${{ steps.tag.outputs.value }}" \
+            --notes-file docs/releases/RELEASE_v1.0.0.md \
+            release-assets/velum-linux-amd64 \
+            release-assets/velum-linux-arm64

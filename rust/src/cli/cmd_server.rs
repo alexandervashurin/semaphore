@@ -135,10 +135,8 @@ impl ServerCommand {
                         eprintln!("Warning: scheduler stop error: {}", e);
                     }
 
-                    println!("Stopping backup service...");
-                    if backup_enabled {
-                        // Остановка backup сервиса
-                    }
+                    println!("Waiting for running jobs to finish (max 30s)...");
+                    job_pool.shutdown().await;
 
                     println!("Closing database connections...");
                     // Закрытие соединений с БД будет выполнено автоматически при дропе store

@@ -1,7 +1,6 @@
 //! AccessKey Installation Service
 //!
-//! Полная замена Go services/server/access_key_installation_svc.go
-//! Сервис для установки ключей доступа
+//! Full replacement for the legacy Go access key installation service.
 
 use crate::db_lib::{
     AccessKeyInstallerImpl, AccessKeyInstallerTrait, DbAccessKey, DbAccessKeyRole,
@@ -10,13 +9,8 @@ use crate::error::{Error, Result};
 use crate::services::ssh_agent::AccessKeyInstallation;
 use crate::services::task_logger::TaskLogger;
 
-// ============================================================================
-// Traits (интерфейсы)
-// ============================================================================
-
-/// Трейт сервиса установки ключей (аналог Go AccessKeyInstallationService)
+/// Service trait for installing access keys into the execution environment.
 pub trait AccessKeyInstallationServiceTrait: Send + Sync {
-    /// Устанавливает ключ доступа
     fn install(
         &self,
         key: &DbAccessKey,
@@ -25,35 +19,21 @@ pub trait AccessKeyInstallationServiceTrait: Send + Sync {
     ) -> Result<AccessKeyInstallation>;
 }
 
-// ============================================================================
-/// AccessKeyEncryptionService - трейт для шифрования/дешифрования ключей
-/// (аналог Go AccessKeyEncryptionService)
+/// Encryption trait used while reading and storing key secrets.
 pub trait AccessKeyEncryptionService: Send + Sync {
-    /// Шифрует секрет ключа
     fn encrypt_secret(&self, key: &mut DbAccessKey) -> Result<()>;
-
-    /// Дешифрует секрет ключа
     fn decrypt_secret(&self, key: &mut DbAccessKey) -> Result<()>;
-
-    /// Сериализует секрет (подготовка к хранению)
     fn serialize_secret(&self, key: &mut DbAccessKey) -> Result<()>;
-
-    /// Десериализует секрет (чтение из хранилища)
     fn deserialize_secret(&self, key: &mut DbAccessKey) -> Result<()>;
 }
 
-// ============================================================================
-// AccessKeyInstallationServiceImpl
-// ============================================================================
-
-/// Реализация сервиса установки ключей
+/// Default access key installation service.
 pub struct AccessKeyInstallationServiceImpl {
     encryption_service: Box<dyn AccessKeyEncryptionService>,
     key_installer: AccessKeyInstallerImpl,
 }
 
 impl AccessKeyInstallationServiceImpl {
-    /// Создаёт новый сервис
     pub fn new(encryption_service: Box<dyn AccessKeyEncryptionService>) -> Self {
         Self {
             encryption_service,
@@ -61,7 +41,6 @@ impl AccessKeyInstallationServiceImpl {
         }
     }
 
-    /// Создаёт сервис с кастомным установщиком
     pub fn with_installer(
         encryption_service: Box<dyn AccessKeyEncryptionService>,
         key_installer: AccessKeyInstallerImpl,
@@ -80,34 +59,22 @@ impl AccessKeyInstallationServiceTrait for AccessKeyInstallationServiceImpl {
         usage: DbAccessKeyRole,
         logger: &dyn TaskLogger,
     ) -> Result<AccessKeyInstallation> {
-        // Если тип ключа None - возвращаем пустую установку
         if key.key_type == crate::db_lib::DbAccessKeyType::None {
             return Ok(AccessKeyInstallation::new());
         }
 
-        // Создаём копию ключа для десериализации
         let mut key_copy = key.clone();
-
-        // Десериализуем секрет (расшифровываем)
         self.encryption_service.deserialize_secret(&mut key_copy)?;
-
-        // Устанавливаем ключ через KeyInstaller
         self.key_installer.install(&key_copy, usage, logger)
     }
 }
 
-// ============================================================================
-// AccessKeyEncryptionServiceImpl (заглушка)
-// ============================================================================
-
-/// Реализация шифрования секретов с AES-256-GCM
+/// Minimal AES-backed encryption service used by tests and local flows.
 pub struct SimpleEncryptionService {
-    /// 32-байтный ключ шифрования
     key: [u8; 32],
 }
 
 impl SimpleEncryptionService {
-    /// Создаёт сервис с указанным ключом (UTF-8 строка, padded/truncated до 32 байт)
     pub fn new(secret: &str) -> Self {
         let mut key = [0u8; 32];
         let bytes = secret.as_bytes();
@@ -124,54 +91,58 @@ impl Default for SimpleEncryptionService {
 }
 
 impl AccessKeyEncryptionService for SimpleEncryptionService {
-    /// Шифрует поле `secret` ключа с помощью AES-256-GCM
     fn encrypt_secret(&self, key: &mut DbAccessKey) -> Result<()> {
         use crate::utils::encryption::aes256_encrypt;
+
         if let Some(ref plaintext) = key.secret {
             let encrypted = aes256_encrypt(plaintext.as_bytes(), &self.key)
                 .map_err(|e| Error::Other(e.to_string()))?;
             key.secret = Some(encrypted);
         }
+
         Ok(())
     }
 
-    /// Дешифрует поле `secret` ключа
     fn decrypt_secret(&self, key: &mut DbAccessKey) -> Result<()> {
         use crate::utils::encryption::aes256_decrypt;
+
         if let Some(ref encrypted) = key.secret {
             let plaintext_bytes =
                 aes256_decrypt(encrypted, &self.key).map_err(|e| Error::Other(e.to_string()))?;
             key.secret =
                 Some(String::from_utf8(plaintext_bytes).map_err(|e| Error::Other(e.to_string()))?);
         }
+
         Ok(())
     }
 
-    /// Сериализует ssh_key / login_password → JSON → key.secret
     fn serialize_secret(&self, key: &mut DbAccessKey) -> Result<()> {
         use crate::db_lib::DbAccessKeyType;
+
         match key.key_type {
             DbAccessKeyType::Ssh => {
                 if let Some(ref ssh_key) = key.ssh_key {
-                    key.secret = Some(
-                        serde_json::to_string(ssh_key).map_err(|e| Error::Other(e.to_string()))?,
-                    );
+                    key.secret =
+                        Some(serde_json::to_string(ssh_key).map_err(|e| Error::Other(e.to_string()))?);
                 }
             }
             DbAccessKeyType::LoginPassword => {
-                if let Some(ref lp) = key.login_password {
-                    key.secret =
-                        Some(serde_json::to_string(lp).map_err(|e| Error::Other(e.to_string()))?);
+                if let Some(ref login_password) = key.login_password {
+                    key.secret = Some(
+                        serde_json::to_string(login_password)
+                            .map_err(|e| Error::Other(e.to_string()))?,
+                    );
                 }
             }
             _ => {}
         }
+
         Ok(())
     }
 
-    /// Десериализует key.secret → ssh_key / login_password
     fn deserialize_secret(&self, key: &mut DbAccessKey) -> Result<()> {
         use crate::db_lib::{DbAccessKeyType, DbLoginPassword, DbSshKey};
+
         if let Some(ref secret) = key.secret.clone() {
             match key.key_type {
                 DbAccessKeyType::Ssh => {
@@ -180,85 +151,17 @@ impl AccessKeyEncryptionService for SimpleEncryptionService {
                     key.ssh_key = Some(ssh_key);
                 }
                 DbAccessKeyType::LoginPassword => {
-                    let lp: DbLoginPassword =
+                    let login_password: DbLoginPassword =
                         serde_json::from_str(secret).map_err(|e| Error::Other(e.to_string()))?;
-                    key.login_password = Some(lp);
+                    key.login_password = Some(login_password);
                 }
                 _ => {}
             }
         }
+
         Ok(())
     }
 }
-
-// ============================================================================
-// AccessKeyService - полный сервис для управления ключами
-// ============================================================================
-
-/// Трейт сервиса управления ключами (аналог Go AccessKeyService)
-pub trait AccessKeyServiceTrait: Send + Sync {
-    /// Обновляет ключ
-    fn update(&self, key: &DbAccessKey) -> Result<()>;
-
-    /// Создаёт новый ключ
-    fn create(&self, key: &DbAccessKey) -> Result<DbAccessKey>;
-
-    /// Получает все ключи
-    fn get_all(&self, project_id: i32, options: GetAccessKeyOptions) -> Result<Vec<DbAccessKey>>;
-
-    /// Удаляет ключ
-    fn delete(&self, project_id: i32, key_id: i32) -> Result<()>;
-}
-
-/// Опции для получения ключей
-#[derive(Debug, Clone, Default)]
-pub struct GetAccessKeyOptions {
-    pub user_id: Option<i32>,
-    pub environment_id: Option<i32>,
-}
-
-/// Реализация сервиса управления ключами
-pub struct AccessKeyServiceImpl {
-    encryption_service: Box<dyn AccessKeyEncryptionService>,
-    // TODO: Добавить repository: Box<dyn AccessKeyRepository>
-}
-
-impl AccessKeyServiceImpl {
-    /// Создаёт новый сервис
-    pub fn new(encryption_service: Box<dyn AccessKeyEncryptionService>) -> Self {
-        Self { encryption_service }
-    }
-}
-
-impl AccessKeyServiceTrait for AccessKeyServiceImpl {
-    fn update(&self, key: &DbAccessKey) -> Result<()> {
-        // TODO: Реализовать через repository
-        Ok(())
-    }
-
-    fn create(&self, key: &DbAccessKey) -> Result<DbAccessKey> {
-        // Сериализуем секрет перед сохранением
-        let mut key_copy = key.clone();
-        self.encryption_service.serialize_secret(&mut key_copy)?;
-
-        // TODO: Сохранить через repository
-        Ok(key_copy)
-    }
-
-    fn get_all(&self, _project_id: i32, _options: GetAccessKeyOptions) -> Result<Vec<DbAccessKey>> {
-        // TODO: Реализовать через repository
-        Ok(vec![])
-    }
-
-    fn delete(&self, _project_id: i32, _key_id: i32) -> Result<()> {
-        // TODO: Реализовать через repository
-        Ok(())
-    }
-}
-
-// ============================================================================
-// Тесты
-// ============================================================================
 
 #[cfg(test)]
 mod tests {
@@ -290,7 +193,6 @@ mod tests {
             source_storage_type: None,
         };
 
-        // Проверяем, что методы не паникуют
         assert!(encryption.encrypt_secret(&mut key).is_ok());
         assert!(encryption.decrypt_secret(&mut key).is_ok());
         assert!(encryption.serialize_secret(&mut key).is_ok());
@@ -301,8 +203,6 @@ mod tests {
     fn test_access_key_installation_service_creation() {
         let encryption = Box::new(SimpleEncryptionService::default());
         let service = AccessKeyInstallationServiceImpl::new(encryption);
-
-        // Проверяем, что сервис создан
         let _ = service;
     }
 
@@ -333,10 +233,7 @@ mod tests {
             source_storage_type: None,
         };
 
-        let result = service.install(&key, DbAccessKeyRole::Git, &logger);
-        assert!(result.is_ok());
-
-        let installation = result.unwrap();
+        let installation = service.install(&key, DbAccessKeyRole::Git, &logger).unwrap();
         assert!(installation.ssh_agent.is_none());
     }
 
@@ -373,28 +270,55 @@ mod tests {
             source_storage_type: None,
         };
 
-        let result = service.install(&key, DbAccessKeyRole::Git, &logger);
-        assert!(result.is_ok());
-
-        let installation = result.unwrap();
+        let installation = service.install(&key, DbAccessKeyRole::Git, &logger).unwrap();
         assert!(installation.ssh_agent.is_some());
     }
 
     #[test]
-    fn test_access_key_service_creation() {
+    fn test_access_key_install() {
         let encryption = Box::new(SimpleEncryptionService::default());
-        let service = AccessKeyServiceImpl::new(encryption);
+        let service = AccessKeyInstallationServiceImpl::new(encryption);
+        let logger = BasicLogger::new();
 
-        // Проверяем, что сервис создан
-        let _ = service;
+        let mut key = DbAccessKey {
+            id: 1,
+            name: "Serialized SSH Key".to_string(),
+            key_type: DbAccessKeyType::Ssh,
+            project_id: Some(1),
+            secret: None,
+            plain: None,
+            string_value: None,
+            login_password: None,
+            ssh_key: Some(DbSshKey {
+                login: "git".to_string(),
+                passphrase: "".to_string(),
+                private_key:
+                    "-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----"
+                        .to_string(),
+            }),
+            override_secret: false,
+            storage_id: None,
+            environment_id: None,
+            user_id: None,
+            empty: false,
+            owner: crate::db_lib::DbAccessKeyOwner::Shared,
+            source_storage_id: None,
+            source_storage_key: None,
+            source_storage_type: None,
+        };
+
+        let serializer = SimpleEncryptionService::default();
+        serializer.serialize_secret(&mut key).unwrap();
+        key.ssh_key = None;
+
+        let installation = service.install(&key, DbAccessKeyRole::Git, &logger).unwrap();
+        assert!(installation.ssh_agent.is_some());
     }
 
     #[test]
-    fn test_access_key_service_create() {
-        let encryption = Box::new(SimpleEncryptionService::default());
-        let service = AccessKeyServiceImpl::new(encryption);
-
-        let key = DbAccessKey {
+    fn test_simple_encryption_service_serializes_login_password_secret() {
+        let encryption = SimpleEncryptionService::default();
+        let mut key = DbAccessKey {
             id: 1,
             name: "Test Key".to_string(),
             key_type: DbAccessKeyType::LoginPassword,
@@ -418,18 +342,7 @@ mod tests {
             source_storage_type: None,
         };
 
-        let result = service.create(&key);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_get_access_key_options() {
-        let options = GetAccessKeyOptions {
-            user_id: Some(1),
-            environment_id: Some(2),
-        };
-
-        assert_eq!(options.user_id, Some(1));
-        assert_eq!(options.environment_id, Some(2));
+        encryption.serialize_secret(&mut key).unwrap();
+        assert!(key.secret.as_ref().is_some_and(|secret| secret.contains("\"login\":\"user\"")));
     }
 }

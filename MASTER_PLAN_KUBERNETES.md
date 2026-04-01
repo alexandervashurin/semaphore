@@ -596,7 +596,7 @@ flowchart LR
 #### 10.8 NFR
 - [x] Тема тёмная/светлая — полный CSS + JS toggle в сайдбаре (`styles.css` `.theme-dark`, `THEME_KEY`). ✅ уже было
 - [x] i18n EN/RU — `I18N` словарь + `t()` + `applyI18n()` в `app.js`; сайдбар рендерится с EN-метками при `lang=en`. ✅ 2026-03-30
-- [ ] Mobile критичные действия; WCAG 2.1 AA aria — backlog v2.
+- [ ] **K-05 (optional v2):** Mobile K8s UI + WCAG 2.1 AA (aria/keyboard/focus/contrast) для критичных действий.
 
 **Definition of Done:**
 - ✅ Кластеры переключаются из UI (`k8s-clusters.html`) без перелогина.
@@ -1684,6 +1684,12 @@ kubectl auth can-i get pods --as system:serviceaccount:default:velum
 - Enterprise: multi-cluster, аудит, безопасный apply / RBAC-UX
 - **Опционально:** AI-assistant для troubleshooting — только после отдельного решения по границам доверия и данным
 
+### Спринт 4 — E2E Testing & Documentation ✅ (2026-04-01)
+- K-02: inline YAML dry-run добавлен в `k8s-pods.html` и `k8s-deployments.html`
+- K-04: добавлен benchmark-скрипт `scripts/benchmark-k8s-list.ps1` (p50/p95 по list endpoints)
+- P-09: `openapi.yml` дополнен Kubernetes list + WebSocket endpoint'ами (`exec`, `portforward`) и актуальными схемами ответов
+- Документация: зафиксированы шаги проверки dry-run и замера производительности в рамках E2E-прохода
+
 ---
 
 ## 🔗 Референсы
@@ -1714,5 +1720,5 @@ kubectl auth can-i get pods --as system:serviceaccount:default:velum
 
 ---
 
-*Последнее обновление: 29 марта 2026 — Phase 2 реализована: Pods (list/get/delete/logs), Deployments (list/get/scale/restart), DaemonSets, StatefulSets (scale), ReplicaSets (list), Events с фильтрами. 5 новых HTML-страниц, 20+ REST эндпоинтов.*  
+*Последнее обновление: 1 апреля 2026 — Sprint 4 (K-02/K-04/P-09): inline YAML dry-run во workload UI, benchmark p50/p95 list endpoints, OpenAPI дополнен WS endpoint'ами и схемами Kubernetes.*  
 *Статус: В разработке · Следующий review: 5 апреля 2026*

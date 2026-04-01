@@ -87,7 +87,7 @@ pub async fn list_pods(
     let list = api.list(&lp).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
 
     let summaries = list.items.iter().map(|p| {
-        let meta = p.metadata.clone();
+        let meta = &p.metadata;
         let status = p.status.as_ref();
         let phase = status.and_then(|s| s.phase.as_deref()).unwrap_or("Unknown").to_string();
         let node_name = p.spec.as_ref().and_then(|s| s.node_name.clone());
@@ -119,9 +119,9 @@ pub async fn list_pods(
         let restarts: i32 = containers.iter().map(|c| c.restarts).sum();
 
         PodSummary {
-            name: meta.name.clone().unwrap_or_default(),
-            namespace: meta.namespace.clone().unwrap_or_default(),
-            uid: meta.uid.clone().unwrap_or_default(),
+            name: meta.name.as_deref().unwrap_or_default().to_string(),
+            namespace: meta.namespace.as_deref().unwrap_or_default().to_string(),
+            uid: meta.uid.as_deref().unwrap_or_default().to_string(),
             phase,
             node_name,
             pod_ip,
@@ -270,7 +270,7 @@ pub async fn list_deployments(
     let list = api.list(&lp).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
 
     let summaries = list.items.iter().map(|d| {
-        let meta = d.metadata.clone();
+        let meta = &d.metadata;
         let status = d.status.as_ref();
         let spec_replicas = d.spec.as_ref().and_then(|s| s.replicas).unwrap_or(0);
         let ready = status.and_then(|s| s.ready_replicas).unwrap_or(0);
@@ -286,9 +286,9 @@ pub async fn list_deployments(
             .unwrap_or_default();
 
         DeploymentSummary {
-            name: meta.name.clone().unwrap_or_default(),
-            namespace: meta.namespace.clone().unwrap_or_default(),
-            uid: meta.uid.clone().unwrap_or_default(),
+            name: meta.name.as_deref().unwrap_or_default().to_string(),
+            namespace: meta.namespace.as_deref().unwrap_or_default().to_string(),
+            uid: meta.uid.as_deref().unwrap_or_default().to_string(),
             replicas: spec_replicas,
             ready_replicas: ready,
             available_replicas: available,

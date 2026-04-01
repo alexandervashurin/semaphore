@@ -5,6 +5,30 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 этот проект придерживается [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-04-01
+
+### Added
+- Kubernetes E2E-ready UX: inline YAML dry-run в `k8s-pods.html` и `k8s-deployments.html`
+- CI coverage pipeline: `cargo-tarpaulin` workflow с публикацией `cobertura.xml` artifact
+- Release automation для Rust binaries (Linux `amd64` и `arm64`) + notes из `docs/releases/RELEASE_v1.0.0.md`
+
+### Changed
+- OpenAPI актуализирован по Kubernetes WS endpoint'ам (`exec`, `portforward`) и key-схемам list APIs
+- README дополнен coverage badge и ссылками на CI coverage workflow
+
+### Fixed
+- Оптимизированы горячие list handlers (`pods`, `deployments`): убраны лишние clone metadata
+
+### Documentation
+- Подготовлены release notes для GitHub Release `v1.0.0`
+- `MASTER_PLAN_KUBERNETES.md`: K-05 закреплён как optional v2 backlog (mobile + WCAG)
+
+### Release Assets
+- `velum-linux-amd64`
+- `velum-linux-arm64`
+
+---
+
 ## [2.5.1] - 2026-04-01
 
 ### 🔧 Bug Fixes

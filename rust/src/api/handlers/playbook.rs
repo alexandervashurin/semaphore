@@ -167,6 +167,7 @@ pub async fn preview_playbook(
 pub async fn run_playbook(
     State(state): State<Arc<AppState>>,
     Path((project_id, id)): Path<(i32, i32)>,
+    auth_user: crate::api::extractors::AuthUser,
     Json(payload): Json<PlaybookRunRequest>,
 ) -> Result<
     (
@@ -175,7 +176,7 @@ pub async fn run_playbook(
     ),
     (StatusCode, Json<ErrorResponse>),
 > {
-    let result = PlaybookRunService::run_playbook(id, project_id, payload, &state.store)
+    let result = PlaybookRunService::run_playbook(id, project_id, auth_user.user_id, payload, &state.store)
         .await
         .map_err(|e| {
             (

@@ -3,9 +3,10 @@
 //! Пул задач для раннеров
 
 use std::collections::HashSet;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tokio::time::{interval, Duration};
+use tokio::time::{interval, sleep, timeout, Duration};
 
 use crate::db::store::Store;
 use crate::error::Result;
@@ -48,6 +49,8 @@ pub struct JobPool {
     store: Arc<dyn Store + Send + Sync>,
     /// Максимальное число параллельных задач
     max_parallel: usize,
+    /// Флаг завершения — при true новые задачи не берутся
+    shutting_down: Arc<AtomicBool>,
 }
 
 impl JobPool {
@@ -58,6 +61,7 @@ impl JobPool {
             running_ids: Arc::new(Mutex::new(HashSet::new())),
             store,
             max_parallel: 10,
+            shutting_down: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -68,6 +72,29 @@ impl JobPool {
             running_ids: Arc::new(Mutex::new(HashSet::new())),
             store,
             max_parallel,
+            shutting_down: Arc::new(AtomicBool::new(false)),
+        }
+    }
+
+    /// Graceful shutdown: прекращает брать новые задачи и ждёт завершения текущих (макс. 30 сек)
+    pub async fn shutdown(&self) {
+        self.shutting_down.store(true, Ordering::SeqCst);
+        tracing::info!("[job_pool] Shutdown requested, waiting for running tasks...");
+
+        let running_ids = self.running_ids.clone();
+        let result = timeout(Duration::from_secs(30), async move {
+            loop {
+                if running_ids.lock().await.is_empty() {
+                    break;
+                }
+                sleep(Duration::from_millis(500)).await;
+            }
+        })
+        .await;
+
+        match result {
+            Ok(()) => tracing::info!("[job_pool] All tasks finished, shutdown complete"),
+            Err(_) => tracing::warn!("[job_pool] Shutdown timeout (30s), forcing exit with running tasks"),
         }
     }
 
@@ -82,13 +109,17 @@ impl JobPool {
         !self.running_ids.lock().await.is_empty()
     }
 
-    /// Запускает пул задач (бесконечный цикл)
+    /// Запускает пул задач (бесконечный цикл, завершается при shutdown)
     pub async fn run(&self) -> Result<()> {
         let logger = JobLogger::new("running");
         let mut queue_interval = interval(Duration::from_secs(5));
         let mut request_interval = interval(Duration::from_secs(1));
 
         loop {
+            if self.shutting_down.load(Ordering::SeqCst) {
+                tracing::info!("[job_pool] Shutting down — run loop stopped");
+                return Ok(());
+            }
             tokio::select! {
                 _ = queue_interval.tick() => {
                     self.check_queue(&logger).await;
@@ -143,6 +174,9 @@ impl JobPool {
 
     /// Ищет новые задачи в БД и добавляет их в очередь
     async fn check_new_jobs(&self, logger: &JobLogger) {
+        if self.shutting_down.load(Ordering::SeqCst) {
+            return;
+        }
         let running_count = self.running_ids.lock().await.len();
         if running_count >= self.max_parallel {
             return;
@@ -208,6 +242,7 @@ pub type Job = QueuedTask;
 mod tests {
     use super::*;
     use crate::db::mock::MockStore;
+    use std::sync::atomic::Ordering;
 
     fn make_store() -> Arc<dyn Store + Send + Sync> {
         Arc::new(MockStore::new())
@@ -233,6 +268,24 @@ mod tests {
     #[tokio::test]
     async fn test_has_running_jobs_empty() {
         let pool = JobPool::new(make_store());
+        assert!(!pool.has_running_jobs().await);
+    }
+
+    #[tokio::test]
+    async fn test_graceful_shutdown() {
+        let pool = JobPool::new(make_store());
+
+        pool.running_ids.lock().await.insert(42);
+
+        let running_ids = pool.running_ids.clone();
+        tokio::spawn(async move {
+            sleep(Duration::from_millis(50)).await;
+            running_ids.lock().await.remove(&42);
+        });
+
+        pool.shutdown().await;
+
+        assert!(pool.shutting_down.load(Ordering::SeqCst));
         assert!(!pool.has_running_jobs().await);
     }
 }

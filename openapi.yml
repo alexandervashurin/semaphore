@@ -50,6 +50,10 @@ tags:
     description: Журнал аудита
   - name: Analytics
     description: Аналитика и метрики
+  - name: Kubernetes
+    description: Kubernetes ресурсы и операции кластера
+  - name: Kubernetes WebSocket
+    description: WebSocket endpoints для real-time операций (exec/port-forward)
 
 paths:
   /auth/login:
@@ -421,6 +425,137 @@ paths:
               schema:
                 $ref: '#/components/schemas/AnalyticsStats'
 
+  /kubernetes/namespaces/{namespace}/pods:
+    get:
+      tags: [Kubernetes]
+      summary: Список Pod в namespace
+      operationId: listPods
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: namespace
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 200
+      responses:
+        '200':
+          description: Список pod
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/K8sPodSummary'
+
+  /kubernetes/namespaces/{namespace}/deployments:
+    get:
+      tags: [Kubernetes]
+      summary: Список Deployment в namespace
+      operationId: listDeployments
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: namespace
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 200
+      responses:
+        '200':
+          description: Список deployment
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/K8sDeploymentSummary'
+
+  /kubernetes/clusters/{cluster_id}/namespaces/{namespace}/pods/{name}/exec:
+    get:
+      tags: [Kubernetes WebSocket]
+      summary: Pod exec terminal (WebSocket)
+      description: |
+        WebSocket endpoint для интерактивного shell в Pod.
+        Клиент открывает WS соединение и отправляет stdin как text/binary frames.
+      operationId: podExecWs
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cluster_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: namespace
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: command
+          in: query
+          schema:
+            type: string
+            default: /bin/sh
+        - name: container
+          in: query
+          schema:
+            type: string
+      responses:
+        '101':
+          description: Switching Protocols (WebSocket upgraded)
+
+  /kubernetes/clusters/{cluster_id}/namespaces/{namespace}/pods/{name}/portforward:
+    get:
+      tags: [Kubernetes WebSocket]
+      summary: Pod port-forward tunnel (WebSocket)
+      description: |
+        WebSocket endpoint для двунаправленного туннеля к TCP-порту Pod.
+      operationId: podPortForwardWs
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cluster_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: namespace
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: port
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 65535
+      responses:
+        '101':
+          description: Switching Protocols (WebSocket upgraded)
+
 components:
   securitySchemes:
     bearerAuth:
@@ -690,6 +825,91 @@ components:
                 type: string
               tasks_count:
                 type: integer
+
+    K8sContainerSummary:
+      type: object
+      properties:
+        name:
+          type: string
+        image:
+          type: string
+        ready:
+          type: boolean
+        state:
+          type: string
+        restarts:
+          type: integer
+
+    K8sPodSummary:
+      type: object
+      properties:
+        name:
+          type: string
+        namespace:
+          type: string
+        uid:
+          type: string
+        phase:
+          type: string
+        node_name:
+          type: string
+          nullable: true
+        pod_ip:
+          type: string
+          nullable: true
+        containers:
+          type: array
+          items:
+            $ref: '#/components/schemas/K8sContainerSummary'
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+        age:
+          type: string
+        ready:
+          type: string
+        restarts:
+          type: integer
+
+    K8sDeploymentCondition:
+      type: object
+      properties:
+        type_:
+          type: string
+        status:
+          type: string
+        message:
+          type: string
+          nullable: true
+
+    K8sDeploymentSummary:
+      type: object
+      properties:
+        name:
+          type: string
+        namespace:
+          type: string
+        uid:
+          type: string
+        replicas:
+          type: integer
+        ready_replicas:
+          type: integer
+        available_replicas:
+          type: integer
+        updated_replicas:
+          type: integer
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+        age:
+          type: string
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/K8sDeploymentCondition'
 
     Error:
       type: object
