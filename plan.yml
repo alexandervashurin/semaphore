@@ -222,9 +222,10 @@ sprints:
         title: "Subscription service integration"
         priority: medium
         estimate: medium
-        status: in_progress
+        status: completed
         assignee: agent-9156
         started_at: "2026-04-02T05:00:00Z"
+        completed_at: "2026-04-02T06:00:00Z"
         subtasks:
           - "Интеграция в auth.rs:610"
           - "Интеграция в user.rs:108,128"
@@ -232,6 +233,12 @@ sprints:
         done_when:
           - "PRO функции проверяют подписку"
           - "Тесты проходят"
+        completion_notes:
+          - "Добавлен subscription_service в AppState"
+          - "SubscriptionServiceImpl инициализируется в AppState::new()"
+          - "get_current_user (auth.rs) использует state.subscription_service.has_active_subscription()"
+          - "UserController обновлён для использования subscription_service"
+          - "cargo clippy -- -D warnings: 0 warnings"
 
       - task_id: TD-05
         title: "Kubernetes runbook integration"
@@ -1018,9 +1025,10 @@ task_index:
     title: "Subscription service integration"
     priority: medium
     estimate: medium
-    status: in_progress
+    status: completed
     assignee: agent-9156
     started_at: "2026-04-02T05:00:00Z"
+    completed_at: "2026-04-02T06:00:00Z"
   - sprint_id: S1
     sprint_title: "Спринт 1 — Stabilization (2-4 недели)"
     task_id: TD-05
