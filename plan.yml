@@ -58,9 +58,10 @@ sprints:
         title: "Добавить cargo audit в CI pipeline"
         priority: critical
         estimate: small
-        status: in_progress
+        status: completed
         assignee: agent-6154
         started_at: "2026-04-01T23:50:00+03:00"
+        completed_at: "2026-04-01T23:58:00+03:00"
         subtasks:
           - "Добавить job cargo-audit в .github/workflows/rust.yml"
           - "Настроить уведомления о новых уязвимостях"
@@ -214,14 +215,18 @@ sprints:
         title: "Inventory sync completion"
         priority: medium
         estimate: small
-        status: in_progress
+        status: completed
         assignee: agent-3142
         started_at: "2026-04-01T23:00:00Z"
+        completed_at: "2026-04-01T23:30:00Z"
         subtasks:
           - "Реализовать update inventory в inventory_sync.rs:447"
           - "Тесты sync flows"
         done_when:
           - "Inventory sync работает полностью"
+        completion_notes:
+          - "execute_inventory_sync: upsert логика (create_new=true → create, inventory_id=Some → update, иначе → create)"
+          - "cargo clippy -- -D warnings: 0 warnings"
 
       - task_id: P-08
         title: "Добить тесты критических путей"
@@ -861,9 +866,10 @@ task_index:
     title: "Добавить cargo audit в CI"
     priority: critical
     estimate: small
-    status: in_progress
+    status: completed
     assignee: agent-6154
     started_at: "2026-04-01T23:50:00+03:00"
+    completed_at: "2026-04-01T23:58:00+03:00"
   - sprint_id: S0
     sprint_title: "Спринт 0 — Critical Security Fixes (1-2 недели)"
     task_id: SEC-03
@@ -940,9 +946,10 @@ task_index:
     title: "Inventory sync completion"
     priority: medium
     estimate: small
-    status: in_progress
+    status: completed
     assignee: agent-3142
     started_at: "2026-04-01T23:00:00Z"
+    completed_at: "2026-04-01T23:30:00Z"
   - sprint_id: S1
     sprint_title: "Спринт 1 — Stabilization (2-4 недели)"
     task_id: P-08
