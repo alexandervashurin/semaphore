@@ -159,7 +159,9 @@ sprints:
         title: "Завершить Telegram Bot уведомления"
         priority: high
         estimate: medium
-        status: todo
+        status: in_progress
+        assignee: agent-4182
+        started_at: "2026-04-02T12:00:00Z"
         subtasks:
           - "Реализовать 4 стаба в telegram_bot/mod.rs"
           - "Интеграция с alert service"
@@ -952,7 +954,9 @@ task_index:
     title: "Завершить Telegram Bot уведомления"
     priority: high
     estimate: medium
-    status: todo
+    status: in_progress
+    assignee: agent-4182
+    started_at: "2026-04-02T12:00:00Z"
   - sprint_id: S1
     sprint_title: "Спринт 1 — Stabilization (2-4 недели)"
     task_id: TD-02
