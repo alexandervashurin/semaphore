@@ -2,9 +2,52 @@ project: velum
 as_of: 2026-04-01
 goal: "Довести проект до production-ready и выпустить v1.0.0"
 status_summary:
-  feature_parity: "~97%"
-  kubernetes_ui: "~92%"
-  production_release_readiness: "~95%"
+  as_of: "2026-04-01"
+  feature_parity: "~99%"
+  kubernetes_ui: "~95%"
+  production_release_readiness: "~96%"
+  open_tasks_count: 7
+  open_blockers:
+    critical:
+      - id: TEST-01
+        title: "Покрытие тестами 80%+ (сейчас ~67%)"
+        sprint: S2
+        blocks: [RB-01]
+    high:
+      - id: PROD-01
+        title: "Docker образ <50MB (FROM scratch/musl)"
+        sprint: S3
+        blocks: []
+      - id: PROD-02
+        title: "Cross-platform builds macOS amd64/arm64"
+        sprint: S3
+        blocks: [RB-05]
+      - id: REL-01
+        title: "Финальный quality gate"
+        sprint: S4
+        blocks: [RB-01]
+      - id: D-05
+        title: "GitHub Release v1.0.0"
+        sprint: S4
+        blocks: [RB-05]
+    medium:
+      - id: TD-07
+        title: "Inventory sync: update vs always create (inventory_sync.rs:447)"
+        sprint: S1
+        blocks: [RB-07]
+      - id: PROD-03
+        title: "Redis-backed task queue (HA persistence)"
+        sprint: S3
+        blocks: []
+      - id: PROD-04
+        title: "WebSocket pub/sub via Redis (HA scale)"
+        sprint: S3
+        blocks: []
+    low:
+      - id: TD-06
+        title: "Prometheus label aggregation"
+        sprint: S1
+        blocks: []
 principles:
   - "Сначала закрыть блокеры релиза, потом nice-to-have"
   - "Каждая задача должна завершаться проверкой"
@@ -13,19 +56,36 @@ principles:
 
 release_blockers:
   - id: RB-01
-    title: "Полный green test run"
+    title: "Полный green test run (cargo test + clippy)"
+    status: partial
+    note: "cargo clippy ✅, cargo test ✅ unit, coverage ~67% (цель 80%+)"
+    owner_task: TEST-01
   - id: RB-02
     title: "E2E проверка deploy в Docker и Kubernetes"
+    status: closed
+    note: "D-01 завершён; docker-compose.demo.yml проверен"
   - id: RB-03
     title: "Актуальный OpenAPI"
+    status: closed
+    note: "P-09/AG-03 завершены; openapi.yml покрывает K8s WS, health endpoints"
   - id: RB-04
     title: "Финальная документация README/DEPLOY/CHANGELOG"
+    status: closed
+    note: "D-03/D-04/P-11 завершены"
   - id: RB-05
     title: "Релиз v1.0.0"
+    status: open
+    note: "D-05 in_progress; release workflow готов; tag не создан"
+    owner_task: D-05
   - id: RB-06
     title: "Безопасность: уязвимые зависимости"
+    status: closed
+    note: "SEC-01/02 завершены; cargo audit 0 CVE"
   - id: RB-07
     title: "Критические TODO/FIXME в коде"
+    status: partial
+    note: "TD-07 (inventory_sync.rs:447 всегда create вместо upsert) остаётся открытым"
+    owner_task: TD-07
 
 sprints:
   - sprint_id: S0
@@ -669,6 +729,91 @@ sprints:
       - "P-09 доведён до completed после добавления events WS в OpenAPI (при необходимости)"
       - "D-05 завершён после публикации GitHub Release v1.0.0"
 
+  - sprint_id: S_AI_2026_04_01b
+    title: "Закрыто ассистентом — Production Safety Sprint (2026-04-01, сессия 2)"
+    objective: "Закрыть критические production blockers: dead stubs, graceful shutdown, auth context, HMAC signing, kubeconfig encryption"
+    tasks:
+      - task_id: AG2-01
+        title: "P-01: Удалить dead stubs в access_key_installation_service.rs"
+        priority: high
+        estimate: small
+        status: completed
+        files:
+          - "rust/src/services/access_key_installation_service.rs"
+          - "rust/src/services/mod.rs"
+        done_when:
+          - "Нет мёртвых стабов AccessKeyServiceImpl / GetAccessKeyOptions в services/"
+          - "cargo check зелёный"
+
+      - task_id: AG2-02
+        title: "P-04: Graceful shutdown JobPool (30s drain timeout)"
+        priority: high
+        estimate: small
+        status: completed
+        files:
+          - "rust/src/services/runners/job_pool.rs"
+          - "rust/src/cli/cmd_server.rs"
+        done_when:
+          - "JobPool::shutdown() ждёт running tasks до 30 секунд"
+          - "SIGTERM вызывает job_pool.shutdown().await"
+          - "AtomicBool shutting_down предотвращает старт новых задач"
+
+      - task_id: AG2-03
+        title: "P-02: playbook_run_service user_id из AuthUser extractor"
+        priority: high
+        estimate: small
+        status: completed
+        files:
+          - "rust/src/services/playbook_run_service.rs"
+          - "rust/src/api/handlers/playbook.rs"
+        done_when:
+          - "run_playbook принимает user_id: i32 параметр"
+          - "handler передаёт auth_user.user_id (не hardcoded 1)"
+
+      - task_id: AG2-04
+        title: "P-03: DingTalk HMAC-SHA256+timestamp signing"
+        priority: high
+        estimate: small
+        status: completed
+        files:
+          - "rust/src/services/alert.rs"
+        done_when:
+          - "send_dingtalk_alert() вычисляет timestamp+newline+secret HMAC"
+          - "Подпись добавляется как &timestamp=...&sign=... query params"
+          - "test_hmac_webhook тест проходит"
+
+      - task_id: AG2-05
+        title: "K-03: Kubeconfig AES-256-GCM шифрование в AppState"
+        priority: high
+        estimate: small
+        status: completed
+        files:
+          - "rust/src/api/state.rs"
+          - "rust/src/api/handlers/kubernetes/cluster_management.rs"
+        done_when:
+          - "AppState.kubeconfigs: Arc<DashMap<String, String>>"
+          - "add_kubernetes_cluster шифрует blob через encrypt_kubeconfig()"
+          - "derive_encryption_key использует env SEMAPHORE_KUBECONFIG_KEY → SEMAPHORE_ACCESS_KEY_ENCRYPTION → cookie_hash"
+
+      - task_id: AG2-06
+        title: "K-01: Cluster-wide Events WebSocket + route registration"
+        priority: high
+        estimate: small
+        status: completed
+        files:
+          - "rust/src/api/handlers/kubernetes/events_ws.rs"
+          - "rust/src/api/routes.rs"
+        done_when:
+          - "cluster_events_websocket handler: Api::all(Event)"
+          - "events_websocket handler: Api::namespaced(Event)"
+          - "GET /api/kubernetes/events/stream зарегистрирован"
+          - "GET /api/kubernetes/namespaces/{namespace}/events/stream зарегистрирован"
+
+    sprint_done_when:
+      - "Все AG2-01..AG2-06 завершены"
+      - "cargo check зелёный"
+      - "Коммит запушен в origin/main"
+
 optional_sprints:
   - sprint_id: S5
     title: "Спринт 5 — Post-release polish"
@@ -871,7 +1016,7 @@ task_index:
     title: "Обновить уязвимые зависимости"
     priority: critical
     estimate: small
-    status: todo
+    status: completed
   - sprint_id: S0
     sprint_title: "Спринт 0 — Critical Security Fixes (1-2 недели)"
     task_id: SEC-02
@@ -885,14 +1030,14 @@ task_index:
     title: "JWT logout blacklist"
     priority: critical
     estimate: small
-    status: todo
+    status: completed
   - sprint_id: S0
     sprint_title: "Спринт 0 — Critical Security Fixes (1-2 недели)"
     task_id: SEC-04
     title: "Alert HMAC signature"
     priority: high
     estimate: small
-    status: todo
+    status: completed
   - sprint_id: S0
     sprint_title: "Спринт 0 — Critical Security Fixes (1-2 недели)"
     task_id: SEC-05
@@ -1151,6 +1296,48 @@ task_index:
     sprint_title: "Закрыто ассистентом (2026-04-01)"
     task_id: AG-10
     title: "Git merge main + push"
+    priority: high
+    estimate: small
+    status: completed
+  - sprint_id: S_AI_2026_04_01b
+    sprint_title: "Закрыто ассистентом — Production Safety (2026-04-01, сессия 2)"
+    task_id: AG2-01
+    title: "P-01 dead stubs удалены"
+    priority: high
+    estimate: small
+    status: completed
+  - sprint_id: S_AI_2026_04_01b
+    sprint_title: "Закрыто ассистентом — Production Safety (2026-04-01, сессия 2)"
+    task_id: AG2-02
+    title: "P-04 graceful shutdown JobPool"
+    priority: high
+    estimate: small
+    status: completed
+  - sprint_id: S_AI_2026_04_01b
+    sprint_title: "Закрыто ассистентом — Production Safety (2026-04-01, сессия 2)"
+    task_id: AG2-03
+    title: "P-02 playbook user_id из AuthUser"
+    priority: high
+    estimate: small
+    status: completed
+  - sprint_id: S_AI_2026_04_01b
+    sprint_title: "Закрыто ассистентом — Production Safety (2026-04-01, сессия 2)"
+    task_id: AG2-04
+    title: "P-03 DingTalk HMAC signing"
+    priority: high
+    estimate: small
+    status: completed
+  - sprint_id: S_AI_2026_04_01b
+    sprint_title: "Закрыто ассистентом — Production Safety (2026-04-01, сессия 2)"
+    task_id: AG2-05
+    title: "K-03 kubeconfig AES-256 шифрование"
+    priority: high
+    estimate: small
+    status: completed
+  - sprint_id: S_AI_2026_04_01b
+    sprint_title: "Закрыто ассистентом — Production Safety (2026-04-01, сессия 2)"
+    task_id: AG2-06
+    title: "K-01 cluster Events WebSocket + routes"
     priority: high
     estimate: small
     status: completed
