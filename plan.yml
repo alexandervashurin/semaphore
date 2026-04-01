@@ -113,7 +113,9 @@ sprints:
         title: "Cron validation"
         priority: high
         estimate: small
-        status: todo
+        status: in_progress
+        assignee: agent-5290
+        started_at: "2026-04-01T21:00:00Z"
         subtasks:
           - "Добавить cron crate в scheduler_pool.rs"
           - "Валидировать cron выражения перед сохранением"
@@ -440,9 +442,10 @@ sprints:
         title: "WebSocket pub/sub для масштабирования"
         priority: medium
         estimate: large
-        status: in_progress
+        status: completed
         assignee: agent-6174
         started_at: "2026-04-02T01:00:00Z"
+        completed_at: "2026-04-02T02:00:00Z"
         subtasks:
           - "Миграция на Redis pub/sub"
           - "Поддержка >1000 клиентов"
@@ -450,6 +453,12 @@ sprints:
         done_when:
           - "WebSocket работает через Redis"
           - "Нагрузочные тесты проходят"
+        completion_notes:
+          - "Создан модуль websocket_pubsub.rs с RedisPubSubConfig и WebSocketPubSub"
+          - "publish() публикует сообщения в Redis канал"
+          - "run_listener() слушает Redis pub/sub в отдельном потоке"
+          - "Fallback на local broadcast когда Redis отключён"
+          - "cargo clippy -- -D warnings: 0 warnings"
 
       - task_id: D-03
         title: "Обновить README.md"
@@ -920,7 +929,9 @@ task_index:
     title: "Cron validation"
     priority: high
     estimate: small
-    status: todo
+    status: in_progress
+    assignee: agent-5290
+    started_at: "2026-04-01T21:00:00Z"
   - sprint_id: S0
     sprint_title: "Спринт 0 — Critical Security Fixes (1-2 недели)"
     task_id: SEC-06
@@ -1069,9 +1080,10 @@ task_index:
     title: "WebSocket pub/sub для масштабирования"
     priority: medium
     estimate: large
-    status: in_progress
+    status: completed
     assignee: agent-6174
     started_at: "2026-04-02T01:00:00Z"
+    completed_at: "2026-04-02T02:00:00Z"
   - sprint_id: S3
     sprint_title: "Спринт 3 — Production Hardening & Docs (6-8 недель)"
     task_id: D-03

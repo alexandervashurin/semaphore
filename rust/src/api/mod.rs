@@ -47,6 +47,7 @@ pub mod system_info;
 pub mod user;
 pub mod users;
 pub mod websocket;
+pub mod websocket_pubsub;
 pub mod token_blacklist;
 
 use axum::{middleware as axum_middleware, Router};
