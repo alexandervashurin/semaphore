@@ -357,7 +357,9 @@ sprints:
         title: "Cross-platform builds (Linux, macOS)"
         priority: high
         estimate: small
-        status: todo
+        status: in_progress
+        assignee: agent-5523
+        started_at: "2026-04-01T22:00:00Z"
         subtasks:
           - "Настроить GitHub Actions для macOS"
           - "Добавить cross-compilation для ARM64"
@@ -968,7 +970,9 @@ task_index:
     title: "Cross-platform builds (Linux, macOS)"
     priority: high
     estimate: small
-    status: todo
+    status: in_progress
+    assignee: agent-5523
+    started_at: "2026-04-01T22:00:00Z"
   - sprint_id: S3
     sprint_title: "Спринт 3 — Production Hardening & Docs (6-8 недель)"
     task_id: PROD-03
