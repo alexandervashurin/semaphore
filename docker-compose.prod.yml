@@ -56,7 +56,7 @@ services:
     networks:
       - velum-net
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:3000/api/health || exit 1"]
+      test: ["CMD", "/usr/local/bin/velum", "healthcheck", "--url", "http://127.0.0.1:3000/healthz"]
       interval: 30s
       timeout: 10s
       retries: 5
