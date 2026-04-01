@@ -89,3 +89,32 @@ pub fn spawn_pruner(blacklist: TokenBlacklist, interval: Duration) {
         }
     });
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn revoke_marks_jti_until_exp() {
+        let b = TokenBlacklist::new();
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as usize;
+        let jti = "test-jti-1";
+        b.revoke(jti, now + 3600);
+        assert!(b.is_revoked(jti));
+        assert!(!b.is_revoked("other-jti"));
+    }
+
+    #[test]
+    fn expired_token_not_stored() {
+        let b = TokenBlacklist::new();
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as usize;
+        b.revoke("old", now.saturating_sub(10));
+        assert!(!b.is_revoked("old"));
+    }
+}

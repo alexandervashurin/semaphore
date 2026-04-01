@@ -74,9 +74,10 @@ sprints:
         title: "JWT logout blacklist"
         priority: critical
         estimate: small
-        status: in_progress
+        status: completed
         assignee: agent-4829
         started_at: "2026-04-01T15:45:00Z"
+        completed_at: "2026-04-01T19:35:00Z"
         subtasks:
           - "Реализовать Redis-backed token blacklist"
           - "Добавить проверку blacklist при валидации токена"
@@ -84,6 +85,9 @@ sprints:
         done_when:
           - "JWT токены инвалидируются при logout"
           - "Тесты покрывают сценарий logout+retry"
+        completion_notes:
+          - "Blacklist: DashMap + TTL по exp JWT; фоновый prune каждые 5 мин (single-node). Redis для HA — см. PROD-03/PROD-04."
+          - "Интеграционный тест: login → logout с Bearer → /api/projects с тем же токеном → 401 TOKEN_REVOKED; unit-тесты token_blacklist."
 
       - task_id: SEC-04
         title: "Alert HMAC signature"
@@ -885,9 +889,10 @@ task_index:
     title: "JWT logout blacklist"
     priority: critical
     estimate: small
-    status: in_progress
+    status: completed
     assignee: agent-4829
     started_at: "2026-04-01T15:45:00Z"
+    completed_at: "2026-04-01T19:35:00Z"
   - sprint_id: S0
     sprint_title: "Спринт 0 — Critical Security Fixes (1-2 недели)"
     task_id: SEC-04
