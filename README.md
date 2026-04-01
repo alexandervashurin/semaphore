@@ -3,12 +3,14 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/Rust-stable-orange.svg)](https://www.rust-lang.org)
 [![Build](https://github.com/tnl-o/velum/actions/workflows/rust.yml/badge.svg)](https://github.com/tnl-o/velum/actions)
+[![Release](https://img.shields.io/github/v/release/alexandervashurin/semaphore?label=latest)](https://github.com/alexandervashurin/semaphore/releases)
 
 **Velum** — это система управления и автоматизации DevOps задач с открытым исходным кодом. Написана на Rust, управляет Ansible, Terraform, OpenTofu, Terragrunt, Bash и PowerShell через веб-интерфейс с базой данных PostgreSQL.
 
 > **База данных:** Только PostgreSQL (SQLite/MySQL удалены в v2.2)  
 > **Тесты:** 710+ успешных тестов  
-> **Kubernetes:** Полная интеграция — 20 UI страниц, 60+ API endpoints, WebSocket streaming
+> **Kubernetes:** Полная интеграция — 33 UI страницы, 60+ API endpoints, WebSocket streaming, Security & RBAC  
+> **Последний релиз:** [v2.5.1](https://github.com/alexandervashurin/semaphore/releases/tag/v2.5.1) — Kubernetes UI Production Ready
 
 ---
 
@@ -132,44 +134,48 @@ cargo build --release
 
 ---
 
-## ☸️ Kubernetes интеграция (v2.4+)
+## ☸️ Kubernetes интеграция (v2.5+)
 
-**20 страниц для управления кластером:**
+**33 страницы для управления кластером — Production Ready:**
 
-| Страница | Файл | Возможности |
-|----------|------|-------------|
-| **Pods** | k8s-pods.html | Список, просмотр, удаление, evict, restart + **WebSocket логи** + **exec terminal** |
-| **Deployments** | k8s-deployments.html | CRUD + **scale**, **restart**, **rollback** |
-| **ConfigMaps** | k8s-configmaps.html | CRUD с JSON редактором |
-| **Secrets** | k8s-secrets.html | CRUD с base64 decode/reveal |
-| **Jobs & CronJobs** | k8s-jobs.html | CRUD + retry, suspend/resume, run now |
-| **ReplicaSets** | — | Список, просмотр, удаление |
-| **DaemonSets** | — | Список, просмотр, удаление |
-| **StatefulSets** | — | CRUD + scale |
-| **Services** | k8s-services.html | Управление сервисами |
-| **Ingress** | k8s-ingress.html | Управление Ingress |
-| **NetworkPolicy** | k8s-networkpolicy.html | Политики сети |
-| **Gateway API** | k8s-gateway.html | Gateway API |
-| **Storage** | k8s-storage.html | PV, PVC, StorageClass |
-| **RBAC** | k8s-rbac.html | Roles, RoleBindings |
-| **CRD/HPA** | k8s-crd.html | Custom Resources, HPA |
-| **Metrics** | k8s-metrics.html | Метрики ресурсов |
-| **Events** | k8s-events.html | События кластера |
-| **Topology** | k8s-topology.html | Визуализация топологии |
-| **Troubleshoot** | k8s-troubleshoot.html | Диагностика |
-| **Helm** | k8s-helm.html | Управление Helm чартами |
+| Категория | Страницы | Возможности |
+|-----------|----------|-------------|
+| **Workloads** | Pods, Deployments, ReplicaSets, DaemonSets, StatefulSets | CRUD, scale, restart, **pause/resume**, **rollback**, detailed history, evict API (PDB-aware) |
+| **Networking** | Services, Ingress, NetworkPolicy, Gateway API | CRUD, EndpointSlices, selector matching, TLS |
+| **Config** | ConfigMaps, Secrets | CRUD, YAML editor, validate, references, **masked values**, reveal endpoint |
+| **Storage** | PV, PVC, StorageClass, Snapshots | CRUD, binding, CSI drivers, default badge |
+| **Batch** | Jobs, CronJobs, PriorityClass, PDB | CRUD, suspend/resume, history, retry |
+| **RBAC** | ServiceAccounts, Roles, Bindings, ClusterRoles | CRUD, **can-i cache**, PSA labels |
+| **Advanced** | CRD, HPA, VPA, Quota, LimitRange | CRUD, dynamic objects, metrics hints |
+| **Observability** | Metrics, Events, Topology | **WebSocket streaming**, CPU/Memory charts, Service→Deployment→Pod graph |
+| **Helm** | Releases, Repos, Charts | Install, upgrade, rollback, uninstall, values editor |
+| **Enterprise** | Audit, Backup, GitOps, Multi-cluster | Export CSV/JSON, Velero, ArgoCD/Flux, cluster switcher |
+| **Tools** | Apply, Diff, Runbooks, Inventory Sync | YAML apply, **dry-run=server**, kubectl generator |
 
-**Backend API (~2500 строк Rust):**
-- 60+ REST endpoints для всех workloads
-- WebSocket streaming для логов в реальном времени
-- Полные CRUD операции с валидацией
-- 8 интеграционных тестов
+**Особенности:**
+- ✅ **Exec terminal** — WebSocket с timeout 5 мин + heartbeat
+- ✅ **Port-forward** — WebSocket туннель с timeout 10 мин
+- ✅ **Logs streaming** — WebSocket /logs/stream endpoint
+- ✅ **RBAC can-i кэш** — 5 мин TTL + frontend helpers
+- ✅ **Audit logging** — деструктивные операции + export
+- ✅ **Rate limiting** — WebSocket 60/min, burst 10/sec
+- ✅ **Secrets masking** — *** вместо значений + reveal
+- ✅ **Multi-cluster** — переключатель кластеров
+- ✅ **i18n** — EN/RU + Dark/Light theme
 
-**Frontend (~2000 строк JS/HTML):**
-- Современный vanilla JS с автообновлением
-- Модальные окна для всех операций
-- Выбор namespace и фильтры
-- Статусы с цветными бейджами
+**Backend API (~8000+ строк Rust):**
+- 60+ REST endpoints (`/api/kubernetes/...`)
+- WebSocket streaming (logs, events, exec, port-forward)
+- kube-rs client (kube 0.98, k8s-openapi 0.24, v1_30)
+- Routes декомпозиция (12 модулей)
+- Security: audit, RBAC, rate limiting, timeouts
+
+**Frontend (~5000+ строк Vanilla JS):**
+- 33 Kubernetes страницы (k8s-*.html)
+- Material Design UI
+- WebSocket real-time
+- Namespace picker + фильтры
+- Status badges + detailed panels
 
 ---
 
@@ -358,13 +364,15 @@ cargo build --release
 
 | Версия | Дата | Ключевые изменения |
 |--------|------|-------------------|
-| **v2.4.0** | 2026-03 | **Kubernetes UI Complete** — 20 страниц, WebSocket, ~4800 строк кода |
+| **v2.5.1** | 2026-04-01 | **Bugfix** — устранены предупреждения компиляции, clippy warnings |
+| **v2.5.0** | 2026-04-01 | **Kubernetes UI Release** — 33 страницы, Security & RBAC, Helm, Multi-cluster, Audit |
+| **v2.4.0** | 2026-03 | Kubernetes Workloads Complete — 20 страниц, WebSocket, ~4800 строк кода |
 | **v2.3.0** | 2026-03 | Kubernetes Workloads API — ReplicaSets, DaemonSets, StatefulSets |
-| **v2.2.0** | 2026-03 | MCP server + Pods/Deployments API |
+| **v2.2.0** | 2026-02 | MCP server + Pods/Deployments API |
 | **v2.1.0** | 2026-02 | PostgreSQL-only, 710+ тестов |
 | **v2.0.0** | 2026-01 | Initial Rust release |
 
-**Последний релиз:** [v2.4.0](https://github.com/tnl-o/velum/releases/tag/v2.4.0)
+**Последний релиз:** [v2.5.1](https://github.com/alexandervashurin/semaphore/releases/tag/v2.5.1) — Kubernetes UI Production Ready
 
 ---
 
