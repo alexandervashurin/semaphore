@@ -4,7 +4,7 @@
 
 use crate::api::middleware::ErrorResponse;
 use crate::api::state::AppState;
-use crate::db::store::{RetrieveQueryParams, TaskManager};
+use crate::db::store::{RetrieveQueryParams, TaskManager, UserManager};
 use crate::error::{Error, Result};
 use crate::models::{Task, TaskOutput, TaskWithTpl};
 use crate::services::task_logger::TaskStatus;
@@ -115,8 +115,18 @@ pub async fn add_task(
         )
     })?;
 
+    let author = match payload.user_id {
+        Some(uid) => state
+            .store
+            .get_user(uid)
+            .await
+            .map(|u| u.username)
+            .unwrap_or_else(|_| format!("user #{uid}")),
+        None => "system".to_string(),
+    };
+
     // Запускаем выполнение задачи в фоне с уведомлением Telegram
-    let store_arc: Arc<dyn crate::db::store::Store + Send + Sync> = Arc::new(state.store.clone());
+    let store_arc = state.store.as_arc();
     let task_to_run = created.clone();
     let telegram_bot = state.telegram_bot.clone();
     let project_id = created.project_id;
@@ -143,9 +153,6 @@ pub async fn add_task(
                     .await
                     .map(|p| p.name)
                     .unwrap_or_else(|_| format!("Project #{}", project_id));
-                
-                // Автор — system (для упрощения)
-                let author = "system".to_string();
                 
                 crate::services::task_execution::send_telegram_notification(
                     Some(bot),
