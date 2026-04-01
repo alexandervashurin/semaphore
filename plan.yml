@@ -109,8 +109,7 @@ sprints:
         title: "Cron validation"
         priority: high
         estimate: small
-        status: in_progress
-        assignee: assistant
+        status: completed
         subtasks:
           - "Добавить cron crate в scheduler_pool.rs"
           - "Валидировать cron выражения перед сохранением"
@@ -118,6 +117,11 @@ sprints:
         done_when:
           - "Невалидные cron отклоняются на уровне API"
           - "Тесты покрывают edge cases"
+        completion_notes:
+          - "schedule_cron_must_parse() валидирует cron выражения"
+          - "validate_schedule_cron_format API endpoint для валидации"
+          - "4 теста покрывают: invalid syntax, valid expression, run_at skip, empty cron"
+          - "cron crate уже используется (cron::Schedule)"
 
       - task_id: SEC-06
         title: "OIDC email claim"
