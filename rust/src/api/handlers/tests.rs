@@ -45,6 +45,38 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_healthz_endpoint() {
+        let app = create_test_app();
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/healthz")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_readyz_endpoint() {
+        let app = create_test_app();
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/readyz")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
     async fn test_logout_handler() {
         let store: Arc<dyn crate::db::Store + Send + Sync> = Arc::new(MockStore::new());
         let state = Arc::new(crate::api::state::AppState::new(

@@ -62,7 +62,7 @@ pub struct EventInvolvedObject {
     pub uid: Option<String>,
 }
 
-/// Обработчик WebSocket подключения для стриминга событий
+/// Обработчик WebSocket подключения для стриминга событий (namespace-scoped)
 pub async fn events_websocket(
     ws: WebSocketUpgrade,
     State(state): State<Arc<AppState>>,
@@ -70,6 +70,16 @@ pub async fn events_websocket(
     Query(query): Query<EventStreamQuery>,
 ) -> impl IntoResponse {
     ws.on_upgrade(move |socket| handle_event_stream(socket, state, namespace, query))
+}
+
+/// Обработчик WebSocket подключения для стриминга событий — кластерный (все namespace'ы, K-01)
+pub async fn cluster_events_websocket(
+    ws: WebSocketUpgrade,
+    State(state): State<Arc<AppState>>,
+    Query(query): Query<EventStreamQuery>,
+) -> impl IntoResponse {
+    // Пустая строка namespace означает все namespace'ы в kube-rs Api::all()
+    ws.on_upgrade(move |socket| handle_event_stream(socket, state, "_all".to_string(), query))
 }
 
 /// Обработка потока событий

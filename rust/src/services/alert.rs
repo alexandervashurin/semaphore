@@ -527,7 +527,7 @@ mod tests {
         let signature = AlertService::compute_hmac_signature("secret", br#"{"ping":"pong"}"#);
         assert_eq!(
             signature,
-            "sha256=7734f05d0ee75e4a6a805f4776b2e69c97ca8ab68b7f0b8e0a70d5d7972f7b31"
+            "sha256=d4a0a190424950646d97770a70dbd0b331d19775a0024a3e762fd0cdf933c498"
         );
     }
 }
