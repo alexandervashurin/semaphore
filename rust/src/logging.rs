@@ -1,21 +1,35 @@
-//! Модуль инициализации логирования
+//! Logging initialization.
 
+use crate::config::{load_logging_from_env, LogFormat};
 use tracing_subscriber::{self, EnvFilter};
 
-/// Инициализирует систему логирования
-///
-/// Использует переменную окружения RUST_LOG для настройки уровня логирования.
-/// По умолчанию используется уровень "info".
+/// Initializes application logging.
 pub fn init_logging() {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
-        )
-        .with_target(true)
-        .with_thread_ids(false)
-        .with_file(false)
-        .with_line_number(false)
-        .init();
+    let logging_config = load_logging_from_env();
+    let env_filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 
-    tracing::info!("Логирование инициализировано");
+    match logging_config.format {
+        LogFormat::Json => {
+            tracing_subscriber::fmt()
+                .json()
+                .with_env_filter(env_filter)
+                .with_target(true)
+                .with_thread_ids(false)
+                .with_file(false)
+                .with_line_number(false)
+                .init();
+        }
+        LogFormat::Text => {
+            tracing_subscriber::fmt()
+                .with_env_filter(env_filter)
+                .with_target(true)
+                .with_thread_ids(false)
+                .with_file(false)
+                .with_line_number(false)
+                .init();
+        }
+    }
+
+    tracing::info!("Logging initialized");
 }

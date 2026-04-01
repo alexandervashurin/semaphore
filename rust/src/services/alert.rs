@@ -521,4 +521,13 @@ mod tests {
         assert_eq!(author, "testuser");
         assert_eq!(version, "1.0.0");
     }
+
+    #[test]
+    fn test_hmac_webhook() {
+        let signature = AlertService::compute_hmac_signature("secret", br#"{"ping":"pong"}"#);
+        assert_eq!(
+            signature,
+            "sha256=7734f05d0ee75e4a6a805f4776b2e69c97ca8ab68b7f0b8e0a70d5d7972f7b31"
+        );
+    }
 }

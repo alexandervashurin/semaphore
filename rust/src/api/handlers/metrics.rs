@@ -4,7 +4,7 @@ use crate::api::state::AppState;
 use crate::services::metrics::MetricsManager;
 use axum::{
     extract::State,
-    http::{header::CONTENT_TYPE, StatusCode},
+    http::{header::CONTENT_TYPE, HeaderValue, StatusCode},
     response::Response,
     Json,
 };
@@ -32,7 +32,7 @@ pub async fn get_metrics(
     let mut response = Response::new(output);
     response
         .headers_mut()
-        .insert(CONTENT_TYPE, "text/plain; version=0.0.4".parse().unwrap());
+        .insert(CONTENT_TYPE, HeaderValue::from_static("text/plain; version=0.0.4"));
 
     Ok(response)
 }

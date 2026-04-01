@@ -203,12 +203,29 @@ pub async fn oidc_callback(
             .set_client_secret(oauth2::ClientSecret::new(
                 provider_config.client_secret.clone(),
             ))
-            .set_auth_uri(oauth2::AuthUrl::new(provider_config.endpoint.auth_url.clone()).unwrap())
-            .set_token_uri(
-                oauth2::TokenUrl::new(provider_config.endpoint.token_url.clone()).unwrap(),
-            )
+            .set_auth_uri(oauth2::AuthUrl::new(provider_config.endpoint.auth_url.clone()).map_err(
+                |e| {
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(ErrorResponse::new(format!("Invalid auth URL: {}", e))),
+                    )
+                },
+            )?)
+            .set_token_uri(oauth2::TokenUrl::new(provider_config.endpoint.token_url.clone()).map_err(
+                |e| {
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(ErrorResponse::new(format!("Invalid token URL: {}", e))),
+                    )
+                },
+            )?)
             .set_redirect_uri(
-                oauth2::RedirectUrl::new(provider_config.redirect_url.clone()).unwrap(),
+                oauth2::RedirectUrl::new(provider_config.redirect_url.clone()).map_err(|e| {
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(ErrorResponse::new(format!("Invalid redirect URL: {}", e))),
+                    )
+                })?,
             );
 
     let http_client = reqwest::Client::builder()

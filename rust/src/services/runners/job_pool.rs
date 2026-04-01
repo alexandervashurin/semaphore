@@ -242,6 +242,7 @@ pub type Job = QueuedTask;
 mod tests {
     use super::*;
     use crate::db::mock::MockStore;
+    use std::sync::atomic::Ordering;
 
     fn make_store() -> Arc<dyn Store + Send + Sync> {
         Arc::new(MockStore::new())
@@ -267,6 +268,24 @@ mod tests {
     #[tokio::test]
     async fn test_has_running_jobs_empty() {
         let pool = JobPool::new(make_store());
+        assert!(!pool.has_running_jobs().await);
+    }
+
+    #[tokio::test]
+    async fn test_graceful_shutdown() {
+        let pool = JobPool::new(make_store());
+
+        pool.running_ids.lock().await.insert(42);
+
+        let running_ids = pool.running_ids.clone();
+        tokio::spawn(async move {
+            sleep(Duration::from_millis(50)).await;
+            running_ids.lock().await.remove(&42);
+        });
+
+        pool.shutdown().await;
+
+        assert!(pool.shutting_down.load(Ordering::SeqCst));
         assert!(!pool.has_running_jobs().await);
     }
 }

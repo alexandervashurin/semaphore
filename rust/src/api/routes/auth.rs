@@ -12,6 +12,8 @@ use std::sync::Arc;
 pub fn auth_routes() -> Router<Arc<AppState>> {
     Router::new()
         // Health checks
+        .route("/healthz", get(handlers::health))
+        .route("/readyz", get(handlers::health_ready))
         .route("/api/health", get(handlers::health))
         .route("/api/health/live", get(handlers::health_live))
         .route("/api/health/ready", get(handlers::health_ready))
