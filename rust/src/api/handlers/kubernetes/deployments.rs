@@ -134,6 +134,27 @@ pub struct RevisionInfo {
     pub created_at: Option<DateTime<Utc>>,
 }
 
+/// Детальная информация о ревизии с ReplicaSet
+#[derive(Debug, Serialize)]
+pub struct DetailedRevisionInfo {
+    pub revision: i64,
+    pub replica_set_name: String,
+    pub replicas: i32,
+    pub ready_replicas: i32,
+    pub available_replicas: i32,
+    pub image: String,
+    pub created_at: Option<DateTime<Utc>>,
+}
+
+/// Детальная история rollout
+#[derive(Debug, Serialize)]
+pub struct DetailedRolloutHistory {
+    pub name: String,
+    pub namespace: String,
+    pub current_revision: i64,
+    pub revisions: Vec<DetailedRevisionInfo>,
+}
+
 // ============================================================================
 // API Handlers
 // ============================================================================
@@ -479,6 +500,140 @@ pub async fn get_deployment_history(
     Ok(Json(RolloutHistory {
         name,
         namespace,
+        revisions,
+    }))
+}
+
+/// Pause Deployment (приостанавливает rollout)
+pub async fn pause_deployment(
+    State(state): State<Arc<AppState>>,
+    Path((namespace, name)): Path<(String, String)>,
+) -> Result<Json<OperationResponse>> {
+    let kube_client = state.kubernetes_client()?;
+    let client = kube_client.raw().clone();
+
+    let api: Api<Deployment> = Api::namespaced(client, &namespace);
+
+    let deployment = api
+        .get(&name)
+        .await
+        .map_err(|e| Error::NotFound(format!("Deployment {} not found: {}", name, e)))?;
+
+    // Устанавливаем paused=true в spec
+    let patch = serde_json::json!({
+        "spec": {
+            "paused": true
+        }
+    });
+
+    let pp = PatchParams::apply("velum-kubernetes-controller");
+    api.patch(&name, &pp, &Patch::Apply(&patch))
+        .await
+        .map_err(|e| Error::Kubernetes(format!("Failed to pause deployment: {}", e)))?;
+
+    Ok(Json(OperationResponse {
+        message: format!("Deployment {} paused", name),
+        name,
+        namespace,
+        replicas: None,
+        revision: None,
+    }))
+}
+
+/// Resume Deployment (возобновляет rollout)
+pub async fn resume_deployment(
+    State(state): State<Arc<AppState>>,
+    Path((namespace, name)): Path<(String, String)>,
+) -> Result<Json<OperationResponse>> {
+    let kube_client = state.kubernetes_client()?;
+    let client = kube_client.raw().clone();
+
+    let api: Api<Deployment> = Api::namespaced(client, &namespace);
+
+    let deployment = api
+        .get(&name)
+        .await
+        .map_err(|e| Error::NotFound(format!("Deployment {} not found: {}", name, e)))?;
+
+    // Устанавливаем paused=false в spec
+    let patch = serde_json::json!({
+        "spec": {
+            "paused": false
+        }
+    });
+
+    let pp = PatchParams::apply("velum-kubernetes-controller");
+    api.patch(&name, &pp, &Patch::Apply(&patch))
+        .await
+        .map_err(|e| Error::Kubernetes(format!("Failed to resume deployment: {}", e)))?;
+
+    Ok(Json(OperationResponse {
+        message: format!("Deployment {} resumed", name),
+        name,
+        namespace,
+        replicas: None,
+        revision: None,
+    }))
+}
+
+/// Получить полную историю rollout с ReplicaSet
+pub async fn get_deployment_history_detailed(
+    State(state): State<Arc<AppState>>,
+    Path((namespace, name)): Path<(String, String)>,
+) -> Result<Json<DetailedRolloutHistory>> {
+    use k8s_openapi::api::apps::v1::ReplicaSet;
+    
+    let kube_client = state.kubernetes_client()?;
+    let client = kube_client.raw().clone();
+
+    // Получаем Deployment
+    let api: Api<Deployment> = Api::namespaced(client.clone(), &namespace);
+    let deployment = api
+        .get(&name)
+        .await
+        .map_err(|e| Error::NotFound(format!("Deployment {} not found: {}", name, e)))?;
+
+    // Получаем все ReplicaSet, принадлежащие этому Deployment
+    let rs_api: Api<ReplicaSet> = Api::namespaced(client, &namespace);
+    let label_selector = format!("app.kubernetes.io/instance={},app={}", name, name);
+    let lp = ListParams::default().labels(&label_selector);
+    
+    let replica_sets = rs_api.list(&lp).await
+        .map_err(|e| Error::Kubernetes(format!("Failed to list ReplicaSets: {}", e)))?;
+
+    // Собираем информацию о ревизиях
+    let mut revisions: Vec<DetailedRevisionInfo> = replica_sets.items.iter().map(|rs| {
+        let revision = rs.metadata.annotations.as_ref()
+            .and_then(|a| a.get("deployment.kubernetes.io/revision"))
+            .and_then(|r| r.parse::<i64>().ok())
+            .unwrap_or(0);
+        
+        DetailedRevisionInfo {
+            revision,
+            replica_set_name: rs.metadata.name.clone().unwrap_or_default(),
+            replicas: rs.spec.as_ref().and_then(|s| s.replicas).unwrap_or(0),
+            ready_replicas: rs.status.as_ref().and_then(|s| s.ready_replicas).unwrap_or(0),
+            available_replicas: rs.status.as_ref().and_then(|s| s.available_replicas).unwrap_or(0),
+            created_at: rs.metadata.creation_timestamp.as_ref().map(|t| t.0),
+            image: rs.spec.as_ref()
+                .and_then(|s| s.template.as_ref())
+                .and_then(|t| t.spec.as_ref())
+                .and_then(|s| s.containers.first())
+                .and_then(|c| c.image.clone())
+                .unwrap_or_default(),
+        }
+    }).collect();
+
+    // Сортируем по ревизии
+    revisions.sort_by(|a, b| b.revision.cmp(&a.revision));
+
+    Ok(Json(DetailedRolloutHistory {
+        name,
+        namespace,
+        current_revision: deployment.metadata.annotations.as_ref()
+            .and_then(|a| a.get("deployment.kubernetes.io/revision"))
+            .and_then(|r| r.parse::<i64>().ok())
+            .unwrap_or(1),
         revisions,
     }))
 }

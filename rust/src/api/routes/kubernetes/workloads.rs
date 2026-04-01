@@ -32,6 +32,9 @@ pub fn workloads_routes() -> Router<Arc<AppState>> {
         .route("/api/kubernetes/namespaces/{namespace}/deployments/{name}/restart", post(handlers::restart_deployment))
         .route("/api/kubernetes/namespaces/{namespace}/deployments/{name}/rollback", post(handlers::rollback_deployment))
         .route("/api/kubernetes/namespaces/{namespace}/deployments/{name}/history", get(handlers::get_deployment_history))
+        .route("/api/kubernetes/namespaces/{namespace}/deployments/{name}/history/detailed", get(handlers::get_deployment_history_detailed))
+        .route("/api/kubernetes/namespaces/{namespace}/deployments/{name}/pause", post(handlers::pause_deployment))
+        .route("/api/kubernetes/namespaces/{namespace}/deployments/{name}/resume", post(handlers::resume_deployment))
         // ReplicaSets
         .route("/api/kubernetes/replicasets", get(handlers::list_replicasets))
         .route("/api/kubernetes/namespaces/{namespace}/replicasets", get(handlers::list_replicasets))
