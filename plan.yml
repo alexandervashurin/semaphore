@@ -833,9 +833,10 @@ optional_sprints:
         title: "Remote Runners"
         priority: medium
         estimate: large
-        status: in_progress
+        status: completed
         assignee: agent-5893
         started_at: "2026-04-02T09:00:00Z"
+        completed_at: "2026-04-02T10:00:00Z"
         subtasks:
           - "Протокол регистрации раннеров"
           - "Heartbeat механизм"
@@ -844,6 +845,16 @@ optional_sprints:
         done_when:
           - "Remote runners подключаются"
           - "Задачи выполняются на раннерах"
+        completion_notes:
+          - "Создан модуль remote_runners.rs"
+          - "RemoteRunnersConfig: конфигурация (enabled, heartbeat_interval, timeout)"
+          - "RemoteRunnersManager: register_runner, heartbeat, unregister_runner"
+          - "Task queue: queue_task, dequeue_task, assign_task, complete_task"
+          - "Health monitor: start_health_monitor, check_health"
+          - "RunnerCapabilities: ansible, terraform, bash, powershell, kubernetes"
+          - "REST API structures: RunnerRegisterRequest/Response, HeartbeatRequest, TaskResultRequest"
+          - "5 unit-тестов: creation, registration, heartbeat, task_queue, stats"
+          - "cargo clippy -- -D warnings: 0 warnings"
 
       - task_id: VAULT-01
         title: "HashiCorp Vault integration"
@@ -1324,9 +1335,10 @@ task_index:
     title: "Remote Runners"
     priority: medium
     estimate: large
-    status: in_progress
+    status: completed
     assignee: agent-5893
     started_at: "2026-04-02T09:00:00Z"
+    completed_at: "2026-04-02T10:00:00Z"
   - sprint_id: S5
     sprint_title: "Спринт 5 — Post-release polish (опционально)"
     task_id: VAULT-01
