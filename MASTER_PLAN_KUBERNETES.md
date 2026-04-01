@@ -596,7 +596,7 @@ flowchart LR
 #### 10.8 NFR
 - [x] Тема тёмная/светлая — полный CSS + JS toggle в сайдбаре (`styles.css` `.theme-dark`, `THEME_KEY`). ✅ уже было
 - [x] i18n EN/RU — `I18N` словарь + `t()` + `applyI18n()` в `app.js`; сайдбар рендерится с EN-метками при `lang=en`. ✅ 2026-03-30
-- [ ] Mobile критичные действия; WCAG 2.1 AA aria — backlog v2.
+- [ ] **K-05 (optional v2):** Mobile K8s UI + WCAG 2.1 AA (aria/keyboard/focus/contrast) для критичных действий.
 
 **Definition of Done:**
 - ✅ Кластеры переключаются из UI (`k8s-clusters.html`) без перелогина.

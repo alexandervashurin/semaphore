@@ -3,14 +3,86 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/Rust-stable-orange.svg)](https://www.rust-lang.org)
 [![Build](https://github.com/tnl-o/velum/actions/workflows/rust.yml/badge.svg)](https://github.com/tnl-o/velum/actions)
+[![Coverage](https://github.com/tnl-o/rust_semaphore/actions/workflows/coverage.yml/badge.svg)](https://github.com/tnl-o/rust_semaphore/actions/workflows/coverage.yml)
 [![Release](https://img.shields.io/github/v/release/alexandervashurin/semaphore?label=latest)](https://github.com/alexandervashurin/semaphore/releases)
 
 **Velum** — это система управления и автоматизации DevOps задач с открытым исходным кодом. Написана на Rust, управляет Ansible, Terraform, OpenTofu, Terragrunt, Bash и PowerShell через веб-интерфейс с базой данных PostgreSQL.
 
-> **База данных:** Только PostgreSQL (SQLite/MySQL удалены в v2.2)  
-> **Тесты:** 710+ успешных тестов  
-> **Kubernetes:** Полная интеграция — 33 UI страницы, 60+ API endpoints, WebSocket streaming, Security & RBAC  
+> **База данных:** Только PostgreSQL (SQLite/MySQL удалены в v2.2)
+> **Тесты:** 710+ успешных тестов
+> **Kubernetes:** Полная интеграция — 33 UI страницы, 60+ API endpoints, WebSocket streaming, Security & RBAC
 > **Последний релиз:** [v2.5.1](https://github.com/alexandervashurin/semaphore/releases/tag/v2.5.1) — Kubernetes UI Production Ready
+
+---
+
+## ⚡ Quick Start (5 команд)
+
+### Запуск Demo (одна команда)
+
+```bash
+docker compose -f docker-compose.demo.yml up
+```
+
+**Доступ:** http://localhost:8088  
+**Логин/пароль:** `admin / admin123`
+
+### Полный цикл (5 команд)
+
+```bash
+# 1. Запуск Demo-стенда
+docker compose -f docker-compose.demo.yml up --build -d
+
+# 2. Логин в систему (получение токена)
+curl -X POST http://localhost:8088/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"auth":"admin","password":"admin123"}'
+
+# 3. Создать проект
+curl -X POST http://localhost:8088/api/projects \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <TOKEN>" \
+  -d '{"name":"My Project","type":"ansible"}'
+
+# 4. Запустить задачу
+curl -X POST http://localhost:8088/api/project/1/tasks \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <TOKEN>" \
+  -d '{"template_id":1}'
+
+# 5. Получить лог задачи
+curl -X GET http://localhost:8088/api/project/1/tasks/1/output \
+  -H "Authorization: Bearer <TOKEN>"
+```
+
+---
+
+## 📸 Скриншоты
+
+### Dashboard
+![Dashboard](docs/images/dashboard.png)
+*Главная панель с проектами и задачами*
+
+### Kubernetes Pods
+![Kubernetes Pods](docs/images/k8s-pods.png)
+*Управление Pod'ами с WebSocket логами*
+
+### Template Editor
+![Template Editor](docs/images/template-editor.png)
+*Редактор шаблонов Ansible/Terraform*
+
+### Task Log (WebSocket)
+![Task Log](docs/images/task-log.png)
+*Потоковая передача логов задачи в реальном времени*
+
+### Workflow Builder
+![Workflow Builder](docs/images/workflow-builder.png)
+*Визуальный конструктор многошаговых пайплайнов*
+
+### MCP Server (AI Integration)
+![MCP Server](docs/images/mcp-server.png)
+*Embedded MCP сервер для AI-интеграции*
+
+---
 
 ---
 
