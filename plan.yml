@@ -234,14 +234,23 @@ sprints:
         title: "Prometheus label aggregation"
         priority: low
         estimate: small
-        status: in_progress
+        status: completed
         assignee: agent-2048
         started_at: "2026-04-02T03:00:00Z"
+        completed_at: "2026-04-02T04:00:00Z"
         subtasks:
           - "Реализовать aggregate by label selectors"
           - "Тесты метрик"
         done_when:
           - "Метрики агрегируются корректно"
+        completion_notes:
+          - "Добавлены CounterVec метрики: TASK_TOTAL_BY_PROJECT, TASK_SUCCESS_BY_PROJECT, TASK_FAILED_BY_PROJECT"
+          - "Добавлены CounterVec метрики: TASK_TOTAL_BY_TEMPLATE, TASK_SUCCESS_BY_TEMPLATE"
+          - "Добавлен CounterVec: TASK_TOTAL_BY_USER"
+          - "Добавлен HistogramVec: TASK_DURATION_BY_APP"
+          - "Создан TaskMetricLabels struct для удобной передачи labels"
+          - "Методы: task_started_with_labels, task_completed_with_labels, task_failed_with_labels"
+          - "cargo clippy -- -D warnings: 0 warnings"
 
       - task_id: TD-07
         title: "Inventory sync completion"
@@ -1001,9 +1010,10 @@ task_index:
     title: "Prometheus label aggregation"
     priority: low
     estimate: small
-    status: in_progress
+    status: completed
     assignee: agent-2048
     started_at: "2026-04-02T03:00:00Z"
+    completed_at: "2026-04-02T04:00:00Z"
   - sprint_id: S1
     sprint_title: "Спринт 1 — Stabilization (2-4 недели)"
     task_id: TD-07

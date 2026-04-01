@@ -200,6 +200,60 @@ lazy_static! {
         "semaphore_active_sessions",
         "Количество активных сессий"
     ).unwrap();
+
+    // ========================================================================
+    // Task Metrics with Labels (TD-06)
+    // ========================================================================
+
+    /// Счётчик задач по проектам
+    pub static ref TASK_TOTAL_BY_PROJECT: prometheus::CounterVec = prometheus::register_counter_vec!(
+        "semaphore_tasks_total_by_project",
+        "Общее количество задач по проектам",
+        &["project_id", "project_name"]
+    ).unwrap();
+
+    /// Счётчик успешных задач по проектам
+    pub static ref TASK_SUCCESS_BY_PROJECT: prometheus::CounterVec = prometheus::register_counter_vec!(
+        "semaphore_tasks_success_total_by_project",
+        "Количество успешных задач по проектам",
+        &["project_id", "project_name"]
+    ).unwrap();
+
+    /// Счётчик проваленных задач по проектам
+    pub static ref TASK_FAILED_BY_PROJECT: prometheus::CounterVec = prometheus::register_counter_vec!(
+        "semaphore_tasks_failed_total_by_project",
+        "Количество проваленных задач по проектам",
+        &["project_id", "project_name"]
+    ).unwrap();
+
+    /// Счётчик задач по шаблонам
+    pub static ref TASK_TOTAL_BY_TEMPLATE: prometheus::CounterVec = prometheus::register_counter_vec!(
+        "semaphore_tasks_total_by_template",
+        "Общее количество задач по шаблонам",
+        &["template_id", "template_name"]
+    ).unwrap();
+
+    /// Счётчик успешных задач по шаблонам
+    pub static ref TASK_SUCCESS_BY_TEMPLATE: prometheus::CounterVec = prometheus::register_counter_vec!(
+        "semaphore_tasks_success_total_by_template",
+        "Количество успешных задач по шаблонам",
+        &["template_id", "template_name"]
+    ).unwrap();
+
+    /// Счётчик задач по пользователям
+    pub static ref TASK_TOTAL_BY_USER: prometheus::CounterVec = prometheus::register_counter_vec!(
+        "semaphore_tasks_total_by_user",
+        "Общее количество задач по пользователям",
+        &["user_id", "username"]
+    ).unwrap();
+
+    /// Гистограмма длительности задач по типам приложений
+    pub static ref TASK_DURATION_BY_APP: prometheus::HistogramVec = prometheus::register_histogram_vec!(
+        "semaphore_task_duration_seconds_by_app",
+        "Длительность выполнения задач по типам приложений",
+        &["app_type"],
+        vec![0.5, 1.0, 5.0, 10.0, 30.0, 60.0, 300.0, 600.0, 1800.0, 3600.0]
+    ).unwrap();
 }
 
 /// Менеджер метрик
@@ -237,6 +291,40 @@ pub struct UserTaskCounters {
     pub total: u64,
     pub success: u64,
     pub failed: u64,
+}
+
+/// Labels для агрегации метрик задач (TD-06)
+#[derive(Debug, Clone)]
+pub struct TaskMetricLabels {
+    pub project_id: String,
+    pub project_name: String,
+    pub template_id: String,
+    pub template_name: String,
+    pub user_id: String,
+    pub username: String,
+    pub app_type: String,
+}
+
+impl TaskMetricLabels {
+    pub fn new(
+        project_id: impl Into<String>,
+        project_name: impl Into<String>,
+        template_id: impl Into<String>,
+        template_name: impl Into<String>,
+        user_id: impl Into<String>,
+        username: impl Into<String>,
+        app_type: impl Into<String>,
+    ) -> Self {
+        Self {
+            project_id: project_id.into(),
+            project_name: project_name.into(),
+            template_id: template_id.into(),
+            template_name: template_name.into(),
+            user_id: user_id.into(),
+            username: username.into(),
+            app_type: app_type.into(),
+        }
+    }
 }
 
 impl MetricsManager {
@@ -305,6 +393,21 @@ impl MetricsManager {
         TASKS_RUNNING.inc();
     }
 
+    /// Отмечает начало выполнения задачи с labels
+    pub fn task_started_with_labels(&self, labels: &TaskMetricLabels) {
+        TASK_TOTAL.inc();
+        TASKS_RUNNING.inc();
+        TASK_TOTAL_BY_PROJECT
+            .with_label_values(&[&labels.project_id, &labels.project_name])
+            .inc();
+        TASK_TOTAL_BY_TEMPLATE
+            .with_label_values(&[&labels.template_id, &labels.template_name])
+            .inc();
+        TASK_TOTAL_BY_USER
+            .with_label_values(&[&labels.user_id, &labels.username])
+            .inc();
+    }
+
     /// Отмечает завершение задачи успешно
     pub fn task_completed(&self, duration_secs: f64, queue_time_secs: f64) {
         TASK_SUCCESS.inc();
@@ -313,11 +416,38 @@ impl MetricsManager {
         TASK_QUEUE_TIME.observe(queue_time_secs);
     }
 
+    /// Отмечает завершение задачи успешно с labels
+    pub fn task_completed_with_labels(&self, duration_secs: f64, queue_time_secs: f64, labels: &TaskMetricLabels) {
+        TASK_SUCCESS.inc();
+        TASKS_RUNNING.dec();
+        TASK_DURATION.observe(duration_secs);
+        TASK_QUEUE_TIME.observe(queue_time_secs);
+        TASK_SUCCESS_BY_PROJECT
+            .with_label_values(&[&labels.project_id, &labels.project_name])
+            .inc();
+        TASK_SUCCESS_BY_TEMPLATE
+            .with_label_values(&[&labels.template_id, &labels.template_name])
+            .inc();
+        TASK_DURATION_BY_APP
+            .with_label_values(&[&labels.app_type])
+            .observe(duration_secs);
+    }
+
     /// Отмечает провал задачи
     pub fn task_failed(&self, duration_secs: f64) {
         TASK_FAILED.inc();
         TASKS_RUNNING.dec();
         TASK_DURATION.observe(duration_secs);
+    }
+
+    /// Отмечает провал задачи с labels
+    pub fn task_failed_with_labels(&self, duration_secs: f64, labels: &TaskMetricLabels) {
+        TASK_FAILED.inc();
+        TASKS_RUNNING.dec();
+        TASK_DURATION.observe(duration_secs);
+        TASK_FAILED_BY_PROJECT
+            .with_label_values(&[&labels.project_id, &labels.project_name])
+            .inc();
     }
 
     /// Отмечает остановку задачи
