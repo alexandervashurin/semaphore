@@ -1141,3 +1141,334 @@ task_index:
     priority: medium
     estimate: medium
     status: todo
+
+# ============================================================================
+# МАШИНОЧИТАЕМАЯ ИНФОРМАЦИЯ О ПРОЕКТЕ
+# ============================================================================
+
+project_metadata:
+  name: "Velum"
+  description: "Система управления и автоматизации DevOps задач с открытым исходным кодом"
+  version: "2.5.1"
+  license: "MIT"
+  languages:
+    - "Rust"
+    - "JavaScript"
+  repositories:
+    main: "https://github.com/tnl-o/velum"
+    fork: "https://github.com/alexandervashurin/semaphore"
+  contacts:
+    author: "Alexander Vashurin"
+    email: "a.bobnyukhov@gmail.com"
+
+project_structure:
+  backend:
+    path: "rust/"
+    language: "Rust"
+    lines_of_code: 25000
+    framework: "Axum 0.8"
+    runtime: "Tokio 1"
+    database: "SQLx 0.8 + PostgreSQL"
+    kubernetes_client: "kube 0.98 + k8s-openapi 0.24"
+    test_count: 710
+    test_coverage: 0.67
+    subdirs:
+      - path: "rust/src/api/"
+        description: "HTTP handlers (200+ функций)"
+      - path: "rust/src/api/handlers/kubernetes/"
+        description: "K8s API (12 модулей, ~8000 строк)"
+      - path: "rust/src/api/handlers/mcp/"
+        description: "MCP server (60 инструментов)"
+      - path: "rust/src/api/middleware/"
+        description: "Auth, rate limiting, CORS"
+      - path: "rust/src/api/routes.rs"
+        description: "908 строк, 12 модулей"
+      - path: "rust/src/models/"
+        description: "Модели данных"
+      - path: "rust/src/db/"
+        description: "SQLx PostgreSQL"
+      - path: "rust/src/services/"
+        description: "Task runner, scheduler, backup"
+      - path: "rust/src/kubernetes/"
+        description: "K8s client, Helm, Jobs"
+      - path: "rust/src/config/"
+        description: "Конфигурация (HA, LDAP, OIDC)"
+      - path: "rust/src/utils/"
+        description: "Encryption, mailer, SSH"
+      - path: "rust/tests/"
+        description: "710+ тестов"
+
+  frontend:
+    path: "web/public/"
+    language: "Vanilla JavaScript"
+    lines_of_code: 5000
+    framework: "Vanilla JS + Material Design"
+    pages_total: 48
+    pages_base: 28
+    pages_kubernetes: 20
+    subdirs:
+      - path: "web/public/*.html"
+        description: "48 страниц (28 базовых + 20 Kubernetes)"
+      - path: "web/public/app.js"
+        description: "API client, sidebar"
+      - path: "web/public/styles.css"
+        description: "Material Design CSS"
+
+  mcp:
+    path: "mcp/"
+    description: "Embedded MCP сервер"
+    tools_count: 60
+
+  database:
+    path: "db/postgres/"
+    description: "Миграции PostgreSQL"
+
+  deploy:
+    path: "deploy/"
+    description: "Docker Compose (demo/dev/prod)"
+    variants:
+      - "demo"
+      - "dev"
+      - "prod"
+
+  docs:
+    path: "docs/"
+    subdirs:
+      - path: "docs/technical/"
+        description: "API, Auth, Config, Security"
+      - path: "docs/guides/"
+        description: "Setup, Testing, Demo"
+      - path: "docs/releases/"
+        description: "Release notes"
+      - path: "docs/future/"
+        description: "Roadmap, планы (12 файлов)"
+      - path: "docs/archive/"
+        description: "Исторические отчёты"
+
+  scripts:
+    path: "scripts/"
+    description: "Утилиты, SQL seeds"
+
+  key_files:
+    - path: "MASTER_PLAN.md"
+      lines: 3040
+      description: "Основной план"
+    - path: "MASTER_PLAN_V3.md"
+      lines: 930
+      description: "Feature parity"
+    - path: "MASTER_PLAN_KUBERNETES.md"
+      lines: 1725
+      description: "K8s UI план"
+    - path: "PHASE_01_*.md .. PHASE_10.md"
+      description: "Детальные фазы"
+    - path: "CHANGELOG.md"
+      lines: 913
+      description: "История версий"
+    - path: "README.md"
+      description: "Актуальная документация"
+    - path: "DEPLOY.md"
+      description: "Руководство по развёртыванию"
+    - path: "api-docs.yml"
+      lines: 2773
+      description: "OpenAPI 2.0"
+
+api_endpoints:
+  rest_total: 75
+  kubernetes_total: 60
+  graphql: true
+  websocket: true
+
+features:
+  implemented:
+    - "Web Framework: Axum 0.8 + Tokio"
+    - "Database Layer: SQLx 0.8, PostgreSQL только"
+    - "Auth: JWT, bcrypt, TOTP 2FA, LDAP, OIDC"
+    - "Task Runner: Ansible, Terraform, Bash, PowerShell"
+    - "Scheduler: Cron-расписания"
+    - "WebSocket: Стриминг логов"
+    - "Kubernetes Client: kube 0.98, k8s-openapi 0.24 (v1_30)"
+    - "Helm Integration: Install/upgrade/rollback"
+    - "MCP Server: 60 инструментов, встроен в Velum"
+    - "GraphQL API: async-graphql 7.0"
+    - "Prometheus Metrics: 18+ метрик"
+    - "Rate Limiting: Реализован"
+    - "Audit Logging: С экспортом CSV"
+    - "Multi-Tenancy: Организации с квотами"
+    - "HA Cluster: Redis backend, health checks"
+  partial:
+    - "Telegram Bot: Заглушка (teloxide)"
+    - "SSH Key Installation: 5 стабов"
+    - "Exporter/Importer: async/sync конфликт"
+    - "Session Blacklist: Не реализован"
+    - "gRPC API: Только документация"
+
+kubernetes_pages:
+  - "k8s-pods.html"
+  - "k8s-deployments.html"
+  - "k8s-replicasets.html"
+  - "k8s-daemonsets.html"
+  - "k8s-statefulsets.html"
+  - "k8s-services.html"
+  - "k8s-configmaps.html"
+  - "k8s-secrets.html"
+  - "k8s-ingress.html"
+  - "k8s-networkpolicy.html"
+  - "k8s-storage.html"
+  - "k8s-rbac.html"
+  - "k8s-helm.html"
+  - "k8s-jobs.html"
+  - "k8s-cronjobs.html"
+  - "k8s-metrics.html"
+  - "k8s-events.html"
+  - "k8s-topology.html"
+  - "k8s-audit.html"
+  - "k8s-backup.html"
+  - "k8s-gitops.html"
+  - "k8s-clusters.html"
+  - "k8s-apply.html"
+  - "k8s-troubleshoot.html"
+
+tech_debt:
+  security:
+    - package: "quinn-proto"
+      version: "0.11.13"
+      cvss: 8.7
+      issue: "Memory Safety"
+    - package: "wasmtime"
+      version: "41.x"
+      cvss: 6.0
+      issue: "Multiple CVEs"
+    - package: "protobuf"
+      version: "old"
+      cvss: 5.0
+      issue: "DoS"
+    - package: "rsa"
+      version: "0.9.10"
+      issue: "Marvin Attack"
+    - package: "fxhash"
+      version: "0.2.1"
+      issue: "Unmaintained"
+    - package: "instant"
+      version: "0.1.13"
+      issue: "Unmaintained"
+  code_todos:
+    - file: "api/users.rs"
+      line: 43
+      issue: "Вернуть минимальную информацию о пользователе"
+    - file: "api/users.rs"
+      line: 63
+      issue: "Проверка подписки для PRO пользователей"
+    - file: "api/user.rs"
+      line: 108
+      issue: "Интеграция с subscription service"
+    - file: "api/user.rs"
+      line: 128
+      issue: "Интеграция с subscription service"
+    - file: "api/handlers/oidc.rs"
+      line: 421
+      issue: "Добавить email в AuthConfig"
+    - file: "services/local_job/types.rs"
+      line: 165
+      issue: "Добавить тесты"
+    - file: "api/handlers/kubernetes/runbook.rs"
+      line: 278
+      issue: "User session"
+    - file: "api/handlers/kubernetes/runbook.rs"
+      line: 297
+      issue: "Params"
+    - file: "api/handlers/kubernetes/runbook.rs"
+      line: 305
+      issue: "Task runner integration"
+    - file: "api/handlers/kubernetes/prometheus.rs"
+      line: 334
+      issue: "Aggregate by label selectors"
+    - file: "api/handlers/kubernetes/inventory_sync.rs"
+      line: 447
+      issue: "Update inventory"
+    - file: "api/handlers/auth.rs"
+      line: 610
+      issue: "Subscription service integration"
+
+build_commands:
+  test: "cargo test"
+  clippy: "cargo clippy -- -D warnings"
+  build: "cargo build --release"
+  audit: "cargo audit"
+  doc: "cargo doc --no-deps"
+  run: "cargo run -- server --host 0.0.0.0 --port 3000"
+
+docker_commands:
+  demo: "docker compose -f docker-compose.demo.yml up --build -d"
+  dev: "docker compose -f docker-compose.dev.yml up --build -d"
+  prod: "docker compose -f docker-compose.prod.yml up --build -d"
+  k8s: "kubectl apply -f deploy/kubernetes/"
+
+urls:
+  demo: "http://localhost:8088"
+  dev: "http://localhost:3000"
+  prod: "http://localhost"
+  api_health: "/api/health"
+  api_docs: "/swagger"
+  login: "/login"
+
+credentials:
+  demo:
+    username: "admin"
+    password: "admin123"
+  dev:
+    username: "admin"
+    password: "admin123"
+
+environment_variables:
+  required:
+    - "VELUM_DB_DIALECT"
+    - "VELUM_DB_URL"
+    - "VELUM_WEB_PATH"
+    - "VELUM_JWT_SECRET"
+    - "VELUM_ADMIN"
+    - "VELUM_ADMIN_PASSWORD"
+  optional:
+    - "VELUM_LDAP_*"
+    - "VELUM_OIDC_*"
+    - "RUST_LOG"
+    - "VELUM_HA_REDIS_HOST"
+    - "VELUM_HA_REDIS_PORT"
+
+ci_cd:
+  provider: "GitHub Actions"
+  workflows:
+    - "rust.yml"
+    - "coverage.yml"
+    - "release.yml"
+  jobs:
+    - "build"
+    - "test"
+    - "clippy"
+    - "audit"
+    - "coverage"
+    - "release"
+
+metrics:
+  lines_of_code_rust: 25000
+  lines_of_code_js: 5000
+  test_count: 710
+  test_coverage: 0.67
+  api_endpoints: 135
+  kubernetes_pages: 33
+  mcp_tools: 60
+  docker_image_size_mb: 200
+  target_docker_image_size_mb: 50
+
+quick_start:
+  demo:
+    - "docker compose -f docker-compose.demo.yml up"
+    - "Открыть http://localhost:8088"
+    - "Логин: admin / admin123"
+  dev:
+    - "./velum.sh init dev"
+    - "./velum.sh start dev"
+    - "Открыть http://localhost:3000"
+  prod:
+    - "См. DEPLOY.md"
+
+# ============================================================================
