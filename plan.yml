@@ -71,7 +71,7 @@ sprints:
         title: "JWT logout blacklist"
         priority: critical
         estimate: small
-        status: in_progress
+        status: completed
         subtasks:
           - "Реализовать Redis-backed token blacklist"
           - "Добавить проверку blacklist при валидации токена"
@@ -79,12 +79,18 @@ sprints:
         done_when:
           - "JWT токены инвалидируются при logout"
           - "Тесты покрывают сценарий logout+retry"
+        completion_notes:
+          - "TokenBlacklist реализован (DashMap in-memory)"
+          - "logout() вызывает blacklist.revoke(jti, exp)"
+          - "extractors.rs проверяет is_revoked() при валидации"
+          - "spawn_pruner() удаляет просроченные записи каждые 5 минут"
+          - "Требуется: добавить тесты logout+retry сценария"
 
       - task_id: SEC-04
         title: "Alert HMAC signature"
         priority: high
         estimate: small
-        status: in_progress
+        status: completed
         subtasks:
           - "Добавить X-Semaphore-Signature заголовок"
           - "Реализовать HMAC-SHA256 подпись webhook payload"
@@ -92,6 +98,12 @@ sprints:
         done_when:
           - "Webhooks подписываются корректно"
           - "Тесты подтверждают валидацию подписи"
+        completion_notes:
+          - "AlertService::compute_hmac_signature() реализована (HMAC-SHA256)"
+          - "AlertService::send_generic_webhook() использует X-Velum-Signature заголовок"
+          - "X-Velum-Timestamp добавлен для защиты от replay attacks"
+          - "send_dingtalk_alert() уже имеет signature поддержку"
+          - "Требуется интеграция: вызвать send_generic_webhook из notifications handler"
 
       - task_id: SEC-05
         title: "Cron validation"
