@@ -890,7 +890,8 @@ task_index:
     title: "Завершить Telegram Bot уведомления"
     priority: high
     estimate: medium
-    status: todo
+    status: in_progress
+    assignee: assistant
   - sprint_id: S1
     sprint_title: "Спринт 1 — Stabilization (2-4 недели)"
     task_id: TD-02
