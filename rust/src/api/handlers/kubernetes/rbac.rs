@@ -15,6 +15,7 @@ use tokio::time::{Duration, Instant};
 
 use crate::api::state::AppState;
 use crate::error::{Error, Result};
+use once_cell::sync::OnceCell;
 
 // ── RBAC Cache ────────────────────────────────────────────────────
 
@@ -56,16 +57,13 @@ impl RbacCache {
     }
 }
 
-// Глобальный кэш (ленивая инициализация)
-static mut RBAC_CACHE: Option<Arc<RbacCache>> = None;
+// Глобальный кэш с безопасной инициализацией
+static RBAC_CACHE: OnceCell<Arc<RbacCache>> = OnceCell::new();
 
 fn get_rbac_cache() -> Arc<RbacCache> {
-    unsafe {
-        if RBAC_CACHE.is_none() {
-            RBAC_CACHE = Some(Arc::new(RbacCache::new()));
-        }
-        RBAC_CACHE.clone().unwrap()
-    }
+    RBAC_CACHE
+        .get_or_init(|| Arc::new(RbacCache::new()))
+        .clone()
 }
 
 #[derive(Debug, Deserialize)]

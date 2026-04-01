@@ -32,7 +32,8 @@
       "Bash(ps *)",
       "Bash(nohup *)",
       "Bash(echo *)",
-      "Bash(cargo bench *)"
+      "Bash(cargo bench *)",
+      "Bash(tee *)"
     ]
   },
   "$version": 3

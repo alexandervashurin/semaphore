@@ -50,6 +50,7 @@ pub use cluster::*;
 #[allow(ambiguous_glob_reexports)]
 pub use cluster_management::*;
 pub use configmaps::*;
+#[allow(ambiguous_glob_reexports)]
 pub use daemonsets::*;
 pub use deployments::*;
 pub use error::*;
@@ -72,6 +73,7 @@ pub use replicasets::*;
 pub use runbook::*;
 pub use secrets::*;
 pub use services::*;
+#[allow(ambiguous_glob_reexports)]
 pub use statefulsets::*;
 pub use storage::*;
 pub use storage_csi::*;
