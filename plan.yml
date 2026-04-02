@@ -752,7 +752,9 @@ optional_sprints:
         title: "Mobile K8s UI + WCAG 2.1 AA"
         priority: low
         estimate: large
-        status: todo
+        status: in_progress
+        assignee: agent-4217
+        started_at: "2026-04-02T15:00:00Z"
         subtasks:
           - "Mobile responsive design"
           - "WCAG 2.1 AA compliance"
@@ -1295,7 +1297,9 @@ task_index:
     title: "Mobile K8s UI + WCAG 2.1 AA"
     priority: low
     estimate: large
-    status: todo
+    status: in_progress
+    assignee: agent-4217
+    started_at: "2026-04-02T15:00:00Z"
   - sprint_id: S5
     sprint_title: "Спринт 5 — Post-release polish (опционально)"
     task_id: OBS-01
