@@ -860,7 +860,9 @@ optional_sprints:
         title: "HashiCorp Vault integration"
         priority: medium
         estimate: medium
-        status: todo
+        status: in_progress
+        assignee: agent-3927
+        started_at: "2026-04-02T14:30:00Z"
         subtasks:
           - "Vault secret storage backend"
           - "Dynamic secrets"
@@ -1345,7 +1347,9 @@ task_index:
     title: "HashiCorp Vault integration"
     priority: medium
     estimate: medium
-    status: todo
+    status: in_progress
+    assignee: agent-3927
+    started_at: "2026-04-02T14:30:00Z"
 
 # ============================================================================
 # МАШИНОЧИТАЕМАЯ ИНФОРМАЦИЯ О ПРОЕКТЕ
