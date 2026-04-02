@@ -1,6 +1,11 @@
 //! GraphQL API модуль
 //!
-//! Предоставляет GraphQL альтернативу REST API
+//! Предоставляет GraphQL альтернативу REST API.
+//!
+//! ## Endpoints
+//! - `GET  /graphql`    — GraphiQL playground
+//! - `POST /graphql`    — HTTP запросы (query / mutation)
+//! - `GET  /graphql/ws` — WebSocket подписки (Subscription)
 
 pub mod mutation;
 pub mod query;
@@ -8,11 +13,12 @@ pub mod schema;
 pub mod subscription;
 pub mod types;
 
-use async_graphql::http::GraphiQLSource;
-use async_graphql_axum::GraphQLRequest;
-use async_graphql_axum::GraphQLResponse;
+use std::sync::Arc;
+
+use async_graphql::http::{GraphiQLSource, ALL_WEBSOCKET_PROTOCOLS};
+use async_graphql_axum::{GraphQLProtocol, GraphQLRequest, GraphQLResponse, GraphQLWebSocket};
 use axum::{
-    extract::State,
+    extract::{State, WebSocketUpgrade},
     response::{Html, IntoResponse},
     routing::get,
     Router,
@@ -20,18 +26,17 @@ use axum::{
 
 use crate::api::state::AppState;
 
-use std::sync::Arc;
-
-/// Создаёт маршруты GraphQL
-pub fn graphql_routes() -> Router<Arc<AppState>> {
-    let schema = schema::create_schema();
+/// Создаёт маршруты GraphQL, получая AppState для инъекции в схему.
+pub fn graphql_routes(app_state: Arc<AppState>) -> Router<Arc<AppState>> {
+    let schema = schema::create_schema(app_state);
 
     Router::new()
         .route("/graphql", get(graphql_playground).post(graphql_handler))
+        .route("/graphql/ws", get(graphql_ws_handler))
         .with_state(schema)
 }
 
-/// Обработчик GraphQL запросов
+/// Обработчик HTTP GraphQL запросов (query + mutation)
 pub async fn graphql_handler(
     State(schema): State<schema::Schema>,
     req: GraphQLRequest,
@@ -39,7 +44,25 @@ pub async fn graphql_handler(
     schema.execute(req.into_inner()).await.into()
 }
 
-/// GraphiQL playground
+/// WebSocket обработчик для GraphQL Subscription
+pub async fn graphql_ws_handler(
+    State(schema): State<schema::Schema>,
+    protocol: GraphQLProtocol,
+    upgrade: WebSocketUpgrade,
+) -> impl IntoResponse {
+    upgrade
+        .protocols(ALL_WEBSOCKET_PROTOCOLS)
+        .on_upgrade(move |stream| async move {
+            GraphQLWebSocket::new(stream, schema, protocol).serve().await;
+        })
+}
+
+/// GraphiQL playground с поддержкой подписок через WebSocket
 pub async fn graphql_playground() -> Html<String> {
-    Html(GraphiQLSource::build().endpoint("/graphql").finish())
+    Html(
+        GraphiQLSource::build()
+            .endpoint("/graphql")
+            .subscription_endpoint("/graphql/ws")
+            .finish(),
+    )
 }

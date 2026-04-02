@@ -843,9 +843,10 @@ optional_sprints:
         title: "GraphQL API expanded"
         priority: low
         estimate: medium
-        status: in_progress
+        status: completed
         assignee: agent-7483
         started_at: "2026-04-02T11:30:00Z"
+        completed_at: "2026-04-02T12:00:00Z"
         subtasks:
           - "Добавить Kubernetes queries"
           - "Добавить subscriptions"
@@ -853,6 +854,15 @@ optional_sprints:
         done_when:
           - "GraphQL покрывает 80% REST API"
           - "Subscriptions работают"
+        completion_notes:
+          - "schema.rs: EmptySubscription → SubscriptionRoot; AppState инжектится через create_schema(Arc<AppState>)"
+          - "query.rs: +user, project, task, inventories, repositories, environments, schedules, runners, audit_events, kubernetes_namespaces, kubernetes_nodes, kubernetes_cluster_info"
+          - "subscription.rs: 3 канала (TASK_CREATED_TX/TASK_STATUS_TX/TASK_OUTPUT_TX); task_created, task_status(projectId?), task_output(taskId) subscriptions"
+          - "mod.rs: GET /graphql/ws — WebSocket endpoint (GraphQLWebSocket::new + serve); GraphiQL с subscription_endpoint"
+          - "api/mod.rs: graphql_routes(Arc::clone(&state)) — AppState передаётся"
+          - "mutation.rs: Task.created поле добавлено в инициализации"
+          - "types.rs: +Inventory, Repository, Environment, Schedule, Runner, AuditEvent, KubernetesNamespace, KubernetesNode, KubernetesClusterInfo"
+          - "cargo clippy -- -D warnings: 0 warnings"
 
       - task_id: RUNNER-01
         title: "Remote Runners"
@@ -1363,9 +1373,10 @@ task_index:
     title: "GraphQL API expanded"
     priority: low
     estimate: medium
-    status: in_progress
+    status: completed
     assignee: agent-7483
     started_at: "2026-04-02T11:30:00Z"
+    completed_at: "2026-04-02T12:00:00Z"
   - sprint_id: S5
     sprint_title: "Спринт 5 — Post-release polish (опционально)"
     task_id: RUNNER-01

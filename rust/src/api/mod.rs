@@ -128,7 +128,7 @@ pub fn create_app(store: Arc<dyn crate::db::Store + Send + Sync>) -> Router {
 
     Router::new()
         // GraphQL API
-        .merge(graphql::graphql_routes())
+        .merge(graphql::graphql_routes(Arc::clone(&state)))
         // Auth с отдельным строгим rate limiter
         .merge(auth_routes)
         // Остальные API с мягким rate limiting (100 req/min per IP)

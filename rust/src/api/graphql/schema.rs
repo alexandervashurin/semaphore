@@ -1,14 +1,23 @@
-//! GraphQL схема
+//! GraphQL схема — сборка из Query, Mutation, Subscription с инъекцией AppState
 
-use async_graphql::{EmptySubscription, Schema as AsyncSchema};
+use std::sync::Arc;
+
+use async_graphql::Schema as AsyncSchema;
+
+use crate::api::state::AppState;
 
 use super::mutation::MutationRoot;
 use super::query::QueryRoot;
+use super::subscription::SubscriptionRoot;
 
-/// Тип схемы
-pub type Schema = AsyncSchema<QueryRoot, MutationRoot, EmptySubscription>;
+/// Тип схемы с активными Subscription
+pub type Schema = AsyncSchema<QueryRoot, MutationRoot, SubscriptionRoot>;
 
-/// Создаёт схему GraphQL
-pub fn create_schema() -> Schema {
-    AsyncSchema::build(QueryRoot, MutationRoot, EmptySubscription).finish()
+/// Создаёт GraphQL схему с инъецированным AppState.
+///
+/// AppState доступен в resolvers через `ctx.data::<AppState>()`.
+pub fn create_schema(state: Arc<AppState>) -> Schema {
+    AsyncSchema::build(QueryRoot, MutationRoot, SubscriptionRoot)
+        .data(state)
+        .finish()
 }
