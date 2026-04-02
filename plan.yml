@@ -843,7 +843,9 @@ optional_sprints:
         title: "GraphQL API expanded"
         priority: low
         estimate: medium
-        status: todo
+        status: in_progress
+        assignee: agent-7483
+        started_at: "2026-04-02T11:30:00Z"
         subtasks:
           - "Добавить Kubernetes queries"
           - "Добавить subscriptions"
@@ -1361,7 +1363,9 @@ task_index:
     title: "GraphQL API expanded"
     priority: low
     estimate: medium
-    status: todo
+    status: in_progress
+    assignee: agent-7483
+    started_at: "2026-04-02T11:30:00Z"
   - sprint_id: S5
     sprint_title: "Спринт 5 — Post-release polish (опционально)"
     task_id: RUNNER-01
