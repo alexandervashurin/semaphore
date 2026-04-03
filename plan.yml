@@ -7,11 +7,11 @@ status_summary:
   kubernetes_ui: "~95%"
   production_release_readiness: "~100%"
   open_tasks_count: 2
-  test_coverage: "~71% (715 tests)"
+  test_coverage: "~73% (741 tests)"
   open_blockers:
     critical:
       - id: TEST-01
-        title: "Покрытие тестами 80%+ (сейчас ~71%, 715 тестов)"
+        title: "Покрытие тестами 80%+ (сейчас ~73%, 741 тестов)"
         sprint: S2
         blocks: [RB-01]
     high:
@@ -47,7 +47,7 @@ release_blockers:
   - id: RB-01
     title: "Полный green test run (cargo test + clippy)"
     status: closed
-    note: "cargo clippy ✅, cargo test ✅ 681 passed 0 failed, coverage ~67% (цель 80%+)"
+    note: "cargo clippy ✅, cargo test ✅ 741 passed 0 failed, coverage ~73% (цель 80%+)"
   - id: RB-02
     title: "E2E проверка deploy в Docker и Kubernetes"
     status: closed
@@ -1111,14 +1111,14 @@ task_index:
     title: "Prometheus label aggregation"
     priority: low
     estimate: small
-    status: todo
+    status: completed
   - sprint_id: S1
     sprint_title: "Спринт 1 — Stabilization (2-4 недели)"
     task_id: TD-07
     title: "Inventory sync completion"
     priority: medium
     estimate: small
-    status: todo
+    status: completed
   - sprint_id: S1
     sprint_title: "Спринт 1 — Stabilization (2-4 недели)"
     task_id: P-08
@@ -1147,7 +1147,7 @@ task_index:
     title: "Увеличить покрытие тестами до 80%+"
     priority: critical
     estimate: large
-    status: todo
+    status: in_progress
   - sprint_id: S2
     sprint_title: "Спринт 2 — Verification & Test Coverage (4-6 недель)"
     task_id: D-01
@@ -1189,14 +1189,14 @@ task_index:
     title: "Redis-backed task queue"
     priority: high
     estimate: large
-    status: todo
+    status: completed
   - sprint_id: S3
     sprint_title: "Спринт 3 — Production Hardening & Docs (6-8 недель)"
     task_id: PROD-04
     title: "WebSocket pub/sub для масштабирования"
     priority: medium
     estimate: large
-    status: todo
+    status: completed
   - sprint_id: S3
     sprint_title: "Спринт 3 — Production Hardening & Docs (6-8 недель)"
     task_id: D-03
