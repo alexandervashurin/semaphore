@@ -5,9 +5,9 @@ status_summary:
   as_of: "2026-04-03"
   feature_parity: "~99%"
   kubernetes_ui: "~95%"
-  production_release_readiness: "~98%"
-  open_tasks_count: 6
-  test_coverage: "~70% (681→712 tests)"
+  production_release_readiness: "~99%"
+  open_tasks_count: 5
+  test_coverage: "~70% (712 tests)"
   open_blockers:
     critical:
       - id: TEST-01
@@ -28,10 +28,6 @@ status_summary:
         sprint: S4
         blocks: [RB-05]
     medium:
-      - id: TD-07
-        title: "Inventory sync: update vs always create (inventory_sync.rs:447)"
-        sprint: S1
-        blocks: [RB-07]
       - id: PROD-03
         title: "Redis-backed task queue (HA persistence)"
         sprint: S3
@@ -78,9 +74,8 @@ release_blockers:
     note: "SEC-01/02 завершены; cargo audit 0 CVE"
   - id: RB-07
     title: "Критические TODO/FIXME в коде"
-    status: partial
-    note: "TD-07 (inventory_sync.rs:447 всегда create вместо upsert) остаётся открытым"
-    owner_task: TD-07
+    status: closed
+    note: "TD-07 закрыт (inventory_sync.rs:447 — теперь upsert по имени)"
 
 sprints:
   - sprint_id: S0
@@ -319,12 +314,14 @@ sprints:
         title: "Inventory sync completion"
         priority: medium
         estimate: small
-        status: todo
+        status: completed
         subtasks:
           - "Реализовать update inventory в inventory_sync.rs:447"
           - "Тесты sync flows"
         done_when:
           - "Inventory sync работает полностью"
+        completion_notes:
+          - "upsert logic: search by name → update if exists, create if not"
 
       - task_id: P-08
         title: "Добить тесты критических путей"
