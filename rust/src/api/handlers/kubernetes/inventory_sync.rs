@@ -452,9 +452,24 @@ pub async fn execute_inventory_sync(
         state.store.get_inventory(params.project_id, inventory_id).await
             .map_err(|e| Error::Other(format!("Failed to get updated inventory: {}", e)))?
     } else {
-        // Fallback: create new inventory
-        state.store.create_inventory(inventory).await
-            .map_err(|e| Error::Other(format!("Failed to create inventory: {}", e)))?
+        // Upsert: try to find inventory by name and update, otherwise create new
+        let existing = state.store.get_inventories(params.project_id).await
+            .unwrap_or_default()
+            .into_iter()
+            .find(|inv| inv.name == inventory_name)
+            .map(|inv| inv.id);
+
+        if let Some(existing_id) = existing {
+            let mut inventory = inventory;
+            inventory.id = existing_id;
+            state.store.update_inventory(inventory).await
+                .map_err(|e| Error::Other(format!("Failed to update inventory: {}", e)))?;
+            state.store.get_inventory(params.project_id, existing_id).await
+                .map_err(|e| Error::Other(format!("Failed to get updated inventory: {}", e)))?
+        } else {
+            state.store.create_inventory(inventory).await
+                .map_err(|e| Error::Other(format!("Failed to create inventory: {}", e)))?
+        }
     };
     
     let inventory_name_result = created_inventory.name.clone();
