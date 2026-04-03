@@ -7,10 +7,11 @@ status_summary:
   kubernetes_ui: "~95%"
   production_release_readiness: "~98%"
   open_tasks_count: 6
+  test_coverage: "~70% (681→712 tests)"
   open_blockers:
     critical:
       - id: TEST-01
-        title: "Покрытие тестами 80%+ (сейчас ~67%)"
+        title: "Покрытие тестами 80%+ (сейчас ~70%, 712 тестов)"
         sprint: S2
         blocks: [RB-01]
     high:
