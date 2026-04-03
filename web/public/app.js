@@ -936,7 +936,7 @@ function renderSidebar() {
                 : item.href + '?id=' + projectIdForLinks;
             const isActive = currentPage === item.href ? 'class="active"' : '';
             const itemLabel = (currentLang === 'en' && item.labelEn) ? item.labelEn : item.label;
-            return `<li><a href="${href}" ${isActive}><i class="nav-icon ${item.icon}"></i>${itemLabel}</a></li>`;
+            return `<li><a href="${href}" ${isActive}><i class="nav-icon ${item.icon}"></i><span class="nav-label">${itemLabel}</span></a></li>`;
         }).join('');
 
         if (!sectionLabel) {

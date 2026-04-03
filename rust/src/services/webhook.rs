@@ -11,7 +11,7 @@
 use crate::error::{Error, Result};
 use chrono::{DateTime, Utc};
 use reqwest::{
-    header::{HeaderMap, AUTHORIZATION, CONTENT_TYPE},
+    header::{HeaderMap, CONTENT_TYPE},
     Client,
 };
 use serde::{Deserialize, Serialize};
@@ -385,12 +385,41 @@ impl WebhookService {
             }
         }
 
-        // Добавляем секрет в заголовок (если указан)
+        let body_bytes = serde_json::to_vec(payload).map_err(|e| {
+            Error::Other(format!("Ошибка сериализации webhook: {}", e))
+        })?;
+
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs()
+            .to_string();
+
         if let Some(secret) = &config.secret {
-            headers.insert(AUTHORIZATION, format!("Bearer {}", secret).parse().unwrap());
+            let sig = crate::services::alert::AlertService::compute_webhook_request_signature(
+                secret.as_str(),
+                &timestamp,
+                &body_bytes,
+            );
+            headers.insert(
+                reqwest::header::HeaderName::from_static("x-semaphore-signature"),
+                sig.parse().map_err(|e| {
+                    Error::Other(format!("Заголовок подписи webhook: {}", e))
+                })?,
+            );
+            headers.insert(
+                reqwest::header::HeaderName::from_static("x-semaphore-timestamp"),
+                timestamp.parse().map_err(|e| {
+                    Error::Other(format!("Заголовок timestamp webhook: {}", e))
+                })?,
+            );
         }
 
-        let request = self.client.post(&config.url).headers(headers).json(payload);
+        let request = self
+            .client
+            .post(&config.url)
+            .headers(headers)
+            .body(body_bytes);
 
         let response = request
             .send()

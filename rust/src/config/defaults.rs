@@ -104,6 +104,7 @@ pub fn create_default_config() -> Config {
                 enable: false,
                 allow_recovery: false,
             },
+            email_enabled: false,
             oidc_providers: Vec::new(),
             email_login_enabled: false,
         },

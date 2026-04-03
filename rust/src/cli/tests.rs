@@ -52,4 +52,16 @@ mod tests {
             _ => panic!("Ожидалась команда version"),
         }
     }
+
+    #[test]
+    fn test_cli_healthcheck_command() {
+        let cli = Cli::parse_from(["semaphore", "healthcheck", "--timeout-secs", "9"]);
+        match cli.command {
+            crate::cli::Commands::Healthcheck(cmd) => {
+                assert_eq!(cmd.timeout_secs, 9);
+                assert_eq!(cmd.url, "http://127.0.0.1:3000/healthz");
+            }
+            _ => panic!("Ожидалась команда healthcheck"),
+        }
+    }
 }

@@ -1,4 +1,4 @@
-//! Wrapper for Arc<Box<dyn Store>> to provide Store methods
+//! Wrapper for `Arc<Box<dyn Store>>` to provide Store methods
 
 use crate::db::store::*;
 use crate::error::Result;

@@ -199,6 +199,32 @@ pub async fn get_public_data(
 }
 ```
 
+## OIDC (OAuth2 / OpenID Connect)
+
+После обмена кода на токен бэкенд запрашивает **userinfo** и извлекает email для поиска или создания пользователя.
+
+### Поле email в конфигурации (`auth`)
+
+В корневом конфиге (`auth` в JSON/YAML):
+
+| Поле | Описание |
+|------|----------|
+| `email_enabled` | Если `true`, в ответе `GET /api/auth/login` в поле `email_enabled` клиенту сообщается, что доступны сценарии входа по email (например magic link), когда они реализованы в продукте. По умолчанию `false`. |
+
+### Claim с email у провайдера (`oidc_providers[]`)
+
+У каждого элемента `oidc_providers` можно задать:
+
+| Поле | Описание |
+|------|----------|
+| `email_claim` | Имя поля в JSON userinfo, где лежит email (например `email`, `upn`, `unique_name`, `mail`). Пустая строка — использовать встроенную цепочку: `email` → `preferred_username` → `upn` → `mail`. |
+
+Переменная окружения для провайдера из списка `SEMAPHORE_OIDC_PROVIDERS`:
+
+`SEMAPHORE_OIDC_<NAME>_EMAIL_CLAIM` — то же значение, что `email_claim` (в верхнем регистре имя провайдера, как в списке).
+
+Убедитесь, что в `scopes` провайдера есть те scope, при которых IdP действительно отдаёт выбранный claim (часто нужны `openid` и `email`).
+
 ## Безопасность
 
 ### Хранение секретного ключа

@@ -47,6 +47,7 @@ pub mod system_info;
 pub mod user;
 pub mod users;
 pub mod websocket;
+pub mod websocket_pubsub;
 pub mod token_blacklist;
 
 use axum::{middleware as axum_middleware, Router};
@@ -127,7 +128,7 @@ pub fn create_app(store: Arc<dyn crate::db::Store + Send + Sync>) -> Router {
 
     Router::new()
         // GraphQL API
-        .merge(graphql::graphql_routes())
+        .merge(graphql::graphql_routes(Arc::clone(&state)))
         // Auth с отдельным строгим rate limiter
         .merge(auth_routes)
         // Остальные API с мягким rate limiting (100 req/min per IP)
@@ -141,6 +142,7 @@ pub fn create_app(store: Arc<dyn crate::db::Store + Send + Sync>) -> Router {
         .merge(routes::static_routes())
         // Middleware (порядок: последний layer применяется первым)
         .layer(axum_middleware::from_fn(middleware::security_headers))
+        .layer(axum_middleware::from_fn(middleware::correlation_id_middleware))
         .layer(axum_middleware::from_fn(middleware::trace_id_middleware))
         .layer(TraceLayer::new_for_http())
         .layer(cors)

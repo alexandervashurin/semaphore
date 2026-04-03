@@ -209,6 +209,7 @@ impl MutationRoot {
             template_id: created.template_id,
             project_id: created.project_id,
             status: created.status.to_string(),
+            created: created.created.to_rfc3339(),
         })
     }
 
@@ -343,20 +344,18 @@ impl MutationRoot {
         let created = store.create_task(new_task).await
             .map_err(|e| async_graphql::Error::new(e.to_string()))?;
 
-        // Publish to subscription channel
-        super::subscription::publish_task_created(Task {
+        let task_result = Task {
             id: created.id,
             template_id: created.template_id,
             project_id: created.project_id,
             status: created.status.to_string(),
-        });
+            created: created.created.to_rfc3339(),
+        };
 
-        Ok(Task {
-            id: created.id,
-            template_id: created.template_id,
-            project_id: created.project_id,
-            status: created.status.to_string(),
-        })
+        // Publish to subscription channel
+        super::subscription::publish_task_created(task_result.clone());
+
+        Ok(task_result)
     }
 
     /// Одобрить Terraform план

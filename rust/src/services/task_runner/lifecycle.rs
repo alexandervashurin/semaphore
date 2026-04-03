@@ -177,4 +177,18 @@ mod tests {
         runner.set_status(TaskStatus::Running).await;
         assert_eq!(runner.task.status, TaskStatus::Running);
     }
+
+    #[tokio::test]
+    async fn test_create_task_event() {
+        let runner = create_test_task_runner();
+        let r = runner.create_task_event().await;
+        assert!(r.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_kill_marks_killed_flag() {
+        let mut runner = create_test_task_runner();
+        runner.kill().await;
+        assert!(runner.is_killed().await);
+    }
 }

@@ -15,6 +15,7 @@ pub struct MockStore {
     projects: RwLock<HashMap<i32, Project>>,
     tasks: RwLock<HashMap<i32, Task>>,
     templates: RwLock<HashMap<i32, Template>>,
+    terraform_plans: RwLock<HashMap<(i32, i32), TerraformPlan>>,
 }
 
 impl Default for MockStore {
@@ -30,7 +31,16 @@ impl MockStore {
             projects: RwLock::new(HashMap::new()),
             tasks: RwLock::new(HashMap::new()),
             templates: RwLock::new(HashMap::new()),
+            terraform_plans: RwLock::new(HashMap::new()),
         }
+    }
+
+    /// Тестовый хелпер: положить план Terraform по (project_id, task_id)
+    pub fn seed_terraform_plan(&self, plan: TerraformPlan) {
+        self.terraform_plans
+            .write()
+            .unwrap()
+            .insert((plan.project_id, plan.task_id), plan);
     }
 }
 
@@ -393,9 +403,13 @@ impl TaskManager for MockStore {
     async fn update_task_status(
         &self,
         _project_id: i32,
-        _task_id: i32,
-        _status: TaskStatus,
+        task_id: i32,
+        status: TaskStatus,
     ) -> Result<()> {
+        let mut tasks = self.tasks.write().unwrap();
+        if let Some(t) = tasks.get_mut(&task_id) {
+            t.status = status;
+        }
         Ok(())
     }
     async fn get_global_tasks(
@@ -1473,18 +1487,24 @@ impl crate::db::store::TerraformStateManager for MockStore {
 
 #[async_trait]
 impl crate::db::store::PlanApprovalManager for MockStore {
-    async fn create_plan(
-        &self,
-        _plan: crate::models::TerraformPlan,
-    ) -> Result<crate::models::TerraformPlan> {
-        Err(crate::error::Error::Other("not implemented".to_string()))
+    async fn create_plan(&self, plan: TerraformPlan) -> Result<TerraformPlan> {
+        self.terraform_plans
+            .write()
+            .unwrap()
+            .insert((plan.project_id, plan.task_id), plan.clone());
+        Ok(plan)
     }
     async fn get_plan_by_task(
         &self,
-        _project_id: i32,
-        _task_id: i32,
-    ) -> Result<Option<crate::models::TerraformPlan>> {
-        Ok(None)
+        project_id: i32,
+        task_id: i32,
+    ) -> Result<Option<TerraformPlan>> {
+        Ok(self
+            .terraform_plans
+            .read()
+            .unwrap()
+            .get(&(project_id, task_id))
+            .cloned())
     }
     async fn list_pending_plans(
         &self,

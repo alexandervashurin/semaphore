@@ -239,6 +239,10 @@ pub struct AuthConfig {
     #[serde(default)]
     pub totp: TotpConfig,
 
+    /// Включить сценарии входа по email в метаданных `/api/auth/login` (magic link и т.п., если реализовано).
+    #[serde(default)]
+    pub email_enabled: bool,
+
     #[serde(default)]
     pub oidc_providers: Vec<crate::config::config_oidc::OidcProvider>,
 

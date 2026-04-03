@@ -4,7 +4,9 @@
 //! выполняет ansible/terraform/bash локально и стримит логи обратно.
 //!
 //! Использование:
-//!   velum runner --token <TOKEN> --server-url http://velum-server:3000
+//! ```text
+//! velum runner --token `<TOKEN>` --server-url http://velum-server:3000
+//! ```
 
 use crate::cli::CliResult;
 use clap::Args;

@@ -196,9 +196,20 @@
     </style>
 </head>
 <body>
+<!-- Mobile menu toggle -->
+<button class="mobile-menu-toggle" aria-label="Открыть меню" aria-expanded="false">
+    <i class="fa-solid fa-bars"></i>
+</button>
+
+<!-- Mobile sidebar overlay -->
+<div class="mobile-sidebar-overlay" aria-hidden="true"></div>
+
+<!-- Skip link for accessibility -->
+<a href="#main-content" class="skip-link">Перейти к содержимому</a>
+
 <div class="layout">
-    <nav class="sidebar"></nav>
-    <main class="main-content">
+    <nav class="sidebar" role="navigation" aria-label="Главное меню"></nav>
+    <main class="main-content" id="main-content" role="main">
         <div class="page-header">
             <div style="display:flex;align-items:center;gap:10px">
                 <i class="fa-solid fa-box k8s-header-icon"></i>
@@ -404,6 +415,7 @@
 </div>
 
 <script src="app.js"></script>
+<script src="accessibility.js"></script>
 <script>
 // ── State ──────────────────────────────────────────────────────────────────
 let currentClusterId = null;

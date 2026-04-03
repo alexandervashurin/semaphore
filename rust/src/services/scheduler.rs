@@ -93,6 +93,11 @@ impl SchedulePool {
 
         for schedule in schedules {
             if schedule.active {
+                let run_at_only = schedule.cron_format.as_deref() == Some("run_at")
+                    && schedule.cron.trim().is_empty();
+                if run_at_only {
+                    continue;
+                }
                 if let Ok(next_run) = Self::calculate_next_run(&schedule.cron) {
                     jobs.insert(
                         schedule.id,
@@ -200,11 +205,33 @@ impl SchedulePool {
         Ok(())
     }
 
+    /// Нормализует cron: UI передаёт 5 полей (`мин час DOM M DOW`), библиотека ожидает секунды первым полем.
+    fn normalize_cron_expression(cron: &str) -> String {
+        let cron = cron.trim();
+        if cron.is_empty() {
+            return String::new();
+        }
+        if cron.split_whitespace().count() == 5 {
+            format!("0 {}", cron)
+        } else {
+            cron.to_string()
+        }
+    }
+
     /// Вычисляет следующее время запуска по cron выражению
     fn calculate_next_run(cron: &str) -> Result<DateTime<Utc>> {
-        let schedule: CronSchedule = cron
-            .parse()
-            .map_err(|e| Error::Other(format!("Неверное cron выражение '{}': {}", cron, e)))?;
+        let cron = cron.trim();
+        if cron.is_empty() {
+            return Err(Error::Other("Пустое cron выражение".to_string()));
+        }
+
+        let expr = Self::normalize_cron_expression(cron);
+        let schedule: CronSchedule = expr.parse().map_err(|e| {
+            Error::Other(format!(
+                "Неверное cron выражение '{}': {}",
+                cron, e
+            ))
+        })?;
 
         let next = schedule.upcoming(Utc).next().ok_or_else(|| {
             Error::Other(format!(
@@ -216,9 +243,21 @@ impl SchedulePool {
         Ok(next)
     }
 
+    /// Проверка cron перед сохранением в API (тот же пайплайн, что у планировщика).
+    pub fn validate_cron_for_storage(cron: &str) -> Result<()> {
+        Self::calculate_next_run(cron)?;
+        Ok(())
+    }
+
     /// Добавляет расписание в пул
     pub async fn add_schedule(&self, schedule: Schedule) -> Result<()> {
         if !schedule.active {
+            return Ok(());
+        }
+
+        let run_at_only = schedule.cron_format.as_deref() == Some("run_at")
+            && schedule.cron.trim().is_empty();
+        if run_at_only {
             return Ok(());
         }
 
@@ -273,8 +312,20 @@ mod tests {
     }
 
     #[test]
+    fn test_cron_parse_valid_five_fields_from_ui() {
+        let result = SchedulePool::calculate_next_run("0 9 * * *");
+        assert!(result.is_ok());
+    }
+
+    #[test]
     fn test_cron_parse_invalid() {
         let result = SchedulePool::calculate_next_run("invalid cron");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_cron_parse_rejects_empty() {
+        let result = SchedulePool::calculate_next_run("  ");
         assert!(result.is_err());
     }
 

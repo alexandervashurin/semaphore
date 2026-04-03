@@ -9,8 +9,10 @@
 //!
 //! Authentication: same JWT/Bearer token used by the rest of the API.
 //! Claude Desktop/Code config example:
-//!   { "mcpServers": { "velum": { "url": "http://localhost:3000/mcp",
-//!     "headers": { "Authorization": "Bearer <token>" } } } }
+//! ```json
+//! { "mcpServers": { "velum": { "url": "http://localhost:3000/mcp",
+//!   "headers": { "Authorization": "Bearer ` + "<token>" + `" } } } }
+//! ```
 
 pub mod handler;
 pub mod protocol;

@@ -19,6 +19,7 @@ pub mod cmd_migrate;
 pub mod cmd_project;
 pub mod cmd_runner;
 pub mod cmd_server;
+pub mod cmd_healthcheck;
 pub mod cmd_setup;
 pub mod cmd_token;
 pub mod cmd_user;
@@ -34,6 +35,7 @@ pub use cmd_migrate::MigrateCommand;
 pub use cmd_project::ProjectCommand;
 pub use cmd_runner::RunnerCommand;
 pub use cmd_server::ServerCommand;
+pub use cmd_healthcheck::HealthcheckCommand;
 pub use cmd_setup::SetupCommand;
 pub use cmd_token::TokenCommand;
 pub use cmd_user::UserCommand;
@@ -103,6 +105,9 @@ enum Commands {
 
     /// Настройка Velum (интерактивный мастер)
     Setup(SetupCommand),
+
+    /// Проверка HTTP endpoint для container healthcheck
+    Healthcheck(HealthcheckCommand),
 
     /// Управление API токенами
     Token(TokenCommand),
@@ -341,6 +346,7 @@ impl Cli {
             Commands::User(cmd) => cmd.run(Arc::new(config.clone())),
             Commands::Project(cmd) => cmd.run(),
             Commands::Setup(cmd) => cmd.run(),
+            Commands::Healthcheck(cmd) => cmd.run(),
             Commands::Token(cmd) => cmd.run(),
             Commands::Vault(cmd) => cmd.run(),
             Commands::Version(cmd) => cmd.run(),

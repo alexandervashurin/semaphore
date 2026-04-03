@@ -52,7 +52,7 @@ pub struct DeploymentEnvironment {
     /// Имя окружения (уникально в проекте)
     pub name: String,
 
-    /// URL живого окружения (e.g. https://app.example.com)
+    /// URL живого окружения (e.g. <https://app.example.com>)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
 

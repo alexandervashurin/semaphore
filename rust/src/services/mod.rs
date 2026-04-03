@@ -16,6 +16,7 @@ pub mod metrics;
 pub mod playbook_run_service;
 pub mod playbook_run_status_service;
 pub mod playbook_sync_service;
+pub mod remote_runners;
 pub mod restore;
 pub mod runners;
 pub mod scheduler;

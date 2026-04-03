@@ -59,9 +59,52 @@ jobs:
           path: ${{ matrix.asset_name }}
           retention-days: 7
 
+  build-macos:
+    name: Build macOS binaries
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            runner: macos-13
+            asset_name: velum-darwin-amd64
+          - arch: arm64
+            runner: macos-latest
+            asset_name: velum-darwin-arm64
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install system dependencies
+        run: |
+          brew install openssl pkg-config sqlite
+
+      - name: Build release binary
+        working-directory: rust
+        env:
+          # Homebrew prefix differs: /opt/homebrew (arm64) vs /usr/local (amd64)
+          PKG_CONFIG_PATH: /opt/homebrew/opt/openssl@3/lib/pkgconfig:/usr/local/opt/openssl@3/lib/pkgconfig
+        run: cargo build --release
+
+      - name: Prepare asset
+        run: |
+          cp "rust/target/release/velum" "${{ matrix.asset_name }}"
+          chmod +x "${{ matrix.asset_name }}"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: ${{ matrix.asset_name }}
+          retention-days: 7
+
   publish-release:
     name: Publish GitHub Release
-    needs: build-linux
+    needs: [build-linux, build-macos]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source
@@ -84,8 +127,10 @@ jobs:
       - name: Flatten artifacts
         run: |
           mkdir -p release-assets
-          cp dist/velum-linux-amd64/velum-linux-amd64 release-assets/
-          cp dist/velum-linux-arm64/velum-linux-arm64 release-assets/
+          cp dist/velum-linux-amd64/velum-linux-amd64   release-assets/
+          cp dist/velum-linux-arm64/velum-linux-arm64   release-assets/
+          cp dist/velum-darwin-amd64/velum-darwin-amd64 release-assets/
+          cp dist/velum-darwin-arm64/velum-darwin-arm64 release-assets/
 
       - name: Create GitHub Release
         env:
@@ -95,4 +140,6 @@ jobs:
             --title "Velum ${{ steps.tag.outputs.value }}" \
             --notes-file docs/releases/RELEASE_v1.0.0.md \
             release-assets/velum-linux-amd64 \
-            release-assets/velum-linux-arm64
+            release-assets/velum-linux-arm64 \
+            release-assets/velum-darwin-amd64 \
+            release-assets/velum-darwin-arm64

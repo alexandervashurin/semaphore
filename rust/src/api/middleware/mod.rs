@@ -7,11 +7,13 @@
 //! - Кэширование
 
 pub mod cache;
+pub mod correlation_id;
 pub mod rate_limiter;
 pub mod security_headers;
 pub mod trace_id;
 
 pub use cache::CacheMiddleware;
+pub use correlation_id::{correlation_id_middleware, CorrelationId};
 pub use rate_limiter::*;
 pub use security_headers::*;
 pub use trace_id::{trace_id_middleware, TraceId};

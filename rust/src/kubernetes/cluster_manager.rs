@@ -31,7 +31,7 @@ pub struct ClusterConnectionMeta {
 
 /// Менеджер подключений к кластерам Kubernetes
 ///
-/// Thread-safe: Arc<KubernetesClusterManager> хранится в AppState.
+/// Thread-safe: `Arc<KubernetesClusterManager>` хранится в AppState.
 pub struct KubernetesClusterManager {
     /// Кэш проинициализированных сервисов
     services: RwLock<HashMap<String, Arc<KubernetesClusterService>>>,

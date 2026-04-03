@@ -60,9 +60,20 @@
     </style>
 </head>
 <body>
+<!-- Mobile menu toggle -->
+<button class="mobile-menu-toggle" aria-label="Открыть меню" aria-expanded="false">
+    <i class="fa-solid fa-bars"></i>
+</button>
+
+<!-- Mobile sidebar overlay -->
+<div class="mobile-sidebar-overlay" aria-hidden="true"></div>
+
+<!-- Skip link for accessibility -->
+<a href="#main-content" class="skip-link">Перейти к содержимому</a>
+
 <div class="layout">
-    <aside class="sidebar"></aside>
-    <div class="main-content">
+    <aside class="sidebar" role="navigation" aria-label="Главное меню"></aside>
+    <div class="main-content" id="main-content" role="main">
         <div class="main-header">
             <h2><i class="fa-solid fa-layer-group"></i> Kubernetes Deployments</h2>
             <div style="display: flex; gap: 8px;">
@@ -163,6 +174,7 @@
 </div>
 
 <script src="app.js"></script>
+<script src="accessibility.js"></script>
 <script>
 checkAuth();
 let deploymentsData = [];

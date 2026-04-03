@@ -19,9 +19,14 @@
 //! - `notify_task_stopped(...)` — ⏹️
 
 use crate::config::Config;
+use crate::db::store::Store;
 use crate::error::Result;
-use std::sync::Arc;
+use crate::models::{Task, Template};
+use crate::services::task_logger::TaskStatus;
+use std::sync::{Arc, OnceLock};
 use tracing::{error, info, warn};
+
+static NOTIFICATION_BOT: OnceLock<Option<Arc<TelegramBot>>> = OnceLock::new();
 
 /// Telegram Bot — обёртка над Telegram Bot API (без teloxide runtime)
 ///
@@ -36,6 +41,17 @@ pub struct TelegramBot {
 }
 
 impl TelegramBot {
+    /// Регистрирует экземпляр для фоновых уведомлений о задачах (вызывать из `cmd_server`).
+    pub fn init_notification_bot(config: &Config) {
+        let _ = NOTIFICATION_BOT.get_or_init(|| TelegramBot::new(config));
+    }
+
+    fn notification_bot() -> Option<Arc<TelegramBot>> {
+        NOTIFICATION_BOT
+            .get()
+            .and_then(|opt| opt.as_ref().cloned())
+    }
+
     /// Создаёт бота если задан токен в конфиге / env.
     pub fn new(config: &Config) -> Option<Arc<Self>> {
         let token = config.telegram_bot_token.clone()
@@ -265,14 +281,105 @@ impl TelegramBot {
     }
 }
 
+/// Уведомление в дефолтный чат после завершения задачи (если бот сконфигурирован).
+pub async fn notify_on_task_finished(
+    store: Arc<dyn Store + Send + Sync>,
+    task: &Task,
+    template: &Template,
+) {
+    let Some(bot) = TelegramBot::notification_bot() else {
+        return;
+    };
+
+    let duration_secs = task
+        .start
+        .zip(task.end)
+        .map(|(s, e)| (e - s).num_seconds().max(0) as u64)
+        .unwrap_or(0);
+
+    let project_name = store
+        .get_project(task.project_id)
+        .await
+        .map(|p| p.name)
+        .unwrap_or_else(|_| format!("project {}", task.project_id));
+
+    let author = match task.user_id {
+        Some(uid) => store
+            .get_user(uid)
+            .await
+            .map(|u| u.username)
+            .unwrap_or_else(|_| "unknown".to_string()),
+        None => "system".to_string(),
+    };
+
+    let task_url = format!(
+        "{}/project/{}/tasks/{}",
+        crate::config::get_public_host(),
+        task.project_id,
+        task.id
+    );
+
+    match task.status {
+        TaskStatus::Success => {
+            bot.notify_task_success(
+                &project_name,
+                &template.name,
+                task.id,
+                &author,
+                duration_secs,
+                &task_url,
+            )
+            .await;
+        }
+        TaskStatus::Error => {
+            bot.notify_task_failed(
+                &project_name,
+                &template.name,
+                task.id,
+                &author,
+                duration_secs,
+                &task_url,
+            )
+            .await;
+        }
+        TaskStatus::Stopped => {
+            bot.notify_task_stopped(&project_name, &template.name, task.id, &task_url)
+                .await;
+        }
+        _ => {}
+    }
+}
+
 /// Запускает Telegram бота в фоновом потоке, если настроен.
 pub fn start_bot_if_configured(config: &Config) {
-    if let Some(bot) = TelegramBot::new(config) {
+    TelegramBot::init_notification_bot(config);
+
+    if let Some(bot) = TelegramBot::notification_bot() {
         info!("Starting Telegram bot polling loop");
         tokio::spawn(async move {
             bot.run_polling().await;
         });
     } else {
         info!("Telegram bot not configured (SEMAPHORE_TELEGRAM_TOKEN not set)");
+    }
+}
+
+#[cfg(test)]
+mod notify_tests {
+    use super::*;
+    use chrono::{Duration, Utc};
+
+    #[test]
+    fn task_duration_secs_from_task_times() {
+        let mut t = Task::default();
+        let s = Utc::now();
+        t.start = Some(s);
+        t.end = Some(s + Duration::seconds(125));
+        let secs = t
+            .start
+            .zip(t.end)
+            .map(|(a, b)| (b - a).num_seconds().max(0) as u64)
+            .unwrap_or(0);
+        assert_eq!(secs, 125);
     }
 }

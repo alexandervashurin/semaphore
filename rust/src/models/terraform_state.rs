@@ -1,7 +1,7 @@
 //! Terraform Remote State Backend — models
 //!
 //! Compatible with Terraform HTTP backend protocol:
-//! https://developer.hashicorp.com/terraform/language/settings/backends/http
+//! <https://developer.hashicorp.com/terraform/language/settings/backends/http>
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

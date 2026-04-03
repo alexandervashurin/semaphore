@@ -1,7 +1,7 @@
 //! Terraform Remote State Backend — HTTP handlers
 //!
 //! Implements the Terraform HTTP backend protocol:
-//! https://developer.hashicorp.com/terraform/language/settings/backends/http
+//! <https://developer.hashicorp.com/terraform/language/settings/backends/http>
 //!
 //! Endpoint base: /api/project/{project_id}/terraform/state/{workspace}
 //!
