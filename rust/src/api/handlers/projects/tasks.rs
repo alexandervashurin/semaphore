@@ -4,7 +4,7 @@
 
 use crate::api::middleware::ErrorResponse;
 use crate::api::state::AppState;
-use crate::db::store::{RetrieveQueryParams, TaskManager};
+use crate::db::store::{RetrieveQueryParams, TaskManager, UserManager};
 use crate::error::{Error, Result};
 use crate::models::{Task, TaskOutput, TaskWithTpl};
 use crate::services::task_logger::TaskStatus;
@@ -115,11 +115,55 @@ pub async fn add_task(
         )
     })?;
 
-    // Запускаем выполнение задачи в фоне
-    let store_arc: Arc<dyn crate::db::store::Store + Send + Sync> = Arc::new(state.store.clone());
+    let author = match payload.user_id {
+        Some(uid) => state
+            .store
+            .get_user(uid)
+            .await
+            .map(|u| u.username)
+            .unwrap_or_else(|_| format!("user #{uid}")),
+        None => "system".to_string(),
+    };
+
+    // Запускаем выполнение задачи в фоне с уведомлением Telegram
+    let store_arc = state.store.as_arc();
     let task_to_run = created.clone();
+    let telegram_bot = state.telegram_bot.clone();
+    let project_id = created.project_id;
+    let task_id = created.id;
+    let template_id = created.template_id;
+    
     tokio::spawn(async move {
-        crate::services::task_execution::execute_task(store_arc, task_to_run).await;
+        crate::services::task_execution::execute_task(store_arc.clone(), task_to_run).await;
+        
+        // Отправляем Telegram уведомление после завершения
+        if let Some(ref bot) = telegram_bot {
+            // Перечитываем задачу для получения актуального статуса
+            if let Ok(completed_task) = store_arc.get_task(project_id, task_id).await {
+                // Получаем template для имени
+                let template_name = store_arc
+                    .get_template(project_id, template_id)
+                    .await
+                    .map(|t| t.name)
+                    .unwrap_or_else(|_| format!("Template #{}", template_id));
+                
+                // Получаем проект для имени
+                let project_name = store_arc
+                    .get_project(project_id)
+                    .await
+                    .map(|p| p.name)
+                    .unwrap_or_else(|_| format!("Project #{}", project_id));
+                
+                crate::services::task_execution::send_telegram_notification(
+                    Some(bot),
+                    &completed_task,
+                    &template_name,
+                    &project_name,
+                    &author,
+                )
+                .await;
+            }
+        }
     });
 
     Ok((StatusCode::CREATED, Json(created)))

@@ -28,10 +28,19 @@ pub fn integration_routes() -> Router<Arc<AppState>> {
         .route("/api/kubernetes/audit/export", get(handlers::export_kubernetes_audit))
         // Troubleshooting Dashboard
         .route("/api/kubernetes/troubleshoot", get(handlers::get_troubleshooting_report))
-        // Kubernetes Runbook Integration
-        .route("/api/kubernetes/runbooks", get(handlers::get_available_runbooks))
-        .route("/api/kubernetes/runbooks/execute", post(handlers::execute_runbook))
-        .route("/api/kubernetes/runbooks/{task_id}/status", get(handlers::get_runbook_status))
+        // Kubernetes Runbook Integration (project_id в пути — шаблоны и задачи проекта)
+        .route(
+            "/api/kubernetes/project/{project_id}/runbooks",
+            get(handlers::get_available_runbooks),
+        )
+        .route(
+            "/api/kubernetes/project/{project_id}/runbooks/execute",
+            post(handlers::execute_runbook),
+        )
+        .route(
+            "/api/kubernetes/project/{project_id}/runbooks/{task_id}/status",
+            get(handlers::get_runbook_status),
+        )
         // Prometheus Metrics Integration
         .route("/api/kubernetes/prometheus/metrics", get(handlers::get_prometheus_metrics))
         .route("/api/kubernetes/prometheus/health", get(handlers::check_prometheus_health))

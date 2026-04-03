@@ -18,7 +18,6 @@ use crate::api::state::AppState;
 use crate::db::store::{TokenManager, UserManager};
 use crate::error::{Error, Result};
 use crate::models::{APIToken, User};
-use crate::pro::services::server::SubscriptionService;
 
 // ============================================================================
 // Свободные функции для использования в routes
@@ -105,14 +104,12 @@ pub async fn delete_api_token(
 // ============================================================================
 
 /// Контроллер пользователя
-pub struct UserController {
-    subscription_service: Arc<dyn SubscriptionService>,
-}
+pub struct UserController {}
 
 impl UserController {
     /// Создаёт новый контроллер
-    pub fn new(subscription_service: Arc<dyn SubscriptionService>) -> Self {
-        Self { subscription_service }
+    pub fn new() -> Self {
+        Self {}
     }
 
     /// Получает текущего пользователя
@@ -126,7 +123,7 @@ impl UserController {
         let response = UserResponse {
             user: full_user,
             can_create_project: admin || state.config.non_admin_can_create_project(),
-            has_active_subscription: state.subscription_service.has_active_subscription(),
+            has_active_subscription: state.subscription.has_active_subscription(),
         };
 
         Ok(Json(response))
@@ -227,6 +224,12 @@ impl UserController {
     }
 }
 
+impl Default for UserController {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 // ============================================================================
 // Типы данных
 // ============================================================================
@@ -267,12 +270,10 @@ pub struct PasswordChangeRequest {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pro::services::server::SubscriptionServiceImpl;
 
     #[test]
     fn test_user_controller_creation() {
-        let subscription_service = Arc::new(SubscriptionServiceImpl::new());
-        let controller = UserController::new(subscription_service);
+        let controller = UserController::new();
         // Контроллер создаётся успешно
         assert!(true);
     }

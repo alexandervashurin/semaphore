@@ -5,6 +5,18 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+fn default_oidc_email_claim() -> String {
+    "email".to_string()
+}
+
+fn default_oidc_username_claim() -> String {
+    "preferred_username".to_string()
+}
+
+fn default_oidc_name_claim() -> String {
+    "name".to_string()
+}
+
 /// OIDC провайдер
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OidcProvider {
@@ -44,10 +56,17 @@ pub struct OidcProvider {
     #[serde(default)]
     pub icon: String,
 
-    /// Имя claim в ответе userinfo, где лежит email (например `email`, `upn`, `mail`).
-    /// Пустая строка: встроенная цепочка `email` → `preferred_username` → `upn` → `mail`.
-    #[serde(default)]
+    /// Имя claim для email в userinfo (например `email`, `mail`, `upn` для AAD)
+    #[serde(default = "default_oidc_email_claim")]
     pub email_claim: String,
+
+    /// Имя claim для логина (например `preferred_username`, `sub`)
+    #[serde(default = "default_oidc_username_claim")]
+    pub username_claim: String,
+
+    /// Имя claim для отображаемого имени
+    #[serde(default = "default_oidc_name_claim")]
+    pub name_claim: String,
 }
 
 /// OIDC Endpoint
@@ -94,7 +113,9 @@ impl Default for OidcProvider {
             endpoint: OidcEndpoint::default(),
             color: String::new(),
             icon: String::new(),
-            email_claim: String::new(),
+            email_claim: default_oidc_email_claim(),
+            username_claim: default_oidc_username_claim(),
+            name_claim: default_oidc_name_claim(),
         }
     }
 }
@@ -187,13 +208,6 @@ pub fn load_oidc_from_env() -> HashMap<String, OidcProvider> {
                 provider_name.to_uppercase()
             )) {
                 provider.auto_discovery = auto_discovery;
-            }
-
-            if let Ok(email_claim) = env::var(format!(
-                "SEMAPHORE_OIDC_{}_EMAIL_CLAIM",
-                provider_name.to_uppercase()
-            )) {
-                provider.email_claim = email_claim;
             }
 
             providers.insert(provider_name.to_string(), provider);

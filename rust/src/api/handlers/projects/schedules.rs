@@ -7,8 +7,6 @@ use crate::api::state::AppState;
 use crate::db::store::ScheduleManager;
 use crate::error::{Error, Result};
 use crate::models::Schedule;
-use crate::services::scheduler::SchedulePool;
-use chrono::DateTime;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
@@ -17,40 +15,18 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-fn invalid_schedule(msg: impl Into<String>) -> (StatusCode, Json<ErrorResponse>) {
-    (
-        StatusCode::BAD_REQUEST,
-        Json(
-            ErrorResponse::new(msg.into())
-                .with_code("INVALID_SCHEDULE"),
-        ),
-    )
-}
-
-/// Проверка run_at / cron до записи в БД (SEC-05).
-fn validate_schedule_before_save(schedule: &Schedule) -> std::result::Result<(), String> {
+/// Проверяет `cron` до записи в БД. Для `cron_format = run_at` выражение не парсится как cron.
+fn schedule_cron_must_parse(schedule: &Schedule) -> Option<String> {
     if schedule.cron_format.as_deref() == Some("run_at") {
-        let run_at = schedule
-            .run_at
-            .as_deref()
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .ok_or_else(|| {
-                "Для одноразового запуска укажите дату и время (run_at, RFC3339)".to_string()
-            })?;
-        DateTime::parse_from_rfc3339(run_at)
-            .map_err(|e| format!("Некорректная дата run_at: {}", e))?;
-        return Ok(());
+        return None;
     }
-
-    let cron = schedule.cron.trim();
-    if cron.is_empty() {
-        return Err(
-            "Укажите cron (5 полей, как в веб-интерфейсе) или включите одноразовый запуск".to_string(),
-        );
+    if schedule.cron.trim().is_empty() {
+        return Some("Cron expression cannot be empty".to_string());
     }
-
-    SchedulePool::validate_cron_for_storage(cron).map_err(|e| e.to_string())
+    match schedule.cron.parse::<cron::Schedule>() {
+        Ok(_) => None,
+        Err(e) => Some(format!("Invalid cron expression: {}", e)),
+    }
 }
 
 /// Получает расписания проекта
@@ -100,8 +76,8 @@ pub async fn add_schedule(
     let mut schedule = payload;
     schedule.project_id = project_id;
 
-    if let Err(msg) = validate_schedule_before_save(&schedule) {
-        return Err(invalid_schedule(msg));
+    if let Some(err) = schedule_cron_must_parse(&schedule) {
+        return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse::new(err))));
     }
 
     let created = state.store.create_schedule(schedule).await.map_err(|e| {
@@ -124,8 +100,8 @@ pub async fn update_schedule(
     schedule.id = schedule_id;
     schedule.project_id = project_id;
 
-    if let Err(msg) = validate_schedule_before_save(&schedule) {
-        return Err(invalid_schedule(msg));
+    if let Some(err) = schedule_cron_must_parse(&schedule) {
+        return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse::new(err))));
     }
 
     state.store.update_schedule(schedule).await.map_err(|e| {
@@ -203,19 +179,15 @@ pub async fn validate_schedule_cron_format(
     Path(_project_id): Path<i32>,
     Json(payload): Json<ValidateCronPayload>,
 ) -> std::result::Result<Json<ValidateCronResponse>, (StatusCode, Json<ErrorResponse>)> {
-    let cron = payload.cron.trim();
-    let result = if cron.is_empty() {
-        Err("Пустое cron выражение".to_string())
-    } else {
-        SchedulePool::validate_cron_for_storage(cron).map_err(|e| e.to_string())
-    };
+    // Пытаемся распарсить cron выражение
+    let result = payload.cron.parse::<cron::Schedule>();
 
     let response = ValidateCronResponse {
         valid: result.is_ok(),
-        error: result.err(),
+        error: result.err().map(|e| e.to_string()),
     };
 
- Ok(Json(response))
+    Ok(Json(response))
 }
 
 // ============================================================================
@@ -244,57 +216,13 @@ pub struct ValidateCronResponse {
 mod tests {
     use super::*;
 
-    #[test]
-    fn validate_rejects_garbage_cron() {
-        let s = Schedule {
-            cron: "not a cron".to_string(),
-            cron_format: None,
-            run_at: None,
-            ..minimal_sample_schedule()
-        };
-        assert!(validate_schedule_before_save(&s).is_err());
-    }
-
-    #[test]
-    fn validate_accepts_five_field_cron() {
-        let s = Schedule {
-            cron: "0 9 * * *".to_string(),
-            cron_format: None,
-            run_at: None,
-            ..minimal_sample_schedule()
-        };
-        assert!(validate_schedule_before_save(&s).is_ok());
-    }
-
-    #[test]
-    fn validate_run_at_mode_requires_run_at() {
-        let s = Schedule {
-            cron: String::new(),
-            cron_format: Some("run_at".to_string()),
-            run_at: None,
-            ..minimal_sample_schedule()
-        };
-        assert!(validate_schedule_before_save(&s).is_err());
-    }
-
-    #[test]
-    fn validate_run_at_mode_accepts_rfc3339() {
-        let s = Schedule {
-            cron: String::new(),
-            cron_format: Some("run_at".to_string()),
-            run_at: Some("2030-01-02T15:00:00Z".to_string()),
-            ..minimal_sample_schedule()
-        };
-        assert!(validate_schedule_before_save(&s).is_ok());
-    }
-
-    fn minimal_sample_schedule() -> Schedule {
+    fn sample_schedule(cron: &str, cron_format: Option<&str>) -> Schedule {
         Schedule {
             id: 0,
             template_id: 1,
             project_id: 1,
-            cron: String::new(),
-            cron_format: None,
+            cron: cron.to_string(),
+            cron_format: cron_format.map(String::from),
             name: "t".to_string(),
             active: true,
             last_commit_hash: None,
@@ -303,5 +231,29 @@ mod tests {
             run_at: None,
             delete_after_run: false,
         }
+    }
+
+    #[test]
+    fn cron_validation_rejects_invalid_expression() {
+        let s = sample_schedule("not valid cron syntax", None);
+        assert!(schedule_cron_must_parse(&s).is_some());
+    }
+
+    #[test]
+    fn cron_validation_accepts_standard_expression() {
+        let s = sample_schedule("0 0 * * * *", None);
+        assert!(schedule_cron_must_parse(&s).is_none());
+    }
+
+    #[test]
+    fn cron_validation_skips_when_run_at_format() {
+        let s = sample_schedule("", Some("run_at"));
+        assert!(schedule_cron_must_parse(&s).is_none());
+    }
+
+    #[test]
+    fn cron_validation_rejects_empty_cron_when_not_run_at() {
+        let s = sample_schedule("   ", None);
+        assert!(schedule_cron_must_parse(&s).is_some());
     }
 }

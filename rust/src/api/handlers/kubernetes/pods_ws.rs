@@ -205,7 +205,7 @@ pub async fn pod_exec_ws(
             Ok(Some(Ok(Message::Text(text)))) => {
                 serde_json::from_str::<ExecWsMessage>(&text).ok()
             }
-            _ => None
+            _ => None,
         };
 
         if let Some(ExecWsMessage::Stdin { .. }) = msg {

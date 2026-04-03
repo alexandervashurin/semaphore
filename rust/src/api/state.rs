@@ -9,8 +9,9 @@ use crate::cache::RedisCache;
 use crate::config::Config;
 use crate::db::Store;
 use crate::error::{Error, Result};
+use crate::pro::services::{SubscriptionService, SubscriptionServiceImpl};
 use crate::services::metrics::MetricsManager;
-use crate::pro::services::server::{SubscriptionService, SubscriptionServiceImpl};
+use crate::services::telegram_bot::TelegramBot;
 use dashmap::DashMap;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -39,8 +40,10 @@ pub struct AppState {
     pub token_blacklist: TokenBlacklist,
     /// Зашифрованные kubeconfig'и (name → AES-256-GCM encrypted base64)
     pub kubeconfigs: Arc<DashMap<String, String>>,
-    /// Subscription service для проверки подписки
-    pub subscription_service: Arc<dyn SubscriptionService>,
+    /// Telegram bot для уведомлений
+    pub telegram_bot: Option<Arc<TelegramBot>>,
+    /// PRO / лицензирование (community edition — без ограничений по умолчанию)
+    pub subscription: Arc<dyn SubscriptionService + Send + Sync>,
 }
 
 impl AppState {
@@ -50,8 +53,10 @@ impl AppState {
         config: Config,
         cache: Option<Arc<RedisCache>>,
     ) -> Self {
-        let subscription_service = Arc::new(SubscriptionServiceImpl::new());
-        
+        let telegram_bot = TelegramBot::new(&config);
+        let subscription: Arc<dyn SubscriptionService + Send + Sync> =
+            Arc::new(SubscriptionServiceImpl::new());
+
         Self {
             store: StoreWrapper::new(store),
             config,
@@ -71,7 +76,8 @@ impl AppState {
             })),
             token_blacklist: TokenBlacklist::new(),
             kubeconfigs: Arc::new(DashMap::new()),
-            subscription_service,
+            telegram_bot,
+            subscription,
         }
     }
 

@@ -53,7 +53,7 @@ pub struct Cli {
     #[arg(short, long, global = true)]
     config: Option<String>,
 
-    /// Тип базы данных (bolt, sqlite, mysql, postgres)
+    /// Тип базы данных (sqlite, mysql, postgres)
     #[arg(long, global = true)]
     db_dialect: Option<String>,
 

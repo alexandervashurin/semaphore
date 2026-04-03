@@ -10,8 +10,8 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-use crate::api::state::AppState;
 use crate::api::extractors::AuthUser;
+use crate::api::state::AppState;
 use crate::db::store::{TaskManager, TemplateManager};
 use crate::error::{Error, Result};
 use crate::models::{Task, Template};
@@ -22,7 +22,7 @@ use crate::services::task_logger::TaskStatus;
 // ============================================================================
 
 /// Запрос на запуск Runbook задачи из Kubernetes объекта
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct RunbookRequest {
     /// ID шаблона задачи для запуска
     pub template_id: i32,
@@ -40,7 +40,7 @@ pub struct RunbookRequest {
 }
 
 /// Контекст Kubernetes объекта
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Serialize)]
 pub struct KubernetesContext {
     /// Тип ресурса (Pod, Deployment, etc.)
     pub kind: String,
@@ -265,10 +265,7 @@ pub async fn execute_runbook(
     
     // Формируем аргументы с учётом Kubernetes контекста
     let arguments = build_runbook_arguments(&payload, &template.playbook);
-
-    // Сериализуем task_params для params
-    let params_json = serde_json::to_string(&payload.task_params).unwrap_or_default();
-
+    
     // Создаём задачу
     let task = Task {
         id: 0,
@@ -279,7 +276,7 @@ pub async fn execute_runbook(
         environment: payload.task_params.environment_id.map(|id| id.to_string()),
         secret: None,
         arguments,
-        git_branch: payload.task_params.git_branch.or(template.git_branch),
+        git_branch: payload.task_params.git_branch.clone().or(template.git_branch),
         user_id: Some(user.user_id),
         integration_id: None,
         schedule_id: None,
@@ -299,7 +296,10 @@ pub async fn execute_runbook(
         inventory_id: payload.task_params.inventory_id,
         repository_id: None,
         environment_id: payload.task_params.environment_id,
-        params: Some(serde_json::Value::String(params_json)),
+        params: Some(serde_json::json!({
+            "kubernetes": payload.kubernetes_context,
+            "task_params": payload.task_params,
+        })),
     };
     
     // Сохраняем задачу
@@ -307,10 +307,43 @@ pub async fn execute_runbook(
         .map_err(|e| Error::Other(format!("Failed to create task: {}", e)))?;
 
     // Запускаем задачу в фоне
-    let store_arc: Arc<dyn crate::db::store::Store + Send + Sync> = Arc::new(state.store.clone());
+    let store_arc = state.store.as_arc();
     let task_to_run = created_task.clone();
+    let telegram_bot = state.telegram_bot.clone();
+    let project_id_for_notify = created_task.project_id;
+    let task_id_for_notify = created_task.id;
+    let template_id_for_notify = created_task.template_id;
+    let author = user.username.clone();
     tokio::spawn(async move {
-        crate::services::task_execution::execute_task(store_arc, task_to_run).await;
+        crate::services::task_execution::execute_task(store_arc.clone(), task_to_run).await;
+
+        if let Some(ref bot) = telegram_bot {
+            if let Ok(completed_task) = store_arc
+                .get_task(project_id_for_notify, task_id_for_notify)
+                .await
+            {
+                let template_name = store_arc
+                    .get_template(project_id_for_notify, template_id_for_notify)
+                    .await
+                    .map(|t| t.name)
+                    .unwrap_or_else(|_| format!("Template #{}", template_id_for_notify));
+
+                let project_name = store_arc
+                    .get_project(project_id_for_notify)
+                    .await
+                    .map(|p| p.name)
+                    .unwrap_or_else(|_| format!("Project #{}", project_id_for_notify));
+
+                crate::services::task_execution::send_telegram_notification(
+                    Some(bot),
+                    &completed_task,
+                    &template_name,
+                    &project_name,
+                    &author,
+                )
+                .await;
+            }
+        }
     });
 
     Ok(Json(RunbookResponse {

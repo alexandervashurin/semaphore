@@ -607,7 +607,7 @@ pub async fn get_current_user(
     let response = crate::api::user::UserResponse {
         user: full_user,
         can_create_project: admin || state.config.non_admin_can_create_project(),
-        has_active_subscription: state.subscription_service.has_active_subscription(),
+        has_active_subscription: state.subscription.has_active_subscription(),
     };
 
     Ok(Json(response))
