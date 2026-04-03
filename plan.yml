@@ -6,7 +6,7 @@ status_summary:
   feature_parity: "~99%"
   kubernetes_ui: "~95%"
   production_release_readiness: "~99%"
-  open_tasks_count: 5
+  open_tasks_count: 4
   test_coverage: "~70% (712 tests)"
   open_blockers:
     critical:
@@ -16,7 +16,7 @@ status_summary:
         blocks: [RB-01]
     high:
       - id: PROD-01
-        title: "Docker образ <50MB (FROM scratch/musl)"
+        title: "Docker образ <50MB"
         sprint: S3
         blocks: []
       - id: PROD-02
@@ -36,11 +36,7 @@ status_summary:
         title: "WebSocket pub/sub via Redis (HA scale)"
         sprint: S3
         blocks: []
-    low:
-      - id: TD-06
-        title: "Prometheus label aggregation"
-        sprint: S1
-        blocks: []
+    low: []
 principles:
   - "Сначала закрыть блокеры релиза, потом nice-to-have"
   - "Каждая задача должна завершаться проверкой"
@@ -303,12 +299,14 @@ sprints:
         title: "Prometheus label aggregation"
         priority: low
         estimate: small
-        status: todo
+        status: completed
         subtasks:
           - "Реализовать aggregate by label selectors"
           - "Тесты метрик"
         done_when:
           - "Метрики агрегируются корректно"
+        completion_notes:
+          - "sum() queries with app= label selector for CPU, memory, network"
 
       - task_id: TD-07
         title: "Inventory sync completion"
