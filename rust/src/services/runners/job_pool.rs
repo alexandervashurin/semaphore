@@ -13,6 +13,7 @@ use crate::error::Result;
 use crate::models::Task;
 use crate::services::task_execution;
 use crate::services::task_logger::TaskStatus;
+use crate::services::runners::task_queue::TaskQueue;
 
 /// Логгер задач
 pub struct JobLogger {
@@ -47,6 +48,8 @@ pub struct JobPool {
     running_ids: Arc<Mutex<HashSet<i32>>>,
     /// Хранилище данных
     store: Arc<dyn Store + Send + Sync>,
+    /// Персистентная очередь задач (Redis или in-memory)
+    task_queue: Option<Arc<dyn TaskQueue>>,
     /// Максимальное число параллельных задач
     max_parallel: usize,
     /// Флаг завершения — при true новые задачи не берутся
@@ -56,22 +59,24 @@ pub struct JobPool {
 impl JobPool {
     /// Создаёт новый пул задач
     pub fn new(store: Arc<dyn Store + Send + Sync>) -> Self {
-        Self {
-            queue: Arc::new(Mutex::new(Vec::new())),
-            running_ids: Arc::new(Mutex::new(HashSet::new())),
-            store,
-            max_parallel: 10,
-            shutting_down: Arc::new(AtomicBool::new(false)),
-        }
+        Self::with_task_queue(store, None)
     }
 
     /// Создаёт пул задач с ограничением параллелизма
     pub fn with_max_parallel(store: Arc<dyn Store + Send + Sync>, max_parallel: usize) -> Self {
+        Self::with_task_queue(store, None)
+    }
+
+    /// Создаёт пул задач с персистентной очередью (Redis)
+    pub fn with_task_queue(store: Arc<dyn Store + Send + Sync>, task_queue: Option<Arc<dyn TaskQueue>>) -> Self {
+        let backend = task_queue.as_ref().map(|q| q.backend_name()).unwrap_or("none");
+        tracing::info!("[job_pool] Task queue backend: {}", backend);
         Self {
             queue: Arc::new(Mutex::new(Vec::new())),
             running_ids: Arc::new(Mutex::new(HashSet::new())),
             store,
-            max_parallel,
+            task_queue,
+            max_parallel: 10,
             shutting_down: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -100,8 +105,24 @@ impl JobPool {
 
     /// Проверяет, есть ли задача в очереди
     pub async fn exists_in_queue(&self, task_id: i32) -> bool {
+        // Проверяем персистентную очередь если доступна
+        if let Some(ref tq) = self.task_queue {
+            if let Ok(found) = tq.contains(task_id).await {
+                return found;
+            }
+        }
+        // Fallback на in-memory очередь
         let queue = self.queue.lock().await;
         queue.iter().any(|j| j.task.id == task_id)
+    }
+
+    /// Возвращает длину очереди задач
+    pub async fn queue_len(&self) -> usize {
+        if let Some(ref tq) = self.task_queue {
+            tq.len().await.unwrap_or(0)
+        } else {
+            self.queue.lock().await.len()
+        }
     }
 
     /// Проверяет, есть ли запущенные задачи
@@ -133,14 +154,27 @@ impl JobPool {
 
     /// Запускает ожидающие задачи из очереди
     async fn check_queue(&self, logger: &JobLogger) {
-        logger.debug("Checking queue");
-
         let running_count = self.running_ids.lock().await.len();
         if running_count >= self.max_parallel {
-            logger.debug("Max parallel tasks reached, skipping");
             return;
         }
 
+        // Пробуем взять задачу из персистентной очереди (Redis)
+        if let Some(ref tq) = self.task_queue {
+            match tq.pop().await {
+                Ok(Some(task_id)) => {
+                    tracing::info!("[job_pool] Launching task from persistent queue: {}", task_id);
+                    self.launch_task_by_id(task_id).await;
+                    return;
+                }
+                Ok(None) => {} // Очередь пуста
+                Err(e) => {
+                    tracing::warn!("[job_pool] Task queue error: {}", e);
+                }
+            }
+        }
+
+        // Fallback на in-memory очередь
         let mut queue = self.queue.lock().await;
         if queue.is_empty() {
             return;
@@ -152,14 +186,35 @@ impl JobPool {
             return;
         }
 
-        let task_id = queued.task.id;
-        logger.task_info("Launching task", task_id, "starting");
+        self.launch_queued_task(queued).await;
+    }
 
-        // Регистрируем как запущенную
+    /// Запускает задачу по ID (извлекает из БД)
+    async fn launch_task_by_id(&self, task_id: i32) {
         self.running_ids.lock().await.insert(task_id);
 
-        // Снимаем блокировку очереди до запуска задачи
-        drop(queue);
+        let store = self.store.clone();
+        let running_ids = self.running_ids.clone();
+
+        tokio::spawn(async move {
+            // Получаем задачу из БД
+            match store.get_tasks(0, None).await {
+                Ok(tasks) => {
+                    if let Some(task_with_tpl) = tasks.into_iter().find(|t| t.task.id == task_id) {
+                        task_execution::execute_task(store, task_with_tpl.task).await;
+                    }
+                }
+                Err(e) => tracing::warn!("[job_pool] Failed to load task {}: {}", task_id, e),
+            }
+            running_ids.lock().await.remove(&task_id);
+        });
+    }
+
+    /// Запускает задачу из in-memory очереди
+    async fn launch_queued_task(&self, queued: QueuedTask) {
+        let task_id = queued.task.id;
+
+        self.running_ids.lock().await.insert(task_id);
 
         let store = self.store.clone();
         let task = queued.task;
@@ -167,7 +222,6 @@ impl JobPool {
 
         tokio::spawn(async move {
             task_execution::execute_task(store, task).await;
-            // После завершения убираем из трекера
             running_ids.lock().await.remove(&task_id);
         });
     }
@@ -204,6 +258,24 @@ impl JobPool {
             return;
         }
 
+        // Если есть персистентная очередь — пушим туда
+        if let Some(ref tq) = self.task_queue {
+            for task_with_tpl in tasks {
+                let task_id = task_with_tpl.task.id;
+                // Проверяем что задача ещё не в очереди
+                if let Ok(exists) = tq.contains(task_id).await {
+                    if exists {
+                        continue;
+                    }
+                }
+                if let Err(e) = tq.push(task_id).await {
+                    logger.task_info("Failed to push to task queue", task_id, &format!("error: {}", e));
+                }
+            }
+            return;
+        }
+
+        // Fallback на in-memory очередь
         let mut queue = self.queue.lock().await;
         let running = self.running_ids.lock().await;
 

@@ -15,9 +15,9 @@ mod tests {
     use crate::db::store::Store;
     use crate::models::User;
 
-    fn create_test_app() -> axum::Router {
+    async fn create_test_app() -> axum::Router {
         let store = Arc::new(MockStore::new());
-        create_app(store)
+        create_app(store).await
     }
 
     #[tokio::test]
@@ -28,7 +28,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_health_endpoint() {
-        let app = create_test_app();
+        let app = create_test_app().await;
         let response = app
             .oneshot(
                 Request::builder()
@@ -48,7 +48,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_healthz_endpoint() {
-        let app = create_test_app();
+        let app = create_test_app().await;
         let response = app
             .oneshot(
                 Request::builder()
@@ -64,7 +64,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_readyz_endpoint() {
-        let app = create_test_app();
+        let app = create_test_app().await;
         let response = app
             .oneshot(
                 Request::builder()
@@ -98,7 +98,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_login_invalid_credentials() {
-        let app = create_test_app();
+        let app = create_test_app().await;
         let body = serde_json::json!({
             "username": "nonexistent",
             "password": "wrong"
@@ -120,7 +120,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_projects_list_requires_auth() {
-        let app = create_test_app();
+        let app = create_test_app().await;
 
         // Проверяем что health endpoint работает (не требует авторизации)
         let response = app
@@ -161,7 +161,7 @@ mod tests {
             std::sync::Arc::new(MockStore::new());
         store.create_user(user, pwd).await.unwrap();
 
-        let app = create_app(store);
+        let app = create_app(store).await;
 
         let login_body = serde_json::json!({
             "username": "logouttest",
@@ -224,7 +224,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_projects_list_without_auth() {
-        let app = create_test_app();
+        let app = create_test_app().await;
         let response = app
             .oneshot(
                 Request::builder()
@@ -239,7 +239,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_templates_list_without_auth() {
-        let app = create_test_app();
+        let app = create_test_app().await;
         let response = app
             .oneshot(
                 Request::builder()
@@ -258,7 +258,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_inventories_without_auth() {
-        let app = create_test_app();
+        let app = create_test_app().await;
         let response = app
             .oneshot(
                 Request::builder()
@@ -277,7 +277,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_repositories_without_auth() {
-        let app = create_test_app();
+        let app = create_test_app().await;
         let response = app
             .oneshot(
                 Request::builder()
@@ -295,7 +295,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_environment_without_auth() {
-        let app = create_test_app();
+        let app = create_test_app().await;
         let response = app
             .oneshot(
                 Request::builder()
@@ -313,7 +313,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_notifications_without_auth() {
-        let app = create_test_app();
+        let app = create_test_app().await;
         let response = app
             .oneshot(
                 Request::builder()
@@ -332,7 +332,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_auth_login_invalid_credentials() {
-        let app = create_test_app();
+        let app = create_test_app().await;
         let body = serde_json::json!({
             "auth": "nonexistent_user",
             "password": "wrong_password"
@@ -358,7 +358,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_auth_login_empty_body() {
-        let app = create_test_app();
+        let app = create_test_app().await;
         let response = app
             .oneshot(
                 Request::builder()
@@ -376,7 +376,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_metrics_endpoint() {
-        let app = create_test_app();
+        let app = create_test_app().await;
         let response = app
             .oneshot(
                 Request::builder()
@@ -395,7 +395,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_version_endpoint() {
-        let app = create_test_app();
+        let app = create_test_app().await;
         let response = app
             .oneshot(
                 Request::builder()
@@ -411,7 +411,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_oidc_login_metadata() {
-        let app = create_test_app();
+        let app = create_test_app().await;
         let response = app
             .oneshot(
                 Request::builder()
@@ -427,7 +427,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_graphql_endpoint() {
-        let app = create_test_app();
+        let app = create_test_app().await;
         let response = app
             .oneshot(
                 Request::builder()
@@ -445,7 +445,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_websocket_upgrade_connection() {
-        let app = create_test_app();
+        let app = create_test_app().await;
         let response = app
             .oneshot(
                 Request::builder()
@@ -466,7 +466,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_404_unknown_route() {
-        let app = create_test_app();
+        let app = create_test_app().await;
         let response = app
             .oneshot(
                 Request::builder()
@@ -481,7 +481,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_options_cors_preflight() {
-        let app = create_test_app();
+        let app = create_test_app().await;
         let response = app
             .oneshot(
                 Request::builder()

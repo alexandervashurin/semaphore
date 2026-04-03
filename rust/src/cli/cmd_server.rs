@@ -91,7 +91,7 @@ impl ServerCommand {
             }
 
             // Создаём приложение
-            let app = api::create_app(store.clone());
+            let app = api::create_app(store.clone()).await;
 
             // Запускаем сервер с graceful shutdown
             let listener = tokio::net::TcpListener::bind(format!("{}:{}", self.host, self.port))

@@ -40,7 +40,8 @@
       "Bash(ls *)",
       "Bash(which *)",
       "Bash(dpkg *)",
-      "Bash(docker build *)"
+      "Bash(docker build *)",
+      "Bash(sed *)"
     ]
   },
   "$version": 3

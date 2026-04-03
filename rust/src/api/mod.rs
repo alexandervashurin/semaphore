@@ -62,7 +62,7 @@ use state::AppState;
 pub use middleware::{rate_limiter, security_headers};
 
 /// Создаёт приложение Axum
-pub fn create_app(store: Arc<dyn crate::db::Store + Send + Sync>) -> Router {
+pub async fn create_app(store: Arc<dyn crate::db::Store + Send + Sync>) -> Router {
     let config = crate::config::Config::default();
 
     // Инициализация Redis cache для HA режима
@@ -97,7 +97,19 @@ pub fn create_app(store: Arc<dyn crate::db::Store + Send + Sync>) -> Router {
         None
     };
 
-    let state = Arc::new(AppState::new(store, config, cache));
+    // Initialize persistent task queue (Redis if available, otherwise in-memory)
+    let task_queue: Option<Arc<dyn crate::services::runners::task_queue::TaskQueue + Send + Sync>> = if let Some(ref cache) = cache {
+        // Reuse Redis connection for task queue
+        let redis_url = cache.redis_url().to_string();
+        let q = crate::services::runners::task_queue::build_task_queue(Some(&redis_url)).await;
+        info!("Persistent task queue initialized: {}", q.backend_name());
+        Some(q)
+    } else {
+        info!("Redis not available, using in-memory task queue");
+        None
+    };
+
+    let state = Arc::new(AppState::with_task_queue(store, config, cache, task_queue));
 
     // Start JWT blacklist pruner — cleans up expired entries every 5 minutes
     token_blacklist::spawn_pruner(

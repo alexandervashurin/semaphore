@@ -94,6 +94,11 @@ impl RedisCache {
         }
     }
 
+    /// Возвращает Redis URL для переиспользования подключения
+    pub fn redis_url(&self) -> &str {
+        &self.config.url
+    }
+
     /// Инициализирует соединение с Redis
     pub async fn initialize(&mut self) -> Result<()> {
         if !self.config.enabled {

@@ -11,6 +11,7 @@ use crate::db::Store;
 use crate::error::{Error, Result};
 use crate::pro::services::{SubscriptionService, SubscriptionServiceImpl};
 use crate::services::metrics::MetricsManager;
+use crate::services::runners::task_queue::TaskQueue;
 use crate::services::telegram_bot::TelegramBot;
 use dashmap::DashMap;
 use std::collections::HashMap;
@@ -44,6 +45,8 @@ pub struct AppState {
     pub telegram_bot: Option<Arc<TelegramBot>>,
     /// PRO / лицензирование (community edition — без ограничений по умолчанию)
     pub subscription: Arc<dyn SubscriptionService + Send + Sync>,
+    /// Персистентная очередь задач (Redis или in-memory)
+    pub task_queue: Option<Arc<dyn TaskQueue + Send + Sync>>,
 }
 
 impl AppState {
@@ -52,6 +55,16 @@ impl AppState {
         store: Arc<dyn Store + Send + Sync>,
         config: Config,
         cache: Option<Arc<RedisCache>>,
+    ) -> Self {
+        Self::with_task_queue(store, config, cache, None)
+    }
+
+    /// Создаёт состояние с персистентной очередью задач
+    pub fn with_task_queue(
+        store: Arc<dyn Store + Send + Sync>,
+        config: Config,
+        cache: Option<Arc<RedisCache>>,
+        task_queue: Option<Arc<dyn TaskQueue + Send + Sync>>,
     ) -> Self {
         let telegram_bot = TelegramBot::new(&config);
         let subscription: Arc<dyn SubscriptionService + Send + Sync> =
@@ -78,6 +91,7 @@ impl AppState {
             kubeconfigs: Arc::new(DashMap::new()),
             telegram_bot,
             subscription,
+            task_queue,
         }
     }
 
