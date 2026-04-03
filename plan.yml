@@ -7,11 +7,11 @@ status_summary:
   kubernetes_ui: "~95%"
   production_release_readiness: "~100%"
   open_tasks_count: 2
-  test_coverage: "~73% (741 tests)"
+  test_coverage: "~75% (770 tests)"
   open_blockers:
     critical:
       - id: TEST-01
-        title: "Покрытие тестами 80%+ (сейчас ~73%, 741 тестов)"
+        title: "Покрытие тестами 80%+ (сейчас ~75%, 770 тестов)"
         sprint: S2
         blocks: [RB-01]
     high:
@@ -47,7 +47,7 @@ release_blockers:
   - id: RB-01
     title: "Полный green test run (cargo test + clippy)"
     status: closed
-    note: "cargo clippy ✅, cargo test ✅ 741 passed 0 failed, coverage ~73% (цель 80%+)"
+    note: "cargo clippy ✅, cargo test ✅ 770 passed 0 failed, coverage ~75% (цель 80%+)"
   - id: RB-02
     title: "E2E проверка deploy в Docker и Kubernetes"
     status: closed
