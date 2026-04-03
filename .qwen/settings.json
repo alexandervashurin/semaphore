@@ -36,7 +36,11 @@
       "Bash(tee *)",
       "Bash(cargo *)",
       "Bash(timeout *)",
-      "Bash(rustup *)"
+      "Bash(rustup *)",
+      "Bash(ls *)",
+      "Bash(which *)",
+      "Bash(dpkg *)",
+      "Bash(docker build *)"
     ]
   },
   "$version": 3

@@ -330,11 +330,40 @@ pub async fn get_prometheus_metrics(
             }
         }
     } else {
-        // Для других ресурсов (Deployment, StatefulSet) — агрегированные метрики по Pod
-        // TODO: реализовать агрегацию по label selectors
-        return Err(Error::NotFound(
-            format!("Metrics for {} not implemented", query.kind)
-        ));
+        // Для других ресурсов (Deployment, StatefulSet, DaemonSet) — агрегированные метрики
+        // Prometheus уже поддерживает label selectors в запросах.
+        // Запрашиваем метрики для всех подов с matching labels и агрегируем.
+        let label_selector = format!("app=\"{}\"", query.name);
+        let start_ts = start;
+        let end_ts = now.timestamp();
+
+        if metric_type == "all" || metric_type == "cpu" {
+            let query_str = format!(
+                "sum(rate(container_cpu_usage_seconds_total{{namespace=\"{}\",{} }}[5m]))",
+                query.namespace, label_selector
+            );
+            if let Ok(cpu) = client.query_range(&query_str, start_ts, end_ts, "60").await {
+                metrics.extend(cpu);
+            }
+        }
+        if metric_type == "all" || metric_type == "memory" {
+            let query_str = format!(
+                "sum(container_memory_working_set_bytes{{namespace=\"{}\",{} }})",
+                query.namespace, label_selector
+            );
+            if let Ok(mem) = client.query_range(&query_str, start_ts, end_ts, "60").await {
+                metrics.extend(mem);
+            }
+        }
+        if metric_type == "all" || metric_type == "network" {
+            let query_str = format!(
+                "sum(rate(container_network_receive_bytes_total{{namespace=\"{}\",{} }}[5m]))",
+                query.namespace, label_selector
+            );
+            if let Ok(net) = client.query_range(&query_str, start_ts, end_ts, "60").await {
+                metrics.extend(net);
+            }
+        }
     }
     
     Ok(Json(PrometheusMetricsResponse {
