@@ -47,6 +47,8 @@ pub struct AppState {
     pub subscription: Arc<dyn SubscriptionService + Send + Sync>,
     /// Персистентная очередь задач (Redis или in-memory)
     pub task_queue: Option<Arc<dyn TaskQueue + Send + Sync>>,
+    /// Redis URL для WebSocket Pub/Sub (если доступен)
+    pub ws_redis_url: Option<String>,
 }
 
 impl AppState {
@@ -66,6 +68,29 @@ impl AppState {
         cache: Option<Arc<RedisCache>>,
         task_queue: Option<Arc<dyn TaskQueue + Send + Sync>>,
     ) -> Self {
+        Self::with_ws_redis(store, config, cache, task_queue, None)
+    }
+
+    /// Создаёт состояние с WebSocket Redis Pub/Sub
+    pub fn with_ws_redis(
+        store: Arc<dyn Store + Send + Sync>,
+        config: Config,
+        cache: Option<Arc<RedisCache>>,
+        task_queue: Option<Arc<dyn TaskQueue + Send + Sync>>,
+        ws_redis_url: Option<String>,
+    ) -> Self {
+        Self::with_ws_and_task_queue(store, config, cache, task_queue, Arc::new(WebSocketManager::new()), ws_redis_url)
+    }
+
+    /// Создаёт состояние с пред-инициализированным WebSocket менеджером
+    pub fn with_ws_and_task_queue(
+        store: Arc<dyn Store + Send + Sync>,
+        config: Config,
+        cache: Option<Arc<RedisCache>>,
+        task_queue: Option<Arc<dyn TaskQueue + Send + Sync>>,
+        ws_manager: Arc<WebSocketManager>,
+        ws_redis_url: Option<String>,
+    ) -> Self {
         let telegram_bot = TelegramBot::new(&config);
         let subscription: Arc<dyn SubscriptionService + Send + Sync> =
             Arc::new(SubscriptionServiceImpl::new());
@@ -73,7 +98,7 @@ impl AppState {
         Self {
             store: StoreWrapper::new(store),
             config,
-            ws_manager: Arc::new(WebSocketManager::new()),
+            ws_manager,
             oidc_state: Arc::new(Mutex::new(HashMap::new())),
             metrics: MetricsManager::new(),
             cache,
@@ -92,6 +117,7 @@ impl AppState {
             telegram_bot,
             subscription,
             task_queue,
+            ws_redis_url,
         }
     }
 

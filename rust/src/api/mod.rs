@@ -57,6 +57,7 @@ use tower_http::trace::TraceLayer;
 use tracing::{info, warn};
 
 use state::AppState;
+use websocket::WebSocketManager;
 
 // Ре-экспорт middleware
 pub use middleware::{rate_limiter, security_headers};
@@ -109,7 +110,24 @@ pub async fn create_app(store: Arc<dyn crate::db::Store + Send + Sync>) -> Route
         None
     };
 
-    let state = Arc::new(AppState::with_task_queue(store, config, cache, task_queue));
+    // Initialize WebSocket manager with Redis Pub/Sub if available
+    let ws_redis_url = cache.as_ref().map(|c| c.redis_url().to_string());
+    let ws_manager = if let Some(ref url) = ws_redis_url {
+        info!("Initializing WebSocket manager with Redis Pub/Sub");
+        Arc::new(WebSocketManager::with_redis(url).await)
+    } else {
+        info!("Initializing WebSocket manager (in-memory only)");
+        Arc::new(WebSocketManager::new())
+    };
+
+    let state = Arc::new(AppState::with_ws_and_task_queue(
+        store,
+        config,
+        cache,
+        task_queue,
+        ws_manager,
+        ws_redis_url,
+    ));
 
     // Start JWT blacklist pruner — cleans up expired entries every 5 minutes
     token_blacklist::spawn_pruner(

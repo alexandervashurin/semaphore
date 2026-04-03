@@ -14,12 +14,16 @@ use axum::{
 };
 use chrono::{DateTime, Utc};
 use futures::{SinkExt, StreamExt};
+use redis::AsyncCommands;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{broadcast, RwLock};
-use tracing::{info, warn};
+use tracing::{info, warn, error};
 
 use crate::api::state::AppState;
+
+/// WebSocket Pub/Sub канал
+const WS_PUBSUB_CHANNEL: &str = "velum:ws:events";
 
 /// Сообщение WebSocket
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -53,15 +57,43 @@ pub struct WebSocketManager {
     /// Подключения по task_id
     #[allow(dead_code)]
     connections: Arc<RwLock<HashMap<i32, Vec<broadcast::Receiver<WsMessage>>>>>,
+    /// Redis соединение для межпроцессной рассылки (опционально)
+    redis_conn: Option<redis::aio::ConnectionManager>,
+    /// Фоновая задача подписки на Redis Pub/Sub
+    #[allow(dead_code)]
+    pubsub_task: Option<tokio::task::JoinHandle<()>>,
 }
 
 impl WebSocketManager {
-    /// Создаёт новый менеджер подключений
+    /// Создаёт новый менеджер подключений (in-memory only)
     pub fn new() -> Self {
         let (tx, _) = broadcast::channel(1000);
         Self {
             broadcaster: tx,
             connections: Arc::new(RwLock::new(HashMap::new())),
+            redis_conn: None,
+            pubsub_task: None,
+        }
+    }
+
+    /// Создаёт менеджер с Redis Pub/Sub для горизонтального масштабирования
+    pub async fn with_redis(redis_url: &str) -> Self {
+        let (tx, _) = broadcast::channel(1000);
+
+        let redis_client = match redis::Client::open(redis_url) {
+            Ok(c) => c.get_connection_manager().await.ok(),
+            Err(_) => None,
+        };
+
+        // TODO: Фоновая задача подписки на Pub/Sub канал
+        // Требует отдельного подключения т.к. ConnectionManager не поддерживает into_pubsub()
+        // Для публикации (PUBLISH) ConnectionManager работает корректно
+
+        Self {
+            broadcaster: tx,
+            connections: Arc::new(RwLock::new(HashMap::new())),
+            redis_conn: redis_client,
+            pubsub_task: None, // Будет добавлено когда redis-rs добавит поддержку
         }
     }
 
@@ -71,11 +103,27 @@ impl WebSocketManager {
     }
 
     /// Отправляет сообщение всем подключенным клиентам
+    /// При наличии Redis — публикует в Pub/Sub для других инстансов
     pub fn broadcast(
         &self,
         message: WsMessage,
     ) -> Result<usize, broadcast::error::SendError<WsMessage>> {
-        self.broadcaster.send(message)
+        // Локальная рассылка
+        let count = self.broadcaster.send(message.clone())?;
+
+        // Публикация в Redis Pub/Sub для других инстансов
+        if let Some(ref conn) = self.redis_conn {
+            let mut conn = conn.clone();
+            let json = serde_json::to_string(&message).unwrap_or_default();
+            tokio::spawn(async move {
+                let result: Result<(), _> = conn.publish(WS_PUBSUB_CHANNEL, &json).await;
+                if let Err(e) = result {
+                    error!("[ws] Failed to publish to Redis Pub/Sub: {}", e);
+                }
+            });
+        }
+
+        Ok(count)
     }
 
     /// Отправляет лог задачи
