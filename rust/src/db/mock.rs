@@ -18,6 +18,7 @@ pub struct MockStore {
     inventories: RwLock<HashMap<i32, Inventory>>,
     repositories: RwLock<HashMap<i32, Repository>>,
     environments: RwLock<HashMap<i32, Environment>>,
+    playbook_runs: RwLock<HashMap<i32, PlaybookRun>>,
     terraform_plans: RwLock<HashMap<(i32, i32), TerraformPlan>>,
 }
 
@@ -37,6 +38,7 @@ impl MockStore {
             inventories: RwLock::new(HashMap::new()),
             repositories: RwLock::new(HashMap::new()),
             environments: RwLock::new(HashMap::new()),
+            playbook_runs: RwLock::new(HashMap::new()),
             terraform_plans: RwLock::new(HashMap::new()),
         }
     }
@@ -59,6 +61,11 @@ impl MockStore {
     /// Seed helper для тестов: добавить environment
     pub fn seed_environment(&self, environment: Environment) {
         self.environments.write().unwrap().insert(environment.id, environment);
+    }
+
+    /// Seed helper для тестов: добавить playbook_run
+    pub fn seed_playbook_run(&self, run: PlaybookRun) {
+        self.playbook_runs.write().unwrap().insert(run.id, run);
     }
 
     /// Тестовый хелпер: положить план Terraform по (project_id, task_id)
@@ -1168,50 +1175,116 @@ impl PlaybookManager for MockStore {
 
 #[async_trait]
 impl PlaybookRunManager for MockStore {
-    async fn get_playbook_runs(&self, _filter: PlaybookRunFilter) -> Result<Vec<PlaybookRun>> {
-        Ok(Vec::new())
+    async fn get_playbook_runs(&self, filter: PlaybookRunFilter) -> Result<Vec<PlaybookRun>> {
+        let runs: Vec<PlaybookRun> = self.playbook_runs.read().unwrap().values().cloned().collect();
+        let filtered: Vec<PlaybookRun> = runs.into_iter().filter(|r| {
+            if let Some(pid) = filter.project_id {
+                if r.project_id != pid { return false; }
+            }
+            if let Some(pb_id) = filter.playbook_id {
+                if r.playbook_id != pb_id { return false; }
+            }
+            if let Some(st) = &filter.status {
+                if r.status != *st { return false; }
+            }
+            true
+        }).collect();
+        let limit = filter.limit.unwrap_or(100) as usize;
+        let offset = filter.offset.unwrap_or(0) as usize;
+        Ok(filtered.into_iter().skip(offset).take(limit).collect())
     }
 
-    async fn get_playbook_run(&self, _id: i32, _project_id: i32) -> Result<PlaybookRun> {
-        Err(Error::NotFound("PlaybookRun not found".to_string()))
+    async fn get_playbook_run(&self, id: i32, project_id: i32) -> Result<PlaybookRun> {
+        self.playbook_runs
+            .read()
+            .unwrap()
+            .get(&id)
+            .filter(|r| r.project_id == project_id)
+            .cloned()
+            .ok_or_else(|| Error::NotFound("PlaybookRun not found".to_string()))
     }
 
-    async fn get_playbook_run_by_task_id(&self, _task_id: i32) -> Result<Option<PlaybookRun>> {
-        Ok(None)
+    async fn get_playbook_run_by_task_id(&self, task_id: i32) -> Result<Option<PlaybookRun>> {
+        Ok(self.playbook_runs.read().unwrap().values().cloned()
+            .find(|r| r.task_id == Some(task_id)))
     }
 
-    async fn create_playbook_run(&self, _run: PlaybookRunCreate) -> Result<PlaybookRun> {
-        Err(Error::Database(sqlx::Error::Protocol(
-            "Not implemented in mock".to_string(),
-        )))
+    async fn create_playbook_run(&self, run_create: PlaybookRunCreate) -> Result<PlaybookRun> {
+        use chrono::Utc;
+        let id = (self.playbook_runs.read().unwrap().len() as i32) + 1;
+        let run = PlaybookRun {
+            id,
+            project_id: run_create.project_id,
+            playbook_id: run_create.playbook_id,
+            task_id: run_create.task_id,
+            template_id: run_create.template_id,
+            inventory_id: run_create.inventory_id,
+            environment_id: run_create.environment_id,
+            extra_vars: run_create.extra_vars,
+            limit_hosts: run_create.limit_hosts,
+            tags: run_create.tags,
+            skip_tags: run_create.skip_tags,
+            user_id: run_create.user_id,
+            status: PlaybookRunStatus::Waiting,
+            output: None,
+            error_message: None,
+            created: Utc::now(),
+            updated: Utc::now(),
+            start_time: None,
+            end_time: None,
+            duration_seconds: None,
+            hosts_total: Some(0),
+            hosts_changed: Some(0),
+            hosts_unreachable: Some(0),
+            hosts_failed: Some(0),
+        };
+        self.playbook_runs.write().unwrap().insert(id, run.clone());
+        Ok(run)
     }
 
     async fn update_playbook_run(
         &self,
-        _id: i32,
+        id: i32,
         _project_id: i32,
-        _update: PlaybookRunUpdate,
+        update: PlaybookRunUpdate,
     ) -> Result<PlaybookRun> {
-        Err(Error::Database(sqlx::Error::Protocol(
-            "Not implemented in mock".to_string(),
-        )))
+        let mut runs = self.playbook_runs.write().unwrap();
+        if let Some(run) = runs.get_mut(&id) {
+            if let Some(status) = update.status { run.status = status; }
+            if let Some(output) = update.output { run.output = Some(output); }
+            if let Some(msg) = update.error_message { run.error_message = Some(msg); }
+            Ok(run.clone())
+        } else {
+            Err(Error::NotFound("PlaybookRun not found".to_string()))
+        }
     }
 
-    async fn update_playbook_run_status(&self, _id: i32, _status: PlaybookRunStatus) -> Result<()> {
+    async fn update_playbook_run_status(&self, id: i32, status: PlaybookRunStatus) -> Result<()> {
+        let mut runs = self.playbook_runs.write().unwrap();
+        if let Some(run) = runs.get_mut(&id) {
+            run.status = status;
+        }
         Ok(())
     }
 
-    async fn delete_playbook_run(&self, _id: i32, _project_id: i32) -> Result<()> {
+    async fn delete_playbook_run(&self, id: i32, _project_id: i32) -> Result<()> {
+        self.playbook_runs.write().unwrap().remove(&id);
         Ok(())
     }
 
-    async fn get_playbook_run_stats(&self, _playbook_id: i32) -> Result<PlaybookRunStats> {
+    async fn get_playbook_run_stats(&self, playbook_id: i32) -> Result<PlaybookRunStats> {
+        let runs: Vec<PlaybookRun> = self.playbook_runs.read().unwrap().values().cloned()
+            .filter(|r| r.playbook_id == playbook_id)
+            .collect();
+        let total = runs.len() as i64;
+        let success = runs.iter().filter(|r| matches!(r.status, PlaybookRunStatus::Success)).count() as i64;
+        let failed = runs.iter().filter(|r| matches!(r.status, PlaybookRunStatus::Failed)).count() as i64;
         Ok(PlaybookRunStats {
-            total_runs: 0,
-            success_runs: 0,
-            failed_runs: 0,
+            total_runs: total,
+            success_runs: success,
+            failed_runs: failed,
             avg_duration_seconds: None,
-            last_run: None,
+            last_run: runs.iter().max_by_key(|r| r.created).map(|r| r.created),
         })
     }
 }

@@ -72,6 +72,11 @@ pub mod view;
 pub mod webhook;
 pub mod workflow;
 
+#[cfg(test)]
+mod test_task;
+#[cfg(test)]
+mod test_playbook_run;
+
 // Ре-экспорт трейтов для удобства
 pub use access_key::*;
 pub use connection::*;
