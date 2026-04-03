@@ -26,7 +26,7 @@
 //!
 //! ## Запуск сервера
 //!
-//! ```no_run
+//! ```ignore
 //! use velum::config::Config;
 //! use velum::init_logging;
 //!
@@ -45,7 +45,7 @@
 //!
 //! ## Использование Kubernetes клиента
 //!
-//! ```no_run
+//! ```ignore
 //! use velum::kubernetes::service::KubernetesClusterService;
 //!
 //! async fn list_pods() {

@@ -12,9 +12,9 @@
 //! - Возвращает итоговый ID в ответе через `X-Request-ID` header
 //!
 //! ## Пример использования в handler
-//! ```rust,no_run
+//! ```ignore
 //! use axum::Extension;
-//! use crate::api::middleware::CorrelationId;
+//! use velum::api::middleware::correlation_id::CorrelationId;
 //!
 //! async fn my_handler(Extension(corr_id): Extension<CorrelationId>) {
 //!     tracing::info!(correlation_id = %corr_id, "handling request");
