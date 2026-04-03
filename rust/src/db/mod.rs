@@ -11,9 +11,9 @@ pub mod store;
 // Ре-экспорт основных типов
 pub use store::{
     AccessKeyManager, ConnectionManager, EnvironmentManager, EventManager, IntegrationManager,
-    InventoryManager, MigrationManager, OptionsManager, ProjectStore, RepositoryManager,
-    RunnerManager, ScheduleManager, SessionManager, Store, TaskManager, TemplateManager,
-    TokenManager, UserManager, ViewManager,
+    InventoryManager, MigrationManager, OptionsManager, OrganizationManager, ProjectStore,
+    RepositoryManager, RunnerManager, ScheduleManager, SessionManager, Store, TaskManager,
+    TemplateManager, TokenManager, UserManager, ViewManager,
 };
 
 pub use sql::SqlStore;

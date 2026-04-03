@@ -82,6 +82,8 @@ mod test_schedule;
 mod test_user;
 #[cfg(test)]
 mod test_project;
+#[cfg(test)]
+mod test_organization;
 
 // Ре-экспорт трейтов для удобства
 pub use access_key::*;

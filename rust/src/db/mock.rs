@@ -2,6 +2,7 @@
 
 use crate::db::store::*;
 use crate::error::{Error, Result};
+use crate::models::organization::*;
 use crate::models::*;
 use crate::services::task_logger::TaskStatus;
 use async_trait::async_trait;
@@ -19,6 +20,8 @@ pub struct MockStore {
     repositories: RwLock<HashMap<i32, Repository>>,
     environments: RwLock<HashMap<i32, Environment>>,
     playbook_runs: RwLock<HashMap<i32, PlaybookRun>>,
+    organizations: RwLock<HashMap<i32, Organization>>,
+    organization_users: RwLock<HashMap<i32, OrganizationUser>>,
     terraform_plans: RwLock<HashMap<(i32, i32), TerraformPlan>>,
 }
 
@@ -39,6 +42,8 @@ impl MockStore {
             repositories: RwLock::new(HashMap::new()),
             environments: RwLock::new(HashMap::new()),
             playbook_runs: RwLock::new(HashMap::new()),
+            organizations: RwLock::new(HashMap::new()),
+            organization_users: RwLock::new(HashMap::new()),
             terraform_plans: RwLock::new(HashMap::new()),
         }
     }
@@ -949,52 +954,122 @@ impl ProjectRoleManager for MockStore {
 #[async_trait]
 impl OrganizationManager for MockStore {
     async fn get_organizations(&self) -> Result<Vec<Organization>> {
-        Ok(vec![])
+        Ok(self.organizations.read().unwrap().values().cloned().collect())
     }
     async fn get_organization(&self, id: i32) -> Result<Organization> {
-        Err(Error::NotFound(format!("Organization {id} not found")))
+        self.organizations
+            .read()
+            .unwrap()
+            .get(&id)
+            .cloned()
+            .ok_or_else(|| Error::NotFound(format!("Organization {id} not found")))
     }
     async fn get_organization_by_slug(&self, slug: &str) -> Result<Organization> {
-        Err(Error::NotFound(format!("Organization {slug} not found")))
+        self.organizations
+            .read()
+            .unwrap()
+            .values()
+            .find(|o| o.slug == slug)
+            .cloned()
+            .ok_or_else(|| Error::NotFound(format!("Organization {slug} not found")))
     }
-    async fn create_organization(&self, _payload: OrganizationCreate) -> Result<Organization> {
-        Err(Error::Other("not implemented in mock".to_string()))
+    async fn create_organization(&self, payload: OrganizationCreate) -> Result<Organization> {
+        use chrono::Utc;
+        let slug = payload.slug.clone().unwrap_or_else(|| {
+            payload.name.to_lowercase().chars().map(|c| if c.is_alphanumeric() { c } else { '-' }).collect()
+        });
+        let id = (self.organizations.read().unwrap().len() as i32) + 1;
+        let org = Organization {
+            id,
+            name: payload.name.clone(),
+            slug: slug.clone(),
+            description: payload.description.clone(),
+            settings: payload.settings.clone(),
+            quota_max_projects: payload.quota_max_projects,
+            quota_max_users: payload.quota_max_users,
+            quota_max_tasks_per_month: payload.quota_max_tasks_per_month,
+            active: true,
+            created: Utc::now(),
+            updated: None,
+        };
+        self.organizations.write().unwrap().insert(id, org.clone());
+        Ok(org)
     }
-    async fn update_organization(
-        &self,
-        _id: i32,
-        _payload: OrganizationUpdate,
-    ) -> Result<Organization> {
-        Err(Error::Other("not implemented in mock".to_string()))
+    async fn update_organization(&self, id: i32, payload: OrganizationUpdate) -> Result<Organization> {
+        let mut orgs = self.organizations.write().unwrap();
+        if let Some(org) = orgs.get_mut(&id) {
+            if let Some(name) = &payload.name { org.name = name.clone(); }
+            if let Some(desc) = &payload.description { org.description = Some(desc.clone()); }
+            if let Some(active) = payload.active { org.active = active; }
+            org.updated = Some(Utc::now());
+            Ok(org.clone())
+        } else {
+            Err(Error::NotFound(format!("Organization {id} not found")))
+        }
     }
-    async fn delete_organization(&self, _id: i32) -> Result<()> {
+    async fn delete_organization(&self, id: i32) -> Result<()> {
+        self.organizations.write().unwrap().remove(&id);
         Ok(())
     }
-    async fn get_organization_users(&self, _org_id: i32) -> Result<Vec<OrganizationUser>> {
-        Ok(vec![])
+    async fn get_organization_users(&self, org_id: i32) -> Result<Vec<OrganizationUser>> {
+        Ok(self.organization_users.read().unwrap().values().cloned()
+            .filter(|u| u.org_id == org_id).collect())
     }
-    async fn add_user_to_organization(
-        &self,
-        _payload: OrganizationUserCreate,
-    ) -> Result<OrganizationUser> {
-        Err(Error::Other("not implemented in mock".to_string()))
+    async fn add_user_to_organization(&self, payload: OrganizationUserCreate) -> Result<OrganizationUser> {
+        use chrono::Utc;
+        let id = (self.organization_users.read().unwrap().len() as i32) + 1;
+        let ou = OrganizationUser {
+            id,
+            org_id: payload.org_id,
+            user_id: payload.user_id,
+            role: payload.role.clone(),
+            created: Utc::now(),
+        };
+        self.organization_users.write().unwrap().insert(id, ou.clone());
+        Ok(ou)
     }
-    async fn remove_user_from_organization(&self, _org_id: i32, _user_id: i32) -> Result<()> {
+    async fn remove_user_from_organization(&self, org_id: i32, user_id: i32) -> Result<()> {
+        let mut users = self.organization_users.write().unwrap();
+        let to_remove: Vec<i32> = users.iter().filter(|(_, u)| u.org_id == org_id && u.user_id == user_id)
+            .map(|(k, _)| *k).collect();
+        for k in to_remove { users.remove(&k); }
         Ok(())
     }
-    async fn update_user_organization_role(
-        &self,
-        _org_id: i32,
-        _user_id: i32,
-        _role: &str,
-    ) -> Result<()> {
+    async fn update_user_organization_role(&self, org_id: i32, user_id: i32, role: &str) -> Result<()> {
+        let mut users = self.organization_users.write().unwrap();
+        if let Some(ou) = users.values_mut().find(|u| u.org_id == org_id && u.user_id == user_id) {
+            ou.role = role.to_string();
+        }
         Ok(())
     }
-    async fn get_user_organizations(&self, _user_id: i32) -> Result<Vec<Organization>> {
-        Ok(vec![])
+    async fn get_user_organizations(&self, user_id: i32) -> Result<Vec<Organization>> {
+        let org_ids: Vec<i32> = self.organization_users.read().unwrap().values()
+            .filter(|u| u.user_id == user_id).map(|u| u.org_id).collect();
+        Ok(self.organizations.read().unwrap().values().cloned()
+            .filter(|o| org_ids.contains(&o.id)).collect())
     }
-    async fn check_organization_quota(&self, _org_id: i32, _quota_type: &str) -> Result<bool> {
-        Ok(true)
+    async fn check_organization_quota(&self, org_id: i32, quota_type: &str) -> Result<bool> {
+        let opt_org = self.organizations.read().unwrap().get(&org_id).cloned();
+        let org = match opt_org {
+            Some(o) => o,
+            None => return Err(Error::NotFound(format!("Organization {org_id} not found"))),
+        };
+        match quota_type {
+            "projects" => {
+                if let Some(max) = org.quota_max_projects {
+                    let count = self.organizations.read().unwrap().len() as i64;
+                    Ok(count < (max as i64))
+                } else { Ok(true) }
+            }
+            "users" => {
+                if let Some(max) = org.quota_max_users {
+                    let count = self.organization_users.read().unwrap().values()
+                        .filter(|u| u.org_id == org_id).count() as i64;
+                    Ok(count < (max as i64))
+                } else { Ok(true) }
+            }
+            _ => Ok(true),
+        }
     }
 }
 
