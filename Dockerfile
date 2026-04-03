@@ -7,13 +7,26 @@ FROM rust:1.90-slim AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
+    musl-tools \
     pkg-config \
     libssl-dev \
     libssh2-1-dev \
     zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
+RUN rustup target add x86_64-unknown-linux-musl
+
 WORKDIR /app
+
+ENV PKG_CONFIG_ALLOW_CROSS=1
+ENV OPENSSL_STATIC=1
+ENV OPENSSL_INCLUDE_DIR=/usr/include
+ENV OPENSSL_LIB_DIR=/usr/lib/x86_64-linux-gnu
+ENV LIBSSH2_SYS_USE_PKG_CONFIG=1
+ENV CC_x86_64_unknown_linux_musl=musl-gcc
+ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=musl-gcc
+ENV CFLAGS_x86_64_unknown_linux_musl="-I/usr/include/x86_64-linux-gnu"
+ENV RUSTFLAGS="-C target-feature=+crt-static"
 
 COPY rust/Cargo.toml rust/Cargo.lock ./rust/
 COPY rust/build.rs ./rust/build.rs
@@ -23,9 +36,8 @@ COPY rust/src ./rust/src
 
 WORKDIR /app/rust
 
-RUN cargo build --locked --release --bin velum && \
-    strip --strip-all target/release/velum && \
-    ls -lh target/release/velum
+RUN cargo build --locked --release --target x86_64-unknown-linux-musl --bin velum && \
+    strip target/x86_64-unknown-linux-musl/release/velum
 
 # ============================================================================
 # Runtime: Alpine (~5MB) + gcompat (glibc compat ~2MB) + binary (15MB) + web (7MB) ≈ 29MB
@@ -41,11 +53,8 @@ RUN apk add --no-cache \
     zlib \
     && addgroup -S velum && adduser -S velum -G velum
 
-COPY --from=builder /app/rust/target/release/velum /usr/local/bin/velum
+COPY --from=builder /app/rust/target/x86_64-unknown-linux-musl/release/velum /usr/local/bin/velum
 COPY --chown=velum:velum web/public /app/web/public
-
-WORKDIR /app
-USER velum
 
 EXPOSE 3000
 

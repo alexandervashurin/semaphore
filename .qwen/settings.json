@@ -41,7 +41,9 @@
       "Bash(which *)",
       "Bash(dpkg *)",
       "Bash(docker build *)",
-      "Bash(sed *)"
+      "Bash(sed *)",
+      "Bash(do *)",
+      "Bash(done)"
     ]
   },
   "$version": 3
