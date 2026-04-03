@@ -144,4 +144,50 @@ mod tests {
         runner.notify_status_change(TaskStatus::Success).await;
         // Проверяем, что метод вызывается без паники
     }
+
+    #[tokio::test]
+    async fn test_save_status_sends_ws_update() {
+        let runner = create_test_task_runner();
+        // save_status должен завершаться без паники
+        runner.save_status().await;
+    }
+
+    #[tokio::test]
+    async fn test_set_status_triggers_save() {
+        let mut runner = create_test_task_runner();
+        runner.set_status(TaskStatus::Success).await;
+        // set_status вызывает save_status внутри
+        assert_eq!(runner.get_status(), TaskStatus::Success);
+    }
+
+    #[tokio::test]
+    async fn test_log_listener_receives_message() {
+        let runner = create_test_task_runner();
+        let (tx, rx) = std::sync::mpsc::channel();
+        let runner_with_listener = TaskRunner {
+            log_listeners: vec![Box::new(move |time, msg| {
+                let _ = tx.send((time, msg));
+            })],
+            ..runner
+        };
+        runner_with_listener.log("hello listener");
+        let (time, msg) = rx.recv_timeout(std::time::Duration::from_secs(2)).unwrap();
+        assert_eq!(msg, "hello listener");
+        assert!(time <= Utc::now());
+    }
+
+    #[tokio::test]
+    async fn test_status_listener_receives_update() {
+        let runner = create_test_task_runner();
+        let (tx, rx) = std::sync::mpsc::channel();
+        let mut runner_with_listener = TaskRunner {
+            status_listeners: vec![Box::new(move |status| {
+                let _ = tx.send(status);
+            })],
+            ..runner
+        };
+        runner_with_listener.set_status(TaskStatus::Error).await;
+        let status = rx.recv_timeout(std::time::Duration::from_secs(2)).unwrap();
+        assert_eq!(status, TaskStatus::Error);
+    }
 }

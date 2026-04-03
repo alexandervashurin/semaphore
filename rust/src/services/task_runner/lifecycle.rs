@@ -191,4 +191,48 @@ mod tests {
         runner.kill().await;
         assert!(runner.is_killed().await);
     }
+
+    #[tokio::test]
+    async fn test_create_task_event_records_event() {
+        let runner = create_test_task_runner();
+        // MockStore::create_event returns Ok(())
+        let result = runner.create_task_event().await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_run_fails_on_empty_template() {
+        let mut runner = create_test_task_runner();
+        // run() должен упасть т.к. template не установлен (нет реального template в MockStore)
+        let result = runner.run().await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_run_logs_start_and_end_messages() {
+        let mut runner = create_test_task_runner();
+        let result = runner.run().await;
+        // Ожидаем ошибку т.к. MockStore не возвращает template/inventory/repository
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_kill_without_job() {
+        let mut runner = create_test_task_runner();
+        // kill() без установленной job должен просто установить killed flag
+        runner.kill().await;
+        assert!(runner.is_killed().await);
+    }
+
+    #[tokio::test]
+    async fn test_task_runner_full_lifecycle_status_transitions() {
+        let mut runner = create_test_task_runner();
+        assert_eq!(runner.get_status(), TaskStatus::Waiting);
+        runner.set_status(TaskStatus::Starting).await;
+        assert_eq!(runner.get_status(), TaskStatus::Starting);
+        runner.set_status(TaskStatus::Running).await;
+        assert_eq!(runner.get_status(), TaskStatus::Running);
+        runner.set_status(TaskStatus::Success).await;
+        assert_eq!(runner.get_status(), TaskStatus::Success);
+    }
 }

@@ -220,4 +220,112 @@ mod tests {
         let result = runner.run_after_hooks().await;
         assert!(result.is_ok());
     }
+
+    #[tokio::test]
+    async fn test_run_on_success_hooks() {
+        let runner = create_test_task_runner();
+        let result = runner.run_on_success_hooks().await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_run_on_failure_hooks() {
+        let runner = create_test_task_runner();
+        let result = runner.run_on_failure_hooks().await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_hook_matches_event_name_contains() {
+        let runner = create_test_task_runner();
+        let hook = Hook {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            name: "before_task_notify".to_string(),
+            r#type: HookType::Http,
+            url: None,
+            http_method: None,
+            http_body: None,
+            script: None,
+            timeout_secs: None,
+        };
+        assert!(runner.hook_matches_event(&hook, "before_task"));
+        assert!(!runner.hook_matches_event(&hook, "on_success"));
+    }
+
+    #[tokio::test]
+    async fn test_hook_matches_event_all() {
+        let runner = create_test_task_runner();
+        let hook = Hook {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            name: "any hook".to_string(),
+            r#type: HookType::Http,
+            url: None,
+            http_method: None,
+            http_body: None,
+            script: None,
+            timeout_secs: None,
+        };
+        assert!(runner.hook_matches_event(&hook, "all"));
+    }
+
+    #[tokio::test]
+    async fn test_execute_hook_http() {
+        let runner = create_test_task_runner();
+        let hook = Hook {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            name: "test http hook".to_string(),
+            r#type: HookType::Http,
+            url: Some("https://httpbin.org/status/200".to_string()),
+            http_method: Some("GET".to_string()),
+            http_body: None,
+            script: None,
+            timeout_secs: Some(5),
+        };
+        // HTTP hook может упасть из-за сети, поэтому проверяем что вызов не паникует
+        let _ = runner.execute_hook(&hook).await;
+    }
+
+    #[tokio::test]
+    async fn test_execute_hook_bash_success() {
+        let runner = create_test_task_runner();
+        let hook = Hook {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            name: "test bash hook".to_string(),
+            r#type: HookType::Bash,
+            url: None,
+            http_method: None,
+            http_body: None,
+            script: Some("echo 'hello from hook'".to_string()),
+            timeout_secs: None,
+        };
+        let result = runner.execute_hook(&hook).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_execute_hook_bash_failure() {
+        let runner = create_test_task_runner();
+        let hook = Hook {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            name: "failing bash hook".to_string(),
+            r#type: HookType::Bash,
+            url: None,
+            http_method: None,
+            http_body: None,
+            script: Some("exit 1".to_string()),
+            timeout_secs: None,
+        };
+        let result = runner.execute_hook(&hook).await;
+        assert!(result.is_err());
+    }
 }
