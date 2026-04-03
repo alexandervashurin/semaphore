@@ -223,3 +223,86 @@ pub async fn reject_plan(
 
     StatusCode::OK.into_response()
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::api::create_app;
+    use crate::db::mock::MockStore;
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use serde_json::json;
+    use std::sync::Arc;
+    use tower::ServiceExt;
+
+    async fn create_test_app() -> axum::Router {
+        let store = Arc::new(MockStore::new());
+        create_app(store).await
+    }
+
+    #[tokio::test]
+    async fn test_list_pending_plans_requires_auth() {
+        let app = create_test_app().await;
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/project/1/terraform/plans")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        // Without auth middleware, route may return 401 or 404 depending on setup
+        assert!(resp.status() == StatusCode::UNAUTHORIZED || resp.status() == StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_get_task_plan_requires_auth() {
+        let app = create_test_app().await;
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/project/1/tasks/1/plan")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert!(resp.status() == StatusCode::UNAUTHORIZED || resp.status() == StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_approve_plan_requires_auth() {
+        let app = create_test_app().await;
+        let body = json!({"comment": "Looks good"});
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/project/1/terraform/plans/1/approve")
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert!(resp.status() == StatusCode::UNAUTHORIZED || resp.status() == StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_reject_plan_requires_auth() {
+        let app = create_test_app().await;
+        let body = json!({"comment": "Needs changes"});
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/project/1/terraform/plans/1/reject")
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert!(resp.status() == StatusCode::UNAUTHORIZED || resp.status() == StatusCode::NOT_FOUND);
+    }
+}

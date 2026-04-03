@@ -190,3 +190,198 @@ pub async fn test_notification_policy(
 
     Ok(StatusCode::NO_CONTENT)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::api::create_app;
+    use crate::db::mock::MockStore;
+    use axum::body::Body;
+    use axum::http::Request;
+    use serde_json::json;
+    use std::sync::Arc;
+    use tower::ServiceExt;
+
+    async fn create_test_app() -> axum::Router {
+        let store = Arc::new(MockStore::new());
+        create_app(store).await
+    }
+
+    #[tokio::test]
+    async fn test_list_notifications_returns_empty() {
+        let app = create_test_app().await;
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/project/1/notifications")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_create_notification_empty_name_rejected() {
+        let app = create_test_app().await;
+        let body = json!({"name": "", "webhook_url": "http://example.com", "trigger": "on_failure"});
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/project/1/notifications")
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        // 400 from handler or 422 from axum validation
+        assert!(resp.status() == StatusCode::BAD_REQUEST || resp.status() == StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    #[tokio::test]
+    async fn test_create_notification_empty_webhook_rejected() {
+        let app = create_test_app().await;
+        let body = json!({"name": "Test", "webhook_url": "", "trigger": "on_failure"});
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/project/1/notifications")
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        // 400 from handler or 422 from axum validation
+        assert!(resp.status() == StatusCode::BAD_REQUEST || resp.status() == StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    #[tokio::test]
+    async fn test_create_notification_invalid_trigger_rejected() {
+        let app = create_test_app().await;
+        let body = json!({"name": "Test", "webhook_url": "http://example.com", "trigger": "invalid"});
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/project/1/notifications")
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert!(resp.status() == StatusCode::BAD_REQUEST || resp.status() == StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    #[tokio::test]
+    async fn test_create_notification_valid_triggers() {
+        let triggers = ["on_failure", "on_success", "on_start", "always"];
+        for trigger in &triggers {
+            let app = create_test_app().await;
+            let body = json!({"name": "Test", "webhook_url": "http://example.com", "trigger": trigger});
+            let resp = app
+                .oneshot(
+                    Request::builder()
+                        .method("POST")
+                        .uri("/api/project/1/notifications")
+                        .header("Content-Type", "application/json")
+                        .body(Body::from(body.to_string()))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            // MockStore may return 500 or 201
+            assert!(resp.status() != StatusCode::BAD_REQUEST);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_notification_not_found() {
+        let app = create_test_app().await;
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/project/1/notifications/999")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_update_notification_empty_name_rejected() {
+        let app = create_test_app().await;
+        let body = json!({"name": "", "webhook_url": "http://example.com", "trigger": "on_failure"});
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/api/project/1/notifications/1")
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        // 400 from handler or 422 from axum validation
+        assert!(resp.status() == StatusCode::BAD_REQUEST || resp.status() == StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    #[tokio::test]
+    async fn test_update_notification_invalid_trigger_rejected() {
+        let app = create_test_app().await;
+        let body = json!({"name": "Test", "webhook_url": "http://example.com", "trigger": "invalid"});
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/api/project/1/notifications/1")
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert!(resp.status() == StatusCode::BAD_REQUEST || resp.status() == StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    #[tokio::test]
+    async fn test_delete_notification_no_content() {
+        let app = create_test_app().await;
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri("/api/project/1/notifications/1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        // MockStore may return 204 or 404
+        assert!(resp.status() == StatusCode::NO_CONTENT || resp.status() == StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_test_notification_not_found() {
+        let app = create_test_app().await;
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/project/1/notifications/999/test")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+}

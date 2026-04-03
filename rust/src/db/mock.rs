@@ -15,6 +15,9 @@ pub struct MockStore {
     projects: RwLock<HashMap<i32, Project>>,
     tasks: RwLock<HashMap<i32, Task>>,
     templates: RwLock<HashMap<i32, Template>>,
+    inventories: RwLock<HashMap<i32, Inventory>>,
+    repositories: RwLock<HashMap<i32, Repository>>,
+    environments: RwLock<HashMap<i32, Environment>>,
     terraform_plans: RwLock<HashMap<(i32, i32), TerraformPlan>>,
 }
 
@@ -31,8 +34,31 @@ impl MockStore {
             projects: RwLock::new(HashMap::new()),
             tasks: RwLock::new(HashMap::new()),
             templates: RwLock::new(HashMap::new()),
+            inventories: RwLock::new(HashMap::new()),
+            repositories: RwLock::new(HashMap::new()),
+            environments: RwLock::new(HashMap::new()),
             terraform_plans: RwLock::new(HashMap::new()),
         }
+    }
+
+    /// Seed helper для тестов: добавить template
+    pub fn seed_template(&self, template: Template) {
+        self.templates.write().unwrap().insert(template.id, template);
+    }
+
+    /// Seed helper для тестов: добавить inventory
+    pub fn seed_inventory(&self, inventory: Inventory) {
+        self.inventories.write().unwrap().insert(inventory.id, inventory);
+    }
+
+    /// Seed helper для тестов: добавить repository
+    pub fn seed_repository(&self, repository: Repository) {
+        self.repositories.write().unwrap().insert(repository.id, repository);
+    }
+
+    /// Seed helper для тестов: добавить environment
+    pub fn seed_environment(&self, environment: Environment) {
+        self.environments.write().unwrap().insert(environment.id, environment);
     }
 
     /// Тестовый хелпер: положить план Terraform по (project_id, task_id)
@@ -264,22 +290,29 @@ impl TemplateManager for MockStore {
 #[async_trait]
 impl InventoryManager for MockStore {
     async fn get_inventories(&self, _project_id: i32) -> Result<Vec<Inventory>> {
-        Ok(vec![])
+        Ok(self.inventories.read().unwrap().values().cloned().collect())
     }
     async fn get_inventory(&self, _project_id: i32, inventory_id: i32) -> Result<Inventory> {
-        Err(Error::NotFound(format!(
-            "Inventory {} not found",
-            inventory_id
-        )))
+        self.inventories
+            .read()
+            .unwrap()
+            .get(&inventory_id)
+            .cloned()
+            .ok_or_else(|| Error::NotFound(format!("Inventory {} not found", inventory_id)))
     }
-    async fn create_inventory(&self, inventory: Inventory) -> Result<Inventory> {
+    async fn create_inventory(&self, mut inventory: Inventory) -> Result<Inventory> {
+        if inventory.id == 0 {
+            inventory.id = (self.inventories.read().unwrap().len() as i32) + 1;
+        }
+        self.inventories.write().unwrap().insert(inventory.id, inventory.clone());
         Ok(inventory)
     }
     async fn update_inventory(&self, inventory: Inventory) -> Result<()> {
-        let _ = inventory;
+        self.inventories.write().unwrap().insert(inventory.id, inventory.clone());
         Ok(())
     }
-    async fn delete_inventory(&self, _project_id: i32, _inventory_id: i32) -> Result<()> {
+    async fn delete_inventory(&self, _project_id: i32, inventory_id: i32) -> Result<()> {
+        self.inventories.write().unwrap().remove(&inventory_id);
         Ok(())
     }
 }
@@ -287,22 +320,29 @@ impl InventoryManager for MockStore {
 #[async_trait]
 impl RepositoryManager for MockStore {
     async fn get_repositories(&self, _project_id: i32) -> Result<Vec<Repository>> {
-        Ok(vec![])
+        Ok(self.repositories.read().unwrap().values().cloned().collect())
     }
     async fn get_repository(&self, _project_id: i32, repository_id: i32) -> Result<Repository> {
-        Err(Error::NotFound(format!(
-            "Repository {} not found",
-            repository_id
-        )))
+        self.repositories
+            .read()
+            .unwrap()
+            .get(&repository_id)
+            .cloned()
+            .ok_or_else(|| Error::NotFound(format!("Repository {} not found", repository_id)))
     }
-    async fn create_repository(&self, repository: Repository) -> Result<Repository> {
+    async fn create_repository(&self, mut repository: Repository) -> Result<Repository> {
+        if repository.id == 0 {
+            repository.id = (self.repositories.read().unwrap().len() as i32) + 1;
+        }
+        self.repositories.write().unwrap().insert(repository.id, repository.clone());
         Ok(repository)
     }
     async fn update_repository(&self, repository: Repository) -> Result<()> {
-        let _ = repository;
+        self.repositories.write().unwrap().insert(repository.id, repository.clone());
         Ok(())
     }
-    async fn delete_repository(&self, _project_id: i32, _repository_id: i32) -> Result<()> {
+    async fn delete_repository(&self, _project_id: i32, repository_id: i32) -> Result<()> {
+        self.repositories.write().unwrap().remove(&repository_id);
         Ok(())
     }
 }
@@ -310,22 +350,29 @@ impl RepositoryManager for MockStore {
 #[async_trait]
 impl EnvironmentManager for MockStore {
     async fn get_environments(&self, _project_id: i32) -> Result<Vec<Environment>> {
-        Ok(vec![])
+        Ok(self.environments.read().unwrap().values().cloned().collect())
     }
     async fn get_environment(&self, _project_id: i32, environment_id: i32) -> Result<Environment> {
-        Err(Error::NotFound(format!(
-            "Environment {} not found",
-            environment_id
-        )))
+        self.environments
+            .read()
+            .unwrap()
+            .get(&environment_id)
+            .cloned()
+            .ok_or_else(|| Error::NotFound(format!("Environment {} not found", environment_id)))
     }
-    async fn create_environment(&self, environment: Environment) -> Result<Environment> {
+    async fn create_environment(&self, mut environment: Environment) -> Result<Environment> {
+        if environment.id == 0 {
+            environment.id = (self.environments.read().unwrap().len() as i32) + 1;
+        }
+        self.environments.write().unwrap().insert(environment.id, environment.clone());
         Ok(environment)
     }
     async fn update_environment(&self, environment: Environment) -> Result<()> {
-        let _ = environment;
+        self.environments.write().unwrap().insert(environment.id, environment.clone());
         Ok(())
     }
-    async fn delete_environment(&self, _project_id: i32, _environment_id: i32) -> Result<()> {
+    async fn delete_environment(&self, _project_id: i32, environment_id: i32) -> Result<()> {
+        self.environments.write().unwrap().remove(&environment_id);
         Ok(())
     }
 }
@@ -1186,18 +1233,36 @@ impl crate::db::store::WorkflowManager for MockStore {
     }
     async fn create_workflow(
         &self,
-        _project_id: i32,
-        _payload: crate::models::workflow::WorkflowCreate,
+        project_id: i32,
+        payload: crate::models::workflow::WorkflowCreate,
     ) -> Result<crate::models::workflow::Workflow> {
-        Err(Error::Other("not implemented".to_string()))
+        use crate::models::workflow::Workflow;
+        use chrono::Utc;
+        Ok(Workflow {
+            id: 1,
+            project_id,
+            name: payload.name,
+            description: payload.description,
+            created: Utc::now(),
+            updated: Utc::now(),
+        })
     }
     async fn update_workflow(
         &self,
         _id: i32,
         _project_id: i32,
-        _payload: crate::models::workflow::WorkflowUpdate,
+        payload: crate::models::workflow::WorkflowUpdate,
     ) -> Result<crate::models::workflow::Workflow> {
-        Err(Error::Other("not implemented".to_string()))
+        use crate::models::workflow::Workflow;
+        use chrono::Utc;
+        Ok(Workflow {
+            id: 1,
+            project_id: 1,
+            name: payload.name,
+            description: payload.description,
+            created: Utc::now(),
+            updated: Utc::now(),
+        })
     }
     async fn delete_workflow(&self, _id: i32, _project_id: i32) -> Result<()> {
         Ok(())
@@ -1210,18 +1275,36 @@ impl crate::db::store::WorkflowManager for MockStore {
     }
     async fn create_workflow_node(
         &self,
-        _workflow_id: i32,
-        _payload: crate::models::workflow::WorkflowNodeCreate,
+        workflow_id: i32,
+        payload: crate::models::workflow::WorkflowNodeCreate,
     ) -> Result<crate::models::workflow::WorkflowNode> {
-        Err(Error::Other("not implemented".to_string()))
+        use crate::models::workflow::WorkflowNode;
+        Ok(WorkflowNode {
+            id: 1,
+            workflow_id,
+            template_id: payload.template_id,
+            name: payload.name,
+            pos_x: payload.pos_x,
+            pos_y: payload.pos_y,
+            wave: payload.wave,
+        })
     }
     async fn update_workflow_node(
         &self,
-        _id: i32,
-        _workflow_id: i32,
-        _payload: crate::models::workflow::WorkflowNodeUpdate,
+        id: i32,
+        workflow_id: i32,
+        payload: crate::models::workflow::WorkflowNodeUpdate,
     ) -> Result<crate::models::workflow::WorkflowNode> {
-        Err(Error::Other("not implemented".to_string()))
+        use crate::models::workflow::WorkflowNode;
+        Ok(WorkflowNode {
+            id,
+            workflow_id,
+            template_id: 0,
+            name: payload.name,
+            pos_x: payload.pos_x,
+            pos_y: payload.pos_y,
+            wave: payload.wave,
+        })
     }
     async fn delete_workflow_node(&self, _id: i32, _workflow_id: i32) -> Result<()> {
         Ok(())
@@ -1234,10 +1317,17 @@ impl crate::db::store::WorkflowManager for MockStore {
     }
     async fn create_workflow_edge(
         &self,
-        _workflow_id: i32,
-        _payload: crate::models::workflow::WorkflowEdgeCreate,
+        workflow_id: i32,
+        payload: crate::models::workflow::WorkflowEdgeCreate,
     ) -> Result<crate::models::workflow::WorkflowEdge> {
-        Err(Error::Other("not implemented".to_string()))
+        use crate::models::workflow::WorkflowEdge;
+        Ok(WorkflowEdge {
+            id: 1,
+            workflow_id,
+            from_node_id: payload.from_node_id,
+            to_node_id: payload.to_node_id,
+            condition: payload.condition,
+        })
     }
     async fn delete_workflow_edge(&self, _id: i32, _workflow_id: i32) -> Result<()> {
         Ok(())
