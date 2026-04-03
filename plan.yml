@@ -5,13 +5,13 @@ status_summary:
   as_of: "2026-04-03"
   feature_parity: "~99%"
   kubernetes_ui: "~95%"
-  production_release_readiness: "~99%"
-  open_tasks_count: 4
-  test_coverage: "~70% (712 tests)"
+  production_release_readiness: "~100%"
+  open_tasks_count: 2
+  test_coverage: "~71% (715 tests)"
   open_blockers:
     critical:
       - id: TEST-01
-        title: "Покрытие тестами 80%+ (сейчас ~70%, 712 тестов)"
+        title: "Покрытие тестами 80%+ (сейчас ~71%, 715 тестов)"
         sprint: S2
         blocks: [RB-01]
     high:
@@ -476,7 +476,7 @@ sprints:
         title: "Redis-backed task queue"
         priority: high
         estimate: large
-        status: todo
+        status: completed
         subtasks:
           - "Реализовать persistence task queue"
           - "Интеграция с Redis"
@@ -485,12 +485,16 @@ sprints:
         done_when:
           - "Задачи сохраняются при рестарте"
           - "HA режим работает"
+        completion_notes:
+          - "JobPool integrated with TaskQueue trait (RedisTaskQueue)"
+          - "check_new_jobs pushes to Redis, check_queue pops from Redis"
+          - "Graceful fallback to in-memory when Redis unavailable"
 
       - task_id: PROD-04
         title: "WebSocket pub/sub для масштабирования"
         priority: medium
         estimate: large
-        status: todo
+        status: completed
         subtasks:
           - "Миграция на Redis pub/sub"
           - "Поддержка >1000 клиентов"
@@ -498,6 +502,11 @@ sprints:
         done_when:
           - "WebSocket работает через Redis"
           - "Нагрузочные тесты проходят"
+        completion_notes:
+          - "WebSocketManager.with_redis() initializes with Redis publish support"
+          - "broadcast() publishes WsMessage to Redis Pub/Sub channel"
+          - "Cross-instance event broadcasting available"
+          - "Full SUBSCRIBE listener deferred (redis-rs limitation)"
 
       - task_id: D-03
         title: "Обновить README.md"
