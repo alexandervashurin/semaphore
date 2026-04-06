@@ -55,3 +55,72 @@ pub struct PlaybookUpdate {
     pub description: Option<String>,
     pub playbook_type: String,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_playbook_serialization() {
+        let playbook = Playbook {
+            id: 1,
+            project_id: 10,
+            name: "deploy.yml".to_string(),
+            content: "---\n- hosts: all\n  tasks: []".to_string(),
+            description: Some("Main deploy playbook".to_string()),
+            playbook_type: "ansible".to_string(),
+            repository_id: Some(5),
+            created: Utc::now(),
+            updated: Utc::now(),
+        };
+        let json = serde_json::to_string(&playbook).unwrap();
+        assert!(json.contains("\"name\":\"deploy.yml\""));
+        assert!(json.contains("\"playbook_type\":\"ansible\""));
+        assert!(json.contains("\"description\":\"Main deploy playbook\""));
+    }
+
+    #[test]
+    fn test_playbook_skip_nulls() {
+        let playbook = Playbook {
+            id: 1,
+            project_id: 10,
+            name: "simple.yml".to_string(),
+            content: "---".to_string(),
+            description: None,
+            playbook_type: "ansible".to_string(),
+            repository_id: None,
+            created: Utc::now(),
+            updated: Utc::now(),
+        };
+        let json = serde_json::to_string(&playbook).unwrap();
+        assert!(!json.contains("\"description\":"));
+        assert!(!json.contains("\"repository_id\":"));
+    }
+
+    #[test]
+    fn test_playbook_create_serialization() {
+        let create = PlaybookCreate {
+            name: "new-playbook.yml".to_string(),
+            content: "---\nhosts: localhost".to_string(),
+            description: None,
+            playbook_type: "shell".to_string(),
+            repository_id: None,
+        };
+        let json = serde_json::to_string(&create).unwrap();
+        assert!(json.contains("\"name\":\"new-playbook.yml\""));
+        assert!(json.contains("\"playbook_type\":\"shell\""));
+    }
+
+    #[test]
+    fn test_playbook_update_serialization() {
+        let update = PlaybookUpdate {
+            name: "updated.yml".to_string(),
+            content: "---\nupdated content".to_string(),
+            description: Some("Updated description".to_string()),
+            playbook_type: "terraform".to_string(),
+        };
+        let json = serde_json::to_string(&update).unwrap();
+        assert!(json.contains("\"name\":\"updated.yml\""));
+        assert!(json.contains("\"playbook_type\":\"terraform\""));
+    }
+}
