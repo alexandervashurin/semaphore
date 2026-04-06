@@ -2,16 +2,16 @@ project: velum
 as_of: 2026-04-01
 goal: "Довести проект до production-ready и выпустить v1.0.0"
 status_summary:
-  as_of: "2026-04-03"
+  as_of: "2026-04-06"
   feature_parity: "~99%"
   kubernetes_ui: "~95%"
   production_release_readiness: "~100%"
-  open_tasks_count: 2
-  test_coverage: "~78% (815 tests)"
+  open_tasks_count: 1
+  test_coverage: "~78% (882 tests, +67 in this session)"
   open_blockers:
     critical:
       - id: TEST-01
-        title: "Покрытие тестами 80%+ (сейчас ~78%, 815 тестов)"
+        title: "Покрытие тестами 80%+ (сейчас ~78%, 882 тестов)"
         sprint: S2
         blocks: [RB-01]
     high:
@@ -1148,6 +1148,7 @@ task_index:
     priority: critical
     estimate: large
     status: in_progress
+    progress_notes: "2026-04-06: +67 тестов (815→882), playbook_run_status_service 14%→79%, task_runner/types 73%→100%"
   - sprint_id: S2
     sprint_title: "Спринт 2 — Verification & Test Coverage (4-6 недель)"
     task_id: D-01

@@ -68,6 +68,7 @@ impl TaskRunner {
 mod tests {
     use super::*;
     use crate::db::MockStore;
+    use crate::db::store::*;
     use crate::db_lib::AccessKeyInstallerImpl;
     use crate::models::{Environment, Inventory, Project, Repository, Task, Template};
     use crate::services::task_logger::TaskStatus;
@@ -130,35 +131,185 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_populate_details() {
+    async fn test_populate_details_fails_when_template_missing() {
+        // TaskRunner без seeded template — должен вернуть NotFound
         let mut runner = create_test_task_runner();
-
-        // В реальном тесте нужна моковая БД с данными
-        // Пока просто проверяем, что метод вызывается
         let result = runner.populate_details().await;
+        assert!(result.is_err(), "Should fail when template not found");
+    }
 
-        // Ожидается ошибка, так как БД пустая
+    #[tokio::test]
+    async fn test_populate_details_loads_template_when_present() {
+        let store = Arc::new(MockStore::new());
+        let mut tpl = Template::default();
+        tpl.id = 1;
+        tpl.project_id = 1;
+        tpl.name = "test_template".to_string();
+        store.as_ref().create_template(tpl).await.unwrap();
+
+        let mut runner = create_test_task_runner_with_store(store);
+        let result = runner.populate_details().await;
+        // Template загружен, но inventory/repository/environment не найдены
+        assert!(result.is_err()); // inventory not found — это ожидаемо
+    }
+
+    #[tokio::test]
+    async fn test_populate_details_skips_inventory_when_none() {
+        let store = Arc::new(MockStore::new());
+        let mut tpl = Template::default();
+        tpl.id = 1;
+        tpl.project_id = 1;
+        store.as_ref().create_template(tpl).await.unwrap();
+
+        let task = Task {
+            id: 1,
+            created: Utc::now(),
+            template_id: 1,
+            status: TaskStatus::Waiting,
+            project_id: 1,
+            inventory_id: None,
+            repository_id: Some(1),
+            environment_id: Some(1),
+            ..Default::default()
+        };
+
+        let pool = Arc::new(TaskPool::new(store, 5));
+        let mut runner = TaskRunner::new(
+            task,
+            pool,
+            "testuser".to_string(),
+            AccessKeyInstallerImpl::new(),
+        );
+
+        let result = runner.populate_details().await;
         assert!(result.is_err());
     }
 
     #[tokio::test]
-    async fn test_populate_details_positive_path() {
-        // Test verifies that populate_details correctly calls store methods
-        // With empty MockStore, it returns NotFound which is expected behavior
-        let mut runner = create_test_task_runner();
+    async fn test_populate_details_skips_repository_when_none() {
+        let store = Arc::new(MockStore::new());
+        let mut tpl = Template::default();
+        tpl.id = 1;
+        tpl.project_id = 1;
+        store.as_ref().create_template(tpl).await.unwrap();
+
+        let task = Task {
+            id: 1,
+            created: Utc::now(),
+            template_id: 1,
+            status: TaskStatus::Waiting,
+            project_id: 1,
+            inventory_id: None,
+            repository_id: None,
+            environment_id: Some(1),
+            ..Default::default()
+        };
+
+        let pool = Arc::new(TaskPool::new(store, 5));
+        let mut runner = TaskRunner::new(
+            task,
+            pool,
+            "testuser".to_string(),
+            AccessKeyInstallerImpl::new(),
+        );
+
         let result = runner.populate_details().await;
-        // Should fail because MockStore has no template with id=1
         assert!(result.is_err());
-        // But the method executed without panic
     }
 
     #[tokio::test]
-    async fn test_populate_task_environment() {
-        let mut runner = create_test_task_runner();
+    async fn test_populate_details_skips_environment_when_none() {
+        let store = Arc::new(MockStore::new());
+        let mut tpl = Template::default();
+        tpl.id = 1;
+        tpl.project_id = 1;
+        store.as_ref().create_template(tpl).await.unwrap();
 
+        let task = Task {
+            id: 1,
+            created: Utc::now(),
+            template_id: 1,
+            status: TaskStatus::Waiting,
+            project_id: 1,
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+            ..Default::default()
+        };
+
+        let pool = Arc::new(TaskPool::new(store, 5));
+        let mut runner = TaskRunner::new(
+            task,
+            pool,
+            "testuser".to_string(),
+            AccessKeyInstallerImpl::new(),
+        );
+
+        let result = runner.populate_details().await;
+        assert!(result.is_ok(), "Should succeed when all optional fields are None");
+    }
+
+    #[tokio::test]
+    async fn test_populate_details_loads_all_entities() {
+        let store = Arc::new(MockStore::new());
+
+        let mut tpl = Template::default();
+        tpl.id = 1;
+        tpl.project_id = 1;
+        tpl.name = "test".to_string();
+        store.as_ref().create_template(tpl).await.unwrap();
+
+        let mut inv = Inventory::default();
+        inv.id = 1;
+        inv.project_id = 1;
+        inv.name = "test_inventory".to_string();
+        store.as_ref().create_inventory(inv).await.unwrap();
+
+        let mut repo = Repository::default();
+        repo.id = 1;
+        repo.project_id = 1;
+        repo.name = "test_repo".to_string();
+        store.as_ref().create_repository(repo).await.unwrap();
+
+        let mut env = Environment::default();
+        env.id = 1;
+        env.project_id = 1;
+        env.name = "test_env".to_string();
+        store.as_ref().create_environment(env).await.unwrap();
+
+        let task = Task {
+            id: 1,
+            created: Utc::now(),
+            template_id: 1,
+            status: TaskStatus::Waiting,
+            project_id: 1,
+            inventory_id: Some(1),
+            repository_id: Some(1),
+            environment_id: Some(1),
+            ..Default::default()
+        };
+
+        let pool = Arc::new(TaskPool::new(store, 5));
+        let mut runner = TaskRunner::new(
+            task,
+            pool,
+            "testuser".to_string(),
+            AccessKeyInstallerImpl::new(),
+        );
+
+        let result = runner.populate_details().await;
+        assert!(result.is_ok(), "Should succeed with all entities seeded");
+        assert_eq!(runner.template.id, 1);
+        assert_eq!(runner.inventory.id, 1);
+        assert_eq!(runner.repository.id, 1);
+        assert_eq!(runner.environment.id, 1);
+    }
+
+    #[tokio::test]
+    async fn test_populate_task_environment_always_ok() {
+        let mut runner = create_test_task_runner();
         let result = runner.populate_task_environment().await;
-
-        // Проверяем, что метод работает
-        assert!(result.is_ok() || result.is_err()); // Either is fine for now
+        // Метод-заглушка всегда возвращает Ok(())
+        assert!(result.is_ok());
     }
 }

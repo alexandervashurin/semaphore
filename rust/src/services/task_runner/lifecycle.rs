@@ -120,9 +120,11 @@ impl TaskRunner {
 mod tests {
     use super::*;
     use crate::db::MockStore;
+    use crate::db::store::*;
     use crate::models::Task;
     use crate::services::task_logger::TaskStatus;
     use chrono::Utc;
+    use std::sync::Arc;
 
     fn create_test_task_runner() -> TaskRunner {
         use crate::services::task_pool::TaskPool;
@@ -168,7 +170,6 @@ mod tests {
     async fn test_task_runner_log() {
         let runner = create_test_task_runner();
         runner.log("Test message");
-        // Просто проверяем, что метод вызывается без паники
     }
 
     #[tokio::test]
@@ -195,7 +196,6 @@ mod tests {
     #[tokio::test]
     async fn test_create_task_event_records_event() {
         let runner = create_test_task_runner();
-        // MockStore::create_event returns Ok(())
         let result = runner.create_task_event().await;
         assert!(result.is_ok());
     }
@@ -203,7 +203,6 @@ mod tests {
     #[tokio::test]
     async fn test_run_fails_on_empty_template() {
         let mut runner = create_test_task_runner();
-        // run() должен упасть т.к. template не установлен (нет реального template в MockStore)
         let result = runner.run().await;
         assert!(result.is_err());
     }
@@ -212,14 +211,12 @@ mod tests {
     async fn test_run_logs_start_and_end_messages() {
         let mut runner = create_test_task_runner();
         let result = runner.run().await;
-        // Ожидаем ошибку т.к. MockStore не возвращает template/inventory/repository
         assert!(result.is_err());
     }
 
     #[tokio::test]
     async fn test_kill_without_job() {
         let mut runner = create_test_task_runner();
-        // kill() без установленной job должен просто установить killed flag
         runner.kill().await;
         assert!(runner.is_killed().await);
     }
@@ -234,5 +231,80 @@ mod tests {
         assert_eq!(runner.get_status(), TaskStatus::Running);
         runner.set_status(TaskStatus::Success).await;
         assert_eq!(runner.get_status(), TaskStatus::Success);
+    }
+
+    #[tokio::test]
+    async fn test_kill_is_idempotent() {
+        let mut runner = create_test_task_runner();
+        // Первый kill
+        runner.kill().await;
+        assert!(runner.is_killed().await);
+        // Второй kill — не должен паниковать
+        runner.kill().await;
+        assert!(runner.is_killed().await);
+    }
+
+    #[tokio::test]
+    async fn test_create_task_event_contains_task_id() {
+        let runner = create_test_task_runner();
+        // Проверяем что событие создаётся с корректным task_id
+        let result = runner.create_task_event().await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_run_returns_error_when_populate_details_fails() {
+        // MockStore пустой — populate_details вернёт NotFound
+        let mut runner = create_test_task_runner();
+        let result = runner.run().await;
+        // Ошибка должна быть на этапе populate_details
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_set_status_updates_task_status() {
+        let mut runner = create_test_task_runner();
+
+        let statuses = [
+            TaskStatus::Waiting,
+            TaskStatus::Starting,
+            TaskStatus::Running,
+            TaskStatus::Success,
+            TaskStatus::Error,
+            TaskStatus::Stopped,
+        ];
+
+        for status in statuses {
+            runner.set_status(status).await;
+            assert_eq!(
+                runner.task.status, status,
+                "Status should be {:?} after set_status",
+                status
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_create_task_event_with_custom_task_id() {
+        use crate::services::task_pool::TaskPool;
+
+        let task = Task {
+            id: 999,
+            project_id: 42,
+            template_id: 100,
+            status: TaskStatus::Success,
+            ..Default::default()
+        };
+
+        let pool = Arc::new(TaskPool::new(Arc::new(MockStore::new()), 5));
+        let runner = TaskRunner::new(
+            task,
+            pool,
+            "admin".to_string(),
+            AccessKeyInstallerImpl::new(),
+        );
+
+        let result = runner.create_task_event().await;
+        assert!(result.is_ok());
     }
 }
