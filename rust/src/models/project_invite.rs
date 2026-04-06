@@ -67,3 +67,45 @@ pub struct ProjectInviteWithUser {
     #[sqlx(default)]
     pub user_email: String,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_project_invite_serialization() {
+        let invite = ProjectInvite {
+            id: 1,
+            project_id: 10,
+            user_id: 5,
+            role: "manager".to_string(),
+            created: Utc::now(),
+            updated: Utc::now(),
+            token: "invite-token-123".to_string(),
+            inviter_user_id: 1,
+        };
+        let json = serde_json::to_string(&invite).unwrap();
+        assert!(json.contains("\"role\":\"manager\""));
+        assert!(json.contains("\"token\":\"invite-token-123\""));
+        assert!(json.contains("\"inviter_user_id\":1"));
+    }
+
+    #[test]
+    fn test_project_invite_with_user_serialization() {
+        let invite = ProjectInviteWithUser {
+            id: 1,
+            project_id: 10,
+            user_id: 5,
+            role: "task_runner".to_string(),
+            created: Utc::now(),
+            updated: Utc::now(),
+            token: "token-456".to_string(),
+            inviter_user_id: 1,
+            user_name: "John Doe".to_string(),
+            user_email: "john@example.com".to_string(),
+        };
+        let json = serde_json::to_string(&invite).unwrap();
+        assert!(json.contains("\"user_name\":\"John Doe\""));
+        assert!(json.contains("\"user_email\":\"john@example.com\""));
+    }
+}
