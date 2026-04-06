@@ -60,3 +60,22 @@ impl ExportEntityType {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_export_entity_type_as_str() {
+        assert_eq!(ExportEntityType::Project.as_str(), "project");
+        assert_eq!(ExportEntityType::Template.as_str(), "template");
+        assert_eq!(ExportEntityType::Task.as_str(), "task");
+        assert_eq!(ExportEntityType::User.as_str(), "user");
+    }
+
+    #[test]
+    fn test_export_entity_type_serialization() {
+        assert_eq!(serde_json::to_string(&ExportEntityType::Project).unwrap(), "\"project\"");
+        assert_eq!(serde_json::to_string(&ExportEntityType::AccessKey).unwrap(), "\"access_key\"");
+    }
+}
