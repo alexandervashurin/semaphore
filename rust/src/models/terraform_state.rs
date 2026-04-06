@@ -107,3 +107,101 @@ pub struct StateDiff {
     pub changed: usize,
     pub removed: usize,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_lock_info_from_lock() {
+        let lock = TerraformStateLock {
+            project_id: 1,
+            workspace: "default".to_string(),
+            lock_id: "abc-123".to_string(),
+            operation: "OperationTypeApply".to_string(),
+            info: "Apply operation".to_string(),
+            who: "user@example.com".to_string(),
+            version: "1.5.0".to_string(),
+            path: "module.main".to_string(),
+            created_at: Utc::now(),
+            expires_at: Utc::now() + chrono::Duration::hours(1),
+        };
+
+        let info = LockInfo::from_lock(&lock);
+        assert_eq!(info.id, "abc-123");
+        assert_eq!(info.operation, "OperationTypeApply");
+        assert_eq!(info.who, "user@example.com");
+        assert_eq!(info.version, "1.5.0");
+    }
+
+    #[test]
+    fn test_terraform_state_summary_serialization() {
+        let summary = TerraformStateSummary {
+            id: 1,
+            project_id: 10,
+            workspace: "prod".to_string(),
+            serial: 5,
+            lineage: "line-abc".to_string(),
+            encrypted: true,
+            md5: "d41d8cd98f00b204e9800998ecf8427e".to_string(),
+            created_at: Utc::now(),
+        };
+        let json = serde_json::to_string(&summary).unwrap();
+        assert!(json.contains("\"workspace\":\"prod\""));
+        assert!(json.contains("\"serial\":5"));
+        assert!(json.contains("\"encrypted\":true"));
+        // state_data should be skipped
+        assert!(!json.contains("state_data"));
+    }
+
+    #[test]
+    fn test_state_diff_resource() {
+        let resource = StateDiffResource {
+            address: "aws_instance.web".to_string(),
+            change_type: "added".to_string(),
+            resource_type: "aws_instance".to_string(),
+            name: "web".to_string(),
+        };
+        let json = serde_json::to_string(&resource).unwrap();
+        assert!(json.contains("\"address\":\"aws_instance.web\""));
+        assert!(json.contains("\"change_type\":\"added\""));
+    }
+
+    #[test]
+    fn test_state_diff_serialization() {
+        let diff = StateDiff {
+            from_serial: 3,
+            to_serial: 5,
+            resources: vec![
+                StateDiffResource {
+                    address: "aws_instance.web".to_string(),
+                    change_type: "added".to_string(),
+                    resource_type: "aws_instance".to_string(),
+                    name: "web".to_string(),
+                },
+            ],
+            added: 1,
+            changed: 0,
+            removed: 0,
+        };
+        let json = serde_json::to_string(&diff).unwrap();
+        assert!(json.contains("\"from_serial\":3"));
+        assert!(json.contains("\"to_serial\":5"));
+        assert!(json.contains("\"added\":1"));
+        assert!(json.contains("\"resources\":["));
+    }
+
+    #[test]
+    fn test_state_diff_empty_resources() {
+        let diff = StateDiff {
+            from_serial: 1,
+            to_serial: 2,
+            resources: vec![],
+            added: 0,
+            changed: 0,
+            removed: 0,
+        };
+        let json = serde_json::to_string(&diff).unwrap();
+        assert!(json.contains("\"resources\":[]"));
+    }
+}
