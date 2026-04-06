@@ -86,3 +86,100 @@ pub struct WebhookLog {
     pub response: Option<serde_json::Value>,
     pub created: DateTime<Utc>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_webhook_type_serialization() {
+        assert_eq!(serde_json::to_string(&WebhookType::Generic).unwrap(), "\"generic\"");
+        assert_eq!(serde_json::to_string(&WebhookType::Slack).unwrap(), "\"slack\"");
+        assert_eq!(serde_json::to_string(&WebhookType::Teams).unwrap(), "\"teams\"");
+        assert_eq!(serde_json::to_string(&WebhookType::Discord).unwrap(), "\"discord\"");
+        assert_eq!(serde_json::to_string(&WebhookType::Telegram).unwrap(), "\"telegram\"");
+    }
+
+    #[test]
+    fn test_webhook_serialization() {
+        let webhook = Webhook {
+            id: 1,
+            project_id: Some(10),
+            name: "Slack Notifications".to_string(),
+            r#type: WebhookType::Slack,
+            url: "https://hooks.slack.com/xxx".to_string(),
+            secret: None,
+            headers: None,
+            active: true,
+            events: serde_json::json!(["task_completed", "task_failed"]),
+            retry_count: 3,
+            timeout_secs: 30,
+            created: Utc::now(),
+            updated: Utc::now(),
+        };
+        let json = serde_json::to_string(&webhook).unwrap();
+        assert!(json.contains("\"name\":\"Slack Notifications\""));
+        assert!(json.contains("\"type\":\"slack\""));
+        assert!(json.contains("\"active\":true"));
+    }
+
+    #[test]
+    fn test_create_webhook_serialization() {
+        let create = CreateWebhook {
+            project_id: None,
+            name: "New Webhook".to_string(),
+            r#type: WebhookType::Generic,
+            url: "https://example.com/webhook".to_string(),
+            secret: Some("secret".to_string()),
+            headers: None,
+            active: true,
+            events: vec!["task_completed".to_string()],
+            retry_count: 5,
+            timeout_secs: 60,
+        };
+        let json = serde_json::to_string(&create).unwrap();
+        assert!(json.contains("\"name\":\"New Webhook\""));
+        assert!(json.contains("\"events\":[\"task_completed\"]"));
+    }
+
+    #[test]
+    fn test_update_webhook_skip_nulls() {
+        let update = UpdateWebhook {
+            name: Some("Updated Name".to_string()),
+            r#type: None,
+            url: None,
+            secret: None,
+            headers: None,
+            active: Some(false),
+            events: None,
+            retry_count: None,
+            timeout_secs: None,
+        };
+        let json = serde_json::to_string(&update).unwrap();
+        assert!(json.contains("\"name\":\"Updated Name\""));
+        assert!(json.contains("\"active\":false"));
+        // UpdateWebhook derives Default but not skip_serializing_if on all fields
+        // So url:None serializes as "url":null
+        assert!(json.contains("\"url\":null"));
+    }
+
+    #[test]
+    fn test_webhook_log_serialization() {
+        let log = WebhookLog {
+            id: 1,
+            webhook_id: 10,
+            event_type: "task_completed".to_string(),
+            status_code: Some(200),
+            success: true,
+            error: None,
+            attempts: 1,
+            payload: Some(serde_json::json!({"task_id": 100})),
+            response: Some(serde_json::json!({"status": "ok"})),
+            created: Utc::now(),
+        };
+        let json = serde_json::to_string(&log).unwrap();
+        assert!(json.contains("\"event_type\":\"task_completed\""));
+        assert!(json.contains("\"status_code\":200"));
+        assert!(json.contains("\"success\":true"));
+    }
+}
