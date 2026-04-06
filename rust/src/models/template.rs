@@ -347,6 +347,133 @@ pub struct TemplateWithPerms {
 
 /// Разрешение для шаблона
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct TemplatePermission {
+    pub id: i32,
+    pub template_id: i32,
+    pub user_id: i32,
+    pub role: String,
+    pub created: DateTime<Utc>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_template_type_display() {
+        assert_eq!(TemplateType::Ansible.to_string(), "ansible");
+        assert_eq!(TemplateType::Terraform.to_string(), "terraform");
+        assert_eq!(TemplateType::Shell.to_string(), "shell");
+    }
+
+    #[test]
+    fn test_template_type_from_str() {
+        assert_eq!("ansible".parse::<TemplateType>().unwrap(), TemplateType::Ansible);
+        assert_eq!("unknown".parse::<TemplateType>().unwrap(), TemplateType::Default);
+    }
+
+    #[test]
+    fn test_template_type_serialization() {
+        assert_eq!(serde_json::to_string(&TemplateType::Deploy).unwrap(), "\"deploy\"");
+    }
+
+    #[test]
+    fn test_template_app_display() {
+        assert_eq!(TemplateApp::Ansible.to_string(), "ansible");
+        assert_eq!(TemplateApp::Terraform.to_string(), "terraform");
+        assert_eq!(TemplateApp::Bash.to_string(), "bash");
+    }
+
+    #[test]
+    fn test_template_app_from_str() {
+        assert_eq!("ansible".parse::<TemplateApp>().unwrap(), TemplateApp::Ansible);
+        assert_eq!("unknown".parse::<TemplateApp>().unwrap(), TemplateApp::Default);
+    }
+
+    #[test]
+    fn test_template_serialization() {
+        let template = Template {
+            id: 1,
+            project_id: 10,
+            name: "Deploy to Prod".to_string(),
+            playbook: "deploy.yml".to_string(),
+            description: "Production deploy template".to_string(),
+            inventory_id: Some(5),
+            repository_id: Some(3),
+            environment_id: Some(2),
+            r#type: TemplateType::Deploy,
+            app: TemplateApp::Ansible,
+            git_branch: Some("main".to_string()),
+            created: Utc::now(),
+            arguments: None,
+            vault_key_id: None,
+            view_id: None,
+            build_template_id: None,
+            autorun: false,
+            allow_override_args_in_task: true,
+            allow_override_branch_in_task: true,
+            allow_inventory_in_task: false,
+            allow_parallel_tasks: false,
+            suppress_success_alerts: false,
+            require_approval: true,
+            task_params: None,
+            survey_vars: None,
+            vaults: None,
+            parent_template_id: None,
+            execution_image: None,
+            pre_template_id: None,
+            post_template_id: None,
+            fail_template_id: None,
+            deploy_environment_id: None,
+        };
+        let json = serde_json::to_string(&template).unwrap();
+        assert!(json.contains("\"name\":\"Deploy to Prod\""));
+        assert!(json.contains("\"type\":\"deploy\""));
+        assert!(json.contains("\"app\":\"ansible\""));
+    }
+
+    #[test]
+    fn test_template_skip_nulls() {
+        let template = Template {
+            id: 1,
+            project_id: 10,
+            name: "Simple".to_string(),
+            playbook: "simple.yml".to_string(),
+            description: "".to_string(),
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+            r#type: TemplateType::Default,
+            app: TemplateApp::Default,
+            git_branch: None,
+            created: Utc::now(),
+            arguments: None,
+            vault_key_id: None,
+            view_id: None,
+            build_template_id: None,
+            autorun: false,
+            allow_override_args_in_task: false,
+            allow_override_branch_in_task: false,
+            allow_inventory_in_task: false,
+            allow_parallel_tasks: false,
+            suppress_success_alerts: false,
+            require_approval: false,
+            task_params: None,
+            survey_vars: None,
+            vaults: None,
+            parent_template_id: None,
+            execution_image: None,
+            pre_template_id: None,
+            post_template_id: None,
+            fail_template_id: None,
+            deploy_environment_id: None,
+        };
+        let json = serde_json::to_string(&template).unwrap();
+        assert!(!json.contains("\"inventory_id\":"));
+        assert!(!json.contains("\"git_branch\":"));
+        assert!(!json.contains("\"execution_image\":"));
+    }
+}
 pub struct TemplateRolePerm {
     pub id: i32,
     pub project_id: i32,
