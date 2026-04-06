@@ -150,3 +150,99 @@ impl Default for Organization {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_organization_default() {
+        let org = Organization::default();
+        assert_eq!(org.id, 0);
+        assert!(org.name.is_empty());
+        assert!(org.slug.is_empty());
+        assert!(org.active);
+        assert!(org.quota_max_projects.is_none());
+    }
+
+    #[test]
+    fn test_organization_serialization() {
+        let org = Organization {
+            id: 1,
+            name: "Acme Corp".to_string(),
+            slug: "acme".to_string(),
+            description: Some("Test company".to_string()),
+            settings: None,
+            quota_max_projects: Some(10),
+            quota_max_users: Some(50),
+            quota_max_tasks_per_month: Some(1000),
+            active: true,
+            created: Utc::now(),
+            updated: None,
+        };
+        let json = serde_json::to_string(&org).unwrap();
+        assert!(json.contains("\"name\":\"Acme Corp\""));
+        assert!(json.contains("\"slug\":\"acme\""));
+        assert!(json.contains("\"quota_max_projects\":10"));
+    }
+
+    #[test]
+    fn test_organization_create_serialization() {
+        let create = OrganizationCreate {
+            name: "New Org".to_string(),
+            slug: Some("new-org".to_string()),
+            description: Some("New organization".to_string()),
+            settings: None,
+            quota_max_projects: Some(5),
+            quota_max_users: None,
+            quota_max_tasks_per_month: None,
+        };
+        let json = serde_json::to_string(&create).unwrap();
+        assert!(json.contains("\"name\":\"New Org\""));
+        assert!(json.contains("\"slug\":\"new-org\""));
+    }
+
+    #[test]
+    fn test_organization_update_skip_nulls() {
+        let update = OrganizationUpdate {
+            name: Some("Updated Name".to_string()),
+            description: None,
+            settings: None,
+            quota_max_projects: None,
+            quota_max_users: None,
+            quota_max_tasks_per_month: None,
+            active: Some(false),
+        };
+        let json = serde_json::to_string(&update).unwrap();
+        assert!(json.contains("\"name\":\"Updated Name\""));
+        assert!(json.contains("\"active\":false"));
+        assert!(!json.contains("\"description\":"));
+        assert!(!json.contains("\"settings\":"));
+    }
+
+    #[test]
+    fn test_organization_user_serialization() {
+        let user = OrganizationUser {
+            id: 1,
+            org_id: 10,
+            user_id: 5,
+            role: "admin".to_string(),
+            created: Utc::now(),
+        };
+        let json = serde_json::to_string(&user).unwrap();
+        assert!(json.contains("\"org_id\":10"));
+        assert!(json.contains("\"role\":\"admin\""));
+    }
+
+    #[test]
+    fn test_organization_user_create_serialization() {
+        let create = OrganizationUserCreate {
+            org_id: 10,
+            user_id: 5,
+            role: "member".to_string(),
+        };
+        let json = serde_json::to_string(&create).unwrap();
+        assert!(json.contains("\"org_id\":10"));
+        assert!(json.contains("\"role\":\"member\""));
+    }
+}
