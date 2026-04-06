@@ -358,4 +358,65 @@ mod tests {
         let result = pool.run_task(task).await;
         assert!(result.is_err());
     }
+
+    #[tokio::test]
+    async fn test_get_running_task_returns_none_for_missing() {
+        let pool = create_test_pool().await;
+
+        let task = pool.get_running_task(999).await;
+        assert!(task.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_running_task_initial_state() {
+        let logger = Arc::new(BasicLogger::new());
+        let template = crate::models::Template::default();
+        let mut task = crate::models::Task::default();
+        task.id = 42;
+        task.project_id = 1;
+        task.template_id = 1;
+
+        let running = RunningTask::new(task.clone(), logger, template);
+
+        assert_eq!(running.task.id, 42);
+        assert!(!running.killed);
+        assert!(!running.is_killed());
+    }
+
+    #[tokio::test]
+    async fn test_running_task_kill_changes_state() {
+        let logger = Arc::new(BasicLogger::new());
+        let template = crate::models::Template::default();
+        let mut task = crate::models::Task::default();
+        task.id = 1;
+        task.project_id = 1;
+        task.template_id = 1;
+
+        let mut running = RunningTask::new(task, logger, template);
+
+        assert!(!running.is_killed());
+
+        running.kill();
+
+        assert!(running.is_killed());
+        assert!(running.killed);
+    }
+
+    #[tokio::test]
+    async fn test_running_task_kill_is_idempotent() {
+        let logger = Arc::new(BasicLogger::new());
+        let template = crate::models::Template::default();
+        let mut task = crate::models::Task::default();
+        task.id = 1;
+        task.project_id = 1;
+        task.template_id = 1;
+
+        let mut running = RunningTask::new(task, logger, template);
+
+        running.kill();
+        running.kill();
+        running.kill();
+
+        assert!(running.is_killed());
+    }
 }
