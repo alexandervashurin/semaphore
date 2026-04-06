@@ -89,3 +89,63 @@ impl TerraformInventoryState {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_terraform_inventory_alias_new() {
+        let alias = TerraformInventoryAlias::new(
+            10, 5, 3, "prod-inventory".to_string(),
+        );
+        assert_eq!(alias.project_id, 10);
+        assert_eq!(alias.inventory_id, 5);
+        assert_eq!(alias.alias, "prod-inventory");
+        assert!(alias.task_id.is_none());
+    }
+
+    #[test]
+    fn test_terraform_inventory_alias_to_alias() {
+        let tf_alias = TerraformInventoryAlias::new(
+            10, 5, 3, "test-alias".to_string(),
+        );
+        let base = tf_alias.to_alias();
+        assert_eq!(base.alias, "test-alias");
+        assert_eq!(base.project_id, 10);
+    }
+
+    #[test]
+    fn test_terraform_inventory_alias_serialization() {
+        let alias = TerraformInventoryAlias::new(
+            10, 5, 3, "prod".to_string(),
+        );
+        let json = serde_json::to_string(&alias).unwrap();
+        assert!(json.contains("\"alias\":\"prod\""));
+        assert!(json.contains("\"project_id\":10"));
+    }
+
+    #[test]
+    fn test_terraform_inventory_state_new() {
+        let state = TerraformInventoryState::new(10, 5, "{\"resources\":[]}".to_string());
+        assert_eq!(state.id, 0);
+        assert_eq!(state.project_id, 10);
+        assert_eq!(state.inventory_id, 5);
+        assert_eq!(state.state, Some("{\"resources\":[]}".to_string()));
+    }
+
+    #[test]
+    fn test_terraform_inventory_state_serialization() {
+        let state = TerraformInventoryState {
+            id: 1,
+            created: Utc::now(),
+            task_id: Some(100),
+            project_id: 10,
+            inventory_id: 5,
+            state: Some("{\"outputs\":{}}".to_string()),
+        };
+        let json = serde_json::to_string(&state).unwrap();
+        assert!(json.contains("\"project_id\":10"));
+        assert!(json.contains("\"task_id\":100"));
+    }
+}

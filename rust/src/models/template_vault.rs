@@ -24,3 +24,23 @@ pub struct TemplateVault {
     /// Название хранилища
     pub name: String,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_template_vault_serialization() {
+        let vault = TemplateVault {
+            id: 1,
+            template_id: 10,
+            project_id: 5,
+            vault_id: 3,
+            vault_key_id: 2,
+            name: "Production Vault".to_string(),
+        };
+        let json = serde_json::to_string(&vault).unwrap();
+        assert!(json.contains("\"name\":\"Production Vault\""));
+        assert!(json.contains("\"vault_id\":3"));
+    }
+}
