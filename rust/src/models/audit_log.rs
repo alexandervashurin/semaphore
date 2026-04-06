@@ -389,3 +389,70 @@ impl std::fmt::Display for AuditLevel {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_audit_action_display() {
+        assert_eq!(AuditAction::Login.to_string(), "login");
+        assert_eq!(AuditAction::UserCreated.to_string(), "user_created");
+        assert_eq!(AuditAction::TaskStarted.to_string(), "task_started");
+        assert_eq!(AuditAction::ProjectDeleted.to_string(), "project_deleted");
+    }
+
+    #[test]
+    fn test_audit_object_type_display() {
+        assert_eq!(AuditObjectType::User.to_string(), "user");
+        assert_eq!(AuditObjectType::Kubernetes.to_string(), "kubernetes");
+        assert_eq!(AuditObjectType::Other.to_string(), "other");
+    }
+
+    #[test]
+    fn test_audit_level_display() {
+        assert_eq!(AuditLevel::Info.to_string(), "info");
+        assert_eq!(AuditLevel::Warning.to_string(), "warning");
+        assert_eq!(AuditLevel::Error.to_string(), "error");
+        assert_eq!(AuditLevel::Critical.to_string(), "critical");
+    }
+
+    #[test]
+    fn test_audit_details_default() {
+        let details = AuditDetails::default();
+        assert!(details.ip_address.is_none());
+        assert!(details.user_agent.is_none());
+        assert!(details.changes.is_none());
+        assert!(details.reason.is_none());
+        assert!(details.metadata.is_none());
+    }
+
+    #[test]
+    fn test_audit_log_filter_default() {
+        let filter = AuditLogFilter::default();
+        assert!(filter.project_id.is_none());
+        assert!(filter.user_id.is_none());
+        assert!(filter.action.is_none());
+        assert_eq!(filter.offset, 0);
+    }
+
+    #[test]
+    fn test_audit_log_result_serialization() {
+        let result = AuditLogResult {
+            total: 100,
+            records: vec![],
+            limit: 50,
+            offset: 0,
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("\"total\":100"));
+        assert!(json.contains("\"records\":[]"));
+    }
+
+    #[test]
+    fn test_audit_level_ordering() {
+        assert!(AuditLevel::Info < AuditLevel::Warning);
+        assert!(AuditLevel::Warning < AuditLevel::Error);
+        assert!(AuditLevel::Error < AuditLevel::Critical);
+    }
+}
