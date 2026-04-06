@@ -128,3 +128,114 @@ pub struct WorkflowFull {
     pub nodes: Vec<WorkflowNode>,
     pub edges: Vec<WorkflowEdge>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_edge_condition_display() {
+        assert_eq!(EdgeCondition::Success.to_string(), "success");
+        assert_eq!(EdgeCondition::Failure.to_string(), "failure");
+        assert_eq!(EdgeCondition::Always.to_string(), "always");
+    }
+
+    #[test]
+    fn test_workflow_create_serialization() {
+        let create = WorkflowCreate {
+            name: "Test Workflow".to_string(),
+            description: Some("Test description".to_string()),
+        };
+        let json = serde_json::to_string(&create).unwrap();
+        assert!(json.contains("\"name\":\"Test Workflow\""));
+        assert!(json.contains("\"description\":\"Test description\""));
+    }
+
+    #[test]
+    fn test_workflow_create_serialization_no_description() {
+        let create = WorkflowCreate {
+            name: "Minimal Workflow".to_string(),
+            description: None,
+        };
+        let json = serde_json::to_string(&create).unwrap();
+        assert!(json.contains("\"name\":\"Minimal Workflow\""));
+    }
+
+    #[test]
+    fn test_workflow_node_default_wave() {
+        let node = WorkflowNodeCreate {
+            template_id: 1,
+            name: "Deploy".to_string(),
+            pos_x: 100.0,
+            pos_y: 200.0,
+            wave: 0,
+        };
+        assert_eq!(node.wave, 0);
+    }
+
+    #[test]
+    fn test_workflow_edge_create() {
+        let edge = WorkflowEdgeCreate {
+            from_node_id: 1,
+            to_node_id: 2,
+            condition: "success".to_string(),
+        };
+        assert_eq!(edge.from_node_id, 1);
+        assert_eq!(edge.to_node_id, 2);
+        assert_eq!(edge.condition, "success");
+    }
+
+    #[test]
+    fn test_workflow_run_serialization() {
+        let run = WorkflowRun {
+            id: 1,
+            workflow_id: 10,
+            project_id: 5,
+            status: "running".to_string(),
+            message: Some("In progress".to_string()),
+            created: Utc::now(),
+            started: Some(Utc::now()),
+            finished: None,
+        };
+        let json = serde_json::to_string(&run).unwrap();
+        assert!(json.contains("\"status\":\"running\""));
+        assert!(json.contains("\"message\":\"In progress\""));
+    }
+
+    #[test]
+    fn test_workflow_full_serialization() {
+        let workflow = Workflow {
+            id: 1,
+            project_id: 10,
+            name: "Full Workflow".to_string(),
+            description: Some("Complete workflow".to_string()),
+            created: Utc::now(),
+            updated: Utc::now(),
+        };
+        let node = WorkflowNode {
+            id: 1,
+            workflow_id: 1,
+            template_id: 100,
+            name: "Deploy".to_string(),
+            pos_x: 0.0,
+            pos_y: 0.0,
+            wave: 0,
+        };
+        let edge = WorkflowEdge {
+            id: 1,
+            workflow_id: 1,
+            from_node_id: 1,
+            to_node_id: 2,
+            condition: "success".to_string(),
+        };
+        let full = WorkflowFull {
+            workflow,
+            nodes: vec![node],
+            edges: vec![edge],
+        };
+        let json = serde_json::to_string(&full).unwrap();
+        assert!(json.contains("\"name\":\"Full Workflow\""));
+        assert!(json.contains("\"nodes\":["));
+        assert!(json.contains("\"edges\":["));
+    }
+}
