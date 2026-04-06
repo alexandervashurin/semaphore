@@ -79,3 +79,63 @@ impl std::fmt::Display for EventType {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_event_type_display() {
+        assert_eq!(EventType::TaskCreated.to_string(), "task_created");
+        assert_eq!(EventType::TemplateDeleted.to_string(), "template_deleted");
+        assert_eq!(EventType::InventoryUpdated.to_string(), "inventory_updated");
+        assert_eq!(EventType::EnvironmentDeleted.to_string(), "environment_deleted");
+        assert_eq!(EventType::AccessKeyCreated.to_string(), "access_key_created");
+    }
+
+    #[test]
+    fn test_event_type_serialization() {
+        let json = serde_json::to_string(&EventType::TaskCreated).unwrap();
+        assert_eq!(json, "\"task_created\"");
+    }
+
+    #[test]
+    fn test_event_type_unknown() {
+        assert_eq!(EventType::Other.to_string(), "unknown");
+        assert_eq!(EventType::ScheduleCreated.to_string(), "unknown");
+        assert_eq!(EventType::UserJoined.to_string(), "unknown");
+    }
+
+    #[test]
+    fn test_event_serialization() {
+        let event = Event {
+            id: 1,
+            project_id: Some(10),
+            user_id: Some(5),
+            object_id: Some(100),
+            object_type: "task".to_string(),
+            description: "Task started".to_string(),
+            created: Utc::now(),
+        };
+        let json = serde_json::to_string(&event).unwrap();
+        assert!(json.contains("\"object_type\":\"task\""));
+        assert!(json.contains("\"description\":\"Task started\""));
+        assert!(json.contains("\"project_id\":10"));
+    }
+
+    #[test]
+    fn test_event_serialization_null_fields() {
+        let event = Event {
+            id: 1,
+            project_id: None,
+            user_id: None,
+            object_id: None,
+            object_type: "system".to_string(),
+            description: "System event".to_string(),
+            created: Utc::now(),
+        };
+        let json = serde_json::to_string(&event).unwrap();
+        assert!(json.contains("\"project_id\":null"));
+        assert!(json.contains("\"user_id\":null"));
+    }
+}
