@@ -419,4 +419,71 @@ mod tests {
 
         assert!(running.is_killed());
     }
+
+    #[tokio::test]
+    async fn test_get_running_task_returns_copy() {
+        let pool = create_test_pool().await;
+
+        // Добавляем задачу в запущенные
+        let mut task = crate::models::Task::default();
+        task.id = 1;
+        task.project_id = 1;
+        task.template_id = 1;
+        task.status = TaskStatus::Running;
+
+        let logger = Arc::new(BasicLogger::new());
+        let template = crate::models::Template::default();
+        let running_task = RunningTask::new(task.clone(), logger, template);
+
+        {
+            let mut running = pool.running_tasks.write().await;
+            running.insert(1, running_task);
+        }
+
+        // Получаем копию
+        let task1 = pool.get_running_task(1).await;
+        assert!(task1.is_some());
+        assert_eq!(task1.unwrap().task.id, 1);
+
+        // Получаем вторую копию
+        let task2 = pool.get_running_task(1).await;
+        assert!(task2.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_get_running_tasks_returns_all() {
+        let pool = create_test_pool().await;
+
+        // Добавляем несколько задач
+        for i in 1..=3 {
+            let mut task = crate::models::Task::default();
+            task.id = i;
+            task.project_id = 1;
+            task.template_id = 1;
+            task.status = TaskStatus::Running;
+
+            let logger = Arc::new(BasicLogger::new());
+            let template = crate::models::Template::default();
+            let running_task = RunningTask::new(task, logger, template);
+
+            {
+                let mut running = pool.running_tasks.write().await;
+                running.insert(i, running_task);
+            }
+        }
+
+        let tasks = pool.get_running_tasks().await;
+        assert_eq!(tasks.len(), 3);
+        assert!(tasks.contains_key(&1));
+        assert!(tasks.contains_key(&2));
+        assert!(tasks.contains_key(&3));
+    }
+
+    #[tokio::test]
+    async fn test_get_running_tasks_empty() {
+        let pool = create_test_pool().await;
+
+        let tasks = pool.get_running_tasks().await;
+        assert!(tasks.is_empty());
+    }
 }
