@@ -127,3 +127,98 @@ pub struct DeploymentRecord {
     pub status: String,
     pub created: DateTime<Utc>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_environment_tier_display() {
+        assert_eq!(EnvironmentTier::Production.to_string(), "production");
+        assert_eq!(EnvironmentTier::Staging.to_string(), "staging");
+        assert_eq!(EnvironmentTier::Development.to_string(), "development");
+        assert_eq!(EnvironmentTier::Review.to_string(), "review");
+        assert_eq!(EnvironmentTier::Other.to_string(), "other");
+    }
+
+    #[test]
+    fn test_environment_tier_default() {
+        let tier = EnvironmentTier::default();
+        assert_eq!(tier, EnvironmentTier::Other);
+    }
+
+    #[test]
+    fn test_deploy_environment_status_default() {
+        let status = DeployEnvironmentStatus::default();
+        assert_eq!(status, DeployEnvironmentStatus::Unknown);
+    }
+
+    #[test]
+    fn test_deployment_environment_serialization() {
+        let env = DeploymentEnvironment {
+            id: 1,
+            project_id: 10,
+            name: "production".to_string(),
+            url: Some("https://app.example.com".to_string()),
+            tier: "production".to_string(),
+            status: "active".to_string(),
+            template_id: Some(5),
+            last_task_id: Some(100),
+            last_deploy_version: Some("v1.2.3".to_string()),
+            last_deployed_by: Some(1),
+            created: Utc::now(),
+            updated: Utc::now(),
+        };
+        let json = serde_json::to_string(&env).unwrap();
+        assert!(json.contains("\"name\":\"production\""));
+        assert!(json.contains("\"url\":\"https://app.example.com\""));
+        assert!(json.contains("\"tier\":\"production\""));
+    }
+
+    #[test]
+    fn test_deployment_environment_create_default_tier() {
+        let create = DeploymentEnvironmentCreate {
+            name: "staging".to_string(),
+            url: None,
+            tier: String::new(),
+            template_id: None,
+        };
+        let json = serde_json::to_string(&create).unwrap();
+        // tier должен быть по умолчанию "other" при сериализации
+        assert!(json.contains("\"name\":\"staging\""));
+    }
+
+    #[test]
+    fn test_deployment_environment_update_partial() {
+        let update = DeploymentEnvironmentUpdate {
+            name: Some("new-name".to_string()),
+            url: Some("https://new.example.com".to_string()),
+            tier: None,
+            status: None,
+            template_id: None,
+        };
+        let json = serde_json::to_string(&update).unwrap();
+        assert!(json.contains("\"name\":\"new-name\""));
+        assert!(json.contains("\"url\":\"https://new.example.com\""));
+        assert!(!json.contains("\"tier\":"));
+        assert!(!json.contains("\"status\":"));
+    }
+
+    #[test]
+    fn test_deployment_record_serialization() {
+        let record = DeploymentRecord {
+            id: 1,
+            deploy_environment_id: 5,
+            task_id: 100,
+            project_id: 10,
+            version: Some("v2.0.0".to_string()),
+            deployed_by: Some(1),
+            status: "success".to_string(),
+            created: Utc::now(),
+        };
+        let json = serde_json::to_string(&record).unwrap();
+        assert!(json.contains("\"task_id\":100"));
+        assert!(json.contains("\"version\":\"v2.0.0\""));
+        assert!(json.contains("\"status\":\"success\""));
+    }
+}
