@@ -54,3 +54,71 @@ pub struct DriftConfigWithStatus {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub latest_result: Option<DriftResult>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_drift_config_serialization() {
+        let config = DriftConfig {
+            id: 1,
+            project_id: 10,
+            template_id: 5,
+            enabled: true,
+            schedule: Some("0 * * * *".to_string()),
+            created: Utc::now(),
+        };
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains("\"enabled\":true"));
+        assert!(json.contains("\"schedule\":\"0 * * * *\""));
+    }
+
+    #[test]
+    fn test_drift_config_create_serialization() {
+        let create = DriftConfigCreate {
+            template_id: 5,
+            enabled: Some(true),
+            schedule: Some("daily".to_string()),
+        };
+        let json = serde_json::to_string(&create).unwrap();
+        assert!(json.contains("\"template_id\":5"));
+        assert!(json.contains("\"enabled\":true"));
+    }
+
+    #[test]
+    fn test_drift_result_serialization() {
+        let result = DriftResult {
+            id: 1,
+            drift_config_id: 10,
+            project_id: 5,
+            template_id: 3,
+            status: "drifted".to_string(),
+            summary: Some("3 resources changed".to_string()),
+            task_id: Some(100),
+            checked_at: Utc::now(),
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("\"status\":\"drifted\""));
+        assert!(json.contains("\"summary\":\"3 resources changed\""));
+    }
+
+    #[test]
+    fn test_drift_config_with_status_serialization() {
+        let config = DriftConfig {
+            id: 1,
+            project_id: 10,
+            template_id: 5,
+            enabled: true,
+            schedule: None,
+            created: Utc::now(),
+        };
+        let with_status = DriftConfigWithStatus {
+            config,
+            latest_result: None,
+        };
+        let json = serde_json::to_string(&with_status).unwrap();
+        assert!(json.contains("\"enabled\":true"));
+        assert!(!json.contains("\"latest_result\":"));
+    }
+}
