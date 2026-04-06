@@ -143,3 +143,89 @@ impl Role {
         self.permissions = Some(perms.to_bitmask());
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_role_permissions_from_bitmask() {
+        let perms = RolePermissions::from_bitmask(0b0000_0111);
+        assert!(perms.run_tasks);
+        assert!(perms.update_resources);
+        assert!(perms.manage_project);
+        assert!(!perms.manage_users);
+    }
+
+    #[test]
+    fn test_role_permissions_to_bitmask() {
+        let perms = RolePermissions {
+            run_tasks: true,
+            update_resources: true,
+            manage_project: false,
+            manage_users: false,
+            manage_roles: false,
+            view_audit_log: false,
+            manage_integrations: false,
+            manage_secret_storages: false,
+        };
+        assert_eq!(perms.to_bitmask(), 0b0000_0011);
+    }
+
+    #[test]
+    fn test_role_permissions_admin() {
+        let admin = RolePermissions::admin();
+        assert_eq!(admin.to_bitmask(), 0b1111_1111);
+    }
+
+    #[test]
+    fn test_role_permissions_default() {
+        let default = RolePermissions::default();
+        assert!(default.run_tasks);
+        assert!(!default.update_resources);
+        assert!(!default.manage_project);
+        assert_eq!(default.to_bitmask(), 0b0000_0001);
+    }
+
+    #[test]
+    fn test_role_new() {
+        let role = Role::new(10, "developer".to_string(), "Developer".to_string());
+        assert_eq!(role.id, 0);
+        assert_eq!(role.project_id, 10);
+        assert_eq!(role.slug, "developer");
+        assert!(role.description.is_none());
+    }
+
+    #[test]
+    fn test_role_with_permissions() {
+        let role = Role::new_with_permissions(5, "admin".to_string(), "Admin".to_string(), 0b1111_1111);
+        let perms = role.get_permissions();
+        assert!(perms.run_tasks);
+        assert!(perms.manage_secret_storages);
+    }
+
+    #[test]
+    fn test_role_get_set_permissions() {
+        let mut role = Role::new(1, "custom".to_string(), "Custom".to_string());
+        let perms = RolePermissions::admin();
+        role.set_permissions(perms);
+        assert_eq!(role.permissions, Some(0b1111_1111));
+        let retrieved = role.get_permissions();
+        assert!(retrieved.manage_users);
+    }
+
+    #[test]
+    fn test_role_serialization() {
+        let role = Role {
+            id: 1,
+            project_id: 10,
+            slug: "manager".to_string(),
+            name: "Manager".to_string(),
+            description: Some("Can manage resources".to_string()),
+            permissions: Some(0b0000_0010),
+        };
+        let json = serde_json::to_string(&role).unwrap();
+        assert!(json.contains("\"slug\":\"manager\""));
+        assert!(json.contains("\"permissions\":2"));
+    }
+}
