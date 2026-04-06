@@ -142,3 +142,91 @@ impl Default for Repository {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_repository_type_serialization() {
+        assert_eq!(serde_json::to_string(&RepositoryType::Git).unwrap(), "\"git\"");
+        assert_eq!(serde_json::to_string(&RepositoryType::Http).unwrap(), "\"http\"");
+        assert_eq!(serde_json::to_string(&RepositoryType::Https).unwrap(), "\"https\"");
+        assert_eq!(serde_json::to_string(&RepositoryType::File).unwrap(), "\"file\"");
+    }
+
+    #[test]
+    fn test_repository_new() {
+        let repo = Repository::new(10, "my-repo".to_string(), "git@github.com:user/repo.git".to_string());
+        assert_eq!(repo.id, 0);
+        assert_eq!(repo.project_id, 10);
+        assert_eq!(repo.name, "my-repo");
+        assert_eq!(repo.git_type, RepositoryType::Git);
+        assert!(repo.git_branch.is_none());
+    }
+
+    #[test]
+    fn test_repository_default() {
+        let repo = Repository::default();
+        assert_eq!(repo.id, 0);
+        assert!(repo.name.is_empty());
+        assert!(repo.git_url.is_empty());
+        assert_eq!(repo.git_type, RepositoryType::Git);
+    }
+
+    #[test]
+    fn test_repository_serialization() {
+        let repo = Repository {
+            id: 1,
+            project_id: 5,
+            name: "deploy-repo".to_string(),
+            git_url: "git@github.com:org/deploy.git".to_string(),
+            git_type: RepositoryType::Git,
+            git_branch: Some("main".to_string()),
+            key_id: Some(3),
+            git_path: None,
+            created: Some(Utc::now()),
+        };
+        let json = serde_json::to_string(&repo).unwrap();
+        assert!(json.contains("\"name\":\"deploy-repo\""));
+        assert!(json.contains("\"git_branch\":\"main\""));
+        assert!(json.contains("\"key_id\":3"));
+    }
+
+    #[test]
+    fn test_repository_skip_nulls() {
+        let repo = Repository {
+            id: 1,
+            project_id: 5,
+            name: "simple".to_string(),
+            git_url: "https://example.com/repo.git".to_string(),
+            git_type: RepositoryType::Https,
+            git_branch: None,
+            key_id: None,
+            git_path: None,
+            created: None,
+        };
+        let json = serde_json::to_string(&repo).unwrap();
+        assert!(!json.contains("\"git_branch\":"));
+        assert!(!json.contains("\"key_id\":"));
+        assert!(!json.contains("\"git_path\":"));
+    }
+
+    #[test]
+    fn test_repository_get_clone_url() {
+        let repo = Repository::new(1, "repo".to_string(), "https://github.com/user/repo.git".to_string());
+        assert_eq!(repo.get_clone_url(), "https://github.com/user/repo.git");
+    }
+
+    #[test]
+    fn test_repository_get_full_path() {
+        // Without git_path
+        let repo = Repository::new(1, "repo".to_string(), "https://example.com/repo.git".to_string());
+        assert_eq!(repo.get_full_path(), "https://example.com/repo.git");
+
+        // With git_path
+        let mut repo2 = repo.clone();
+        repo2.git_path = Some("/path/to/repo".to_string());
+        assert_eq!(repo2.get_full_path(), "/path/to/repo");
+    }
+}
