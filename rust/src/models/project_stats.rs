@@ -48,3 +48,55 @@ impl ProjectStats {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_project_stats_default() {
+        let stats = ProjectStats::default();
+        assert_eq!(stats.task_count, 0);
+        assert_eq!(stats.success_count, 0);
+        assert_eq!(stats.success_rate(), 0.0);
+    }
+
+    #[test]
+    fn test_project_stats_success_rate() {
+        let stats = ProjectStats {
+            task_count: 100,
+            success_count: 80,
+            fail_count: 15,
+            stopped_count: 5,
+            active_user_count: 10,
+            template_count: 5,
+            inventory_count: 3,
+            repository_count: 2,
+        };
+        // 80 / (80 + 15 + 5) * 100 = 80%
+        assert!((stats.success_rate() - 80.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_project_stats_zero_total() {
+        let stats = ProjectStats::new();
+        assert_eq!(stats.success_rate(), 0.0);
+    }
+
+    #[test]
+    fn test_project_stats_serialization() {
+        let stats = ProjectStats {
+            task_count: 50,
+            success_count: 40,
+            fail_count: 8,
+            stopped_count: 2,
+            active_user_count: 5,
+            template_count: 3,
+            inventory_count: 2,
+            repository_count: 1,
+        };
+        let json = serde_json::to_string(&stats).unwrap();
+        assert!(json.contains("\"task_count\":50"));
+        assert!(json.contains("\"success_count\":40"));
+    }
+}
