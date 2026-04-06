@@ -328,4 +328,183 @@ mod tests {
         let result = runner.execute_hook(&hook).await;
         assert!(result.is_err());
     }
+
+    #[tokio::test]
+    async fn test_hook_matches_event_no_match() {
+        let runner = create_test_task_runner();
+        let hook = Hook {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            name: "after_task_notify".to_string(),
+            r#type: HookType::Http,
+            url: None,
+            http_method: None,
+            http_body: None,
+            script: None,
+            timeout_secs: None,
+        };
+        // "after_task" не содержит "before_task"
+        assert!(!runner.hook_matches_event(&hook, "before_task"));
+    }
+
+    #[tokio::test]
+    async fn test_hook_matches_event_partial_name_no_match() {
+        let runner = create_test_task_runner();
+        let hook = Hook {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            name: "notify".to_string(),
+            r#type: HookType::Http,
+            url: None,
+            http_method: None,
+            http_body: None,
+            script: None,
+            timeout_secs: None,
+        };
+        // "notify" не содержит "before_task"
+        assert!(!runner.hook_matches_event(&hook, "before_task"));
+    }
+
+    #[tokio::test]
+    async fn test_execute_hook_python_success() {
+        let runner = create_test_task_runner();
+        let hook = Hook {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            name: "test python hook".to_string(),
+            r#type: HookType::Python,
+            url: None,
+            http_method: None,
+            http_body: None,
+            script: Some("print('hello from python')".to_string()),
+            timeout_secs: None,
+        };
+        let result = runner.execute_hook(&hook).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_execute_hook_python_failure() {
+        let runner = create_test_task_runner();
+        let hook = Hook {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            name: "failing python hook".to_string(),
+            r#type: HookType::Python,
+            url: None,
+            http_method: None,
+            http_body: None,
+            script: Some("raise Exception('error')".to_string()),
+            timeout_secs: None,
+        };
+        let result = runner.execute_hook(&hook).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_execute_hook_http_no_url() {
+        let runner = create_test_task_runner();
+        let hook = Hook {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            name: "http hook no url".to_string(),
+            r#type: HookType::Http,
+            url: None,
+            http_method: Some("GET".to_string()),
+            http_body: None,
+            script: None,
+            timeout_secs: None,
+        };
+        // Hook без url должен выполниться успешно (ничего не делает)
+        let result = runner.execute_hook(&hook).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_execute_hook_bash_no_script() {
+        let runner = create_test_task_runner();
+        let hook = Hook {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            name: "bash hook no script".to_string(),
+            r#type: HookType::Bash,
+            url: None,
+            http_method: None,
+            http_body: None,
+            script: None,
+            timeout_secs: None,
+        };
+        // Hook без script должен выполниться успешно (ничего не делает)
+        let result = runner.execute_hook(&hook).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_execute_hook_python_no_script() {
+        let runner = create_test_task_runner();
+        let hook = Hook {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            name: "python hook no script".to_string(),
+            r#type: HookType::Python,
+            url: None,
+            http_method: None,
+            http_body: None,
+            script: None,
+            timeout_secs: None,
+        };
+        // Hook без script должен выполниться успешно (ничего не делает)
+        let result = runner.execute_hook(&hook).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_hook_matches_event_with_special_characters() {
+        let runner = create_test_task_runner();
+        let hook = Hook {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            name: "before_task-special_notify".to_string(),
+            r#type: HookType::Http,
+            url: None,
+            http_method: None,
+            http_body: None,
+            script: None,
+            timeout_secs: None,
+        };
+        // Содержит "before_task"
+        assert!(runner.hook_matches_event(&hook, "before_task"));
+        // Не содержит "on_success"
+        assert!(!runner.hook_matches_event(&hook, "on_success"));
+    }
+
+    #[tokio::test]
+    async fn test_hook_matches_empty_event() {
+        let runner = create_test_task_runner();
+        let hook = Hook {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            name: "any_hook".to_string(),
+            r#type: HookType::Http,
+            url: None,
+            http_method: None,
+            http_body: None,
+            script: None,
+            timeout_secs: None,
+        };
+        // event_type="all" матчит любой hook
+        assert!(runner.hook_matches_event(&hook, "all"));
+        // Пустая строка матчит любой hook потому что "".contains("") == true
+        // Это особенность реализации hook_matches_event
+        assert!(runner.hook_matches_event(&hook, ""));
+    }
 }

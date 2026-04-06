@@ -250,4 +250,95 @@ mod tests {
         let path = determine_playbook_path(temp_dir.path(), "playbooks/site.yaml");
         assert!(path.exists());
     }
+
+    #[test]
+    fn test_determine_playbook_path_yml_extension() {
+        let temp_dir = TempDir::new().unwrap();
+        std::fs::write(temp_dir.path().join("deploy.yml"), "---").unwrap();
+
+        let path = determine_playbook_path(temp_dir.path(), "deploy");
+        assert!(path.exists());
+        assert!(path.to_string_lossy().ends_with("deploy.yml"));
+    }
+
+    #[test]
+    fn test_determine_playbook_path_yaml_extension() {
+        let temp_dir = TempDir::new().unwrap();
+        std::fs::write(temp_dir.path().join("deploy.yaml"), "---").unwrap();
+
+        let path = determine_playbook_path(temp_dir.path(), "deploy");
+        assert!(path.exists());
+        assert!(path.to_string_lossy().ends_with("deploy.yaml"));
+    }
+
+    #[test]
+    fn test_determine_playbook_path_in_playbooks_dir() {
+        let temp_dir = TempDir::new().unwrap();
+        let playbooks_dir = temp_dir.path().join("playbooks");
+        std::fs::create_dir_all(&playbooks_dir).unwrap();
+        std::fs::write(playbooks_dir.join("site.yaml"), "---").unwrap();
+
+        let path = determine_playbook_path(temp_dir.path(), "site.yaml");
+        assert!(path.exists());
+        assert!(path.to_string_lossy().contains("playbooks"));
+        assert!(path.to_string_lossy().ends_with("site.yaml"));
+    }
+
+    #[test]
+    fn test_determine_playbook_path_exact_name() {
+        let temp_dir = TempDir::new().unwrap();
+        std::fs::write(temp_dir.path().join("my_playbook.yml"), "---").unwrap();
+
+        // Точное имя файла должно находиться первым
+        let path = determine_playbook_path(temp_dir.path(), "my_playbook.yml");
+        assert!(path.exists());
+        assert!(path.to_string_lossy().ends_with("my_playbook.yml"));
+    }
+
+    #[test]
+    fn test_determine_playbook_path_fallback_to_first() {
+        let temp_dir = TempDir::new().unwrap();
+        // Ни один файл не существует — должен вернуть первый путь (не существует)
+        let path = determine_playbook_path(temp_dir.path(), "nonexistent");
+        assert!(!path.exists());
+        assert!(path.to_string_lossy().ends_with("nonexistent"));
+    }
+
+    #[test]
+    fn test_determine_playbook_path_nested_playbooks_dir() {
+        let temp_dir = TempDir::new().unwrap();
+        let playbooks_dir = temp_dir.path().join("playbooks");
+        std::fs::create_dir_all(&playbooks_dir).unwrap();
+        std::fs::write(playbooks_dir.join("main.yml"), "---").unwrap();
+
+        // Ищем playbook в поддиректории playbooks
+        let path = determine_playbook_path(temp_dir.path(), "main.yml");
+        assert!(path.exists());
+        assert!(path.to_string_lossy().contains("playbooks"));
+    }
+
+    #[test]
+    fn test_determine_playbook_path_prefers_yml_over_yaml() {
+        let temp_dir = TempDir::new().unwrap();
+        // Создаём оба файла — должен найти .yml первым
+        std::fs::write(temp_dir.path().join("deploy.yml"), "---").unwrap();
+        std::fs::write(temp_dir.path().join("deploy.yaml"), "---").unwrap();
+
+        let path = determine_playbook_path(temp_dir.path(), "deploy");
+        assert!(path.exists());
+        assert!(path.to_string_lossy().ends_with("deploy.yml"));
+    }
+
+    #[test]
+    fn test_determine_playbook_path_with_full_path_in_name() {
+        let temp_dir = TempDir::new().unwrap();
+        let playbooks_dir = temp_dir.path().join("playbooks");
+        std::fs::create_dir_all(&playbooks_dir).unwrap();
+        std::fs::write(playbooks_dir.join("site.yaml"), "---").unwrap();
+
+        // Когда указываем полный путь — ищем в playbooks/site.yaml
+        let path = determine_playbook_path(temp_dir.path(), "playbooks/site.yaml");
+        assert!(path.exists());
+        assert!(path.to_string_lossy().ends_with("playbooks/site.yaml"));
+    }
 }

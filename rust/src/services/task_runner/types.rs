@@ -125,7 +125,10 @@ impl TaskRunner {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::db::mock::MockStore;
+    use crate::services::task_pool::TaskPool;
     use chrono::Utc;
+    use std::sync::Arc;
 
     fn create_test_task() -> Task {
         Task {
@@ -156,19 +159,150 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_task_runner_creation() {
-        // Mock pool and key_installer would be needed here
-        // For now, just test that we can create the struct
-        let task = create_test_task();
-
-        // Basic assertion that task has correct ID
-        assert_eq!(task.id, 1);
+    fn create_test_task_pool() -> Arc<TaskPool> {
+        let store = Arc::new(MockStore::new());
+        Arc::new(TaskPool::new(store, 5))
     }
 
-    #[test]
-    fn test_task_runner_is_killed_default() {
-        // Test that newly created task runner is not killed
-        // This would need proper mocking of dependencies
+    #[tokio::test]
+    async fn test_task_runner_creation_initializes_defaults() {
+        let task = create_test_task();
+        let pool = create_test_task_pool();
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let runner = TaskRunner::new(task, pool, "testuser".to_string(), key_installer);
+
+        // Проверяем что базовые поля инициализированы
+        assert_eq!(runner.task.id, 1);
+        assert_eq!(runner.username, "testuser");
+        assert_eq!(runner.runner_id, 0);
+        assert_eq!(runner.status_listeners.len(), 0);
+        assert_eq!(runner.log_listeners.len(), 0);
+        assert!(runner.job.is_none());
+        assert!(runner.alias.is_none());
+        assert!(runner.incoming_version.is_none());
+        assert_eq!(runner.users.len(), 0);
+        assert!(!runner.alert);
+        assert!(runner.alert_chat.is_none());
+
+        // Default значения для сущностей
+        assert_eq!(runner.template.id, 0);
+        assert_eq!(runner.inventory.id, 0);
+        assert_eq!(runner.repository.id, 0);
+        assert_eq!(runner.environment.id, 0);
+
+        // Stage и output — None
+        assert!(runner.current_stage.is_none());
+        assert!(runner.current_output.is_none());
+        assert!(runner.current_state.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_task_runner_with_custom_username() {
+        let task = create_test_task();
+        let pool = create_test_task_pool();
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let runner = TaskRunner::new(
+            task,
+            pool,
+            "admin".to_string(),
+            key_installer,
+        );
+
+        assert_eq!(runner.username, "admin");
+    }
+
+    #[tokio::test]
+    async fn test_task_runner_is_killed_returns_false_initially() {
+        let task = create_test_task();
+        let pool = create_test_task_pool();
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let runner = TaskRunner::new(task, pool, "user".to_string(), key_installer);
+
+        assert!(!runner.is_killed().await);
+    }
+
+    #[tokio::test]
+    async fn test_task_runner_is_killed_returns_true_after_set() {
+        let task = create_test_task();
+        let pool = create_test_task_pool();
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let runner = TaskRunner::new(task, pool, "user".to_string(), key_installer);
+
+        // Устанавливаем флаг killed
+        *runner.killed.lock().await = true;
+
+        assert!(runner.is_killed().await);
+    }
+
+    #[tokio::test]
+    async fn test_task_runner_add_status_listener() {
+        let task = create_test_task();
+        let pool = create_test_task_pool();
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let mut runner = TaskRunner::new(task, pool, "user".to_string(), key_installer);
+
+        // Добавляем слушателя (Box<dyn Fn(TaskStatus) + Send>)
+        runner.add_status_listener(Box::new(|_status| {}));
+
+        assert_eq!(runner.status_listeners.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_task_runner_add_log_listener() {
+        let task = create_test_task();
+        let pool = create_test_task_pool();
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let mut runner = TaskRunner::new(task, pool, "user".to_string(), key_installer);
+
+        // Добавляем слушателя логов (Box<dyn Fn(DateTime<Utc>, String) + Send + Sync>)
+        runner.add_log_listener(Box::new(|_time, _log| {}));
+
+        assert_eq!(runner.log_listeners.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_task_runner_add_multiple_listeners() {
+        let task = create_test_task();
+        let pool = create_test_task_pool();
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let mut runner = TaskRunner::new(task, pool, "user".to_string(), key_installer);
+
+        // Добавляем несколько слушателей
+        runner.add_status_listener(Box::new(|_status| {}));
+        runner.add_status_listener(Box::new(|_status| {}));
+        runner.add_log_listener(Box::new(|_time, _log| {}));
+        runner.add_log_listener(Box::new(|_time, _log| {}));
+        runner.add_log_listener(Box::new(|_time, _log| {}));
+
+        assert_eq!(runner.status_listeners.len(), 2);
+        assert_eq!(runner.log_listeners.len(), 3);
+    }
+
+    #[tokio::test]
+    async fn test_task_runner_killed_flag_is_shared_via_arc() {
+        let task1 = create_test_task();
+        let pool = create_test_task_pool();
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let runner1 = TaskRunner::new(task1, pool.clone(), "user1".to_string(), key_installer);
+
+        // Создаём второй TaskRunner с тем же killed Arc (через клонирование)
+        let task2 = create_test_task();
+        let task2 = Task { id: 2, ..task2 };
+        let killed_clone = runner1.killed.clone();
+
+        // Проверяем что можно создать runner с общим killed
+        let runner2_killed = killed_clone.clone();
+        *runner2_killed.lock().await = true;
+
+        // runner1 тоже видит изменение
+        assert!(runner1.is_killed().await);
     }
 }

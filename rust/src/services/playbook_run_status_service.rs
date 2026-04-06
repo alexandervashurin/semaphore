@@ -128,19 +128,274 @@ impl PlaybookRunStatusService {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::db::mock::MockStore;
+    use crate::models::playbook_run_history::{PlaybookRun, PlaybookRunStatus};
 
-    #[test]
-    fn test_calculate_duration() {
-        let start = Utc::now();
-        let end = start + chrono::Duration::seconds(30);
+    fn create_test_playbook_run(task_id: i32) -> PlaybookRun {
+        PlaybookRun {
+            id: 1,
+            project_id: 1,
+            playbook_id: 1,
+            task_id: Some(task_id),
+            template_id: Some(1),
+            inventory_id: None,
+            environment_id: None,
+            extra_vars: None,
+            limit_hosts: None,
+            tags: None,
+            skip_tags: None,
+            user_id: Some(1),
+            status: PlaybookRunStatus::Waiting,
+            output: None,
+            error_message: None,
+            created: Utc::now(),
+            updated: Utc::now(),
+            start_time: None,
+            end_time: None,
+            duration_seconds: None,
+            hosts_total: Some(0),
+            hosts_changed: Some(0),
+            hosts_unreachable: Some(0),
+            hosts_failed: Some(0),
+        }
+    }
 
-        let duration = PlaybookRunStatusService::calculate_duration(Some(start), Some(end));
-        assert_eq!(duration, Some(30));
+    #[tokio::test]
+    async fn test_update_from_task_status_waiting() {
+        let store = MockStore::new();
+        let run = create_test_playbook_run(1);
+        store.seed_playbook_run(run);
+
+        PlaybookRunStatusService::update_from_task_status(1, &TaskStatus::Waiting, &store)
+            .await
+            .unwrap();
+
+        let updated = store.get_playbook_run_by_task_id(1).await.unwrap().unwrap();
+        assert_eq!(updated.status, PlaybookRunStatus::Waiting);
+    }
+
+    #[tokio::test]
+    async fn test_update_from_task_status_starting() {
+        let store = MockStore::new();
+        let run = create_test_playbook_run(2);
+        store.seed_playbook_run(run);
+
+        PlaybookRunStatusService::update_from_task_status(2, &TaskStatus::Starting, &store)
+            .await
+            .unwrap();
+
+        let updated = store.get_playbook_run_by_task_id(2).await.unwrap().unwrap();
+        assert_eq!(updated.status, PlaybookRunStatus::Waiting);
+    }
+
+    #[tokio::test]
+    async fn test_update_from_task_status_running() {
+        let store = MockStore::new();
+        let run = create_test_playbook_run(3);
+        store.seed_playbook_run(run);
+
+        PlaybookRunStatusService::update_from_task_status(3, &TaskStatus::Running, &store)
+            .await
+            .unwrap();
+
+        let updated = store.get_playbook_run_by_task_id(3).await.unwrap().unwrap();
+        assert_eq!(updated.status, PlaybookRunStatus::Running);
+    }
+
+    #[tokio::test]
+    async fn test_update_from_task_status_success() {
+        let store = MockStore::new();
+        let run = create_test_playbook_run(4);
+        store.seed_playbook_run(run);
+
+        PlaybookRunStatusService::update_from_task_status(4, &TaskStatus::Success, &store)
+            .await
+            .unwrap();
+
+        let updated = store.get_playbook_run_by_task_id(4).await.unwrap().unwrap();
+        assert_eq!(updated.status, PlaybookRunStatus::Success);
+    }
+
+    #[tokio::test]
+    async fn test_update_from_task_status_error() {
+        let store = MockStore::new();
+        let run = create_test_playbook_run(5);
+        store.seed_playbook_run(run);
+
+        PlaybookRunStatusService::update_from_task_status(5, &TaskStatus::Error, &store)
+            .await
+            .unwrap();
+
+        let updated = store.get_playbook_run_by_task_id(5).await.unwrap().unwrap();
+        assert_eq!(updated.status, PlaybookRunStatus::Failed);
+    }
+
+    #[tokio::test]
+    async fn test_update_from_task_status_stopped() {
+        let store = MockStore::new();
+        let run = create_test_playbook_run(6);
+        store.seed_playbook_run(run);
+
+        PlaybookRunStatusService::update_from_task_status(6, &TaskStatus::Stopped, &store)
+            .await
+            .unwrap();
+
+        let updated = store.get_playbook_run_by_task_id(6).await.unwrap().unwrap();
+        assert_eq!(updated.status, PlaybookRunStatus::Cancelled);
+    }
+
+    #[tokio::test]
+    async fn test_update_from_task_status_confirmed() {
+        let store = MockStore::new();
+        let run = create_test_playbook_run(7);
+        store.seed_playbook_run(run);
+
+        PlaybookRunStatusService::update_from_task_status(7, &TaskStatus::Confirmed, &store)
+            .await
+            .unwrap();
+
+        let updated = store.get_playbook_run_by_task_id(7).await.unwrap().unwrap();
+        assert_eq!(updated.status, PlaybookRunStatus::Running);
+    }
+
+    #[tokio::test]
+    async fn test_update_from_task_status_rejected() {
+        let store = MockStore::new();
+        let run = create_test_playbook_run(8);
+        store.seed_playbook_run(run);
+
+        PlaybookRunStatusService::update_from_task_status(8, &TaskStatus::Rejected, &store)
+            .await
+            .unwrap();
+
+        let updated = store.get_playbook_run_by_task_id(8).await.unwrap().unwrap();
+        assert_eq!(updated.status, PlaybookRunStatus::Failed);
+    }
+
+    #[tokio::test]
+    async fn test_update_from_task_status_waiting_confirmation() {
+        let store = MockStore::new();
+        let run = create_test_playbook_run(9);
+        store.seed_playbook_run(run);
+
+        PlaybookRunStatusService::update_from_task_status(9, &TaskStatus::WaitingConfirmation, &store)
+            .await
+            .unwrap();
+
+        let updated = store.get_playbook_run_by_task_id(9).await.unwrap().unwrap();
+        assert_eq!(updated.status, PlaybookRunStatus::Waiting);
+    }
+
+    #[tokio::test]
+    async fn test_update_from_task_status_stopping() {
+        let store = MockStore::new();
+        let run = create_test_playbook_run(10);
+        store.seed_playbook_run(run);
+
+        PlaybookRunStatusService::update_from_task_status(10, &TaskStatus::Stopping, &store)
+            .await
+            .unwrap();
+
+        let updated = store.get_playbook_run_by_task_id(10).await.unwrap().unwrap();
+        assert_eq!(updated.status, PlaybookRunStatus::Running);
+    }
+
+    #[tokio::test]
+    async fn test_update_from_task_status_not_executed() {
+        let store = MockStore::new();
+        let run = create_test_playbook_run(11);
+        store.seed_playbook_run(run);
+
+        PlaybookRunStatusService::update_from_task_status(11, &TaskStatus::NotExecuted, &store)
+            .await
+            .unwrap();
+
+        let updated = store.get_playbook_run_by_task_id(11).await.unwrap().unwrap();
+        assert_eq!(updated.status, PlaybookRunStatus::Waiting);
+    }
+
+    #[tokio::test]
+    async fn test_update_from_task_status_no_run_found() {
+        let store = MockStore::new();
+
+        // Task без связанного playbook run — должно вернуть Ok(())
+        let result = PlaybookRunStatusService::update_from_task_status(999, &TaskStatus::Running, &store)
+            .await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_update_run_statistics() {
+        let store = MockStore::new();
+        let run = create_test_playbook_run(12);
+        store.seed_playbook_run(run);
+
+        PlaybookRunStatusService::update_run_statistics(
+            1, 1, 10, 5, 1, 2, &store
+        )
+        .await
+        .unwrap();
+
+        let updated = store.get_playbook_run(1, 1).await.unwrap();
+        assert_eq!(updated.hosts_total, Some(10));
+        assert_eq!(updated.hosts_changed, Some(5));
+        assert_eq!(updated.hosts_unreachable, Some(1));
+        assert_eq!(updated.hosts_failed, Some(2));
+    }
+
+    #[tokio::test]
+    async fn test_update_run_statistics_multiple_updates() {
+        let store = MockStore::new();
+        let run = create_test_playbook_run(13);
+        store.seed_playbook_run(run);
+
+        // Первое обновление
+        PlaybookRunStatusService::update_run_statistics(
+            1, 1, 5, 3, 0, 1, &store
+        )
+        .await
+        .unwrap();
+
+        // Второе обновление
+        PlaybookRunStatusService::update_run_statistics(
+            1, 1, 10, 7, 2, 3, &store
+        )
+        .await
+        .unwrap();
+
+        let updated = store.get_playbook_run(1, 1).await.unwrap();
+        assert_eq!(updated.hosts_total, Some(10));
+        assert_eq!(updated.hosts_changed, Some(7));
+        assert_eq!(updated.hosts_unreachable, Some(2));
+        assert_eq!(updated.hosts_failed, Some(3));
     }
 
     #[test]
-    fn test_calculate_duration_none() {
-        let duration = PlaybookRunStatusService::calculate_duration(None, None);
+    fn test_calculate_duration_negative() {
+        let end = Utc::now();
+        let start = end + chrono::Duration::seconds(30);
+
+        let duration = PlaybookRunStatusService::calculate_duration(Some(start), Some(end));
+        assert_eq!(duration, Some(-30));
+    }
+
+    #[test]
+    fn test_calculate_duration_zero() {
+        let t = Utc::now();
+        let duration = PlaybookRunStatusService::calculate_duration(Some(t), Some(t));
+        assert_eq!(duration, Some(0));
+    }
+
+    #[test]
+    fn test_calculate_duration_start_only() {
+        let duration = PlaybookRunStatusService::calculate_duration(Some(Utc::now()), None);
+        assert_eq!(duration, None);
+    }
+
+    #[test]
+    fn test_calculate_duration_end_only() {
+        let duration = PlaybookRunStatusService::calculate_duration(None, Some(Utc::now()));
         assert_eq!(duration, None);
     }
 }

@@ -1328,6 +1328,13 @@ impl PlaybookRunManager for MockStore {
             if let Some(status) = update.status { run.status = status; }
             if let Some(output) = update.output { run.output = Some(output); }
             if let Some(msg) = update.error_message { run.error_message = Some(msg); }
+            if let Some(v) = update.hosts_total { run.hosts_total = Some(v); }
+            if let Some(v) = update.hosts_changed { run.hosts_changed = Some(v); }
+            if let Some(v) = update.hosts_unreachable { run.hosts_unreachable = Some(v); }
+            if let Some(v) = update.hosts_failed { run.hosts_failed = Some(v); }
+            if let Some(v) = update.start_time { run.start_time = Some(v); }
+            if let Some(v) = update.end_time { run.end_time = Some(v); }
+            if let Some(v) = update.duration_seconds { run.duration_seconds = Some(v); }
             Ok(run.clone())
         } else {
             Err(Error::NotFound("PlaybookRun not found".to_string()))

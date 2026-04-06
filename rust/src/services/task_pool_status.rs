@@ -244,4 +244,142 @@ mod tests {
         assert!(json.contains("\"task_id\":1"));
         assert!(json.contains("\"status\":\"success\""));
     }
+
+    #[test]
+    fn test_task_status_message_with_null_fields() {
+        let task = Task {
+            id: 42,
+            project_id: 2,
+            template_id: 3,
+            status: TaskStatus::Waiting,
+            message: None,
+            commit_hash: None,
+            commit_message: None,
+            version: None,
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+            arguments: None,
+            params: None,
+            playbook: None,
+            start: None,
+            end: None,
+            created: Utc::now(),
+            user_id: None,
+            integration_id: None,
+            schedule_id: None,
+            git_branch: None,
+            secret: None,
+            environment: None,
+            build_task_id: None,
+        };
+
+        let message = TaskStatusMessage::new(&task);
+        let json = message.to_json();
+
+        assert!(json.contains("\"task_id\":42"));
+        assert!(json.contains("\"status\":\"waiting\""));
+        assert!(json.contains("\"template_id\":3"));
+        assert!(json.contains("\"project_id\":2"));
+        // start и end должны быть null
+        assert!(json.contains("\"start\":null"));
+        assert!(json.contains("\"end\":null"));
+        assert!(json.contains("\"version\":null"));
+    }
+
+    #[test]
+    fn test_task_status_message_json_contains_all_fields() {
+        let task = Task {
+            id: 100,
+            project_id: 10,
+            template_id: 20,
+            status: TaskStatus::Running,
+            message: None,
+            commit_hash: None,
+            commit_message: None,
+            version: Some("v2.0".to_string()),
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+            arguments: None,
+            params: None,
+            playbook: None,
+            start: Some(Utc::now()),
+            end: None,
+            created: Utc::now(),
+            user_id: None,
+            integration_id: None,
+            schedule_id: None,
+            git_branch: None,
+            secret: None,
+            environment: None,
+            build_task_id: None,
+        };
+
+        let message = TaskStatusMessage::new(&task);
+        let json = message.to_json();
+
+        // Проверяем все обязательные поля
+        assert!(json.contains("\"task_id\":100"));
+        assert!(json.contains("\"template_id\":20"));
+        assert!(json.contains("\"project_id\":10"));
+        assert!(json.contains("\"status\":\"running\""));
+        assert!(json.contains("\"version\":\"v2.0\""));
+        // start должен быть, end — null
+        assert!(!json.contains("\"start\":null"));
+        assert!(json.contains("\"end\":null"));
+    }
+
+    #[test]
+    fn test_task_status_message_status_serialization() {
+        let base_task = Task {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            status: TaskStatus::Waiting,
+            message: None,
+            commit_hash: None,
+            commit_message: None,
+            version: None,
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+            arguments: None,
+            params: None,
+            playbook: None,
+            start: None,
+            end: None,
+            created: Utc::now(),
+            user_id: None,
+            integration_id: None,
+            schedule_id: None,
+            git_branch: None,
+            secret: None,
+            environment: None,
+            build_task_id: None,
+        };
+
+        // Проверяем разные статусы
+        let statuses = [
+            (TaskStatus::Waiting, "waiting"),
+            (TaskStatus::Running, "running"),
+            (TaskStatus::Success, "success"),
+            (TaskStatus::Error, "error"),
+            (TaskStatus::Stopped, "stopped"),
+            (TaskStatus::Starting, "starting"),
+        ];
+
+        for (status, expected_str) in statuses {
+            let mut task = base_task.clone();
+            task.status = status;
+            let message = TaskStatusMessage::new(&task);
+            let json = message.to_json();
+            assert!(
+                json.contains(&format!("\"status\":\"{}\"", expected_str)),
+                "Expected status '{}' in JSON for {:?}",
+                expected_str,
+                status
+            );
+        }
+    }
 }
