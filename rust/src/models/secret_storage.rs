@@ -114,3 +114,73 @@ impl SecretStorage {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_secret_storage_type_display() {
+        assert_eq!(SecretStorageType::Local.to_string(), "local");
+        assert_eq!(SecretStorageType::Vault.to_string(), "vault");
+        assert_eq!(SecretStorageType::Dvls.to_string(), "dvls");
+    }
+
+    #[test]
+    fn test_secret_storage_type_from_str() {
+        assert_eq!("vault".parse::<SecretStorageType>().unwrap(), SecretStorageType::Vault);
+        assert_eq!("dvls".parse::<SecretStorageType>().unwrap(), SecretStorageType::Dvls);
+        assert_eq!("unknown".parse::<SecretStorageType>().unwrap(), SecretStorageType::Local);
+    }
+
+    #[test]
+    fn test_secret_storage_type_serialization() {
+        assert_eq!(serde_json::to_string(&SecretStorageType::Local).unwrap(), "\"local\"");
+    }
+
+    #[test]
+    fn test_secret_storage_new() {
+        let storage = SecretStorage::new(
+            10,
+            "My Vault".to_string(),
+            SecretStorageType::Vault,
+            r#"{"url":"https://vault.example.com"}"#.to_string(),
+        );
+        assert_eq!(storage.id, 0);
+        assert_eq!(storage.project_id, 10);
+        assert_eq!(storage.r#type, SecretStorageType::Vault);
+        assert!(!storage.read_only);
+        assert!(storage.secret.is_none());
+    }
+
+    #[test]
+    fn test_secret_storage_serialization() {
+        let storage = SecretStorage {
+            id: 1,
+            project_id: 5,
+            name: "Production Vault".to_string(),
+            r#type: SecretStorageType::Vault,
+            params: r#"{"url":"https://vault.prod.com"}"#.to_string(),
+            read_only: true,
+            source_storage_type: Some("vault".to_string()),
+            secret: None,
+        };
+        let json = serde_json::to_string(&storage).unwrap();
+        assert!(json.contains("\"name\":\"Production Vault\""));
+        assert!(json.contains("\"type\":\"vault\""));
+        assert!(json.contains("\"read_only\":true"));
+    }
+
+    #[test]
+    fn test_secret_storage_skip_nulls() {
+        let storage = SecretStorage::new(
+            1,
+            "Local".to_string(),
+            SecretStorageType::Local,
+            "{}".to_string(),
+        );
+        let json = serde_json::to_string(&storage).unwrap();
+        assert!(!json.contains("\"source_storage_type\":"));
+        assert!(!json.contains("\"secret\":"));
+    }
+}
