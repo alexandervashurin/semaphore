@@ -252,4 +252,52 @@ mod tests {
         let result = maybe_encrypt(&None, &key).unwrap();
         assert_eq!(result, None);
     }
+
+    #[test]
+    fn test_mask_key_secrets() {
+        use crate::models::AccessKeyOwner;
+        let mut key = crate::models::AccessKey {
+            id: 1,
+            project_id: Some(1),
+            name: "Test".to_string(),
+            r#type: crate::models::AccessKeyType::SSH,
+            user_id: None,
+            login_password_login: None,
+            login_password_password: Some("secret_pass".to_string()),
+            ssh_key: Some("-----BEGIN RSA PRIVATE KEY-----".to_string()),
+            ssh_passphrase: Some("passphrase123".to_string()),
+            access_key_access_key: None,
+            access_key_secret_key: Some("aws_secret_key".to_string()),
+            secret_storage_id: None,
+            environment_id: None,
+            owner: Some(AccessKeyOwner::Project),
+            created: None,
+            source_storage_type: None,
+            source_storage_id: None,
+            source_key: None,
+        };
+
+        mask_key_secrets(&mut key);
+
+        assert_eq!(key.ssh_key, Some("**SECRET**".to_string()));
+        assert_eq!(key.ssh_passphrase, Some("**SECRET**".to_string()));
+        assert_eq!(key.login_password_password, Some("**SECRET**".to_string()));
+        assert_eq!(key.access_key_secret_key, Some("**SECRET**".to_string()));
+    }
+
+    #[test]
+    fn test_maybe_decrypt_empty_string() {
+        let key = [42u8; 32];
+        let empty = Some("".to_string());
+        let result = maybe_decrypt(&empty, &key).unwrap();
+        assert_eq!(result, Some("".to_string()));
+    }
+
+    #[test]
+    fn test_encrypt_empty_string() {
+        let key = [42u8; 32];
+        let empty = Some("".to_string());
+        let result = maybe_encrypt(&empty, &key).unwrap();
+        assert_eq!(result, Some("".to_string()));
+    }
 }

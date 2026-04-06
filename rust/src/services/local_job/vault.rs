@@ -190,4 +190,13 @@ mod tests {
         job.clear_vault_key_files();
         assert!(job.vault_file_installations.is_empty());
     }
+
+    #[tokio::test]
+    async fn test_create_vault_password_file() {
+        let job = create_test_job();
+        let result = job.create_vault_password_file("test_vault", "my_secret_password").await;
+        assert!(result.is_ok());
+        let path = result.unwrap();
+        assert!(path.to_string_lossy().contains("vault_test_vault_password"));
+    }
 }

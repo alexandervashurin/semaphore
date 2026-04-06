@@ -341,4 +341,53 @@ mod tests {
         assert_eq!(stats.failed_backups, 0);
         assert!(stats.last_backup_time.is_none());
     }
+
+    #[test]
+    fn test_gzip_encode_and_decode() {
+        let data = b"Hello, world!";
+        let compressed = gzip_encode(data).unwrap();
+        // Compressed data should be different from original (gzip header)
+        assert_ne!(compressed, data);
+        // Can verify by decompressing
+        use flate2::read::GzDecoder;
+        use std::io::Read;
+        let mut decoder = GzDecoder::new(&compressed[..]);
+        let mut decompressed = Vec::new();
+        decoder.read_to_end(&mut decompressed).unwrap();
+        assert_eq!(decompressed, data);
+    }
+
+    #[tokio::test]
+    async fn test_auto_backup_service_not_running_initially() {
+        let store: Arc<dyn Store + Send + Sync> = Arc::new(MockStore::new());
+        let config = AutoBackupConfig::default();
+        let service = AutoBackupService::new(config, store);
+
+        assert!(!service.is_running().await);
+    }
+
+    #[tokio::test]
+    async fn test_auto_backup_disabled_does_not_start() {
+        let store: Arc<dyn Store + Send + Sync> = Arc::new(MockStore::new());
+        let config = AutoBackupConfig::default(); // enabled = false
+        let service = AutoBackupService::new(config, store);
+
+        // start() should return immediately when disabled
+        service.start().await;
+        assert!(!service.is_running().await);
+    }
+
+    #[test]
+    fn test_cleanup_old_backups_empty_dir() {
+        // Создаём временную директорию
+        let temp_dir = std::env::temp_dir().join("semaphore_test_cleanup");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        // Очистка пустой директории должна succeed
+        let result = cleanup_old_backups(temp_dir.to_str().unwrap(), 5);
+        assert!(result.is_ok());
+
+        // Убираем за собой
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
 }
