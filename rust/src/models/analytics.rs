@@ -188,3 +188,92 @@ pub struct SystemMetrics {
     pub tasks_7d: i64,
     pub tasks_30d: i64,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_project_stats_default() {
+        let stats = ProjectStats::default();
+        assert_eq!(stats.project_id, 0);
+        assert_eq!(stats.total_tasks, 0);
+        assert_eq!(stats.success_rate, 0.0);
+    }
+
+    #[test]
+    fn test_project_stats_serialization() {
+        let stats = ProjectStats {
+            project_id: 10,
+            project_name: "Test Project".to_string(),
+            total_tasks: 100,
+            successful_tasks: 80,
+            failed_tasks: 15,
+            stopped_tasks: 5,
+            pending_tasks: 0,
+            running_tasks: 0,
+            total_templates: 10,
+            total_users: 5,
+            total_inventories: 3,
+            total_repositories: 2,
+            total_environments: 4,
+            total_keys: 6,
+            total_schedules: 2,
+            success_rate: 80.0,
+            avg_task_duration_secs: 120.5,
+        };
+        let json = serde_json::to_string(&stats).unwrap();
+        assert!(json.contains("\"project_name\":\"Test Project\""));
+        assert!(json.contains("\"total_tasks\":100"));
+        assert!(json.contains("\"success_rate\":80.0"));
+    }
+
+    #[test]
+    fn test_task_stats_serialization() {
+        let stats = TaskStats {
+            period: "daily".to_string(),
+            total: 50,
+            success: 40,
+            failed: 8,
+            stopped: 2,
+            avg_duration_secs: 95.0,
+            max_duration_secs: 300.0,
+            min_duration_secs: 10.0,
+            total_duration_secs: 4750,
+        };
+        let json = serde_json::to_string(&stats).unwrap();
+        assert!(json.contains("\"period\":\"daily\""));
+        assert!(json.contains("\"total\":50"));
+    }
+
+    #[test]
+    fn test_resource_usage_default() {
+        let usage = ResourceUsage::default();
+        assert_eq!(usage.cpu_usage_percent, 0.0);
+        assert_eq!(usage.memory_usage_mb, 0.0);
+    }
+
+    #[test]
+    fn test_system_status_serialization() {
+        let status = SystemStatus {
+            healthy: true,
+            version: "2.5.0".to_string(),
+            uptime_secs: 86400,
+            active_runners: 3,
+            running_tasks: 5,
+            queued_tasks: 2,
+            database_status: "connected".to_string(),
+            last_check: Utc::now(),
+        };
+        let json = serde_json::to_string(&status).unwrap();
+        assert!(json.contains("\"version\":\"2.5.0\""));
+        assert!(json.contains("\"healthy\":true"));
+    }
+
+    #[test]
+    fn test_system_metrics_default() {
+        let metrics = SystemMetrics::default();
+        assert_eq!(metrics.total_projects, 0);
+        assert_eq!(metrics.success_rate_24h, 0.0);
+    }
+}
