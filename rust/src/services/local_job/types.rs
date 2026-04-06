@@ -163,3 +163,118 @@ impl Job for LocalJob {
 }
 
 // TODO: Добавить тесты после завершения миграции всех модулей local_job
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::task_logger::BasicLogger;
+    use chrono::Utc;
+
+    fn create_test_local_job() -> LocalJob {
+        let logger = Arc::new(BasicLogger::new());
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let task = Task {
+            id: 1,
+            created: Utc::now(),
+            template_id: 1,
+            status: TaskStatus::Waiting,
+            message: None,
+            commit_hash: None,
+            commit_message: None,
+            version: None,
+            project_id: 1,
+            arguments: None,
+            params: None,
+            playbook: None,
+            environment: None,
+            secret: None,
+            git_branch: None,
+            user_id: None,
+            integration_id: None,
+            schedule_id: None,
+            start: None,
+            end: None,
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+            build_task_id: None,
+        };
+
+        LocalJob::new(
+            task,
+            Template::default(),
+            Inventory::default(),
+            Repository::default(),
+            Environment::default(),
+            logger,
+            key_installer,
+            PathBuf::from("/tmp/work"),
+            PathBuf::from("/tmp/tmp"),
+        )
+    }
+
+    #[test]
+    fn test_local_job_creation() {
+        let job = create_test_local_job();
+        assert_eq!(job.task.id, 1);
+        assert!(job.ssh_key_installation.is_none());
+        assert!(job.become_key_installation.is_none());
+        assert!(job.vault_file_installations.is_empty());
+        assert!(!job.killed);
+        assert_eq!(job.work_dir, PathBuf::from("/tmp/work"));
+        assert_eq!(job.tmp_dir, PathBuf::from("/tmp/tmp"));
+    }
+
+    #[test]
+    fn test_local_job_set_run_params() {
+        let mut job = create_test_local_job();
+        job.set_run_params(
+            "testuser".to_string(),
+            Some("v1.0".to_string()),
+            "deploy".to_string(),
+        );
+        assert_eq!(job.username, "testuser");
+        assert_eq!(job.incoming_version, Some("v1.0".to_string()));
+        assert_eq!(job.alias, "deploy");
+    }
+
+    #[test]
+    fn test_local_job_is_killed_default() {
+        let job = create_test_local_job();
+        assert!(!job.is_killed());
+    }
+
+    #[test]
+    fn test_local_job_kill_sets_flag() {
+        let mut job = create_test_local_job();
+        job.kill();
+        assert!(job.is_killed());
+    }
+
+    #[test]
+    fn test_local_job_log() {
+        let job = create_test_local_job();
+        // Просто проверяем что метод не паникует
+        job.log("Test log message");
+    }
+
+    #[test]
+    fn test_local_job_set_status() {
+        let job = create_test_local_job();
+        job.set_status(TaskStatus::Running);
+    }
+
+    #[test]
+    fn test_local_job_set_commit() {
+        let job = create_test_local_job();
+        job.set_commit("abc123", "Test commit");
+    }
+
+    #[test]
+    fn test_local_job_drop() {
+        let job = create_test_local_job();
+        // Drop вызывается автоматически, проверяем что не паникует
+        drop(job);
+    }
+}
