@@ -48,3 +48,81 @@ pub struct TaskOutputsMap {
     pub task_id: i32,
     pub outputs: std::collections::HashMap<String, Value>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_task_structured_output_serialization() {
+        let output = TaskStructuredOutput {
+            id: 1,
+            task_id: 100,
+            project_id: 10,
+            key: "vpc_id".to_string(),
+            value: Value::String("vpc-12345".to_string()),
+            value_type: "string".to_string(),
+            created: Utc::now(),
+        };
+        let json = serde_json::to_string(&output).unwrap();
+        assert!(json.contains("\"key\":\"vpc_id\""));
+        assert!(json.contains("\"value\":\"vpc-12345\""));
+    }
+
+    #[test]
+    fn test_task_structured_output_create() {
+        let create = TaskStructuredOutputCreate {
+            key: "bucket_name".to_string(),
+            value: Value::String("my-bucket".to_string()),
+            value_type: "string".to_string(),
+        };
+        let json = serde_json::to_string(&create).unwrap();
+        assert!(json.contains("\"key\":\"bucket_name\""));
+    }
+
+    #[test]
+    fn test_task_structured_output_create_default_type() {
+        let create = TaskStructuredOutputCreate {
+            key: "default_type".to_string(),
+            value: Value::String("test".to_string()),
+            value_type: default_value_type(),
+        };
+        assert_eq!(create.value_type, "string");
+    }
+
+    #[test]
+    fn test_task_structured_output_batch() {
+        let batch = TaskStructuredOutputBatch {
+            outputs: vec![
+                TaskStructuredOutputCreate {
+                    key: "key1".to_string(),
+                    value: Value::String("val1".to_string()),
+                    value_type: "string".to_string(),
+                },
+                TaskStructuredOutputCreate {
+                    key: "key2".to_string(),
+                    value: Value::Number(42.into()),
+                    value_type: "number".to_string(),
+                },
+            ],
+        };
+        let json = serde_json::to_string(&batch).unwrap();
+        assert!(json.contains("\"outputs\":["));
+    }
+
+    #[test]
+    fn test_task_outputs_map() {
+        let mut outputs = HashMap::new();
+        outputs.insert("url".to_string(), Value::String("https://example.com".to_string()));
+        outputs.insert("count".to_string(), Value::Number(5.into()));
+
+        let map = TaskOutputsMap {
+            task_id: 100,
+            outputs,
+        };
+        let json = serde_json::to_string(&map).unwrap();
+        assert!(json.contains("\"task_id\":100"));
+        assert!(json.contains("\"outputs\":{"));
+    }
+}
