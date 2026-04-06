@@ -563,4 +563,92 @@ mod tests {
         let s3 = AlertService::compute_webhook_request_signature(secret, "1704067201", body);
         assert_ne!(s1, s3);
     }
+
+    #[test]
+    fn test_alert_color_error_status() {
+        let mut task = create_test_task();
+        task.status = TaskStatus::Error;
+        let service = AlertService::new(task, "Test".to_string(), "user".to_string());
+
+        assert_eq!(service.alert_color("telegram"), "❌");
+        assert_eq!(service.alert_color("slack"), "danger");
+        assert_eq!(service.alert_color("teams"), "F44336");
+        assert_eq!(service.alert_color("generic"), "red");
+    }
+
+    #[test]
+    fn test_alert_color_stopped_status() {
+        let mut task = create_test_task();
+        task.status = TaskStatus::Stopped;
+        let service = AlertService::new(task, "Test".to_string(), "user".to_string());
+
+        assert_eq!(service.alert_color("telegram"), "⏹️");
+        assert_eq!(service.alert_color("slack"), "warning");
+        assert_eq!(service.alert_color("teams"), "FFC107");
+        assert_eq!(service.alert_color("generic"), "yellow");
+    }
+
+    #[test]
+    fn test_alert_color_default_for_unknown_status() {
+        let mut task = create_test_task();
+        task.status = TaskStatus::Waiting;
+        let service = AlertService::new(task, "Test".to_string(), "user".to_string());
+
+        assert_eq!(service.alert_color("telegram"), "gray");
+        assert_eq!(service.alert_color("slack"), "gray");
+        assert_eq!(service.alert_color("generic"), "gray");
+    }
+
+    #[test]
+    fn test_task_link_contains_project_and_task_id() {
+        let task = create_test_task();
+        let service = AlertService::new(task, "Test".to_string(), "user".to_string());
+
+        let link = service.task_link();
+        assert!(link.contains("/project/"));
+        assert!(link.contains("/tasks/1"));
+    }
+
+    #[test]
+    fn test_alert_color_for_running_status() {
+        let mut task = create_test_task();
+        task.status = TaskStatus::Running;
+        let service = AlertService::new(task, "Test".to_string(), "user".to_string());
+
+        assert_eq!(service.alert_color("telegram"), "gray");
+    }
+
+    #[test]
+    fn test_alert_infos_with_no_version() {
+        let mut task = create_test_task();
+        task.version = None;
+        let service = AlertService::new(task, "Test".to_string(), "testuser".to_string());
+
+        let (author, version) = service.alert_infos();
+        assert_eq!(author, "testuser");
+        assert_eq!(version, "");
+    }
+
+    #[test]
+    fn test_compute_hmac_signature_is_deterministic() {
+        let body = b"test body";
+        let sig1 = AlertService::compute_hmac_signature("secret", body);
+        let sig2 = AlertService::compute_hmac_signature("secret", body);
+        assert_eq!(sig1, sig2);
+    }
+
+    #[test]
+    fn test_compute_hmac_signature_different_secrets() {
+        let body = b"test body";
+        let sig1 = AlertService::compute_hmac_signature("secret1", body);
+        let sig2 = AlertService::compute_hmac_signature("secret2", body);
+        assert_ne!(sig1, sig2);
+    }
+
+    #[test]
+    fn test_compute_hmac_signature_different_bodies() {
+        let sig1 = AlertService::compute_hmac_signature("secret", b"body1");
+        let sig2 = AlertService::compute_hmac_signature("secret", b"body2");
+        assert_ne!(sig1, sig2);
+    }
 }
