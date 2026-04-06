@@ -169,3 +169,202 @@ pub enum ValidationError {
     #[error("Имя не может быть пустым")]
     NameEmpty,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_user_validate_success() {
+        let user = User {
+            id: 1,
+            created: Utc::now(),
+            username: "testuser".to_string(),
+            name: "Test User".to_string(),
+            email: "test@example.com".to_string(),
+            password: "hashed".to_string(),
+            admin: false,
+            external: false,
+            alert: false,
+            pro: false,
+            totp: None,
+            email_otp: None,
+        };
+        assert!(user.validate().is_ok());
+    }
+
+    #[test]
+    fn test_user_validate_empty_username() {
+        let user = User {
+            id: 1,
+            created: Utc::now(),
+            username: "".to_string(),
+            name: "Test".to_string(),
+            email: "test@example.com".to_string(),
+            password: "hashed".to_string(),
+            admin: false,
+            external: false,
+            alert: false,
+            pro: false,
+            totp: None,
+            email_otp: None,
+        };
+        assert!(matches!(user.validate(), Err(ValidationError::UsernameEmpty)));
+    }
+
+    #[test]
+    fn test_user_validate_empty_email() {
+        let user = User {
+            id: 1,
+            created: Utc::now(),
+            username: "testuser".to_string(),
+            name: "Test".to_string(),
+            email: "".to_string(),
+            password: "hashed".to_string(),
+            admin: false,
+            external: false,
+            alert: false,
+            pro: false,
+            totp: None,
+            email_otp: None,
+        };
+        assert!(matches!(user.validate(), Err(ValidationError::EmailEmpty)));
+    }
+
+    #[test]
+    fn test_user_validate_empty_name() {
+        let user = User {
+            id: 1,
+            created: Utc::now(),
+            username: "testuser".to_string(),
+            name: "".to_string(),
+            email: "test@example.com".to_string(),
+            password: "hashed".to_string(),
+            admin: false,
+            external: false,
+            alert: false,
+            pro: false,
+            totp: None,
+            email_otp: None,
+        };
+        assert!(matches!(user.validate(), Err(ValidationError::NameEmpty)));
+    }
+
+    #[test]
+    fn test_user_serialization_skips_password() {
+        let user = User {
+            id: 1,
+            created: Utc::now(),
+            username: "testuser".to_string(),
+            name: "Test".to_string(),
+            email: "test@example.com".to_string(),
+            password: "secret_hash".to_string(),
+            admin: true,
+            external: false,
+            alert: false,
+            pro: true,
+            totp: None,
+            email_otp: None,
+        };
+        let json = serde_json::to_string(&user).unwrap();
+        assert!(json.contains("\"username\":\"testuser\""));
+        assert!(json.contains("\"admin\":true"));
+        assert!(json.contains("\"pro\":true"));
+        assert!(!json.contains("secret_hash"));
+    }
+
+    #[test]
+    fn test_project_user_role_display() {
+        assert_eq!(ProjectUserRole::Owner.to_string(), "owner");
+        assert_eq!(ProjectUserRole::Manager.to_string(), "manager");
+        assert_eq!(ProjectUserRole::TaskRunner.to_string(), "task_runner");
+        assert_eq!(ProjectUserRole::Guest.to_string(), "guest");
+        assert_eq!(ProjectUserRole::None.to_string(), "none");
+    }
+
+    #[test]
+    fn test_user_with_project_role() {
+        let user = User {
+            id: 1,
+            created: Utc::now(),
+            username: "testuser".to_string(),
+            name: "Test".to_string(),
+            email: "test@example.com".to_string(),
+            password: "hashed".to_string(),
+            admin: false,
+            external: false,
+            alert: false,
+            pro: false,
+            totp: None,
+            email_otp: None,
+        };
+        let user_with_role = UserWithProjectRole {
+            user,
+            role: ProjectUserRole::Manager,
+        };
+        assert_eq!(user_with_role.role, ProjectUserRole::Manager);
+        assert_eq!(user_with_role.user.username, "testuser");
+    }
+
+    #[test]
+    fn test_user_email_otp_is_expired() {
+        // OTP создан 15 минут назад — истёк
+        let otp = UserEmailOtp {
+            id: 1,
+            created: Utc::now() - chrono::Duration::minutes(15),
+            user_id: 1,
+            code: "123456".to_string(),
+        };
+        assert!(otp.is_expired());
+    }
+
+    #[test]
+    fn test_user_email_otp_not_expired() {
+        // OTP создан 2 минуты назад — ещё действителен
+        let otp = UserEmailOtp {
+            id: 1,
+            created: Utc::now() - chrono::Duration::minutes(2),
+            user_id: 1,
+            code: "123456".to_string(),
+        };
+        assert!(!otp.is_expired());
+    }
+
+    #[test]
+    fn test_user_totp_default() {
+        let totp = UserTotp::default();
+        assert_eq!(totp.id, 0);
+        assert_eq!(totp.user_id, 0);
+        assert!(totp.recovery_code.is_none());
+    }
+
+    #[test]
+    fn test_user_with_pwd_serialization_skips_password() {
+        let user = User {
+            id: 1,
+            created: Utc::now(),
+            username: "testuser".to_string(),
+            name: "Test".to_string(),
+            email: "test@example.com".to_string(),
+            password: "hashed_pwd".to_string(),
+            admin: false,
+            external: false,
+            alert: false,
+            pro: false,
+            totp: None,
+            email_otp: None,
+        };
+        let user_with_pwd = UserWithPwd {
+            pwd: "plain_password".to_string(),
+            user,
+        };
+        let json = serde_json::to_string(&user_with_pwd).unwrap();
+        // username должен быть (flatten из user)
+        assert!(json.contains("\"username\":\"testuser\""));
+        // password пользователя не должен быть в JSON (skip_serializing)
+        assert!(!json.contains("hashed_pwd"));
+        // pwd — зависит от serde конфигурации UserWithPwd
+        // Проверяем что сериализация не паникует
+        assert!(!json.is_empty());
+    }
+}
