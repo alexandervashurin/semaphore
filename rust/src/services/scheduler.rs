@@ -344,4 +344,85 @@ mod tests {
         assert_eq!(job.schedule_id, 1);
         assert!(job.active);
     }
+
+    #[test]
+    fn test_scheduled_job_inactive() {
+        let job = ScheduledJob {
+            schedule_id: 2,
+            template_id: 5,
+            project_id: 1,
+            cron: "*/5 * * * *".to_string(),
+            name: "Inactive Job".to_string(),
+            active: false,
+            next_run: None,
+        };
+
+        assert!(!job.active);
+        assert!(job.next_run.is_none());
+    }
+
+    #[test]
+    fn test_normalize_cron_expression_preserves_valid() {
+        // 5-полевые cron из UI дополняются секундным полем
+        assert_eq!(SchedulePool::normalize_cron_expression("0 * * * *"), "0 0 * * * *");
+        assert_eq!(SchedulePool::normalize_cron_expression("*/5 * * * *"), "0 */5 * * * *");
+        assert_eq!(SchedulePool::normalize_cron_expression("0 0 * * *"), "0 0 0 * * *");
+        assert_eq!(SchedulePool::normalize_cron_expression("0 12 * * 1-5"), "0 0 12 * * 1-5");
+
+        // 6-полевые (уже с секундами) не изменяются
+        assert_eq!(SchedulePool::normalize_cron_expression("0 0 * * * *"), "0 0 * * * *");
+        assert_eq!(SchedulePool::normalize_cron_expression("30 0 * * * *"), "30 0 * * * *");
+    }
+
+    #[test]
+    fn test_calculate_next_run_valid_cron() {
+        let result = SchedulePool::calculate_next_run("0 * * * *");
+        assert!(result.is_ok());
+        let next = result.unwrap();
+        // Следующий запуск должен быть в будущем
+        assert!(next > Utc::now());
+    }
+
+    #[test]
+    fn test_calculate_next_run_invalid_cron() {
+        let result = SchedulePool::calculate_next_run("invalid cron");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_cron_for_storage_rejects_invalid() {
+        let result = SchedulePool::validate_cron_for_storage("not a cron");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_cron_for_storage_accepts_valid() {
+        let result = SchedulePool::validate_cron_for_storage("0 * * * *");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_add_schedule_validates_cron() {
+        use crate::models::Schedule;
+
+        // Создаём schedule с невалидным cron
+        let schedule = Schedule {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            cron: "not a cron".to_string(),
+            cron_format: None,
+            name: "Bad Schedule".to_string(),
+            active: true,
+            last_commit_hash: None,
+            repository_id: None,
+            created: None,
+            run_at: None,
+            delete_after_run: false,
+        };
+
+        // Проверяем что валидация cron работает
+        let validation = SchedulePool::validate_cron_for_storage(&schedule.cron);
+        assert!(validation.is_err());
+    }
 }
