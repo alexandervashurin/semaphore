@@ -205,4 +205,69 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), "TaskPool is shutdown");
     }
+
+    #[tokio::test]
+    async fn test_get_next_task_from_empty_queue() {
+        let pool = create_test_pool().await;
+
+        let next = pool.get_next_task().await;
+        assert!(next.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_queue_returns_copy() {
+        let pool = create_test_pool().await;
+
+        pool.add_task(create_test_task(1)).await.unwrap();
+        pool.add_task(create_test_task(2)).await.unwrap();
+
+        let queue1 = pool.get_queue().await;
+        assert_eq!(queue1.len(), 2);
+
+        // Получаем копию — модификация копии не влияет на оригинал
+        let queue2 = pool.get_queue().await;
+        assert_eq!(queue2.len(), 2);
+
+        // Проверяем что очереди независимы
+        assert_eq!(queue1[0].id, queue2[0].id);
+    }
+
+    #[tokio::test]
+    async fn test_remove_task_preserves_order() {
+        let pool = create_test_pool().await;
+
+        pool.add_task(create_test_task(1)).await.unwrap();
+        pool.add_task(create_test_task(2)).await.unwrap();
+        pool.add_task(create_test_task(3)).await.unwrap();
+
+        // Удаляем первый элемент
+        let removed = pool.remove_task(1).await;
+        assert!(removed);
+
+        let queue = pool.get_queue().await;
+        assert_eq!(queue.len(), 2);
+        assert_eq!(queue[0].id, 2);
+        assert_eq!(queue[1].id, 3);
+    }
+
+    #[tokio::test]
+    async fn test_fifo_order() {
+        let pool = create_test_pool().await;
+
+        pool.add_task(create_test_task(10)).await.unwrap();
+        pool.add_task(create_test_task(20)).await.unwrap();
+        pool.add_task(create_test_task(30)).await.unwrap();
+
+        // get_next_task должен вернуть первый добавленный
+        let first = pool.get_next_task().await.unwrap();
+        assert_eq!(first.id, 10);
+
+        let second = pool.get_next_task().await.unwrap();
+        assert_eq!(second.id, 20);
+
+        let third = pool.get_next_task().await.unwrap();
+        assert_eq!(third.id, 30);
+
+        assert!(pool.get_next_task().await.is_none());
+    }
 }
