@@ -75,3 +75,71 @@ pub struct TerraformTaskParams {
 /// Параметры задачи по умолчанию
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DefaultTaskParams {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ansible_task_params_default() {
+        let params = AnsibleTaskParams::default();
+        assert!(!params.debug);
+        assert_eq!(params.debug_level, 0);
+        assert!(!params.dry_run);
+        assert!(!params.diff);
+        assert!(params.limit.is_empty());
+        assert!(params.tags.is_empty());
+    }
+
+    #[test]
+    fn test_ansible_task_params_serialization() {
+        let params = AnsibleTaskParams {
+            debug: true,
+            debug_level: 3,
+            dry_run: true,
+            diff: false,
+            limit: vec!["web".to_string()],
+            tags: vec!["deploy".to_string()],
+            skip_tags: vec!["test".to_string()],
+        };
+        let json = serde_json::to_string(&params).unwrap();
+        assert!(json.contains("\"debug\":true"));
+        assert!(json.contains("\"dry_run\":true"));
+        assert!(json.contains("\"limit\":[\"web\"]"));
+    }
+
+    #[test]
+    fn test_terraform_task_params_default() {
+        let params = TerraformTaskParams::default();
+        assert!(!params.plan);
+        assert!(!params.destroy);
+        assert!(!params.auto_approve);
+        assert!(params.backend_config.is_none());
+        assert!(params.workspace.is_none());
+    }
+
+    #[test]
+    fn test_terraform_task_params_serialization() {
+        let params = TerraformTaskParams {
+            plan: true,
+            destroy: false,
+            auto_approve: true,
+            upgrade: true,
+            reconfigure: false,
+            backend_init_required: true,
+            backend_config: Some("key=value".to_string()),
+            workspace: Some("prod".to_string()),
+        };
+        let json = serde_json::to_string(&params).unwrap();
+        assert!(json.contains("\"plan\":true"));
+        assert!(json.contains("\"auto_approve\":true"));
+        assert!(json.contains("\"workspace\":\"prod\""));
+    }
+
+    #[test]
+    fn test_default_task_params() {
+        let params = DefaultTaskParams::default();
+        let json = serde_json::to_string(&params).unwrap();
+        assert_eq!(json, "{}");
+    }
+}
