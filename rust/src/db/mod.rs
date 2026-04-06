@@ -18,7 +18,5 @@ pub use store::{
 
 pub use sql::SqlStore;
 
-#[cfg(test)]
 pub mod mock;
-#[cfg(test)]
 pub use mock::MockStore;
