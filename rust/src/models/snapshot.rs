@@ -48,3 +48,67 @@ pub struct RollbackRequest {
     /// Пользовательское сообщение для задачи отката
     pub message: Option<String>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_task_snapshot_serialization() {
+        let snapshot = TaskSnapshot {
+            id: 1,
+            project_id: 10,
+            template_id: 5,
+            task_id: 100,
+            git_branch: Some("main".to_string()),
+            git_commit: Some("abc123".to_string()),
+            arguments: Some("--limit=web".to_string()),
+            inventory_id: Some(3),
+            environment_id: Some(2),
+            message: Some("Successful deploy".to_string()),
+            label: Some("v1.2.3".to_string()),
+            created_at: "2024-01-01T00:00:00Z".to_string(),
+            template_name: "Deploy".to_string(),
+        };
+        let json = serde_json::to_string(&snapshot).unwrap();
+        assert!(json.contains("\"label\":\"v1.2.3\""));
+        assert!(json.contains("\"git_commit\":\"abc123\""));
+    }
+
+    #[test]
+    fn test_task_snapshot_create_serialization() {
+        let create = TaskSnapshotCreate {
+            template_id: 5,
+            task_id: 100,
+            git_branch: Some("develop".to_string()),
+            git_commit: Some("def456".to_string()),
+            arguments: None,
+            inventory_id: None,
+            environment_id: None,
+            message: None,
+            label: Some("test-snapshot".to_string()),
+        };
+        let json = serde_json::to_string(&create).unwrap();
+        assert!(json.contains("\"template_id\":5"));
+        assert!(json.contains("\"label\":\"test-snapshot\""));
+        // TaskSnapshotCreate doesn't have skip_serializing_if
+        assert!(json.contains("\"arguments\":null"));
+    }
+
+    #[test]
+    fn test_rollback_request_serialization() {
+        let req = RollbackRequest {
+            message: Some("Rolling back due to issues".to_string()),
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(json.contains("\"message\":\"Rolling back due to issues\""));
+    }
+
+    #[test]
+    fn test_rollback_request_empty() {
+        let req = RollbackRequest { message: None };
+        let json = serde_json::to_string(&req).unwrap();
+        // RollbackRequest doesn't have skip_serializing_if
+        assert!(json.contains("\"message\":null"));
+    }
+}
