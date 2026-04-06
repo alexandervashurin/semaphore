@@ -453,3 +453,112 @@ impl AccessKey {
         &self.r#type
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_access_key_type_display() {
+        assert_eq!(AccessKeyType::None.to_string(), "none");
+        assert_eq!(AccessKeyType::LoginPassword.to_string(), "login_password");
+        assert_eq!(AccessKeyType::SSH.to_string(), "ssh");
+        assert_eq!(AccessKeyType::AccessKey.to_string(), "access_key");
+    }
+
+    #[test]
+    fn test_access_key_type_from_str() {
+        assert_eq!("ssh".parse::<AccessKeyType>().unwrap(), AccessKeyType::SSH);
+        assert_eq!("login_password".parse::<AccessKeyType>().unwrap(), AccessKeyType::LoginPassword);
+        assert_eq!("unknown".parse::<AccessKeyType>().unwrap(), AccessKeyType::None);
+    }
+
+    #[test]
+    fn test_access_key_owner_display() {
+        assert_eq!(AccessKeyOwner::User.to_string(), "user");
+        assert_eq!(AccessKeyOwner::Project.to_string(), "project");
+        assert_eq!(AccessKeyOwner::Shared.to_string(), "shared");
+    }
+
+    #[test]
+    fn test_access_key_new() {
+        let key = AccessKey::new("My Key".to_string(), AccessKeyType::SSH);
+        assert_eq!(key.id, 0);
+        assert_eq!(key.name, "My Key");
+        assert_eq!(key.r#type, AccessKeyType::SSH);
+        assert!(key.project_id.is_none());
+    }
+
+    #[test]
+    fn test_access_key_new_ssh() {
+        let key = AccessKey::new_ssh(
+            10,
+            "SSH Key".to_string(),
+            "-----BEGIN RSA PRIVATE KEY-----".to_string(),
+            "".to_string(),
+            "deploy".to_string(),
+            Some(1),
+        );
+        assert_eq!(key.project_id, Some(10));
+        assert_eq!(key.r#type, AccessKeyType::SSH);
+        assert_eq!(key.login_password_login, Some("deploy".to_string()));
+        assert!(key.ssh_key.is_some());
+    }
+
+    #[test]
+    fn test_access_key_new_login_password() {
+        let key = AccessKey::new_login_password(
+            5,
+            "Login Key".to_string(),
+            "admin".to_string(),
+            "secret".to_string(),
+            None,
+        );
+        assert_eq!(key.project_id, Some(5));
+        assert_eq!(key.r#type, AccessKeyType::LoginPassword);
+        assert_eq!(key.login_password_login, Some("admin".to_string()));
+    }
+
+    #[test]
+    fn test_access_key_serialization() {
+        let key = AccessKey::new("Test".to_string(), AccessKeyType::SSH);
+        let json = serde_json::to_string(&key).unwrap();
+        assert!(json.contains("\"name\":\"Test\""));
+        assert!(json.contains("\"type\":\"ssh\""));
+    }
+
+    #[test]
+    fn test_access_key_serialization_skip_nulls() {
+        let key = AccessKey::new("Minimal".to_string(), AccessKeyType::None);
+        let json = serde_json::to_string(&key).unwrap();
+        assert!(!json.contains("\"project_id\":"));
+        assert!(!json.contains("\"ssh_key\":"));
+    }
+
+    #[test]
+    fn test_get_ssh_key_data() {
+        let key = AccessKey::new_ssh(
+            1, "key".to_string(), "private_key".to_string(), "pass".to_string(), "user".to_string(), None,
+        );
+        let data = key.get_ssh_key_data().unwrap();
+        assert_eq!(data.private_key, "private_key");
+        assert_eq!(data.passphrase, Some("pass".to_string()));
+        assert_eq!(data.login, "user".to_string());
+    }
+
+    #[test]
+    fn test_get_login_password_data() {
+        let key = AccessKey::new_login_password(
+            1, "key".to_string(), "admin".to_string(), "secret".to_string(), None,
+        );
+        let data = key.get_login_password_data().unwrap();
+        assert_eq!(data.login, "admin");
+        assert_eq!(data.password, "secret");
+    }
+
+    #[test]
+    fn test_get_type() {
+        let key = AccessKey::new("key".to_string(), AccessKeyType::SSH);
+        assert_eq!(key.get_type(), &AccessKeyType::SSH);
+    }
+}
