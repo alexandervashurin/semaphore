@@ -36,3 +36,45 @@ impl ObjectReferrers {
             && self.integrations.is_empty()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_object_referrers_default() {
+        let referrers = ObjectReferrers::default();
+        assert!(referrers.is_empty());
+        assert!(referrers.templates.is_empty());
+    }
+
+    #[test]
+    fn test_object_referrers_new() {
+        let referrers = ObjectReferrers::new();
+        assert!(referrers.is_empty());
+    }
+
+    #[test]
+    fn test_object_referrers_not_empty() {
+        let referrers = ObjectReferrers {
+            templates: vec![1, 2],
+            tasks: vec![],
+            schedules: vec![],
+            integrations: vec![],
+        };
+        assert!(!referrers.is_empty());
+    }
+
+    #[test]
+    fn test_object_referrers_serialization() {
+        let referrers = ObjectReferrers {
+            templates: vec![1, 2, 3],
+            tasks: vec![10, 20],
+            schedules: vec![],
+            integrations: vec![5],
+        };
+        let json = serde_json::to_string(&referrers).unwrap();
+        assert!(json.contains("\"templates\":[1,2,3]"));
+        assert!(json.contains("\"tasks\":[10,20]"));
+    }
+}
