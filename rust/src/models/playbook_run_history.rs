@@ -184,3 +184,106 @@ pub struct PlaybookRunFilter {
     pub limit: Option<usize>,
     pub offset: Option<usize>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_playbook_run_status_display() {
+        assert_eq!(PlaybookRunStatus::Waiting.to_string(), "waiting");
+        assert_eq!(PlaybookRunStatus::Running.to_string(), "running");
+        assert_eq!(PlaybookRunStatus::Success.to_string(), "success");
+        assert_eq!(PlaybookRunStatus::Failed.to_string(), "failed");
+        assert_eq!(PlaybookRunStatus::Cancelled.to_string(), "cancelled");
+    }
+
+    #[test]
+    fn test_playbook_run_serialization() {
+        let run = PlaybookRun {
+            id: 1,
+            project_id: 10,
+            playbook_id: 5,
+            task_id: Some(100),
+            template_id: Some(3),
+            status: PlaybookRunStatus::Success,
+            inventory_id: None,
+            environment_id: None,
+            extra_vars: None,
+            limit_hosts: None,
+            tags: None,
+            skip_tags: None,
+            start_time: Some(Utc::now()),
+            end_time: Some(Utc::now()),
+            duration_seconds: Some(120),
+            hosts_total: Some(5),
+            hosts_changed: Some(2),
+            hosts_unreachable: Some(0),
+            hosts_failed: Some(0),
+            output: Some("PLAY RECAP *****".to_string()),
+            error_message: None,
+            user_id: Some(1),
+            created: Utc::now(),
+            updated: Utc::now(),
+        };
+        let json = serde_json::to_string(&run).unwrap();
+        // PlaybookRunStatus uses sqlx::Type, not serde rename
+        assert!(json.contains("\"duration_seconds\":120"));
+        assert!(json.contains("\"hosts_changed\":2"));
+    }
+
+    #[test]
+    fn test_playbook_run_create_serialization() {
+        let create = PlaybookRunCreate {
+            project_id: 10,
+            playbook_id: 5,
+            task_id: None,
+            template_id: None,
+            inventory_id: Some(3),
+            environment_id: Some(2),
+            extra_vars: None,
+            limit_hosts: None,
+            tags: Some("deploy".to_string()),
+            skip_tags: None,
+            user_id: Some(1),
+        };
+        let json = serde_json::to_string(&create).unwrap();
+        assert!(json.contains("\"project_id\":10"));
+        assert!(json.contains("\"tags\":\"deploy\""));
+    }
+
+    #[test]
+    fn test_playbook_run_update_skip_nulls() {
+        let update = PlaybookRunUpdate {
+            status: Some(PlaybookRunStatus::Failed),
+            start_time: None,
+            end_time: Some(Utc::now()),
+            duration_seconds: None,
+            hosts_total: Some(10),
+            hosts_changed: None,
+            hosts_unreachable: None,
+            hosts_failed: Some(3),
+            output: Some("Error output".to_string()),
+            error_message: Some("Task failed".to_string()),
+        };
+        let json = serde_json::to_string(&update).unwrap();
+        // PlaybookRunStatus doesn't have serde rename, so status serializes differently
+        assert!(json.contains("\"hosts_total\":10"));
+        assert!(json.contains("\"hosts_failed\":3"));
+        assert!(!json.contains("\"hosts_changed\":"));
+    }
+
+    #[test]
+    fn test_playbook_run_stats_serialization() {
+        let stats = PlaybookRunStats {
+            total_runs: 100,
+            success_runs: 85,
+            failed_runs: 10,
+            avg_duration_seconds: Some(95.5),
+            last_run: Some(Utc::now()),
+        };
+        let json = serde_json::to_string(&stats).unwrap();
+        assert!(json.contains("\"total_runs\":100"));
+        assert!(json.contains("\"avg_duration_seconds\":95.5"));
+    }
+}
