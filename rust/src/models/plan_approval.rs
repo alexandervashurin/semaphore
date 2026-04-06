@@ -56,3 +56,62 @@ pub struct TerraformPlan {
 pub struct PlanReviewPayload {
     pub comment: Option<String>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_plan_status_display() {
+        assert_eq!(PlanStatus::Pending.to_string(), "pending");
+        assert_eq!(PlanStatus::Approved.to_string(), "approved");
+        assert_eq!(PlanStatus::Rejected.to_string(), "rejected");
+    }
+
+    #[test]
+    fn test_plan_status_from_str() {
+        assert_eq!("approved".parse::<PlanStatus>().unwrap(), PlanStatus::Approved);
+        assert_eq!("rejected".parse::<PlanStatus>().unwrap(), PlanStatus::Rejected);
+        assert_eq!("unknown".parse::<PlanStatus>().unwrap(), PlanStatus::Pending);
+    }
+
+    #[test]
+    fn test_terraform_plan_serialization() {
+        let plan = TerraformPlan {
+            id: 1,
+            task_id: 100,
+            project_id: 10,
+            plan_output: "Plan: 1 to add, 0 to change, 0 to destroy.".to_string(),
+            plan_json: None,
+            resources_added: 1,
+            resources_changed: 0,
+            resources_removed: 0,
+            status: "pending".to_string(),
+            created_at: Utc::now(),
+            reviewed_at: None,
+            reviewed_by: None,
+            review_comment: None,
+        };
+        let json = serde_json::to_string(&plan).unwrap();
+        assert!(json.contains("\"task_id\":100"));
+        assert!(json.contains("\"resources_added\":1"));
+        assert!(json.contains("\"status\":\"pending\""));
+    }
+
+    #[test]
+    fn test_plan_review_payload_serialization() {
+        let payload = PlanReviewPayload {
+            comment: Some("Looks good to me".to_string()),
+        };
+        let json = serde_json::to_string(&payload).unwrap();
+        assert!(json.contains("\"comment\":\"Looks good to me\""));
+    }
+
+    #[test]
+    fn test_plan_review_payload_empty() {
+        let payload = PlanReviewPayload { comment: None };
+        let json = serde_json::to_string(&payload).unwrap();
+        // PlanReviewPayload doesn't have skip_serializing_if
+        assert!(json.contains("\"comment\":null"));
+    }
+}
