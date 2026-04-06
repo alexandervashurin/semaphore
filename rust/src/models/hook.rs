@@ -66,3 +66,67 @@ impl Hook {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_hook_type_serialization() {
+        assert_eq!(serde_json::to_string(&HookType::Http).unwrap(), "\"http\"");
+        assert_eq!(serde_json::to_string(&HookType::Bash).unwrap(), "\"bash\"");
+        assert_eq!(serde_json::to_string(&HookType::Python).unwrap(), "\"python\"");
+    }
+
+    #[test]
+    fn test_hook_new_http() {
+        let hook = Hook::new(10, 5, "Notify Slack".to_string(), HookType::Http);
+        assert_eq!(hook.id, 0);
+        assert_eq!(hook.project_id, 10);
+        assert_eq!(hook.template_id, 5);
+        assert_eq!(hook.name, "Notify Slack");
+        assert_eq!(hook.r#type, HookType::Http);
+        assert!(hook.url.is_none());
+    }
+
+    #[test]
+    fn test_hook_new_bash() {
+        let hook = Hook::new(1, 1, "Cleanup".to_string(), HookType::Bash);
+        assert_eq!(hook.r#type, HookType::Bash);
+        assert!(hook.script.is_none());
+    }
+
+    #[test]
+    fn test_hook_serialization() {
+        let hook = Hook {
+            id: 1,
+            project_id: 10,
+            template_id: 5,
+            name: "Webhook".to_string(),
+            r#type: HookType::Http,
+            url: Some("https://hooks.slack.com/xxx".to_string()),
+            script: None,
+            http_method: Some("POST".to_string()),
+            http_body: Some(r#"{"text":"done"}"#.to_string()),
+            timeout_secs: Some(30),
+        };
+        let json = serde_json::to_string(&hook).unwrap();
+        assert!(json.contains("\"name\":\"Webhook\""));
+        assert!(json.contains("\"type\":\"http\""));
+        assert!(json.contains("\"http_method\":\"POST\""));
+        assert!(json.contains("\"timeout_secs\":30"));
+    }
+
+    #[test]
+    fn test_hook_serialization_skip_nulls() {
+        let hook = Hook::new(1, 1, "Simple".to_string(), HookType::Bash);
+        let json = serde_json::to_string(&hook).unwrap();
+        // Hook struct doesn't have skip_serializing_if on Option fields
+        // so null values are serialized as "url":null
+        assert!(json.contains("\"url\":null"));
+        assert!(json.contains("\"script\":null"));
+        assert!(json.contains("\"http_method\":null"));
+        assert!(json.contains("\"http_body\":null"));
+        assert!(json.contains("\"timeout_secs\":null"));
+    }
+}
