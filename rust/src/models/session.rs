@@ -72,3 +72,61 @@ pub struct Session {
     pub verification_method: SessionVerificationMethod,
     pub verified: bool,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_session_verification_method_display() {
+        assert_eq!(
+            serde_json::to_string(&SessionVerificationMethod::None).unwrap(),
+            "\"none\""
+        );
+        assert_eq!(
+            serde_json::to_string(&SessionVerificationMethod::Totp).unwrap(),
+            "\"totp\""
+        );
+        assert_eq!(
+            serde_json::to_string(&SessionVerificationMethod::EmailOtp).unwrap(),
+            "\"email_otp\""
+        );
+    }
+
+    #[test]
+    fn test_session_serialization() {
+        let session = Session {
+            id: 1,
+            user_id: 10,
+            created: Utc::now(),
+            last_active: Utc::now(),
+            ip: "192.168.1.1".to_string(),
+            user_agent: "Mozilla/5.0".to_string(),
+            expired: false,
+            verification_method: SessionVerificationMethod::Totp,
+            verified: true,
+        };
+        let json = serde_json::to_string(&session).unwrap();
+        assert!(json.contains("\"user_id\":10"));
+        assert!(json.contains("\"ip\":\"192.168.1.1\""));
+        assert!(json.contains("\"verified\":true"));
+    }
+
+    #[test]
+    fn test_session_clone() {
+        let session = Session {
+            id: 1,
+            user_id: 1,
+            created: Utc::now(),
+            last_active: Utc::now(),
+            ip: "127.0.0.1".to_string(),
+            user_agent: "Test Agent".to_string(),
+            expired: false,
+            verification_method: SessionVerificationMethod::None,
+            verified: false,
+        };
+        let cloned = session.clone();
+        assert_eq!(cloned.ip, session.ip);
+        assert_eq!(cloned.verification_method, session.verification_method);
+    }
+}
