@@ -33,3 +33,29 @@ impl Migration {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_migration_new() {
+        let migration = Migration::new(1, "create_users_table".to_string());
+        assert_eq!(migration.id, 0);
+        assert_eq!(migration.version, 1);
+        assert_eq!(migration.name, "create_users_table");
+    }
+
+    #[test]
+    fn test_migration_serialization() {
+        let migration = Migration {
+            id: 1,
+            version: 20240101000000,
+            name: "add_templates".to_string(),
+            applied: Utc::now(),
+        };
+        let json = serde_json::to_string(&migration).unwrap();
+        assert!(json.contains("\"version\":20240101000000"));
+        assert!(json.contains("\"name\":\"add_templates\""));
+    }
+}
