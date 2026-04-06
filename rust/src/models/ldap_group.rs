@@ -28,3 +28,35 @@ pub struct LdapGroupMappingCreate {
     pub project_id: i32,
     pub role: String,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ldap_group_mapping_serialization() {
+        let mapping = LdapGroupMapping {
+            id: 1,
+            ldap_group_dn: "CN=devops,OU=Groups,DC=company,DC=com".to_string(),
+            project_id: 10,
+            role: "manager".to_string(),
+            created_at: "2024-01-01T00:00:00Z".to_string(),
+            project_name: "My Project".to_string(),
+        };
+        let json = serde_json::to_string(&mapping).unwrap();
+        assert!(json.contains("\"ldap_group_dn\":\"CN=devops"));
+        assert!(json.contains("\"role\":\"manager\""));
+    }
+
+    #[test]
+    fn test_ldap_group_mapping_create_serialization() {
+        let create = LdapGroupMappingCreate {
+            ldap_group_dn: "CN=admin,DC=example,DC=com".to_string(),
+            project_id: 5,
+            role: "owner".to_string(),
+        };
+        let json = serde_json::to_string(&create).unwrap();
+        assert!(json.contains("\"ldap_group_dn\":\"CN=admin"));
+        assert!(json.contains("\"project_id\":5"));
+    }
+}
