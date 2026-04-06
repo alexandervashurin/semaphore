@@ -574,4 +574,73 @@ mod tests {
 
         assert_eq!(events.len(), 5);
     }
+
+    #[tokio::test]
+    async fn test_task_pool_state_queue_manipulation() {
+        let mut state = TaskPoolState::new();
+
+        // Добавляем задачи в очередь
+        let task1 = Task {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            status: TaskStatus::Waiting,
+            playbook: None,
+            environment: None,
+            secret: None,
+            arguments: None,
+            git_branch: None,
+            user_id: None,
+            integration_id: None,
+            schedule_id: None,
+            created: Utc::now(),
+            start: None,
+            end: None,
+            message: None,
+            commit_hash: None,
+            commit_message: None,
+            build_task_id: None,
+            version: None,
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+            params: None,
+        };
+
+        state.queue.entry(1).or_insert_with(Vec::new).push(task1.clone());
+        assert_eq!(state.queue.values().map(|q| q.len()).sum::<usize>(), 1);
+
+        // Добавляем running задачу
+        let running = RunningTask {
+            task: task1.clone(),
+            project_id: 1,
+            started_at: Utc::now(),
+            runner_id: None,
+        };
+        state.running.entry(1).or_insert_with(Vec::new).push(running);
+        assert_eq!(state.running.values().map(|r| r.len()).sum::<usize>(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_task_pool_state_block_management() {
+        let mut state = TaskPoolState::new();
+
+        assert!(state.blocks.is_empty());
+
+        // Добавляем блокировку
+        state.blocks.insert(100, Arc::new(Semaphore::new(2)));
+        assert_eq!(state.blocks.len(), 1);
+
+        // Удаляем блокировку
+        state.blocks.remove(&100);
+        assert!(state.blocks.is_empty());
+    }
+
+    #[test]
+    fn test_task_pool_event_debug_format() {
+        let event = TaskPoolEvent::TaskFinished { task_id: 42, success: true };
+        let debug_str = format!("{:?}", event);
+        assert!(debug_str.contains("TaskFinished"));
+        assert!(debug_str.contains("42"));
+    }
 }
