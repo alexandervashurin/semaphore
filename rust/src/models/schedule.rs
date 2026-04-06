@@ -40,3 +40,100 @@ pub struct ScheduleWithTpl {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tpl_playbook: Option<String>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_schedule_serialization() {
+        let schedule = Schedule {
+            id: 1,
+            template_id: 10,
+            project_id: 5,
+            cron: "0 * * * *".to_string(),
+            cron_format: Some("standard".to_string()),
+            name: "Hourly Deploy".to_string(),
+            active: true,
+            last_commit_hash: Some("abc123".to_string()),
+            repository_id: Some(3),
+            created: Some("2024-01-01T00:00:00Z".to_string()),
+            run_at: None,
+            delete_after_run: false,
+        };
+        let json = serde_json::to_string(&schedule).unwrap();
+        assert!(json.contains("\"name\":\"Hourly Deploy\""));
+        assert!(json.contains("\"cron\":\"0 * * * *\""));
+        assert!(json.contains("\"active\":true"));
+    }
+
+    #[test]
+    fn test_schedule_skip_nulls() {
+        let schedule = Schedule {
+            id: 1,
+            template_id: 10,
+            project_id: 5,
+            cron: "0 0 * * *".to_string(),
+            cron_format: None,
+            name: "Daily".to_string(),
+            active: true,
+            last_commit_hash: None,
+            repository_id: None,
+            created: None,
+            run_at: None,
+            delete_after_run: false,
+        };
+        let json = serde_json::to_string(&schedule).unwrap();
+        // run_at uses skip_serializing_if so it's omitted when None
+        assert!(!json.contains("\"run_at\":"));
+        // last_commit_hash and repository_id use #[serde(default)] so they serialize
+        assert!(json.contains("\"last_commit_hash\":null"));
+        assert!(json.contains("\"repository_id\":null"));
+    }
+
+    #[test]
+    fn test_schedule_run_at_serialization() {
+        let schedule = Schedule {
+            id: 1,
+            template_id: 10,
+            project_id: 5,
+            cron: String::new(),
+            cron_format: Some("run_at".to_string()),
+            name: "One-time deploy".to_string(),
+            active: true,
+            last_commit_hash: None,
+            repository_id: None,
+            created: None,
+            run_at: Some("2024-06-15T10:00:00Z".to_string()),
+            delete_after_run: true,
+        };
+        let json = serde_json::to_string(&schedule).unwrap();
+        assert!(json.contains("\"run_at\":\"2024-06-15T10:00:00Z\""));
+        assert!(json.contains("\"delete_after_run\":true"));
+    }
+
+    #[test]
+    fn test_schedule_with_tpl_serialization() {
+        let schedule = Schedule {
+            id: 1,
+            template_id: 10,
+            project_id: 5,
+            cron: "*/5 * * * *".to_string(),
+            cron_format: None,
+            name: "Frequent".to_string(),
+            active: true,
+            last_commit_hash: None,
+            repository_id: None,
+            created: None,
+            run_at: None,
+            delete_after_run: false,
+        };
+        let with_tpl = ScheduleWithTpl {
+            schedule,
+            tpl_playbook: Some("deploy.yml".to_string()),
+        };
+        let json = serde_json::to_string(&with_tpl).unwrap();
+        assert!(json.contains("\"tpl_playbook\":\"deploy.yml\""));
+        assert!(json.contains("\"name\":\"Frequent\""));
+    }
+}
