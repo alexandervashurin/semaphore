@@ -479,4 +479,99 @@ mod tests {
         assert_eq!(record.task_id, 1);
         assert_eq!(record.output, "Test output");
     }
+
+    #[test]
+    fn test_task_pool_state_initial_state() {
+        let state = TaskPoolState::new();
+        assert!(state.queue.is_empty());
+        assert!(state.running.is_empty());
+        assert!(state.active_projects.is_empty());
+        assert!(state.blocks.is_empty());
+    }
+
+    #[test]
+    fn test_task_pool_state_default() {
+        let state = TaskPoolState::default();
+        assert!(state.queue.is_empty());
+        assert!(state.running.is_empty());
+    }
+
+    #[test]
+    fn test_running_task_default() {
+        let running = RunningTask {
+            task: Task {
+                id: 1,
+                project_id: 1,
+                template_id: 1,
+                status: TaskStatus::Waiting,
+                playbook: None,
+                environment: None,
+                secret: None,
+                arguments: None,
+                git_branch: None,
+                user_id: None,
+                integration_id: None,
+                schedule_id: None,
+                created: Utc::now(),
+                start: None,
+                end: None,
+                message: None,
+                commit_hash: None,
+                commit_message: None,
+                build_task_id: None,
+                version: None,
+                inventory_id: None,
+                repository_id: None,
+                environment_id: None,
+                params: None,
+            },
+            project_id: 1,
+            started_at: Utc::now(),
+            runner_id: Some(1),
+        };
+
+        assert_eq!(running.task.id, 1);
+        assert_eq!(running.project_id, 1);
+        assert_eq!(running.runner_id, Some(1));
+    }
+
+    #[test]
+    fn test_task_pool_event_variants() {
+        let task = Task {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            status: TaskStatus::Waiting,
+            playbook: None,
+            environment: None,
+            secret: None,
+            arguments: None,
+            git_branch: None,
+            user_id: None,
+            integration_id: None,
+            schedule_id: None,
+            created: Utc::now(),
+            start: None,
+            end: None,
+            message: None,
+            commit_hash: None,
+            commit_message: None,
+            build_task_id: None,
+            version: None,
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+            params: None,
+        };
+
+        let events = vec![
+            TaskPoolEvent::TaskCreated(task.clone()),
+            TaskPoolEvent::TaskFinished { task_id: 1, success: true },
+            TaskPoolEvent::TaskFailed { task_id: 1, error: "err".to_string() },
+            TaskPoolEvent::TaskRequeued(task.clone()),
+            TaskPoolEvent::QueueEmpty,
+        ];
+
+        assert_eq!(events.len(), 5);
+    }
 }
