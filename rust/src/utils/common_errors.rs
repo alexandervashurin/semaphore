@@ -90,4 +90,30 @@ mod tests {
         let err = new_user_error("test message");
         assert_eq!(err.to_string(), "test message");
     }
+
+    #[test]
+    fn test_user_visible_error_debug() {
+        let err = UserVisibleError::new("debug test");
+        let debug_str = format!("{:?}", err);
+        assert!(debug_str.contains("debug test"));
+    }
+
+    #[test]
+    fn test_user_visible_error_source_is_none() {
+        let err = UserVisibleError::new("test");
+        assert!(err.source().is_none());
+    }
+
+    #[test]
+    fn test_invalid_subscription_error_debug() {
+        let err = InvalidSubscriptionError;
+        let debug_str = format!("{:?}", err);
+        assert!(debug_str.contains("InvalidSubscriptionError"));
+    }
+
+    #[test]
+    fn test_get_error_context() {
+        let context = get_error_context();
+        assert_eq!(context, "unknown");
+    }
 }
