@@ -172,4 +172,32 @@ mod tests {
         assert!(json.contains("client_id"));
         assert!(json.contains("preferred_username"));
     }
+
+    #[test]
+    fn test_oidc_endpoint_default() {
+        let endpoint = OidcEndpoint::default();
+        assert!(endpoint.auth_url.is_empty());
+        assert!(endpoint.token_url.is_empty());
+        assert!(endpoint.userinfo_url.is_empty());
+        assert!(endpoint.jwks_url.is_empty());
+    }
+
+    #[test]
+    fn test_oidc_provider_return_via_state() {
+        let provider = OidcProvider::default();
+        assert!(provider.return_via_state);
+    }
+
+    #[test]
+    fn test_oidc_endpoint_serialization() {
+        let endpoint = OidcEndpoint {
+            auth_url: "https://example.com/auth".to_string(),
+            token_url: "https://example.com/token".to_string(),
+            userinfo_url: "https://example.com/userinfo".to_string(),
+            jwks_url: "https://example.com/.well-known/jwks.json".to_string(),
+        };
+        let json = serde_json::to_string(&endpoint).unwrap();
+        assert!(json.contains("\"auth_url\":\"https://example.com/auth\""));
+        assert!(json.contains("\"token_url\":\"https://example.com/token\""));
+    }
 }
