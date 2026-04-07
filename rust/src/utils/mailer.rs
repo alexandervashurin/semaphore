@@ -294,4 +294,57 @@ mod tests {
         assert!(!config.use_tls);
         assert!(!config.secure);
     }
+
+    #[test]
+    fn test_smtp_config_custom() {
+        let config = SmtpConfig {
+            host: "smtp.example.com".to_string(),
+            port: "587".to_string(),
+            username: Some("user".to_string()),
+            password: Some("pass".to_string()),
+            use_tls: true,
+            secure: false,
+            from: "noreply@example.com".to_string(),
+        };
+        assert_eq!(config.host, "smtp.example.com");
+        assert_eq!(config.port, "587");
+        assert!(config.use_tls);
+        assert!(!config.secure);
+    }
+
+    #[test]
+    fn test_email_new() {
+        let email = Email {
+            from: "from@test.com".to_string(),
+            to: "to@test.com".to_string(),
+            subject: "Test".to_string(),
+            body: "<h1>Hello</h1>".to_string(),
+        };
+        assert_eq!(email.from, "from@test.com");
+        assert_eq!(email.to, "to@test.com");
+    }
+
+    #[test]
+    fn test_email_message_invalid_from_address() {
+        let email = Email::new(
+            "invalid-email".to_string(),
+            "to@example.com".to_string(),
+            "Test".to_string(),
+            "Body".to_string(),
+        );
+        let result = email.create_message();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_email_message_invalid_to_address() {
+        let email = Email::new(
+            "from@example.com".to_string(),
+            "invalid-email".to_string(),
+            "Test".to_string(),
+            "Body".to_string(),
+        );
+        let result = email.create_message();
+        assert!(result.is_err());
+    }
 }
