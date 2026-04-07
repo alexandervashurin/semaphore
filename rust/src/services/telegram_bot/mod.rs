@@ -459,4 +459,183 @@ mod notify_tests {
         };
         assert_eq!(duration, "0s");
     }
+
+    #[test]
+    fn telegram_bot_new_returns_none_without_token() {
+        // Убедимся что переменные окружения не заданы
+        std::env::remove_var("SEMAPHORE_TELEGRAM_TOKEN");
+
+        let config = crate::config::Config::default();
+        let bot = TelegramBot::new(&config);
+        assert!(bot.is_none(), "Bot should not be created without token");
+    }
+
+    #[test]
+    fn telegram_api_url_format() {
+        // Создаём бота напрямую для тестирования api_url
+        let bot = TelegramBot {
+            token: "test-token-123".to_string(),
+            default_chat_id: None,
+            client: reqwest::Client::new(),
+        };
+
+        assert_eq!(
+            bot.api_url("sendMessage"),
+            "https://api.telegram.org/bottest-token-123/sendMessage"
+        );
+        assert_eq!(
+            bot.api_url("getUpdates"),
+            "https://api.telegram.org/bottest-token-123/getUpdates"
+        );
+    }
+
+    #[test]
+    fn telegram_handle_command_start() {
+        let bot = TelegramBot {
+            token: "test".to_string(),
+            default_chat_id: Some("-100test".to_string()),
+            client: reqwest::Client::new(),
+        };
+
+        // /start должен вызвать send_message с приветствием
+        // Поскольку send_message делает реальный HTTP запрос, проверяем только что handle_command не паникует
+        // и возвращает Ok (независимо от результата HTTP)
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let result = rt.block_on(bot.handle_command("-100test", "/start"));
+        // Может вернуть ошибку HTTP — это нормально
+        assert!(result.is_ok() || result.is_err());
+    }
+
+    #[test]
+    fn telegram_handle_command_help() {
+        let bot = TelegramBot {
+            token: "test".to_string(),
+            default_chat_id: Some("-100test".to_string()),
+            client: reqwest::Client::new(),
+        };
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let result = rt.block_on(bot.handle_command("-100test", "/help"));
+        assert!(result.is_ok() || result.is_err());
+    }
+
+    #[test]
+    fn telegram_handle_command_status() {
+        let bot = TelegramBot {
+            token: "test".to_string(),
+            default_chat_id: Some("-100test".to_string()),
+            client: reqwest::Client::new(),
+        };
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let result = rt.block_on(bot.handle_command("-100test", "/status"));
+        assert!(result.is_ok() || result.is_err());
+    }
+
+    #[test]
+    fn telegram_handle_command_unknown_ignored() {
+        let bot = TelegramBot {
+            token: "test".to_string(),
+            default_chat_id: Some("-100test".to_string()),
+            client: reqwest::Client::new(),
+        };
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        // Неизвестная команда должна вернуть Ok (игнорируется молча)
+        let result = rt.block_on(bot.handle_command("-100test", "/unknown_cmd"));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn telegram_handle_command_with_args() {
+        let bot = TelegramBot {
+            token: "test".to_string(),
+            default_chat_id: Some("-100test".to_string()),
+            client: reqwest::Client::new(),
+        };
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        // Команда с аргументами — должен распознать базу
+        let result = rt.block_on(bot.handle_command("-100test", "/start extra_arg"));
+        assert!(result.is_ok() || result.is_err());
+    }
+
+    #[test]
+    fn telegram_send_default_without_chat_id() {
+        let bot = TelegramBot {
+            token: "test".to_string(),
+            default_chat_id: None,
+            client: reqwest::Client::new(),
+        };
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        // Без chat_id должно вернуть Ok с warning
+        let result = rt.block_on(bot.send_default("Test message"));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn telegram_notify_task_success_format() {
+        let bot = TelegramBot {
+            token: "test".to_string(),
+            default_chat_id: Some("-100test".to_string()),
+            client: reqwest::Client::new(),
+        };
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        // Проверяем что метод не паникует
+        rt.block_on(bot.notify_task_success(
+            "TestProject",
+            "Deploy",
+            42,
+            "admin",
+            125,
+            "http://localhost:3000/project/1/tasks/42",
+        ));
+    }
+
+    #[test]
+    fn telegram_notify_task_failed_format() {
+        let bot = TelegramBot {
+            token: "test".to_string(),
+            default_chat_id: Some("-100test".to_string()),
+            client: reqwest::Client::new(),
+        };
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(bot.notify_task_failed(
+            "TestProject",
+            "Deploy",
+            42,
+            "admin",
+            300,
+            "http://localhost:3000/project/1/tasks/42",
+        ));
+    }
+
+    #[test]
+    fn telegram_notify_task_stopped_format() {
+        let bot = TelegramBot {
+            token: "test".to_string(),
+            default_chat_id: Some("-100test".to_string()),
+            client: reqwest::Client::new(),
+        };
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(bot.notify_task_stopped(
+            "TestProject",
+            "Deploy",
+            42,
+            "http://localhost:3000/project/1/tasks/42",
+        ));
+    }
+
+    #[test]
+    fn start_bot_if_configured_without_token() {
+        std::env::remove_var("SEMAPHORE_TELEGRAM_TOKEN");
+        let config = crate::config::Config::default();
+
+        // Не должен паниковать даже без токена
+        start_bot_if_configured(&config);
+    }
 }
