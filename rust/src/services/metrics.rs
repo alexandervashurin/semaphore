@@ -650,4 +650,35 @@ mod tests {
         TASK_DURATION.observe(1.0);
         TASK_QUEUE_TIME.observe(0.5);
     }
+
+    #[test]
+    fn test_task_duration_observe_positive() {
+        // Гистограмма должна принимать положительные значения
+        TASK_DURATION.observe(10.0);
+        TASK_DURATION.observe(100.0);
+    }
+
+    #[test]
+    fn test_project_tasks_gauge() {
+        // Проверяем gauge для количества задач проекта
+        let initial = PROJECT_TASKS_TOTAL.get();
+        PROJECT_TASKS_TOTAL.set(initial + 5.0);
+        assert_eq!(PROJECT_TASKS_TOTAL.get(), initial + 5.0);
+    }
+
+    #[test]
+    fn test_db_connections_gauge() {
+        // Проверяем gauge для подключений к БД
+        let initial = DB_CONNECTIONS_ACTIVE.get();
+        DB_CONNECTIONS_ACTIVE.set(initial + 1.0);
+        assert_eq!(DB_CONNECTIONS_ACTIVE.get(), initial + 1.0);
+    }
+
+    #[test]
+    fn test_api_requests_counter() {
+        // Проверяем счётчик API запросов
+        let initial = API_REQUESTS_TOTAL.get();
+        API_REQUESTS_TOTAL.inc();
+        assert!(API_REQUESTS_TOTAL.get() > initial);
+    }
 }
