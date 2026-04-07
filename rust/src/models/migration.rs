@@ -58,4 +58,21 @@ mod tests {
         assert!(json.contains("\"version\":20240101000000"));
         assert!(json.contains("\"name\":\"add_templates\""));
     }
+
+    #[test]
+    fn test_migration_clone() {
+        let migration = Migration::new(5, "add_indexes".to_string());
+        let cloned = migration.clone();
+        assert_eq!(cloned.version, migration.version);
+        assert_eq!(cloned.name, migration.name);
+    }
+
+    #[test]
+    fn test_migration_deserialization() {
+        let json = r#"{"id":10,"version":20240201000000,"name":"add_users","applied":"2024-02-01T00:00:00Z"}"#;
+        let migration: Migration = serde_json::from_str(json).unwrap();
+        assert_eq!(migration.id, 10);
+        assert_eq!(migration.version, 20240201000000);
+        assert_eq!(migration.name, "add_users");
+    }
 }
