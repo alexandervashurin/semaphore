@@ -453,4 +453,38 @@ mod tests {
         // Репозиторий ещё не существует
         assert!(!git_repo.can_be_pulled());
     }
+
+    #[test]
+    fn test_git_repository_get_tmp_dir_name() {
+        let repo = Repository {
+            id: 1,
+            project_id: 1,
+            name: "Test Repo".to_string(),
+            git_url: "https://github.com/test/repo.git".to_string(),
+            git_type: RepositoryType::Git,
+            git_branch: None,
+            key_id: Some(1),
+            git_path: None,
+            created: None,
+        };
+        let git_repo = GitRepository::new(repo, 1, 1);
+        assert!(git_repo.tmp_dir_name.contains("repo_1_1"));
+    }
+
+    #[test]
+    fn test_git_repository_custom_tmp_dir() {
+        let repo = Repository {
+            id: 2,
+            project_id: 2,
+            name: "Custom Repo".to_string(),
+            git_url: "https://github.com/test/custom.git".to_string(),
+            git_type: RepositoryType::Git,
+            git_branch: None,
+            key_id: None,
+            git_path: None,
+            created: None,
+        };
+        let git_repo = GitRepository::new(repo, 2, 2).with_tmp_dir("custom_dir".to_string());
+        assert_eq!(git_repo.tmp_dir_name, "custom_dir");
+    }
 }
