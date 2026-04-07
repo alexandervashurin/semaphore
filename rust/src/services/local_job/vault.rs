@@ -199,4 +199,23 @@ mod tests {
         let path = result.unwrap();
         assert!(path.to_string_lossy().contains("vault_test_vault_password"));
     }
+
+    #[tokio::test]
+    async fn test_create_vault_password_file_empty_password() {
+        let job = create_test_job();
+        let result = job.create_vault_password_file("empty_vault", "").await;
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_clear_vault_key_files_removes_all() {
+        let mut job = create_test_job();
+        // Добавим фейковые установки
+        job.vault_file_installations.insert(
+            "test1".to_string(),
+            crate::services::ssh_agent::AccessKeyInstallation::default(),
+        );
+        job.clear_vault_key_files();
+        assert!(job.vault_file_installations.is_empty());
+    }
 }
