@@ -123,4 +123,34 @@ mod tests {
         let enc = aes256_encrypt(b"secret", &key1).unwrap();
         assert!(aes256_decrypt(&enc, &key2).is_err());
     }
+
+    #[test]
+    fn test_aes256_decrypt_invalid_base64() {
+        let key = [0u8; 32];
+        let result = aes256_decrypt("not-valid-base64!@#$%", &key);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_aes256_decrypt_too_short() {
+        let key = [0u8; 32];
+        // Base64 строка "YWJj" декодируется в 3 байта, что меньше 12 байт nonce
+        let result = aes256_decrypt("YWJj", &key);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_encryption_error_display() {
+        let err = EncryptionError::KeyGeneration("test error".to_string());
+        let msg = format!("{}", err);
+        assert!(msg.contains("test error"));
+    }
+
+    #[test]
+    fn test_aes256_empty_plaintext() {
+        let key = [0u8; 32];
+        let enc = aes256_encrypt(b"", &key).unwrap();
+        let dec = aes256_decrypt(&enc, &key).unwrap();
+        assert_eq!(dec, b"");
+    }
 }
