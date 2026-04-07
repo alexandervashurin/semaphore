@@ -276,4 +276,36 @@ mod tests {
         assert_eq!(metrics.total_projects, 0);
         assert_eq!(metrics.success_rate_24h, 0.0);
     }
+
+    #[test]
+    fn test_user_activity_serialization() {
+        let activity = UserActivity {
+            user_id: 1,
+            username: "admin".to_string(),
+            total_actions: 50,
+            tasks_created: 30,
+            tasks_run: 20,
+            templates_created: 5,
+            last_activity: Utc::now(),
+        };
+        let json = serde_json::to_string(&activity).unwrap();
+        assert!(json.contains("\"username\":\"admin\""));
+        assert!(json.contains("\"total_actions\":50"));
+    }
+
+    #[test]
+    fn test_performance_metrics_serialization() {
+        let perf = PerformanceMetrics {
+            avg_queue_time_secs: 5.0,
+            avg_execution_time_secs: 120.0,
+            tasks_per_hour: 10.0,
+            tasks_per_day: 240.0,
+            concurrent_tasks_avg: 2.5,
+            concurrent_tasks_max: 5,
+            resource_usage: ResourceUsage::default(),
+        };
+        let json = serde_json::to_string(&perf).unwrap();
+        assert!(json.contains("\"tasks_per_hour\":10.0"));
+        assert!(json.contains("\"tasks_per_day\":240.0"));
+    }
 }
