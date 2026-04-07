@@ -286,4 +286,25 @@ mod tests {
         assert!(json.contains("\"total_runs\":100"));
         assert!(json.contains("\"avg_duration_seconds\":95.5"));
     }
+
+    #[test]
+    fn test_playbook_run_filter_default() {
+        let filter = PlaybookRunFilter::default();
+        assert!(filter.project_id.is_none());
+        assert!(filter.playbook_id.is_none());
+        assert!(filter.status.is_none());
+        assert!(filter.user_id.is_none());
+        assert!(filter.limit.is_none());
+        assert!(filter.offset.is_none());
+    }
+
+    #[test]
+    fn test_playbook_run_update_default() {
+        let update = PlaybookRunUpdate::default();
+        assert!(update.status.is_none());
+        assert!(update.start_time.is_none());
+        assert!(update.end_time.is_none());
+        assert!(update.duration_seconds.is_none());
+        assert!(update.hosts_total.is_none());
+    }
 }
