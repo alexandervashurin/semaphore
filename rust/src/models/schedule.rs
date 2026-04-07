@@ -136,4 +136,48 @@ mod tests {
         assert!(json.contains("\"tpl_playbook\":\"deploy.yml\""));
         assert!(json.contains("\"name\":\"Frequent\""));
     }
+
+    #[test]
+    fn test_schedule_clone() {
+        let schedule = Schedule {
+            id: 1,
+            template_id: 10,
+            project_id: 5,
+            cron: "0 * * * *".to_string(),
+            cron_format: None,
+            name: "Clone Test".to_string(),
+            active: true,
+            last_commit_hash: None,
+            repository_id: None,
+            created: None,
+            run_at: None,
+            delete_after_run: false,
+        };
+        let cloned = schedule.clone();
+        assert_eq!(cloned.id, schedule.id);
+        assert_eq!(cloned.name, schedule.name);
+        assert_eq!(cloned.active, schedule.active);
+    }
+
+    #[test]
+    fn test_schedule_default_values() {
+        let schedule = Schedule {
+            id: 0,
+            template_id: 0,
+            project_id: 0,
+            cron: String::new(),
+            cron_format: None,
+            name: String::new(),
+            active: false,
+            last_commit_hash: None,
+            repository_id: None,
+            created: None,
+            run_at: None,
+            delete_after_run: false,
+        };
+        assert!(schedule.cron.is_empty());
+        assert!(schedule.name.is_empty());
+        assert!(!schedule.active);
+        assert!(!schedule.delete_after_run);
+    }
 }
