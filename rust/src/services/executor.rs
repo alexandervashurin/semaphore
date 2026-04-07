@@ -793,4 +793,21 @@ mod tests {
         let app = ShellApp::new(AppType::Bash);
         assert_eq!(app.shell_type, AppType::Bash);
     }
+
+    #[test]
+    fn test_app_type_display_powershell() {
+        assert_eq!(AppType::PowerShell.to_string(), "powershell");
+    }
+
+    #[test]
+    fn test_app_type_display_python() {
+        assert_eq!(AppType::Python.to_string(), "python");
+    }
+
+    #[test]
+    fn test_base_app_with_logger() {
+        let logger = std::sync::Arc::new(crate::services::task_logger::BasicLogger::new());
+        let app = BaseApp::new().with_logger(logger.clone());
+        assert!(app.logger.is_some());
+    }
 }
