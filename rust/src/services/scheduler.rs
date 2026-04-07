@@ -497,4 +497,198 @@ mod tests {
         assert!(schedule.active);
         assert_eq!(schedule.repository_id, Some(5));
     }
+
+    #[tokio::test]
+    async fn test_schedule_pool_new() {
+        use crate::db::mock::MockStore;
+        let store = Arc::new(MockStore::new());
+        let pool = SchedulePool::new(store);
+
+        // Проверим что pool создан
+        let jobs = pool.get_jobs().await;
+        assert!(jobs.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_schedule_pool_start_stop() {
+        use crate::db::mock::MockStore;
+        let store = Arc::new(MockStore::new());
+        let pool = SchedulePool::new(store);
+
+        // Start
+        let result = pool.start().await;
+        assert!(result.is_ok());
+
+        // Повторный start должен вернуть ошибку
+        let result = pool.start().await;
+        assert!(result.is_err());
+
+        // Stop
+        let result = pool.stop().await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_schedule_pool_add_remove_schedule() {
+        use crate::db::mock::MockStore;
+        use crate::models::Schedule;
+
+        let store = Arc::new(MockStore::new());
+        let pool = SchedulePool::new(store);
+        pool.start().await.unwrap();
+
+        let schedule = Schedule {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            cron: "0 * * * *".to_string(),
+            cron_format: None,
+            name: "Test Schedule".to_string(),
+            active: true,
+            last_commit_hash: None,
+            repository_id: None,
+            created: None,
+            run_at: None,
+            delete_after_run: false,
+        };
+
+        // Add
+        let result = pool.add_schedule(schedule).await;
+        assert!(result.is_ok());
+
+        // Check что задача добавлена
+        let jobs = pool.get_jobs().await;
+        assert_eq!(jobs.len(), 1);
+        assert_eq!(jobs[0].name, "Test Schedule");
+
+        // Remove
+        let result = pool.remove_schedule(1).await;
+        assert!(result.is_ok());
+
+        let jobs = pool.get_jobs().await;
+        assert!(jobs.is_empty());
+
+        pool.stop().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_schedule_pool_add_inactive_schedule() {
+        use crate::db::mock::MockStore;
+        use crate::models::Schedule;
+
+        let store = Arc::new(MockStore::new());
+        let pool = SchedulePool::new(store);
+        pool.start().await.unwrap();
+
+        let schedule = Schedule {
+            id: 2,
+            project_id: 1,
+            template_id: 1,
+            cron: "0 * * * *".to_string(),
+            cron_format: None,
+            name: "Inactive Schedule".to_string(),
+            active: false,
+            last_commit_hash: None,
+            repository_id: None,
+            created: None,
+            run_at: None,
+            delete_after_run: false,
+        };
+
+        // Inactive schedule не должна быть добавлена
+        let result = pool.add_schedule(schedule).await;
+        assert!(result.is_ok());
+
+        let jobs = pool.get_jobs().await;
+        assert!(jobs.is_empty());
+
+        pool.stop().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_schedule_pool_add_run_at_only_schedule() {
+        use crate::db::mock::MockStore;
+        use crate::models::Schedule;
+
+        let store = Arc::new(MockStore::new());
+        let pool = SchedulePool::new(store);
+        pool.start().await.unwrap();
+
+        let schedule = Schedule {
+            id: 3,
+            project_id: 1,
+            template_id: 1,
+            cron: "".to_string(),
+            cron_format: Some("run_at".to_string()),
+            name: "Run At Schedule".to_string(),
+            active: true,
+            last_commit_hash: None,
+            repository_id: None,
+            created: None,
+            run_at: Some("2026-05-01T00:00:00Z".to_string()),
+            delete_after_run: false,
+        };
+
+        // run_at с пустым cron должна быть пропущена
+        let result = pool.add_schedule(schedule).await;
+        assert!(result.is_ok());
+
+        let jobs = pool.get_jobs().await;
+        assert!(jobs.is_empty());
+
+        pool.stop().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_schedule_pool_update_schedule() {
+        use crate::db::mock::MockStore;
+        use crate::models::Schedule;
+
+        let store = Arc::new(MockStore::new());
+        let pool = SchedulePool::new(store);
+        pool.start().await.unwrap();
+
+        let schedule = Schedule {
+            id: 4,
+            project_id: 1,
+            template_id: 1,
+            cron: "0 * * * *".to_string(),
+            cron_format: None,
+            name: "Original".to_string(),
+            active: true,
+            last_commit_hash: None,
+            repository_id: None,
+            created: None,
+            run_at: None,
+            delete_after_run: false,
+        };
+
+        pool.add_schedule(schedule).await.unwrap();
+
+        // Обновим расписание
+        let updated = Schedule {
+            id: 4,
+            project_id: 1,
+            template_id: 1,
+            cron: "0 0 * * *".to_string(),
+            cron_format: None,
+            name: "Updated".to_string(),
+            active: true,
+            last_commit_hash: None,
+            repository_id: None,
+            created: None,
+            run_at: None,
+            delete_after_run: false,
+        };
+
+        let result = pool.update_schedule(updated).await;
+        assert!(result.is_ok());
+
+        let jobs = pool.get_jobs().await;
+        assert_eq!(jobs.len(), 1);
+        assert_eq!(jobs[0].name, "Updated");
+        assert_eq!(jobs[0].cron, "0 0 * * *");
+
+        pool.stop().await.unwrap();
+    }
 }
