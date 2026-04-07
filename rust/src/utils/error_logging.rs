@@ -102,4 +102,36 @@ mod tests {
         let err = "test error";
         log_panic(&err);
     }
+
+    #[test]
+    #[should_panic]
+    fn test_log_panic_f() {
+        let err = "test error";
+        log_panic_f(&err, &[("field", "value")]);
+    }
+
+    #[test]
+    fn test_log_warning_f_empty_fields() {
+        let err = "simple warning";
+        log_warning_f(&err, &[]);
+        // Проверяем что не паникует с пустым массивом полей
+    }
+
+    #[test]
+    fn test_log_error_f_multiple_fields() {
+        let err = "complex error";
+        log_error_f(
+            &err,
+            &[("file", "test.rs"), ("line", "42"), ("module", "utils")],
+        );
+        // Проверяем что не паникует с несколькими полями
+    }
+
+    #[test]
+    fn test_log_debug_f_without_debug_env() {
+        // RUST_LOG не содержит "debug", поэтому log_debug_f не должна логировать
+        let err = "debug message";
+        log_debug_f(&err, &[("key", "value")]);
+        // Проверяем что не паникует
+    }
 }
