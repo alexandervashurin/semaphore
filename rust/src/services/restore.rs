@@ -635,4 +635,61 @@ mod tests {
         assert!(result.is_some());
         assert_eq!(result.unwrap().name, "Test1");
     }
+
+    #[test]
+    fn test_get_entry_by_name_none() {
+        let items = vec![
+            BackupEnvironment {
+                name: "Test1".to_string(),
+                json: String::new(),
+            },
+        ];
+        let name = Some("NonExistent".to_string());
+        let result = get_entry_by_name(&name, &items);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_get_entry_by_name_none_name() {
+        let items = vec![
+            BackupEnvironment {
+                name: "Test1".to_string(),
+                json: String::new(),
+            },
+        ];
+        let result = get_entry_by_name(&None, &items);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_verify_duplicate_no_duplicates() {
+        let items = vec![
+            BackupEnvironment {
+                name: "Test1".to_string(),
+                json: String::new(),
+            },
+            BackupEnvironment {
+                name: "Test2".to_string(),
+                json: String::new(),
+            },
+        ];
+        let result = verify_duplicate("Test1", &items);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_restore_db_new() {
+        let project = Project::default();
+        let db = RestoreDB::new(project.clone());
+        assert_eq!(db.environments.len(), 0);
+        assert_eq!(db.access_keys.len(), 0);
+        assert_eq!(db.repositories.len(), 0);
+        assert_eq!(db.inventories.len(), 0);
+        assert_eq!(db.templates.len(), 0);
+        assert_eq!(db.schedules.len(), 0);
+        assert_eq!(db.integrations.len(), 0);
+        assert_eq!(db.views.len(), 0);
+        assert_eq!(db.roles.len(), 0);
+        assert_eq!(db.secret_storages.len(), 0);
+    }
 }
