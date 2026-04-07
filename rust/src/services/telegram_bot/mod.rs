@@ -433,4 +433,30 @@ mod notify_tests {
         };
         assert_eq!(duration, "30s");
     }
+
+    #[test]
+    fn task_duration_format_one_hour() {
+        let duration_secs = 3661;
+        let mins = duration_secs / 60;
+        let secs = duration_secs % 60;
+        let duration = if mins > 0 {
+            format!("{mins}m {secs}s")
+        } else {
+            format!("{secs}s")
+        };
+        assert_eq!(duration, "61m 1s");
+    }
+
+    #[test]
+    fn task_duration_format_zero_seconds() {
+        let duration_secs = 0;
+        let mins = duration_secs / 60;
+        let secs = duration_secs % 60;
+        let duration = if mins > 0 {
+            format!("{mins}m {secs}s")
+        } else {
+            format!("{secs}s")
+        };
+        assert_eq!(duration, "0s");
+    }
 }
