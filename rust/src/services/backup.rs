@@ -584,4 +584,45 @@ mod tests {
 
         assert_ne!(items[0].name, items[1].name);
     }
+
+    #[test]
+    fn test_get_random_name_uniqueness() {
+        let name1 = get_random_name("Test");
+        let name2 = get_random_name("Test");
+        // Оба начинаются с "Test - ", но имеют разные случайные части
+        assert!(name1.starts_with("Test - "));
+        assert!(name2.starts_with("Test - "));
+        assert_ne!(name1, name2);
+    }
+
+    #[test]
+    fn test_make_unique_names_no_duplicates() {
+        let mut items = vec![
+            BackupTemplate {
+                name: "Unique1".to_string(),
+                playbook: String::new(),
+                arguments: None,
+                template_type: String::new(),
+                inventory: None,
+                repository: None,
+                environment: None,
+                cron: None,
+            },
+            BackupTemplate {
+                name: "Unique2".to_string(),
+                playbook: String::new(),
+                arguments: None,
+                template_type: String::new(),
+                inventory: None,
+                repository: None,
+                environment: None,
+                cron: None,
+            },
+        ];
+
+        make_unique_names(&mut items, |item| &item.name, |item, name| item.name = name);
+
+        assert_eq!(items[0].name, "Unique1");
+        assert_eq!(items[1].name, "Unique2");
+    }
 }
