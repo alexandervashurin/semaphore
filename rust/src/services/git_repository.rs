@@ -468,7 +468,7 @@ mod tests {
             created: None,
         };
         let git_repo = GitRepository::new(repo, 1, 1);
-        assert!(git_repo.tmp_dir_name.contains("repo_1_1"));
+        assert!(git_repo.tmp_dir_name.as_ref().unwrap().contains("repo_1_1"));
     }
 
     #[test]
@@ -485,6 +485,6 @@ mod tests {
             created: None,
         };
         let git_repo = GitRepository::new(repo, 2, 2).with_tmp_dir("custom_dir".to_string());
-        assert_eq!(git_repo.tmp_dir_name, "custom_dir");
+        assert_eq!(git_repo.tmp_dir_name, Some("custom_dir".to_string()));
     }
 }
