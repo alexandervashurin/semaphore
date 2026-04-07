@@ -164,4 +164,16 @@ mod tests {
         let key = "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAA...\n-----END OPENSSH PRIVATE KEY-----";
         assert!(SshAuthService::validate_ssh_key(key).is_ok());
     }
+
+    #[test]
+    fn test_validate_ec_key() {
+        let key = "-----BEGIN EC PRIVATE KEY-----\nMHQCAQEE...\n-----END EC PRIVATE KEY-----";
+        assert!(SshAuthService::validate_ssh_key(key).is_ok());
+    }
+
+    #[test]
+    fn test_validate_openssh_key() {
+        let key = "-----BEGIN OPENSSH PRIVATE KEY-----\ntest...\n-----END OPENSSH PRIVATE KEY-----";
+        assert!(SshAuthService::validate_ssh_key(key).is_ok());
+    }
 }
