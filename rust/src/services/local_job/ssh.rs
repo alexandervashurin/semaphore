@@ -240,4 +240,34 @@ mod tests {
         let result = job.install_ssh_keys().await;
         assert!(result.is_ok());
     }
+
+    #[test]
+    fn test_model_access_key_to_db_none_type() {
+        use crate::models::access_key::AccessKeyType;
+        use crate::models::AccessKeyOwner;
+        let ak = crate::models::AccessKey {
+            id: 3,
+            project_id: Some(1),
+            name: "None Key".to_string(),
+            r#type: AccessKeyType::None,
+            user_id: None,
+            login_password_login: None,
+            login_password_password: None,
+            ssh_key: None,
+            ssh_passphrase: None,
+            access_key_access_key: None,
+            access_key_secret_key: None,
+            secret_storage_id: None,
+            environment_id: None,
+            owner: Some(AccessKeyOwner::Project),
+            created: None,
+            source_storage_type: None,
+            source_storage_id: None,
+            source_key: None,
+        };
+        let db = model_access_key_to_db(&ak);
+        assert_eq!(db.key_type, crate::db_lib::DbAccessKeyType::None);
+        assert!(db.ssh_key.is_none());
+        assert!(db.login_password.is_none());
+    }
 }
