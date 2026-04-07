@@ -305,4 +305,197 @@ echo "Hello World"
             Err(PlaybookValidationError::InvalidPlaybookType(_))
         ));
     }
+
+    #[test]
+    fn test_validate_ansible_playbook_filename_only() {
+        // Filename-only should pass
+        assert!(PlaybookValidator::validate_ansible_playbook("deploy.yml").is_ok());
+        assert!(PlaybookValidator::validate_ansible_playbook("site.yaml").is_ok());
+        assert!(PlaybookValidator::validate_ansible_playbook("run.sh").is_ok());
+    }
+
+    #[test]
+    fn test_validate_ansible_play_play_structure() {
+        let content = r#"
+- hosts: all
+  tasks:
+    - name: Step 1
+      debug:
+        msg: "Hello"
+    - name: Step 2
+      command: echo test
+"#;
+        assert!(PlaybookValidator::validate_ansible_playbook(content).is_ok());
+    }
+
+    #[test]
+    fn test_validate_ansible_play_with_roles() {
+        let content = r#"
+- hosts: webservers
+  roles:
+    - common
+    - webserver
+  tasks:
+    - name: Extra task
+      debug:
+        msg: "ok"
+"#;
+        assert!(PlaybookValidator::validate_ansible_playbook(content).is_ok());
+    }
+
+    #[test]
+    fn test_validate_ansible_play_hosts_as_list() {
+        let content = r#"
+- hosts:
+    - web1
+    - web2
+  tasks:
+    - debug:
+        msg: "ok"
+"#;
+        assert!(PlaybookValidator::validate_ansible_playbook(content).is_ok());
+    }
+
+    #[test]
+    fn test_validate_ansible_playbook_invalid_structure_not_list() {
+        // Scalar value is valid YAML but not a playbook list
+        let content = "just_a_string";
+        // Lenient validator accepts any valid YAML
+        assert!(PlaybookValidator::validate_ansible_playbook(content).is_ok());
+    }
+
+    #[test]
+    fn test_validate_terraform_config_valid() {
+        let content = r#"
+resource:
+  aws_instance:
+    web:
+      ami: "ami-123456"
+provider:
+  aws:
+    region: "us-east-1"
+"#;
+        assert!(PlaybookValidator::validate_terraform_config(content).is_ok());
+    }
+
+    #[test]
+    fn test_validate_terraform_config_empty() {
+        // Empty/null terraform config
+        let content = "null";
+        assert!(PlaybookValidator::validate_terraform_config(content).is_ok());
+    }
+
+    #[test]
+    fn test_validate_terraform_config_with_variables() {
+        let content = r#"
+variable:
+  instance_type:
+    default: "t2.micro"
+output:
+  instance_ip:
+    value: "10.0.0.1"
+module:
+  vpc:
+    source: "hashicorp/vpc/aws"
+"#;
+        assert!(PlaybookValidator::validate_terraform_config(content).is_ok());
+    }
+
+    #[test]
+    fn test_validate_terraform_config_invalid_not_mapping() {
+        // Array is not a valid terraform config structure
+        let content = "- item1\n- item2";
+        let result = PlaybookValidator::validate_terraform_config(content);
+        assert!(matches!(result, Err(PlaybookValidationError::InvalidStructure(_))));
+    }
+
+    #[test]
+    fn test_validate_terraform_config_invalid_yaml() {
+        let content = "invalid: yaml: [";
+        let result = PlaybookValidator::validate_terraform_config(content);
+        assert!(matches!(result, Err(PlaybookValidationError::YamlParse(_))));
+    }
+
+    #[test]
+    fn test_validate_shell_with_shebang() {
+        let content = "#!/bin/bash\necho hello\n";
+        assert!(PlaybookValidator::validate_shell_script(content).is_ok());
+    }
+
+    #[test]
+    fn test_validate_shell_without_shebang_warns_but_passes() {
+        let content = "echo hello\n";
+        // Should pass but warn (we can't easily test the warn, but check it passes)
+        assert!(PlaybookValidator::validate_shell_script(content).is_ok());
+    }
+
+    #[test]
+    fn test_validate_shell_whitespace_only() {
+        let content = "   \n  \n  ";
+        let result = PlaybookValidator::validate_shell_script(content);
+        assert!(matches!(result, Err(PlaybookValidationError::InvalidStructure(_))));
+    }
+
+    #[test]
+    fn test_check_yaml_syntax_valid() {
+        let content = "key: value\nlist:\n  - a\n  - b";
+        assert!(PlaybookValidator::check_yaml_syntax(content).is_ok());
+    }
+
+    #[test]
+    fn test_check_yaml_syntax_invalid() {
+        let content = "key: value\n  bad indentation: [";
+        assert!(PlaybookValidator::check_yaml_syntax(content).is_err());
+    }
+
+    #[test]
+    fn test_validate_ansible_playbook_single_play_object() {
+        let content = r#"
+hosts: all
+tasks:
+  - name: Single play
+    debug:
+      msg: "ok"
+"#;
+        assert!(PlaybookValidator::validate_ansible_playbook(content).is_ok());
+    }
+
+    #[test]
+    fn test_validate_ansible_playbook_complex() {
+        let content = r#"
+- hosts: all
+  become: true
+  vars:
+    app_port: 8080
+  pre_tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+  roles:
+    - common
+  tasks:
+    - name: Install nginx
+      apt:
+        name: nginx
+        state: present
+    - name: Start nginx
+      service:
+        name: nginx
+        state: started
+"#;
+        assert!(PlaybookValidator::validate_ansible_playbook(content).is_ok());
+    }
+
+    #[test]
+    fn test_validate_max_size_exceeded() {
+        let content = "x".repeat(MAX_PLAYBOOK_SIZE + 100);
+        let result = PlaybookValidator::validate(&content, "ansible");
+        assert!(matches!(result, Err(PlaybookValidationError::MaxSizeExceeded(s)) if s > MAX_PLAYBOOK_SIZE));
+    }
+
+    #[test]
+    fn test_validate_with_ansible_exact_content() {
+        let content = "---\n- hosts: localhost\n  tasks:\n    - debug:\n        msg: test";
+        assert!(PlaybookValidator::validate(content, "ansible").is_ok());
+    }
 }

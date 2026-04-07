@@ -129,4 +129,65 @@ mod tests {
         runner.send_task_completed().await;
         // Просто проверяем, что метод вызывается без паники
     }
+
+    #[tokio::test]
+    async fn test_send_task_failed() {
+        let runner = create_test_task_runner();
+        runner.send_task_failed("Test error message").await;
+        // Просто проверяем, что метод вызывается без паники
+    }
+
+    #[tokio::test]
+    async fn test_notify_status_change_with_listeners() {
+        let runner = create_test_task_runner();
+        let (tx, rx) = std::sync::mpsc::channel();
+        let runner_with_listener = TaskRunner {
+            status_listeners: vec![Box::new(move |status| {
+                let _ = tx.send(status);
+            })],
+            ..runner
+        };
+        runner_with_listener.notify_status_change(TaskStatus::Running).await;
+        let status = rx.recv_timeout(std::time::Duration::from_secs(2)).unwrap();
+        assert_eq!(status, TaskStatus::Running);
+    }
+
+    #[tokio::test]
+    async fn test_notify_log_with_listeners() {
+        let runner = create_test_task_runner();
+        let (tx, rx) = std::sync::mpsc::channel();
+        let runner_with_listener = TaskRunner {
+            log_listeners: vec![Box::new(move |time, msg| {
+                let _ = tx.send((time, msg));
+            })],
+            ..runner
+        };
+        let now = Utc::now();
+        runner_with_listener.notify_log(now, "Test log message");
+        let (time, msg) = rx.recv_timeout(std::time::Duration::from_secs(2)).unwrap();
+        assert_eq!(msg, "Test log message");
+        assert!(time <= Utc::now());
+    }
+
+    #[tokio::test]
+    async fn test_broadcast_update() {
+        let runner = create_test_task_runner();
+        let data = json!({"key": "value"});
+        runner.broadcast_update("custom_event", data).await;
+        // Просто проверяем, что метод вызывается без паники
+    }
+
+    #[tokio::test]
+    async fn test_notify_status_change_no_listeners() {
+        let runner = create_test_task_runner();
+        // Без слушателей — не должно паниковать
+        runner.notify_status_change(TaskStatus::Success).await;
+    }
+
+    #[tokio::test]
+    async fn test_notify_log_no_listeners() {
+        let runner = create_test_task_runner();
+        // Без слушателей — не должно паниковать
+        runner.notify_log(Utc::now(), "Test message");
+    }
 }

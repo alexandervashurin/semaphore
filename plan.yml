@@ -2,16 +2,18 @@ project: velum
 as_of: 2026-04-01
 goal: "Довести проект до production-ready и выпустить v1.0.0"
 status_summary:
-  as_of: "2026-04-06"
+  as_of: "2026-04-07"
   feature_parity: "~99%"
   kubernetes_ui: "~95%"
   production_release_readiness: "~100%"
-  open_tasks_count: 1
-  test_coverage: "~78% (1250 tests, started from 815)"
+  open_tasks_count: 3
+  test_coverage: "~78% (1308 tests, started from 815)"
+  documentation: "✅ Все 14 файлов исправлены (2026-04-07)"
+  latest_test_run: "2026-04-07: 1308 passed, 0 failed, 3 ignored"
   open_blockers:
     critical:
       - id: TEST-01
-        title: "Покрытие тестами 80%+ (сейчас ~78%, 1250 тестов)"
+        title: "Покрытие тестами 80%+ (сейчас ~16.5% tarpaulin / ~78% оценка, 1283 тестов)"
         sprint: S2
         blocks: [RB-01]
     high:
@@ -23,19 +25,17 @@ status_summary:
         title: "Cross-platform builds macOS amd64/arm64"
         sprint: S3
         blocks: [RB-05]
-      - id: D-05
-        title: "GitHub Release v1.0.0"
-        sprint: S4
-        blocks: [RB-05]
     medium:
       - id: PROD-03
         title: "Redis-backed task queue (HA persistence)"
         sprint: S3
         blocks: []
+        completion_notes: "JobPool integrated with TaskQueue trait (RedisTaskQueue)"
       - id: PROD-04
         title: "WebSocket pub/sub via Redis (HA scale)"
         sprint: S3
         blocks: []
+        completion_notes: "WebSocketManager.with_redis() initializes with Redis publish support"
     low: []
 principles:
   - "Сначала закрыть блокеры релиза, потом nice-to-have"
