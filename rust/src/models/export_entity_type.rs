@@ -78,4 +78,34 @@ mod tests {
         assert_eq!(serde_json::to_string(&ExportEntityType::Project).unwrap(), "\"project\"");
         assert_eq!(serde_json::to_string(&ExportEntityType::AccessKey).unwrap(), "\"access_key\"");
     }
+
+    #[test]
+    fn test_export_entity_type_all_variants() {
+        let types = vec![
+            ExportEntityType::Project,
+            ExportEntityType::Template,
+            ExportEntityType::Task,
+            ExportEntityType::User,
+            ExportEntityType::Inventory,
+            ExportEntityType::Repository,
+            ExportEntityType::Environment,
+            ExportEntityType::AccessKey,
+            ExportEntityType::Integration,
+            ExportEntityType::Schedule,
+            ExportEntityType::Other,
+        ];
+
+        for t in &types {
+            let json = serde_json::to_string(t).unwrap();
+            assert!(json.starts_with('"'));
+            assert!(json.ends_with('"'));
+        }
+    }
+
+    #[test]
+    fn test_export_entity_type_clone() {
+        let t = ExportEntityType::Integration;
+        let cloned = t.clone();
+        assert_eq!(cloned, t);
+    }
 }
