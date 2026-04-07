@@ -368,4 +368,21 @@ mod tests {
         let result = job.run("testuser", None, "default").await;
         assert!(result.is_ok());
     }
+
+    #[tokio::test]
+    async fn test_run_with_version() {
+        let mut job = create_test_job();
+        job.set_run_params("testuser".to_string(), Some("v1.0".to_string()), "deploy".to_string());
+        let result = job.run("testuser", Some("v1.0"), "deploy").await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_run_sets_starting_status() {
+        let mut job = create_test_job();
+        job.set_run_params("testuser".to_string(), None, "default".to_string());
+        let _ = job.run("testuser", None, "default").await;
+        // Run должен установить статус в Starting
+        assert_eq!(job.task.status, crate::services::task_logger::TaskStatus::Starting);
+    }
 }
