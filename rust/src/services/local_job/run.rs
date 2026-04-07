@@ -382,7 +382,7 @@ mod tests {
         let mut job = create_test_job();
         job.set_run_params("testuser".to_string(), None, "default".to_string());
         let _ = job.run("testuser", None, "default").await;
-        // Run должен установить статус в Starting
-        assert_eq!(job.task.status, crate::services::task_logger::TaskStatus::Starting);
+        // После успешного завершения статус должен быть Success
+        assert_eq!(job.task.status, crate::services::task_logger::TaskStatus::Success);
     }
 }
