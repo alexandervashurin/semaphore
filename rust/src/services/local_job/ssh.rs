@@ -202,4 +202,42 @@ mod tests {
             Some("ubuntu".to_string())
         );
     }
+
+    #[test]
+    fn test_model_access_key_to_db_login_password_type() {
+        use crate::models::access_key::AccessKeyType;
+        use crate::models::AccessKeyOwner;
+        let ak = crate::models::AccessKey {
+            id: 2,
+            project_id: Some(1),
+            name: "LP Key".to_string(),
+            r#type: AccessKeyType::LoginPassword,
+            user_id: None,
+            login_password_login: Some("admin".to_string()),
+            login_password_password: Some("secret".to_string()),
+            ssh_key: None,
+            ssh_passphrase: None,
+            access_key_access_key: None,
+            access_key_secret_key: None,
+            secret_storage_id: None,
+            environment_id: None,
+            owner: Some(AccessKeyOwner::Project),
+            created: None,
+            source_storage_type: None,
+            source_storage_id: None,
+            source_key: None,
+        };
+        let db = model_access_key_to_db(&ak);
+        assert!(db.login_password.is_some());
+        assert_eq!(db.key_type, crate::db_lib::DbAccessKeyType::LoginPassword);
+        assert_eq!(db.login_password.as_ref().unwrap().login, "admin");
+    }
+
+    #[tokio::test]
+    async fn test_install_ssh_keys_no_store() {
+        let mut job = create_test_job();
+        // Без store метод должен просто залогировать и вернуть Ok
+        let result = job.install_ssh_keys().await;
+        assert!(result.is_ok());
+    }
 }
