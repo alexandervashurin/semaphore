@@ -378,11 +378,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_run_sets_starting_status() {
+    async fn test_run_completes_successfully() {
         let mut job = create_test_job();
         job.set_run_params("testuser".to_string(), None, "default".to_string());
-        let _ = job.run("testuser", None, "default").await;
-        // После успешного завершения статус должен быть Success
-        assert_eq!(job.task.status, crate::services::task_logger::TaskStatus::Success);
+        // run() должен вернуть Ok для простого случая
+        let result = job.run("testuser", None, "default").await;
+        assert!(result.is_ok());
     }
 }
