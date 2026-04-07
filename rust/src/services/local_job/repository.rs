@@ -164,4 +164,28 @@ mod tests {
         let result = job.checkout_repository().await;
         assert!(result.is_ok());
     }
+
+    #[test]
+    fn test_get_repository_path() {
+        let job = create_test_job();
+        let path = job.get_repository_path();
+        assert_eq!(path, PathBuf::from("/tmp/work/repository"));
+    }
+
+    #[test]
+    fn test_copy_dir_recursive() {
+        // Создаём временную директорию с файлами
+        let src = std::env::temp_dir().join("test_copy_src");
+        let dst = std::env::temp_dir().join("test_copy_dst");
+        std::fs::create_dir_all(&src).unwrap();
+        std::fs::write(src.join("test.txt"), "hello").unwrap();
+
+        let result = copy_dir_recursive(&src, &dst);
+        assert!(result.is_ok());
+        assert!(dst.join("test.txt").exists());
+
+        // Убираем за собой
+        std::fs::remove_dir_all(&src).ok();
+        std::fs::remove_dir_all(&dst).ok();
+    }
 }
