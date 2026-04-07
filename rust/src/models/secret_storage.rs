@@ -183,4 +183,24 @@ mod tests {
         assert!(!json.contains("\"source_storage_type\":"));
         assert!(!json.contains("\"secret\":"));
     }
+
+    #[test]
+    fn test_secret_storage_clone() {
+        let storage = SecretStorage::new(
+            5,
+            "Test Vault".to_string(),
+            SecretStorageType::Vault,
+            "{}".to_string(),
+        );
+        let cloned = storage.clone();
+        assert_eq!(cloned.name, storage.name);
+        assert_eq!(cloned.r#type, storage.r#type);
+    }
+
+    #[test]
+    fn test_secret_storage_type_clone() {
+        let t = SecretStorageType::Dvls;
+        let cloned = t.clone();
+        assert_eq!(cloned, t);
+    }
 }
