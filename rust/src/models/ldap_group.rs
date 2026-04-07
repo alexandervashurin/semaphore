@@ -59,4 +59,31 @@ mod tests {
         assert!(json.contains("\"ldap_group_dn\":\"CN=admin"));
         assert!(json.contains("\"project_id\":5"));
     }
+
+    #[test]
+    fn test_ldap_group_mapping_clone() {
+        let mapping = LdapGroupMapping {
+            id: 1,
+            ldap_group_dn: "CN=test,DC=example,DC=com".to_string(),
+            project_id: 10,
+            role: "manager".to_string(),
+            created_at: "2024-01-01T00:00:00Z".to_string(),
+            project_name: "Test Project".to_string(),
+        };
+        let cloned = mapping.clone();
+        assert_eq!(cloned.ldap_group_dn, mapping.ldap_group_dn);
+        assert_eq!(cloned.role, mapping.role);
+    }
+
+    #[test]
+    fn test_ldap_group_mapping_create_clone() {
+        let create = LdapGroupMappingCreate {
+            ldap_group_dn: "CN=users,DC=example,DC=com".to_string(),
+            project_id: 1,
+            role: "task_runner".to_string(),
+        };
+        let cloned = create.clone();
+        assert_eq!(cloned.ldap_group_dn, create.ldap_group_dn);
+        assert_eq!(cloned.project_id, create.project_id);
+    }
 }
