@@ -228,4 +228,22 @@ mod tests {
 
         assert!(request.validate().is_err());
     }
+
+    #[tokio::test]
+    async fn test_run_playbook_playbook_not_found() {
+        let store = crate::db::MockStore::new();
+        let request = PlaybookRunRequest::new();
+
+        // Playbook не найден в пустом MockStore
+        let result = PlaybookRunService::run_playbook(
+            999, // playbook_id
+            1,   // project_id
+            1,   // user_id
+            request,
+            &store,
+        )
+        .await;
+
+        assert!(result.is_err());
+    }
 }
