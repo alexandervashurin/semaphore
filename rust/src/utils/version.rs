@@ -61,4 +61,17 @@ mod tests {
         // COMMIT может быть "unknown" если не установлен
         assert!(!COMMIT.is_empty());
     }
+
+    #[test]
+    fn test_get_date() {
+        // DATE может быть "unknown" если не установлен
+        assert!(!DATE.is_empty());
+    }
+
+    #[test]
+    fn test_version_contains_commit_and_date() {
+        let ver = version();
+        assert!(ver.contains(COMMIT));
+        assert!(ver.contains(DATE));
+    }
 }
