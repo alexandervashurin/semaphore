@@ -708,4 +708,98 @@ mod tests {
         assert_eq!(db.meta.name, project.name);
         assert_eq!(db.meta.id, project.id);
     }
+
+    #[test]
+    fn test_backup_environment_verify_ok() {
+        let backup = BackupFormat {
+            version: "1.0".to_string(),
+            project: BackupProject {
+                name: "Test".to_string(),
+                alert: None,
+                alert_chat: None,
+                max_parallel_tasks: None,
+            },
+            templates: vec![],
+            repositories: vec![],
+            inventories: vec![],
+            environments: vec![],
+            access_keys: vec![],
+            schedules: vec![],
+            integrations: vec![],
+            views: vec![],
+        };
+        let env = BackupEnvironment {
+            name: "Unique".to_string(),
+            json: "{}".to_string(),
+        };
+        assert!(env.verify(&backup).is_ok());
+    }
+
+    #[test]
+    fn test_backup_view_verify_ok() {
+        let backup = BackupFormat {
+            version: "1.0".to_string(),
+            project: BackupProject {
+                name: "Test".to_string(),
+                alert: None,
+                alert_chat: None,
+                max_parallel_tasks: None,
+            },
+            templates: vec![],
+            repositories: vec![],
+            inventories: vec![],
+            environments: vec![],
+            access_keys: vec![],
+            schedules: vec![],
+            integrations: vec![],
+            views: vec![BackupView {
+                name: "Unique".to_string(),
+                position: 0,
+            }],
+        };
+        let view = BackupView {
+            name: "Unique".to_string(),
+            position: 0,
+        };
+        assert!(view.verify(&backup).is_ok());
+    }
+
+    #[test]
+    fn test_backup_schedule_has_template() {
+        let sched = BackupSchedule {
+            template: "Deploy".to_string(),
+            cron_format: "".to_string(),
+            active: true,
+        };
+        assert_eq!(sched.template, "Deploy");
+        assert!(sched.active);
+    }
+
+    #[test]
+    fn test_backup_integration_structure() {
+        let integ = BackupIntegration {
+            name: "GitHub".to_string(),
+            template_id: Some(1),
+        };
+        assert_eq!(integ.name, "GitHub");
+        assert_eq!(integ.template_id, Some(1));
+    }
+
+    #[test]
+    fn test_restore_db_can_add_multiple_entries() {
+        let project = Project::default();
+        let mut db = RestoreDB::new(project);
+
+        for i in 0..5 {
+            db.environments.push(Environment {
+                id: i,
+                name: format!("Env {}", i),
+                ..Default::default()
+            });
+        }
+
+        assert_eq!(db.environments.len(), 5);
+        assert_eq!(db.environments[0].name, "Env 0");
+        assert_eq!(db.environments[4].name, "Env 4");
+    }
 }
