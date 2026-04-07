@@ -183,4 +183,61 @@ mod tests {
         running_task.kill();
         assert!(running_task.is_killed());
     }
+
+    #[tokio::test]
+    async fn test_task_pool_initial_shutdown_flag() {
+        let store = create_test_store();
+        let project = create_test_project();
+        let ws_manager = Arc::new(crate::api::websocket::WebSocketManager::new());
+
+        let pool = TaskPool::new(store, project, ws_manager);
+        assert!(!pool.is_shutdown().await);
+    }
+
+    #[tokio::test]
+    async fn test_task_pool_shutdown_idempotent() {
+        let store = create_test_store();
+        let project = create_test_project();
+        let ws_manager = Arc::new(crate::api::websocket::WebSocketManager::new());
+
+        let pool = TaskPool::new(store, project, ws_manager);
+
+        // Многократный shutdown не должен вызывать проблем
+        pool.shutdown().await;
+        pool.shutdown().await;
+        pool.shutdown().await;
+
+        assert!(pool.is_shutdown().await);
+    }
+
+    #[test]
+    fn test_running_task_has_start_time() {
+        let mut task = Task::default();
+        task.id = 1;
+        task.project_id = 1;
+        task.template_id = 1;
+        task.status = TaskStatus::Waiting;
+
+        let logger = Arc::new(crate::services::task_logger::BasicLogger::new());
+        let template = Template::default();
+
+        let running_task = RunningTask::new(task, logger, template);
+        // start_time должен быть установлен
+        assert!(running_task.start_time <= Utc::now());
+    }
+
+    #[test]
+    fn test_running_task_template() {
+        let mut task = Task::default();
+        task.id = 1;
+        task.project_id = 1;
+        task.template_id = 1;
+        task.status = TaskStatus::Waiting;
+
+        let logger = Arc::new(crate::services::task_logger::BasicLogger::new());
+        let template = Template::default();
+
+        let running_task = RunningTask::new(task, logger, template.clone());
+        assert_eq!(running_task.template.id, template.id);
+    }
 }
