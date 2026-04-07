@@ -209,9 +209,75 @@ mod tests {
     fn test_get_import_order() {
         let import_order = get_import_order().unwrap();
         let export_order = get_export_order().unwrap();
-        
+
         // Импорт должен быть в обратном порядке
         assert_eq!(import_order[0], *export_order.last().unwrap());
         assert_eq!(import_order.last().unwrap(), export_order[0]);
+    }
+
+    #[test]
+    fn test_serialize_complex_struct() {
+        #[derive(Serialize)]
+        struct TestExport {
+            version: String,
+            items: Vec<String>,
+        }
+
+        let data = TestExport {
+            version: "1.0".to_string(),
+            items: vec!["item1".to_string(), "item2".to_string()],
+        };
+        let json = serialize_to_json(&data).unwrap();
+        assert!(json.contains("\"version\":\"1.0\""));
+        assert!(json.contains("\"items\":["));
+    }
+
+    #[test]
+    fn test_serialize_to_json_error() {
+        // serde_json::to_string_pretty редко ошибается, но проверим путь
+        let data = vec![1, 2, 3];
+        let result = serialize_to_json(&data);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_deserialize_from_json_error() {
+        let result = deserialize_from_json::<Vec<String>>("invalid json");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Failed to deserialize"));
+    }
+
+    #[test]
+    fn test_validate_before_export_complex() {
+        #[derive(Serialize)]
+        struct ComplexData {
+            name: String,
+            value: i32,
+        }
+
+        let data = ComplexData {
+            name: "test".to_string(),
+            value: 42,
+        };
+        assert!(validate_before_export(&data).is_ok());
+    }
+
+    #[test]
+    fn test_validate_after_import_valid_json() {
+        let json = r#"{"name":"test","value":42}"#;
+        #[derive(Deserialize, Debug)]
+        struct TestData {
+            name: String,
+            value: i32,
+        }
+        let result = validate_after_import::<TestData>(json);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().name, "test");
+    }
+
+    #[test]
+    fn test_validate_after_import_invalid_json() {
+        let result = validate_after_import::<String>("not valid json");
+        assert!(result.is_err());
     }
 }

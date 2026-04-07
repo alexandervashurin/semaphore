@@ -129,7 +129,7 @@ rust_semaphore/
 │   ├── vanilla/            # Vanilla JS фронтенд (активный)
 │   │   ├── js/             # app.js, router.js, api.js, components/
 │   │   └── css/            # SCSS стили
-│   └── src/                # Vue 2 (legacy, не используется)
+│   └── (Vue 2 legacy удалён)
 ├── Dockerfile
 ├── docker-compose.yml
 ├── MASTER_PLAN.md          # Живой план задач
@@ -219,7 +219,7 @@ SEMAPHORE_ACCESS_KEY_ENCRYPTION=...    # AES ключ для секретов
 После достижения полного pariteta с Go-оригиналом:
 
 - [ ] Кластерный режим / HA
-- [ ] Redis кэширование
+- [x] Redis кэширование (redis 0.29, cache.rs)
 - [ ] Helm chart для Kubernetes
 - [ ] Distributed tracing (OpenTelemetry)
 - [ ] gRPC API для внутренних сервисов
@@ -307,7 +307,7 @@ cd rust && cargo test --test api_integration
 cd rust && cargo clippy -- -D warnings
 
 # Frontend сборка
-cd web && npm run vanilla:build
+cd web && npm run build frontend (copy to web/public/)
 
 # Всё через Docker
 docker compose up -d

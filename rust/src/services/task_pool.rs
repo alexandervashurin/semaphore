@@ -643,4 +643,205 @@ mod tests {
         assert!(debug_str.contains("TaskFinished"));
         assert!(debug_str.contains("42"));
     }
+
+    #[tokio::test]
+    async fn test_task_pool_add_task() {
+        use crate::db::mock::MockStore;
+        let store = Arc::new(MockStore::new());
+        let pool = TaskPool::new(store, 5);
+
+        let task = Task {
+            id: 100,
+            project_id: 1,
+            template_id: 1,
+            status: TaskStatus::Waiting,
+            ..Default::default()
+        };
+
+        let result = pool.add_task(task).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_task_pool_log() {
+        use crate::db::mock::MockStore;
+        let store = Arc::new(MockStore::new());
+        let pool = TaskPool::new(store, 5);
+
+        let record = TaskLogRecord {
+            task_id: 1,
+            output: "Test log output".to_string(),
+            time: Utc::now(),
+        };
+
+        let result = pool.log(record).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_task_pool_get_queue_size() {
+        use crate::db::mock::MockStore;
+        let store = Arc::new(MockStore::new());
+        let pool = TaskPool::new(store, 5);
+
+        // Очередь изначально пуста
+        let size = pool.get_queue_size().await;
+        assert_eq!(size, 0);
+
+        // Добавим задачу
+        let task = Task {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            status: TaskStatus::Waiting,
+            ..Default::default()
+        };
+        pool.add_task(task).await.unwrap();
+
+        // Дадим время на обработку
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+        let size = pool.get_queue_size().await;
+        assert_eq!(size, 1);
+    }
+
+    #[tokio::test]
+    async fn test_task_pool_get_running_count() {
+        use crate::db::mock::MockStore;
+        let store = Arc::new(MockStore::new());
+        let pool = TaskPool::new(store, 5);
+
+        // Ничего не запущено
+        let count = pool.get_running_count().await;
+        assert_eq!(count, 0);
+    }
+
+    #[tokio::test]
+    async fn test_task_pool_get_project_tasks() {
+        use crate::db::mock::MockStore;
+        let store = Arc::new(MockStore::new());
+        let pool = TaskPool::new(store, 5);
+
+        let task = Task {
+            id: 1,
+            project_id: 42,
+            template_id: 1,
+            status: TaskStatus::Waiting,
+            ..Default::default()
+        };
+        pool.add_task(task).await.unwrap();
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+        let tasks = pool.get_project_tasks(42).await;
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].id, 1);
+    }
+
+    #[tokio::test]
+    async fn test_task_pool_set_and_remove_block() {
+        use crate::db::mock::MockStore;
+        let store = Arc::new(MockStore::new());
+        let pool = TaskPool::new(store, 5);
+
+        // Устанавливаем блокировку
+        pool.set_block(100, 2).await;
+
+        // Проверяем что блокировка установлена
+        {
+            let state = pool.state.read().await;
+            assert!(state.blocks.contains_key(&100));
+        }
+
+        // Удаляем блокировку
+        pool.remove_block(100).await;
+
+        {
+            let state = pool.state.read().await;
+            assert!(!state.blocks.contains_key(&100));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_task_pool_start_stop() {
+        use crate::db::mock::MockStore;
+        let store = Arc::new(MockStore::new());
+        let pool = TaskPool::new(store, 5);
+
+        // Запуск
+        let result = pool.start().await;
+        assert!(result.is_ok());
+
+        // Повторный запуск должен вернуть ошибку
+        let result = pool.start().await;
+        assert!(result.is_err());
+
+        // Остановка
+        let result = pool.stop().await;
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_task_pool_event_task_requeued() {
+        let task = Task {
+            id: 99,
+            project_id: 1,
+            template_id: 1,
+            status: TaskStatus::Waiting,
+            ..Default::default()
+        };
+
+        let event = TaskPoolEvent::TaskRequeued(task);
+        match event {
+            TaskPoolEvent::TaskRequeued(t) => {
+                assert_eq!(t.id, 99);
+                assert_eq!(t.status, TaskStatus::Waiting);
+            }
+            _ => panic!("Expected TaskRequeued"),
+        }
+    }
+
+    #[test]
+    fn test_running_task_with_runner_id() {
+        let task = Task {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            status: TaskStatus::Running,
+            ..Default::default()
+        };
+
+        let running = RunningTask {
+            task,
+            project_id: 1,
+            started_at: Utc::now(),
+            runner_id: Some(42),
+        };
+
+        assert_eq!(running.runner_id, Some(42));
+        assert_eq!(running.task.status, TaskStatus::Running);
+    }
+
+    #[tokio::test]
+    async fn test_task_pool_multiple_projects_queue() {
+        use crate::db::mock::MockStore;
+        let store = Arc::new(MockStore::new());
+        let pool = TaskPool::new(store, 5);
+
+        // Добавляем задачи из разных проектов
+        for i in 1..=3 {
+            let task = Task {
+                id: i,
+                project_id: i,
+                template_id: 1,
+                status: TaskStatus::Waiting,
+                ..Default::default()
+            };
+            pool.add_task(task).await.unwrap();
+        }
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+        let size = pool.get_queue_size().await;
+        assert_eq!(size, 3);
+    }
 }

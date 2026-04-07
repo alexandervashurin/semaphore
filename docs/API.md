@@ -1,8 +1,9 @@
 # 📚 API Документация Velum
 
-> **Версия API:** 2.16.14  
-> **Base URL:** `http://localhost:3000/api`  
-> **Формат:** OpenAPI 3.0
+> **Версия API:** 2.5.2
+> **Base URL:** `http://localhost:3000/api`
+> **Формат:** REST API + WebSocket
+> **OpenAPI spec:** `openapi.yml` в корне репозитория
 
 ---
 
@@ -48,15 +49,15 @@ Content-Type: application/json
 ```json
 {
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "user": {
-    "id": 1,
-    "name": "Admin",
-    "username": "admin",
-    "email": "admin@velum.local",
-    "admin": true
-  }
+  "token_type": "Bearer",
+  "expires_in": 86400,
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refresh_expires_in": 2592000,
+  "totp_required": false
 }
 ```
+
+> ⚠️ **Примечание:** Поле `user` **не возвращается** в ответе login. Для получения данных пользователя используйте `GET /api/user`. При использовании cookie (`semaphore`) дополнительная авторизация не требуется.
 
 ### Выход из системы
 
@@ -65,11 +66,47 @@ POST /api/auth/logout
 Authorization: Bearer <token>
 ```
 
-### Проверка сессии
+> JWT токен добавляется в чёрный список (TokenBlacklist, автоочистка каждые 5 мин). Cookie `semaphore` очищается.
+
+### Проверка сессии (TOTP verify)
 
 ```http
 POST /api/auth/verify
-Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "admin123",
+  "verify_code": "123456"
+}
+```
+
+> ⚠️ Это **TOTP verification**, не проверка сессии. Используется для подтверждения 2FA.
+
+### Обновление токена
+
+```http
+POST /api/auth/refresh
+Content-Type: application/json
+
+{
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+### TOTP endpoints
+
+```http
+POST /api/auth/totp/start
+POST /api/auth/totp/confirm
+POST /api/auth/totp/disable
+```
+
+### OIDC Login
+
+```http
+GET /api/auth/oidc/{provider}
+GET /api/auth/oidc/{provider}/callback
 ```
 
 ### API Токены пользователя
@@ -185,12 +222,16 @@ Authorization: Bearer <token>
   {
     "id": 1,
     "name": "Infrastructure",
-    "description": "Infrastructure automation",
-    "created": "2026-03-01T00:00:00Z",
-    "updated": "2026-03-30T00:00:00Z"
+    "alert": false,
+    "alert_chat": null,
+    "max_parallel_tasks": 0,
+    "type": "default",
+    "created": "2026-03-01T00:00:00Z"
   }
 ]
 ```
+
+> ⚠️ **Примечание:** Поля `description` и `updated` **не существуют** в модели Project.
 
 ### Создать проект
 
@@ -201,7 +242,9 @@ Content-Type: application/json
 
 {
   "name": "My Project",
-  "description": "Project description"
+  "type": "default",
+  "alert": false,
+  "max_parallel_tasks": 0
 }
 ```
 
@@ -698,11 +741,12 @@ Authorization: Bearer <token>
   {
     "id": 1,
     "name": "SSH Key",
-    "type": "ssh",
-    "secret": "ssh-rsa AAAA..."
+    "type": "ssh"
   }
 ]
 ```
+
+> ⚠️ **Примечание:** Поле `secret` не возвращается в API. Секреты зашифрованы AES-256-GCM.
 
 ### Создать ключ
 
@@ -714,7 +758,7 @@ Content-Type: application/json
 {
   "name": "My SSH Key",
   "type": "ssh",
-  "secret": "-----BEGIN RSA PRIVATE KEY-----\n..."
+  "ssh_key": "-----BEGIN RSA PRIVATE KEY-----\n..."
 }
 ```
 
@@ -722,6 +766,7 @@ Content-Type: application/json
 - `ssh` — SSH ключ
 - `login_password` — Логин/пароль
 - `none` — Без ключа
+- `access_key` — Access Key (AWS и т.д.)
 
 ---
 
@@ -808,6 +853,9 @@ Content-Type: application/json
 - `teams` — Microsoft Teams
 - `discord` — Discord
 - `telegram` — Telegram
+- `custom` — Custom payload
+
+> ⚠️ **Примечание:** Webhook handlers существуют в коде, но routes не зарегистрированы в роутере. API endpoints недоступны до исправления.
 
 ---
 
@@ -1020,11 +1068,11 @@ Authorization: Bearer <token>
 **Response:**
 ```json
 {
-  "version": "2.16.14",
+  "version": "2.5.2",
   "commit": "abc123",
-  "build_date": "2026-03-30",
+  "build_date": "2026-04-03",
   "database": "postgres",
-  "features": ["kubernetes", "analytics", "webhooks"]
+  "features": ["kubernetes", "analytics", "webhooks", "mcp", "graphql"]
 }
 ```
 
@@ -1095,13 +1143,38 @@ task = requests.post(
 
 ## 📊 Статистика API
 
-| Метод | Количество |
-|-------|------------|
-| GET | 208 |
-| POST | 104 |
-| PUT | 52 |
-| DELETE | 67 |
-| **Всего** | **431** |
+| Метод | Примерное количество |
+|-------|---------------------|
+| GET | 200+ |
+| POST | 100+ |
+| PUT | 50+ |
+| DELETE | 60+ |
+| **Всего** | **~410+** |
+
+> ⚠️ **Примечание:** Документация описывает ~80 endpoint'ов. Реально в коде зарегистрировано ~410+ endpoint'ов (включая 180+ Kubernetes). Следующие endpoints существуют в коде, но **не документированы** здесь:
+> - Workflows (DAG) CRUD
+> - AI Integration (`/api/ai/*`)
+> - Integrations CRUD + matchers
+> - Secret Storages + Vault integration
+> - Project Invites
+> - Custom Roles
+> - Views
+> - Notification Policies
+> - Runners
+> - Apps
+> - Cache
+> - MCP settings
+> - Credential Types
+> - Snapshots & Rollback
+> - LDAP Group mappings
+> - Cost estimates (Infracost)
+> - Terraform remote state backend
+> - Organizations (Multi-Tenancy)
+> - Deployment Environments
+> - Task Structured Outputs
+> - GitOps Drift Detection
+> - Backup verify
+> - Audit log endpoints
 
 ---
 

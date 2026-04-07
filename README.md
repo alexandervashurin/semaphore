@@ -2,16 +2,16 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/Rust-stable-orange.svg)](https://www.rust-lang.org)
-[![Build](https://github.com/tnl-o/velum/actions/workflows/rust.yml/badge.svg)](https://github.com/tnl-o/velum/actions)
-[![Coverage](https://github.com/tnl-o/rust_semaphore/actions/workflows/coverage.yml/badge.svg)](https://github.com/tnl-o/rust_semaphore/actions/workflows/coverage.yml)
+[![Build](https://github.com/alexandervashurin/semaphore/actions/workflows/rust.yml/badge.svg)](https://github.com/alexandervashurin/semaphore/actions)
+[![Coverage](https://github.com/alexandervashurin/semaphore/actions/workflows/coverage.yml/badge.svg)](https://github.com/alexandervashurin/semaphore/actions/workflows/coverage.yml)
 [![Release](https://img.shields.io/github/v/release/alexandervashurin/semaphore?label=latest)](https://github.com/alexandervashurin/semaphore/releases)
 
 **Velum** — это система управления и автоматизации DevOps задач с открытым исходным кодом. Написана на Rust, управляет Ansible, Terraform, OpenTofu, Terragrunt, Bash и PowerShell через веб-интерфейс с базой данных PostgreSQL.
 
-> **База данных:** Только PostgreSQL (SQLite/MySQL удалены в v2.2)
-> **Тесты:** 710+ успешных тестов
-> **Kubernetes:** Полная интеграция — 33 UI страницы, 60+ API endpoints, WebSocket streaming, Security & RBAC
-> **Последний релиз:** [v2.5.1](https://github.com/alexandervashurin/semaphore/releases/tag/v2.5.1) — Kubernetes UI Production Ready
+> **База данных:** PostgreSQL (рекомендуется), SQLite (по умолчанию для демо)
+> **Тесты:** 1283 успешных тестов (0 failed)
+> **Kubernetes:** Полная интеграция — 33 UI страницы, 180+ API endpoints, WebSocket streaming, Security & RBAC
+> **Последний релиз:** [v2.5.2](https://github.com/alexandervashurin/semaphore/releases/tag/v2.5.2) — Doc tests fix
 
 ---
 
@@ -56,34 +56,6 @@ curl -X GET http://localhost:8088/api/project/1/tasks/1/output \
 
 ---
 
-## 📸 Скриншоты
-
-### Dashboard
-![Dashboard](docs/images/dashboard.png)
-*Главная панель с проектами и задачами*
-
-### Kubernetes Pods
-![Kubernetes Pods](docs/images/k8s-pods.png)
-*Управление Pod'ами с WebSocket логами*
-
-### Template Editor
-![Template Editor](docs/images/template-editor.png)
-*Редактор шаблонов Ansible/Terraform*
-
-### Task Log (WebSocket)
-![Task Log](docs/images/task-log.png)
-*Потоковая передача логов задачи в реальном времени*
-
-### Workflow Builder
-![Workflow Builder](docs/images/workflow-builder.png)
-*Визуальный конструктор многошаговых пайплайнов*
-
-### MCP Server (AI Integration)
-![MCP Server](docs/images/mcp-server.png)
-*Embedded MCP сервер для AI-интеграции*
-
----
-
 ---
 
 ## 🚀 Быстрый старт
@@ -123,8 +95,8 @@ curl -X GET http://localhost:8088/api/project/1/tasks/1/output \
 ./velum.sh stop
 ```
 
-**Доступ:** http://localhost  
-**Логин/пароль:** `admin / demo123`
+**Доступ:** http://localhost:3000
+**Логин/пароль:** `admin / admin123`
 
 ---
 
@@ -135,8 +107,8 @@ curl -X GET http://localhost:8088/api/project/1/tasks/1/output \
 docker compose -f docker-compose.postgres.yml up -d
 
 # 2. Инициализация БД
-export SEMAPHORE_DB_DIALECT=postgres
-export SEMAPHORE_DB_URL=postgres://semaphore:semaphore123@localhost:5432/semaphore
+export VELUM_DB_DIALECT=postgres
+export VELUM_DB_URL=postgres://semaphore:semaphore123@localhost:5432/semaphore
 
 cd rust
 cargo run -- user add --username admin --name "Administrator" --email admin@localhost --password admin123 --admin
@@ -154,30 +126,22 @@ cargo run -- server --host 0.0.0.0 --port 3000
 
 ### Из релиза GitHub
 
-Скачайте бинарник для вашей платформы из релизов:
+Бинарные файлы публикуются в [GitHub Releases](https://github.com/alexandervashurin/semaphore/releases):
 
-**Основной репозиторий:**
 ```bash
-wget https://github.com/tnl-o/velum/releases/download/v2.4.0/velum-linux-x86_64
+# Linux amd64
+wget https://github.com/alexandervashurin/semaphore/releases/download/v2.5.2/velum-linux-x86_64
 chmod +x velum-linux-x86_64
 ./velum-linux-x86_64 server --host 0.0.0.0 --port 3000
 ```
 
-**Текущий форк (актуальная версия):**
-```bash
-wget https://github.com/alexandervashurin/semaphore/releases/download/v2.4.0/velum-linux-x86_64
-chmod +x velum-linux-x86_64
-./velum-linux-x86_64 server --host 0.0.0.0 --port 3000
-```
+> ⚠️ Не все версии имеют опубликованные бинарники. Для получения актуальной версии рекомендуется сборка из исходного кода.
 
 ### Из исходного кода
 
 ```bash
-# Клонируйте репозиторий (основной или форк)
-# Основной: git clone https://github.com/tnl-o/velum.git
-# Форк:     git clone https://github.com/alexandervashurin/semaphore.git
-git clone https://github.com/tnl-o/velum.git
-cd velum
+git clone https://github.com/alexandervashurin/semaphore.git
+cd semaphore
 
 # Соберите проект
 cd rust
@@ -236,7 +200,7 @@ cargo build --release
 - ✅ **i18n** — EN/RU + Dark/Light theme
 
 **Backend API (~8000+ строк Rust):**
-- 60+ REST endpoints (`/api/kubernetes/...`)
+- 180+ REST endpoints (`/api/kubernetes/...`)
 - WebSocket streaming (logs, events, exec, port-forward)
 - kube-rs client (kube 0.98, k8s-openapi 0.24, v1_30)
 - Routes декомпозиция (12 модулей)
@@ -253,20 +217,25 @@ cargo build --release
 
 ## 🔧 Конфигурация
 
-Все настройки задаются через переменные окружения:
+Основные настройки задаются через переменные окружения. Проект использует смешанную схему именования:
+- `VELUM_*` — настройки БД, логирования, runner
+- `SEMAPHORE_*` — настройки аутентификации, LDAP, OIDC, ключей
 
 | Переменная | Описание | Пример |
 |------------|----------|--------|
-| `SEMAPHORE_DB_DIALECT` | Тип БД (postgres) | `postgres` |
-| `SEMAPHORE_DB_URL` | Строка подключения к БД | `postgres://user:pass@host:5432/db` |
-| `SEMAPHORE_WEB_PATH` | Путь к фронтенду | `./web/public` |
+| `VELUM_DB_DIALECT` | Тип БД | `postgres`, `sqlite` |
+| `VELUM_DB_URL` | Строка подключения PostgreSQL | `postgres://user:pass@host:5432/db` |
+| `VELUM_DB_PATH` | Путь к SQLite БД (если dialect=sqlite) | `./data/velum.db` |
 | `SEMAPHORE_ADMIN` | Имя авто-созданного админа | `admin` |
-| `SEMAPHORE_ADMIN_PASSWORD` | Пароль админа | `admin123` |
+| `SEMAPHORE_ADMIN_PASSWORD` | Пароль админа (default: `admin123`) | `admin123` |
 | `SEMAPHORE_ADMIN_EMAIL` | Email админа | `admin@localhost` |
 | `SEMAPHORE_ACCESS_KEY_ENCRYPTION` | Ключ шифрования AES-256 | `my-secret-key-32-chars-long` |
+| `SEMAPHORE_JWT_SECRET` | Секрет для JWT токенов | `my-jwt-secret` |
+| `SEMAPHORE_WEB_PATH` | Путь к фронтенду | `./web/public` |
+| `SEMAPHORE_LDAP_ENABLE` | Включить LDAP | `true` |
+| `SEMAPHORE_OIDC_ENABLE` | Включить OIDC | `true` |
+| `VELUM_LOG_FILE` | Файл для логов | `/var/log/velum/velum.log` |
 | `RUST_LOG` | Уровень логирования | `info`, `debug`, `warn` |
-| `MCP_TRANSPORT` | Транспорт для MCP | `stdio` или `http` |
-| `MCP_PORT` | Порт для MCP HTTP | `8500` |
 
 **Полная документация:** [`docs/technical/CONFIG.md`](docs/technical/CONFIG.md)
 
@@ -355,7 +324,7 @@ cargo build --release
 ```
 ├── rust/                   Backend — Rust / Axum / SQLx / Kubernetes
 │   └── src/
-│       ├── api/            HTTP handlers (200+ функций)
+│       ├── api/            HTTP handlers (576+ pub fn в handlers/)
 │       │   └── handlers/
 │       │       └── kubernetes/  K8s API: pods, deployments, workloads
 │       ├── models/         Модели данных
@@ -363,7 +332,7 @@ cargo build --release
 │       ├── services/       Бизнес-логика (task runner, scheduler, backup)
 │       ├── kubernetes/     K8s клиент, Helm, Jobs
 │       └── config/         Загрузка конфигурации
-├── web/public/             Frontend — 48 HTML страниц, Vanilla JS
+├── web/public/             Frontend — 76 HTML страниц, Vanilla JS
 │   ├── k8s-pods.html       Kubernetes Pods UI с WebSocket логами
 │   ├── k8s-deployments.html Deployments UI с scale/restart/rollback
 │   ├── k8s-configmaps.html ConfigMaps CRUD с JSON редактором
@@ -417,7 +386,7 @@ cargo check
 # Линтер (0 предупреждений)
 cargo clippy -- -D warnings
 
-# Тесты (710+)
+# Тесты (1283+)
 cargo test
 
 # Запуск сервера
@@ -436,15 +405,14 @@ cargo build --release
 
 | Версия | Дата | Ключевые изменения |
 |--------|------|-------------------|
-| **v2.5.1** | 2026-04-01 | **Bugfix** — устранены предупреждения компиляции, clippy warnings |
-| **v2.5.0** | 2026-04-01 | **Kubernetes UI Release** — 33 страницы, Security & RBAC, Helm, Multi-cluster, Audit |
-| **v2.4.0** | 2026-03 | Kubernetes Workloads Complete — 20 страниц, WebSocket, ~4800 строк кода |
-| **v2.3.0** | 2026-03 | Kubernetes Workloads API — ReplicaSets, DaemonSets, StatefulSets |
-| **v2.2.0** | 2026-02 | MCP server + Pods/Deployments API |
-| **v2.1.0** | 2026-02 | PostgreSQL-only, 710+ тестов |
-| **v2.0.0** | 2026-01 | Initial Rust release |
+| **v2.5.2** | 2026-04-03 | **Bugfix** — doctests fix, 1283 теста |
+| **v2.5.1** | 2026-04-01 | **Bugfix** — clippy warnings устранены |
+| **v2.5.0** | 2026-04-01 | **Kubernetes UI Release** — 33 страницы, Security & RBAC, Helm, Multi-cluster |
+| **v2.2.0** | 2026-03 | MCP server + Pods/Deployments API |
+| **v2.1.0** | 2026-02 | PostgreSQL-only, тесты |
+| **v2.0.0** | 2026-02 | Initial Rust release |
 
-**Последний релиз:** [v2.5.1](https://github.com/alexandervashurin/semaphore/releases/tag/v2.5.1) — Kubernetes UI Production Ready
+**Последний релиз:** [v2.5.2](https://github.com/alexandervashurin/semaphore/releases/tag/v2.5.2) — Doc tests fix, 1283 теста
 
 ---
 

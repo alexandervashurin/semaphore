@@ -215,16 +215,15 @@ db1.example.com
   "playbook": "deploy.yml",
   "arguments": "[]",
   "allow_override_args_in_task": false,
-  "survey_var": null,
+  "survey_vars": null,
   "created": "2026-03-06T10:00:00Z",
   "vault_key_id": null,
   "type": "ansible",
   "app": "ansible",
   "git_branch": "main",
-  "git_depth": 1,
   "diff": false,
-  "operator_id": null,
-  "last_task_id": null
+  "start": null,
+  "autorun": ""
 }
 ```
 
@@ -257,26 +256,36 @@ db1.example.com
   "status": "success",
   "playbook": "deploy.yml",
   "arguments": "[]",
-  "task_limit": null,
-  "debug": false,
-  "dry_run": false,
-  "diff": false,
+  "params": null,
   "user_id": 1,
   "created": "2026-03-06T10:00:00Z",
-  "start_time": "2026-03-06T10:01:00Z",
-  "end_time": "2026-03-06T10:05:00Z",
+  "start": "2026-03-06T10:01:00Z",
+  "end": "2026-03-06T10:05:00Z",
   "message": "Deployment completed successfully",
   "commit_hash": null,
   "commit_message": null,
-  "commit_author": null
+  "version": null,
+  "inventory_id": null,
+  "repository_id": null,
+  "environment_id": null,
+  "schedule_id": null,
+  "integration_id": null,
+  "build_task_id": null
 }
 ```
 
 **Статусы задач:**
-- `waiting` - Ожидание
-- `running` - Выполняется
-- `success` - Успешно
-- `failed` - Ошибка
+- `waiting` — Ожидание
+- `starting` — Запуск
+- `waiting_confirmation` — Ожидание подтверждения
+- `confirmed` — Подтверждено
+- `rejected` — Отклонено
+- `running` — Выполняется
+- `stopping` — Остановка
+- `stopped` — Остановлено
+- `success` — Успешно
+- `error` — Ошибка
+- `not_executed` — Не выполнено
 
 **CRUD:**
 - ✅ CREATE: `POST /api/project/{id}/tasks`
@@ -289,11 +298,8 @@ db1.example.com
 ```json
 {
   "template_id": 1,
-  "debug": false,
-  "dry_run": false,
-  "diff": false,
   "arguments": "[]",
-  "task_limit": null
+  "params": null
 }
 ```
 
@@ -334,7 +340,6 @@ db1.example.com
   "id": 1,
   "project_id": 1,
   "user_id": 1,
-  "task_id": 1,
   "object_id": 1,
   "object_type": "template",
   "description": "Template 'Deploy App' created",

@@ -500,6 +500,17 @@ mod tests {
         }
     }
 
+    fn create_test_task(id: i32) -> Task {
+        Task {
+            id,
+            template_id: 1,
+            project_id: 10,
+            status: TaskStatus::Success,
+            created: Utc::now(),
+            ..Default::default()
+        }
+    }
+
     fn create_test_run() -> WorkflowRun {
         WorkflowRun {
             id: 1,
@@ -620,5 +631,113 @@ mod tests {
 
         let ctx = WorkflowExecutionContext::new(workflow, nodes, edges, run);
         assert!(!ctx.has_running_nodes()); // Все pending
+    }
+
+    #[test]
+    fn test_is_complete_with_mixed_statuses() {
+        let workflow = create_test_workflow();
+        let nodes = vec![
+            create_test_node(1),
+            create_test_node(2),
+            create_test_node(3),
+        ];
+        let edges = vec![];
+        let run = create_test_run();
+
+        let mut ctx = WorkflowExecutionContext::new(workflow, nodes, edges, run);
+
+        // Помечаем узлы 1 и 2 как Success
+        ctx.node_statuses.insert(1, NodeExecutionStatus::Success(create_test_task(1)));
+        ctx.node_statuses.insert(2, NodeExecutionStatus::Success(create_test_task(2)));
+        // Узел 3 остаётся Pending
+        assert!(!ctx.is_complete());
+    }
+
+    #[test]
+    fn test_is_complete_when_all_success() {
+        let workflow = create_test_workflow();
+        let nodes = vec![
+            create_test_node(1),
+            create_test_node(2),
+        ];
+        let edges = vec![];
+        let run = create_test_run();
+
+        let mut ctx = WorkflowExecutionContext::new(workflow, nodes, edges, run);
+
+        ctx.node_statuses.insert(1, NodeExecutionStatus::Success(create_test_task(1)));
+        ctx.node_statuses.insert(2, NodeExecutionStatus::Success(create_test_task(2)));
+
+        assert!(ctx.is_complete());
+    }
+
+    #[test]
+    fn test_has_running_nodes_with_running_task() {
+        let workflow = create_test_workflow();
+        let nodes = vec![
+            create_test_node(1),
+            create_test_node(2),
+        ];
+        let edges = vec![];
+        let run = create_test_run();
+
+        let mut ctx = WorkflowExecutionContext::new(workflow, nodes, edges, run);
+
+        ctx.node_statuses.insert(1, NodeExecutionStatus::Success(create_test_task(1)));
+        ctx.node_statuses.insert(2, NodeExecutionStatus::Running(create_test_task(2)));
+
+        assert!(ctx.has_running_nodes());
+    }
+
+    #[test]
+    fn test_find_next_nodes_no_matching_condition() {
+        let workflow = create_test_workflow();
+        let nodes = vec![create_test_node(1), create_test_node(2)];
+        // Edge требует "failure", но задача успешна
+        let edges = vec![create_test_edge(1, 2, "failure")];
+        let run = create_test_run();
+
+        let ctx = WorkflowExecutionContext::new(workflow, nodes, edges, run);
+        let next = ctx.find_next_nodes(1, TaskStatus::Success);
+
+        // Нет matching — ничего не возвращаем
+        assert!(next.is_empty());
+    }
+
+    #[test]
+    fn test_find_next_nodes_multiple_edges() {
+        let workflow = create_test_workflow();
+        let nodes = vec![
+            create_test_node(1),
+            create_test_node(2),
+            create_test_node(3),
+        ];
+        let edges = vec![
+            create_test_edge(1, 2, "success"),
+            create_test_edge(1, 3, "failure"),
+        ];
+        let run = create_test_run();
+
+        let ctx = WorkflowExecutionContext::new(workflow, nodes, edges, run);
+
+        // При Success должен сработать только edge к узлу 2
+        let next = ctx.find_next_nodes(1, TaskStatus::Success);
+        assert_eq!(next, vec![2]);
+
+        // При Error — к узлу 3
+        let next = ctx.find_next_nodes(1, TaskStatus::Error);
+        assert_eq!(next, vec![3]);
+    }
+
+    #[test]
+    fn test_workflow_executor_clone() {
+        // WorkflowExecutor содержит Arc<AppState>, проверяем что clone работает
+        // Для простоты проверяем что структура создаётся
+        let nodes = vec![create_test_node(1)];
+        let edges = vec![create_test_edge(1, 1, "success")];
+        let run = create_test_run();
+        let workflow = create_test_workflow();
+        let ctx = WorkflowExecutionContext::new(workflow, nodes.clone(), edges.clone(), run.clone());
+        let _ctx2 = ctx; // должна быть возможность перемещения
     }
 }

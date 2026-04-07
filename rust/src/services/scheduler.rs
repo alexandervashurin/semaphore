@@ -425,4 +425,76 @@ mod tests {
         let validation = SchedulePool::validate_cron_for_storage(&schedule.cron);
         assert!(validation.is_err());
     }
+
+    #[test]
+    fn test_normalize_cron_every_minute() {
+        assert_eq!(SchedulePool::normalize_cron_expression("* * * * *"), "0 * * * * *");
+    }
+
+    #[test]
+    fn test_normalize_cron_hourly() {
+        assert_eq!(SchedulePool::normalize_cron_expression("0 * * * *"), "0 0 * * * *");
+    }
+
+    #[test]
+    fn test_normalize_cron_daily() {
+        assert_eq!(SchedulePool::normalize_cron_expression("0 0 * * *"), "0 0 0 * * *");
+    }
+
+    #[test]
+    fn test_normalize_cron_weekday_range() {
+        assert_eq!(SchedulePool::normalize_cron_expression("30 8 * * 1-5"), "0 30 8 * * 1-5");
+    }
+
+    #[test]
+    fn test_calculate_next_run_specific_time() {
+        // Каждые 5 минут
+        let result = SchedulePool::calculate_next_run("*/5 * * * *");
+        assert!(result.is_ok());
+        let next = result.unwrap();
+        assert!(next > Utc::now());
+    }
+
+    #[test]
+    fn test_scheduled_job_properties() {
+        let job = ScheduledJob {
+            schedule_id: 10,
+            template_id: 20,
+            project_id: 30,
+            cron: "0 */2 * * *".to_string(),
+            name: "Every 2 hours".to_string(),
+            active: true,
+            next_run: Some(Utc::now()),
+        };
+
+        assert_eq!(job.schedule_id, 10);
+        assert_eq!(job.template_id, 20);
+        assert_eq!(job.project_id, 30);
+        assert!(job.active);
+        assert!(job.next_run.is_some());
+    }
+
+    #[test]
+    fn test_schedule_structure() {
+        use crate::models::Schedule;
+
+        let schedule = Schedule {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            cron: "0 9 * * 1-5".to_string(),
+            cron_format: None,
+            name: "Workday 9AM".to_string(),
+            active: true,
+            last_commit_hash: None,
+            repository_id: Some(5),
+            created: Some("2026-01-01T00:00:00Z".to_string()),
+            run_at: None,
+            delete_after_run: false,
+        };
+
+        assert_eq!(schedule.cron, "0 9 * * 1-5");
+        assert!(schedule.active);
+        assert_eq!(schedule.repository_id, Some(5));
+    }
 }

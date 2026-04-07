@@ -50,11 +50,12 @@ POSTGRES_DB=velum
 # Velum
 VELUM_DB_DIALECT=postgres
 VELUM_DB_URL=postgres://velum:<PASSWORD>@velum-db:5432/velum
-VELUM_WEB_PATH=/app/web/public
-VELUM_JWT_SECRET=<GENERATE_SECRET_32_CHARS>
-VELUM_ADMIN=admin
-VELUM_ADMIN_PASSWORD=<CHANGE_ADMIN_PASSWORD>
-VELUM_ADMIN_EMAIL=admin@example.com
+SEMAPHORE_WEB_PATH=/app/web/public
+SEMAPHORE_JWT_SECRET=<GENERATE_SECRET_32_CHARS>
+SEMAPHORE_ADMIN=admin
+SEMAPHORE_ADMIN_PASSWORD=<CHANGE_ADMIN_PASSWORD>
+SEMAPHORE_ADMIN_EMAIL=admin@example.com
+SEMAPHORE_ACCESS_KEY_ENCRYPTION=<32_CHAR_ENCRYPTION_KEY>
 
 # Nginx
 NGINX_HOST=velum.example.com
@@ -110,7 +111,7 @@ docker compose logs -f velum
 
 ```bash
 # Скачать релиз
-wget https://github.com/tnl-o/velum/releases/download/v2.5.1/velum-linux-x86_64
+wget https://github.com/alexandervashurin/semaphore/releases/download/v2.5.2/velum-linux-x86_64
 chmod +x velum-linux-x86_64
 sudo mv velum-linux-x86_64 /usr/local/bin/velum
 
@@ -139,10 +140,11 @@ sudo chown velum:velum /var/lib/velum
 sudo cat > /etc/velum/velum.conf << EOF
 VELUM_DB_DIALECT=postgres
 VELUM_DB_URL=postgres://velum:password@localhost:5432/velum
-VELUM_WEB_PATH=/usr/share/velum/web/public
-VELUM_JWT_SECRET=<YOUR_JWT_SECRET>
-VELUM_ADMIN=admin
-VELUM_ADMIN_PASSWORD=<ADMIN_PASSWORD>
+SEMAPHORE_WEB_PATH=/usr/share/velum/web/public
+SEMAPHORE_JWT_SECRET=<YOUR_JWT_SECRET>
+SEMAPHORE_ADMIN=admin
+SEMAPHORE_ADMIN_PASSWORD=<ADMIN_PASSWORD>
+SEMAPHORE_ACCESS_KEY_ENCRYPTION=<32_CHAR_KEY>
 RUST_LOG=info
 EOF
 ```
@@ -450,23 +452,29 @@ sudo systemctl enable --now velum
 
 ## Переменные окружения
 
+Проект использует два префикса: `VELUM_*` (БД, логи, runner) и `SEMAPHORE_*` (аутентификация, LDAP, OIDC).
+
 | Переменная | По умолчанию | Описание |
 |---|---|---|
-| `VELUM_DB_DIALECT` | `sqlite` | Диалект БД: `sqlite` / `postgres` / `mysql` |
-| `VELUM_DB_PATH` | `/tmp/velum.db` | Путь к SQLite-файлу |
-| `VELUM_DB_URL` | — | Строка подключения PostgreSQL/MySQL |
-| `VELUM_WEB_PATH` | `./web/public` | Путь к статическим файлам UI |
-| `VELUM_TMP_PATH` | `/tmp/velum` | Временная папка для задач |
-| `VELUM_JWT_SECRET` | `secret` | JWT-секрет (обязательно сменить!) |
-| `VELUM_ADMIN` | — | Логин первого администратора |
-| `VELUM_ADMIN_PASSWORD` | — | Пароль первого администратора |
-| `VELUM_ADMIN_EMAIL` | — | Email первого администратора |
-| `VELUM_LDAP_*` | — | LDAP-настройки (опционально) |
-| `VELUM_OIDC_*` | — | OIDC-настройки (опционально) |
-| `SEMAPHORE_AUTH_EMAIL_LOGIN_ENABLED` | `false` | `true` — в login metadata включается `emailEnabled` для UI |
+| `VELUM_DB_DIALECT` | `sqlite` | Диалект БД: `sqlite` / `postgres` |
+| `VELUM_DB_PATH` | `./data/semaphore.db` | Путь к SQLite-файлу |
+| `VELUM_DB_URL` | — | Строка подключения PostgreSQL |
+| `SEMAPHORE_WEB_PATH` | `./web/public` | Путь к статическим файлам UI |
+| `SEMAPHORE_TMP_PATH` | `/tmp/velum` | Временная папка для задач |
+| `SEMAPHORE_JWT_SECRET` | `secret` | JWT-секрет (обязательно сменить!) |
+| `SEMAPHORE_ADMIN` | — | Логин первого администратора |
+| `SEMAPHORE_ADMIN_PASSWORD` | `admin123` | Пароль первого администратора |
+| `SEMAPHORE_ADMIN_EMAIL` | — | Email первого администратора |
+| `SEMAPHORE_ACCESS_KEY_ENCRYPTION` | — | AES-256 ключ шифрования (32 символа) |
+| `SEMAPHORE_LDAP_ENABLE` | `false` | Включить LDAP аутентификацию |
+| `SEMAPHORE_OIDC_ENABLE` | `false` | Включить OIDC аутентификацию |
+| `SEMAPHORE_AUTH_EMAIL_LOGIN_ENABLED` | `false` | Включить email login в UI |
+| `VELUM_LOG_FILE` | — | Файл для логов |
+| `VELUM_RUNNER_TOKEN` | — | Токен для runner режима |
+| `VELUM_SERVER_URL` | — | URL сервера для runner |
 | `RUST_LOG` | `info` | Уровень логирования |
 
-В JSON-конфиге у объектов `auth.oidc_providers[]` можно задать поля **`email_claim`**, **`username_claim`**, **`name_claim`** (имена claims в OIDC userinfo; по умолчанию `email`, `preferred_username`, `name`). Также **`auth.emailLoginEnabled`** — то же, что переменная `SEMAPHORE_AUTH_EMAIL_LOGIN_ENABLED`.
+В JSON-конфиге у объектов `auth.oidc_providers[]` можно задать поля **`email_claim`**, **`username_claim`**, **`name_claim`** (имена claims в OIDC userinfo; по умолчанию `email`, `preferred_username`, `name`).
 
 ---
 
@@ -523,9 +531,9 @@ velum/
 
 | БД | Статус | Использование |
 |---|---|---|
-| SQLite | ✅ Prod-ready | Demo, маленькие деплои |
+| SQLite | ✅ Demo/Dev | Быстрый старт, маленькие деплои (default) |
 | PostgreSQL 13+ | ✅ Prod-ready | Рекомендован для продакшена |
-| MySQL 8+ | ✅ Поддерживается | Альтернатива PostgreSQL |
+| MySQL 8+ | ⚠️ В коде, не тестировался | Альтернативная поддержка |
 
 ---
 
