@@ -51,4 +51,19 @@ mod tests {
         log_thread_id("Test message", &data);
         // Визуальная проверка в логах
     }
+
+    #[test]
+    fn test_thread_id_returns_consistent_value() {
+        let id1 = thread_id();
+        let id2 = thread_id();
+        // В одном потоке ID должен быть одинаковым
+        assert_eq!(id1, id2);
+    }
+
+    #[test]
+    fn test_debug_thread_id() {
+        let data = vec![1, 2, 3];
+        debug_thread_id("Debug message", &data);
+        // Проверяем что не паникует
+    }
 }
