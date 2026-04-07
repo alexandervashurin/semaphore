@@ -382,4 +382,55 @@ mod notify_tests {
             .unwrap_or(0);
         assert_eq!(secs, 125);
     }
+
+    #[test]
+    fn task_duration_secs_zero_duration() {
+        let mut t = Task::default();
+        let s = Utc::now();
+        t.start = Some(s);
+        t.end = Some(s);
+        let secs = t
+            .start
+            .zip(t.end)
+            .map(|(a, b)| (b - a).num_seconds().max(0) as u64)
+            .unwrap_or(0);
+        assert_eq!(secs, 0);
+    }
+
+    #[test]
+    fn task_duration_secs_no_start() {
+        let t = Task::default();
+        let secs = t
+            .start
+            .zip(t.end)
+            .map(|(a, b)| (b - a).num_seconds().max(0) as u64)
+            .unwrap_or(0);
+        assert_eq!(secs, 0);
+    }
+
+    #[test]
+    fn task_duration_format_minutes_and_seconds() {
+        let duration_secs = 125;
+        let mins = duration_secs / 60;
+        let secs = duration_secs % 60;
+        let duration = if mins > 0 {
+            format!("{mins}m {secs}s")
+        } else {
+            format!("{secs}s")
+        };
+        assert_eq!(duration, "2m 5s");
+    }
+
+    #[test]
+    fn task_duration_format_seconds_only() {
+        let duration_secs = 30;
+        let mins = duration_secs / 60;
+        let secs = duration_secs % 60;
+        let duration = if mins > 0 {
+            format!("{mins}m {secs}s")
+        } else {
+            format!("{secs}s")
+        };
+        assert_eq!(duration, "30s");
+    }
 }
