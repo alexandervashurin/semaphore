@@ -190,4 +190,57 @@ mod tests {
         assert!(flat.get("name").is_some());
         assert_eq!(flat.get("value"), Some(&Value::Number(42.into())));
     }
+
+    #[test]
+    fn test_convert_float_large_integer() {
+        let value = json!(1_000_000_000.0);
+        assert_eq!(convert_float_to_int_if_possible(&value), Some(1_000_000_000));
+    }
+
+    #[test]
+    fn test_convert_float_negative_integer() {
+        let value = json!(-42.0);
+        assert_eq!(convert_float_to_int_if_possible(&value), Some(-42));
+    }
+
+    #[test]
+    fn test_convert_float_negative_fraction() {
+        let value = json!(-3.14);
+        assert_eq!(convert_float_to_int_if_possible(&value), None);
+    }
+
+    #[test]
+    fn test_flatten_value_array() {
+        #[derive(Serialize)]
+        struct TestStruct {
+            items: Vec<String>,
+        }
+
+        let obj = TestStruct {
+            items: vec!["a".to_string(), "b".to_string()],
+        };
+
+        let flat = struct_to_flat_map(&obj);
+
+        assert_eq!(flat.get("items.0"), Some(&Value::String("a".to_string())));
+        assert_eq!(flat.get("items.1"), Some(&Value::String("b".to_string())));
+    }
+
+    #[test]
+    fn test_flatten_value_null_root() {
+        let value = Value::Null;
+        let mut result = Map::new();
+        flatten_value(&value, "", &mut result);
+
+        assert_eq!(result.get("value"), Some(&Value::Null));
+    }
+
+    #[test]
+    fn test_flatten_value_string_root() {
+        let value = Value::String("hello".to_string());
+        let mut result = Map::new();
+        flatten_value(&value, "", &mut result);
+
+        assert_eq!(result.get("value"), Some(&Value::String("hello".to_string())));
+    }
 }
