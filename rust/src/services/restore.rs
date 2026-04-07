@@ -692,4 +692,20 @@ mod tests {
         assert_eq!(db.roles.len(), 0);
         assert_eq!(db.secret_storages.len(), 0);
     }
+
+    #[test]
+    fn test_generate_random_slug_length() {
+        for _ in 0..10 {
+            let slug = generate_random_slug();
+            assert_eq!(slug.len(), 32);
+        }
+    }
+
+    #[test]
+    fn test_restore_db_new_with_custom_project() {
+        let project = Project::default();
+        let db = RestoreDB::new(project.clone());
+        assert_eq!(db.meta.name, project.name);
+        assert_eq!(db.meta.id, project.id);
+    }
 }
