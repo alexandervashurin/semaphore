@@ -134,4 +134,22 @@ mod tests {
         log_debug_f(&err, &[("key", "value")]);
         // Проверяем что не паникует
     }
+
+    #[test]
+    fn test_log_debug_f_with_debug_env() {
+        // Установим RUST_LOG=debug чтобы покрыть ветку с логированием
+        std::env::set_var("RUST_LOG", "debug");
+        let err = "debug message";
+        log_debug_f(&err, &[("key", "value")]);
+        // Проверяем что не паникует
+        std::env::remove_var("RUST_LOG");
+    }
+
+    #[test]
+    fn test_log_debug_f_with_partial_debug_env() {
+        std::env::set_var("RUST_LOG", "info,debug");
+        let err = "partial debug";
+        log_debug_f(&err, &[("x", "1")]);
+        std::env::remove_var("RUST_LOG");
+    }
 }

@@ -243,4 +243,34 @@ mod tests {
 
         assert_eq!(result.get("value"), Some(&Value::String("hello".to_string())));
     }
+
+    #[test]
+    fn test_flatten_value_boolean_root() {
+        let value = Value::Bool(true);
+        let mut result = Map::new();
+        flatten_value(&value, "", &mut result);
+
+        assert_eq!(result.get("value"), Some(&Value::Bool(true)));
+    }
+
+    #[test]
+    fn test_flatten_value_number_root() {
+        let value = Value::Number(42.into());
+        let mut result = Map::new();
+        flatten_value(&value, "", &mut result);
+
+        assert_eq!(result.get("value"), Some(&Value::Number(42.into())));
+    }
+
+    #[test]
+    fn test_convert_float_zero() {
+        let value = json!(0.0);
+        assert_eq!(convert_float_to_int_if_possible(&value), Some(0));
+    }
+
+    #[test]
+    fn test_convert_float_negative_zero() {
+        let value = json!(-0.0);
+        assert_eq!(convert_float_to_int_if_possible(&value), Some(0));
+    }
 }
