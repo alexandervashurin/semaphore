@@ -77,4 +77,25 @@ mod tests {
         assert!(json.contains("\"templates\":[1,2,3]"));
         assert!(json.contains("\"tasks\":[10,20]"));
     }
+
+    #[test]
+    fn test_object_referrers_deserialization() {
+        let json = r#"{"templates":[1],"tasks":[2,3],"schedules":[],"integrations":[]}"#;
+        let referrers: ObjectReferrers = serde_json::from_str(json).unwrap();
+        assert_eq!(referrers.templates, vec![1]);
+        assert_eq!(referrers.tasks, vec![2, 3]);
+    }
+
+    #[test]
+    fn test_object_referrers_with_all_fields_populated() {
+        let referrers = ObjectReferrers {
+            templates: vec![1],
+            tasks: vec![2],
+            schedules: vec![3],
+            integrations: vec![4],
+        };
+        assert!(!referrers.is_empty());
+        assert_eq!(referrers.templates.len(), 1);
+        assert_eq!(referrers.integrations.len(), 1);
+    }
 }

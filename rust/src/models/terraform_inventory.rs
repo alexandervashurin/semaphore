@@ -148,4 +148,20 @@ mod tests {
         assert!(json.contains("\"project_id\":10"));
         assert!(json.contains("\"task_id\":100"));
     }
+
+    #[test]
+    fn test_alias_struct() {
+        let alias = Alias {
+            alias: "my-alias".to_string(),
+            project_id: 42,
+        };
+        assert_eq!(alias.alias, "my-alias");
+        assert_eq!(alias.project_id, 42);
+    }
+
+    #[test]
+    fn test_terraform_inventory_state_no_task_id() {
+        let state = TerraformInventoryState::new(10, 5, "{}".to_string());
+        assert!(state.task_id.is_none());
+    }
 }

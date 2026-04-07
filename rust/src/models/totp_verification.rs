@@ -40,4 +40,24 @@ mod tests {
         // TotpVerification doesn't have skip_serializing_if on recovery_codes
         assert!(json.contains("\"recovery_codes\":null"));
     }
+
+    #[test]
+    fn test_totp_verification_deserialization() {
+        let json = r#"{"secret":"ABC123","recovery_hash":"hash456","recovery_codes":["rc1","rc2"]}"#;
+        let totp: TotpVerification = serde_json::from_str(json).unwrap();
+        assert_eq!(totp.secret, "ABC123");
+        assert_eq!(totp.recovery_codes.as_ref().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn test_totp_verification_clone() {
+        let totp = TotpVerification {
+            secret: "clone_test".to_string(),
+            recovery_hash: "clone_hash".to_string(),
+            recovery_codes: Some(vec!["code1".to_string()]),
+        };
+        let cloned = totp.clone();
+        assert_eq!(cloned.secret, totp.secret);
+        assert_eq!(cloned.recovery_hash, totp.recovery_hash);
+    }
 }

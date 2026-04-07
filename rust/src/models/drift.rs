@@ -121,4 +121,46 @@ mod tests {
         assert!(json.contains("\"enabled\":true"));
         assert!(!json.contains("\"latest_result\":"));
     }
+
+    #[test]
+    fn test_drift_config_clone() {
+        let config = DriftConfig {
+            id: 1,
+            project_id: 10,
+            template_id: 5,
+            enabled: true,
+            schedule: None,
+            created: Utc::now(),
+        };
+        let cloned = config.clone();
+        assert_eq!(cloned.id, config.id);
+        assert_eq!(cloned.enabled, config.enabled);
+    }
+
+    #[test]
+    fn test_drift_config_create_defaults() {
+        let create = DriftConfigCreate {
+            template_id: 1,
+            enabled: None,
+            schedule: None,
+        };
+        assert!(create.enabled.is_none());
+        assert!(create.schedule.is_none());
+    }
+
+    #[test]
+    fn test_drift_result_clone() {
+        let result = DriftResult {
+            id: 1,
+            drift_config_id: 10,
+            project_id: 5,
+            template_id: 3,
+            status: "clean".to_string(),
+            summary: None,
+            task_id: None,
+            checked_at: Utc::now(),
+        };
+        let cloned = result.clone();
+        assert_eq!(cloned.status, result.status);
+    }
 }
