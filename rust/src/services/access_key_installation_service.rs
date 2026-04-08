@@ -575,4 +575,43 @@ mod tests {
         assert!(installation.ssh_agent.is_none());
         assert!(installation.login.is_none());
     }
+
+    #[test]
+    fn test_access_key_installation_default() {
+        let installation = AccessKeyInstallation::default();
+        assert!(installation.ssh_agent.is_none());
+        assert!(installation.login.is_none());
+        assert!(installation.password.is_none());
+    }
+
+    #[test]
+    fn test_access_key_installation_new_with_key_id() {
+        let installation = AccessKeyInstallation::new_with_key_id(123);
+        assert!(installation.ssh_agent.is_none());
+        assert!(installation.login.is_none());
+    }
+
+    #[test]
+    fn test_access_key_role_display_all() {
+        use crate::services::ssh_agent::AccessKeyRole;
+        assert_eq!(format!("{}", AccessKeyRole::Git), "git");
+        assert_eq!(
+            format!("{}", AccessKeyRole::AnsiblePasswordVault),
+            "ansible_password_vault"
+        );
+        assert_eq!(
+            format!("{}", AccessKeyRole::AnsibleBecomeUser),
+            "ansible_become_user"
+        );
+        assert_eq!(format!("{}", AccessKeyRole::AnsibleUser), "ansible_user");
+    }
+
+    #[test]
+    fn test_access_key_type_variants() {
+        use crate::models::access_key::AccessKeyType;
+        assert_eq!(format!("{}", AccessKeyType::None), "none");
+        assert_eq!(format!("{}", AccessKeyType::LoginPassword), "login_password");
+        assert_eq!(format!("{}", AccessKeyType::SSH), "ssh");
+        assert_eq!(format!("{}", AccessKeyType::AccessKey), "access_key");
+    }
 }
