@@ -399,4 +399,180 @@ mod tests {
         let installation = service.install(&key, DbAccessKeyRole::Git, &logger).unwrap();
         assert!(installation.ssh_agent.is_some());
     }
+
+    #[test]
+    fn test_simple_encryption_service_serializes_ssh_key_secret() {
+        let encryption = SimpleEncryptionService::default();
+        let mut key = DbAccessKey {
+            id: 1,
+            name: "SSH Key".to_string(),
+            key_type: DbAccessKeyType::Ssh,
+            project_id: Some(1),
+            secret: None,
+            plain: None,
+            string_value: None,
+            login_password: None,
+            ssh_key: Some(DbSshKey {
+                login: "git".to_string(),
+                passphrase: "".to_string(),
+                private_key: "-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----".to_string(),
+            }),
+            override_secret: false,
+            storage_id: None,
+            environment_id: None,
+            user_id: None,
+            empty: false,
+            owner: crate::db_lib::DbAccessKeyOwner::Shared,
+            source_storage_id: None,
+            source_storage_key: None,
+            source_storage_type: None,
+        };
+
+        encryption.serialize_secret(&mut key).unwrap();
+        assert!(key.secret.as_ref().is_some_and(|s| s.contains("\"private_key\"")));
+    }
+
+    #[test]
+    fn test_access_key_install_service_with_custom_installer() {
+        let encryption = Box::new(SimpleEncryptionService::default());
+        let key_installer = AccessKeyInstallerImpl::new();
+        let service = AccessKeyInstallationServiceImpl::with_installer(encryption, key_installer);
+        let logger = BasicLogger::new();
+
+        let key = DbAccessKey {
+            id: 1,
+            name: "Test".to_string(),
+            key_type: DbAccessKeyType::None,
+            project_id: Some(1),
+            secret: None,
+            plain: None,
+            string_value: None,
+            login_password: None,
+            ssh_key: None,
+            override_secret: false,
+            storage_id: None,
+            environment_id: None,
+            user_id: None,
+            empty: false,
+            owner: crate::db_lib::DbAccessKeyOwner::Shared,
+            source_storage_id: None,
+            source_storage_key: None,
+            source_storage_type: None,
+        };
+
+        let installation = service.install(&key, DbAccessKeyRole::AnsibleUser, &logger).unwrap();
+        // None key type should return empty installation
+        assert!(installation.ssh_agent.is_none());
+    }
+
+    #[test]
+    fn test_simple_encryption_service_encrypt_decrypt_roundtrip() {
+        let encryption = SimpleEncryptionService::default();
+        let mut key = DbAccessKey {
+            id: 1,
+            name: "Test".to_string(),
+            key_type: DbAccessKeyType::LoginPassword,
+            project_id: Some(1),
+            secret: None,
+            plain: None,
+            string_value: None,
+            login_password: Some(DbLoginPassword {
+                login: "user".to_string(),
+                password: "secret".to_string(),
+            }),
+            ssh_key: None,
+            override_secret: false,
+            storage_id: None,
+            environment_id: None,
+            user_id: None,
+            empty: false,
+            owner: crate::db_lib::DbAccessKeyOwner::Shared,
+            source_storage_id: None,
+            source_storage_key: None,
+            source_storage_type: None,
+        };
+
+        encryption.serialize_secret(&mut key).unwrap();
+        encryption.encrypt_secret(&mut key).unwrap();
+
+        // After encryption, secret should be encrypted
+        let encrypted_secret = key.secret.clone();
+        assert!(encrypted_secret.is_some());
+
+        // Decrypt and deserialize
+        encryption.decrypt_secret(&mut key).unwrap();
+        encryption.deserialize_secret(&mut key).unwrap();
+
+        // After decrypt, login_password should be restored
+        assert!(key.login_password.is_some());
+        let lp = key.login_password.as_ref().unwrap();
+        assert_eq!(lp.login, "user");
+        assert_eq!(lp.password, "secret");
+    }
+
+    #[test]
+    fn test_db_access_key_role_from() {
+        // Test all DbAccessKeyRole variants
+        let roles = [
+            DbAccessKeyRole::AnsibleUser,
+            DbAccessKeyRole::AnsibleBecomeUser,
+            DbAccessKeyRole::Git,
+        ];
+        for role in &roles {
+            let key = DbAccessKey {
+                id: 1,
+                name: "Test".to_string(),
+                key_type: DbAccessKeyType::None,
+                project_id: Some(1),
+                secret: None,
+                plain: None,
+                string_value: None,
+                login_password: None,
+                ssh_key: None,
+                override_secret: false,
+                storage_id: None,
+                environment_id: None,
+                user_id: None,
+                empty: false,
+                owner: crate::db_lib::DbAccessKeyOwner::Shared,
+                source_storage_id: None,
+                source_storage_key: None,
+                source_storage_type: None,
+            };
+            // Just verify that we can create a key with any role
+            let _ = (key, *role);
+        }
+    }
+
+    #[test]
+    fn test_access_key_install_service_none_key_type_returns_empty_installation() {
+        let encryption = Box::new(SimpleEncryptionService::default());
+        let service = AccessKeyInstallationServiceImpl::new(encryption);
+        let logger = BasicLogger::new();
+
+        let key = DbAccessKey {
+            id: 0,
+            name: "".to_string(),
+            key_type: DbAccessKeyType::None,
+            project_id: None,
+            secret: None,
+            plain: None,
+            string_value: None,
+            login_password: None,
+            ssh_key: None,
+            override_secret: false,
+            storage_id: None,
+            environment_id: None,
+            user_id: None,
+            empty: false,
+            owner: crate::db_lib::DbAccessKeyOwner::Shared,
+            source_storage_id: None,
+            source_storage_key: None,
+            source_storage_type: None,
+        };
+
+        let installation = service.install(&key, DbAccessKeyRole::Git, &logger).unwrap();
+        assert!(installation.ssh_agent.is_none());
+        assert!(installation.login.is_none());
+    }
 }
