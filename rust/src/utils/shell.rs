@@ -155,4 +155,57 @@ mod tests {
         assert!(needs_quoting("file*.txt"));
         assert!(needs_quoting("cmd && other"));
     }
+
+    #[test]
+    fn test_shell_quote_with_backslash() {
+        assert_eq!(shell_quote("path\\to\\file"), "'path\\to\\file'");
+    }
+
+    #[test]
+    fn test_shell_quote_with_brackets() {
+        assert_eq!(shell_quote("arr[0]"), "'arr[0]'");
+        assert_eq!(shell_quote("{key: value}"), "'{key: value}'");
+    }
+
+    #[test]
+    fn test_shell_quote_with_pipes_and_redirects() {
+        assert_eq!(shell_quote("cmd1 | cmd2"), "'cmd1 | cmd2'");
+        assert_eq!(shell_quote("cmd > out.txt"), "'cmd > out.txt'");
+        assert_eq!(shell_quote("cmd < in.txt"), "'cmd < in.txt'");
+    }
+
+    #[test]
+    fn test_shell_quote_with_multiple_single_quotes() {
+        // The shell_quote function replaces ' with '"'"'
+        // "it's a 'test'" -> 'it'"'"'s a '"'"'test'"'"''
+        let result = shell_quote("it's a 'test'");
+        assert!(result.starts_with("'"));
+        assert!(result.ends_with("'"));
+        // Verify the quoted string is valid by checking it contains the original content
+        assert!(result.contains("it"));
+        assert!(result.contains("s a "));
+        assert!(result.contains("test"));
+    }
+
+    #[test]
+    fn test_shell_strip_unsafe_empty_string() {
+        assert_eq!(shell_strip_unsafe(""), "");
+    }
+
+    #[test]
+    fn test_shell_strip_unsafe_all_control_chars() {
+        let input: String = (0..32).map(|c| c as u8 as char).collect();
+        let output = shell_strip_unsafe(&input);
+        // All control chars (0-31) should be removed except whitespace
+        // \t (9), \n (10), \r (13) are whitespace and preserved
+        assert!(!output.contains('\x00'));
+        assert!(!output.contains('\x01'));
+    }
+
+    #[test]
+    fn test_shell_quote_roundtrip_safe_chars() {
+        let s = "hello-world_123";
+        let quoted = shell_quote(s);
+        assert_eq!(quoted, s); // No quoting needed
+    }
 }

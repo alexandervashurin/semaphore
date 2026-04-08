@@ -156,4 +156,76 @@ mod tests {
         assert!(json.contains("\"alias\":\"webhook-alias-123\""));
         assert!(json.contains("\"integration_id\":10"));
     }
+
+    #[test]
+    fn test_integration_clone() {
+        let integration = Integration {
+            id: 1,
+            project_id: 10,
+            name: "Clone Test".to_string(),
+            template_id: 5,
+            auth_method: "token".to_string(),
+            auth_header: Some("Authorization".to_string()),
+            auth_secret_id: Some(1),
+        };
+        let cloned = integration.clone();
+        assert_eq!(cloned.name, integration.name);
+        assert_eq!(cloned.auth_method, integration.auth_method);
+    }
+
+    #[test]
+    fn test_integration_extract_value_clone() {
+        let extract = IntegrationExtractValue {
+            id: 1,
+            integration_id: 10,
+            project_id: 5,
+            name: "Clone Extract".to_string(),
+            value_source: "body".to_string(),
+            body_data_type: "json".to_string(),
+            key: Some("$.key".to_string()),
+            variable: Some("VAR".to_string()),
+            value_name: "key".to_string(),
+            value_type: "string".to_string(),
+        };
+        let cloned = extract.clone();
+        assert_eq!(cloned.name, extract.name);
+        assert_eq!(cloned.key, extract.key);
+    }
+
+    #[test]
+    fn test_integration_matcher_clone() {
+        let matcher = IntegrationMatcher {
+            id: 1,
+            integration_id: 10,
+            project_id: 5,
+            name: "Clone Matcher".to_string(),
+            body_data_type: "json".to_string(),
+            key: Some("$.event".to_string()),
+            matcher_type: "equals".to_string(),
+            matcher_value: "task_started".to_string(),
+            method: "POST".to_string(),
+        };
+        let cloned = matcher.clone();
+        assert_eq!(cloned.name, matcher.name);
+        assert_eq!(cloned.matcher_type, matcher.matcher_type);
+    }
+
+    #[test]
+    fn test_integration_extract_value_default_values() {
+        let extract = IntegrationExtractValue {
+            id: 0,
+            integration_id: 0,
+            project_id: 0,
+            name: String::new(),
+            value_source: String::new(),
+            body_data_type: String::new(),
+            key: None,
+            variable: None,
+            value_name: String::new(),
+            value_type: String::new(),
+        };
+        let json = serde_json::to_string(&extract).unwrap();
+        assert!(json.contains("\"key\":null"));
+        assert!(json.contains("\"variable\":null"));
+    }
 }

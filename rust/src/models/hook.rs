@@ -129,4 +129,48 @@ mod tests {
         assert!(json.contains("\"http_body\":null"));
         assert!(json.contains("\"timeout_secs\":null"));
     }
+
+    #[test]
+    fn test_hook_clone() {
+        let hook = Hook {
+            id: 1,
+            project_id: 10,
+            template_id: 5,
+            name: "Clone Test".to_string(),
+            r#type: HookType::Http,
+            url: Some("https://example.com".to_string()),
+            script: None,
+            http_method: Some("GET".to_string()),
+            http_body: None,
+            timeout_secs: Some(10),
+        };
+        let cloned = hook.clone();
+        assert_eq!(cloned.name, hook.name);
+        assert_eq!(cloned.url, hook.url);
+        assert_eq!(cloned.r#type, hook.r#type);
+    }
+
+    #[test]
+    fn test_hook_type_serialization_display() {
+        // HookType uses serde(rename_all = "snake_case") for serialization
+        assert_eq!(serde_json::to_string(&HookType::Http).unwrap(), "\"http\"");
+        assert_eq!(serde_json::to_string(&HookType::Bash).unwrap(), "\"bash\"");
+        assert_eq!(serde_json::to_string(&HookType::Python).unwrap(), "\"python\"");
+    }
+
+    #[test]
+    fn test_hook_new_python() {
+        let hook = Hook::new(1, 1, "Process Data".to_string(), HookType::Python);
+        assert_eq!(hook.r#type, HookType::Python);
+        assert_eq!(hook.id, 0);
+    }
+
+    #[test]
+    fn test_hook_deserialization() {
+        let json = r#"{"id":5,"project_id":20,"template_id":10,"name":"Test Hook","type":"http","url":"https://test.com","script":null,"http_method":"POST","http_body":"{}","timeout_secs":5}"#;
+        let hook: Hook = serde_json::from_str(json).unwrap();
+        assert_eq!(hook.id, 5);
+        assert_eq!(hook.r#type, HookType::Http);
+        assert_eq!(hook.url, Some("https://test.com".to_string()));
+    }
 }

@@ -144,4 +144,42 @@ mod tests {
         assert_eq!(cloned.user_name, invite.user_name);
         assert_eq!(cloned.user_email, invite.user_email);
     }
+
+    #[test]
+    fn test_project_invite_deserialization() {
+        let json = r#"{"id":5,"project_id":20,"user_id":10,"role":"viewer","created":"2024-01-01T00:00:00Z","updated":"2024-01-01T00:00:00Z","token":"deser-token","inviter_user_id":2}"#;
+        let invite: ProjectInvite = serde_json::from_str(json).unwrap();
+        assert_eq!(invite.id, 5);
+        assert_eq!(invite.project_id, 20);
+        assert_eq!(invite.user_id, 10);
+        assert_eq!(invite.role, "viewer");
+        assert_eq!(invite.token, "deser-token");
+    }
+
+    #[test]
+    fn test_project_invite_with_user_deserialization() {
+        let json = r#"{"id":3,"project_id":15,"user_id":8,"role":"admin","created":"2024-01-01T00:00:00Z","updated":"2024-01-01T00:00:00Z","token":"tok","inviter_user_id":1,"user_name":"Test User","user_email":"test@test.com"}"#;
+        let invite: ProjectInviteWithUser = serde_json::from_str(json).unwrap();
+        assert_eq!(invite.user_name, "Test User");
+        assert_eq!(invite.user_email, "test@test.com");
+    }
+
+    #[test]
+    fn test_project_invite_all_roles() {
+        let roles = ["owner", "manager", "task_runner", "viewer"];
+        for role in roles {
+            let invite = ProjectInvite {
+                id: 1,
+                project_id: 1,
+                user_id: 1,
+                role: role.to_string(),
+                created: Utc::now(),
+                updated: Utc::now(),
+                token: "token".to_string(),
+                inviter_user_id: 1,
+            };
+            let json = serde_json::to_string(&invite).unwrap();
+            assert!(json.contains(&format!("\"role\":\"{}\"", role)));
+        }
+    }
 }
