@@ -384,4 +384,31 @@ mod tests {
         assert!(path.to_string_lossy().contains("playbooks"));
         assert!(path.to_string_lossy().ends_with("setup.yml"));
     }
+
+    #[test]
+    fn test_determine_playbook_path_empty_name_additional() {
+        let temp_dir = TempDir::new().unwrap();
+        let path = determine_playbook_path(temp_dir.path(), "");
+        assert_eq!(path, temp_dir.path());
+    }
+
+    #[test]
+    fn test_determine_playbook_path_falls_back_to_root_additional() {
+        let temp_dir = TempDir::new().unwrap();
+        let path = determine_playbook_path(temp_dir.path(), "nonexistent.yml");
+        assert_eq!(path, temp_dir.path().join("nonexistent.yml"));
+    }
+
+    #[test]
+    fn test_playbook_update_clone() {
+        let update = PlaybookUpdate {
+            name: "Test".to_string(),
+            content: "---".to_string(),
+            description: Some("Desc".to_string()),
+            playbook_type: "ansible".to_string(),
+        };
+        let cloned = update.clone();
+        assert_eq!(cloned.name, update.name);
+        assert_eq!(cloned.content, update.content);
+    }
 }
