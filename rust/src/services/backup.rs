@@ -625,4 +625,124 @@ mod tests {
         assert_eq!(items[0].name, "Unique1");
         assert_eq!(items[1].name, "Unique2");
     }
+
+    #[test]
+    fn test_backup_project_serialization() {
+        let project = BackupProject {
+            name: "My Project".to_string(),
+            alert: Some(true),
+            alert_chat: Some("chat123".to_string()),
+            max_parallel_tasks: Some(10),
+        };
+        let json = serde_json::to_string(&project).unwrap();
+        assert!(json.contains("\"name\":\"My Project\""));
+        assert!(json.contains("\"alert\":true"));
+        assert!(json.contains("\"alert_chat\":\"chat123\""));
+        assert!(json.contains("\"max_parallel_tasks\":10"));
+    }
+
+    #[test]
+    fn test_backup_project_null_fields() {
+        let project = BackupProject {
+            name: "Minimal".to_string(),
+            alert: None,
+            alert_chat: None,
+            max_parallel_tasks: None,
+        };
+        let json = serde_json::to_string(&project).unwrap();
+        assert!(json.contains("\"alert\":null"));
+        assert!(json.contains("\"alert_chat\":null"));
+        assert!(json.contains("\"max_parallel_tasks\":null"));
+    }
+
+    #[test]
+    fn test_backup_template_serialization() {
+        let template = BackupTemplate {
+            name: "Deploy".to_string(),
+            playbook: "deploy.yml".to_string(),
+            arguments: Some("--limit=web".to_string()),
+            template_type: "ansible".to_string(),
+            inventory: Some("Production".to_string()),
+            repository: Some("main-repo".to_string()),
+            environment: Some("prod-env".to_string()),
+            cron: None,
+        };
+        let json = serde_json::to_string(&template).unwrap();
+        assert!(json.contains("\"name\":\"Deploy\""));
+        assert!(json.contains("\"playbook\":\"deploy.yml\""));
+        assert!(json.contains("\"arguments\":\"--limit=web\""));
+        assert!(json.contains("\"inventory\":\"Production\""));
+    }
+
+    #[test]
+    fn test_backup_repository_serialization() {
+        let repo = BackupRepository {
+            name: "My Repo".to_string(),
+            git_url: "https://github.com/test/repo.git".to_string(),
+            git_branch: "main".to_string(),
+            ssh_key: None,
+        };
+        let json = serde_json::to_string(&repo).unwrap();
+        assert!(json.contains("\"name\":\"My Repo\""));
+        assert!(json.contains("\"git_url\":\"https://github.com/test/repo.git\""));
+        assert!(json.contains("\"git_branch\":\"main\""));
+    }
+
+    #[test]
+    fn test_backup_environment_serialization() {
+        let env = BackupEnvironment {
+            name: "Production".to_string(),
+            json: r#"{"DB_HOST":"localhost"}"#.to_string(),
+        };
+        let json = serde_json::to_string(&env).unwrap();
+        assert!(json.contains("\"name\":\"Production\""));
+        assert!(json.contains("\"json\":\""));
+    }
+
+    #[test]
+    fn test_make_unique_names_three_duplicates() {
+        let mut items = vec![
+            BackupTemplate { name: "Same".to_string(), playbook: String::new(), arguments: None, template_type: String::new(), inventory: None, repository: None, environment: None, cron: None },
+            BackupTemplate { name: "Same".to_string(), playbook: String::new(), arguments: None, template_type: String::new(), inventory: None, repository: None, environment: None, cron: None },
+            BackupTemplate { name: "Same".to_string(), playbook: String::new(), arguments: None, template_type: String::new(), inventory: None, repository: None, environment: None, cron: None },
+        ];
+
+        make_unique_names(&mut items, |item| &item.name, |item, name| item.name = name);
+
+        // All names should be unique
+        assert_ne!(items[0].name, items[1].name);
+        assert_ne!(items[0].name, items[2].name);
+        assert_ne!(items[1].name, items[2].name);
+        // First item keeps original name
+        assert_eq!(items[0].name, "Same");
+    }
+
+    #[test]
+    fn test_default_backup_version() {
+        assert_eq!(default_backup_version(), "1.0");
+    }
+
+    #[test]
+    fn test_backup_format_clone() {
+        let backup = BackupFormat {
+            version: "1.0".to_string(),
+            project: BackupProject {
+                name: "Clone Test".to_string(),
+                alert: Some(true),
+                alert_chat: None,
+                max_parallel_tasks: Some(5),
+            },
+            templates: Vec::new(),
+            repositories: Vec::new(),
+            inventories: Vec::new(),
+            environments: Vec::new(),
+            access_keys: Vec::new(),
+            schedules: Vec::new(),
+            integrations: Vec::new(),
+            views: Vec::new(),
+        };
+        let cloned = backup.clone();
+        assert_eq!(cloned.project.name, backup.project.name);
+        assert_eq!(cloned.version, backup.version);
+    }
 }
