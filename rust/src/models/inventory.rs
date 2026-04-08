@@ -288,4 +288,85 @@ mod tests {
         assert!(json.contains("\"extra_vars\":\"{\\\"env\\\":\\\"prod\\\"}\""));
         assert!(json.contains("\"runner_tag\":\"linux\""));
     }
+
+    #[test]
+    fn test_inventory_type_display_all_variants() {
+        assert_eq!(InventoryType::Static.to_string(), "static");
+        assert_eq!(InventoryType::StaticYaml.to_string(), "static_yaml");
+        assert_eq!(InventoryType::StaticJson.to_string(), "static_json");
+        assert_eq!(InventoryType::File.to_string(), "file");
+        assert_eq!(InventoryType::TerraformInventory.to_string(), "terraform_inventory");
+        assert_eq!(InventoryType::TerraformWorkspace.to_string(), "terraform_workspace");
+        assert_eq!(InventoryType::TofuWorkspace.to_string(), "tofu_workspace");
+    }
+
+    #[test]
+    fn test_inventory_type_from_str_all_variants() {
+        assert_eq!("static_yaml".parse::<InventoryType>().unwrap(), InventoryType::StaticYaml);
+        assert_eq!("static_json".parse::<InventoryType>().unwrap(), InventoryType::StaticJson);
+        assert_eq!("terraform_workspace".parse::<InventoryType>().unwrap(), InventoryType::TerraformWorkspace);
+        assert_eq!("tofu_workspace".parse::<InventoryType>().unwrap(), InventoryType::TofuWorkspace);
+    }
+
+    #[test]
+    fn test_inventory_type_serialize_all_variants() {
+        let types = [
+            InventoryType::Static,
+            InventoryType::StaticYaml,
+            InventoryType::StaticJson,
+            InventoryType::File,
+            InventoryType::TerraformInventory,
+            InventoryType::TerraformWorkspace,
+            InventoryType::TofuWorkspace,
+        ];
+        for t in &types {
+            let json = serde_json::to_string(t).unwrap();
+            assert!(json.starts_with('"') && json.ends_with('"'));
+        }
+    }
+
+    #[test]
+    fn test_inventory_clone() {
+        let inv = Inventory::new(10, "clone-test".to_string(), InventoryType::Static);
+        let cloned = inv.clone();
+        assert_eq!(cloned.name, inv.name);
+        assert_eq!(cloned.project_id, inv.project_id);
+        assert_eq!(cloned.inventory_type, inv.inventory_type);
+    }
+
+    #[test]
+    fn test_inventory_with_all_fields() {
+        let inv = Inventory {
+            id: 1,
+            project_id: 1,
+            name: "full".to_string(),
+            inventory_type: InventoryType::StaticJson,
+            inventory_data: "{}".to_string(),
+            key_id: Some(1),
+            secret_storage_id: Some(1),
+            ssh_login: "user".to_string(),
+            ssh_port: 22,
+            extra_vars: None,
+            ssh_key_id: Some(2),
+            become_key_id: Some(3),
+            vaults: None,
+            created: Some(Utc::now()),
+            runner_tag: None,
+        };
+        assert_eq!(inv.inventory_type, InventoryType::StaticJson);
+        assert_eq!(inv.ssh_port, 22);
+        assert!(inv.extra_vars.is_none());
+    }
+
+    #[test]
+    fn test_inventory_with_terraform_workspace() {
+        let inv = Inventory::new(1, "tf-workspace".to_string(), InventoryType::TerraformWorkspace);
+        assert_eq!(inv.inventory_type, InventoryType::TerraformWorkspace);
+    }
+
+    #[test]
+    fn test_inventory_with_tofu_workspace() {
+        let inv = Inventory::new(1, "tofu-workspace".to_string(), InventoryType::TofuWorkspace);
+        assert_eq!(inv.inventory_type, InventoryType::TofuWorkspace);
+    }
 }
