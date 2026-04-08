@@ -529,3 +529,210 @@ mod telegram_tests {
         }
     }
 }
+
+// ============================================================================
+// Pure helper functions (extracted for testability)
+// ============================================================================
+
+/// Вычисляет длительность задачи в секундах
+pub fn calculate_task_duration(task: &Task) -> u64 {
+    task.end
+        .zip(task.start)
+        .map(|(end, start)| {
+            let secs = (end - start).num_seconds();
+            if secs < 0 { 0 } else { secs as u64 }
+        })
+        .unwrap_or(0)
+}
+
+/// Результат approval-проверки
+#[derive(Debug, PartialEq)]
+pub enum ApprovalDecision {
+    Proceed,
+    Reject,
+    Wait,
+}
+
+/// Чистая функция: решает, что делать с задачей
+pub fn evaluate_approval_gate(require_approval: bool, plan_status: Option<&str>) -> ApprovalDecision {
+    if !require_approval {
+        return ApprovalDecision::Proceed;
+    }
+    match plan_status {
+        Some("approved") => ApprovalDecision::Proceed,
+        Some("rejected") => ApprovalDecision::Reject,
+        Some(_) | None => ApprovalDecision::Wait,
+    }
+}
+
+/// Тип Telegram-уведомления
+#[derive(Debug, PartialEq)]
+pub enum TelegramNotificationType {
+    Success,
+    Failed,
+    Stopped,
+    None,
+}
+
+/// Чистая функция: какой тип уведомления послать
+pub fn notification_type_for_status(status: TaskStatus) -> TelegramNotificationType {
+    match status {
+        TaskStatus::Success => TelegramNotificationType::Success,
+        TaskStatus::Error => TelegramNotificationType::Failed,
+        TaskStatus::Stopped => TelegramNotificationType::Stopped,
+        _ => TelegramNotificationType::None,
+    }
+}
+
+// ============================================================================
+// Tests for pure helper functions
+// ============================================================================
+
+#[cfg(test)]
+mod pure_helper_tests {
+    use super::*;
+    use chrono::{Duration, Utc};
+
+    #[test]
+    fn duration_normal_case() {
+        let now = Utc::now();
+        let task = Task {
+            start: Some(now),
+            end: Some(now + Duration::seconds(300)),
+            ..Default::default()
+        };
+        assert_eq!(calculate_task_duration(&task), 300);
+    }
+
+    #[test]
+    fn duration_negative_clamped_to_zero() {
+        let now = Utc::now();
+        let task = Task {
+            start: Some(now + Duration::seconds(10)),
+            end: Some(now),
+            ..Default::default()
+        };
+        assert_eq!(calculate_task_duration(&task), 0);
+    }
+
+    #[test]
+    fn duration_missing_start() {
+        let task = Task {
+            start: None,
+            end: Some(Utc::now()),
+            ..Default::default()
+        };
+        assert_eq!(calculate_task_duration(&task), 0);
+    }
+
+    #[test]
+    fn duration_missing_end() {
+        let task = Task {
+            start: Some(Utc::now()),
+            end: None,
+            ..Default::default()
+        };
+        assert_eq!(calculate_task_duration(&task), 0);
+    }
+
+    #[test]
+    fn duration_both_missing() {
+        let task = Task {
+            start: None,
+            end: None,
+            ..Default::default()
+        };
+        assert_eq!(calculate_task_duration(&task), 0);
+    }
+
+    #[test]
+    fn duration_zero_seconds() {
+        let now = Utc::now();
+        let task = Task {
+            start: Some(now),
+            end: Some(now),
+            ..Default::default()
+        };
+        assert_eq!(calculate_task_duration(&task), 0);
+    }
+
+    #[test]
+    fn duration_large_value() {
+        let now = Utc::now();
+        let task = Task {
+            start: Some(now),
+            end: Some(now + Duration::seconds(86400)),
+            ..Default::default()
+        };
+        assert_eq!(calculate_task_duration(&task), 86400);
+    }
+
+    #[test]
+    fn no_approval_required_proceeds() {
+        assert_eq!(evaluate_approval_gate(false, None), ApprovalDecision::Proceed);
+        assert_eq!(evaluate_approval_gate(false, Some("approved")), ApprovalDecision::Proceed);
+        assert_eq!(evaluate_approval_gate(false, Some("rejected")), ApprovalDecision::Proceed);
+    }
+
+    #[test]
+    fn approved_plan_proceeds() {
+        assert_eq!(evaluate_approval_gate(true, Some("approved")), ApprovalDecision::Proceed);
+    }
+
+    #[test]
+    fn rejected_plan_stops() {
+        assert_eq!(evaluate_approval_gate(true, Some("rejected")), ApprovalDecision::Reject);
+    }
+
+    #[test]
+    fn pending_plan_waits() {
+        assert_eq!(evaluate_approval_gate(true, Some("pending")), ApprovalDecision::Wait);
+    }
+
+    #[test]
+    fn missing_plan_waits() {
+        assert_eq!(evaluate_approval_gate(true, None), ApprovalDecision::Wait);
+    }
+
+    #[test]
+    fn unknown_plan_status_waits() {
+        assert_eq!(evaluate_approval_gate(true, Some("unknown_status")), ApprovalDecision::Wait);
+    }
+
+    #[test]
+    fn success_maps_to_success() {
+        assert_eq!(notification_type_for_status(TaskStatus::Success), TelegramNotificationType::Success);
+    }
+
+    #[test]
+    fn error_maps_to_failed() {
+        assert_eq!(notification_type_for_status(TaskStatus::Error), TelegramNotificationType::Failed);
+    }
+
+    #[test]
+    fn stopped_maps_to_stopped() {
+        assert_eq!(notification_type_for_status(TaskStatus::Stopped), TelegramNotificationType::Stopped);
+    }
+
+    #[test]
+    fn intermediate_statuses_map_to_none() {
+        let intermediate = [
+            TaskStatus::Waiting,
+            TaskStatus::Running,
+            TaskStatus::Starting,
+            TaskStatus::Stopping,
+            TaskStatus::NotExecuted,
+            TaskStatus::WaitingConfirmation,
+            TaskStatus::Confirmed,
+            TaskStatus::Rejected,
+        ];
+        for status in intermediate {
+            assert_eq!(
+                notification_type_for_status(status),
+                TelegramNotificationType::None,
+                "Expected None for {:?}",
+                status
+            );
+        }
+    }
+}

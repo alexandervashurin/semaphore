@@ -974,4 +974,194 @@ mod key_installer_tests {
         let result = installer.install(&key, AccessKeyRole::Git, &logger);
         assert!(result.is_err());
     }
+
+    // ── Additional pure function tests ──
+
+    #[test]
+    fn test_ssh_key_with_public_key() {
+        let key = SshKey::new(b"private".to_vec(), None)
+            .with_public_key(b"public".to_vec());
+        assert_eq!(key.public_key, Some(b"public".to_vec()));
+        assert_eq!(key.private_key, b"private");
+    }
+
+    #[test]
+    fn test_ssh_key_passphrase_none() {
+        let key = SshKey::new(b"key".to_vec(), None);
+        assert!(key.passphrase.is_none());
+        assert!(key.public_key.is_none());
+    }
+
+    #[test]
+    fn test_ssh_config_default() {
+        let config = SshConfig::default();
+        assert_eq!(config.host, "");
+        assert_eq!(config.port, 22);
+        assert_eq!(config.username, "root");
+        assert!(config.keys.is_empty());
+        assert_eq!(config.timeout_secs, 30);
+    }
+
+    #[test]
+    fn test_ssh_config_add_key() {
+        let key = SshKey::new(b"key".to_vec(), None);
+        let config = SshConfig::new("host".to_string(), "user".to_string()).add_key(key);
+        assert_eq!(config.keys.len(), 1);
+    }
+
+    #[test]
+    fn test_ssh_config_with_timeout() {
+        let config = SshConfig::new("host".to_string(), "user".to_string()).with_timeout(60);
+        assert_eq!(config.timeout_secs, 60);
+    }
+
+    #[test]
+    fn test_ssh_config_builder_chain() {
+        let key = SshKey::new(b"key".to_vec(), None);
+        let config = SshConfig::new("host".to_string(), "user".to_string())
+            .with_port(2222)
+            .with_timeout(120)
+            .add_key(key);
+        assert_eq!(config.port, 2222);
+        assert_eq!(config.timeout_secs, 120);
+        assert_eq!(config.keys.len(), 1);
+    }
+
+    #[test]
+    fn test_access_key_role_from_str_case_insensitive() {
+        assert_eq!(AccessKeyRole::from_str("GIT").unwrap(), AccessKeyRole::Git);
+        assert_eq!(AccessKeyRole::from_str("Git").unwrap(), AccessKeyRole::Git);
+        assert_eq!(
+            AccessKeyRole::from_str("ANSIBLE_PASSWORD_VAULT").unwrap(),
+            AccessKeyRole::AnsiblePasswordVault
+        );
+    }
+
+    #[test]
+    fn test_access_key_role_from_str_all_variants() {
+        assert_eq!(
+            AccessKeyRole::from_str("ansible_become_user").unwrap(),
+            AccessKeyRole::AnsibleBecomeUser
+        );
+        assert_eq!(
+            AccessKeyRole::from_str("ansible_user").unwrap(),
+            AccessKeyRole::AnsibleUser
+        );
+    }
+
+    #[test]
+    fn test_access_key_role_display() {
+        assert_eq!(format!("{}", AccessKeyRole::Git), "git");
+        assert_eq!(
+            format!("{}", AccessKeyRole::AnsiblePasswordVault),
+            "ansible_password_vault"
+        );
+        assert_eq!(
+            format!("{}", AccessKeyRole::AnsibleBecomeUser),
+            "ansible_become_user"
+        );
+        assert_eq!(format!("{}", AccessKeyRole::AnsibleUser), "ansible_user");
+    }
+
+    #[test]
+    fn test_access_key_new_none() {
+        let key = AccessKey::new_none(42, Some(7));
+        assert_eq!(key.get_type(), &AccessKeyType::None);
+        assert_eq!(key.id, 42);
+        assert_eq!(key.project_id, Some(7));
+        assert!(key.ssh_key.is_none());
+        assert!(key.login_password.is_none());
+    }
+
+    #[test]
+    fn test_access_key_get_ssh_key_data_none() {
+        let key = AccessKey::new_login_password(1, "u".into(), "p".into(), None);
+        assert!(key.get_ssh_key_data().is_none());
+    }
+
+    #[test]
+    fn test_access_key_get_login_password_data_none() {
+        let key = AccessKey::new_ssh(1, "pk".into(), "".into(), "u".into(), None);
+        assert!(key.get_login_password_data().is_none());
+    }
+
+    #[test]
+    fn test_access_key_type_variants() {
+        let ssh_key = AccessKey::new_ssh(1, "pk".into(), "".into(), "u".into(), None);
+        let lp_key = AccessKey::new_login_password(2, "u".into(), "p".into(), None);
+        let none_key = AccessKey::new_none(3, None);
+
+        assert_eq!(ssh_key.get_type(), &AccessKeyType::Ssh);
+        assert_eq!(lp_key.get_type(), &AccessKeyType::LoginPassword);
+        assert_eq!(none_key.get_type(), &AccessKeyType::None);
+    }
+
+    #[test]
+    fn test_utils_validate_key_valid_rsa() {
+        let key = SshKey::new(
+            b"-----BEGIN RSA PRIVATE KEY-----\ntest\n-----END RSA PRIVATE KEY-----".to_vec(),
+            None,
+        );
+        assert!(utils::validate_key(&key).is_ok());
+    }
+
+    #[test]
+    fn test_utils_validate_key_valid_openssh() {
+        let key = SshKey::new(
+            b"-----BEGIN OPENSSH PRIVATE KEY-----\ndata\n-----END OPENSSH PRIVATE KEY-----".to_vec(),
+            None,
+        );
+        assert!(utils::validate_key(&key).is_ok());
+    }
+
+    #[test]
+    fn test_utils_validate_key_garbage() {
+        let key = SshKey::new(b"not a key at all".to_vec(), None);
+        let err = utils::validate_key(&key).unwrap_err();
+        // validate_key returns Error::Other for garbage input
+        match err {
+            Error::Other(msg) => assert!(msg.contains("формат") || msg.contains("ключ")),
+            _ => panic!("Ожидалась ошибка, получили: {:?}", err),
+        }
+    }
+
+    #[test]
+    fn test_access_key_installation_new_with_key_id() {
+        let installation = AccessKeyInstallation::new_with_key_id(123);
+        assert!(installation.ssh_agent.is_none());
+        assert!(installation.login.is_none());
+    }
+
+    #[test]
+    fn test_access_key_installation_destroy_empty() {
+        let mut installation = AccessKeyInstallation::new();
+        assert!(installation.destroy().is_ok());
+    }
+
+    #[test]
+    fn test_key_installer_git_with_login_password_fails() {
+        let installer = KeyInstaller::new();
+        let logger = BasicLogger::new();
+        let key = AccessKey::new_login_password(1, "u".into(), "p".into(), None);
+        let result = installer.install(&key, AccessKeyRole::Git, &logger);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_key_installer_ansible_vault_with_ssh_fails() {
+        let installer = KeyInstaller::new();
+        let logger = BasicLogger::new();
+        let key = AccessKey::new_ssh(1, "pk".into(), "".into(), "u".into(), None);
+        let result = installer.install(&key, AccessKeyRole::AnsiblePasswordVault, &logger);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_key_installer_ansible_become_with_ssh_fails() {
+        let installer = KeyInstaller::new();
+        let logger = BasicLogger::new();
+        let key = AccessKey::new_ssh(1, "pk".into(), "".into(), "u".into(), None);
+        let result = installer.install(&key, AccessKeyRole::AnsibleBecomeUser, &logger);
+        assert!(result.is_err());
+    }
 }

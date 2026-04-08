@@ -569,5 +569,91 @@ mod tests {
         assert_eq!(CacheKeys::inventory(111), "inventory:111");
         assert_eq!(CacheKeys::repository(222), "repository:222");
         assert_eq!(CacheKeys::environment(333), "environment:333");
+        // Дополнительные типы ключей
+        assert_eq!(CacheKeys::project_schedules(42), "project:42:schedules");
+        assert_eq!(CacheKeys::project_keys(7), "project:7:keys");
+        assert_eq!(CacheKeys::project_pattern(99), "project:99:*");
+    }
+
+    #[test]
+    fn test_session_expires_at_is_correct() {
+        let user = User {
+            id: 1,
+            username: "u".to_string(),
+            email: "u@u.com".to_string(),
+            password: "h".to_string(),
+            admin: false,
+            name: "U".to_string(),
+            created: Utc::now(),
+            external: false,
+            alert: false,
+            pro: false,
+            totp: None,
+            email_otp: None,
+        };
+        let ttl = 5000u64;
+        let session = SessionData::new(&user, ttl);
+        let expected = session.created_at + chrono::Duration::seconds(ttl as i64);
+        assert_eq!(session.expires_at, expected);
+    }
+
+    #[test]
+    fn test_session_not_expired_with_large_ttl() {
+        let user = User {
+            id: 5,
+            username: "fresh".to_string(),
+            email: "fresh@test.com".to_string(),
+            password: "h".to_string(),
+            admin: false,
+            name: "Fresh".to_string(),
+            created: Utc::now(),
+            external: false,
+            alert: false,
+            pro: false,
+            totp: None,
+            email_otp: None,
+        };
+        let session = SessionData::new(&user, 86400); // 24 часа
+        assert!(!session.is_expired());
+    }
+
+    #[test]
+    fn test_session_data_serialization_roundtrip() {
+        let user = User {
+            id: 42,
+            username: "serpent".to_string(),
+            email: "serpent@test.com".to_string(),
+            password: "hash".to_string(),
+            admin: true,
+            name: "Serpent".to_string(),
+            created: Utc::now(),
+            external: false,
+            alert: false,
+            pro: false,
+            totp: None,
+            email_otp: None,
+        };
+        let session = SessionData::new(&user, 3600);
+
+        let json = serde_json::to_string(&session).expect("serialize failed");
+        let restored: SessionData = serde_json::from_str(&json).expect("deserialize failed");
+
+        assert_eq!(restored.user_id, 42);
+        assert_eq!(restored.username, "serpent");
+        assert_eq!(restored.email, "serpent@test.com");
+        assert!(restored.is_admin);
+    }
+
+    #[test]
+    fn test_cache_service_config_clone() {
+        let config = CacheServiceConfig {
+            session_ttl_secs: 100,
+            query_cache_ttl_secs: 200,
+            project_cache_ttl_secs: 300,
+            task_cache_ttl_secs: 400,
+        };
+        let cloned = config.clone();
+        assert_eq!(cloned.session_ttl_secs, 100);
+        assert_eq!(cloned.task_cache_ttl_secs, 400);
     }
 }
