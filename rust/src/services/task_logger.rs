@@ -624,4 +624,46 @@ mod tests {
         // The listener should have been called
         assert!(*call_count.read().unwrap() >= 0);
     }
+
+    #[test]
+    fn test_task_status_is_active_all_variants() {
+        assert!(TaskStatus::Waiting.is_active());
+        assert!(TaskStatus::Starting.is_active());
+        assert!(TaskStatus::WaitingConfirmation.is_active());
+        assert!(TaskStatus::Confirmed.is_active());
+        assert!(TaskStatus::Rejected.is_active());
+        assert!(TaskStatus::Running.is_active());
+        assert!(TaskStatus::Stopping.is_active());
+    }
+
+    #[test]
+    fn test_task_status_is_active_false_for_finished() {
+        assert!(!TaskStatus::Success.is_active());
+        assert!(!TaskStatus::Error.is_active());
+        assert!(!TaskStatus::Stopped.is_active());
+        assert!(!TaskStatus::NotExecuted.is_active());
+    }
+
+    #[test]
+    fn test_task_status_is_finished_all_variants() {
+        assert!(TaskStatus::Success.is_finished());
+        assert!(TaskStatus::Error.is_finished());
+        assert!(TaskStatus::Stopped.is_finished());
+        assert!(TaskStatus::NotExecuted.is_finished());
+    }
+
+    #[test]
+    fn test_task_status_is_notifiable_true_variants() {
+        assert!(TaskStatus::Success.is_notifiable());
+        assert!(TaskStatus::Error.is_notifiable());
+        assert!(TaskStatus::WaitingConfirmation.is_notifiable());
+    }
+
+    #[test]
+    fn test_task_status_is_notifiable_false_variants() {
+        assert!(!TaskStatus::Waiting.is_notifiable());
+        assert!(!TaskStatus::Running.is_notifiable());
+        assert!(!TaskStatus::Starting.is_notifiable());
+        assert!(!TaskStatus::Stopped.is_notifiable());
+    }
 }
