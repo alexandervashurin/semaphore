@@ -148,4 +148,81 @@ mod tests {
         assert_eq!(records.len(), 1);
         assert_eq!(records[0].message, "hello");
     }
+
+    #[test]
+    fn test_status_listener_called() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let job = RunningJob::new(make_test_job());
+        let counter = Arc::new(AtomicUsize::new(0));
+        let counter_clone = counter.clone();
+        job.add_status_listener(Box::new(move |_| {
+            counter_clone.fetch_add(1, Ordering::SeqCst);
+        }));
+        job.set_status(TaskStatus::Running);
+        assert_eq!(counter.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn test_status_listener_not_called_on_same_status() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let job = RunningJob::new(make_test_job());
+        let counter = Arc::new(AtomicUsize::new(0));
+        let counter_clone = counter.clone();
+        job.add_status_listener(Box::new(move |_| {
+            counter_clone.fetch_add(1, Ordering::SeqCst);
+        }));
+        // Status уже Waiting, ставим Waiting again -- listener не должен сработать
+        job.set_status(TaskStatus::Waiting);
+        assert_eq!(counter.load(Ordering::SeqCst), 0);
+    }
+
+    #[test]
+    fn test_log_listener_called() {
+        let job = RunningJob::new(make_test_job());
+        let received = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let received_clone = received.clone();
+        job.add_log_listener(Box::new(move |_time, msg| {
+            received_clone.lock().unwrap().push(msg);
+        }));
+        job.log("test message");
+        assert_eq!(received.lock().unwrap()[0], "test message");
+    }
+
+    #[test]
+    fn test_set_commit() {
+        let mut job = RunningJob::new(make_test_job());
+        job.set_commit("abc123".to_string(), "fix bug".to_string());
+        assert!(job.commit.is_some());
+        let c = job.commit.as_ref().unwrap();
+        assert_eq!(c.hash, "abc123");
+        assert_eq!(c.message, "fix bug");
+    }
+
+    #[test]
+    fn test_log_with_time() {
+        let job = RunningJob::new(make_test_job());
+        let now = Utc::now();
+        job.log_with_time(now, "timed message");
+        let records = job.log_records.lock().unwrap();
+        assert_eq!(records[0].message, "timed message");
+        assert_eq!(records[0].time, now);
+    }
+
+    #[tokio::test]
+    async fn test_wait_log_completes() {
+        let job = RunningJob::new(make_test_job());
+        job.wait_log().await; // должна просто завершиться
+    }
+
+    #[test]
+    fn test_log_cmd() {
+        use tokio::process::Command;
+        let job = RunningJob::new(make_test_job());
+        let mut cmd = Command::new("echo");
+        cmd.arg("hello");
+        job.log_cmd(&cmd);
+        let records = job.log_records.lock().unwrap();
+        assert!(records[0].message.contains("echo"));
+        assert!(records[0].message.contains("hello"));
+    }
 }
