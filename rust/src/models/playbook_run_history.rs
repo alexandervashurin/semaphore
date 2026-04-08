@@ -307,4 +307,93 @@ mod tests {
         assert!(update.duration_seconds.is_none());
         assert!(update.hosts_total.is_none());
     }
+
+    #[test]
+    fn test_playbook_run_status_equality() {
+        assert_eq!(PlaybookRunStatus::Success, PlaybookRunStatus::Success);
+        assert_ne!(PlaybookRunStatus::Success, PlaybookRunStatus::Failed);
+    }
+
+    #[test]
+    fn test_playbook_run_status_serialize_all() {
+        let statuses = [
+            PlaybookRunStatus::Waiting,
+            PlaybookRunStatus::Running,
+            PlaybookRunStatus::Success,
+            PlaybookRunStatus::Failed,
+            PlaybookRunStatus::Cancelled,
+        ];
+        for status in &statuses {
+            // All should serialize without error
+            let result = serde_json::to_string(status);
+            assert!(result.is_ok());
+        }
+    }
+
+    #[test]
+    fn test_playbook_run_clone() {
+        let run = PlaybookRun {
+            id: 1,
+            project_id: 10,
+            playbook_id: 5,
+            task_id: Some(100),
+            template_id: None,
+            status: PlaybookRunStatus::Running,
+            inventory_id: None,
+            environment_id: None,
+            extra_vars: None,
+            limit_hosts: None,
+            tags: None,
+            skip_tags: None,
+            start_time: Some(Utc::now()),
+            end_time: None,
+            duration_seconds: None,
+            hosts_total: None,
+            hosts_changed: None,
+            hosts_unreachable: None,
+            hosts_failed: None,
+            output: None,
+            error_message: None,
+            user_id: None,
+            created: Utc::now(),
+            updated: Utc::now(),
+        };
+        let cloned = run.clone();
+        assert_eq!(cloned.id, run.id);
+        assert_eq!(cloned.status, run.status);
+        assert_eq!(cloned.task_id, run.task_id);
+    }
+
+    #[test]
+    fn test_playbook_run_create_clone() {
+        let create = PlaybookRunCreate {
+            project_id: 1,
+            playbook_id: 1,
+            task_id: None,
+            template_id: None,
+            inventory_id: Some(1),
+            environment_id: None,
+            extra_vars: None,
+            limit_hosts: Some("web".to_string()),
+            tags: Some("deploy".to_string()),
+            skip_tags: None,
+            user_id: Some(1),
+        };
+        let cloned = create.clone();
+        assert_eq!(cloned.project_id, create.project_id);
+        assert_eq!(cloned.limit_hosts, create.limit_hosts);
+    }
+
+    #[test]
+    fn test_playbook_run_stats_default_duration() {
+        let stats = PlaybookRunStats {
+            total_runs: 10,
+            success_runs: 8,
+            failed_runs: 2,
+            avg_duration_seconds: None,
+            last_run: None,
+        };
+        assert!(stats.avg_duration_seconds.is_none());
+        assert!(stats.last_run.is_none());
+    }
 }
