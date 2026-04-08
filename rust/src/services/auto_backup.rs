@@ -475,4 +475,52 @@ mod tests {
         assert_eq!(retrieved.interval_hours, config.interval_hours);
         assert_eq!(retrieved.max_backups, config.max_backups);
     }
+
+    #[test]
+    fn test_auto_backup_config_clone_test() {
+        let config = AutoBackupConfig {
+            enabled: true,
+            interval_hours: 12,
+            backup_path: "/var/backups".to_string(),
+            max_backups: 14,
+            compress: false,
+        };
+        let cloned = config.clone();
+        assert_eq!(cloned.enabled, config.enabled);
+        assert_eq!(cloned.interval_hours, config.interval_hours);
+    }
+
+    #[test]
+    fn test_backup_stats_clone_test() {
+        let stats = BackupStats {
+            total_backups: 100,
+            successful_backups: 95,
+            failed_backups: 5,
+            last_backup_time: Some(Utc::now()),
+            last_backup_size_bytes: 1024 * 1024,
+            next_backup_time: Some(Utc::now() + chrono::Duration::hours(24)),
+        };
+        let cloned = stats.clone();
+        assert_eq!(cloned.total_backups, stats.total_backups);
+        assert_eq!(cloned.last_backup_size_bytes, stats.last_backup_size_bytes);
+    }
+
+    #[test]
+    fn test_backup_stats_default_test() {
+        let stats = BackupStats::default();
+        assert_eq!(stats.total_backups, 0);
+        assert_eq!(stats.successful_backups, 0);
+        assert_eq!(stats.failed_backups, 0);
+        assert!(stats.last_backup_time.is_none());
+        assert_eq!(stats.last_backup_size_bytes, 0);
+    }
+
+    #[test]
+    fn test_auto_backup_config_default_values_test() {
+        let config = AutoBackupConfig::default();
+        assert!(!config.enabled);
+        assert_eq!(config.interval_hours, 24);
+        assert_eq!(config.max_backups, 7);
+        assert!(config.compress);
+    }
 }
