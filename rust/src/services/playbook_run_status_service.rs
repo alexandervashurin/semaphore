@@ -466,4 +466,39 @@ mod tests {
         assert!(json.contains("project_id"));
         assert!(json.contains("task_id"));
     }
+
+    #[test]
+    fn test_playbook_run_update_all_fields_set() {
+        let update = PlaybookRunUpdate {
+            status: Some(PlaybookRunStatus::Success),
+            start_time: Some(Utc::now()),
+            end_time: Some(Utc::now()),
+            duration_seconds: Some(120),
+            hosts_total: Some(10),
+            hosts_changed: Some(8),
+            hosts_unreachable: Some(1),
+            hosts_failed: Some(1),
+            output: Some("Full output".to_string()),
+            error_message: None,
+        };
+        assert_eq!(update.status, Some(PlaybookRunStatus::Success));
+        assert_eq!(update.duration_seconds, Some(120));
+        assert!(update.error_message.is_none());
+    }
+
+    #[test]
+    fn test_calculate_duration_one_hour() {
+        let now = Utc::now();
+        let start = now - chrono::Duration::seconds(3600);
+        let duration = PlaybookRunStatusService::calculate_duration(Some(start), Some(now));
+        assert_eq!(duration, Some(3600));
+    }
+
+    #[test]
+    fn test_calculate_duration_one_day() {
+        let now = Utc::now();
+        let start = now - chrono::Duration::seconds(86400);
+        let duration = PlaybookRunStatusService::calculate_duration(Some(start), Some(now));
+        assert_eq!(duration, Some(86400));
+    }
 }
