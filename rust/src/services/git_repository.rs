@@ -487,4 +487,60 @@ mod tests {
         let git_repo = GitRepository::new(repo, 1, 1);
         assert!(git_repo.tmp_dir_name.is_none());
     }
+
+    #[test]
+    fn test_git_repository_validate_repo_fails_for_nonexistent() {
+        let repo = Repository {
+            id: 999,
+            project_id: 999,
+            name: "Nonexistent".to_string(),
+            git_url: "https://github.com/test/nonexistent.git".to_string(),
+            git_type: RepositoryType::Git,
+            git_branch: None,
+            key_id: None,
+            git_path: None,
+            created: None,
+        };
+        let git_repo = GitRepository::new(repo, 999, 999);
+        let result = git_repo.validate_repo();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_git_repository_full_path_with_tmp() {
+        let repo = Repository {
+            id: 1,
+            project_id: 1,
+            name: "Test Repo".to_string(),
+            git_url: "https://github.com/test/repo.git".to_string(),
+            git_type: RepositoryType::Git,
+            git_branch: None,
+            key_id: None,
+            git_path: None,
+            created: None,
+        };
+        let git_repo = GitRepository::new(repo, 1, 1).with_tmp_dir("task_42".to_string());
+        let path = git_repo.get_full_path();
+        assert!(path.to_string_lossy().contains("project_1"));
+        assert!(path.to_string_lossy().contains("task_42"));
+    }
+
+    #[test]
+    fn test_git_repository_clone() {
+        let repo = Repository {
+            id: 1,
+            project_id: 1,
+            name: "Clone Test".to_string(),
+            git_url: "https://github.com/test/clone.git".to_string(),
+            git_type: RepositoryType::Git,
+            git_branch: Some("main".to_string()),
+            key_id: Some(1),
+            git_path: None,
+            created: None,
+        };
+        let git_repo = GitRepository::new(repo.clone(), 1, 1);
+        let cloned_git_repo = GitRepository::new(repo, 1, 1);
+        assert_eq!(git_repo.project_id, cloned_git_repo.project_id);
+        assert_eq!(git_repo.template_id, cloned_git_repo.template_id);
+    }
 }
