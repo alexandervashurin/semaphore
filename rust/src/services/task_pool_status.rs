@@ -382,4 +382,131 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn test_task_status_message_all_remaining_statuses() {
+        let base_task = Task {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            status: TaskStatus::Waiting,
+            message: None,
+            commit_hash: None,
+            commit_message: None,
+            version: None,
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+            arguments: None,
+            params: None,
+            playbook: None,
+            start: None,
+            end: None,
+            created: Utc::now(),
+            user_id: None,
+            integration_id: None,
+            schedule_id: None,
+            git_branch: None,
+            secret: None,
+            environment: None,
+            build_task_id: None,
+        };
+
+        let remaining_statuses = [
+            TaskStatus::WaitingConfirmation,
+            TaskStatus::Confirmed,
+            TaskStatus::Rejected,
+            TaskStatus::Stopping,
+            TaskStatus::NotExecuted,
+        ];
+
+        for status in remaining_statuses {
+            let mut task = base_task.clone();
+            task.status = status;
+            let message = TaskStatusMessage::new(&task);
+            let json = message.to_json();
+            assert!(
+                json.contains(&format!("\"status\":\"{}\"", status.to_string())),
+                "Expected status '{}' in JSON for {:?}",
+                status.to_string(),
+                status
+            );
+        }
+    }
+
+    #[test]
+    fn test_task_status_message_with_all_fields_populated() {
+        let now = Utc::now();
+        let task = Task {
+            id: 999,
+            project_id: 42,
+            template_id: 7,
+            status: TaskStatus::Error,
+            message: Some("Failed with error code 5".to_string()),
+            commit_hash: Some("abc123def".to_string()),
+            commit_message: Some("Fix bug".to_string()),
+            version: Some("v3.1.0".to_string()),
+            inventory_id: Some(10),
+            repository_id: Some(20),
+            environment_id: Some(30),
+            arguments: Some("--debug".to_string()),
+            params: None,
+            playbook: Some("deploy.yml".to_string()),
+            start: Some(now - chrono::Duration::seconds(120)),
+            end: Some(now),
+            created: now - chrono::Duration::seconds(200),
+            user_id: Some(5),
+            integration_id: Some(8),
+            schedule_id: Some(3),
+            git_branch: Some("main".to_string()),
+            secret: None,
+            environment: None,
+            build_task_id: Some(998),
+        };
+
+        let message = TaskStatusMessage::new(&task);
+        assert_eq!(message.task_id, 999);
+        assert_eq!(message.status, TaskStatus::Error);
+        assert_eq!(message.version, Some("v3.1.0".to_string()));
+        assert_eq!(message.template_id, 7);
+        assert_eq!(message.project_id, 42);
+        assert!(message.start.is_some());
+        assert!(message.end.is_some());
+    }
+
+    #[test]
+    fn test_task_status_message_clone() {
+        let task = Task {
+            id: 50,
+            project_id: 5,
+            template_id: 6,
+            status: TaskStatus::Success,
+            message: None,
+            commit_hash: None,
+            commit_message: None,
+            version: Some("v1.0".to_string()),
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+            arguments: None,
+            params: None,
+            playbook: None,
+            start: Some(Utc::now()),
+            end: Some(Utc::now()),
+            created: Utc::now(),
+            user_id: None,
+            integration_id: None,
+            schedule_id: None,
+            git_branch: None,
+            secret: None,
+            environment: None,
+            build_task_id: None,
+        };
+
+        let message = TaskStatusMessage::new(&task);
+        let cloned = message.clone();
+        assert_eq!(cloned.task_id, message.task_id);
+        assert_eq!(cloned.status, message.status);
+        assert_eq!(cloned.version, message.version);
+    }
 }
