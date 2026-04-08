@@ -1164,4 +1164,44 @@ mod key_installer_tests {
         let result = installer.install(&key, AccessKeyRole::AnsibleBecomeUser, &logger);
         assert!(result.is_err());
     }
+
+    #[test]
+    fn test_ssh_key_from_string() {
+        let key = SshKey::from_string("private_key_content".to_string(), Some("pass".to_string()));
+        assert_eq!(key.private_key, b"private_key_content".to_vec());
+        assert_eq!(key.passphrase, Some("pass".to_string()));
+    }
+
+    #[test]
+    fn test_ssh_key_with_public_key_chain() {
+        let key = SshKey::new(b"priv".to_vec(), None)
+            .with_public_key(b"pub".to_vec());
+        assert_eq!(key.public_key, Some(b"pub".to_vec()));
+    }
+
+    #[test]
+    fn test_access_key_role_from_str_error_case() {
+        assert!(AccessKeyRole::from_str("invalid_role").is_err());
+        assert!(AccessKeyRole::from_str("").is_err());
+    }
+
+    #[test]
+    fn test_access_key_new_none_no_project() {
+        let key = AccessKey::new_none(1, None);
+        assert_eq!(key.id, 1);
+        assert!(key.project_id.is_none());
+        assert_eq!(key.get_type(), &AccessKeyType::None);
+    }
+
+    #[test]
+    fn test_key_installer_ansible_user_with_login_password() {
+        let installer = KeyInstaller::new();
+        let logger = BasicLogger::new();
+        let key = AccessKey::new_login_password(1, "ansible_user".to_string(), "pass".to_string(), Some(1));
+        let result = installer.install(&key, AccessKeyRole::AnsibleUser, &logger);
+        assert!(result.is_ok());
+        let installation = result.unwrap();
+        assert_eq!(installation.login, Some("ansible_user".to_string()));
+        assert_eq!(installation.password, Some("pass".to_string()));
+    }
 }
