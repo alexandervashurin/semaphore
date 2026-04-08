@@ -367,4 +367,149 @@ mod tests {
         // Проверяем что сериализация не паникует
         assert!(!json.is_empty());
     }
+
+    #[test]
+    fn test_user_validate_empty_name_additional() {
+        let user = User {
+            id: 1,
+            created: Utc::now(),
+            username: "testuser".to_string(),
+            name: "".to_string(),
+            email: "test@example.com".to_string(),
+            password: "hashed".to_string(),
+            admin: false,
+            external: false,
+            alert: false,
+            pro: false,
+            totp: None,
+            email_otp: None,
+        };
+        assert!(user.validate().is_err());
+    }
+
+    #[test]
+    fn test_user_validate_empty_email_additional() {
+        let user = User {
+            id: 1,
+            created: Utc::now(),
+            username: "testuser".to_string(),
+            name: "Test".to_string(),
+            email: "".to_string(),
+            password: "hashed".to_string(),
+            admin: false,
+            external: false,
+            alert: false,
+            pro: false,
+            totp: None,
+            email_otp: None,
+        };
+        assert!(user.validate().is_err());
+    }
+
+    #[test]
+    fn test_user_clone() {
+        let user = User {
+            id: 1,
+            created: Utc::now(),
+            username: "clone_test".to_string(),
+            name: "Clone Test".to_string(),
+            email: "clone@test.com".to_string(),
+            password: "hashed".to_string(),
+            admin: true,
+            external: false,
+            alert: true,
+            pro: true,
+            totp: None,
+            email_otp: None,
+        };
+        let cloned = user.clone();
+        assert_eq!(cloned.username, user.username);
+        assert_eq!(cloned.admin, user.admin);
+        assert_eq!(cloned.pro, user.pro);
+    }
+
+    #[test]
+    fn test_project_user_role_equality() {
+        assert_eq!(ProjectUserRole::Owner, ProjectUserRole::Owner);
+        assert_ne!(ProjectUserRole::Owner, ProjectUserRole::Manager);
+    }
+
+    #[test]
+    fn test_project_user_role_deserialization() {
+        assert_eq!(
+            serde_json::from_str::<ProjectUserRole>("\"owner\"").unwrap(),
+            ProjectUserRole::Owner
+        );
+        assert_eq!(
+            serde_json::from_str::<ProjectUserRole>("\"task_runner\"").unwrap(),
+            ProjectUserRole::TaskRunner
+        );
+    }
+
+    #[test]
+    fn test_user_with_project_role_serialize() {
+        let user = User {
+            id: 1,
+            created: Utc::now(),
+            username: "role_user".to_string(),
+            name: "Role User".to_string(),
+            email: "role@test.com".to_string(),
+            password: "hashed".to_string(),
+            admin: false,
+            external: false,
+            alert: false,
+            pro: false,
+            totp: None,
+            email_otp: None,
+        };
+        let user_with_role = UserWithProjectRole {
+            user,
+            role: ProjectUserRole::TaskRunner,
+        };
+        let json = serde_json::to_string(&user_with_role).unwrap();
+        assert!(json.contains("\"role\":\"task_runner\""));
+        assert!(json.contains("\"username\":\"role_user\""));
+    }
+
+    #[test]
+    fn test_user_totp_clone() {
+        let totp = UserTotp {
+            id: 1,
+            created: Utc::now(),
+            user_id: 1,
+            url: "otpauth://...".to_string(),
+            recovery_hash: "hash".to_string(),
+            recovery_code: Some("code123".to_string()),
+        };
+        let cloned = totp.clone();
+        assert_eq!(cloned.id, totp.id);
+        assert_eq!(cloned.recovery_code, totp.recovery_code);
+    }
+
+    #[test]
+    fn test_user_totp_debug() {
+        let totp = UserTotp::default();
+        let debug_str = format!("{:?}", totp);
+        assert!(debug_str.contains("UserTotp"));
+    }
+
+    #[test]
+    fn test_user_debug_format() {
+        let user = User {
+            id: 1,
+            created: Utc::now(),
+            username: "debug_user".to_string(),
+            name: "Debug User".to_string(),
+            email: "debug@test.com".to_string(),
+            password: "hashed".to_string(),
+            admin: false,
+            external: false,
+            alert: false,
+            pro: false,
+            totp: None,
+            email_otp: None,
+        };
+        let debug_str = format!("{:?}", user);
+        assert!(debug_str.contains("debug_user"));
+    }
 }
