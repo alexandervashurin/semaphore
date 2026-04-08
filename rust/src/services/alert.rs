@@ -651,4 +651,50 @@ mod tests {
         let sig2 = AlertService::compute_hmac_signature("secret", b"body2");
         assert_ne!(sig1, sig2);
     }
+
+    #[test]
+    fn test_compute_hmac_signature_same_input_same_output() {
+        let sig1 = AlertService::compute_hmac_signature("secret", b"body");
+        let sig2 = AlertService::compute_hmac_signature("secret", b"body");
+        assert_eq!(sig1, sig2);
+    }
+
+    #[test]
+    fn test_alert_task_info_with_version() {
+        let task = Task {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            status: TaskStatus::Success,
+            version: Some("v1.2.3".to_string()),
+            ..Task::default()
+        };
+        let service = AlertService::new(task, "Test Template".to_string(), "testuser".to_string());
+        let (author, version) = service.alert_infos();
+        assert_eq!(author, "testuser");
+        assert_eq!(version, "v1.2.3");
+    }
+
+    #[test]
+    fn test_alert_task_link_format() {
+        let task = Task {
+            id: 42,
+            project_id: 10,
+            template_id: 1,
+            status: TaskStatus::Success,
+            ..Task::default()
+        };
+        let service = AlertService::new(task, "Template".to_string(), "user".to_string());
+        let link = service.task_link();
+        assert!(link.contains("/project/10/"));
+        assert!(link.contains("/tasks/42"));
+    }
+
+    #[test]
+    fn test_alert_service_new() {
+        let task = Task::default();
+        let service = AlertService::new(task.clone(), "Tpl".to_string(), "usr".to_string());
+        // Just verify creation doesn't panic
+        let _ = service;
+    }
 }
