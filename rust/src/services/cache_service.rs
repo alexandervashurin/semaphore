@@ -726,4 +726,102 @@ mod tests {
         assert_eq!(config.project_cache_ttl_secs, 600);
         assert_eq!(config.task_cache_ttl_secs, 60);
     }
+
+    #[test]
+    fn test_cache_keys_session() {
+        assert_eq!(CacheKeys::session("token123"), "session:token123");
+        assert_eq!(CacheKeys::session(""), "session:");
+    }
+
+    #[test]
+    fn test_cache_keys_user_id_and_username() {
+        assert_eq!(CacheKeys::user_id(42), "user:id:42");
+        assert_eq!(CacheKeys::user_username("admin"), "user:username:admin");
+    }
+
+    #[test]
+    fn test_cache_keys_template_inventory_repository_environment() {
+        assert_eq!(CacheKeys::template(10), "template:10");
+        assert_eq!(CacheKeys::inventory(20), "inventory:20");
+        assert_eq!(CacheKeys::repository(30), "repository:30");
+        assert_eq!(CacheKeys::environment(40), "environment:40");
+    }
+
+    #[test]
+    fn test_cache_keys_project_schedules_and_keys() {
+        assert_eq!(CacheKeys::project_schedules(5), "project:5:schedules");
+        assert_eq!(CacheKeys::project_keys(10), "project:10:keys");
+    }
+
+    #[test]
+    fn test_cache_keys_project_pattern() {
+        assert_eq!(CacheKeys::project_pattern(1), "project:1:*");
+        assert_eq!(CacheKeys::project_pattern(999), "project:999:*");
+    }
+
+    #[test]
+    fn test_session_data_is_not_expired_within_ttl() {
+        let user = User {
+            id: 1,
+            username: "user".to_string(),
+            email: "user@test.com".to_string(),
+            password: "hash".to_string(),
+            admin: false,
+            name: "User".to_string(),
+            created: Utc::now(),
+            external: false,
+            alert: false,
+            pro: false,
+            totp: None,
+            email_otp: None,
+        };
+        let session = SessionData::new(&user, 3600); // 1 hour TTL
+        assert!(!session.is_expired());
+    }
+
+    #[test]
+    fn test_session_data_user_info() {
+        let user = User {
+            id: 42,
+            username: "testuser".to_string(),
+            email: "test@example.com".to_string(),
+            password: "hash".to_string(),
+            admin: false,
+            name: "Test User".to_string(),
+            created: Utc::now(),
+            external: false,
+            alert: false,
+            pro: true,
+            totp: None,
+            email_otp: None,
+        };
+        let session = SessionData::new(&user, 600);
+        assert_eq!(session.username, "testuser");
+        assert_eq!(session.email, "test@example.com");
+        assert!(!session.is_admin);
+        assert_eq!(session.user_id, 42);
+    }
+
+    #[test]
+    fn test_session_data_clone() {
+        let user = User {
+            id: 1,
+            username: "clone".to_string(),
+            email: "clone@test.com".to_string(),
+            password: "hash".to_string(),
+            admin: true,
+            name: "Clone".to_string(),
+            created: Utc::now(),
+            external: false,
+            alert: false,
+            pro: false,
+            totp: None,
+            email_otp: None,
+        };
+        let session = SessionData::new(&user, 300);
+        let cloned = session.clone();
+        assert_eq!(cloned.username, session.username);
+        assert_eq!(cloned.is_admin, session.is_admin);
+        assert_eq!(cloned.expires_at, session.expires_at);
+    }
 }
