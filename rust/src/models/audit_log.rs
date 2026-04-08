@@ -455,4 +455,163 @@ mod tests {
         assert!(AuditLevel::Warning < AuditLevel::Error);
         assert!(AuditLevel::Error < AuditLevel::Critical);
     }
+
+    #[test]
+    fn test_audit_action_serialize_all_k8s_variants() {
+        let k8s_actions = [
+            AuditAction::KubernetesResourceCreated,
+            AuditAction::KubernetesResourceUpdated,
+            AuditAction::KubernetesResourceDeleted,
+            AuditAction::KubernetesResourceScaled,
+            AuditAction::KubernetesHelmReleaseInstalled,
+            AuditAction::KubernetesHelmReleaseUpgraded,
+        ];
+        for action in &k8s_actions {
+            let json = serde_json::to_string(action).unwrap();
+            assert!(json.starts_with('"') && json.ends_with('"'));
+        }
+    }
+
+    #[test]
+    fn test_audit_object_type_serialize_all_variants() {
+        let types = [
+            AuditObjectType::User,
+            AuditObjectType::Project,
+            AuditObjectType::Task,
+            AuditObjectType::Template,
+            AuditObjectType::Inventory,
+            AuditObjectType::Repository,
+            AuditObjectType::Environment,
+            AuditObjectType::AccessKey,
+            AuditObjectType::Integration,
+            AuditObjectType::Schedule,
+            AuditObjectType::Runner,
+            AuditObjectType::System,
+            AuditObjectType::Kubernetes,
+            AuditObjectType::Other,
+        ];
+        for obj_type in &types {
+            let json = serde_json::to_string(obj_type).unwrap();
+            assert!(json.starts_with('"') && json.ends_with('"'));
+        }
+    }
+
+    #[test]
+    fn test_audit_record_creation() {
+        let record = AuditLog {
+            id: 1,
+            project_id: Some(10),
+            user_id: Some(5),
+            username: Some("admin".to_string()),
+            action: AuditAction::TaskCreated,
+            object_type: AuditObjectType::Task,
+            object_id: Some(100),
+            object_name: None,
+            description: "Task created".to_string(),
+            level: AuditLevel::Info,
+            ip_address: None,
+            user_agent: None,
+            details: None,
+            created: Utc::now(),
+        };
+        let json = serde_json::to_string(&record).unwrap();
+        assert!(json.contains("\"action\":\"task_created\""));
+        assert!(json.contains("\"object_type\":\"task\""));
+        assert!(json.contains("\"level\":\"info\""));
+    }
+
+    #[test]
+    fn test_audit_details_with_all_fields() {
+        let mut metadata = serde_json::Map::new();
+        metadata.insert("key".to_string(), serde_json::json!("value"));
+
+        let details = serde_json::json!({
+            "ip_address": "192.168.1.1",
+            "user_agent": "Mozilla/5.0",
+            "changes": "name changed from A to B",
+            "reason": "Security update",
+            "metadata": metadata
+        });
+        let json = serde_json::to_string(&details).unwrap();
+        assert!(json.contains("192.168.1.1"));
+        assert!(json.contains("Mozilla/5.0"));
+    }
+
+    #[test]
+    fn test_audit_log_filter_with_values() {
+        let filter = AuditLogFilter {
+            project_id: Some(10),
+            user_id: Some(5),
+            action: Some(AuditAction::Login),
+            level: Some(AuditLevel::Warning),
+            date_from: Some(Utc::now() - chrono::Duration::days(7)),
+            date_to: Some(Utc::now()),
+            limit: 100,
+            offset: 50,
+            ..Default::default()
+        };
+        assert_eq!(filter.project_id, Some(10));
+        assert_eq!(filter.limit, 100);
+        assert_eq!(filter.offset, 50);
+    }
+
+    #[test]
+    fn test_audit_action_deserialize_k8s_variants() {
+        let actions = [
+            ("kubernetes_resource_created", AuditAction::KubernetesResourceCreated),
+            ("kubernetes_resource_deleted", AuditAction::KubernetesResourceDeleted),
+            ("kubernetes_helm_release_installed", AuditAction::KubernetesHelmReleaseInstalled),
+        ];
+        for (json_str, expected) in &actions {
+            let json = format!("\"{}\"", json_str);
+            let action: AuditAction = serde_json::from_str(&json).unwrap();
+            assert_eq!(action, *expected);
+        }
+    }
+
+    #[test]
+    fn test_audit_record_clone() {
+        let record = AuditLog {
+            id: 1,
+            project_id: Some(1),
+            user_id: Some(1),
+            username: Some("admin".to_string()),
+            action: AuditAction::Login,
+            object_type: AuditObjectType::User,
+            object_id: None,
+            object_name: None,
+            description: "Login".to_string(),
+            level: AuditLevel::Info,
+            ip_address: None,
+            user_agent: None,
+            details: None,
+            created: Utc::now(),
+        };
+        let cloned = record.clone();
+        assert_eq!(cloned.id, record.id);
+        assert_eq!(cloned.action, record.action);
+        assert_eq!(cloned.level, record.level);
+    }
+
+    #[test]
+    fn test_audit_result_serialization_with_records() {
+        let records = vec![
+            AuditLog {
+                id: 1, project_id: None, user_id: None, username: None,
+                action: AuditAction::Login, object_type: AuditObjectType::User,
+                object_id: None, object_name: None, description: "Login".to_string(),
+                level: AuditLevel::Info, ip_address: None, user_agent: None,
+                details: None, created: Utc::now(),
+            },
+        ];
+        let result = AuditLogResult {
+            total: 1,
+            records,
+            limit: 50,
+            offset: 0,
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("\"total\":1"));
+        assert!(json.contains("\"records\":["));
+    }
 }
