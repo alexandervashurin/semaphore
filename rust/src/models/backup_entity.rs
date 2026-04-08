@@ -75,4 +75,18 @@ mod tests {
         let cloned = entity.clone();
         assert_eq!(cloned.get_name(), entity.get_name());
     }
+
+    #[test]
+    fn test_backup_entity_empty_name() {
+        let entity = TestBackupEntity::new("");
+        assert_eq!(entity.get_name(), "");
+        assert_eq!(TestBackupEntity::get_type(), "test_entity");
+    }
+
+    #[test]
+    fn test_backup_entity_special_chars() {
+        let entity = TestBackupEntity::new("Entity with 'quotes' & <special> chars");
+        let json = serde_json::to_string(&entity).unwrap();
+        assert!(json.contains("quotes"));
+    }
 }

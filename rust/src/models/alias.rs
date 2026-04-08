@@ -88,4 +88,29 @@ mod tests {
         assert_eq!(cloned.alias, alias.alias);
         assert_eq!(cloned.owner_id, alias.owner_id);
     }
+
+    #[test]
+    fn test_alias_serialization_all_fields() {
+        let alias = Alias {
+            id: 5,
+            project_id: 10,
+            alias: "deploy-prod".to_string(),
+            owner_id: 3,
+            owner_type: "template".to_string(),
+            created: Utc::now(),
+        };
+        let json = serde_json::to_string(&alias).unwrap();
+        assert!(json.contains("\"id\":5"));
+        assert!(json.contains("\"owner_type\":\"template\""));
+        assert!(json.contains("\"alias\":\"deploy-prod\""));
+    }
+
+    #[test]
+    fn test_alias_deserialization_full() {
+        let json = r#"{"id":10,"project_id":20,"alias":"my-alias","owner_id":5,"owner_type":"playbook","created":"2024-01-01T00:00:00Z"}"#;
+        let alias: Alias = serde_json::from_str(json).unwrap();
+        assert_eq!(alias.id, 10);
+        assert_eq!(alias.alias, "my-alias");
+        assert_eq!(alias.owner_type, "playbook");
+    }
 }

@@ -75,4 +75,19 @@ mod tests {
         assert_eq!(migration.version, 20240201000000);
         assert_eq!(migration.name, "add_users");
     }
+
+    #[test]
+    fn test_migration_large_version() {
+        let migration = Migration::new(20260407120000, "add_organizations".to_string());
+        let json = serde_json::to_string(&migration).unwrap();
+        assert!(json.contains("\"version\":20260407120000"));
+        assert!(json.contains("\"name\":\"add_organizations\""));
+    }
+
+    #[test]
+    fn test_migration_zero_version() {
+        let migration = Migration::new(0, "initial".to_string());
+        assert_eq!(migration.version, 0);
+        assert_eq!(migration.name, "initial");
+    }
 }

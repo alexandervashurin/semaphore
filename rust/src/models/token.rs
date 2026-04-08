@@ -58,4 +58,29 @@ mod tests {
         assert_eq!(cloned.name, token.name);
         assert_eq!(cloned.user_id, token.user_id);
     }
+
+    #[test]
+    fn test_api_token_expired() {
+        let token = APIToken {
+            id: 1,
+            user_id: 1,
+            name: "Expired Token".to_string(),
+            token: "expired_token".to_string(),
+            created: Utc::now() - chrono::Duration::days(30),
+            expired: true,
+        };
+        let json = serde_json::to_string(&token).unwrap();
+        assert!(json.contains("\"expired\":true"));
+        assert!(json.contains("\"name\":\"Expired Token\""));
+    }
+
+    #[test]
+    fn test_api_token_deserialization_full() {
+        let json = r#"{"id":10,"user_id":50,"name":"Full Token","token":"secret123","created":"2024-06-01T12:00:00Z","expired":false}"#;
+        let token: APIToken = serde_json::from_str(json).unwrap();
+        assert_eq!(token.id, 10);
+        assert_eq!(token.user_id, 50);
+        assert_eq!(token.name, "Full Token");
+        assert!(!token.expired);
+    }
 }

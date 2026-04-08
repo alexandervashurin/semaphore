@@ -221,4 +221,76 @@ mod tests {
         assert!(json.contains("\"version\":\"v2.0.0\""));
         assert!(json.contains("\"status\":\"success\""));
     }
+
+    #[test]
+    fn test_deployment_environment_clone() {
+        let env = DeploymentEnvironment {
+            id: 1,
+            project_id: 10,
+            name: "Clone Env".to_string(),
+            url: Some("https://clone.example.com".to_string()),
+            tier: "staging".to_string(),
+            status: "active".to_string(),
+            template_id: Some(5),
+            last_task_id: Some(100),
+            last_deploy_version: Some("v1.0.0".to_string()),
+            last_deployed_by: Some(1),
+            created: Utc::now(),
+            updated: Utc::now(),
+        };
+        let cloned = env.clone();
+        assert_eq!(cloned.name, env.name);
+        assert_eq!(cloned.url, env.url);
+        assert_eq!(cloned.tier, env.tier);
+    }
+
+    #[test]
+    fn test_deployment_record_clone() {
+        let record = DeploymentRecord {
+            id: 1,
+            deploy_environment_id: 5,
+            task_id: 100,
+            project_id: 10,
+            version: Some("v1.0.0".to_string()),
+            deployed_by: Some(1),
+            status: "success".to_string(),
+            created: Utc::now(),
+        };
+        let cloned = record.clone();
+        assert_eq!(cloned.version, record.version);
+        assert_eq!(cloned.status, record.status);
+    }
+
+    #[test]
+    fn test_deployment_environment_create_with_default_tier() {
+        let create = DeploymentEnvironmentCreate {
+            name: "Production".to_string(),
+            url: Some("https://prod.example.com".to_string()),
+            tier: "production".to_string(),
+            template_id: Some(10),
+        };
+        let json = serde_json::to_string(&create).unwrap();
+        assert!(json.contains("\"tier\":\"production\""));
+        assert!(json.contains("\"name\":\"Production\""));
+    }
+
+    #[test]
+    fn test_deployment_record_null_version() {
+        let record = DeploymentRecord {
+            id: 1,
+            deploy_environment_id: 5,
+            task_id: 100,
+            project_id: 10,
+            version: None,
+            deployed_by: None,
+            status: "running".to_string(),
+            created: Utc::now(),
+        };
+        let json = serde_json::to_string(&record).unwrap();
+        // DeploymentRecord has skip_serializing_if on Option fields
+        // So null fields should be skipped
+        assert!(!json.contains("\"deployed_by\":"));
+        // version might still be serialized as null depending on config
+        assert!(json.contains("\"status\":\"running\""));
+    }
 }

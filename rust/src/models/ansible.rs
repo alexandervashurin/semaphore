@@ -118,4 +118,30 @@ mod tests {
         assert_eq!(cloned.name, playbook.name);
         assert_eq!(cloned.path, playbook.path);
     }
+
+    #[test]
+    fn test_galaxy_requirement_clone() {
+        let req = GalaxyRequirement {
+            name: "geerlingguy.docker".to_string(),
+            version: "2.0.0".to_string(),
+        };
+        let cloned = req.clone();
+        assert_eq!(cloned.name, req.name);
+        assert_eq!(cloned.version, req.version);
+    }
+
+    #[test]
+    fn test_ansible_galaxy_requirements_all_variants() {
+        let req = AnsibleGalaxyRequirements {
+            roles: vec![
+                GalaxyRequirement { name: "role1".to_string(), version: "1.0.0".to_string() },
+                GalaxyRequirement { name: "role2".to_string(), version: "2.0.0".to_string() },
+            ],
+            collections: vec![
+                GalaxyRequirement { name: "community.general".to_string(), version: "3.0.0".to_string() },
+            ],
+        };
+        assert_eq!(req.roles.len(), 2);
+        assert_eq!(req.collections.len(), 1);
+    }
 }

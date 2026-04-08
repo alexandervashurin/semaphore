@@ -203,4 +203,29 @@ mod tests {
         let cloned = t.clone();
         assert_eq!(cloned, t);
     }
+
+    #[test]
+    fn test_secret_storage_type_deserialization() {
+        assert_eq!("local".parse::<SecretStorageType>().unwrap(), SecretStorageType::Local);
+        assert_eq!("vault".parse::<SecretStorageType>().unwrap(), SecretStorageType::Vault);
+        assert_eq!("dvls".parse::<SecretStorageType>().unwrap(), SecretStorageType::Dvls);
+        assert_eq!("invalid".parse::<SecretStorageType>().unwrap(), SecretStorageType::Local);
+    }
+
+    #[test]
+    fn test_secret_storage_with_source() {
+        let storage = SecretStorage {
+            id: 1,
+            project_id: 5,
+            name: "External Vault".to_string(),
+            r#type: SecretStorageType::Vault,
+            params: r#"{"url":"https://ext.vault.com"}"#.to_string(),
+            read_only: false,
+            source_storage_type: Some("vault".to_string()),
+            secret: Some("token123".to_string()),
+        };
+        let json = serde_json::to_string(&storage).unwrap();
+        assert!(json.contains("\"source_storage_type\":\"vault\""));
+        assert!(json.contains("\"secret\":\"token123\""));
+    }
 }

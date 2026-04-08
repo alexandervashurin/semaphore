@@ -245,4 +245,62 @@ mod tests {
         assert!(json.contains("\"org_id\":10"));
         assert!(json.contains("\"role\":\"member\""));
     }
+
+    #[test]
+    fn test_organization_clone() {
+        let org = Organization {
+            id: 1,
+            name: "Clone Org".to_string(),
+            slug: "clone-org".to_string(),
+            description: Some("Clone Test".to_string()),
+            settings: None,
+            quota_max_projects: Some(10),
+            quota_max_users: Some(50),
+            quota_max_tasks_per_month: Some(1000),
+            active: true,
+            created: Utc::now(),
+            updated: None,
+        };
+        let cloned = org.clone();
+        assert_eq!(cloned.name, org.name);
+        assert_eq!(cloned.slug, org.slug);
+    }
+
+    #[test]
+    fn test_organization_user_clone() {
+        let user = OrganizationUser {
+            id: 1,
+            org_id: 10,
+            user_id: 5,
+            role: "owner".to_string(),
+            created: Utc::now(),
+        };
+        let cloned = user.clone();
+        assert_eq!(cloned.role, user.role);
+        assert_eq!(cloned.org_id, user.org_id);
+    }
+
+    #[test]
+    fn test_organization_update_default() {
+        let update = OrganizationUpdate::default();
+        assert!(update.name.is_none());
+        assert!(update.active.is_none());
+        assert!(update.quota_max_projects.is_none());
+    }
+
+    #[test]
+    fn test_organization_create_minimal() {
+        let create = OrganizationCreate {
+            name: "Minimal Org".to_string(),
+            slug: None,
+            description: None,
+            settings: None,
+            quota_max_projects: None,
+            quota_max_users: None,
+            quota_max_tasks_per_month: None,
+        };
+        let json = serde_json::to_string(&create).unwrap();
+        assert!(json.contains("\"name\":\"Minimal Org\""));
+        assert!(json.contains("\"slug\":null"));
+    }
 }

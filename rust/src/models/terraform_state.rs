@@ -204,4 +204,57 @@ mod tests {
         let json = serde_json::to_string(&diff).unwrap();
         assert!(json.contains("\"resources\":[]"));
     }
+
+    #[test]
+    fn test_lock_info_serialization() {
+        let lock = TerraformStateLock {
+            project_id: 1,
+            workspace: "default".to_string(),
+            lock_id: "lock-abc-123".to_string(),
+            operation: "OperationTypePlan".to_string(),
+            info: "Plan operation".to_string(),
+            who: "user@example.com".to_string(),
+            version: "1.5.0".to_string(),
+            path: "module.main".to_string(),
+            created_at: Utc::now(),
+            expires_at: Utc::now() + chrono::Duration::hours(1),
+        };
+        let lock_info = LockInfo::from_lock(&lock);
+        let json = serde_json::to_string(&lock_info).unwrap();
+        // PascalCase serialization
+        assert!(json.contains("\"ID\":\"lock-abc-123\""));
+        assert!(json.contains("\"Operation\":\"OperationTypePlan\""));
+    }
+
+    #[test]
+    fn test_terraform_state_lock_clone() {
+        let lock = TerraformStateLock {
+            project_id: 1,
+            workspace: "prod".to_string(),
+            lock_id: "clone-lock".to_string(),
+            operation: "OperationTypeApply".to_string(),
+            info: "Clone test".to_string(),
+            who: "tester@example.com".to_string(),
+            version: "1.5.0".to_string(),
+            path: "module.main".to_string(),
+            created_at: Utc::now(),
+            expires_at: Utc::now(),
+        };
+        let cloned = lock.clone();
+        assert_eq!(cloned.workspace, lock.workspace);
+        assert_eq!(cloned.lock_id, lock.lock_id);
+    }
+
+    #[test]
+    fn test_state_diff_resource_clone() {
+        let resource = StateDiffResource {
+            address: "aws_instance.web".to_string(),
+            change_type: "changed".to_string(),
+            resource_type: "aws_instance".to_string(),
+            name: "web".to_string(),
+        };
+        let cloned = resource.clone();
+        assert_eq!(cloned.address, resource.address);
+        assert_eq!(cloned.change_type, resource.change_type);
+    }
 }
