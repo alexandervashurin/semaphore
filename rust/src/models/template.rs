@@ -473,7 +473,141 @@ mod tests {
         assert!(!json.contains("\"git_branch\":"));
         assert!(!json.contains("\"execution_image\":"));
     }
+
+    #[test]
+    fn test_template_type_display_all_variants() {
+        assert_eq!(TemplateType::Default.to_string(), "default");
+        assert_eq!(TemplateType::Build.to_string(), "build");
+        assert_eq!(TemplateType::Deploy.to_string(), "deploy");
+        assert_eq!(TemplateType::Task.to_string(), "task");
+        assert_eq!(TemplateType::Ansible.to_string(), "ansible");
+        assert_eq!(TemplateType::Terraform.to_string(), "terraform");
+        assert_eq!(TemplateType::Shell.to_string(), "shell");
+    }
+
+    #[test]
+    fn test_template_type_from_str_all_variants() {
+        assert_eq!("default".parse::<TemplateType>().unwrap(), TemplateType::Default);
+        assert_eq!("build".parse::<TemplateType>().unwrap(), TemplateType::Build);
+        assert_eq!("deploy".parse::<TemplateType>().unwrap(), TemplateType::Deploy);
+        assert_eq!("task".parse::<TemplateType>().unwrap(), TemplateType::Task);
+        assert_eq!("shell".parse::<TemplateType>().unwrap(), TemplateType::Shell);
+    }
+
+    #[test]
+    fn test_template_type_serialize_all_variants() {
+        let types = [
+            TemplateType::Default,
+            TemplateType::Build,
+            TemplateType::Deploy,
+            TemplateType::Task,
+            TemplateType::Ansible,
+            TemplateType::Terraform,
+            TemplateType::Shell,
+        ];
+        for t in &types {
+            let json = serde_json::to_string(t).unwrap();
+            assert!(json.starts_with('"') && json.ends_with('"'));
+        }
+    }
+
+    #[test]
+    fn test_template_app_display_all_variants() {
+        assert_eq!(TemplateApp::Default.to_string(), "default");
+        assert_eq!(TemplateApp::Tofu.to_string(), "tofu");
+        assert_eq!(TemplateApp::Terragrunt.to_string(), "terragrunt");
+        assert_eq!(TemplateApp::PowerShell.to_string(), "powershell");
+        assert_eq!(TemplateApp::Python.to_string(), "python");
+        assert_eq!(TemplateApp::Pulumi.to_string(), "pulumi");
+    }
+
+    #[test]
+    fn test_template_app_serialize_all_variants() {
+        let apps = [
+            TemplateApp::Default,
+            TemplateApp::Ansible,
+            TemplateApp::Terraform,
+            TemplateApp::Tofu,
+            TemplateApp::Terragrunt,
+            TemplateApp::Bash,
+            TemplateApp::PowerShell,
+            TemplateApp::Python,
+            TemplateApp::Pulumi,
+        ];
+        for app in &apps {
+            let json = serde_json::to_string(app).unwrap();
+            assert!(json.starts_with('"') && json.ends_with('"'));
+        }
+    }
+
+    #[test]
+    fn test_template_default() {
+        let template = Template::default();
+        assert_eq!(template.id, 0);
+        assert_eq!(template.name, "");
+        assert_eq!(template.playbook, "");
+        assert_eq!(template.r#type, TemplateType::Default);
+        assert_eq!(template.app, TemplateApp::Default);
+    }
+
+    #[test]
+    fn test_template_default_template() {
+        let template = Template::default_template(10, "Test".to_string(), "test.yml".to_string());
+        assert_eq!(template.project_id, 10);
+        assert_eq!(template.name, "Test");
+        assert_eq!(template.playbook, "test.yml");
+        assert!(!template.autorun);
+        assert!(!template.require_approval);
+    }
+
+    #[test]
+    fn test_survey_var_serialization() {
+        let survey_var = SurveyVar {
+            name: "environment".to_string(),
+            title: "Target Environment".to_string(),
+            description: "Choose target env".to_string(),
+            r#type: "enum".to_string(),
+            enum_values: Some(vec!["dev".to_string(), "prod".to_string()]),
+            required: true,
+        };
+        let json = serde_json::to_string(&survey_var).unwrap();
+        assert!(json.contains("\"name\":\"environment\""));
+        assert!(json.contains("\"required\":true"));
+        assert!(json.contains("\"enum_values\":["));
+    }
+
+    #[test]
+    fn test_template_vault_ref_serialization() {
+        let vault_ref = TemplateVaultRef {
+            vault_key_id: 42,
+            r#type: "hashicorp".to_string(),
+        };
+        let json = serde_json::to_string(&vault_ref).unwrap();
+        assert!(json.contains("\"vault_key_id\":42"));
+        assert!(json.contains("\"type\":\"hashicorp\""));
+    }
+
+    #[test]
+    fn test_template_filter_default() {
+        let filter = TemplateFilter::default();
+        assert!(filter.project_id.is_none());
+        assert!(filter.r#type.is_none());
+        assert!(filter.app.is_none());
+        assert!(filter.view_id.is_none());
+    }
+
+    #[test]
+    fn test_template_clone() {
+        let template = Template::default_template(1, "Clone".to_string(), "clone.yml".to_string());
+        let cloned = template.clone();
+        assert_eq!(cloned.name, template.name);
+        assert_eq!(cloned.playbook, template.playbook);
+        assert_eq!(cloned.autorun, template.autorun);
+    }
 }
+
+/// Разрешения шаблона для ролей
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct TemplateRolePerm {
     pub id: i32,
     pub project_id: i32,
