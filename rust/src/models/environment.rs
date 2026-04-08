@@ -228,4 +228,60 @@ mod tests {
         assert!(!json.contains("secret_storage_key_prefix"));
         assert!(!json.contains("secrets"));
     }
+
+    #[test]
+    fn test_environment_clone() {
+        let env = Environment::new(1, "clone-env".to_string(), r#"{"KEY":"val"}"#.to_string());
+        let cloned = env.clone();
+        assert_eq!(cloned.name, env.name);
+        assert_eq!(cloned.json, env.json);
+        assert_eq!(cloned.project_id, env.project_id);
+    }
+
+    #[test]
+    fn test_environment_with_secret_storage() {
+        let env = Environment {
+            id: 1,
+            project_id: 1,
+            name: "vault-env".to_string(),
+            json: "{}".to_string(),
+            secret_storage_id: Some(5),
+            secret_storage_key_prefix: Some("myapp/prod".to_string()),
+            secrets: None,
+            created: None,
+        };
+        assert_eq!(env.secret_storage_id, Some(5));
+        assert_eq!(env.secret_storage_key_prefix, Some("myapp/prod".to_string()));
+    }
+
+    #[test]
+    fn test_environment_serialization() {
+        let env = Environment::new(10, "production".to_string(), r#"{"DB_HOST":"localhost"}"#.to_string());
+        let json = serde_json::to_string(&env).unwrap();
+        assert!(json.contains("\"name\":\"production\""));
+        assert!(json.contains("\"project_id\":10"));
+    }
+
+    #[test]
+    fn test_environment_secret_type_equality() {
+        assert_eq!(EnvironmentSecretType::Env, EnvironmentSecretType::Env);
+        assert_ne!(EnvironmentSecretType::Env, EnvironmentSecretType::Var);
+    }
+
+    #[test]
+    fn test_environment_parse_json_empty_object() {
+        let env = Environment {
+            id: 1,
+            project_id: 1,
+            name: "empty".to_string(),
+            json: "{}".to_string(),
+            secret_storage_id: None,
+            secret_storage_key_prefix: None,
+            secrets: None,
+            created: None,
+        };
+        let parsed = env.parse_json().unwrap();
+        assert!(parsed.is_object());
+        assert_eq!(parsed.as_object().unwrap().len(), 0);
+    }
 }
