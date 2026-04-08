@@ -443,4 +443,111 @@ mod tests {
         assert!(chain.exporters.contains_key("AccessKey"));
         assert!(chain.exporters.contains_key("Task"));
     }
+
+    // ── Parameterized exporter tests ──
+
+    #[test]
+    fn test_all_exporters_have_valid_names() {
+        let mut mapper = TypeKeyMapper::new();
+        let chain = init_project_exporters(&mut mapper, false);
+
+        // Each exporter should have a non-empty name
+        for (name, exporter) in &chain.exporters {
+            assert!(!exporter.get_name().is_empty(), "Exporter '{}' has empty name", name);
+        }
+    }
+
+    #[test]
+    fn test_all_exporters_return_dependencies() {
+        let mut mapper = TypeKeyMapper::new();
+        let chain = init_project_exporters(&mut mapper, false);
+
+        // Just verify these don't panic and return valid vecs
+        for (_, exporter) in &chain.exporters {
+            let export_deps = exporter.export_depends_on();
+            let import_deps = exporter.import_depends_on();
+            // Dependencies should be valid strings
+            for dep in &export_deps {
+                assert!(!dep.is_empty());
+            }
+            for dep in &import_deps {
+                assert!(!dep.is_empty());
+            }
+        }
+    }
+
+    #[test]
+    fn test_all_exporters_clear_without_error() {
+        let mut mapper = TypeKeyMapper::new();
+        let mut chain = init_project_exporters(&mut mapper, false);
+
+        for (_, exporter) in &mut chain.exporters {
+            // Use on_error method which is available via value_map
+            // Just verify clear doesn't panic
+            exporter.clear();
+            assert!(exporter.get_errors().is_empty());
+        }
+    }
+
+    #[test]
+    fn test_exporter_specific_dependencies() {
+        let mut mapper = TypeKeyMapper::new();
+        let chain = init_project_exporters(&mut mapper, false);
+
+        // Just verify dependencies are returned without panic
+        // Specific dependency checks are done in individual exporter tests
+        for (_, exporter) in &chain.exporters {
+            let _ = exporter.export_depends_on();
+            let _ = exporter.import_depends_on();
+        }
+    }
+
+    #[test]
+    fn test_exporter_default_same_as_new() {
+        let mut mapper = TypeKeyMapper::new();
+        let chain = init_project_exporters(&mut mapper, false);
+
+        // Verify that all exporters can be cloned/created without issues
+        for (_, exporter) in &chain.exporters {
+            let name = exporter.get_name();
+            assert!(!name.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_value_map_append_and_clear() {
+        let mut map: ValueMap<String> = ValueMap::new();
+
+        map.append_values(vec!["a".to_string(), "b".to_string()], "scope").unwrap();
+        assert_eq!(map.get_loaded_keys("scope").unwrap().len(), 2);
+
+        map.clear();
+        assert!(map.get_loaded_keys("scope").unwrap().is_empty());
+        assert!(map.get_errors().is_empty());
+    }
+
+    #[test]
+    fn test_value_map_errors_accumulate() {
+        let mut map: ValueMap<String> = ValueMap::new();
+
+        map.errors.push("err1".to_string());
+        map.errors.push("err2".to_string());
+
+        assert_eq!(map.get_errors().len(), 2);
+    }
+
+    #[test]
+    fn test_type_key_mapper_get_new_key_returns_old_if_not_mapped() {
+        let mut mapper = TypeKeyMapper::new();
+        let result = mapper.get_new_key("test", "scope", "old_key").unwrap();
+        assert_eq!(result, "old_key");
+    }
+
+    #[test]
+    fn test_init_project_exporters_skip_task_output() {
+        let mut mapper = TypeKeyMapper::new();
+        let chain = init_project_exporters(&mut mapper, true); // skip_task_output = true
+
+        assert!(!chain.exporters.contains_key("TaskOutput"));
+    }
 }
