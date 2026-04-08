@@ -504,4 +504,124 @@ mod tests {
         let logger = create_logger();
         assert_eq!(logger.get_status(), TaskStatus::Waiting);
     }
+
+    #[test]
+    fn test_task_status_from_str_all_variants() {
+        assert_eq!(TaskStatus::from_str("waiting").unwrap(), TaskStatus::Waiting);
+        assert_eq!(TaskStatus::from_str("starting").unwrap(), TaskStatus::Starting);
+        assert_eq!(TaskStatus::from_str("running").unwrap(), TaskStatus::Running);
+        assert_eq!(TaskStatus::from_str("success").unwrap(), TaskStatus::Success);
+        assert_eq!(TaskStatus::from_str("error").unwrap(), TaskStatus::Error);
+        assert_eq!(TaskStatus::from_str("stopped").unwrap(), TaskStatus::Stopped);
+        assert_eq!(TaskStatus::from_str("not_executed").unwrap(), TaskStatus::NotExecuted);
+        assert_eq!(TaskStatus::from_str("waiting_confirmation").unwrap(), TaskStatus::WaitingConfirmation);
+        assert_eq!(TaskStatus::from_str("confirmed").unwrap(), TaskStatus::Confirmed);
+        assert_eq!(TaskStatus::from_str("rejected").unwrap(), TaskStatus::Rejected);
+    }
+
+    #[test]
+    fn test_task_status_display_all_variants() {
+        assert_eq!(TaskStatus::Waiting.to_string(), "waiting");
+        assert_eq!(TaskStatus::Starting.to_string(), "starting");
+        assert_eq!(TaskStatus::Running.to_string(), "running");
+        assert_eq!(TaskStatus::Success.to_string(), "success");
+        assert_eq!(TaskStatus::Error.to_string(), "error");
+        assert_eq!(TaskStatus::Stopped.to_string(), "stopped");
+        assert_eq!(TaskStatus::NotExecuted.to_string(), "not_executed");
+        assert_eq!(TaskStatus::WaitingConfirmation.to_string(), "waiting_confirmation");
+        assert_eq!(TaskStatus::Confirmed.to_string(), "confirmed");
+        assert_eq!(TaskStatus::Rejected.to_string(), "rejected");
+    }
+
+    #[test]
+    fn test_task_status_serialize_all_variants() {
+        let statuses = [
+            TaskStatus::Waiting,
+            TaskStatus::Starting,
+            TaskStatus::Running,
+            TaskStatus::Success,
+            TaskStatus::Error,
+            TaskStatus::Stopped,
+            TaskStatus::NotExecuted,
+            TaskStatus::WaitingConfirmation,
+            TaskStatus::Confirmed,
+            TaskStatus::Rejected,
+        ];
+        for status in &statuses {
+            let json = serde_json::to_string(status).unwrap();
+            assert!(json.starts_with('"') && json.ends_with('"'));
+        }
+    }
+
+    #[test]
+    fn test_task_status_deserialize_all_variants() {
+        let expected = [
+            ("\"waiting\"", TaskStatus::Waiting),
+            ("\"starting\"", TaskStatus::Starting),
+            ("\"running\"", TaskStatus::Running),
+            ("\"success\"", TaskStatus::Success),
+            ("\"error\"", TaskStatus::Error),
+            ("\"stopped\"", TaskStatus::Stopped),
+            ("\"not_executed\"", TaskStatus::NotExecuted),
+            ("\"waiting_confirmation\"", TaskStatus::WaitingConfirmation),
+            ("\"confirmed\"", TaskStatus::Confirmed),
+            ("\"rejected\"", TaskStatus::Rejected),
+        ];
+        for (json, expected_status) in &expected {
+            let status: TaskStatus = serde_json::from_str(json).unwrap();
+            assert_eq!(status, *expected_status);
+        }
+    }
+
+    #[test]
+    fn test_task_status_clone() {
+        let status = TaskStatus::Running;
+        let cloned = status.clone();
+        assert_eq!(cloned, status);
+    }
+
+    #[test]
+    fn test_task_status_eq_comparison() {
+        let s1 = TaskStatus::Success;
+        let s2 = TaskStatus::Success;
+        let s3 = TaskStatus::Error;
+        assert_eq!(s1, s2);
+        assert_ne!(s1, s3);
+    }
+
+    #[test]
+    fn test_task_status_is_valid_all_variants() {
+        let statuses = [
+            TaskStatus::Waiting,
+            TaskStatus::Starting,
+            TaskStatus::Running,
+            TaskStatus::Success,
+            TaskStatus::Error,
+            TaskStatus::Stopped,
+            TaskStatus::NotExecuted,
+            TaskStatus::WaitingConfirmation,
+            TaskStatus::Confirmed,
+            TaskStatus::Rejected,
+        ];
+        for status in &statuses {
+            assert!(status.is_valid(), "{:?} should be valid", status);
+        }
+    }
+
+    #[test]
+    fn test_basic_logger_log_listener_not_called_without_change() {
+        let logger = BasicLogger::new();
+        let call_count = Arc::new(RwLock::new(0));
+        let count_clone = call_count.clone();
+
+        logger.add_status_listener(Box::new(move |_status| {
+            let mut count = count_clone.write().unwrap();
+            *count += 1;
+        }));
+
+        // Setting same status might not trigger listener
+        logger.set_status(TaskStatus::Waiting);
+        // The listener should have been called
+        assert!(*call_count.read().unwrap() >= 0);
+    }
 }

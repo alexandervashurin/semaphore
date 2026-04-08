@@ -390,4 +390,89 @@ mod tests {
         // Убираем за собой
         std::fs::remove_dir_all(&temp_dir).ok();
     }
+
+    #[test]
+    fn test_auto_backup_config_custom() {
+        let config = AutoBackupConfig {
+            enabled: true,
+            interval_hours: 12,
+            backup_path: "/var/backups/velum".to_string(),
+            max_backups: 14,
+            compress: false,
+        };
+        assert!(config.enabled);
+        assert_eq!(config.interval_hours, 12);
+        assert_eq!(config.backup_path, "/var/backups/velum");
+        assert_eq!(config.max_backups, 14);
+        assert!(!config.compress);
+    }
+
+    #[test]
+    fn test_backup_stats_clone() {
+        let stats = BackupStats {
+            total_backups: 10,
+            successful_backups: 8,
+            failed_backups: 2,
+            last_backup_time: Some(Utc::now()),
+            last_backup_size_bytes: 1024,
+            next_backup_time: Some(Utc::now() + chrono::Duration::hours(24)),
+        };
+        let cloned = stats.clone();
+        assert_eq!(cloned.total_backups, stats.total_backups);
+        assert_eq!(cloned.failed_backups, stats.failed_backups);
+    }
+
+    #[test]
+    fn test_backup_format_serialization() {
+        let backup = BackupFormat {
+            version: "1.0".to_string(),
+            project: crate::services::backup::BackupProject {
+                name: "Test".to_string(),
+                alert: Some(false),
+                alert_chat: None,
+                max_parallel_tasks: Some(5),
+            },
+            templates: Vec::new(),
+            repositories: Vec::new(),
+            inventories: Vec::new(),
+            environments: Vec::new(),
+            access_keys: Vec::new(),
+            schedules: Vec::new(),
+            integrations: Vec::new(),
+            views: Vec::new(),
+        };
+        let json = serde_json::to_string(&backup).unwrap();
+        assert!(json.contains("\"version\":\"1.0\""));
+        assert!(json.contains("\"name\":\"Test\""));
+    }
+
+    #[test]
+    fn test_gzip_encode_empty_data() {
+        let data = b"";
+        let compressed = gzip_encode(data).unwrap();
+        assert_ne!(compressed, data);
+        // Can verify by decompressing
+        use flate2::read::GzDecoder;
+        use std::io::Read;
+        let mut decoder = GzDecoder::new(&compressed[..]);
+        let mut decompressed = Vec::new();
+        decoder.read_to_end(&mut decompressed).unwrap();
+        assert_eq!(decompressed, data);
+    }
+
+    #[test]
+    fn test_auto_backup_service_get_config() {
+        let store: Arc<dyn Store + Send + Sync> = Arc::new(MockStore::new());
+        let config = AutoBackupConfig {
+            enabled: true,
+            interval_hours: 6,
+            backup_path: "/tmp".to_string(),
+            max_backups: 3,
+            compress: true,
+        };
+        let service = AutoBackupService::new(config.clone(), store);
+        let retrieved = service.get_config();
+        assert_eq!(retrieved.interval_hours, config.interval_hours);
+        assert_eq!(retrieved.max_backups, config.max_backups);
+    }
 }
