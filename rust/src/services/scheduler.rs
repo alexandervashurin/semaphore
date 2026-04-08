@@ -691,4 +691,117 @@ mod tests {
 
         pool.stop().await.unwrap();
     }
+
+    #[tokio::test]
+    async fn test_schedule_pool_remove_schedule() {
+        use crate::db::mock::MockStore;
+        use crate::models::Schedule;
+
+        let store = Arc::new(MockStore::new());
+        let pool = SchedulePool::new(store);
+        pool.start().await.unwrap();
+
+        let schedule = Schedule {
+            id: 10,
+            project_id: 1,
+            template_id: 1,
+            cron: "0 * * * *".to_string(),
+            cron_format: None,
+            name: "Remove Me".to_string(),
+            active: true,
+            last_commit_hash: None,
+            repository_id: None,
+            created: None,
+            run_at: None,
+            delete_after_run: false,
+        };
+
+        pool.add_schedule(schedule).await.unwrap();
+        assert_eq!(pool.get_jobs().await.len(), 1);
+
+        // Remove the schedule
+        pool.remove_schedule(10).await.unwrap();
+        assert_eq!(pool.get_jobs().await.len(), 0);
+
+        pool.stop().await.unwrap();
+    }
+
+    #[test]
+    fn test_scheduled_job_clone() {
+        let job = ScheduledJob {
+            schedule_id: 1,
+            template_id: 2,
+            project_id: 3,
+            cron: "0 * * * *".to_string(),
+            name: "Clone Test".to_string(),
+            active: true,
+            next_run: Some(Utc::now()),
+        };
+        let cloned = job.clone();
+        assert_eq!(cloned.schedule_id, job.schedule_id);
+        assert_eq!(cloned.name, job.name);
+    }
+
+    #[tokio::test]
+    async fn test_schedule_pool_new_empty_jobs() {
+        use crate::db::mock::MockStore;
+        let store = Arc::new(MockStore::new());
+        let pool = SchedulePool::new(store);
+        // New pool should have no jobs
+        let jobs = pool.get_jobs().await;
+        assert!(jobs.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_schedule_pool_stop_idempotent() {
+        use crate::db::mock::MockStore;
+        let store = Arc::new(MockStore::new());
+        let pool = SchedulePool::new(store);
+
+        // Stop without start should be fine
+        let result = pool.stop().await;
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_normalize_cron_already_six_fields() {
+        // 6-field cron should not be modified
+        assert_eq!(SchedulePool::normalize_cron_expression("0 0 0 * * *"), "0 0 0 * * *");
+        assert_eq!(SchedulePool::normalize_cron_expression("30 12 1 1 * *"), "30 12 1 1 * *");
+    }
+
+    #[test]
+    fn test_calculate_next_run_every_minute() {
+        let result = SchedulePool::calculate_next_run("* * * * *");
+        assert!(result.is_ok());
+        let next = result.unwrap();
+        assert!(next > Utc::now());
+    }
+
+    #[test]
+    fn test_calculate_next_run_invalid_returns_error() {
+        let result = SchedulePool::calculate_next_run("not valid cron");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_cron_for_storage_rejects_empty() {
+        let result = SchedulePool::validate_cron_for_storage("");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_scheduled_job_inactive_flag() {
+        let job = ScheduledJob {
+            schedule_id: 1,
+            template_id: 1,
+            project_id: 1,
+            cron: "0 * * * *".to_string(),
+            name: "Inactive".to_string(),
+            active: false,
+            next_run: Some(Utc::now()),
+        };
+        assert!(!job.active);
+        assert!(job.next_run.is_some());
+    }
 }
