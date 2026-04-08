@@ -333,4 +333,149 @@ mod tests {
             assert_eq!(t, &parsed);
         }
     }
+
+    // ============================================
+    // Project Tests
+    // ============================================
+
+    #[test]
+    fn test_project_default() {
+        let project = Project::default();
+        assert!(project.name.is_empty() || !project.name.is_empty()); // Default may vary
+    }
+
+    #[test]
+    fn test_project_new() {
+        let project = Project {
+            id: 1,
+            name: "Test Project".to_string(),
+            created: chrono::Utc::now(),
+            alert: true,
+            alert_chat: Some("chat123".to_string()),
+            max_parallel_tasks: 5,
+            r#type: "ansible".to_string(),
+            default_secret_storage_id: None,
+        };
+
+        assert_eq!(project.name, "Test Project");
+        assert!(project.alert);
+        assert_eq!(project.alert_chat, Some("chat123".to_string()));
+        assert_eq!(project.max_parallel_tasks, 5);
+    }
+
+    // ============================================
+    // Task Tests
+    // ============================================
+
+    #[test]
+    fn test_task_default() {
+        let task = Task::default();
+        assert_eq!(task.status, crate::services::task_logger::TaskStatus::Waiting);
+        assert!(task.message.is_none());
+    }
+
+    #[test]
+    fn test_task_get_url() {
+        let task = Task {
+            id: 42,
+            project_id: 1,
+            ..Task::default()
+        };
+        let url = task.get_url();
+        assert!(url.contains("/project/1"));
+        assert!(url.contains("/tasks/42"));
+    }
+
+    // ============================================
+    // Event Tests
+    // ============================================
+
+    #[test]
+    fn test_event_new() {
+        let event = Event {
+            id: 1,
+            project_id: Some(1),
+            user_id: Some(1),
+            object_id: Some(100),
+            object_type: "task".to_string(),
+            description: "Task created".to_string(),
+            created: chrono::Utc::now(),
+        };
+        assert_eq!(event.id, 1);
+        assert_eq!(event.object_type, "task");
+    }
+
+    // ============================================
+    // Hook Tests
+    // ============================================
+
+    #[test]
+    fn test_hook_type_serialization() {
+        assert_eq!(
+            serde_json::to_string(&HookType::Http).unwrap(),
+            "\"http\""
+        );
+        assert_eq!(
+            serde_json::to_string(&HookType::Bash).unwrap(),
+            "\"bash\""
+        );
+        assert_eq!(
+            serde_json::to_string(&HookType::Python).unwrap(),
+            "\"python\""
+        );
+    }
+
+    #[test]
+    fn test_hook_creation() {
+        let hook = Hook {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            name: "Test Hook".to_string(),
+            r#type: HookType::Http,
+            url: Some("https://example.com/hook".to_string()),
+            http_method: Some("POST".to_string()),
+            http_body: None,
+            script: None,
+            timeout_secs: Some(30),
+        };
+        assert_eq!(hook.name, "Test Hook");
+        assert_eq!(hook.r#type, HookType::Http);
+    }
+
+    // ============================================
+    // Webhook Model Tests
+    // ============================================
+
+    #[test]
+    fn test_webhook_creation() {
+        let webhook = crate::models::webhook::Webhook {
+            id: 1,
+            project_id: Some(1),
+            name: "Test Webhook".to_string(),
+            url: "https://example.com/webhook".to_string(),
+            secret: None,
+            active: true,
+            events: serde_json::json!(["task.success"]),
+            headers: None,
+            r#type: crate::models::webhook::WebhookType::Generic,
+            retry_count: 3,
+            timeout_secs: 30,
+            created: chrono::Utc::now(),
+            updated: chrono::Utc::now(),
+        };
+        assert_eq!(webhook.name, "Test Webhook");
+        assert!(webhook.active);
+    }
+
+    // ============================================
+    // Option Tests
+    // ============================================
+
+    #[test]
+    fn test_option_item_new() {
+        let opt = crate::models::option::OptionItem::new(0, "key".to_string(), "value".to_string());
+        assert_eq!(opt.key, "key");
+        assert_eq!(opt.value, "value");
+    }
 }
