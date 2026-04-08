@@ -550,4 +550,40 @@ mod tests {
 
         assert!(!chain.exporters.contains_key("TaskOutput"));
     }
+
+    #[test]
+    fn test_type_key_mapper_map_keys() {
+        let mut mapper = TypeKeyMapper::new();
+        mapper.map_keys("Test", "scope", "old", "new").unwrap();
+        let result = mapper.get_new_key("Test", "scope", "old").unwrap();
+        assert_eq!(result, "new");
+    }
+
+    #[test]
+    fn test_value_map_get_loaded_values_empty() {
+        let mut map: ValueMap<String> = ValueMap::new();
+        let values = map.get_loaded_values("scope").unwrap();
+        assert!(values.is_empty());
+    }
+
+    #[test]
+    fn test_value_map_multiple_scopes() {
+        let mut map: ValueMap<String> = ValueMap::new();
+        map.append_values(vec!["a".to_string()], "scope1").unwrap();
+        map.append_values(vec!["b".to_string()], "scope2").unwrap();
+
+        assert_eq!(map.get_loaded_keys("scope1").unwrap().len(), 1);
+        assert_eq!(map.get_loaded_keys("scope2").unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_value_map_clear_removes_all_keys() {
+        let mut map: ValueMap<String> = ValueMap::new();
+        map.append_values(vec!["a".to_string(), "b".to_string()], "scope").unwrap();
+        assert_eq!(map.get_loaded_keys("scope").unwrap().len(), 2);
+
+        map.clear();
+        assert!(map.get_loaded_keys("scope").unwrap().is_empty());
+        assert!(map.get_errors().is_empty());
+    }
 }
