@@ -157,4 +157,114 @@ mod tests {
 
         assert!(params.is_object());
     }
+
+    #[test]
+    fn test_get_cli_args_with_no_arguments() {
+        let logger = Arc::new(BasicLogger::new());
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let mut task = crate::models::Task::default();
+        task.id = 1;
+        task.template_id = 1;
+        task.project_id = 1;
+        task.created = Utc::now();
+        task.arguments = None;
+
+        let mut template = crate::models::Template::default();
+        template.id = 1;
+        template.name = "Test".to_string();
+        template.project_id = 1;
+        template.playbook = "test.yml".to_string();
+        template.r#type = TemplateType::Task;
+        template.arguments = None;
+
+        let job = LocalJob::new(
+            task, template,
+            crate::models::Inventory::default(),
+            crate::models::Repository::default(),
+            crate::models::Environment::default(),
+            logger, key_installer,
+            PathBuf::from("/tmp/work"),
+            PathBuf::from("/tmp/tmp"),
+        );
+
+        let (template_args, task_args) = job.get_cli_args().unwrap();
+        assert!(template_args.is_empty());
+        assert!(task_args.is_empty());
+    }
+
+    #[test]
+    fn test_get_cli_args_with_invalid_json() {
+        let logger = Arc::new(BasicLogger::new());
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let mut task = crate::models::Task::default();
+        task.id = 1;
+        task.template_id = 1;
+        task.project_id = 1;
+        task.created = Utc::now();
+        task.arguments = Some("not valid json".to_string());
+
+        let mut template = crate::models::Template::default();
+        template.id = 1;
+        template.name = "Test".to_string();
+        template.project_id = 1;
+        template.playbook = "test.yml".to_string();
+        template.r#type = TemplateType::Task;
+        template.arguments = Some("{broken".to_string());
+
+        let job = LocalJob::new(
+            task, template,
+            crate::models::Inventory::default(),
+            crate::models::Repository::default(),
+            crate::models::Environment::default(),
+            logger, key_installer,
+            PathBuf::from("/tmp/work"),
+            PathBuf::from("/tmp/tmp"),
+        );
+
+        // Должно вернуть пустые вектора при невалидном JSON
+        let (template_args, task_args) = job.get_cli_args().unwrap();
+        assert!(template_args.is_empty());
+        assert!(task_args.is_empty());
+    }
+
+    #[test]
+    fn test_get_cli_args_map_with_hashmap_format() {
+        let logger = Arc::new(BasicLogger::new());
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let mut task = crate::models::Task::default();
+        task.id = 1;
+        task.template_id = 1;
+        task.project_id = 1;
+        task.created = Utc::now();
+        task.arguments = Some(r#"{"apply": ["-auto-approve"], "plan": ["-detailed-exitcode"]}"#.to_string());
+
+        let mut template = crate::models::Template::default();
+        template.id = 1;
+        template.name = "Test".to_string();
+        template.project_id = 1;
+        template.playbook = "test.yml".to_string();
+        template.r#type = TemplateType::Task;
+        template.arguments = Some(r#"{"init": ["-upgrade"]}"#.to_string());
+
+        let job = LocalJob::new(
+            task, template,
+            crate::models::Inventory::default(),
+            crate::models::Repository::default(),
+            crate::models::Environment::default(),
+            logger, key_installer,
+            PathBuf::from("/tmp/work"),
+            PathBuf::from("/tmp/tmp"),
+        );
+
+        let (template_map, task_map) = job.get_cli_args_map().unwrap();
+        assert!(template_map.contains_key("init"));
+        assert_eq!(template_map["init"], vec!["-upgrade"]);
+        assert!(task_map.contains_key("apply"));
+        assert_eq!(task_map["apply"], vec!["-auto-approve"]);
+        assert!(task_map.contains_key("plan"));
+        assert_eq!(task_map["plan"], vec!["-detailed-exitcode"]);
+    }
 }

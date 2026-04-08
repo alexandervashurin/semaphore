@@ -277,4 +277,37 @@ mod tests {
         // Drop вызывается автоматически, проверяем что не паникует
         drop(job);
     }
+
+    #[test]
+    fn test_kill_without_process() {
+        let mut job = create_test_local_job();
+        assert!(job.process.is_none());
+        assert!(!job.killed);
+
+        job.kill();
+
+        assert!(job.killed);
+        // process остаётся None -- никакая паника
+        assert!(job.process.is_none());
+    }
+
+    #[test]
+    fn test_set_run_params_with_none_version() {
+        let mut job = create_test_local_job();
+        job.set_run_params("admin".to_string(), None, "rollback".to_string());
+
+        assert_eq!(job.username, "admin");
+        assert!(job.incoming_version.is_none());
+        assert_eq!(job.alias, "rollback");
+    }
+
+    #[test]
+    fn test_local_job_set_run_params_with_version() {
+        let mut job = create_test_local_job();
+        job.set_run_params("deploy_user".to_string(), Some("v1.2.3".to_string()), "deploy".to_string());
+
+        assert_eq!(job.username, "deploy_user");
+        assert_eq!(job.incoming_version, Some("v1.2.3".to_string()));
+        assert_eq!(job.alias, "deploy");
+    }
 }

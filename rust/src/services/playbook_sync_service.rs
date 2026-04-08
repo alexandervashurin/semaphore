@@ -341,4 +341,47 @@ mod tests {
         assert!(path.exists());
         assert!(path.to_string_lossy().ends_with("playbooks/site.yaml"));
     }
+
+    #[test]
+    fn test_determine_playbook_path_empty_name() {
+        let temp_dir = TempDir::new().unwrap();
+        let path = determine_playbook_path(temp_dir.path(), "");
+        // Ожидаем: первый путь -- просто корень temp_dir
+        assert_eq!(path, temp_dir.path().to_path_buf());
+    }
+
+    #[test]
+    fn test_determine_playbook_path_missing_playbooks_dir() {
+        let temp_dir = TempDir::new().unwrap();
+        // Директория playbooks НЕ создана
+        let path = determine_playbook_path(temp_dir.path(), "deploy");
+        // Должен вернуть первый существующий путь (repo_path/deploy)
+        assert!(!path.exists());
+        assert_eq!(path, temp_dir.path().join("deploy"));
+    }
+
+    #[test]
+    fn test_determine_playbook_path_deeply_nested_name() {
+        let temp_dir = TempDir::new().unwrap();
+        let nested = temp_dir.path().join("group1/group2");
+        std::fs::create_dir_all(&nested).unwrap();
+        std::fs::write(nested.join("task.yaml"), "---").unwrap();
+
+        let path = determine_playbook_path(temp_dir.path(), "group1/group2/task.yaml");
+        assert!(path.exists());
+        assert!(path.to_string_lossy().contains("group1/group2/task.yaml"));
+    }
+
+    #[test]
+    fn test_determine_playbook_path_yaml_in_playbooks_dir() {
+        let temp_dir = TempDir::new().unwrap();
+        let playbooks_dir = temp_dir.path().join("playbooks");
+        std::fs::create_dir_all(&playbooks_dir).unwrap();
+        std::fs::write(playbooks_dir.join("setup.yml"), "---").unwrap();
+
+        let path = determine_playbook_path(temp_dir.path(), "setup");
+        assert!(path.exists());
+        assert!(path.to_string_lossy().contains("playbooks"));
+        assert!(path.to_string_lossy().ends_with("setup.yml"));
+    }
 }
