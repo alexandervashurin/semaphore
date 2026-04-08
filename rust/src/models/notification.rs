@@ -130,4 +130,44 @@ mod tests {
         assert!(json.contains("\"enabled\":false"));
         assert!(json.contains("\"trigger\":\"always\""));
     }
+
+    #[test]
+    fn test_notification_channel_type_all_variants() {
+        let types = [
+            NotificationChannelType::Slack,
+            NotificationChannelType::Teams,
+            NotificationChannelType::PagerDuty,
+            NotificationChannelType::Generic,
+        ];
+        for t in &types {
+            let json = serde_json::to_string(t).unwrap();
+            assert!(json.starts_with('"') && json.ends_with('"'));
+        }
+    }
+
+    #[test]
+    fn test_notification_policy_clone() {
+        let policy = NotificationPolicy {
+            id: 1,
+            project_id: 10,
+            name: "Clone Test".to_string(),
+            channel_type: "slack".to_string(),
+            webhook_url: "https://hooks.slack.com/xxx".to_string(),
+            trigger: "on_failure".to_string(),
+            template_id: None,
+            enabled: true,
+            created: Utc::now(),
+        };
+        let cloned = policy.clone();
+        assert_eq!(cloned.name, policy.name);
+        assert_eq!(cloned.id, policy.id);
+    }
+
+    #[test]
+    fn test_notification_policy_create_deserialize() {
+        let json = r#"{"name":"Test","channel_type":"teams","webhook_url":"https://example.com","trigger":"on_success","template_id":null,"enabled":true}"#;
+        let create: NotificationPolicyCreate = serde_json::from_str(json).unwrap();
+        assert_eq!(create.name, "Test");
+        assert_eq!(create.channel_type, "teams");
+    }
 }

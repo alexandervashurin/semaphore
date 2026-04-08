@@ -228,4 +228,43 @@ mod tests {
         assert!(json.contains("\"slug\":\"manager\""));
         assert!(json.contains("\"permissions\":2"));
     }
+
+    #[test]
+    fn test_role_permissions_from_zero_bitmask() {
+        let perms = RolePermissions::from_bitmask(0);
+        assert!(!perms.run_tasks);
+        assert!(!perms.update_resources);
+        assert!(!perms.manage_project);
+        assert!(!perms.manage_users);
+        assert!(!perms.manage_roles);
+        assert!(!perms.view_audit_log);
+        assert!(!perms.manage_integrations);
+        assert!(!perms.manage_secret_storages);
+    }
+
+    #[test]
+    fn test_role_permissions_serialization() {
+        let perms = RolePermissions::admin();
+        let json = serde_json::to_string(&perms).unwrap();
+        assert!(json.contains("\"run_tasks\":true"));
+        assert!(json.contains("\"manage_secret_storages\":true"));
+    }
+
+    #[test]
+    fn test_role_permissions_deserialization() {
+        let json = r#"{"run_tasks":true,"update_resources":false,"manage_project":true,"manage_users":false,"manage_roles":false,"view_audit_log":false,"manage_integrations":false,"manage_secret_storages":false}"#;
+        let perms: RolePermissions = serde_json::from_str(json).unwrap();
+        assert!(perms.run_tasks);
+        assert!(!perms.update_resources);
+        assert!(perms.manage_project);
+        assert_eq!(perms.to_bitmask(), 0b0000_0101);
+    }
+
+    #[test]
+    fn test_role_clone() {
+        let role = Role::new_with_permissions(1, "clone".to_string(), "Clone".to_string(), 0b1111_1111);
+        let cloned = role.clone();
+        assert_eq!(cloned.slug, role.slug);
+        assert_eq!(cloned.permissions, role.permissions);
+    }
 }

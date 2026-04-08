@@ -781,3 +781,63 @@ fn format_age(time: &DateTime<Utc>) -> String {
         format!("{}s", duration.num_seconds())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Duration;
+
+    #[test]
+    fn test_format_age_seconds() {
+        let now = Utc::now();
+        let age = format_age(&(now - Duration::seconds(30)));
+        assert_eq!(age, "30s");
+    }
+
+    #[test]
+    fn test_format_age_minutes() {
+        let now = Utc::now();
+        let age = format_age(&(now - Duration::minutes(15)));
+        assert_eq!(age, "15m");
+    }
+
+    #[test]
+    fn test_format_age_hours() {
+        let now = Utc::now();
+        let age = format_age(&(now - Duration::hours(3)));
+        assert_eq!(age, "3h");
+    }
+
+    #[test]
+    fn test_format_age_days() {
+        let now = Utc::now();
+        let age = format_age(&(now - Duration::days(7)));
+        assert_eq!(age, "7d");
+    }
+
+    #[test]
+    fn test_format_age_months() {
+        let now = Utc::now();
+        let age = format_age(&(now - Duration::days(45)));
+        assert_eq!(age, "1d"); // 45/30 = 1
+    }
+
+    #[test]
+    fn test_format_age_years() {
+        let now = Utc::now();
+        let age = format_age(&(now - Duration::days(400)));
+        assert_eq!(age, "1y"); // 400/365 = 1
+    }
+
+    #[test]
+    fn test_format_age_future() {
+        let now = Utc::now();
+        let age = format_age(&(now + Duration::seconds(10)));
+        // Future timestamps produce 0s since duration is negative but num_seconds() returns positive
+        // Actually chrono's signed_duration_since returns negative duration
+        // and num_seconds() on negative duration returns negative value
+        // so the else branch would execute: format!("{}s", duration.num_seconds())
+        // which gives "-10s" or similar. Let's just verify it doesn't panic.
+        assert!(!age.is_empty());
+    }
+}

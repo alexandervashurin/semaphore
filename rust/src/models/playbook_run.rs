@@ -195,4 +195,53 @@ mod tests {
         assert_eq!(request.inventory_id, deserialized.inventory_id);
         assert_eq!(request.extra_vars, deserialized.extra_vars);
     }
+
+    #[test]
+    fn test_playbook_run_result_serialization() {
+        let result = PlaybookRunResult {
+            task_id: 100,
+            template_id: 5,
+            status: "waiting".to_string(),
+            message: "Task created and waiting for execution".to_string(),
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("\"task_id\":100"));
+        assert!(json.contains("\"status\":\"waiting\""));
+        assert!(json.contains("\"message\":\"Task created and waiting for execution\""));
+    }
+
+    #[test]
+    fn test_playbook_run_request_default() {
+        let request = PlaybookRunRequest::default();
+        assert!(request.inventory_id.is_none());
+        assert!(request.environment_id.is_none());
+        assert!(request.extra_vars.is_none());
+        assert!(request.limit.is_none());
+        assert!(request.tags.is_none());
+        assert!(request.skip_tags.is_none());
+        assert!(request.user_id.is_none());
+    }
+
+    #[test]
+    fn test_playbook_run_request_validate_null_extra_vars() {
+        // extra_vars = null is valid
+        let request = PlaybookRunRequest::new().with_extra_vars(json!(null));
+        assert!(request.validate().is_ok());
+    }
+
+    #[test]
+    fn test_ansible_playbook_params_default() {
+        let params = AnsiblePlaybookParams {
+            playbook: "site.yml".to_string(),
+            inventory_id: None,
+            environment_id: None,
+            extra_vars: None,
+            limit: None,
+            tags: None,
+            skip_tags: None,
+        };
+        let json = serde_json::to_string(&params).unwrap();
+        assert!(json.contains("\"playbook\":\"site.yml\""));
+        assert!(json.contains("\"inventory_id\":null"));
+    }
 }
