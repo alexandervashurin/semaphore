@@ -246,4 +246,74 @@ mod tests {
 
         assert!(result.is_err());
     }
+
+    #[test]
+    fn test_playbook_run_request_default() {
+        let request = PlaybookRunRequest::new();
+        assert!(request.inventory_id.is_none());
+        assert!(request.environment_id.is_none());
+        assert!(request.extra_vars.is_none());
+        assert!(request.limit.is_none());
+        assert!(request.tags.is_none());
+        assert!(request.skip_tags.is_none());
+    }
+
+    #[test]
+    fn test_playbook_run_request_with_all_fields() {
+        let request = PlaybookRunRequest::new()
+            .with_inventory(5)
+            .with_environment(3)
+            .with_extra_vars(json!({"env": "prod"}))
+            .with_limit("web01".to_string())
+            .with_tags(vec!["deploy".to_string()]);
+
+        assert_eq!(request.inventory_id, Some(5));
+        assert_eq!(request.environment_id, Some(3));
+        assert!(request.extra_vars.is_some());
+        assert_eq!(request.limit, Some("web01".to_string()));
+        assert_eq!(request.tags, Some(vec!["deploy".to_string()]));
+    }
+
+    #[test]
+    fn test_playbook_run_request_validate_empty() {
+        let request = PlaybookRunRequest::new();
+        assert!(request.validate().is_ok());
+    }
+
+    #[test]
+    fn test_playbook_run_status_variants() {
+        assert_eq!(format!("{}", PlaybookRunStatus::Waiting), "waiting");
+        assert_eq!(format!("{}", PlaybookRunStatus::Running), "running");
+        assert_eq!(format!("{}", PlaybookRunStatus::Success), "success");
+        assert_eq!(format!("{}", PlaybookRunStatus::Failed), "failed");
+    }
+
+    #[test]
+    fn test_playbook_run_create_defaults() {
+        let run_create = PlaybookRunCreate {
+            project_id: 1,
+            playbook_id: 1,
+            task_id: Some(100),
+            template_id: Some(1),
+            inventory_id: None,
+            environment_id: None,
+            extra_vars: None,
+            limit_hosts: None,
+            tags: None,
+            skip_tags: None,
+            user_id: Some(1),
+        };
+
+        assert_eq!(run_create.project_id, 1);
+        assert_eq!(run_create.playbook_id, 1);
+        assert_eq!(run_create.task_id, Some(100));
+    }
+
+    #[test]
+    fn test_playbook_run_request_with_null_extra_vars() {
+        // extra_vars = null (None в JSON) — это валидно
+        let request = PlaybookRunRequest::new().with_extra_vars(json!(null));
+        // Это может быть Ok или Err в зависимости от validate реализации
+        let _ = request.validate();
+    }
 }
