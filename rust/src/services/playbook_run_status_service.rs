@@ -398,4 +398,72 @@ mod tests {
         let duration = PlaybookRunStatusService::calculate_duration(None, Some(Utc::now()));
         assert_eq!(duration, None);
     }
+
+    #[test]
+    fn test_calculate_duration_both_none() {
+        let duration = PlaybookRunStatusService::calculate_duration(None, None);
+        assert_eq!(duration, None);
+    }
+
+    #[test]
+    fn test_playbook_run_status_display() {
+        assert_eq!(PlaybookRunStatus::Waiting.to_string(), "waiting");
+        assert_eq!(PlaybookRunStatus::Running.to_string(), "running");
+        assert_eq!(PlaybookRunStatus::Success.to_string(), "success");
+        assert_eq!(PlaybookRunStatus::Failed.to_string(), "failed");
+        assert_eq!(PlaybookRunStatus::Cancelled.to_string(), "cancelled");
+    }
+
+    #[test]
+    fn test_playbook_run_update_all_fields() {
+        let update = PlaybookRunUpdate {
+            status: Some(PlaybookRunStatus::Running),
+            start_time: Some(Utc::now()),
+            end_time: Some(Utc::now()),
+            duration_seconds: Some(60),
+            hosts_total: Some(10),
+            hosts_changed: Some(5),
+            hosts_unreachable: Some(1),
+            hosts_failed: Some(2),
+            output: Some("output".to_string()),
+            error_message: Some("error".to_string()),
+        };
+        assert_eq!(update.status, Some(PlaybookRunStatus::Running));
+        assert_eq!(update.duration_seconds, Some(60));
+        assert_eq!(update.hosts_total, Some(10));
+    }
+
+    #[test]
+    fn test_playbook_run_update_minimal() {
+        let update = PlaybookRunUpdate {
+            status: None,
+            start_time: None,
+            end_time: None,
+            duration_seconds: None,
+            hosts_total: None,
+            hosts_changed: None,
+            hosts_unreachable: None,
+            hosts_failed: None,
+            output: None,
+            error_message: None,
+        };
+        assert!(update.status.is_none());
+        assert!(update.hosts_total.is_none());
+    }
+
+    #[test]
+    fn test_playbook_run_status_clone() {
+        let status = PlaybookRunStatus::Failed;
+        let cloned = status.clone();
+        assert_eq!(cloned, status);
+    }
+
+    #[test]
+    fn test_playbook_run_serialize() {
+        let run = create_test_playbook_run(99);
+        let json = serde_json::to_string(&run).unwrap();
+        assert!(json.contains("99"));
+        assert!(json.contains("project_id"));
+        assert!(json.contains("task_id"));
+    }
 }
