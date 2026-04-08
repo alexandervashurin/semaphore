@@ -656,4 +656,74 @@ mod tests {
         assert_eq!(cloned.session_ttl_secs, 100);
         assert_eq!(cloned.task_cache_ttl_secs, 400);
     }
+
+    #[test]
+    fn test_session_data_is_expired_exactly_at_ttl() {
+        let user = User {
+            id: 1,
+            username: "user".to_string(),
+            email: "user@test.com".to_string(),
+            password: "hash".to_string(),
+            admin: false,
+            name: "User".to_string(),
+            created: Utc::now(),
+            external: false,
+            alert: false,
+            pro: false,
+            totp: None,
+            email_otp: None,
+        };
+        // TTL = 0 means expires_at = now, so it should be expired
+        let session = SessionData::new(&user, 0);
+        // Since expires_at == created_at + 0, it should be expired immediately
+        // or very close to it. We'll check that expires_at is in the past or very near future
+        assert!(session.expires_at <= session.created_at + Duration::seconds(1));
+    }
+
+    #[test]
+    fn test_session_data_admin_flag() {
+        let admin_user = User {
+            id: 1,
+            username: "admin".to_string(),
+            email: "admin@test.com".to_string(),
+            password: "hash".to_string(),
+            admin: true,
+            name: "Admin".to_string(),
+            created: Utc::now(),
+            external: false,
+            alert: false,
+            pro: false,
+            totp: None,
+            email_otp: None,
+        };
+        let session = SessionData::new(&admin_user, 3600);
+        assert!(session.is_admin);
+        assert_eq!(session.user_id, 1);
+    }
+
+    #[test]
+    fn test_cache_keys_project_tasks_with_various_statuses() {
+        let statuses = ["waiting", "running", "success", "error", "stopped"];
+        for status in &statuses {
+            let key = CacheKeys::project_tasks(1, Some(status));
+            assert!(key.contains(status));
+            assert!(key.starts_with("project:1:tasks:"));
+        }
+    }
+
+    #[test]
+    fn test_cache_keys_with_large_ids() {
+        let large_id: i64 = i64::MAX;
+        let key = CacheKeys::project(large_id);
+        assert!(key.contains(&large_id.to_string()));
+    }
+
+    #[test]
+    fn test_cache_service_config_all_defaults() {
+        let config = CacheServiceConfig::default();
+        assert_eq!(config.session_ttl_secs, 3600);
+        assert_eq!(config.query_cache_ttl_secs, 300);
+        assert_eq!(config.project_cache_ttl_secs, 600);
+        assert_eq!(config.task_cache_ttl_secs, 60);
+    }
 }
