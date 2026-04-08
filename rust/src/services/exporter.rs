@@ -722,4 +722,199 @@ mod tests {
         progress.update(50.0);
         assert_eq!(progress.current, 50.0);
     }
+
+    // ── Additional pure function tests ──
+
+    #[test]
+    fn test_new_key_from_int_zero() {
+        assert_eq!(new_key_from_int(0), "0");
+    }
+
+    #[test]
+    fn test_new_key_from_int_negative() {
+        assert_eq!(new_key_from_int(-42), "-42");
+    }
+
+    #[test]
+    fn test_new_key_from_int_max() {
+        assert_eq!(new_key_from_int(i32::MAX), i32::MAX.to_string());
+    }
+
+    #[test]
+    fn test_type_key_mapper_returns_old_key_if_not_mapped() {
+        let mut mapper = TypeKeyMapper::new();
+        let err_handler = TestErrorHandler;
+        let key = new_key_from_int(999);
+        let result = mapper.get_new_key("test", "scope", &key, &err_handler).unwrap();
+        assert_eq!(result, key);
+    }
+
+    #[test]
+    fn test_type_key_mapper_get_new_key_int() {
+        let mut mapper = TypeKeyMapper::new();
+        let err_handler = TestErrorHandler;
+        mapper.map_int_keys("repo", "scope", 10, 20).unwrap();
+        let result = mapper.get_new_key_int("repo", "scope", 10, &err_handler).unwrap();
+        assert_eq!(result, 20);
+    }
+
+    #[test]
+    fn test_type_key_mapper_get_new_key_int_no_mapping() {
+        let mut mapper = TypeKeyMapper::new();
+        let err_handler = TestErrorHandler;
+        let result = mapper.get_new_key_int("repo", "scope", 42, &err_handler).unwrap();
+        assert_eq!(result, 42);
+    }
+
+    #[test]
+    fn test_type_key_mapper_get_new_key_int_ref_some() {
+        let mut mapper = TypeKeyMapper::new();
+        let err_handler = TestErrorHandler;
+        mapper.map_int_keys("env", "scope", 1, 5).unwrap();
+        let result = mapper.get_new_key_int_ref("env", "scope", Some(1), &err_handler).unwrap();
+        assert_eq!(result, Some(5));
+    }
+
+    #[test]
+    fn test_type_key_mapper_get_new_key_int_ref_none() {
+        let mut mapper = TypeKeyMapper::new();
+        let err_handler = TestErrorHandler;
+        let result = mapper.get_new_key_int_ref("env", "scope", None, &err_handler).unwrap();
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_type_key_mapper_ignore_key_not_found() {
+        let mut mapper = TypeKeyMapper::new();
+        assert!(!mapper.ignore_key_not_found());
+    }
+
+    #[test]
+    fn test_value_map_empty_keys() {
+        let value_map: ValueMap<String> = ValueMap::new();
+        let keys = value_map.get_loaded_keys("nonexistent").unwrap();
+        assert!(keys.is_empty());
+    }
+
+    #[test]
+    fn test_value_map_append_multiple_times() {
+        let mut value_map: ValueMap<i32> = ValueMap::new();
+        value_map.append_values(vec![1, 2], "scope").unwrap();
+        value_map.append_values(vec![3, 4, 5], "scope").unwrap();
+        let keys = value_map.get_loaded_keys("scope").unwrap();
+        assert_eq!(keys.len(), 5);
+    }
+
+    #[test]
+    fn test_value_map_errors() {
+        let mut value_map: ValueMap<String> = ValueMap::new();
+        value_map.on_error("error1");
+        value_map.on_error("error2");
+        let errors = value_map.get_errors();
+        assert_eq!(errors, vec!["error1".to_string(), "error2".to_string()]);
+    }
+
+    #[test]
+    fn test_value_map_clear() {
+        let mut value_map: ValueMap<String> = ValueMap::new();
+        value_map.append_values(vec!["a".to_string()], "scope").unwrap();
+        value_map.on_error("err");
+        value_map.clear();
+        assert!(value_map.get_loaded_keys("scope").unwrap().is_empty());
+        assert!(value_map.get_errors().is_empty());
+    }
+
+    #[test]
+    fn test_value_map_no_dependencies() {
+        let value_map: ValueMap<String> = ValueMap::new();
+        assert!(value_map.export_depends_on().is_empty());
+        assert!(value_map.import_depends_on().is_empty());
+    }
+
+    #[test]
+    fn test_exporter_chain_new() {
+        let chain = ExporterChain::new();
+        assert!(!chain.ignore_key_not_found());
+    }
+
+    #[test]
+    fn test_exporter_chain_with_options() {
+        let chain = ExporterChain::with_options(true);
+        assert!(chain.ignore_key_not_found());
+    }
+
+    #[test]
+    fn test_exporter_chain_get_loaded_keys_not_found() {
+        let chain = ExporterChain::new();
+        let result = chain.get_loaded_keys("nonexistent", "scope");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not found"));
+    }
+
+    #[test]
+    fn test_exporter_chain_key_mapping() {
+        let mut chain = ExporterChain::new();
+        let err_handler = TestErrorHandler;
+        chain.map_keys("User", "scope", &new_key_from_int(1), &new_key_from_int(100)).unwrap();
+        let result = chain.get_new_key("User", "scope", &new_key_from_int(1), &err_handler).unwrap();
+        assert_eq!(result, new_key_from_int(100));
+    }
+
+    #[test]
+    fn test_exporter_chain_int_key_mapping() {
+        let mut chain = ExporterChain::new();
+        let err_handler = TestErrorHandler;
+        chain.map_int_keys("Repo", "scope", 5, 50).unwrap();
+        let result = chain.get_new_key_int("Repo", "scope", 5, &err_handler).unwrap();
+        assert_eq!(result, 50);
+    }
+
+    #[test]
+    fn test_exporter_chain_int_key_mapping_not_found() {
+        let mut chain = ExporterChain::new();
+        let err_handler = TestErrorHandler;
+        let result = chain.get_new_key_int("Repo", "scope", 999, &err_handler).unwrap();
+        assert_eq!(result, 999);
+    }
+
+    #[test]
+    fn test_exporter_chain_get_new_key_int_ref_none() {
+        let mut chain = ExporterChain::new();
+        let err_handler = TestErrorHandler;
+        let result = chain.get_new_key_int_ref("X", "scope", None, &err_handler).unwrap();
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_progress_bar_clamps_to_total() {
+        let mut progress = ProgressBar::new(100.0);
+        progress.update(150.0);
+        assert_eq!(progress.current, 150.0);
+    }
+
+    #[test]
+    fn test_progress_bar_trait_impl() {
+        let mut progress = ProgressBar::new(50.0);
+        Progress::update(&mut progress, 25.0);
+        assert_eq!(progress.current, 25.0);
+    }
+
+    #[test]
+    fn test_get_sorted_keys_topological_order() {
+        let mut exporters: HashMap<String, Box<dyn TypeExporter>> = HashMap::new();
+        exporters.insert("A".to_string(), Box::new(ValueMap::<String>::new()));
+        exporters.insert("B".to_string(), Box::new(ValueMap::<String>::new()));
+        exporters.insert("C".to_string(), Box::new(ValueMap::<String>::new()));
+
+        fn deps(e: &dyn TypeExporter) -> Vec<&str> {
+            let _ = e;
+            vec![]
+        }
+
+        let result = ExporterChain::get_sorted_keys(&exporters, deps).unwrap();
+        assert_eq!(result.len(), 3);
+        assert!(result.contains(&"A".to_string()));
+        assert!(result.contains(&"B".to_string()));
+        assert!(result.contains(&"C".to_string()));
+    }
 }

@@ -755,6 +755,56 @@ impl AppFactory {
     }
 }
 
+// ============================================================================
+// Pure helper functions (extracted for testability)
+// ============================================================================
+
+/// Parses "KEY=VALUE" strings into (key, value) pairs.
+pub fn parse_environment_vars(env: &[String]) -> Vec<(&str, &str)> {
+    env.iter().map(|e| {
+        let parts: Vec<&str> = e.splitn(2, '=').collect();
+        if parts.len() == 2 {
+            (parts[0], parts[1])
+        } else {
+            (e.as_str(), "")
+        }
+    }).collect()
+}
+
+/// Builds the argument list for ansible-playbook.
+pub fn build_ansible_args(
+    playbook: &str,
+    inventory: Option<&str>,
+    extra_vars: &std::collections::HashMap<String, serde_json::Value>,
+    cli_args: &[String],
+) -> Vec<String> {
+    let mut args = vec![playbook.to_string()];
+
+    if let Some(inv) = inventory {
+        args.push("-i".to_string());
+        args.push(inv.to_string());
+    }
+
+    if !extra_vars.is_empty() {
+        if let Ok(json) = serde_json::to_string(extra_vars) {
+            args.push("--extra-vars".to_string());
+            args.push(json);
+        }
+    }
+
+    args.extend(cli_args.iter().cloned());
+    args
+}
+
+/// Builds args for terraform apply.
+pub fn build_terraform_apply_args(auto_approve: bool) -> Vec<String> {
+    let mut args = vec!["apply".to_string()];
+    if auto_approve {
+        args.push("-auto-approve".to_string());
+    }
+    args
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -808,5 +858,92 @@ mod tests {
     fn test_shell_app_powershell_creation() {
         let app = ShellApp::new(AppType::PowerShell);
         assert_eq!(app.shell_type, AppType::PowerShell);
+    }
+
+    #[test]
+    fn test_app_type_display_all_variants() {
+        assert_eq!(AppType::Tofu.to_string(), "tofu");
+        assert_eq!(AppType::Terragrunt.to_string(), "terragrunt");
+        assert_eq!(AppType::Pulumi.to_string(), "pulumi");
+    }
+
+    #[test]
+    fn test_parse_env_vars_normal() {
+        let input = vec!["FOO=bar".to_string(), "BAZ=qux".to_string()];
+        let result = parse_environment_vars(&input);
+        assert_eq!(result, vec![("FOO", "bar"), ("BAZ", "qux")]);
+    }
+
+    #[test]
+    fn test_parse_env_vars_empty_value() {
+        let input = vec!["EMPTY=".to_string()];
+        let result = parse_environment_vars(&input);
+        assert_eq!(result, vec![("EMPTY", "")]);
+    }
+
+    #[test]
+    fn test_parse_env_vars_no_equals() {
+        let input = vec!["NOEQUALS".to_string()];
+        let result = parse_environment_vars(&input);
+        assert_eq!(result, vec![("NOEQUALS", "")]);
+    }
+
+    #[test]
+    fn test_parse_env_vars_value_contains_equals() {
+        let input = vec!["URL=http://example.com?a=1".to_string()];
+        let result = parse_environment_vars(&input);
+        assert_eq!(result, vec![("URL", "http://example.com?a=1")]);
+    }
+
+    #[test]
+    fn test_parse_env_vars_empty_input() {
+        let result = parse_environment_vars(&[]);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_build_ansible_args_minimal() {
+        use std::collections::HashMap;
+        let args = build_ansible_args("site.yml", None, &HashMap::new(), &[]);
+        assert_eq!(args, vec!["site.yml"]);
+    }
+
+    #[test]
+    fn test_build_ansible_args_with_inventory() {
+        use std::collections::HashMap;
+        let args = build_ansible_args("site.yml", Some("hosts.ini"), &HashMap::new(), &[]);
+        assert_eq!(args, vec!["site.yml", "-i", "hosts.ini"]);
+    }
+
+    #[test]
+    fn test_build_ansible_args_with_extra_vars() {
+        use std::collections::HashMap;
+        let mut vars = HashMap::new();
+        vars.insert("debug".to_string(), serde_json::json!(true));
+        let args = build_ansible_args("site.yml", None, &vars, &[]);
+        assert_eq!(args[0], "site.yml");
+        assert_eq!(args[1], "--extra-vars");
+        let parsed: HashMap<String, serde_json::Value> = serde_json::from_str(&args[2]).unwrap();
+        assert_eq!(parsed["debug"], serde_json::json!(true));
+    }
+
+    #[test]
+    fn test_build_ansible_args_with_cli_args() {
+        use std::collections::HashMap;
+        let cli = vec!["--limit".to_string(), "web".to_string()];
+        let args = build_ansible_args("site.yml", None, &HashMap::new(), &cli);
+        assert_eq!(args, vec!["site.yml", "--limit", "web"]);
+    }
+
+    #[test]
+    fn test_terraform_apply_without_auto_approve() {
+        let args = build_terraform_apply_args(false);
+        assert_eq!(args, vec!["apply"]);
+    }
+
+    #[test]
+    fn test_terraform_apply_with_auto_approve() {
+        let args = build_terraform_apply_args(true);
+        assert_eq!(args, vec!["apply", "-auto-approve"]);
     }
 }
