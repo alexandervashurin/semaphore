@@ -486,4 +486,181 @@ mod tests {
         let tasks = pool.get_running_tasks().await;
         assert!(tasks.is_empty());
     }
+
+    #[tokio::test]
+    async fn test_run_task_template_not_found() {
+        let pool = create_test_pool().await;
+
+        let mut task = crate::models::Task::default();
+        task.id = 1;
+        task.project_id = 1;
+        task.template_id = 999; // Non-existent template
+        task.status = TaskStatus::Waiting;
+
+        let result = pool.run_task(task).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("template"));
+    }
+
+    #[tokio::test]
+    async fn test_run_task_adds_to_running_tasks() {
+        let pool = create_test_pool().await;
+
+        let tpl = crate::models::Template {
+            id: 1,
+            project_id: 1,
+            name: "Test Template".to_string(),
+            playbook: "test.yml".to_string(),
+            ..Default::default()
+        };
+        // MockStore позволяет вставлять напрямую через create_template
+        pool.store.create_template(tpl).await.unwrap();
+
+        let mut task = crate::models::Task::default();
+        task.id = 100;
+        task.project_id = 1;
+        task.template_id = 1;
+        task.status = TaskStatus::Waiting;
+
+        let result = pool.run_task(task).await;
+        assert!(result.is_ok());
+
+        let running = pool.get_running_task(100).await;
+        assert!(running.is_some());
+        assert_eq!(running.unwrap().task.id, 100);
+    }
+
+    #[tokio::test]
+    async fn test_execute_task_template_not_found() {
+        let pool = create_test_pool().await;
+
+        let mut task = crate::models::Task::default();
+        task.id = 1;
+        task.project_id = 1;
+        task.template_id = 999;
+        task.status = TaskStatus::Waiting;
+
+        let logger = Arc::new(BasicLogger::new());
+        let template = crate::models::Template::default();
+        let running_task = RunningTask::new(task.clone(), logger, template);
+        {
+            let mut running = pool.running_tasks.write().await;
+            running.insert(1, running_task);
+        }
+
+        let result = pool.execute_task(task).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("template"));
+    }
+
+    #[tokio::test]
+    async fn test_execute_task_uses_defaults_when_not_set() {
+        let pool = create_test_pool().await;
+
+        let tpl = crate::models::Template {
+            id: 1,
+            project_id: 1,
+            name: "Test".to_string(),
+            playbook: "test.yml".to_string(),
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+            ..Default::default()
+        };
+        // MockStore позволяет вставлять напрямую через create_template
+        pool.store.create_template(tpl.clone()).await.unwrap();
+
+        let mut task = crate::models::Task::default();
+        task.id = 2;
+        task.project_id = 1;
+        task.template_id = 1;
+        task.status = TaskStatus::Waiting;
+        task.inventory_id = None;
+        task.repository_id = None;
+        task.environment_id = None;
+
+        let logger = Arc::new(BasicLogger::new());
+        let running_task = RunningTask::new(task.clone(), logger, tpl.clone());
+        {
+            let mut running = pool.running_tasks.write().await;
+            running.insert(2, running_task);
+        }
+
+        // execute_task will try LocalJob::run which needs ansible/terraform
+        // Since those aren't available, it will fail — but we test the path through get_* calls
+        let result = pool.execute_task(task).await;
+        let _ = result;
+
+        // Task should be removed from running_tasks (success or error)
+        let running = pool.get_running_task(2).await;
+        assert!(running.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_process_queue_respects_shutdown() {
+        let pool = create_test_pool().await;
+
+        let task = crate::models::Task::default();
+        pool.add_task(task).await.ok();
+
+        pool.shutdown().await;
+        pool.process_queue().await;
+        // Should exit quickly without hanging
+    }
+
+    #[tokio::test]
+    async fn test_process_queue_empty_queue() {
+        let pool = create_test_pool().await;
+
+        pool.shutdown().await;
+        pool.process_queue().await;
+        // Should complete without hanging
+    }
+
+    #[tokio::test]
+    async fn test_add_task_after_shutdown() {
+        let pool = create_test_pool().await;
+        pool.shutdown().await;
+
+        let task = crate::models::Task::default();
+        let result = pool.add_task(task).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("shutdown"));
+    }
+
+    #[tokio::test]
+    async fn test_clear_queue() {
+        let pool = create_test_pool().await;
+
+        for i in 1..=3 {
+            let mut task = crate::models::Task::default();
+            task.id = i;
+            pool.add_task(task).await.unwrap();
+        }
+
+        assert_eq!(pool.queue_size().await, 3);
+
+        pool.clear_queue().await;
+        assert_eq!(pool.queue_size().await, 0);
+    }
+
+    #[tokio::test]
+    async fn test_get_queue_returns_copy() {
+        let pool = create_test_pool().await;
+
+        let mut task = crate::models::Task::default();
+        task.id = 1;
+        pool.add_task(task).await.unwrap();
+
+        let queue = pool.get_queue().await;
+        assert_eq!(queue.len(), 1);
+        assert_eq!(queue[0].id, 1);
+    }
+
+    #[tokio::test]
+    async fn test_get_queue_empty() {
+        let pool = create_test_pool().await;
+        let queue = pool.get_queue().await;
+        assert!(queue.is_empty());
+    }
 }
