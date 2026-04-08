@@ -372,11 +372,217 @@ mod tests {
     async fn test_get_stats() {
         let config = RemoteRunnersConfig::default();
         let manager = RemoteRunnersManager::new(config);
-        
+
         let stats = manager.get_stats().await;
         assert_eq!(stats.total_runners, 0);
         assert_eq!(stats.active_runners, 0);
         assert_eq!(stats.total_tasks_running, 0);
         assert_eq!(stats.tasks_queued, 0);
+    }
+
+    #[tokio::test]
+    async fn test_register_runner_disabled() {
+        let config = RemoteRunnersConfig {
+            enabled: false,
+            ..RemoteRunnersConfig::default()
+        };
+        let manager = RemoteRunnersManager::new(config);
+
+        let runner = Runner {
+            id: 1,
+            project_id: Some(1),
+            token: "test-token".to_string(),
+            name: "Test Runner".to_string(),
+            active: true,
+            last_active: None,
+            webhook: None,
+            max_parallel_tasks: None,
+            tag: None,
+            cleaning_requested: None,
+            touched: None,
+            created: None,
+        };
+
+        let result = manager.register_runner(runner, RunnerCapabilities::default()).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Remote runners disabled");
+    }
+
+    #[tokio::test]
+    async fn test_heartbeat_runner_not_found() {
+        let config = RemoteRunnersConfig::default();
+        let manager = RemoteRunnersManager::new(config);
+
+        let result = manager.heartbeat("nonexistent-token").await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Runner not found: nonexistent-token");
+    }
+
+    #[tokio::test]
+    async fn test_unregister_runner_success() {
+        let config = RemoteRunnersConfig::default();
+        let manager = RemoteRunnersManager::new(config);
+
+        let runner = Runner {
+            id: 1,
+            project_id: Some(1),
+            token: "test-token".to_string(),
+            name: "Test Runner".to_string(),
+            active: true,
+            last_active: None,
+            webhook: None,
+            max_parallel_tasks: None,
+            tag: None,
+            cleaning_requested: None,
+            touched: None,
+            created: None,
+        };
+
+        manager.register_runner(runner, RunnerCapabilities::default()).await.unwrap();
+
+        let result = manager.unregister_runner("test-token").await;
+        assert!(result.is_ok());
+
+        let active = manager.get_active_runners().await;
+        assert_eq!(active.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_unregister_runner_not_found() {
+        let config = RemoteRunnersConfig::default();
+        let manager = RemoteRunnersManager::new(config);
+
+        let result = manager.unregister_runner("nonexistent").await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Runner not found: nonexistent");
+    }
+
+    #[tokio::test]
+    async fn test_assign_and_complete_task() {
+        let config = RemoteRunnersConfig::default();
+        let manager = RemoteRunnersManager::new(config);
+
+        let runner = Runner {
+            id: 1,
+            project_id: Some(1),
+            token: "test-token".to_string(),
+            name: "Test Runner".to_string(),
+            active: true,
+            last_active: None,
+            webhook: None,
+            max_parallel_tasks: None,
+            tag: None,
+            cleaning_requested: None,
+            touched: None,
+            created: None,
+        };
+
+        manager.register_runner(runner, RunnerCapabilities::default()).await.unwrap();
+
+        let result = manager.assign_task("test-token", 42).await;
+        assert!(result.is_ok());
+
+        let stats = manager.get_stats().await;
+        assert_eq!(stats.total_tasks_running, 1);
+
+        let result = manager.complete_task("test-token", 42).await;
+        assert!(result.is_ok());
+
+        let stats = manager.get_stats().await;
+        assert_eq!(stats.total_tasks_running, 0);
+    }
+
+    #[tokio::test]
+    async fn test_assign_task_runner_not_found() {
+        let config = RemoteRunnersConfig::default();
+        let manager = RemoteRunnersManager::new(config);
+
+        let result = manager.assign_task("nonexistent", 42).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Runner not found: nonexistent");
+    }
+
+    #[tokio::test]
+    async fn test_complete_task_runner_not_found() {
+        let config = RemoteRunnersConfig::default();
+        let manager = RemoteRunnersManager::new(config);
+
+        let result = manager.complete_task("nonexistent", 42).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Runner not found: nonexistent");
+    }
+
+    #[tokio::test]
+    async fn test_get_stats_with_runners_and_tasks() {
+        let config = RemoteRunnersConfig::default();
+        let manager = RemoteRunnersManager::new(config);
+
+        for i in 1..=2 {
+            let runner = Runner {
+                id: i,
+                project_id: Some(1),
+                token: format!("token-{}", i),
+                name: format!("Runner {}", i),
+                active: true,
+                last_active: None,
+                webhook: None,
+                max_parallel_tasks: None,
+                tag: None,
+                cleaning_requested: None,
+                touched: None,
+                created: None,
+            };
+            manager.register_runner(runner, RunnerCapabilities::default()).await.unwrap();
+        }
+
+        manager.assign_task("token-1", 1).await.unwrap();
+        manager.assign_task("token-1", 2).await.unwrap();
+        manager.assign_task("token-2", 3).await.unwrap();
+
+        manager.queue_task(4).await;
+        manager.queue_task(5).await;
+
+        let stats = manager.get_stats().await;
+        assert_eq!(stats.total_runners, 2);
+        assert_eq!(stats.active_runners, 2);
+        assert_eq!(stats.total_tasks_running, 3);
+        assert_eq!(stats.tasks_queued, 2);
+    }
+
+    #[tokio::test]
+    async fn test_custom_config() {
+        let config = RemoteRunnersConfig {
+            enabled: true,
+            heartbeat_interval_secs: 60,
+            runner_timeout_secs: 180,
+            max_runners_per_project: 5,
+        };
+        let manager = RemoteRunnersManager::new(config);
+
+        let active = manager.get_active_runners().await;
+        assert_eq!(active.len(), 0);
+    }
+
+    #[test]
+    fn test_runner_capabilities_serialization() {
+        let capabilities = RunnerCapabilities {
+            ansible: true,
+            terraform: true,
+            bash: false,
+            powershell: false,
+            kubernetes: true,
+            max_parallel_tasks: 5,
+            tags: vec!["linux".to_string(), "production".to_string()],
+        };
+
+        let json = serde_json::to_string(&capabilities).unwrap();
+        let deserialized: RunnerCapabilities = serde_json::from_str(&json).unwrap();
+
+        assert!(deserialized.ansible);
+        assert!(deserialized.terraform);
+        assert!(!deserialized.bash);
+        assert!(deserialized.kubernetes);
+        assert_eq!(deserialized.max_parallel_tasks, 5);
+        assert_eq!(deserialized.tags, vec!["linux", "production"]);
     }
 }

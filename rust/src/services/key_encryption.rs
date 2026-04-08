@@ -219,6 +219,7 @@ pub fn mask_key_secrets(key: &mut AccessKey) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::{AccessKeyOwner, AccessKeyType};
 
     #[test]
     fn test_encrypt_decrypt_roundtrip() {
@@ -299,5 +300,64 @@ mod tests {
         let empty = Some("".to_string());
         let result = maybe_encrypt(&empty, &key).unwrap();
         assert_eq!(result, Some("".to_string()));
+    }
+
+    #[test]
+    fn test_mask_key_secrets_with_none_fields() {
+        let mut key = AccessKey {
+            id: 1,
+            project_id: Some(1),
+            name: "Test".to_string(),
+            r#type: AccessKeyType::SSH,
+            user_id: None,
+            login_password_login: None,
+            login_password_password: None,
+            ssh_key: None,
+            ssh_passphrase: Some("pass".to_string()),
+            access_key_access_key: None,
+            access_key_secret_key: None,
+            secret_storage_id: None,
+            environment_id: None,
+            owner: Some(AccessKeyOwner::Project),
+            created: None,
+            source_storage_type: None,
+            source_storage_id: None,
+            source_key: None,
+        };
+
+        mask_key_secrets(&mut key);
+
+        // None-поля должны остаться None
+        assert_eq!(key.ssh_key, None);
+        assert_eq!(key.access_key_secret_key, None);
+        assert_eq!(key.login_password_password, None);
+        // Some-поля должны быть замаскированы
+        assert_eq!(key.ssh_passphrase, Some("**SECRET**".to_string()));
+    }
+
+    #[test]
+    fn test_decrypt_value_invalid_base64() {
+        let key = [42u8; 32];
+        let bad_input = "notValidBase64!@#$%^&*()".to_string();
+        let result = decrypt_value(&bad_input, &key);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_get_encryption_key_none_when_not_set() {
+        // Убедимся что переменная не задана
+        std::env::remove_var("SEMAPHORE_ACCESS_KEY_ENCRYPTION");
+        let result = get_encryption_key();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_get_encryption_key_some_when_set() {
+        // Set the env var temporarily
+        std::env::set_var("SEMAPHORE_ACCESS_KEY_ENCRYPTION", "test_key_123");
+        let result = get_encryption_key();
+        // Key should be obtained (32 bytes)
+        std::env::remove_var("SEMAPHORE_ACCESS_KEY_ENCRYPTION");
+        assert!(result.is_some());
     }
 }

@@ -681,4 +681,231 @@ mod tests {
         TASK_STOPPED.inc();
         assert!(TASK_STOPPED.get() > initial);
     }
+
+    #[test]
+    fn test_metrics_manager_new_and_encode() {
+        let manager = MetricsManager::new();
+        let output = manager.encode_metrics();
+        assert!(output.is_ok());
+        assert!(output.unwrap().contains("semaphore_"));
+    }
+
+    #[test]
+    fn test_update_uptime() {
+        let manager = MetricsManager::new();
+        manager.update_uptime();
+        assert!(UPTIME.get() >= 0.0);
+    }
+
+    #[test]
+    fn test_update_queued_tasks() {
+        let manager = MetricsManager::new();
+        manager.update_queued_tasks(42);
+        assert_eq!(TASKS_QUEUED.get(), 42.0);
+    }
+
+    #[test]
+    fn test_update_active_runners() {
+        let manager = MetricsManager::new();
+        manager.update_active_runners(7);
+        assert_eq!(RUNNERS_ACTIVE.get(), 7.0);
+    }
+
+    #[test]
+    fn test_update_projects() {
+        let manager = MetricsManager::new();
+        manager.update_projects(10);
+        assert_eq!(PROJECTS_TOTAL.get(), 10.0);
+    }
+
+    #[test]
+    fn test_update_users() {
+        let manager = MetricsManager::new();
+        manager.update_users(5);
+        assert_eq!(USERS_TOTAL.get(), 5.0);
+    }
+
+    #[test]
+    fn test_update_templates() {
+        let manager = MetricsManager::new();
+        manager.update_templates(3);
+        assert_eq!(TEMPLATES_TOTAL.get(), 3.0);
+    }
+
+    #[test]
+    fn test_update_inventories() {
+        let manager = MetricsManager::new();
+        manager.update_inventories(8);
+        assert_eq!(INVENTORIES_TOTAL.get(), 8.0);
+    }
+
+    #[test]
+    fn test_update_repositories() {
+        let manager = MetricsManager::new();
+        manager.update_repositories(2);
+        assert_eq!(REPOSITORIES_TOTAL.get(), 2.0);
+    }
+
+    #[test]
+    fn test_update_cpu_usage() {
+        let manager = MetricsManager::new();
+        manager.update_cpu_usage(45.5);
+        assert_eq!(CPU_USAGE.get(), 45.5);
+    }
+
+    #[test]
+    fn test_update_memory_usage() {
+        let manager = MetricsManager::new();
+        manager.update_memory_usage(512.0);
+        assert_eq!(MEMORY_USAGE.get(), 512.0);
+    }
+
+    #[test]
+    fn test_update_health_true() {
+        let manager = MetricsManager::new();
+        manager.update_health(true);
+        assert_eq!(SYSTEM_HEALTHY.get(), 1.0);
+    }
+
+    #[test]
+    fn test_update_health_false() {
+        let manager = MetricsManager::new();
+        manager.update_health(false);
+        assert_eq!(SYSTEM_HEALTHY.get(), 0.0);
+    }
+
+    #[test]
+    fn test_update_organizations() {
+        let manager = MetricsManager::new();
+        manager.update_organizations(3);
+        assert_eq!(ORGANIZATIONS_TOTAL.get(), 3.0);
+    }
+
+    #[test]
+    fn test_update_organization_users() {
+        let manager = MetricsManager::new();
+        manager.update_organization_users(15);
+        assert_eq!(ORGANIZATION_USERS_TOTAL.get(), 15.0);
+    }
+
+    #[test]
+    fn test_update_organization_projects() {
+        let manager = MetricsManager::new();
+        manager.update_organization_projects(6);
+        assert_eq!(ORGANIZATION_PROJECTS_TOTAL.get(), 6.0);
+    }
+
+    #[test]
+    fn test_audit_event() {
+        let manager = MetricsManager::new();
+        let before = AUDIT_LOG_TOTAL.get();
+        manager.audit_event("INFO", "task_created");
+        assert_eq!(AUDIT_LOG_TOTAL.get(), before + 1.0);
+    }
+
+    #[test]
+    fn test_update_active_sessions() {
+        let manager = MetricsManager::new();
+        manager.update_active_sessions(25);
+        assert_eq!(ACTIVE_SESSIONS.get(), 25.0);
+    }
+
+    #[test]
+    fn test_task_metric_labels_new() {
+        let labels = TaskMetricLabels::new(
+            "1", "proj", "10", "tpl", "5", "user", "ansible",
+        );
+        assert_eq!(labels.project_id, "1");
+        assert_eq!(labels.project_name, "proj");
+        assert_eq!(labels.template_id, "10");
+        assert_eq!(labels.app_type, "ansible");
+    }
+
+    #[test]
+    fn test_http_request_metric() {
+        let manager = MetricsManager::new();
+        let before = HTTP_REQUESTS_TOTAL
+            .with_label_values(&["GET", "/api/tasks", "200"])
+            .get();
+        manager.http_request("GET", "/api/tasks", 200, 0.05);
+        let after = HTTP_REQUESTS_TOTAL
+            .with_label_values(&["GET", "/api/tasks", "200"])
+            .get();
+        assert_eq!(after, before + 1.0);
+    }
+
+    #[tokio::test]
+    async fn test_get_task_counters_empty() {
+        let manager = MetricsManager::new();
+        let counters = manager.get_task_counters().await;
+        assert!(counters.by_project.is_empty());
+        assert!(counters.by_template.is_empty());
+        assert!(counters.by_user.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_inc_project_task() {
+        let manager = MetricsManager::new();
+        manager.inc_project_task(100, true).await;
+        manager.inc_project_task(100, false).await;
+        let counters = manager.get_task_counters().await;
+        let pc = counters.by_project.get(&100).unwrap();
+        assert_eq!(pc.total, 2);
+        assert_eq!(pc.success, 1);
+        assert_eq!(pc.failed, 1);
+    }
+
+    #[tokio::test]
+    async fn test_inc_template_task() {
+        let manager = MetricsManager::new();
+        manager.inc_template_task(42, true).await;
+        manager.inc_template_task(42, true).await;
+        let counters = manager.get_task_counters().await;
+        let tc = counters.by_template.get(&42).unwrap();
+        assert_eq!(tc.total, 2);
+        assert_eq!(tc.success, 2);
+    }
+
+    #[tokio::test]
+    async fn test_inc_user_task() {
+        let manager = MetricsManager::new();
+        manager.inc_user_task(7, false).await;
+        let counters = manager.get_task_counters().await;
+        let uc = counters.by_user.get(&7).unwrap();
+        assert_eq!(uc.total, 1);
+        assert_eq!(uc.failed, 1);
+    }
+
+    #[test]
+    fn test_project_task_counters_default() {
+        let pc = ProjectTaskCounters::default();
+        assert_eq!(pc.total, 0);
+        assert_eq!(pc.success, 0);
+        assert_eq!(pc.failed, 0);
+        assert_eq!(pc.stopped, 0);
+    }
+
+    #[test]
+    fn test_template_task_counters_default() {
+        let tc = TemplateTaskCounters::default();
+        assert_eq!(tc.total, 0);
+        assert_eq!(tc.success, 0);
+        assert_eq!(tc.failed, 0);
+    }
+
+    #[test]
+    fn test_user_task_counters_default() {
+        let uc = UserTaskCounters::default();
+        assert_eq!(uc.total, 0);
+        assert_eq!(uc.success, 0);
+        assert_eq!(uc.failed, 0);
+    }
+
+    #[tokio::test]
+    async fn test_metrics_handler() {
+        let result = metrics_handler().await;
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        assert!(output.contains("semaphore_") || output.contains("HELP") || output.contains("TYPE"));
+    }
 }
