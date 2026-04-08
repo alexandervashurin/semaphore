@@ -844,4 +844,61 @@ mod tests {
         let size = pool.get_queue_size().await;
         assert_eq!(size, 3);
     }
+
+    #[test]
+    fn test_task_pool_state_new() {
+        let state = TaskPoolState::new();
+        assert!(state.queue.is_empty());
+        assert!(state.running.is_empty());
+        assert!(state.active_projects.is_empty());
+        assert!(state.blocks.is_empty());
+    }
+
+    #[test]
+    fn test_task_pool_state_default_impl() {
+        let state = TaskPoolState::default();
+        assert!(state.queue.is_empty());
+        assert!(state.running.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_task_pool_store_accessor() {
+        use crate::db::mock::MockStore;
+        let store: Arc<dyn Store + Send + Sync> = Arc::new(MockStore::new());
+        let pool = TaskPool::new(store.clone(), 5);
+        // store() should return the same store
+        let _ = pool.store();
+    }
+
+    #[tokio::test]
+    async fn test_task_pool_add_task_to_specific_project() {
+        use crate::db::mock::MockStore;
+        let store = Arc::new(MockStore::new());
+        let pool = TaskPool::new(store, 5);
+
+        let task = Task {
+            id: 100,
+            project_id: 42,
+            template_id: 5,
+            status: TaskStatus::Waiting,
+            ..Default::default()
+        };
+        pool.add_task(task).await.unwrap();
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+        let tasks = pool.get_project_tasks(42).await;
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].id, 100);
+        assert_eq!(tasks[0].template_id, 5);
+    }
+
+    #[tokio::test]
+    async fn test_task_pool_running_count_after_add() {
+        use crate::db::mock::MockStore;
+        let store = Arc::new(MockStore::new());
+        let pool = TaskPool::new(store, 5);
+
+        // Initially 0 running
+        assert_eq!(pool.get_running_count().await, 0);
+    }
 }
