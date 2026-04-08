@@ -585,4 +585,101 @@ mod tests {
         assert_eq!(deserialized.max_parallel_tasks, 5);
         assert_eq!(deserialized.tags, vec!["linux", "production"]);
     }
+
+    #[test]
+    fn test_remote_runners_config_default() {
+        let config = RemoteRunnersConfig::default();
+        assert!(config.enabled);
+        assert_eq!(config.heartbeat_interval_secs, 30);
+        assert_eq!(config.runner_timeout_secs, 90);
+        assert_eq!(config.max_runners_per_project, 10);
+    }
+
+    #[test]
+    fn test_remote_runners_config_custom() {
+        let config = RemoteRunnersConfig {
+            enabled: false,
+            heartbeat_interval_secs: 60,
+            runner_timeout_secs: 180,
+            max_runners_per_project: 5,
+        };
+        assert!(!config.enabled);
+        assert_eq!(config.heartbeat_interval_secs, 60);
+        assert_eq!(config.runner_timeout_secs, 180);
+        assert_eq!(config.max_runners_per_project, 5);
+    }
+
+    #[test]
+    fn test_runner_capabilities_default() {
+        let caps = RunnerCapabilities::default();
+        assert!(!caps.ansible);
+        assert!(!caps.terraform);
+        assert!(!caps.bash);
+        assert!(!caps.powershell);
+        assert!(!caps.kubernetes);
+        assert_eq!(caps.max_parallel_tasks, 0);
+        assert!(caps.tags.is_empty());
+    }
+
+    #[test]
+    fn test_runner_capabilities_clone() {
+        let caps = RunnerCapabilities {
+            ansible: true,
+            terraform: false,
+            bash: true,
+            powershell: false,
+            kubernetes: false,
+            max_parallel_tasks: 3,
+            tags: vec!["tag1".to_string()],
+        };
+        let cloned = caps.clone();
+        assert_eq!(cloned.ansible, caps.ansible);
+        assert_eq!(cloned.tags, caps.tags);
+    }
+
+    #[tokio::test]
+    async fn test_register_disabled_returns_error() {
+        let config = RemoteRunnersConfig {
+            enabled: false,
+            ..RemoteRunnersConfig::default()
+        };
+        let manager = RemoteRunnersManager::new(config);
+
+        let runner = Runner {
+            id: 1,
+            project_id: Some(1),
+            token: "token".to_string(),
+            name: "Test".to_string(),
+            active: true,
+            last_active: None,
+            webhook: None,
+            max_parallel_tasks: None,
+            tag: None,
+            cleaning_requested: None,
+            touched: None,
+            created: None,
+        };
+
+        let result = manager.register_runner(runner, RunnerCapabilities::default()).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Remote runners disabled");
+    }
+
+    #[tokio::test]
+    async fn test_heartbeat_nonexistent_runner() {
+        let config = RemoteRunnersConfig::default();
+        let manager = RemoteRunnersManager::new(config);
+
+        let result = manager.heartbeat("does-not-exist").await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_unregister_nonexistent_runner() {
+        let config = RemoteRunnersConfig::default();
+        let manager = RemoteRunnersManager::new(config);
+
+        let result = manager.unregister_runner("does-not-exist").await;
+        assert!(result.is_err());
+    }
 }
