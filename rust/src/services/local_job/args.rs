@@ -192,4 +192,170 @@ mod tests {
 
         assert!(args.contains_key("default"));
     }
+
+    #[test]
+    fn test_get_shell_args_with_secrets() {
+        let logger = Arc::new(BasicLogger::new());
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let task = crate::models::Task {
+            id: 1,
+            created: Utc::now(),
+            template_id: 1,
+            status: crate::services::task_logger::TaskStatus::Waiting,
+            project_id: 1,
+            ..Default::default()
+        };
+
+        let mut template = crate::models::Template::default();
+        template.id = 1;
+        template.name = "Test".to_string();
+        template.project_id = 1;
+        template.playbook = "deploy.sh".to_string();
+        template.r#type = TemplateType::Shell;
+
+        let environment = crate::models::Environment {
+            id: 1,
+            project_id: 1,
+            name: "Secret Env".to_string(),
+            json: r#"{"DB_HOST": "localhost"}"#.to_string(),
+            secret_storage_id: None,
+            secret_storage_key_prefix: None,
+            secrets: Some(r#"[{"name": "DB_PASSWORD", "secret": "secret123", "secret_type": "var"}]"#.to_string()),
+            created: None,
+        };
+
+        let job = LocalJob::new(
+            task, template,
+            crate::models::Inventory::default(),
+            crate::models::Repository::default(),
+            environment,
+            logger, key_installer,
+            PathBuf::from("/tmp/work"),
+            PathBuf::from("/tmp/tmp"),
+        );
+
+        let args = job.get_shell_args("testuser", None).unwrap();
+        // DB_PASSWORD=secret123 должен быть (secret_type == "var")
+        assert!(args.iter().any(|a| a == "DB_PASSWORD=secret123"));
+        // playbook name должен быть первым
+        assert_eq!(args[0], "deploy.sh");
+    }
+
+    #[test]
+    fn test_get_shell_args_filters_semaphore_vars() {
+        let logger = Arc::new(BasicLogger::new());
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let task = crate::models::Task {
+            id: 1,
+            created: Utc::now(),
+            template_id: 1,
+            status: crate::services::task_logger::TaskStatus::Waiting,
+            project_id: 1,
+            ..Default::default()
+        };
+
+        let mut template = crate::models::Template::default();
+        template.id = 1;
+        template.name = "Test".to_string();
+        template.project_id = 1;
+        template.playbook = "run.sh".to_string();
+        template.r#type = TemplateType::Shell;
+
+        let environment = crate::models::Environment {
+            id: 1,
+            project_id: 1,
+            name: "Env".to_string(),
+            json: r#"{"semaphore_vars": {"key": "val"}, "real_var": "real_value"}"#.to_string(),
+            secret_storage_id: None,
+            secret_storage_key_prefix: None,
+            secrets: None,
+            created: None,
+        };
+
+        let job = LocalJob::new(
+            task, template,
+            crate::models::Inventory::default(),
+            crate::models::Repository::default(),
+            environment,
+            logger, key_installer,
+            PathBuf::from("/tmp/work"),
+            PathBuf::from("/tmp/tmp"),
+        );
+
+        let args = job.get_shell_args("testuser", None).unwrap();
+        // semaphore_vars не должен попасть в аргументы
+        assert!(!args.iter().any(|a| a.starts_with("semaphore_vars=")));
+    }
+
+    #[test]
+    fn test_get_terraform_args_with_destroy() {
+        let logger = Arc::new(BasicLogger::new());
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let mut task = crate::models::Task {
+            id: 1,
+            created: Utc::now(),
+            template_id: 1,
+            status: crate::services::task_logger::TaskStatus::Waiting,
+            project_id: 1,
+            params: Some(serde_json::json!({"destroy": true})),
+            ..Default::default()
+        };
+        task.params = Some(serde_json::json!({"destroy": true}));
+
+        let mut template = crate::models::Template::default();
+        template.id = 1;
+        template.name = "Terraform".to_string();
+        template.project_id = 1;
+        template.playbook = "main.tf".to_string();
+        template.r#type = TemplateType::Terraform;
+
+        let environment = crate::models::Environment {
+            id: 1,
+            project_id: 1,
+            name: "Env".to_string(),
+            json: r#"{"region": "us-east-1"}"#.to_string(),
+            secret_storage_id: None,
+            secret_storage_key_prefix: None,
+            secrets: None,
+            created: None,
+        };
+
+        let job = LocalJob::new(
+            task, template,
+            crate::models::Inventory::default(),
+            crate::models::Repository::default(),
+            environment,
+            logger, key_installer,
+            PathBuf::from("/tmp/work"),
+            PathBuf::from("/tmp/tmp"),
+        );
+
+        let args_map = job.get_terraform_args("testuser", None).unwrap();
+        // Все стадии должны содержать "-destroy" кроме init
+        for (stage, args) in &args_map {
+            if stage != "init" {
+                assert!(args.contains(&"-destroy".to_string()),
+                    "Stage '{}' should contain -destroy", stage);
+            }
+        }
+    }
+
+    #[test]
+    fn test_get_terraform_args_includes_vars() {
+        let job = create_test_shell_job();
+        // environment.json = {"var1": "value1"} уже установлен
+        let args_map = job.get_terraform_args("testuser", None).unwrap();
+
+        // Проверяем что var=value попал в аргументы стадий (кроме init)
+        for (stage, args) in &args_map {
+            if stage != "init" {
+                assert!(args.contains(&"-var".to_string()), "Stage '{}' should contain -var", stage);
+                assert!(args.iter().any(|a| a.starts_with("var1=")),
+                    "Stage '{}' should contain var1=", stage);
+            }
+        }
+    }
 }

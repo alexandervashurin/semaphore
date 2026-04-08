@@ -303,4 +303,59 @@ mod tests {
         let shell_env = job.get_shell_environment_extra_env("testuser", None);
         assert!(!shell_env.is_empty());
     }
+
+    #[test]
+    fn test_get_task_details_with_incoming_version() {
+        let job = create_test_job();
+        let details = job.get_task_details("deployer", Some("v2.0.0"));
+
+        assert_eq!(details.get("username").unwrap().as_str().unwrap(), "deployer");
+        assert_eq!(details.get("commit_hash").unwrap().as_str().unwrap(), "abc123");
+        assert_eq!(details.get("commit_message").unwrap().as_str().unwrap(), "Test commit");
+    }
+
+    #[test]
+    fn test_get_task_details_without_commit() {
+        let mut job = create_test_job();
+        job.task.commit_hash = None;
+        job.task.commit_message = None;
+
+        let details = job.get_task_details("testuser", None);
+
+        assert!(!details.contains_key("commit_hash"));
+        assert!(!details.contains_key("commit_message"));
+    }
+
+    #[test]
+    fn test_get_environment_extra_vars_with_empty_json() {
+        let mut job = create_test_job();
+        job.environment.json = "{}".to_string();
+
+        let extra_vars = job.get_environment_extra_vars("testuser", None).unwrap();
+
+        // Должен содержать только semaphore_vars
+        assert!(extra_vars.contains_key("semaphore_vars"));
+        assert_eq!(extra_vars.len(), 1);
+    }
+
+    #[test]
+    fn test_get_environment_extra_vars_with_invalid_json() {
+        let mut job = create_test_job();
+        job.environment.json = "not valid json".to_string();
+
+        let extra_vars = job.get_environment_extra_vars("testuser", None).unwrap();
+
+        // Должен вернуть только semaphore_vars при невалидном JSON
+        assert!(extra_vars.contains_key("semaphore_vars"));
+    }
+
+    #[test]
+    fn test_get_task_details_url_present() {
+        let job = create_test_job();
+        let details = job.get_task_details("testuser", None);
+
+        // URL должен быть сформирован
+        let url = details.get("url").unwrap().as_str().unwrap();
+        assert!(!url.is_empty());
+    }
 }
