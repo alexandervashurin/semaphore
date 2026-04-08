@@ -411,4 +411,93 @@ mod tests {
         let result = pool.run().await;
         assert!(result.is_ok());
     }
+
+    #[test]
+    fn test_queued_task_default() {
+        let qt = QueuedTask {
+            task: crate::models::Task::default(),
+            status: TaskStatus::Waiting,
+        };
+        assert_eq!(qt.task.id, 0);
+        assert_eq!(qt.status, TaskStatus::Waiting);
+    }
+
+    #[test]
+    fn test_job_logger_info_method() {
+        let logger = JobLogger::new("test_logger");
+        // Just verify it doesn't panic
+        logger.info("Test info message");
+    }
+
+    #[test]
+    fn test_job_logger_debug_method() {
+        let logger = JobLogger::new("test_debug");
+        logger.debug("Test debug message");
+    }
+
+    #[test]
+    fn test_job_logger_task_info_method() {
+        let logger = JobLogger::new("test_task");
+        logger.task_info("Status update", 42, "running");
+    }
+
+    #[tokio::test]
+    async fn test_job_pool_shutdown_flag() {
+        let pool = JobPool::new(make_store());
+        assert!(!pool.shutting_down.load(Ordering::SeqCst));
+
+        pool.shutting_down.store(true, Ordering::SeqCst);
+        assert!(pool.shutting_down.load(Ordering::SeqCst));
+    }
+
+    #[tokio::test]
+    async fn test_job_pool_max_parallel() {
+        let pool = JobPool::new(make_store());
+        // Default max_parallel is 10
+        assert_eq!(pool.max_parallel, 10);
+    }
+
+    #[tokio::test]
+    async fn test_queue_len_multiple_tasks() {
+        let pool = JobPool::new(make_store());
+        let mut queue = pool.queue.lock().await;
+        for i in 1..=5 {
+            queue.push(QueuedTask {
+                task: crate::models::Task { id: i, ..crate::models::Task::default() },
+                status: TaskStatus::Waiting,
+            });
+        }
+        drop(queue);
+        assert_eq!(pool.queue_len().await, 5);
+    }
+
+    #[tokio::test]
+    async fn test_running_ids_multiple_tasks() {
+        let pool = JobPool::new(make_store());
+        let mut running = pool.running_ids.lock().await;
+        running.insert(1);
+        running.insert(2);
+        running.insert(3);
+        drop(running);
+        assert!(pool.has_running_jobs().await);
+    }
+
+    #[tokio::test]
+    async fn test_shutdown_timeout_behavior() {
+        let pool = JobPool::new(make_store());
+        // Don't add any running tasks - should shutdown immediately
+        pool.shutdown().await;
+        assert!(pool.shutting_down.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn test_queued_task_clone() {
+        let qt1 = QueuedTask {
+            task: crate::models::Task { id: 1, ..crate::models::Task::default() },
+            status: TaskStatus::Running,
+        };
+        let qt2 = qt1.clone();
+        assert_eq!(qt2.task.id, qt1.task.id);
+        assert_eq!(qt2.status, qt1.status);
+    }
 }

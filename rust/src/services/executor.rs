@@ -946,4 +946,65 @@ mod tests {
         let args = build_terraform_apply_args(true);
         assert_eq!(args, vec!["apply", "-auto-approve"]);
     }
+
+    #[test]
+    fn test_app_type_equality() {
+        assert_eq!(AppType::Ansible, AppType::Ansible);
+        assert_ne!(AppType::Ansible, AppType::Terraform);
+    }
+
+    #[test]
+    fn test_app_type_clone() {
+        let app_type = AppType::Terraform;
+        let cloned = app_type; // Copy type
+        assert_eq!(cloned, app_type);
+    }
+
+    #[test]
+    fn test_app_run_args_default() {
+        let args = AppRunArgs {
+            cli_args: Vec::new(),
+            environment_vars: Vec::new(),
+            inputs: HashMap::new(),
+        };
+        assert!(args.cli_args.is_empty());
+        assert!(args.environment_vars.is_empty());
+        assert!(args.inputs.is_empty());
+    }
+
+    #[test]
+    fn test_app_run_result() {
+        let result = AppRunResult {
+            exit_code: 0,
+            has_errors: false,
+            output_path: Some("/tmp/output.log".to_string()),
+        };
+        assert_eq!(result.exit_code, 0);
+        assert!(!result.has_errors);
+        assert!(result.output_path.is_some());
+    }
+
+    #[test]
+    fn test_app_run_result_with_errors() {
+        let result = AppRunResult {
+            exit_code: 1,
+            has_errors: true,
+            output_path: None,
+        };
+        assert_eq!(result.exit_code, 1);
+        assert!(result.has_errors);
+        assert!(result.output_path.is_none());
+    }
+
+    #[test]
+    fn test_app_type_display_bash_additional() {
+        assert_eq!(AppType::Bash.to_string(), "bash");
+    }
+
+    #[test]
+    fn test_parse_env_vars_with_empty_strings() {
+        let input = vec!["KEY=".to_string(), "=value".to_string()];
+        let result = parse_environment_vars(&input);
+        assert_eq!(result, vec![("KEY", ""), ("", "value")]);
+    }
 }
