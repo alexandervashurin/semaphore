@@ -978,9 +978,89 @@ mod tests {
     }
 
     #[test]
+    fn test_create_project_event_additional() {
+        let event = create_project_event("project.created", 10, "My Project", Some(5));
+
+        assert_eq!(event.event_type, "project.created");
+        assert_eq!(event.metadata.project_id, Some(10));
+        assert_eq!(event.metadata.user_id, Some(5));
+        assert!(event.data["project_name"].as_str().unwrap() == "My Project");
+    }
+
+    #[test]
+    fn test_webhook_type_all_variants() {
+        let types = [
+            WebhookType::Generic,
+            WebhookType::Slack,
+            WebhookType::Teams,
+            WebhookType::Discord,
+            WebhookType::Telegram,
+            WebhookType::Custom,
+        ];
+        for t in &types {
+            let json = serde_json::to_string(t).unwrap();
+            assert!(json.starts_with('"') && json.ends_with('"'));
+        }
+    }
+
+    #[test]
+    fn test_webhook_result_default() {
+        let result = WebhookResult {
+            success: false,
+            status_code: None,
+            response_body: None,
+            error: Some("test error".to_string()),
+            attempts: 3,
+        };
+        assert!(!result.success);
+        assert_eq!(result.attempts, 3);
+        assert!(result.status_code.is_none());
+        assert!(result.response_body.is_none());
+        assert!(result.error.is_some());
+    }
+
+    #[test]
+    fn test_webhook_config_default_values() {
+        let config = WebhookConfig {
+            id: 1,
+            name: "Test".to_string(),
+            r#type: WebhookType::Generic,
+            url: "https://example.com".to_string(),
+            secret: None,
+            headers: None,
+            active: true,
+            events: vec!["task.success".to_string()],
+            retry_count: 3,
+            timeout_secs: 30,
+        };
+        assert!(config.active);
+        assert_eq!(config.retry_count, 3);
+        assert_eq!(config.timeout_secs, 30);
+        assert!(config.secret.is_none());
+        assert!(config.headers.is_none());
+    }
+
+    #[test]
+    fn test_webhook_event_metadata() {
+        let event = WebhookEvent {
+            event_type: "test.event".to_string(),
+            timestamp: Utc::now(),
+            data: serde_json::json!({"key": "value"}),
+            metadata: WebhookMetadata {
+                source: "test".to_string(),
+                version: "1.0.0".to_string(),
+                project_id: Some(10),
+                user_id: Some(5),
+            },
+        };
+        assert_eq!(event.metadata.source, "test");
+        assert_eq!(event.metadata.version, "1.0.0");
+    }
+
+    #[test]
     fn test_webhook_service_default() {
         let service = WebhookService::default();
-        // Default должен вызвать new()
-        assert!(true); // service создан
+        // Default should create a service with a client
+        let _ = service;
     }
 }
