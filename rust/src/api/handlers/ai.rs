@@ -445,3 +445,54 @@ fn parse_ai_response(text: &str) -> (String, Vec<String>) {
     };
     (analysis, suggestions)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_model_openai() {
+        assert_eq!(default_model("openai"), "gpt-4o-mini");
+    }
+
+    #[test]
+    fn test_default_model_anthropic() {
+        assert_eq!(default_model("anthropic"), "claude-3-5-sonnet-20241022");
+    }
+
+    #[test]
+    fn test_default_model_unknown() {
+        assert_eq!(default_model("unknown"), "gpt-4o-mini");
+    }
+
+    #[test]
+    fn test_truncate_log_short() {
+        let log = "short log";
+        assert_eq!(truncate_log(log, 100), "short log");
+    }
+
+    #[test]
+    fn test_truncate_log_long() {
+        let log = "a".repeat(200);
+        let truncated = truncate_log(&log, 100);
+        assert_eq!(truncated.len(), 100);
+        // truncate_log takes the last max_chars
+        assert_eq!(truncated, &log[100..]);
+    }
+
+    #[test]
+    fn test_parse_ai_response_simple() {
+        let text = "No issues found";
+        let (analysis, suggestions) = parse_ai_response(text);
+        assert!(!analysis.is_empty());
+    }
+
+    #[test]
+    fn test_parse_ai_response_with_list() {
+        let text = "## Analysis\nNo issues\n## Suggestions\n- Fix linting";
+        let (analysis, suggestions) = parse_ai_response(text);
+        assert!(analysis.contains("No issues"));
+        assert_eq!(suggestions.len(), 1);
+        assert_eq!(suggestions[0], "Fix linting");
+    }
+}
