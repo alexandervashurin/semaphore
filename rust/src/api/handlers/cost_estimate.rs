@@ -155,3 +155,20 @@ pub async fn create_task_cost(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cost_query_defaults() {
+        let query = CostQuery { limit: None };
+        assert!(query.limit.is_none());
+    }
+
+    #[test]
+    fn test_cost_query_with_limit() {
+        let query = CostQuery { limit: Some(50) };
+        assert_eq!(query.limit, Some(50));
+    }
+}

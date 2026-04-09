@@ -187,3 +187,46 @@ pub async fn snapshot_from_task(
             .into_response(),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_snapshot_query_defaults() {
+        let query = SnapshotQuery {
+            template_id: None,
+            limit: None,
+        };
+        assert!(query.template_id.is_none());
+        assert!(query.limit.is_none());
+    }
+
+    #[test]
+    fn test_snapshot_query_with_params() {
+        let query = SnapshotQuery {
+            template_id: Some(5),
+            limit: Some(100),
+        };
+        assert_eq!(query.template_id, Some(5));
+        assert_eq!(query.limit, Some(100));
+    }
+
+    #[test]
+    fn test_task_snapshot_create() {
+        let payload = TaskSnapshotCreate {
+            template_id: 5,
+            task_id: 10,
+            git_branch: Some("main".to_string()),
+            git_commit: Some("abc123".to_string()),
+            arguments: Some("--limit=web".to_string()),
+            inventory_id: Some(3),
+            environment_id: Some(2),
+            message: Some("Deploy success".to_string()),
+            label: Some("stable".to_string()),
+        };
+        assert_eq!(payload.template_id, 5);
+        assert_eq!(payload.task_id, 10);
+        assert_eq!(payload.label, Some("stable".to_string()));
+    }
+}

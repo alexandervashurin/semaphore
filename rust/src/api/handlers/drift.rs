@@ -98,6 +98,31 @@ pub async fn delete_drift_config(
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_drift_toggle_enabled() {
+        let toggle = DriftToggle {
+            enabled: true,
+            schedule: Some("*/5 * * * *".to_string()),
+        };
+        assert!(toggle.enabled);
+        assert_eq!(toggle.schedule, Some("*/5 * * * *".to_string()));
+    }
+
+    #[test]
+    fn test_drift_toggle_disabled() {
+        let toggle = DriftToggle {
+            enabled: false,
+            schedule: None,
+        };
+        assert!(!toggle.enabled);
+        assert!(toggle.schedule.is_none());
+    }
+}
+
 /// Trigger manual drift check — create a task with --check flag and record result
 pub async fn trigger_drift_check(
     State(state): State<Arc<AppState>>,
