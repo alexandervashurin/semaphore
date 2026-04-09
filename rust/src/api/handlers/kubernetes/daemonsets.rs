@@ -328,3 +328,33 @@ fn format_age(time: &DateTime<Utc>) -> String {
         format!("{}s", duration.num_seconds())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Duration;
+
+    fn make_ts(seconds_ago: i64) -> DateTime<Utc> {
+        Utc::now() - Duration::seconds(seconds_ago)
+    }
+
+    #[test]
+    fn test_format_age_seconds() {
+        assert_eq!(format_age(&make_ts(45)), "45s");
+    }
+
+    #[test]
+    fn test_format_age_minutes() {
+        assert_eq!(format_age(&make_ts(180)), "3m");
+    }
+
+    #[test]
+    fn test_format_age_hours() {
+        assert_eq!(format_age(&make_ts(10800)), "3h");
+    }
+
+    #[test]
+    fn test_format_age_days() {
+        assert_eq!(format_age(&make_ts(259200)), "3d");
+    }
+}

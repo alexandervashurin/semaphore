@@ -425,3 +425,49 @@ fn format_age(time: &DateTime<Utc>) -> String {
         format!("{}s", duration.num_seconds())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Duration;
+
+    fn make_ts(seconds_ago: i64) -> DateTime<Utc> {
+        Utc::now() - Duration::seconds(seconds_ago)
+    }
+
+    #[test]
+    fn test_format_age_seconds() {
+        let age = format_age(&make_ts(30));
+        assert_eq!(age, "30s");
+    }
+
+    #[test]
+    fn test_format_age_minutes() {
+        let age = format_age(&make_ts(120));
+        assert_eq!(age, "2m");
+    }
+
+    #[test]
+    fn test_format_age_hours() {
+        let age = format_age(&make_ts(7200));
+        assert_eq!(age, "2h");
+    }
+
+    #[test]
+    fn test_format_age_days() {
+        let age = format_age(&make_ts(172800));
+        assert_eq!(age, "2d");
+    }
+
+    #[test]
+    fn test_format_age_months() {
+        let age = format_age(&make_ts(2592000)); // 30 days
+        assert_eq!(age, "30d");
+    }
+
+    #[test]
+    fn test_format_age_years() {
+        let age = format_age(&make_ts(31536000 * 2)); // 2 years
+        assert!(age.ends_with('y'));
+    }
+}
