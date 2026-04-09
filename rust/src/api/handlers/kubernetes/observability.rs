@@ -412,6 +412,105 @@ pub async fn get_topology(
     Ok(Json(TopologyGraph { nodes, edges }))
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_cpu_to_cores_milli() {
+        assert!((parse_cpu_to_cores("500m") - 0.5).abs() < 0.001);
+        assert!((parse_cpu_to_cores("1000m") - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_parse_cpu_to_cores_whole() {
+        assert!((parse_cpu_to_cores("2") - 2.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_parse_cpu_to_cores_invalid() {
+        assert!((parse_cpu_to_cores("abc") - 0.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_parse_memory_kibi() {
+        assert_eq!(parse_memory_to_bytes("1Ki"), 1024);
+        assert_eq!(parse_memory_to_bytes("512Ki"), 512 * 1024);
+    }
+
+    #[test]
+    fn test_parse_memory_mebi() {
+        assert_eq!(parse_memory_to_bytes("1Mi"), 1024 * 1024);
+        assert_eq!(parse_memory_to_bytes("256Mi"), 256 * 1024 * 1024);
+    }
+
+    #[test]
+    fn test_parse_memory_gibi() {
+        assert_eq!(parse_memory_to_bytes("1Gi"), 1024 * 1024 * 1024);
+    }
+
+    #[test]
+    fn test_parse_memory_invalid() {
+        assert_eq!(parse_memory_to_bytes("abc"), 0);
+    }
+
+    #[test]
+    fn test_format_bytes_gi() {
+        assert_eq!(format_bytes(1024 * 1024 * 1024), "1.0Gi");
+        assert_eq!(format_bytes(2 * 1024 * 1024 * 1024), "2.0Gi");
+    }
+
+    #[test]
+    fn test_format_bytes_mi() {
+        assert_eq!(format_bytes(1024 * 1024), "1.0Mi");
+        assert_eq!(format_bytes(512 * 1024 * 1024), "512.0Mi");
+    }
+
+    #[test]
+    fn test_format_bytes_ki() {
+        assert_eq!(format_bytes(1024), "1.0Ki");
+        assert_eq!(format_bytes(2048), "2.0Ki");
+    }
+
+    #[test]
+    fn test_format_bytes_bytes() {
+        assert_eq!(format_bytes(100), "100B");
+    }
+
+    #[test]
+    fn test_metrics_status_struct() {
+        let status = MetricsStatus {
+            available: true,
+            message: "Metrics server available".to_string(),
+        };
+        assert!(status.available);
+    }
+
+    #[test]
+    fn test_container_metrics_struct() {
+        let cm = ContainerMetrics {
+            name: "web".to_string(),
+            cpu_usage: "100m".to_string(),
+            memory_usage: "128Mi".to_string(),
+        };
+        assert_eq!(cm.name, "web");
+    }
+
+    #[test]
+    fn test_topology_node_struct() {
+        let node = TopologyNode {
+            id: "1".to_string(),
+            kind: "Node".to_string(),
+            name: "node-1".to_string(),
+            namespace: "default".to_string(),
+            status: "Ready".to_string(),
+            labels: BTreeMap::new(),
+        };
+        assert_eq!(node.name, "node-1");
+        assert_eq!(node.kind, "Node");
+    }
+}
+
 /// GET /api/kubernetes/topology/namespaces/{namespace}
 pub async fn get_namespace_topology(
     State(state): State<Arc<AppState>>,
