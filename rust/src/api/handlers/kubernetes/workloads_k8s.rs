@@ -650,3 +650,75 @@ pub async fn list_k8s_events(
 
     Ok(Json(summaries))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Duration;
+
+    fn make_ts(seconds_ago: i64) -> Option<k8s_openapi::apimachinery::pkg::apis::meta::v1::Time> {
+        let ts = Utc::now() - Duration::seconds(seconds_ago);
+        Some(k8s_openapi::apimachinery::pkg::apis::meta::v1::Time(ts))
+    }
+
+    #[test]
+    fn test_age_from_ts_seconds() {
+        let age = age_from_ts(make_ts(30).as_ref());
+        assert_eq!(age, "30s");
+    }
+
+    #[test]
+    fn test_age_from_ts_minutes() {
+        let age = age_from_ts(make_ts(120).as_ref());
+        assert_eq!(age, "2m");
+    }
+
+    #[test]
+    fn test_age_from_ts_hours() {
+        let age = age_from_ts(make_ts(7200).as_ref());
+        assert_eq!(age, "2h");
+    }
+
+    #[test]
+    fn test_age_from_ts_days() {
+        let age = age_from_ts(make_ts(172800).as_ref());
+        assert_eq!(age, "2d");
+    }
+
+    #[test]
+    fn test_age_from_ts_none() {
+        let age = age_from_ts(None);
+        assert_eq!(age, "unknown");
+    }
+
+    #[test]
+    fn test_age_from_ts_zero() {
+        let age = age_from_ts(make_ts(0).as_ref());
+        assert_eq!(age, "0s");
+    }
+
+    #[test]
+    fn test_age_from_ts_negative() {
+        // Future timestamp should be clamped to 0
+        let age = age_from_ts(make_ts(-100).as_ref());
+        assert_eq!(age, "0s");
+    }
+
+    #[test]
+    fn test_age_from_ts_boundary_seconds() {
+        let age = age_from_ts(make_ts(59).as_ref());
+        assert_eq!(age, "59s");
+    }
+
+    #[test]
+    fn test_age_from_ts_boundary_minutes() {
+        let age = age_from_ts(make_ts(3599).as_ref());
+        assert_eq!(age, "59m");
+    }
+
+    #[test]
+    fn test_age_from_ts_boundary_hours() {
+        let age = age_from_ts(make_ts(86399).as_ref());
+        assert_eq!(age, "23h");
+    }
+}

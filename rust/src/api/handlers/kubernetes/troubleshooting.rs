@@ -521,3 +521,90 @@ fn calculate_health_status(
         HealthStatus::Healthy
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_calculate_health_status_critical() {
+        let timeline = vec![
+            TimelineEvent {
+                event_type: TimelineEventType::KubernetesEvent,
+                source: EventSource::Kubernetes,
+                severity: Severity::Critical,
+                summary: "Pod failed".to_string(),
+                timestamp: chrono::Utc::now(),
+                details: None,
+            },
+        ];
+        assert_eq!(calculate_health_status(&timeline, &None), HealthStatus::Critical);
+    }
+
+    #[test]
+    fn test_calculate_health_status_degraded() {
+        let timeline = vec![
+            TimelineEvent {
+                event_type: TimelineEventType::KubernetesEvent,
+                source: EventSource::Kubernetes,
+                severity: Severity::Warning,
+                summary: "Warning 1".to_string(),
+                timestamp: chrono::Utc::now(),
+                details: None,
+            },
+            TimelineEvent {
+                event_type: TimelineEventType::KubernetesEvent,
+                source: EventSource::Kubernetes,
+                severity: Severity::Warning,
+                summary: "Warning 2".to_string(),
+                timestamp: chrono::Utc::now(),
+                details: None,
+            },
+            TimelineEvent {
+                event_type: TimelineEventType::KubernetesEvent,
+                source: EventSource::Kubernetes,
+                severity: Severity::Warning,
+                summary: "Warning 3".to_string(),
+                timestamp: chrono::Utc::now(),
+                details: None,
+            },
+        ];
+        assert_eq!(calculate_health_status(&timeline, &None), HealthStatus::Degraded);
+    }
+
+    #[test]
+    fn test_calculate_health_status_healthy() {
+        let timeline = vec![
+            TimelineEvent {
+                event_type: TimelineEventType::KubernetesEvent,
+                source: EventSource::Kubernetes,
+                severity: Severity::Normal,
+                summary: "Normal event".to_string(),
+                timestamp: chrono::Utc::now(),
+                details: None,
+            },
+        ];
+        assert_eq!(calculate_health_status(&timeline, &None), HealthStatus::Healthy);
+    }
+
+    #[test]
+    fn test_calculate_health_status_unknown_empty() {
+        let timeline: Vec<TimelineEvent> = vec![];
+        assert_eq!(calculate_health_status(&timeline, &None), HealthStatus::Unknown);
+    }
+
+    #[test]
+    fn test_calculate_health_status_single_warning() {
+        let timeline = vec![
+            TimelineEvent {
+                event_type: TimelineEventType::KubernetesEvent,
+                source: EventSource::Kubernetes,
+                severity: Severity::Warning,
+                summary: "Single warning".to_string(),
+                timestamp: chrono::Utc::now(),
+                details: None,
+            },
+        ];
+        assert_eq!(calculate_health_status(&timeline, &None), HealthStatus::Healthy);
+    }
+}

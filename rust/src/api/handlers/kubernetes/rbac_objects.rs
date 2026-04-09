@@ -639,3 +639,133 @@ pub async fn put_namespace_pod_security(
         .unwrap_or_default();
     Ok(Json(labels_psa_view(&out)))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn test_policy_rule_is_wide_verbs_star() {
+        let rule = PolicyRule {
+            verbs: vec!["*".to_string()],
+            resources: Some(vec!["pods".to_string()]),
+            api_groups: Some(vec!["".to_string()]),
+            non_resource_urls: None,
+            resource_names: None,
+        };
+        assert!(policy_rule_is_wide(&rule));
+    }
+
+    #[test]
+    fn test_policy_rule_is_wide_resources_star() {
+        let rule = PolicyRule {
+            verbs: vec!["get".to_string()],
+            resources: Some(vec!["*".to_string()]),
+            api_groups: Some(vec!["".to_string()]),
+            non_resource_urls: None,
+            resource_names: None,
+        };
+        assert!(policy_rule_is_wide(&rule));
+    }
+
+    #[test]
+    fn test_policy_rule_is_wide_not_wide() {
+        let rule = PolicyRule {
+            verbs: vec!["get".to_string(), "list".to_string()],
+            resources: Some(vec!["pods".to_string()]),
+            api_groups: Some(vec!["".to_string()]),
+            non_resource_urls: None,
+            resource_names: None,
+        };
+        assert!(!policy_rule_is_wide(&rule));
+    }
+
+    #[test]
+    fn test_role_wide_rules_has_wildcard() {
+        let rules = vec![
+            PolicyRule {
+                verbs: vec!["get".to_string()],
+                resources: Some(vec!["pods".to_string()]),
+                api_groups: Some(vec!["".to_string()]),
+                non_resource_urls: None,
+                resource_names: None,
+            },
+            PolicyRule {
+                verbs: vec!["*".to_string()],
+                resources: Some(vec!["*".to_string()]),
+                api_groups: Some(vec!["*".to_string()]),
+                non_resource_urls: None,
+                resource_names: None,
+            },
+        ];
+        let (is_wide, warn) = role_wide_rules(&rules);
+        assert!(is_wide);
+        assert!(warn.is_some());
+    }
+
+    #[test]
+    fn test_role_wide_rules_not_wide() {
+        let rules = vec![
+            PolicyRule {
+                verbs: vec!["get".to_string()],
+                resources: Some(vec!["pods".to_string()]),
+                api_groups: Some(vec!["".to_string()]),
+                non_resource_urls: None,
+                resource_names: None,
+            },
+        ];
+        let (is_wide, warn) = role_wide_rules(&rules);
+        assert!(!is_wide);
+        assert!(warn.is_none());
+    }
+
+    #[test]
+    fn test_is_system_cluster_name_system_prefix() {
+        assert!(is_system_cluster_name("system:kube-scheduler"));
+        assert!(is_system_cluster_name("system:coredns"));
+    }
+
+    #[test]
+    fn test_is_system_cluster_name_cloud_prefixes() {
+        assert!(is_system_cluster_name("eks:cluster-role"));
+        assert!(is_system_cluster_name("gcp:node-role"));
+    }
+
+    #[test]
+    fn test_is_system_cluster_name_builtin_names() {
+        assert!(is_system_cluster_name("cluster-admin"));
+        assert!(is_system_cluster_name("admin"));
+        assert!(is_system_cluster_name("edit"));
+        assert!(is_system_cluster_name("view"));
+    }
+
+    #[test]
+    fn test_is_system_cluster_name_not_system() {
+        assert!(!is_system_cluster_name("my-role"));
+        assert!(!is_system_cluster_name("app-reader"));
+        assert!(!is_system_cluster_name(""));
+    }
+
+    #[test]
+    fn test_labels_psa_view() {
+        let mut labels = BTreeMap::new();
+        labels.insert("pod-security.kubernetes.io/enforce".to_string(), "restricted".to_string());
+        labels.insert("pod-security.kubernetes.io/audit".to_string(), "baseline".to_string());
+        labels.insert("pod-security.kubernetes.io/warn".to_string(), "restricted".to_string());
+
+        let view = labels_psa_view(&labels);
+        assert_eq!(view.enforce, Some("restricted".to_string()));
+        assert_eq!(view.audit, Some("baseline".to_string()));
+        assert_eq!(view.warn, Some("restricted".to_string()));
+    }
+
+    #[test]
+    fn test_labels_psa_view_missing_labels() {
+        let labels = BTreeMap::new();
+        let view = labels_psa_view(&labels);
+        assert_eq!(view.enforce, None);
+        assert_eq!(view.audit, None);
+        assert_eq!(view.warn, None);
+    }
+}

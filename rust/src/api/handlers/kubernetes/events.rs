@@ -548,3 +548,134 @@ fn format_memory(mem: u64) -> String {
         format!("{}", mem)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn test_parse_cpu_milli() {
+        assert_eq!(parse_cpu("100m"), Some(100));
+        assert_eq!(parse_cpu("500m"), Some(500));
+        assert_eq!(parse_cpu("1000m"), Some(1000));
+    }
+
+    #[test]
+    fn test_parse_cpu_whole() {
+        assert_eq!(parse_cpu("1"), Some(1000));
+        assert_eq!(parse_cpu("2"), Some(2000));
+        assert_eq!(parse_cpu("0"), Some(0));
+    }
+
+    #[test]
+    fn test_parse_cpu_invalid() {
+        assert_eq!(parse_cpu("abc"), None);
+        assert_eq!(parse_cpu(""), None);
+        assert_eq!(parse_cpu("10x"), None);
+    }
+
+    #[test]
+    fn test_parse_memory_bytes() {
+        assert_eq!(parse_memory("100"), Some(100));
+        assert_eq!(parse_memory("0"), Some(0));
+    }
+
+    #[test]
+    fn test_parse_memory_kibi() {
+        assert_eq!(parse_memory("1024Ki"), Some(1024 * 1024));
+        assert_eq!(parse_memory("512Ki"), Some(512 * 1024));
+    }
+
+    #[test]
+    fn test_parse_memory_mebi() {
+        assert_eq!(parse_memory("1Gi"), Some(1024 * 1024 * 1024));
+        assert_eq!(parse_memory("512Mi"), Some(512 * 1024 * 1024));
+    }
+
+    #[test]
+    fn test_parse_memory_invalid() {
+        assert_eq!(parse_memory("abc"), None);
+        assert_eq!(parse_memory(""), None);
+    }
+
+    #[test]
+    fn test_format_cpu_milli() {
+        assert_eq!(format_cpu(1000), "1000m");
+        assert_eq!(format_cpu(5000), "5000m");
+    }
+
+    #[test]
+    fn test_format_cpu_whole() {
+        assert_eq!(format_cpu(100), "100");
+        assert_eq!(format_cpu(500), "500");
+    }
+
+    #[test]
+    fn test_format_memory_bytes() {
+        assert_eq!(format_memory(100), "100");
+        assert_eq!(format_memory(0), "0");
+    }
+
+    #[test]
+    fn test_format_memory_kibi() {
+        assert_eq!(format_memory(1024), "1Ki");
+        assert_eq!(format_memory(2048), "2Ki");
+    }
+
+    #[test]
+    fn test_format_memory_mebi() {
+        assert_eq!(format_memory(1024 * 1024), "1Mi");
+        assert_eq!(format_memory(512 * 1024 * 1024), "512Mi");
+    }
+
+    #[test]
+    fn test_format_memory_gibi() {
+        assert_eq!(format_memory(1024 * 1024 * 1024), "1.0Gi");
+        assert_eq!(format_memory(2 * 1024 * 1024 * 1024), "2.0Gi");
+    }
+
+    #[test]
+    fn test_matches_selector_empty_selector() {
+        let labels = Some(BTreeMap::from([("app".to_string(), "web".to_string())]));
+        let selector = BTreeMap::new();
+        assert!(matches_selector(&labels, &selector));
+    }
+
+    #[test]
+    fn test_matches_selector_single_match() {
+        let labels = Some(BTreeMap::from([("app".to_string(), "web".to_string())]));
+        let selector = BTreeMap::from([("app".to_string(), "web".to_string())]);
+        assert!(matches_selector(&labels, &selector));
+    }
+
+    #[test]
+    fn test_matches_selector_no_match() {
+        let labels = Some(BTreeMap::from([("app".to_string(), "web".to_string())]));
+        let selector = BTreeMap::from([("app".to_string(), "api".to_string())]);
+        assert!(!matches_selector(&labels, &selector));
+    }
+
+    #[test]
+    fn test_matches_selector_missing_label() {
+        let labels = Some(BTreeMap::from([("app".to_string(), "web".to_string())]));
+        let selector = BTreeMap::from([("tier".to_string(), "frontend".to_string())]);
+        assert!(!matches_selector(&labels, &selector));
+    }
+
+    #[test]
+    fn test_matches_selector_none_labels() {
+        let selector = BTreeMap::from([("app".to_string(), "web".to_string())]);
+        assert!(!matches_selector(&None, &selector));
+    }
+
+    #[test]
+    fn test_matches_selector_multiple_keys() {
+        let labels = Some(BTreeMap::from([
+            ("app".to_string(), "web".to_string()),
+            ("env".to_string(), "prod".to_string()),
+        ]));
+        let selector = BTreeMap::from([("app".to_string(), "web".to_string())]);
+        assert!(matches_selector(&labels, &selector));
+    }
+}
