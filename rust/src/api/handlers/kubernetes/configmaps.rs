@@ -484,3 +484,35 @@ pub async fn get_configmap_references(
 
     Ok(Json(refs))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_configmap_summary_struct() {
+        let summary = ConfigMapSummary {
+            name: "test-cm".to_string(),
+            namespace: "default".to_string(),
+            data_keys: 2,
+            binary_data_keys: 1,
+            binary_total_bytes: 100,
+        };
+        assert_eq!(summary.name, "test-cm");
+        assert_eq!(summary.data_keys, 2);
+        assert_eq!(summary.binary_data_keys, 1);
+        assert_eq!(summary.binary_total_bytes, 100);
+    }
+
+    #[test]
+    fn test_configmap_reference_struct() {
+        let ref_item = ConfigMapReference {
+            kind: "Deployment".to_string(),
+            name: "my-deploy".to_string(),
+            namespace: "default".to_string(),
+            field: "spec.template.spec.volumes".to_string(),
+        };
+        assert_eq!(ref_item.kind, "Deployment");
+        assert_eq!(ref_item.name, "my-deploy");
+    }
+}

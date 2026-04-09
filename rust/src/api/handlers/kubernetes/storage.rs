@@ -336,3 +336,54 @@ pub async fn delete_storage_class(
         serde_json::json!({"status":"ok","message":format!("StorageClass {} deleted", name)}),
     ))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_pv_summary_struct() {
+        let summary = PersistentVolumeSummary {
+            name: "test-pv".to_string(),
+            status: "Bound".to_string(),
+            capacity: None,
+            access_modes: vec![],
+            reclaim_policy: Some("Delete".to_string()),
+            storage_class_name: Some("standard".to_string()),
+            claim_ref: None,
+        };
+        assert_eq!(summary.name, "test-pv");
+        assert_eq!(summary.status, "Bound");
+    }
+
+    #[test]
+    fn test_pvc_summary_struct() {
+        let summary = PersistentVolumeClaimSummary {
+            name: "test-pvc".to_string(),
+            namespace: "default".to_string(),
+            phase: "Bound".to_string(),
+            capacity: Some("10Gi".to_string()),
+            access_modes: vec!["ReadWriteOnce".to_string()],
+            volume_name: Some("pv-1".to_string()),
+            storage_class_name: Some("gp2".to_string()),
+        };
+        assert_eq!(summary.name, "test-pvc");
+        assert_eq!(summary.capacity, Some("10Gi".to_string()));
+    }
+
+    #[test]
+    fn test_sc_summary_struct() {
+        let summary = StorageClassSummary {
+            name: "gp2".to_string(),
+            provisioner: "ebs.csi.aws.com".to_string(),
+            reclaim_policy: Some("Delete".to_string()),
+            volume_binding_mode: Some("WaitForFirstConsumer".to_string()),
+            allow_volume_expansion: Some(true),
+            is_default: false,
+        };
+        assert_eq!(summary.name, "gp2");
+        assert_eq!(summary.provisioner, "ebs.csi.aws.com");
+        assert_eq!(summary.allow_volume_expansion, Some(true));
+        assert!(!summary.is_default);
+    }
+}

@@ -392,3 +392,65 @@ pub async fn delete_pdb(
         serde_json::json!({"status":"ok","message":format!("PodDisruptionBudget {}/{} deleted", namespace, name)}),
     ))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_job_summary_from_values() {
+        // Проверяем что JobSummary правильно сериализуется
+        let summary = JobSummary {
+            name: "test-job".to_string(),
+            namespace: "default".to_string(),
+            active: 1,
+            succeeded: 2,
+            failed: 0,
+            completions: Some(3),
+            parallelism: Some(2),
+        };
+        assert_eq!(summary.name, "test-job");
+        assert_eq!(summary.active, 1);
+        assert_eq!(summary.succeeded, 2);
+    }
+
+    #[test]
+    fn test_cron_job_summary_from_values() {
+        let summary = CronJobSummary {
+            name: "test-cron".to_string(),
+            namespace: "default".to_string(),
+            schedule: "*/5 * * * *".to_string(),
+            suspend: false,
+            active: 0,
+            last_schedule_time: None,
+        };
+        assert_eq!(summary.name, "test-cron");
+        assert_eq!(summary.schedule, "*/5 * * * *");
+        assert!(!summary.suspend);
+    }
+
+    #[test]
+    fn test_priority_class_summary() {
+        let summary = PriorityClassSummary {
+            name: "high-priority".to_string(),
+            value: 1000,
+            global_default: false,
+            description: Some("High priority".to_string()),
+        };
+        assert_eq!(summary.name, "high-priority");
+        assert_eq!(summary.value, 1000);
+        assert!(!summary.global_default);
+    }
+
+    #[test]
+    fn test_pdb_summary() {
+        let summary = PdbSummary {
+            name: "test-pdb".to_string(),
+            namespace: "default".to_string(),
+            min_available: Some("1".to_string()),
+            max_unavailable: None,
+        };
+        assert_eq!(summary.name, "test-pdb");
+        assert_eq!(summary.min_available, Some("1".to_string()));
+    }
+}
