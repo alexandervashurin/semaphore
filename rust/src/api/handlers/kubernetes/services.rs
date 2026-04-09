@@ -425,3 +425,62 @@ pub async fn get_service_endpoints(
     }
     Ok(Json(out))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_service_port_payload() {
+        let port = ServicePortPayload {
+            name: Some("http".to_string()),
+            port: 80,
+            target_port: Some("8080".to_string()),
+            protocol: Some("TCP".to_string()),
+            node_port: Some(30080),
+        };
+        assert_eq!(port.name, Some("http".to_string()));
+        assert_eq!(port.port, 80);
+        assert_eq!(port.node_port, Some(30080));
+    }
+
+    #[test]
+    fn test_service_summary() {
+        let summary = ServiceSummary {
+            name: "my-service".to_string(),
+            namespace: "default".to_string(),
+            uid: "uid-123".to_string(),
+            type_: "ClusterIP".to_string(),
+            cluster_ip: "10.0.0.1".to_string(),
+            external_ips: vec![],
+            ports: vec!["80/TCP".to_string()],
+            selector: BTreeMap::from([("app".to_string(), "web".to_string())]),
+            age: "5d".to_string(),
+            load_balancer_ip: None,
+        };
+        assert_eq!(summary.name, "my-service");
+        assert_eq!(summary.type_, "ClusterIP");
+    }
+
+    #[test]
+    fn test_service_backends_response() {
+        let resp = ServiceBackendsResponse {
+            source: "endpoints".to_string(),
+            fallback_used: false,
+            items: vec![],
+        };
+        assert_eq!(resp.source, "endpoints");
+        assert!(!resp.fallback_used);
+    }
+
+    #[test]
+    fn test_list_services_query() {
+        let query = ListServicesQuery {
+            namespace: Some("default".to_string()),
+            label_selector: Some("app=web".to_string()),
+            limit: Some(10),
+        };
+        assert_eq!(query.namespace, Some("default".to_string()));
+        assert_eq!(query.limit, Some(10));
+    }
+}
