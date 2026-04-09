@@ -380,3 +380,71 @@ fn csv_escape(s: &str) -> String {
 pub struct ExpiryParams {
     pub before: chrono::DateTime<chrono::Utc>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_csv_escape_simple() {
+        assert_eq!(csv_escape("simple"), "simple");
+        assert_eq!(csv_escape("no commas or quotes"), "no commas or quotes");
+    }
+
+    #[test]
+    fn test_csv_escape_with_comma() {
+        assert_eq!(csv_escape("value,with,commas"), "\"value,with,commas\"");
+    }
+
+    #[test]
+    fn test_csv_escape_with_quote() {
+        assert_eq!(csv_escape("value\"with\"quotes"), "\"value\"\"with\"\"quotes\"");
+    }
+
+    #[test]
+    fn test_csv_escape_with_newline() {
+        assert_eq!(csv_escape("line1\nline2"), "\"line1\nline2\"");
+    }
+
+    #[test]
+    fn test_csv_escape_empty() {
+        assert_eq!(csv_escape(""), "");
+    }
+
+    #[test]
+    fn test_audit_log_query_params_defaults() {
+        let params = AuditLogQueryParams {
+            project_id: None,
+            user_id: None,
+            username: None,
+            action: None,
+            object_type: None,
+            object_id: None,
+            level: None,
+            search: None,
+            date_from: None,
+            date_to: None,
+            limit: None,
+            offset: None,
+            sort: None,
+            order: None,
+        };
+        assert!(params.project_id.is_none());
+        assert!(params.limit.is_none());
+    }
+
+    #[test]
+    fn test_export_params() {
+        let params = ExportParams {
+            format: Some("csv".to_string()),
+            from: None,
+            to: None,
+            project_id: Some(1),
+            user_id: None,
+            action: None,
+            limit: None,
+        };
+        assert_eq!(params.project_id, Some(1));
+        assert_eq!(params.format, Some("csv".to_string()));
+    }
+}

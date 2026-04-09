@@ -466,3 +466,91 @@ pub async fn update_helm_release_values(
         values: Some(values),
     }))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_helm_repository() {
+        let repo = HelmRepository {
+            name: "bitnami".to_string(),
+            url: "https://charts.bitnami.com/bitnami".to_string(),
+            username: None,
+        };
+        assert_eq!(repo.name, "bitnami");
+        assert!(repo.url.contains("bitnami"));
+    }
+
+    #[test]
+    fn test_create_helm_repository_request() {
+        let req = CreateHelmRepositoryRequest {
+            name: "jetstack".to_string(),
+            url: "https://charts.jetstack.io".to_string(),
+            username: Some("user".to_string()),
+            password: Some("pass".to_string()),
+        };
+        assert_eq!(req.name, "jetstack");
+        assert_eq!(req.username, Some("user".to_string()));
+    }
+
+    #[test]
+    fn test_helm_chart() {
+        let chart = HelmChart {
+            name: "nginx".to_string(),
+            version: "1.0.0".to_string(),
+            app_version: Some("1.21".to_string()),
+            description: Some("Nginx chart".to_string()),
+            home: None,
+            sources: vec![],
+            keywords: vec![],
+        };
+        assert_eq!(chart.name, "nginx");
+        assert_eq!(chart.version, "1.0.0");
+    }
+
+    #[test]
+    fn test_helm_release() {
+        let release = HelmRelease {
+            name: "my-release".to_string(),
+            namespace: "default".to_string(),
+            chart: "nginx".to_string(),
+            chart_version: "1.0.0".to_string(),
+            app_version: Some("1.21".to_string()),
+            status: "deployed".to_string(),
+            revision: 1,
+            deployed_at: Some("2024-01-01T00:00:00Z".to_string()),
+            values: None,
+        };
+        assert_eq!(release.name, "my-release");
+        assert_eq!(release.status, "deployed");
+        assert_eq!(release.revision, 1);
+    }
+
+    #[test]
+    fn test_helm_release_with_values() {
+        let values = serde_json::json!({"replicaCount": 3});
+        let release = HelmRelease {
+            name: "my-release".to_string(),
+            namespace: "default".to_string(),
+            chart: "app".to_string(),
+            chart_version: "2.0.0".to_string(),
+            app_version: None,
+            status: "deployed".to_string(),
+            revision: 2,
+            deployed_at: None,
+            values: Some(values),
+        };
+        assert!(release.values.is_some());
+    }
+
+    #[test]
+    fn test_helm_repo_list() {
+        let list = HelmRepositoryList {
+            repositories: vec![
+                HelmRepository { name: "stable".to_string(), url: "https://stable".to_string(), username: None },
+            ],
+        };
+        assert_eq!(list.repositories.len(), 1);
+    }
+}

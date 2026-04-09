@@ -447,3 +447,96 @@ pub struct PrometheusHealthResponse {
     pub url: String,
     pub message: String,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_prometheus_metric_single() {
+        let metric = PrometheusMetric {
+            metric: "cpu_usage".to_string(),
+            value: MetricValue::Single(0.75),
+            labels: std::collections::HashMap::new(),
+        };
+        let json = serde_json::to_string(&metric).unwrap();
+        assert!(json.contains("cpu_usage"));
+        assert!(json.contains("0.75"));
+    }
+
+    #[test]
+    fn test_metric_value_single_serialize() {
+        let value = MetricValue::Single(42.5);
+        let json = serde_json::to_string(&value).unwrap();
+        assert_eq!(json, "42.5");
+    }
+
+    #[test]
+    fn test_metric_value_timeseries_serialize() {
+        let now = Utc::now();
+        let value = MetricValue::TimeSeries(vec![(now, 1.0), (now, 2.0)]);
+        let json = serde_json::to_string(&value).unwrap();
+        assert!(json.starts_with("[["));
+    }
+
+    #[test]
+    fn test_prometheus_query() {
+        let query = PrometheusQuery {
+            query: "up".to_string(),
+            time: None,
+            timeout: None,
+        };
+        assert_eq!(query.query, "up");
+        assert!(query.time.is_none());
+    }
+
+    #[test]
+    fn test_prometheus_range_query() {
+        let query = PrometheusRangeQuery {
+            query: "rate(http_requests_total[5m])".to_string(),
+            start: "2024-01-01T00:00:00Z".to_string(),
+            end: "2024-01-01T01:00:00Z".to_string(),
+            step: "1m".to_string(),
+            timeout: None,
+        };
+        assert_eq!(query.query, "rate(http_requests_total[5m])");
+        assert_eq!(query.step, "1m");
+    }
+
+    #[test]
+    fn test_prometheus_response() {
+        let response = PrometheusResponse {
+            status: "success".to_string(),
+            data: PrometheusData {
+                result_type: "vector".to_string(),
+                result: vec![],
+            },
+        };
+        assert_eq!(response.status, "success");
+        assert!(response.data.result.is_empty());
+    }
+
+    #[test]
+    fn test_prometheus_health_response() {
+        let response = PrometheusHealthResponse {
+            status: "up".to_string(),
+            url: "http://prometheus:9090".to_string(),
+            message: "Prometheus is healthy".to_string(),
+        };
+        assert_eq!(response.status, "up");
+        assert!(response.message.contains("healthy"));
+    }
+
+    #[test]
+    fn test_prometheus_result_with_metrics() {
+        let mut labels = std::collections::HashMap::new();
+        labels.insert("job".to_string(), "api".to_string());
+        let result = PrometheusResult {
+            metric: labels,
+            value: Some((1704067200.0, "100.0".to_string())),
+            values: vec![],
+        };
+        assert!(result.value.is_some());
+        assert!(result.values.is_empty());
+    }
+}

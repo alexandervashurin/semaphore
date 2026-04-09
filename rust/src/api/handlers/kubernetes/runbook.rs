@@ -418,3 +418,96 @@ pub async fn get_runbook_status(
         task_url: format!("/api/project/{}/tasks/{}", project_id, task.id),
     }))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_kubernetes_context() {
+        let ctx = KubernetesContext {
+            kind: "Pod".to_string(),
+            name: "my-pod".to_string(),
+            namespace: "default".to_string(),
+            cluster: Some("prod".to_string()),
+            uid: Some("uid-123".to_string()),
+            labels: None,
+        };
+        assert_eq!(ctx.kind, "Pod");
+        assert_eq!(ctx.name, "my-pod");
+        assert_eq!(ctx.namespace, "default");
+    }
+
+    #[test]
+    fn test_runbook_task_params_defaults() {
+        let params = RunbookTaskParams {
+            arguments: None,
+            git_branch: None,
+            environment_id: None,
+            inventory_id: None,
+            limit: None,
+            tags: None,
+            skip_tags: None,
+            debug: false,
+            dry_run: false,
+            diff: false,
+        };
+        assert!(!params.debug);
+        assert!(!params.dry_run);
+        assert!(params.arguments.is_none());
+    }
+
+    #[test]
+    fn test_runbook_request() {
+        let req = RunbookRequest {
+            template_id: 5,
+            kubernetes_context: KubernetesContext {
+                kind: "Deployment".to_string(),
+                name: "web".to_string(),
+                namespace: "default".to_string(),
+                cluster: None,
+                uid: None,
+                labels: None,
+            },
+            task_params: RunbookTaskParams::default(),
+            message: Some("Restarting deployment".to_string()),
+        };
+        assert_eq!(req.template_id, 5);
+        assert_eq!(req.kubernetes_context.kind, "Deployment");
+    }
+
+    #[test]
+    fn test_runbook_response() {
+        let resp = RunbookResponse {
+            task_id: 42,
+            status: "running".to_string(),
+            message: "Task started".to_string(),
+            task_url: "/api/project/1/tasks/42".to_string(),
+        };
+        assert_eq!(resp.task_id, 42);
+        assert_eq!(resp.status, "running");
+    }
+
+    #[test]
+    fn test_runbook_category_enum() {
+        let cat = RunbookCategory::Diagnostic;
+        assert_eq!(cat, RunbookCategory::Diagnostic);
+        assert_eq!(RunbookCategory::Remediation, RunbookCategory::Remediation);
+    }
+
+    #[test]
+    fn test_runbook_category_all_variants() {
+        let categories = [
+            RunbookCategory::Diagnostic,
+            RunbookCategory::Remediation,
+            RunbookCategory::Maintenance,
+            RunbookCategory::Scaling,
+            RunbookCategory::Backup,
+            RunbookCategory::Other,
+        ];
+        for cat in &categories {
+            let json = serde_json::to_string(cat).unwrap();
+            assert!(json.starts_with('"'));
+        }
+    }
+}
