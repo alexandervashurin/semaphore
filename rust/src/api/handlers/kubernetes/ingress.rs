@@ -261,3 +261,57 @@ pub async fn get_ingress_class(
 
     Ok(Json(class))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_service_port_by_name() {
+        let port = k8s_openapi::api::networking::v1::ServiceBackendPort {
+            name: Some("http".to_string()),
+            number: Some(80),
+        };
+        assert_eq!(parse_service_port(&port), Some("http".to_string()));
+    }
+
+    #[test]
+    fn test_parse_service_port_by_number() {
+        let port = k8s_openapi::api::networking::v1::ServiceBackendPort {
+            name: None,
+            number: Some(443),
+        };
+        assert_eq!(parse_service_port(&port), Some("443".to_string()));
+    }
+
+    #[test]
+    fn test_parse_service_port_neither() {
+        let port = k8s_openapi::api::networking::v1::ServiceBackendPort {
+            name: None,
+            number: None,
+        };
+        assert_eq!(parse_service_port(&port), None);
+    }
+
+    #[test]
+    fn test_ingress_path_backend() {
+        let backend = IngressPathBackend {
+            path: "/api".to_string(),
+            path_type: None,
+            service_name: Some("my-service".to_string()),
+            service_port: Some("http".to_string()),
+        };
+        assert_eq!(backend.path, "/api");
+        assert_eq!(backend.service_name, Some("my-service".to_string()));
+    }
+
+    #[test]
+    fn test_ingress_tls_view() {
+        let tls = IngressTlsView {
+            hosts: vec!["example.com".to_string()],
+            secret_name: Some("tls-secret".to_string()),
+        };
+        assert_eq!(tls.hosts.len(), 1);
+        assert_eq!(tls.secret_name, Some("tls-secret".to_string()));
+    }
+}
