@@ -661,3 +661,90 @@ pub async fn get_vertical_pod_autoscaler(
         .map_err(|e| Error::Kubernetes(e.to_string()))?;
     Ok(Json(serde_json::json!(obj)))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_hpa_summary() {
+        let summary = HpaSummary {
+            name: "web-hpa".to_string(),
+            namespace: "default".to_string(),
+            min_replicas: Some(2),
+            max_replicas: 10,
+            target_ref: "Deployment/web".to_string(),
+            current_replicas: Some(3),
+            desired_replicas: Some(4),
+            metrics_hint: Some("CPU at 75%".to_string()),
+        };
+        assert_eq!(summary.name, "web-hpa");
+        assert_eq!(summary.max_replicas, 10);
+    }
+
+    #[test]
+    fn test_resource_quota_summary() {
+        let summary = ResourceQuotaSummary {
+            name: "default-quota".to_string(),
+            namespace: "default".to_string(),
+            hard: Some(serde_json::json!({"cpu": "4", "memory": "8Gi"})),
+            used: Some(serde_json::json!({"cpu": "2", "memory": "4Gi"})),
+        };
+        assert_eq!(summary.name, "default-quota");
+        assert!(summary.hard.is_some());
+    }
+
+    #[test]
+    fn test_limit_range_summary() {
+        let summary = LimitRangeSummary {
+            name: "default-limits".to_string(),
+            namespace: "default".to_string(),
+            limits_count: 3,
+        };
+        assert_eq!(summary.name, "default-limits");
+        assert_eq!(summary.limits_count, 3);
+    }
+
+    #[test]
+    fn test_crd_summary() {
+        let summary = CrdSummary {
+            name: "ingresses.networking.k8s.io".to_string(),
+            group: "networking.k8s.io".to_string(),
+            kind: "Ingress".to_string(),
+            plural: "ingresses".to_string(),
+            scope: "Namespaced".to_string(),
+            versions: vec!["v1".to_string()],
+        };
+        assert_eq!(summary.kind, "Ingress");
+        assert_eq!(summary.scope, "Namespaced");
+    }
+
+    #[test]
+    fn test_vpa_api_status() {
+        let status = VpaApiStatus {
+            installed: true,
+        };
+        assert!(status.installed);
+    }
+
+    #[test]
+    fn test_custom_object_query() {
+        let query = CustomObjectQuery {
+            group: "networking.k8s.io".to_string(),
+            version: "v1".to_string(),
+            plural: "ingresses".to_string(),
+            kind: "Ingress".to_string(),
+            namespace: Some("default".to_string()),
+        };
+        assert_eq!(query.group, "networking.k8s.io");
+        assert_eq!(query.namespace, Some("default".to_string()));
+    }
+
+    #[test]
+    fn test_ns_query() {
+        let query = NsQuery {
+            namespace: Some("kube-system".to_string()),
+        };
+        assert_eq!(query.namespace, Some("kube-system".to_string()));
+    }
+}
