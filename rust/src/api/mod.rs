@@ -16,6 +16,8 @@ pub mod login;
 pub mod mcp;
 pub mod middleware;
 pub mod options;
+#[path = "routes.rs"]
+pub mod routes_full;
 pub mod routes {
     pub mod auth;
     pub mod kubernetes;

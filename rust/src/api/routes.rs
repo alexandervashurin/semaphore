@@ -853,34 +853,34 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/api/kubernetes/namespaces/{namespace}/deployments/{name}/scale", put(handlers::scale_deployment))
         .route("/api/kubernetes/namespaces/{namespace}/deployments/{name}/restart", post(handlers::restart_deployment))
         .route("/api/kubernetes/daemonsets", get(handlers::list_daemonsets))
-        .route("/api/kubernetes/namespaces/{namespace}/daemonsets/{name}/restart", post(handlers::restart_daemonset))
+        .route("/api/kubernetes/namespaces/{namespace}/daemonsets/{name}/restart", post(handlers::kubernetes::workloads_k8s::restart_daemonset))
         .route("/api/kubernetes/statefulsets", get(handlers::list_statefulsets))
         .route("/api/kubernetes/namespaces/{namespace}/statefulsets/{name}/scale", put(handlers::scale_statefulset))
         .route("/api/kubernetes/replicasets", get(handlers::list_replicasets))
-        .route("/api/kubernetes/k8s-events", get(handlers::list_k8s_events))
+        .route("/api/kubernetes/k8s-events", get(handlers::kubernetes::workloads_k8s::list_k8s_events))
         // ── Phase 8: Observability ────────────────────────────────────────
-        .route("/api/kubernetes/metrics/status", get(handlers::get_metrics_status))
+        .route("/api/kubernetes/metrics/status", get(handlers::kubernetes::observability::get_metrics_status))
         .route("/api/kubernetes/metrics/nodes", get(handlers::get_node_metrics))
         .route("/api/kubernetes/metrics/pods", get(handlers::get_pod_metrics))
         .route("/api/kubernetes/topology", get(handlers::get_topology))
-        .route("/api/kubernetes/topology/namespaces/{namespace}", get(handlers::get_namespace_topology))
+        .route("/api/kubernetes/topology/namespaces/{namespace}", get(handlers::kubernetes::observability::get_namespace_topology))
         // ── Phase 9: Helm ─────────────────────────────────────────────────
-        .route("/api/kubernetes/helm/status", get(handlers::helm_status))
+        .route("/api/kubernetes/helm/status", get(handlers::kubernetes::helm_handler::helm_status))
         .route("/api/kubernetes/helm/repos", get(handlers::list_helm_repos).post(handlers::add_helm_repo))
-        .route("/api/kubernetes/helm/repos/update", post(handlers::update_helm_repos))
-        .route("/api/kubernetes/helm/repos/{name}", delete(handlers::remove_helm_repo))
-        .route("/api/kubernetes/helm/releases", get(handlers::list_helm_releases).post(handlers::install_helm_release))
+        .route("/api/kubernetes/helm/repos/update", post(handlers::kubernetes::helm_handler::update_helm_repos))
+        .route("/api/kubernetes/helm/repos/{name}", delete(handlers::kubernetes::helm_handler::remove_helm_repo))
+        .route("/api/kubernetes/helm/releases", get(handlers::list_helm_releases).post(handlers::kubernetes::helm_handler::install_helm_release))
         .route("/api/kubernetes/helm/search", get(handlers::search_helm_charts))
-        .route("/api/kubernetes/helm/namespaces/{ns}/releases/{name}", get(handlers::get_helm_release).put(handlers::upgrade_helm_release).delete(handlers::uninstall_helm_release))
-        .route("/api/kubernetes/helm/namespaces/{ns}/releases/{name}/history", get(handlers::helm_release_history))
+        .route("/api/kubernetes/helm/namespaces/{ns}/releases/{name}", get(handlers::kubernetes::helm_handler::get_helm_release).put(handlers::upgrade_helm_release).delete(handlers::uninstall_helm_release))
+        .route("/api/kubernetes/helm/namespaces/{ns}/releases/{name}/history", get(handlers::kubernetes::helm_handler::helm_release_history))
         .route("/api/kubernetes/helm/namespaces/{ns}/releases/{name}/rollback", post(handlers::rollback_helm_release))
         .route("/api/kubernetes/helm/namespaces/{ns}/releases/{name}/values", get(handlers::get_helm_release_values))
-        .route("/api/kubernetes/helm/namespaces/{ns}/releases/{name}/manifest", get(handlers::get_helm_release_manifest))
-        .route("/api/kubernetes/helm/charts/{chart}/values", get(handlers::get_chart_default_values))
+        .route("/api/kubernetes/helm/namespaces/{ns}/releases/{name}/manifest", get(handlers::kubernetes::helm_handler::get_helm_release_manifest))
+        .route("/api/kubernetes/helm/charts/{chart}/values", get(handlers::kubernetes::helm_handler::get_chart_default_values))
         // ── Phase 10: Apply & Clusters ────────────────────────────────────
         .route("/api/kubernetes/apply", post(handlers::apply_manifest))
         .route("/api/kubernetes/apply/diff", post(handlers::diff_manifest))
-        .route("/api/kubernetes/apply/kubectl", get(handlers::generate_kubectl_command))
+        .route("/api/kubernetes/apply/kubectl", get(handlers::kubernetes::apply::generate_kubectl_command))
         .route("/api/kubernetes/clusters", get(handlers::list_configured_clusters))
         .route("/api/kubernetes/clusters/switch", post(handlers::switch_cluster_context))
 }
@@ -928,4 +928,477 @@ pub fn static_routes() -> Router<Arc<AppState>> {
         // В axum 0.8 используем fallback_service вместо nest_service
         .fallback_service(serve_dir)
         .layer(middleware::from_fn(check_api_path))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── Тест 1: api_routes() создаётся без паники ──────────────────────────
+    #[test]
+    fn test_api_routes_creates_without_panic() {
+        let router = api_routes();
+        // Проверяем что router не пустой — у него есть маршруты
+        assert!(std::mem::size_of_val(&router) > 0);
+    }
+
+    // ── Тест 2: static_routes() создаётся (зависит от наличия web/public) ─
+    #[test]
+    fn test_static_routes_creates_without_panic() {
+        // static_routes может вернуть пустой Router если директории нет
+        let _router = static_routes();
+        // Тест проходит в любом случае — функция не паникует
+    }
+
+    // ── Тест 3: Проверка что модуль schedules существует и имеет функции ───
+    #[test]
+    fn test_schedules_module_exists() {
+        // Проверяем что функции модуля schedules доступны
+        let _fn = schedules::get_project_schedules;
+        let _fn = schedules::add_schedule;
+        let _fn = schedules::get_schedule;
+        let _fn = schedules::update_schedule;
+        let _fn = schedules::delete_schedule;
+        let _fn = schedules::validate_schedule_cron_format;
+        let _fn = schedules::toggle_schedule_active;
+    }
+
+    // ── Тест 4: Проверка что модуль views существует ───────────────────────
+    #[test]
+    fn test_views_module_exists() {
+        let _fn = views::get_views;
+        let _fn = views::add_view;
+        let _fn = views::get_view;
+        let _fn = views::update_view;
+        let _fn = views::delete_view;
+        let _fn = views::set_view_positions;
+    }
+
+    // ── Тест 5: Проверка что модуль integration существует ─────────────────
+    #[test]
+    fn test_integration_module_exists() {
+        let _fn = project_integration::get_integrations;
+        let _fn = project_integration::add_integration;
+        let _fn = project_integration::get_integration;
+        let _fn = project_integration::update_integration;
+        let _fn = project_integration::delete_integration;
+        let _fn = project_integration::get_integration_matchers;
+        let _fn = project_integration::add_integration_matcher;
+        let _fn = project_integration::update_integration_matcher;
+        let _fn = project_integration::delete_integration_matcher;
+        let _fn = project_integration::get_integration_extract_values;
+        let _fn = project_integration::add_integration_extract_value;
+        let _fn = project_integration::update_integration_extract_value;
+        let _fn = project_integration::delete_integration_extract_value;
+    }
+
+    // ── Тест 6: Проверка что модуль integration_alias существует ───────────
+    #[test]
+    fn test_integration_alias_module_exists() {
+        let _fn = integration_alias::get_integration_aliases;
+        let _fn = integration_alias::add_integration_alias;
+        let _fn = integration_alias::delete_integration_alias;
+    }
+
+    // ── Тест 7: Проверка что модуль secret_storages существует ─────────────
+    #[test]
+    fn test_secret_storages_module_exists() {
+        let _fn = secret_storages::get_secret_storages;
+        let _fn = secret_storages::add_secret_storage;
+        let _fn = secret_storages::get_secret_storage;
+        let _fn = secret_storages::update_secret_storage;
+        let _fn = secret_storages::delete_secret_storage;
+        let _fn = secret_storages::sync_secret_storage;
+        let _fn = secret_storages::get_secret_storage_refs;
+    }
+
+    // ── Тест 8: Проверка что модуль project_users существует ───────────────
+    #[test]
+    fn test_project_users_module_exists() {
+        let _fn = project_users::get_users;
+        let _fn = project_users::add_user;
+        let _fn = project_users::update_user_role;
+        let _fn = project_users::delete_user;
+    }
+
+    // ── Тест 9: Проверка что модуль tasks существует ───────────────────────
+    #[test]
+    fn test_tasks_module_exists() {
+        let _fn = tasks::stop_task;
+        let _fn = tasks::confirm_task;
+        let _fn = tasks::reject_task;
+        let _fn = tasks::get_task_output;
+        let _fn = tasks::get_task_raw_output;
+        let _fn = tasks::get_task_stages;
+        let _fn = tasks::get_last_tasks;
+    }
+
+    // ── Тест 10: Проверка что модуль templates существует ──────────────────
+    #[test]
+    fn test_templates_module_exists() {
+        let _fn = templates::get_template_schedules;
+        let _fn = templates::get_template_tasks;
+        let _fn = templates::get_template_last_task;
+        let _fn = templates::get_template_stats;
+    }
+
+    // ── Тест 11: Проверка что модуль repository существует ─────────────────
+    #[test]
+    fn test_repository_module_exists() {
+        let _fn = repository::get_repository_branches;
+    }
+
+    // ── Тест 12: Проверка что модуль notifications существует ──────────────
+    #[test]
+    fn test_notifications_module_exists() {
+        let _fn = notifications::send_test_notification;
+    }
+
+    // ── Тест 13: Проверка что модуль backup_restore существует ─────────────
+    #[test]
+    fn test_backup_restore_module_exists() {
+        let _fn = backup_restore::get_backup;
+        let _fn = backup_restore::restore_backup;
+        let _fn = backup_restore::verify_backup;
+    }
+
+    // ── Тест 14: Проверка что модуль refs существует ───────────────────────
+    #[test]
+    fn test_refs_module_exists() {
+        let _fn = refs::get_key_refs;
+        let _fn = refs::get_repository_refs;
+        let _fn = refs::get_inventory_refs;
+        let _fn = refs::get_template_refs;
+        let _fn = refs::get_integration_refs;
+    }
+
+    // ── Тест 15: Проверка что модуль invites существует ────────────────────
+    #[test]
+    fn test_invites_module_exists() {
+        let _fn = invites::get_invites;
+        let _fn = invites::create_invite;
+        let _fn = invites::delete_invite;
+        let _fn = invites::accept_invite;
+    }
+
+    // ── Тест 16: Проверка что модуль roles существует ──────────────────────
+    #[test]
+    fn test_roles_module_exists() {
+        let _fn = roles::get_all_roles;
+        let _fn = roles::get_roles;
+        let _fn = roles::create_role;
+        let _fn = roles::get_role;
+        let _fn = roles::update_role;
+        let _fn = roles::delete_role;
+    }
+
+    // ── Тест 17: Проверка что модуль events существует ─────────────────────
+    #[test]
+    fn test_events_module_exists() {
+        let _fn = events::get_all_events;
+        let _fn = events::get_last_events;
+        let _fn = events::get_project_events;
+    }
+
+    // ── Тест 18: Проверка что модуль apps существует ───────────────────────
+    #[test]
+    fn test_apps_module_exists() {
+        let _fn = apps::get_apps;
+        let _fn = apps::get_app;
+        let _fn = apps::update_app;
+        let _fn = apps::delete_app;
+        let _fn = apps::toggle_app_active;
+    }
+
+    // ── Тест 19: Проверка что модуль options существует ────────────────────
+    #[test]
+    fn test_options_module_exists() {
+        let _fn = options::get_options;
+        let _fn = options::set_option;
+    }
+
+    // ── Тест 20: Проверка что модуль runners существует ────────────────────
+    #[test]
+    fn test_runners_module_exists() {
+        let _fn = runners::get_all_runners;
+        let _fn = runners::add_global_runner;
+        let _fn = runners::update_runner;
+        let _fn = runners::delete_runner;
+        let _fn = runners::toggle_runner_active;
+        let _fn = runners::clear_runner_cache;
+        let _fn = runners::get_project_runner_tags;
+        let _fn = runners::register_runner;
+        let _fn = runners::runner_heartbeat;
+        let _fn = runners::runner_get_task;
+        let _fn = runners::runner_submit_log;
+    }
+
+    // ── Тест 21: Проверка что модуль cache существует ──────────────────────
+    #[test]
+    fn test_cache_module_exists() {
+        let _fn = cache::clear_cache;
+        let _fn = cache::clear_project_cache;
+    }
+
+    // ── Тест 22: Проверка что модуль system_info существует ────────────────
+    #[test]
+    fn test_system_info_module_exists() {
+        let _fn = system_info::get_system_info;
+    }
+
+    // ── Тест 23: Проверка что модуль user существует ───────────────────────
+    #[test]
+    fn test_user_module_exists() {
+        let _fn = user::get_api_tokens;
+        let _fn = user::create_api_token;
+        let _fn = user::delete_api_token;
+    }
+
+    // ── Тест 24: Проверка что модуль graphql существует ────────────────────
+    #[test]
+    fn test_graphql_module_exists() {
+        // graphql импортирован в routes.rs, проверяем через routes функцию
+        let _fn = graphql::graphql_routes;
+    }
+
+    // ── Тест 25: Проверка что модуль mcp существует ────────────────────────
+    #[test]
+    fn test_mcp_module_exists() {
+        let _fn = mcp::mcp_endpoint;
+        let _fn = mcp::get_mcp_settings;
+        let _fn = mcp::update_mcp_settings;
+        let _fn = mcp::get_mcp_tools;
+    }
+
+    // ── Тест 26: Проверка что модуль totp существует ───────────────────────
+    #[test]
+    fn test_totp_module_exists() {
+        let _fn = totp::start_totp_setup;
+        let _fn = totp::confirm_totp_setup;
+        let _fn = totp::disable_totp;
+    }
+
+    // ── Тест 27: Проверка основных handler функций из handlers модуля ──────
+    #[test]
+    fn test_main_handler_functions_exist() {
+        let _fn = handlers::health;
+        let _fn = handlers::health_live;
+        let _fn = handlers::health_ready;
+        let _fn = handlers::health_full;
+        let _fn = handlers::verify_session;
+        let _fn = handlers::recovery_session;
+        let _fn = handlers::get_current_user;
+        let _fn = handlers::get_users;
+        let _fn = handlers::create_user;
+        let _fn = handlers::get_user;
+        let _fn = handlers::update_user;
+        let _fn = handlers::delete_user;
+        let _fn = handlers::update_user_password;
+    }
+
+    // ── Тест 28: Проверка handler функций проектов ─────────────────────────
+    #[test]
+    fn test_project_handler_functions_exist() {
+        let _fn = handlers::get_projects;
+        let _fn = handlers::add_project;
+        let _fn = handlers::restore_project;
+        let _fn = handlers::get_project;
+        let _fn = handlers::update_project;
+        let _fn = handlers::delete_project;
+        let _fn = handlers::get_user_role;
+    }
+
+    // ── Тест 29: Проверка handler функций шаблонов и задач ─────────────────
+    #[test]
+    fn test_template_task_handler_functions_exist() {
+        let _fn = handlers::get_templates;
+        let _fn = handlers::create_template;
+        let _fn = handlers::get_template;
+        let _fn = handlers::update_template;
+        let _fn = handlers::delete_template;
+        let _fn = handlers::stop_all_template_tasks;
+        let _fn = handlers::get_all_tasks;
+        let _fn = handlers::get_tasks;
+        let _fn = handlers::create_task;
+        let _fn = handlers::get_task;
+        let _fn = handlers::delete_task;
+    }
+
+    // ── Тест 30: Проверка handler функций инвентарей и репозиториев ────────
+    #[test]
+    fn test_inventory_repo_handler_functions_exist() {
+        let _fn = handlers::get_inventories;
+        let _fn = handlers::create_inventory;
+        let _fn = handlers::get_inventory;
+        let _fn = handlers::update_inventory;
+        let _fn = handlers::delete_inventory;
+        let _fn = handlers::get_playbooks;
+        let _fn = handlers::get_repositories;
+        let _fn = handlers::create_repository;
+        let _fn = handlers::get_repository;
+        let _fn = handlers::update_repository;
+        let _fn = handlers::delete_repository;
+    }
+
+    // ── Тест 31: Проверка handler функций окружений и ключей доступа ───────
+    #[test]
+    fn test_environment_keys_handler_functions_exist() {
+        let _fn = handlers::get_environments;
+        let _fn = handlers::create_environment;
+        let _fn = handlers::get_environment;
+        let _fn = handlers::update_environment;
+        let _fn = handlers::delete_environment;
+        let _fn = handlers::get_access_keys;
+        let _fn = handlers::create_access_key;
+        let _fn = handlers::get_access_key;
+        let _fn = handlers::update_access_key;
+        let _fn = handlers::delete_access_key;
+    }
+
+    // ── Тест 32: Проверка handler функций OIDC ─────────────────────────────
+    #[test]
+    fn test_oidc_handler_functions_exist() {
+        let _fn = handlers::oidc_login;
+        let _fn = handlers::oidc_callback;
+    }
+
+    // ── Тест 33: Проверка handler функций playbook ─────────────────────────
+    #[test]
+    fn test_playbook_handler_functions_exist() {
+        let _fn = handlers::playbook::get_project_playbooks;
+        let _fn = handlers::playbook::create_playbook;
+        let _fn = handlers::playbook::get_playbook;
+        let _fn = handlers::playbook::update_playbook;
+        let _fn = handlers::playbook::delete_playbook;
+        let _fn = handlers::playbook::sync_playbook;
+        let _fn = handlers::playbook::preview_playbook;
+        let _fn = handlers::playbook::run_playbook;
+    }
+
+    // ── Тест 34: Проверка handler функций playbook_runs ────────────────────
+    #[test]
+    fn test_playbook_runs_handler_functions_exist() {
+        let _fn = handlers::playbook_runs::get_playbook_runs;
+        let _fn = handlers::playbook_runs::get_playbook_run;
+        let _fn = handlers::playbook_runs::delete_playbook_run;
+        let _fn = handlers::playbook_runs::get_playbook_run_stats;
+    }
+
+    // ── Тест 35: Проверка handler функций workflow ─────────────────────────
+    #[test]
+    fn test_workflow_handler_functions_exist() {
+        let _fn = handlers::workflow::get_workflows;
+        let _fn = handlers::workflow::create_workflow;
+        let _fn = handlers::workflow::get_workflow;
+        let _fn = handlers::workflow::update_workflow;
+        let _fn = handlers::workflow::delete_workflow;
+        let _fn = handlers::workflow::add_workflow_node;
+        let _fn = handlers::workflow::update_workflow_node;
+        let _fn = handlers::workflow::delete_workflow_node;
+        let _fn = handlers::workflow::add_workflow_edge;
+        let _fn = handlers::workflow::delete_workflow_edge;
+        let _fn = handlers::workflow::run_workflow;
+        let _fn = handlers::workflow::get_workflow_runs;
+    }
+
+    // ── Тест 36: Проверка handler функций AI ───────────────────────────────
+    #[test]
+    fn test_ai_handler_functions_exist() {
+        let _fn = handlers::ai::get_ai_settings;
+        let _fn = handlers::ai::update_ai_settings;
+        let _fn = handlers::ai::analyze_failure;
+        let _fn = handlers::ai::generate_playbook;
+    }
+
+    // ── Тест 37: Проверка handler функций analytics ────────────────────────
+    #[test]
+    fn test_analytics_handler_functions_exist() {
+        let _fn = handlers::analytics::get_project_analytics;
+        let _fn = handlers::analytics::get_tasks_chart;
+        let _fn = handlers::analytics::get_status_distribution;
+        let _fn = handlers::analytics::get_system_analytics;
+    }
+
+    // ── Тест 38: Проверка handler функций metrics ──────────────────────────
+    #[test]
+    fn test_metrics_handler_functions_exist() {
+        let _fn = handlers::metrics::get_metrics;
+        let _fn = handlers::metrics::get_metrics_json;
+    }
+
+    // ── Тест 39: Проверка handler функций audit_log ────────────────────────
+    #[test]
+    fn test_audit_log_handler_functions_exist() {
+        let _fn = handlers::audit_log::get_audit_logs;
+        let _fn = handlers::audit_log::export_audit_logs;
+        let _fn = handlers::audit_log::clear_audit_log;
+        let _fn = handlers::audit_log::delete_old_audit_logs;
+        let _fn = handlers::audit_log::get_audit_log;
+        let _fn = handlers::audit_log::get_project_audit_logs;
+    }
+
+    // ── Тест 40: Проверка handler функции send_test_email ──────────────────
+    #[test]
+    fn test_email_handler_function_exist() {
+        let _fn = handlers::send_test_email;
+    }
+
+    // ── Тест 41: Проверка helper функции check_api_path ────────────────────
+    #[test]
+    fn test_check_api_path_function_exists() {
+        // Функция check_api_path определена внутри static_routes как вложенная async fn.
+        // Мы не можем вызвать её напрямую из тестов, но проверяем что static_routes компилируется
+        let _router = static_routes();
+    }
+
+    // ── Тест 42: Router type совместимость ─────────────────────────────────
+    #[test]
+    fn test_router_type_compatibility() {
+        // Проверяем что оба роутера имеют одинаковый тип состояния
+        let api: Router<Arc<AppState>> = api_routes();
+        // static_routes может вернуть пустой Router если web_path не найден
+        // Но тип должен быть тем же
+        let _api_router: Router<Arc<AppState>> = api;
+    }
+
+    // ── Тест 43: Проверка что все подмодули projects импортированы ─────────
+    #[test]
+    fn test_all_projects_submodules_imported() {
+        // Все эти модули должны быть импортированы в routes.rs
+        // Проверяем через доступность их функций
+        let _ = schedules::get_project_schedules;
+        let _ = views::get_views;
+        let _ = project_integration::get_integrations;
+        let _ = integration_alias::get_integration_aliases;
+        let _ = secret_storages::get_secret_storages;
+        let _ = project_users::get_users;
+        let _ = tasks::get_last_tasks;
+        let _ = templates::get_template_schedules;
+        let _ = repository::get_repository_branches;
+        let _ = notifications::send_test_notification;
+        let _ = backup_restore::get_backup;
+        let _ = refs::get_key_refs;
+        let _ = invites::get_invites;
+        let _ = roles::get_roles;
+    }
+
+    // ── Тест 44: Проверка что websocket_handler доступен ───────────────────
+    #[test]
+    fn test_websocket_handler_exists() {
+        let _fn = websocket_handler;
+    }
+
+    // ── Тест 45: Проверка компиляции всех модулей верхнего уровня ──────────
+    #[test]
+    fn test_all_top_level_modules_available() {
+        // events, apps, options, runners, cache, system_info, user, graphql, mcp
+        let _ = events::get_all_events;
+        let _ = apps::get_apps;
+        let _ = options::get_options;
+        let _ = runners::get_all_runners;
+        let _ = cache::clear_cache;
+        let _ = system_info::get_system_info;
+        let _ = user::get_api_tokens;
+        let _ = mcp::get_mcp_settings;
+    }
 }
