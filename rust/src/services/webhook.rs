@@ -1063,4 +1063,1163 @@ mod tests {
         // Default should create a service with a client
         let _ = service;
     }
+
+    // ==================== Дополнительные тесты ====================
+
+    #[test]
+    fn test_webhook_type_deserialization() {
+        // Проверяем десериализацию из JSON строк
+        let cases = vec![
+            ("\"generic\"", WebhookType::Generic),
+            ("\"slack\"", WebhookType::Slack),
+            ("\"teams\"", WebhookType::Teams),
+            ("\"discord\"", WebhookType::Discord),
+            ("\"telegram\"", WebhookType::Telegram),
+            ("\"custom\"", WebhookType::Custom),
+        ];
+
+        for (json, expected) in cases {
+            let deserialized: WebhookType = serde_json::from_str(json).unwrap();
+            assert_eq!(deserialized, expected);
+        }
+    }
+
+    #[test]
+    fn test_webhook_type_debug() {
+        let webhook_type = WebhookType::Slack;
+        let debug_str = format!("{:?}", webhook_type);
+        assert!(debug_str.contains("Slack"));
+    }
+
+    #[test]
+    fn test_webhook_config_serialization() {
+        let config = WebhookConfig {
+            id: 42,
+            name: "Test Config".to_string(),
+            r#type: WebhookType::Discord,
+            url: "https://discord.com/webhook".to_string(),
+            secret: Some("my_secret".to_string()),
+            headers: Some(json!({"X-Custom": "value"})),
+            active: true,
+            events: vec!["task.started".to_string(), "task.completed".to_string()],
+            retry_count: 5,
+            timeout_secs: 60,
+        };
+
+        let serialized = serde_json::to_string(&config).unwrap();
+        assert!(serialized.contains("\"id\":42"));
+        assert!(serialized.contains("\"name\":\"Test Config\""));
+        assert!(serialized.contains("\"type\":\"discord\""));
+        assert!(serialized.contains("\"active\":true"));
+        assert!(serialized.contains("\"retry_count\":5"));
+        assert!(serialized.contains("\"timeout_secs\":60"));
+    }
+
+    #[test]
+    fn test_webhook_config_deserialization() {
+        let json = r#"{
+            "id": 10,
+            "name": "Config",
+            "type": "telegram",
+            "url": "https://api.telegram.org",
+            "secret": null,
+            "headers": null,
+            "active": false,
+            "events": ["user.created"],
+            "retry_count": 1,
+            "timeout_secs": 15
+        }"#;
+
+        let config: WebhookConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.id, 10);
+        assert_eq!(config.name, "Config");
+        assert_eq!(config.r#type, WebhookType::Telegram);
+        assert!(!config.active);
+        assert_eq!(config.retry_count, 1);
+        assert_eq!(config.timeout_secs, 15);
+        assert!(config.secret.is_none());
+        assert!(config.headers.is_none());
+    }
+
+    #[test]
+    fn test_webhook_result_success() {
+        let result = WebhookResult {
+            success: true,
+            status_code: Some(200),
+            response_body: Some("OK".to_string()),
+            error: None,
+            attempts: 1,
+        };
+
+        assert!(result.success);
+        assert_eq!(result.status_code, Some(200));
+        assert!(result.error.is_none());
+        assert_eq!(result.attempts, 1);
+    }
+
+    #[test]
+    fn test_webhook_result_failure_with_error() {
+        let result = WebhookResult {
+            success: false,
+            status_code: Some(500),
+            response_body: Some("Internal Server Error".to_string()),
+            error: Some("HTTP статус: 500".to_string()),
+            attempts: 3,
+        };
+
+        assert!(!result.success);
+        assert_eq!(result.status_code, Some(500));
+        assert!(result.error.is_some());
+        assert_eq!(result.error.as_ref().unwrap(), "HTTP статус: 500");
+        assert_eq!(result.attempts, 3);
+    }
+
+    #[test]
+    fn test_webhook_metadata_debug() {
+        let metadata = WebhookMetadata {
+            source: "test_source".to_string(),
+            version: "2.0.0".to_string(),
+            project_id: None,
+            user_id: Some(99),
+        };
+
+        assert_eq!(metadata.source, "test_source");
+        assert_eq!(metadata.version, "2.0.0");
+        assert!(metadata.project_id.is_none());
+        assert_eq!(metadata.user_id, Some(99));
+    }
+
+    #[test]
+    fn test_build_slack_payload_task_started() {
+        let service = WebhookService::new();
+        let config = WebhookConfig {
+            id: 1,
+            name: "Test".to_string(),
+            r#type: WebhookType::Slack,
+            url: "https://hooks.slack.com".to_string(),
+            secret: None,
+            headers: None,
+            active: true,
+            events: vec![],
+            retry_count: 0,
+            timeout_secs: 30,
+        };
+
+        let event = WebhookEvent {
+            event_type: "task_started".to_string(),
+            timestamp: Utc::now(),
+            data: json!({
+                "title": "Starting Task",
+                "text": "Task is starting"
+            }),
+            metadata: WebhookMetadata {
+                source: "test".to_string(),
+                version: "1.0".to_string(),
+                project_id: None,
+                user_id: None,
+            },
+        };
+        let payload = service.build_payload(&config, &event);
+
+        let attachments = payload["attachments"].as_array().unwrap();
+        assert!(!attachments.is_empty());
+        let attachment = &attachments[0];
+        assert_eq!(attachment["color"], "warning");
+        assert_eq!(attachment["author_name"].as_str().unwrap(), "🚀 Velum UI");
+    }
+
+    #[test]
+    fn test_build_slack_payload_unknown_event() {
+        let service = WebhookService::new();
+        let config = WebhookConfig {
+            id: 1,
+            name: "Test".to_string(),
+            r#type: WebhookType::Slack,
+            url: "https://hooks.slack.com".to_string(),
+            secret: None,
+            headers: None,
+            active: true,
+            events: vec![],
+            retry_count: 0,
+            timeout_secs: 30,
+        };
+
+        let event = WebhookEvent {
+            event_type: "unknown_event".to_string(),
+            timestamp: Utc::now(),
+            data: json!({
+                "title": "Unknown Event",
+                "text": "Something happened"
+            }),
+            metadata: WebhookMetadata {
+                source: "test".to_string(),
+                version: "1.0".to_string(),
+                project_id: None,
+                user_id: None,
+            },
+        };
+        let payload = service.build_payload(&config, &event);
+
+        let attachments = payload["attachments"].as_array().unwrap();
+        let attachment = &attachments[0];
+        assert_eq!(attachment["color"], "#439FE0");
+        assert_eq!(attachment["author_name"].as_str().unwrap(), "📢 Velum UI");
+    }
+
+    #[test]
+    fn test_build_teams_payload_colors() {
+        let service = WebhookService::new();
+        let config = WebhookConfig {
+            id: 1,
+            name: "Test".to_string(),
+            r#type: WebhookType::Teams,
+            url: "https://outlook.office.com/webhook".to_string(),
+            secret: None,
+            headers: None,
+            active: true,
+            events: vec![],
+            retry_count: 0,
+            timeout_secs: 30,
+        };
+
+        // task_success -> green
+        let event_success = WebhookEvent {
+            event_type: "task_success".to_string(),
+            timestamp: Utc::now(),
+            data: json!({
+                "title": "Success",
+                "text": "Task succeeded"
+            }),
+            metadata: WebhookMetadata {
+                source: "test".to_string(),
+                version: "1.0".to_string(),
+                project_id: None,
+                user_id: None,
+            },
+        };
+        let payload = service.build_payload(&config, &event_success);
+        assert_eq!(payload["themeColor"], "8BC34A");
+
+        // task_failed -> red
+        let event_failed = WebhookEvent {
+            event_type: "task_failed".to_string(),
+            timestamp: Utc::now(),
+            data: json!({
+                "title": "Failed",
+                "text": "Task failed"
+            }),
+            metadata: WebhookMetadata {
+                source: "test".to_string(),
+                version: "1.0".to_string(),
+                project_id: None,
+                user_id: None,
+            },
+        };
+        let payload = service.build_payload(&config, &event_failed);
+        assert_eq!(payload["themeColor"], "F44336");
+    }
+
+    #[test]
+    fn test_build_discord_payload_task_failed() {
+        let service = WebhookService::new();
+        let config = WebhookConfig {
+            id: 1,
+            name: "Test".to_string(),
+            r#type: WebhookType::Discord,
+            url: "https://discord.com/api/webhooks".to_string(),
+            secret: None,
+            headers: None,
+            active: true,
+            events: vec![],
+            retry_count: 0,
+            timeout_secs: 30,
+        };
+
+        let event = WebhookEvent {
+            event_type: "task_failed".to_string(),
+            timestamp: Utc::now(),
+            data: json!({
+                "title": "Failed Task",
+                "text": "Task failed with error"
+            }),
+            metadata: WebhookMetadata {
+                source: "test".to_string(),
+                version: "1.0".to_string(),
+                project_id: None,
+                user_id: None,
+            },
+        };
+        let payload = service.build_payload(&config, &event);
+
+        let embed = &payload["embeds"][0];
+        assert_eq!(embed["color"], 0xFF0000); // Red
+    }
+
+    #[test]
+    fn test_build_discord_payload_task_started() {
+        let service = WebhookService::new();
+        let config = WebhookConfig {
+            id: 1,
+            name: "Test".to_string(),
+            r#type: WebhookType::Discord,
+            url: "https://discord.com/api/webhooks".to_string(),
+            secret: None,
+            headers: None,
+            active: true,
+            events: vec![],
+            retry_count: 0,
+            timeout_secs: 30,
+        };
+
+        let event = WebhookEvent {
+            event_type: "task_started".to_string(),
+            timestamp: Utc::now(),
+            data: json!({
+                "title": "Starting",
+                "text": "Task started"
+            }),
+            metadata: WebhookMetadata {
+                source: "test".to_string(),
+                version: "1.0".to_string(),
+                project_id: None,
+                user_id: None,
+            },
+        };
+        let payload = service.build_payload(&config, &event);
+
+        let embed = &payload["embeds"][0];
+        assert_eq!(embed["color"], 0xFFA500); // Orange
+    }
+
+    #[test]
+    fn test_build_telegram_payload_task_failed_emoji() {
+        let service = WebhookService::new();
+        let config = WebhookConfig {
+            id: 1,
+            name: "Test".to_string(),
+            r#type: WebhookType::Telegram,
+            url: "https://api.telegram.org/bot".to_string(),
+            secret: None,
+            headers: None,
+            active: true,
+            events: vec![],
+            retry_count: 0,
+            timeout_secs: 30,
+        };
+
+        let event = WebhookEvent {
+            event_type: "task_failed".to_string(),
+            timestamp: Utc::now(),
+            data: json!({
+                "title": "Failed Task",
+                "text": "Something went wrong"
+            }),
+            metadata: WebhookMetadata {
+                source: "test".to_string(),
+                version: "1.0".to_string(),
+                project_id: None,
+                user_id: None,
+            },
+        };
+        let payload = service.build_payload(&config, &event);
+
+        let text = payload["text"].as_str().unwrap();
+        assert!(text.contains("❌"));
+    }
+
+    #[test]
+    fn test_build_telegram_payload_task_started_emoji() {
+        let service = WebhookService::new();
+        let config = WebhookConfig {
+            id: 1,
+            name: "Test".to_string(),
+            r#type: WebhookType::Telegram,
+            url: "https://api.telegram.org/bot".to_string(),
+            secret: None,
+            headers: None,
+            active: true,
+            events: vec![],
+            retry_count: 0,
+            timeout_secs: 30,
+        };
+
+        let event = WebhookEvent {
+            event_type: "task_started".to_string(),
+            timestamp: Utc::now(),
+            data: json!({
+                "title": "Starting",
+                "text": "Task starting now"
+            }),
+            metadata: WebhookMetadata {
+                source: "test".to_string(),
+                version: "1.0".to_string(),
+                project_id: None,
+                user_id: None,
+            },
+        };
+        let payload = service.build_payload(&config, &event);
+
+        let text = payload["text"].as_str().unwrap();
+        assert!(text.contains("🚀"));
+    }
+
+    #[test]
+    fn test_build_telegram_payload_unknown_event_emoji() {
+        let service = WebhookService::new();
+        let config = WebhookConfig {
+            id: 1,
+            name: "Test".to_string(),
+            r#type: WebhookType::Telegram,
+            url: "https://api.telegram.org/bot".to_string(),
+            secret: None,
+            headers: None,
+            active: true,
+            events: vec![],
+            retry_count: 0,
+            timeout_secs: 30,
+        };
+
+        let event = WebhookEvent {
+            event_type: "unknown".to_string(),
+            timestamp: Utc::now(),
+            data: json!({
+                "title": "Unknown",
+                "text": "Unknown event occurred"
+            }),
+            metadata: WebhookMetadata {
+                source: "test".to_string(),
+                version: "1.0".to_string(),
+                project_id: None,
+                user_id: None,
+            },
+        };
+        let payload = service.build_payload(&config, &event);
+
+        let text = payload["text"].as_str().unwrap();
+        assert!(text.contains("📢"));
+    }
+
+    #[test]
+    fn test_build_payload_routing() {
+        // Проверяем, что build_payload правильно маршрутизирует к нужным билдерам
+        let service = WebhookService::new();
+        let event = WebhookEvent {
+            event_type: "test".to_string(),
+            timestamp: Utc::now(),
+            data: json!({"title": "Test", "text": "Test text"}),
+            metadata: WebhookMetadata {
+                source: "test".to_string(),
+                version: "1.0".to_string(),
+                project_id: None,
+                user_id: None,
+            },
+        };
+
+        // Slack
+        let config_slack = WebhookConfig {
+            id: 1,
+            name: "Slack".to_string(),
+            r#type: WebhookType::Slack,
+            url: "https://slack.com".to_string(),
+            secret: None,
+            headers: None,
+            active: true,
+            events: vec![],
+            retry_count: 0,
+            timeout_secs: 30,
+        };
+        let payload = service.build_payload(&config_slack, &event);
+        assert!(payload["attachments"].is_array());
+
+        // Teams
+        let config_teams = WebhookConfig {
+            id: 1,
+            name: "Teams".to_string(),
+            r#type: WebhookType::Teams,
+            url: "https://teams.com".to_string(),
+            secret: None,
+            headers: None,
+            active: true,
+            events: vec![],
+            retry_count: 0,
+            timeout_secs: 30,
+        };
+        let payload = service.build_payload(&config_teams, &event);
+        assert_eq!(payload["@type"], "MessageCard");
+
+        // Discord
+        let config_discord = WebhookConfig {
+            id: 1,
+            name: "Discord".to_string(),
+            r#type: WebhookType::Discord,
+            url: "https://discord.com".to_string(),
+            secret: None,
+            headers: None,
+            active: true,
+            events: vec![],
+            retry_count: 0,
+            timeout_secs: 30,
+        };
+        let payload = service.build_payload(&config_discord, &event);
+        assert!(payload["embeds"].is_array());
+
+        // Telegram
+        let config_telegram = WebhookConfig {
+            id: 1,
+            name: "Telegram".to_string(),
+            r#type: WebhookType::Telegram,
+            url: "https://telegram.org".to_string(),
+            secret: None,
+            headers: None,
+            active: true,
+            events: vec![],
+            retry_count: 0,
+            timeout_secs: 30,
+        };
+        let payload = service.build_payload(&config_telegram, &event);
+        assert!(payload["text"].is_string());
+    }
+
+    #[test]
+    fn test_create_task_event_with_all_status_values() {
+        let statuses = vec!["pending", "running", "success", "failed", "cancelled"];
+
+        for status in statuses {
+            let event = create_task_event("task.status", 1, "Task", Some(1), Some(2), Some(status));
+            assert_eq!(event.data["status"], status);
+            assert_eq!(event.metadata.project_id, Some(1));
+            assert_eq!(event.metadata.user_id, Some(2));
+        }
+    }
+
+    #[test]
+    fn test_create_task_event_without_optional_fields() {
+        let event = create_task_event("task.created", 1, "Task", None, None, None);
+
+        assert_eq!(event.data["task_id"], 1);
+        assert_eq!(event.data["task_name"], "Task");
+        assert_eq!(event.data["status"], "unknown");
+        assert!(event.metadata.project_id.is_none());
+        assert!(event.metadata.user_id.is_none());
+    }
+
+    #[test]
+    fn test_create_user_event_without_project() {
+        let event = create_user_event("user.updated", 10, "john", None);
+
+        assert_eq!(event.metadata.user_id, Some(10));
+        assert!(event.metadata.project_id.is_none());
+        assert_eq!(event.data["username"], "john");
+    }
+
+    #[test]
+    fn test_create_project_event_without_user() {
+        let event = create_project_event("project.deleted", 100, "Old Project", None);
+
+        assert_eq!(event.metadata.project_id, Some(100));
+        assert!(event.metadata.user_id.is_none());
+        assert_eq!(event.data["project_name"], "Old Project");
+    }
+
+    #[test]
+    fn test_webhook_config_with_secret() {
+        let config = WebhookConfig {
+            id: 1,
+            name: "Secure Webhook".to_string(),
+            r#type: WebhookType::Generic,
+            url: "https://example.com/webhook".to_string(),
+            secret: Some("super_secret_key".to_string()),
+            headers: None,
+            active: true,
+            events: vec![],
+            retry_count: 3,
+            timeout_secs: 30,
+        };
+
+        assert!(config.secret.is_some());
+        assert_eq!(config.secret.as_ref().unwrap(), "super_secret_key");
+    }
+
+    #[test]
+    fn test_webhook_config_with_custom_headers() {
+        let headers = json!({
+            "Authorization": "Bearer abc123",
+            "X-Request-ID": "req-001",
+            "Content-Type": "application/json"
+        });
+
+        let config = WebhookConfig {
+            id: 1,
+            name: "Configured Webhook".to_string(),
+            r#type: WebhookType::Custom,
+            url: "https://example.com/custom".to_string(),
+            secret: None,
+            headers: Some(headers),
+            active: true,
+            events: vec!["custom.event".to_string()],
+            retry_count: 0,
+            timeout_secs: 10,
+        };
+
+        assert!(config.headers.is_some());
+        assert_eq!(config.r#type, WebhookType::Custom);
+    }
+
+    #[test]
+    fn test_webhook_event_timestamp() {
+        let before = Utc::now();
+        let event = WebhookEvent {
+            event_type: "test".to_string(),
+            timestamp: Utc::now(),
+            data: json!({}),
+            metadata: WebhookMetadata {
+                source: "test".to_string(),
+                version: "1.0".to_string(),
+                project_id: None,
+                user_id: None,
+            },
+        };
+        let after = Utc::now();
+
+        assert!(event.timestamp >= before);
+        assert!(event.timestamp <= after);
+    }
+
+    #[test]
+    fn test_webhook_config_events_multiple() {
+        let config = WebhookConfig {
+            id: 1,
+            name: "Multi-event".to_string(),
+            r#type: WebhookType::Generic,
+            url: "https://example.com".to_string(),
+            secret: None,
+            headers: None,
+            active: true,
+            events: vec![
+                "task.started".to_string(),
+                "task.completed".to_string(),
+                "task.failed".to_string(),
+            ],
+            retry_count: 0,
+            timeout_secs: 30,
+        };
+
+        assert_eq!(config.events.len(), 3);
+        assert!(config.events.contains(&"task.started".to_string()));
+        assert!(config.events.contains(&"task.completed".to_string()));
+        assert!(config.events.contains(&"task.failed".to_string()));
+    }
+
+    #[test]
+    fn test_webhook_config_zero_retry() {
+        let config = WebhookConfig {
+            id: 1,
+            name: "No Retry".to_string(),
+            r#type: WebhookType::Generic,
+            url: "https://example.com".to_string(),
+            secret: None,
+            headers: None,
+            active: true,
+            events: vec![],
+            retry_count: 0,
+            timeout_secs: 30,
+        };
+
+        assert_eq!(config.retry_count, 0);
+    }
+
+    #[test]
+    fn test_webhook_config_high_retry() {
+        let config = WebhookConfig {
+            id: 1,
+            name: "High Retry".to_string(),
+            r#type: WebhookType::Generic,
+            url: "https://example.com".to_string(),
+            secret: None,
+            headers: None,
+            active: true,
+            events: vec![],
+            retry_count: 10,
+            timeout_secs: 60,
+        };
+
+        assert_eq!(config.retry_count, 10);
+    }
+
+    #[test]
+    fn test_webhook_config_timeout_values() {
+        let timeouts = vec![5, 30, 60, 120, 300];
+
+        for timeout in timeouts {
+            let config = WebhookConfig {
+                id: 1,
+                name: format!("Timeout {}", timeout),
+                r#type: WebhookType::Generic,
+                url: "https://example.com".to_string(),
+                secret: None,
+                headers: None,
+                active: true,
+                events: vec![],
+                retry_count: 0,
+                timeout_secs: timeout,
+            };
+            assert_eq!(config.timeout_secs, timeout);
+        }
+    }
+
+    #[test]
+    fn test_webhook_service_with_timeout_values() {
+        let timeouts = vec![10, 30, 60];
+
+        for timeout in timeouts {
+            let service = WebhookService::with_timeout(timeout);
+            let _ = service;
+        }
+    }
+
+    #[test]
+    fn test_build_generic_payload_structure() {
+        let service = WebhookService::new();
+        let config = WebhookConfig {
+            id: 1,
+            name: "Test".to_string(),
+            r#type: WebhookType::Generic,
+            url: "https://example.com".to_string(),
+            secret: None,
+            headers: None,
+            active: true,
+            events: vec![],
+            retry_count: 0,
+            timeout_secs: 30,
+        };
+
+        let event = WebhookEvent {
+            event_type: "custom.event".to_string(),
+            timestamp: Utc::now(),
+            data: json!({
+                "user_id": 123,
+                "action": "login",
+                "ip": "192.168.1.1"
+            }),
+            metadata: WebhookMetadata {
+                source: "auth_service".to_string(),
+                version: "2.1.0".to_string(),
+                project_id: Some(5),
+                user_id: Some(123),
+            },
+        };
+
+        let payload = service.build_payload(&config, &event);
+
+        assert_eq!(payload["event"], "custom.event");
+        assert!(payload["timestamp"].is_string());
+        assert_eq!(payload["data"]["user_id"], 123);
+        assert_eq!(payload["data"]["action"], "login");
+        assert_eq!(payload["metadata"]["source"], "auth_service");
+        assert_eq!(payload["metadata"]["version"], "2.1.0");
+        assert_eq!(payload["metadata"]["project_id"], 5);
+    }
+
+    #[test]
+    fn test_build_slack_payload_with_fields() {
+        let service = WebhookService::new();
+        let config = WebhookConfig {
+            id: 1,
+            name: "Test".to_string(),
+            r#type: WebhookType::Slack,
+            url: "https://hooks.slack.com".to_string(),
+            secret: None,
+            headers: None,
+            active: true,
+            events: vec![],
+            retry_count: 0,
+            timeout_secs: 30,
+        };
+
+        let event = WebhookEvent {
+            event_type: "task_success".to_string(),
+            timestamp: Utc::now(),
+            data: json!({
+                "title": "Deploy Success",
+                "text": "Application deployed successfully"
+            }),
+            metadata: WebhookMetadata {
+                source: "test".to_string(),
+                version: "1.0".to_string(),
+                project_id: None,
+                user_id: None,
+            },
+        };
+        let payload = service.build_payload(&config, &event);
+
+        let attachments = payload["attachments"].as_array().unwrap();
+        let attachment = &attachments[0];
+        assert_eq!(attachment["color"], "good");
+        assert!(attachment["fields"].is_array());
+
+        let fields = attachment["fields"].as_array().unwrap();
+        assert!(!fields.is_empty());
+    }
+
+    #[test]
+    fn test_build_teams_payload_structure() {
+        let service = WebhookService::new();
+        let config = WebhookConfig {
+            id: 1,
+            name: "Test".to_string(),
+            r#type: WebhookType::Teams,
+            url: "https://outlook.office.com/webhook".to_string(),
+            secret: None,
+            headers: None,
+            active: true,
+            events: vec![],
+            retry_count: 0,
+            timeout_secs: 30,
+        };
+
+        let event = WebhookEvent {
+            event_type: "task_success".to_string(),
+            timestamp: Utc::now(),
+            data: json!({
+                "title": "Teams Test",
+                "text": "Test message"
+            }),
+            metadata: WebhookMetadata {
+                source: "test".to_string(),
+                version: "1.0".to_string(),
+                project_id: None,
+                user_id: None,
+            },
+        };
+        let payload = service.build_payload(&config, &event);
+
+        assert_eq!(payload["@type"], "MessageCard");
+        assert_eq!(payload["@context"], "http://schema.org/extensions");
+        assert!(payload["summary"].is_string());
+        assert!(payload["sections"].is_array());
+
+        let sections = payload["sections"].as_array().unwrap();
+        assert_eq!(sections.len(), 1);
+        let section = &sections[0];
+        assert!(section["activityTitle"].is_string());
+        assert!(section["facts"].is_array());
+    }
+
+    #[test]
+    fn test_build_discord_embed_structure() {
+        let service = WebhookService::new();
+        let config = WebhookConfig {
+            id: 1,
+            name: "Test".to_string(),
+            r#type: WebhookType::Discord,
+            url: "https://discord.com/api/webhooks".to_string(),
+            secret: None,
+            headers: None,
+            active: true,
+            events: vec![],
+            retry_count: 0,
+            timeout_secs: 30,
+        };
+
+        let event = WebhookEvent {
+            event_type: "test_event".to_string(),
+            timestamp: Utc::now(),
+            data: json!({
+                "title": "Discord Test",
+                "text": "Test embed"
+            }),
+            metadata: WebhookMetadata {
+                source: "test".to_string(),
+                version: "1.0".to_string(),
+                project_id: None,
+                user_id: None,
+            },
+        };
+        let payload = service.build_payload(&config, &event);
+
+        let embeds = payload["embeds"].as_array().unwrap();
+        assert_eq!(embeds.len(), 1);
+        let embed = &embeds[0];
+
+        assert!(embed["title"].is_string());
+        assert!(embed["description"].is_string());
+        assert!(embed["color"].is_number());
+        assert!(embed["fields"].is_array());
+        assert!(embed["footer"]["text"].as_str().unwrap() == "Velum UI");
+        assert!(embed["timestamp"].is_string());
+    }
+
+    #[test]
+    fn test_build_telegram_message_format() {
+        let service = WebhookService::new();
+        let config = WebhookConfig {
+            id: 1,
+            name: "Test".to_string(),
+            r#type: WebhookType::Telegram,
+            url: "https://api.telegram.org/bot".to_string(),
+            secret: None,
+            headers: None,
+            active: true,
+            events: vec![],
+            retry_count: 0,
+            timeout_secs: 30,
+        };
+
+        let event = WebhookEvent {
+            event_type: "task_success".to_string(),
+            timestamp: Utc::now(),
+            data: json!({
+                "title": "Telegram Test",
+                "text": "Test message content"
+            }),
+            metadata: WebhookMetadata {
+                source: "test".to_string(),
+                version: "1.0".to_string(),
+                project_id: None,
+                user_id: None,
+            },
+        };
+        let payload = service.build_payload(&config, &event);
+
+        let text = payload["text"].as_str().unwrap();
+        assert!(text.contains("✅"));
+        assert!(text.contains("Telegram Test"));
+        assert!(text.contains("Test message content"));
+        assert!(text.contains("Время:"));
+        assert_eq!(payload["parse_mode"], "HTML");
+    }
+
+    #[test]
+    fn test_webhook_result_debug() {
+        let result = WebhookResult {
+            success: true,
+            status_code: Some(200),
+            response_body: Some("{\"status\": \"ok\"}".to_string()),
+            error: None,
+            attempts: 1,
+        };
+
+        let debug_str = format!("{:?}", result);
+        assert!(debug_str.contains("WebhookResult"));
+        assert!(debug_str.contains("success: true"));
+    }
+
+    #[test]
+    fn test_webhook_event_clone() {
+        let event = WebhookEvent {
+            event_type: "test.clone".to_string(),
+            timestamp: Utc::now(),
+            data: json!({"key": "value"}),
+            metadata: WebhookMetadata {
+                source: "test".to_string(),
+                version: "1.0".to_string(),
+                project_id: Some(1),
+                user_id: Some(2),
+            },
+        };
+
+        let cloned = event.clone();
+        assert_eq!(cloned.event_type, event.event_type);
+        assert_eq!(cloned.data, event.data);
+        assert_eq!(cloned.metadata.source, event.metadata.source);
+    }
+
+    #[test]
+    fn test_webhook_config_clone() {
+        let config = WebhookConfig {
+            id: 1,
+            name: "Clone Test".to_string(),
+            r#type: WebhookType::Discord,
+            url: "https://discord.com".to_string(),
+            secret: Some("secret".to_string()),
+            headers: Some(json!({"X-Test": "value"})),
+            active: true,
+            events: vec!["test.event".to_string()],
+            retry_count: 3,
+            timeout_secs: 30,
+        };
+
+        let cloned = config.clone();
+        assert_eq!(cloned.id, config.id);
+        assert_eq!(cloned.name, config.name);
+        assert_eq!(cloned.r#type, config.r#type);
+        assert_eq!(cloned.url, config.url);
+    }
+
+    #[test]
+    fn test_webhook_type_partial_eq() {
+        assert!(WebhookType::Generic == WebhookType::Generic);
+        assert!(WebhookType::Slack != WebhookType::Teams);
+        assert!(WebhookType::Discord == WebhookType::Discord);
+        assert!(WebhookType::Telegram != WebhookType::Custom);
+    }
+
+    #[test]
+    fn test_build_generic_payload_missing_title_text() {
+        let service = WebhookService::new();
+        let config = WebhookConfig {
+            id: 1,
+            name: "Test".to_string(),
+            r#type: WebhookType::Generic,
+            url: "https://example.com".to_string(),
+            secret: None,
+            headers: None,
+            active: true,
+            events: vec![],
+            retry_count: 0,
+            timeout_secs: 30,
+        };
+
+        let event = WebhookEvent {
+            event_type: "test".to_string(),
+            timestamp: Utc::now(),
+            data: json!({}), // нет title и text
+            metadata: WebhookMetadata {
+                source: "test".to_string(),
+                version: "1.0".to_string(),
+                project_id: None,
+                user_id: None,
+            },
+        };
+
+        let payload = service.build_payload(&config, &event);
+        assert_eq!(payload["event"], "test");
+        assert!(payload["data"].is_object());
+    }
+
+    #[test]
+    fn test_build_slack_payload_missing_title_text() {
+        let service = WebhookService::new();
+        let config = WebhookConfig {
+            id: 1,
+            name: "Test".to_string(),
+            r#type: WebhookType::Slack,
+            url: "https://hooks.slack.com".to_string(),
+            secret: None,
+            headers: None,
+            active: true,
+            events: vec![],
+            retry_count: 0,
+            timeout_secs: 30,
+        };
+
+        let event = WebhookEvent {
+            event_type: "test".to_string(),
+            timestamp: Utc::now(),
+            data: json!({}),
+            metadata: WebhookMetadata {
+                source: "test".to_string(),
+                version: "1.0".to_string(),
+                project_id: None,
+                user_id: None,
+            },
+        };
+
+        let payload = service.build_payload(&config, &event);
+        let attachments = payload["attachments"].as_array().unwrap();
+        let attachment = &attachments[0];
+        // Значения по умолчанию
+        assert_eq!(attachment["title"].as_str().unwrap(), "Уведомление");
+        assert_eq!(attachment["text"].as_str().unwrap(), "");
+    }
+
+    #[test]
+    fn test_build_teams_payload_missing_title_text() {
+        let service = WebhookService::new();
+        let config = WebhookConfig {
+            id: 1,
+            name: "Test".to_string(),
+            r#type: WebhookType::Teams,
+            url: "https://outlook.office.com/webhook".to_string(),
+            secret: None,
+            headers: None,
+            active: true,
+            events: vec![],
+            retry_count: 0,
+            timeout_secs: 30,
+        };
+
+        let event = WebhookEvent {
+            event_type: "test".to_string(),
+            timestamp: Utc::now(),
+            data: json!({}),
+            metadata: WebhookMetadata {
+                source: "test".to_string(),
+                version: "1.0".to_string(),
+                project_id: None,
+                user_id: None,
+            },
+        };
+
+        let payload = service.build_payload(&config, &event);
+        assert_eq!(payload["summary"].as_str().unwrap(), "Уведомление");
+    }
+
+    #[test]
+    fn test_build_discord_payload_missing_title_text() {
+        let service = WebhookService::new();
+        let config = WebhookConfig {
+            id: 1,
+            name: "Test".to_string(),
+            r#type: WebhookType::Discord,
+            url: "https://discord.com/api/webhooks".to_string(),
+            secret: None,
+            headers: None,
+            active: true,
+            events: vec![],
+            retry_count: 0,
+            timeout_secs: 30,
+        };
+
+        let event = WebhookEvent {
+            event_type: "test".to_string(),
+            timestamp: Utc::now(),
+            data: json!({}),
+            metadata: WebhookMetadata {
+                source: "test".to_string(),
+                version: "1.0".to_string(),
+                project_id: None,
+                user_id: None,
+            },
+        };
+
+        let payload = service.build_payload(&config, &event);
+        let embed = &payload["embeds"][0];
+        assert_eq!(embed["title"].as_str().unwrap(), "Уведомление");
+        assert_eq!(embed["description"].as_str().unwrap(), "");
+    }
+
+    #[test]
+    fn test_build_telegram_payload_missing_title_text() {
+        let service = WebhookService::new();
+        let config = WebhookConfig {
+            id: 1,
+            name: "Test".to_string(),
+            r#type: WebhookType::Telegram,
+            url: "https://api.telegram.org/bot".to_string(),
+            secret: None,
+            headers: None,
+            active: true,
+            events: vec![],
+            retry_count: 0,
+            timeout_secs: 30,
+        };
+
+        let event = WebhookEvent {
+            event_type: "test".to_string(),
+            timestamp: Utc::now(),
+            data: json!({}),
+            metadata: WebhookMetadata {
+                source: "test".to_string(),
+                version: "1.0".to_string(),
+                project_id: None,
+                user_id: None,
+            },
+        };
+
+        let payload = service.build_payload(&config, &event);
+        let text = payload["text"].as_str().unwrap();
+        assert!(text.contains("Уведомление"));
+        assert!(text.contains("Время:"));
+    }
 }

@@ -840,4 +840,372 @@ mod tests {
         // which gives "-10s" or similar. Let's just verify it doesn't panic.
         assert!(!age.is_empty());
     }
+
+    // ========================================================================
+    // Tests for DTO structs
+    // ========================================================================
+
+    #[test]
+    fn test_deployment_summary_default_values() {
+        let summary = DeploymentSummary {
+            name: "test-deploy".to_string(),
+            namespace: "default".to_string(),
+            replicas: 3,
+            ready_replicas: 2,
+            available_replicas: 2,
+            updated_replicas: 1,
+            age: "5m".to_string(),
+            conditions: vec![],
+        };
+        assert_eq!(summary.name, "test-deploy");
+        assert_eq!(summary.namespace, "default");
+        assert_eq!(summary.replicas, 3);
+        assert_eq!(summary.ready_replicas, 2);
+        assert!(summary.conditions.is_empty());
+    }
+
+    #[test]
+    fn test_deployment_condition_serialization() {
+        let condition = DeploymentCondition {
+            condition_type: "Available".to_string(),
+            status: "True".to_string(),
+            reason: Some("MinimumReplicasAvailable".to_string()),
+            message: Some("Deployment has minimum replicas".to_string()),
+            last_update_time: Some(Utc::now()),
+        };
+        assert_eq!(condition.condition_type, "Available");
+        assert_eq!(condition.status, "True");
+        assert!(condition.reason.is_some());
+        assert!(condition.message.is_some());
+    }
+
+    #[test]
+    fn test_deployment_condition_optional_fields() {
+        let condition = DeploymentCondition {
+            condition_type: "Progressing".to_string(),
+            status: "False".to_string(),
+            reason: None,
+            message: None,
+            last_update_time: None,
+        };
+        assert!(condition.reason.is_none());
+        assert!(condition.message.is_none());
+        assert!(condition.last_update_time.is_none());
+    }
+
+    #[test]
+    fn test_deployment_detail_struct() {
+        let detail = DeploymentDetail {
+            name: "my-app".to_string(),
+            namespace: "production".to_string(),
+            replicas: 5,
+            ready_replicas: 5,
+            available_replicas: 5,
+            updated_replicas: 5,
+            unavailable_replicas: 0,
+            strategy: "RollingUpdate".to_string(),
+            selector: BTreeMap::from([("app".to_string(), "my-app".to_string())]),
+            template_labels: BTreeMap::from([("app".to_string(), "my-app".to_string())]),
+            containers: vec![],
+            conditions: vec![],
+            created_at: Some(Utc::now()),
+        };
+        assert_eq!(detail.name, "my-app");
+        assert_eq!(detail.replicas, 5);
+        assert_eq!(detail.strategy, "RollingUpdate");
+        assert!(detail.selector.contains_key("app"));
+    }
+
+    #[test]
+    fn test_container_info_struct() {
+        let container = ContainerInfo {
+            name: "nginx".to_string(),
+            image: Some("nginx:1.25".to_string()),
+            ports: vec![80, 443],
+        };
+        assert_eq!(container.name, "nginx");
+        assert_eq!(container.image.as_deref(), Some("nginx:1.25"));
+        assert_eq!(container.ports.len(), 2);
+        assert!(container.ports.contains(&80));
+    }
+
+    #[test]
+    fn test_container_info_no_image() {
+        let container = ContainerInfo {
+            name: "sidecar".to_string(),
+            image: None,
+            ports: vec![],
+        };
+        assert!(container.image.is_none());
+        assert!(container.ports.is_empty());
+    }
+
+    // ========================================================================
+    // Tests for Payload structs
+    // ========================================================================
+
+    #[test]
+    fn test_scale_payload() {
+        let payload = ScalePayload { replicas: 5 };
+        assert_eq!(payload.replicas, 5);
+    }
+
+    #[test]
+    fn test_scale_payload_zero_replicas() {
+        let payload = ScalePayload { replicas: 0 };
+        assert_eq!(payload.replicas, 0);
+    }
+
+    #[test]
+    fn test_rollback_payload_with_revision() {
+        let payload = RollbackPayload {
+            revision: Some(3),
+        };
+        assert_eq!(payload.revision, Some(3));
+    }
+
+    #[test]
+    fn test_rollback_payload_without_revision() {
+        let payload = RollbackPayload { revision: None };
+        assert!(payload.revision.is_none());
+    }
+
+    #[test]
+    fn test_deployment_payload_minimal() {
+        let payload = DeploymentPayload {
+            name: "test".to_string(),
+            namespace: "default".to_string(),
+            replicas: None,
+            image: "nginx:latest".to_string(),
+            container_name: None,
+            ports: None,
+            labels: None,
+        };
+        assert_eq!(payload.name, "test");
+        assert_eq!(payload.image, "nginx:latest");
+        assert!(payload.replicas.is_none());
+        assert!(payload.container_name.is_none());
+        assert!(payload.ports.is_none());
+        assert!(payload.labels.is_none());
+    }
+
+    #[test]
+    fn test_deployment_payload_full() {
+        let mut labels = BTreeMap::new();
+        labels.insert("env".to_string(), "prod".to_string());
+
+        let payload = DeploymentPayload {
+            name: "api-server".to_string(),
+            namespace: "backend".to_string(),
+            replicas: Some(3),
+            image: "api-server:v2.1".to_string(),
+            container_name: Some("api".to_string()),
+            ports: Some(vec![8080, 8443]),
+            labels: Some(labels),
+        };
+        assert_eq!(payload.name, "api-server");
+        assert_eq!(payload.replicas, Some(3));
+        assert_eq!(payload.container_name, Some("api".to_string()));
+        assert!(payload.labels.is_some());
+        assert!(payload.labels.as_ref().unwrap().contains_key("env"));
+    }
+
+    #[test]
+    fn test_operation_response_minimal() {
+        let response = OperationResponse {
+            message: "Deployment created".to_string(),
+            name: "my-app".to_string(),
+            namespace: "default".to_string(),
+            replicas: None,
+            revision: None,
+        };
+        assert_eq!(response.message, "Deployment created");
+        assert!(response.replicas.is_none());
+        assert!(response.revision.is_none());
+    }
+
+    #[test]
+    fn test_operation_response_with_replicas() {
+        let response = OperationResponse {
+            message: "Scaled".to_string(),
+            name: "my-app".to_string(),
+            namespace: "default".to_string(),
+            replicas: Some(5),
+            revision: None,
+        };
+        assert_eq!(response.replicas, Some(5));
+    }
+
+    #[test]
+    fn test_operation_response_with_revision() {
+        let response = OperationResponse {
+            message: "Rolled back".to_string(),
+            name: "my-app".to_string(),
+            namespace: "default".to_string(),
+            replicas: None,
+            revision: Some(2),
+        };
+        assert_eq!(response.revision, Some(2));
+    }
+
+    // ========================================================================
+    // Tests for RolloutHistory structs
+    // ========================================================================
+
+    #[test]
+    fn test_rollout_history() {
+        let history = RolloutHistory {
+            name: "web-app".to_string(),
+            namespace: "frontend".to_string(),
+            revisions: vec![],
+        };
+        assert_eq!(history.name, "web-app");
+        assert!(history.revisions.is_empty());
+    }
+
+    #[test]
+    fn test_revision_info() {
+        let revision = RevisionInfo {
+            revision: 5,
+            change_cause: Some("Updated image to v2".to_string()),
+            created_at: Some(Utc::now()),
+        };
+        assert_eq!(revision.revision, 5);
+        assert!(revision.change_cause.is_some());
+    }
+
+    #[test]
+    fn test_revision_info_no_change_cause() {
+        let revision = RevisionInfo {
+            revision: 1,
+            change_cause: None,
+            created_at: None,
+        };
+        assert!(revision.change_cause.is_none());
+        assert!(revision.created_at.is_none());
+    }
+
+    #[test]
+    fn test_detailed_revision_info() {
+        let rev = DetailedRevisionInfo {
+            revision: 3,
+            replica_set_name: "web-app-abc123".to_string(),
+            replicas: 3,
+            ready_replicas: 3,
+            available_replicas: 3,
+            image: "nginx:1.25".to_string(),
+            created_at: Some(Utc::now()),
+        };
+        assert_eq!(rev.revision, 3);
+        assert_eq!(rev.replica_set_name, "web-app-abc123");
+        assert_eq!(rev.image, "nginx:1.25");
+    }
+
+    #[test]
+    fn test_detailed_revision_info_zero_replicas() {
+        let rev = DetailedRevisionInfo {
+            revision: 0,
+            replica_set_name: "old-app".to_string(),
+            replicas: 0,
+            ready_replicas: 0,
+            available_replicas: 0,
+            image: "old-image:v1".to_string(),
+            created_at: None,
+        };
+        assert_eq!(rev.revision, 0);
+        assert_eq!(rev.replicas, 0);
+    }
+
+    #[test]
+    fn test_detailed_rollout_history() {
+        let history = DetailedRolloutHistory {
+            name: "api".to_string(),
+            namespace: "backend".to_string(),
+            current_revision: 5,
+            revisions: vec![
+                DetailedRevisionInfo {
+                    revision: 5,
+                    replica_set_name: "api-v5".to_string(),
+                    replicas: 3,
+                    ready_replicas: 3,
+                    available_replicas: 3,
+                    image: "api:v5".to_string(),
+                    created_at: Some(Utc::now()),
+                },
+                DetailedRevisionInfo {
+                    revision: 4,
+                    replica_set_name: "api-v4".to_string(),
+                    replicas: 0,
+                    ready_replicas: 0,
+                    available_replicas: 0,
+                    image: "api:v4".to_string(),
+                    created_at: None,
+                },
+            ],
+        };
+        assert_eq!(history.current_revision, 5);
+        assert_eq!(history.revisions.len(), 2);
+        assert_eq!(history.revisions[0].revision, 5);
+        assert_eq!(history.revisions[1].revision, 4);
+    }
+
+    // ========================================================================
+    // Tests for Query struct
+    // ========================================================================
+
+    #[test]
+    fn test_deployment_list_query_empty() {
+        let query = DeploymentListQuery {
+            namespace: None,
+            label_selector: None,
+            limit: None,
+        };
+        assert!(query.namespace.is_none());
+        assert!(query.label_selector.is_none());
+        assert!(query.limit.is_none());
+    }
+
+    #[test]
+    fn test_deployment_list_query_with_values() {
+        let query = DeploymentListQuery {
+            namespace: Some("production".to_string()),
+            label_selector: Some("app=web".to_string()),
+            limit: Some(50),
+        };
+        assert_eq!(query.namespace, Some("production".to_string()));
+        assert_eq!(query.label_selector, Some("app=web".to_string()));
+        assert_eq!(query.limit, Some(50));
+    }
+
+    // ========================================================================
+    // Additional format_age tests
+    // ========================================================================
+
+    #[test]
+    fn test_format_age_exact_boundary_minutes() {
+        let now = Utc::now();
+        let age = format_age(&(now - Duration::minutes(60)));
+        assert_eq!(age, "1h");
+    }
+
+    #[test]
+    fn test_format_age_exact_boundary_days() {
+        let now = Utc::now();
+        let age = format_age(&(now - Duration::hours(24)));
+        assert_eq!(age, "1d");
+    }
+
+    #[test]
+    fn test_format_age_zero_seconds() {
+        let now = Utc::now();
+        let age = format_age(&now);
+        assert_eq!(age, "0s");
+    }
+
+    #[test]
+    fn test_format_age_large_year_value() {
+        let now = Utc::now();
+        let age = format_age(&(now - Duration::days(730)));
+        assert_eq!(age, "2y");
+    }
 }

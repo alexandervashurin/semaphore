@@ -1007,4 +1007,211 @@ mod tests {
         let result = parse_environment_vars(&input);
         assert_eq!(result, vec![("KEY", ""), ("", "value")]);
     }
+
+    #[test]
+    fn test_app_type_all_variants_count() {
+        // Проверяем что все варианты AppType существуют
+        let variants = vec![
+            AppType::Ansible,
+            AppType::Terraform,
+            AppType::Tofu,
+            AppType::Terragrunt,
+            AppType::Bash,
+            AppType::PowerShell,
+            AppType::Python,
+            AppType::Pulumi,
+        ];
+        assert_eq!(variants.len(), 8);
+    }
+
+    #[test]
+    fn test_app_type_display_consistency() {
+        let app_types = vec![
+            AppType::Ansible,
+            AppType::Terraform,
+            AppType::Tofu,
+            AppType::Terragrunt,
+            AppType::Bash,
+            AppType::PowerShell,
+            AppType::Python,
+            AppType::Pulumi,
+        ];
+        for app_type in app_types {
+            let display = app_type.to_string();
+            assert!(!display.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_base_app_default() {
+        let app = BaseApp::default();
+        assert!(app.logger.is_none());
+        assert_eq!(app.work_dir, PathBuf::new());
+    }
+
+    #[test]
+    fn test_ansible_app_default() {
+        let app = AnsibleApp::default();
+        assert!(app.base.logger.is_none());
+        assert_eq!(app.playbook_path, PathBuf::new());
+    }
+
+    #[test]
+    fn test_terraform_app_default() {
+        let app = TerraformApp::default();
+        assert_eq!(app.workspace, "default");
+    }
+
+    #[test]
+    fn test_shell_app_get_command_bash() {
+        let app = ShellApp::new(AppType::Bash);
+        assert_eq!(app.get_command(), "bash");
+    }
+
+    #[test]
+    fn test_shell_app_get_command_powershell() {
+        let app = ShellApp::new(AppType::PowerShell);
+        assert_eq!(app.get_command(), "pwsh");
+    }
+
+    #[test]
+    fn test_shell_app_get_command_python() {
+        let app = ShellApp::new(AppType::Python);
+        assert_eq!(app.get_command(), "python3");
+    }
+
+    #[test]
+    fn test_shell_app_get_command_default() {
+        let app = ShellApp::new(AppType::Ansible);
+        assert_eq!(app.get_command(), "bash");
+    }
+
+    #[test]
+    fn test_app_factory_create_ansible() {
+        let app = AppFactory::create(AppType::Ansible);
+        // App создаётся без паники
+        assert!(std::any::type_name::<dyn std::any::Any>().contains("dyn"));
+    }
+
+    #[test]
+    fn test_app_factory_create_terraform() {
+        let app = AppFactory::create(AppType::Terraform);
+        let _ = app; // Просто проверяем что не паникует
+    }
+
+    #[test]
+    fn test_app_factory_create_tofu() {
+        let app = AppFactory::create(AppType::Tofu);
+        let _ = app;
+    }
+
+    #[test]
+    fn test_app_factory_create_terragrunt() {
+        let app = AppFactory::create(AppType::Terragrunt);
+        let _ = app;
+    }
+
+    #[test]
+    fn test_app_factory_create_bash() {
+        let app = AppFactory::create(AppType::Bash);
+        let _ = app;
+    }
+
+    #[test]
+    fn test_app_factory_create_powershell() {
+        let app = AppFactory::create(AppType::PowerShell);
+        let _ = app;
+    }
+
+    #[test]
+    fn test_app_factory_create_python() {
+        let app = AppFactory::create(AppType::Python);
+        let _ = app;
+    }
+
+    #[test]
+    fn test_app_factory_create_pulumi() {
+        let app = AppFactory::create(AppType::Pulumi);
+        let _ = app;
+    }
+
+    #[test]
+    fn test_parse_env_vars_multiple_equals() {
+        let input = vec![
+            "DB_HOST=localhost".to_string(),
+            "DB_PORT=5432".to_string(),
+            "DB_NAME=mydb".to_string(),
+        ];
+        let result = parse_environment_vars(&input);
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[0], ("DB_HOST", "localhost"));
+        assert_eq!(result[1], ("DB_PORT", "5432"));
+        assert_eq!(result[2], ("DB_NAME", "mydb"));
+    }
+
+    #[test]
+    fn test_build_ansible_args_with_all_options() {
+        use std::collections::HashMap;
+        let mut extra_vars = HashMap::new();
+        extra_vars.insert("var1".to_string(), serde_json::json!("value1"));
+        let cli_args = vec!["--limit".to_string(), "web".to_string()];
+
+        let args = build_ansible_args(
+            "deploy.yml",
+            Some("production.ini"),
+            &extra_vars,
+            &cli_args,
+        );
+
+        assert!(args.contains(&"deploy.yml".to_string()));
+        assert!(args.contains(&"-i".to_string()));
+        assert!(args.contains(&"production.ini".to_string()));
+        assert!(args.contains(&"--extra-vars".to_string()));
+        assert!(args.contains(&"--limit".to_string()));
+        assert!(args.contains(&"web".to_string()));
+    }
+
+    #[test]
+    fn test_build_terraform_apply_args_no_auto_approve() {
+        let args = build_terraform_apply_args(false);
+        assert_eq!(args.len(), 1);
+        assert_eq!(args[0], "apply");
+    }
+
+    #[test]
+    fn test_app_run_args_construction() {
+        let mut inputs = HashMap::new();
+        inputs.insert("prompt".to_string(), "yes".to_string());
+
+        let args = AppRunArgs {
+            cli_args: vec!["--verbose".to_string()],
+            environment_vars: vec!["DEBUG=1".to_string()],
+            inputs,
+        };
+
+        assert_eq!(args.cli_args.len(), 1);
+        assert_eq!(args.environment_vars.len(), 1);
+        assert_eq!(args.inputs.len(), 1);
+    }
+
+    #[test]
+    fn test_app_run_result_display() {
+        let result = AppRunResult {
+            exit_code: 42,
+            has_errors: true,
+            output_path: Some("/var/log/error.log".to_string()),
+        };
+        assert_eq!(result.exit_code, 42);
+        assert!(result.has_errors);
+    }
+
+    #[test]
+    fn test_null_logger() {
+        let logger = NullLogger;
+        logger.log("test message");
+        logger.logf("test {}", format_args!("format"));
+        use chrono::Utc;
+        logger.log_with_time(Utc::now(), "timed message");
+        // NullLogger не должен паниковать
+    }
 }

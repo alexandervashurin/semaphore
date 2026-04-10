@@ -816,3 +816,337 @@ mod pure_helper_tests {
         assert_eq!(notification_type_for_status(TaskStatus::Rejected), TelegramNotificationType::None);
     }
 }
+
+// ============================================================================
+// Additional comprehensive tests
+// ============================================================================
+
+#[cfg(test)]
+mod additional_tests {
+    use super::*;
+    use chrono::{Duration, Utc};
+
+    // -------------------------------------------------------------------------
+    // TaskStatus enum tests
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn task_status_debug_format() {
+        assert_eq!(format!("{:?}", TaskStatus::Waiting), "Waiting");
+        assert_eq!(format!("{:?}", TaskStatus::Starting), "Starting");
+        assert_eq!(format!("{:?}", TaskStatus::WaitingConfirmation), "WaitingConfirmation");
+        assert_eq!(format!("{:?}", TaskStatus::Confirmed), "Confirmed");
+    }
+
+    #[test]
+    fn task_status_equality_and_inequality() {
+        assert_eq!(TaskStatus::Success, TaskStatus::Success);
+        assert_ne!(TaskStatus::Success, TaskStatus::Error);
+        assert_ne!(TaskStatus::WaitingConfirmation, TaskStatus::Confirmed);
+        assert_eq!(TaskStatus::Rejected, TaskStatus::Rejected);
+    }
+
+    #[test]
+    fn task_status_clone_semantics() {
+        let original = TaskStatus::Running;
+        let cloned = original.clone();
+        assert_eq!(original, cloned);
+    }
+
+    #[test]
+    fn task_status_copy_semantics() {
+        let s1 = TaskStatus::Success;
+        let s2 = s1;
+        // s1 is still usable because TaskStatus implements Copy
+        assert_eq!(s1, s2);
+    }
+
+    // -------------------------------------------------------------------------
+    // ApprovalDecision enum tests
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn approval_decision_all_variants_distinct() {
+        let decisions = [
+            ApprovalDecision::Proceed,
+            ApprovalDecision::Reject,
+            ApprovalDecision::Wait,
+        ];
+        for (i, a) in decisions.iter().enumerate() {
+            for (j, b) in decisions.iter().enumerate() {
+                if i == j {
+                    assert_eq!(*a, *b);
+                } else {
+                    assert_ne!(*a, *b);
+                }
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // TelegramNotificationType enum tests
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn telegram_notification_type_all_variants_distinct() {
+        let types = [
+            TelegramNotificationType::Success,
+            TelegramNotificationType::Failed,
+            TelegramNotificationType::Stopped,
+            TelegramNotificationType::None,
+        ];
+        for (i, a) in types.iter().enumerate() {
+            for (j, b) in types.iter().enumerate() {
+                if i == j {
+                    assert_eq!(*a, *b);
+                } else {
+                    assert_ne!(*a, *b);
+                }
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Duration calculation edge cases
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn duration_one_second() {
+        let now = Utc::now();
+        let task = Task {
+            start: Some(now),
+            end: Some(now + Duration::seconds(1)),
+            ..Default::default()
+        };
+        assert_eq!(calculate_task_duration(&task), 1);
+    }
+
+    #[test]
+    fn duration_one_hour() {
+        let now = Utc::now();
+        let task = Task {
+            start: Some(now),
+            end: Some(now + Duration::seconds(3600)),
+            ..Default::default()
+        };
+        assert_eq!(calculate_task_duration(&task), 3600);
+    }
+
+    #[test]
+    fn duration_one_week() {
+        let now = Utc::now();
+        let task = Task {
+            start: Some(now),
+            end: Some(now + Duration::seconds(604800)),
+            ..Default::default()
+        };
+        assert_eq!(calculate_task_duration(&task), 604800);
+    }
+
+    #[test]
+    fn duration_negative_one_second_clamped() {
+        let now = Utc::now();
+        let task = Task {
+            start: Some(now + Duration::seconds(1)),
+            end: Some(now),
+            ..Default::default()
+        };
+        assert_eq!(calculate_task_duration(&task), 0);
+    }
+
+    // -------------------------------------------------------------------------
+    // evaluate_approval_gate comprehensive tests
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn evaluate_approval_gate_no_approval_with_approved_plan() {
+        assert_eq!(
+            evaluate_approval_gate(false, Some("approved")),
+            ApprovalDecision::Proceed
+        );
+    }
+
+    #[test]
+    fn evaluate_approval_gate_no_approval_with_rejected_plan() {
+        assert_eq!(
+            evaluate_approval_gate(false, Some("rejected")),
+            ApprovalDecision::Proceed
+        );
+    }
+
+    #[test]
+    fn evaluate_approval_gate_no_approval_with_pending_plan() {
+        assert_eq!(
+            evaluate_approval_gate(false, Some("pending")),
+            ApprovalDecision::Proceed
+        );
+    }
+
+    #[test]
+    fn evaluate_approval_gate_no_approval_without_plan() {
+        assert_eq!(evaluate_approval_gate(false, None), ApprovalDecision::Proceed);
+    }
+
+    #[test]
+    fn evaluate_approval_gate_approval_with_empty_string_status() {
+        assert_eq!(
+            evaluate_approval_gate(true, Some("")),
+            ApprovalDecision::Wait
+        );
+    }
+
+    #[test]
+    fn evaluate_approval_gate_approval_with_various_strings() {
+        assert_eq!(
+            evaluate_approval_gate(true, Some("in_progress")),
+            ApprovalDecision::Wait
+        );
+        assert_eq!(
+            evaluate_approval_gate(true, Some("cancelled")),
+            ApprovalDecision::Wait
+        );
+        assert_eq!(
+            evaluate_approval_gate(true, Some("APPROVED")),
+            ApprovalDecision::Wait
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // notification_type_for_status exhaustive tests
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn notification_type_terminal_statuses() {
+        assert_eq!(
+            notification_type_for_status(TaskStatus::Success),
+            TelegramNotificationType::Success
+        );
+        assert_eq!(
+            notification_type_for_status(TaskStatus::Error),
+            TelegramNotificationType::Failed
+        );
+        assert_eq!(
+            notification_type_for_status(TaskStatus::Stopped),
+            TelegramNotificationType::Stopped
+        );
+    }
+
+    #[test]
+    fn notification_type_pre_execution_statuses() {
+        let pre_statuses = [
+            TaskStatus::Waiting,
+            TaskStatus::NotExecuted,
+            TaskStatus::Starting,
+        ];
+        for status in pre_statuses {
+            assert_eq!(
+                notification_type_for_status(status),
+                TelegramNotificationType::None
+            );
+        }
+    }
+
+    #[test]
+    fn notification_type_in_progress_statuses() {
+        let in_progress = [
+            TaskStatus::Running,
+            TaskStatus::Stopping,
+        ];
+        for status in in_progress {
+            assert_eq!(
+                notification_type_for_status(status),
+                TelegramNotificationType::None
+            );
+        }
+    }
+
+    #[test]
+    fn notification_type_approval_statuses() {
+        let approval_statuses = [
+            TaskStatus::WaitingConfirmation,
+            TaskStatus::Confirmed,
+            TaskStatus::Rejected,
+        ];
+        for status in approval_statuses {
+            assert_eq!(
+                notification_type_for_status(status),
+                TelegramNotificationType::None
+            );
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Task structure interaction tests
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn task_default_has_no_start_end() {
+        let task = Task::default();
+        assert!(task.start.is_none());
+        assert!(task.end.is_none());
+    }
+
+    #[test]
+    fn task_with_start_and_end_duration_is_positive() {
+        let now = Utc::now();
+        let task = Task {
+            start: Some(now),
+            end: Some(now + Duration::seconds(42)),
+            ..Default::default()
+        };
+        assert_eq!(calculate_task_duration(&task), 42);
+    }
+
+    #[test]
+    fn task_status_field_updates() {
+        let mut task = Task::default();
+        assert_eq!(task.status, TaskStatus::Waiting);
+        task.status = TaskStatus::Running;
+        assert_eq!(task.status, TaskStatus::Running);
+        task.status = TaskStatus::Success;
+        assert_eq!(task.status, TaskStatus::Success);
+    }
+
+    // -------------------------------------------------------------------------
+    // Integration-style tests for pure helpers
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn duration_and_notification_combined() {
+        let now = Utc::now();
+        let task = Task {
+            start: Some(now),
+            end: Some(now + Duration::seconds(100)),
+            status: TaskStatus::Success,
+            ..Default::default()
+        };
+        let duration = calculate_task_duration(&task);
+        let notif = notification_type_for_status(task.status);
+        assert_eq!(duration, 100);
+        assert_eq!(notif, TelegramNotificationType::Success);
+    }
+
+    #[test]
+    fn approval_and_notification_independence() {
+        // Approval decision and notification type are independent
+        let decision = evaluate_approval_gate(true, Some("approved"));
+        assert_eq!(decision, ApprovalDecision::Proceed);
+        // ApprovalDecision does not affect notification type
+        let notif = notification_type_for_status(TaskStatus::Success);
+        assert_eq!(notif, TelegramNotificationType::Success);
+    }
+
+    #[test]
+    fn multiple_duration_calculations_on_same_task() {
+        let now = Utc::now();
+        let task = Task {
+            start: Some(now),
+            end: Some(now + Duration::seconds(55)),
+            ..Default::default()
+        };
+        // Duration calculation is idempotent
+        assert_eq!(calculate_task_duration(&task), 55);
+        assert_eq!(calculate_task_duration(&task), 55);
+        assert_eq!(calculate_task_duration(&task), 55);
+    }
+}

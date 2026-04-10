@@ -745,4 +745,414 @@ mod tests {
         assert_eq!(cloned.project.name, backup.project.name);
         assert_eq!(cloned.version, backup.version);
     }
+
+    #[test]
+    fn test_backup_schedule_serialization() {
+        let schedule = BackupSchedule {
+            template: "Deploy".to_string(),
+            cron_format: "0 0 * * *".to_string(),
+            active: true,
+        };
+        let json = serde_json::to_string(&schedule).unwrap();
+        assert!(json.contains("\"template\":\"Deploy\""));
+        assert!(json.contains("\"cron_format\":\"0 0 * * *\""));
+        assert!(json.contains("\"active\":true"));
+    }
+
+    #[test]
+    fn test_backup_integration_serialization() {
+        let integration = BackupIntegration {
+            name: "Slack".to_string(),
+            template_id: Some(42),
+        };
+        let json = serde_json::to_string(&integration).unwrap();
+        assert!(json.contains("\"name\":\"Slack\""));
+        assert!(json.contains("\"template_id\":42"));
+    }
+
+    #[test]
+    fn test_backup_view_serialization() {
+        let view = BackupView {
+            name: "Main View".to_string(),
+            position: 1,
+        };
+        let json = serde_json::to_string(&view).unwrap();
+        assert!(json.contains("\"name\":\"Main View\""));
+        assert!(json.contains("\"position\":1"));
+    }
+
+    #[test]
+    fn test_backup_view_with_title_alias() {
+        let json = r#"{"title":"Alias View","position":5}"#;
+        let view: BackupView = serde_json::from_str(json).unwrap();
+        assert_eq!(view.name, "Alias View");
+        assert_eq!(view.position, 5);
+    }
+
+    #[test]
+    fn test_backup_ssh_key_serialization() {
+        let ssh_key = BackupSshKey {
+            private_key: "-----BEGIN RSA PRIVATE KEY-----".to_string(),
+            passphrase: Some("secret".to_string()),
+            login: Some("admin".to_string()),
+        };
+        let json = serde_json::to_string(&ssh_key).unwrap();
+        assert!(json.contains("\"private_key\":\"-----BEGIN RSA PRIVATE KEY-----\""));
+        assert!(json.contains("\"passphrase\":\"secret\""));
+        assert!(json.contains("\"login\":\"admin\""));
+    }
+
+    #[test]
+    fn test_backup_login_password_serialization() {
+        let creds = BackupLoginPassword {
+            login: "user".to_string(),
+            password: "pass123".to_string(),
+        };
+        let json = serde_json::to_string(&creds).unwrap();
+        assert!(json.contains("\"login\":\"user\""));
+        assert!(json.contains("\"password\":\"pass123\""));
+    }
+
+    #[test]
+    fn test_backup_access_key_ssh_type() {
+        let key = BackupAccessKey {
+            name: "SSH Key".to_string(),
+            key_type: "ssh".to_string(),
+            owner: "admin".to_string(),
+            ssh_key: Some(BackupSshKey {
+                private_key: "key_data".to_string(),
+                passphrase: None,
+                login: Some("deploy".to_string()),
+            }),
+            login_password: None,
+        };
+        let json = serde_json::to_string(&key).unwrap();
+        assert!(json.contains("\"name\":\"SSH Key\""));
+        assert!(json.contains("\"key_type\":\"ssh\""));
+        assert!(json.contains("\"owner\":\"admin\""));
+        assert!(json.contains("\"private_key\":\"key_data\""));
+    }
+
+    #[test]
+    fn test_backup_access_key_login_password_type() {
+        let key = BackupAccessKey {
+            name: "Login Key".to_string(),
+            key_type: "login_password".to_string(),
+            owner: String::new(),
+            ssh_key: None,
+            login_password: Some(BackupLoginPassword {
+                login: "root".to_string(),
+                password: "secret".to_string(),
+            }),
+        };
+        let json = serde_json::to_string(&key).unwrap();
+        assert!(json.contains("\"name\":\"Login Key\""));
+        assert!(json.contains("\"key_type\":\"login_password\""));
+        assert!(json.contains("\"login\":\"root\""));
+    }
+
+    #[test]
+    fn test_backup_access_key_none_type() {
+        let key = BackupAccessKey {
+            name: "None Key".to_string(),
+            key_type: "none".to_string(),
+            owner: String::new(),
+            ssh_key: None,
+            login_password: None,
+        };
+        assert_eq!(key.name, "None Key");
+        assert_eq!(key.key_type, "none");
+        assert!(key.ssh_key.is_none());
+        assert!(key.login_password.is_none());
+    }
+
+    #[test]
+    fn test_backup_inventory_serialization() {
+        let inv = BackupInventory {
+            name: "Production".to_string(),
+            inventory_type: "static".to_string(),
+            inventory: "[web]\n192.168.1.1".to_string(),
+            ssh_key: None,
+            become_key: None,
+        };
+        let json = serde_json::to_string(&inv).unwrap();
+        assert!(json.contains("\"name\":\"Production\""));
+        assert!(json.contains("\"inventory_type\":\"static\""));
+        assert!(json.contains("\"inventory\":\"[web]\\n192.168.1.1\""));
+    }
+
+    #[test]
+    fn test_backup_inventory_with_keys() {
+        let inv = BackupInventory {
+            name: "With Keys".to_string(),
+            inventory_type: "file".to_string(),
+            inventory: "/path/to/inventory".to_string(),
+            ssh_key: Some("ssh-key-name".to_string()),
+            become_key: Some("become-key-name".to_string()),
+        };
+        assert_eq!(inv.name, "With Keys");
+        assert_eq!(inv.inventory_type, "file");
+        assert_eq!(inv.ssh_key, Some("ssh-key-name".to_string()));
+        assert_eq!(inv.become_key, Some("become-key-name".to_string()));
+    }
+
+    #[test]
+    fn test_default_inventory_type() {
+        assert_eq!(default_inventory_type(), "static");
+    }
+
+    #[test]
+    fn test_default_key_type() {
+        assert_eq!(default_key_type(), "none");
+    }
+
+    #[test]
+    fn test_backup_format_serialization_roundtrip() {
+        let backup = BackupFormat {
+            version: "1.0".to_string(),
+            project: BackupProject {
+                name: "Roundtrip".to_string(),
+                alert: Some(true),
+                alert_chat: Some("chat".to_string()),
+                max_parallel_tasks: Some(3),
+            },
+            templates: vec![BackupTemplate {
+                name: "Tpl".to_string(),
+                playbook: "play.yml".to_string(),
+                arguments: None,
+                template_type: "ansible".to_string(),
+                inventory: None,
+                repository: None,
+                environment: None,
+                cron: None,
+            }],
+            repositories: Vec::new(),
+            inventories: Vec::new(),
+            environments: Vec::new(),
+            access_keys: Vec::new(),
+            schedules: Vec::new(),
+            integrations: Vec::new(),
+            views: Vec::new(),
+        };
+
+        let json = serde_json::to_string(&backup).unwrap();
+        let restored: BackupFormat = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(restored.project.name, "Roundtrip");
+        assert_eq!(restored.templates.len(), 1);
+        assert_eq!(restored.templates[0].name, "Tpl");
+        assert_eq!(restored.templates[0].playbook, "play.yml");
+    }
+
+    #[test]
+    fn test_backup_format_empty_collections() {
+        let backup = BackupFormat {
+            version: "1.0".to_string(),
+            project: BackupProject {
+                name: "Empty".to_string(),
+                alert: None,
+                alert_chat: None,
+                max_parallel_tasks: None,
+            },
+            templates: Vec::new(),
+            repositories: Vec::new(),
+            inventories: Vec::new(),
+            environments: Vec::new(),
+            access_keys: Vec::new(),
+            schedules: Vec::new(),
+            integrations: Vec::new(),
+            views: Vec::new(),
+        };
+
+        assert!(backup.templates.is_empty());
+        assert!(backup.repositories.is_empty());
+        assert!(backup.inventories.is_empty());
+        assert!(backup.environments.is_empty());
+        assert!(backup.access_keys.is_empty());
+        assert!(backup.schedules.is_empty());
+        assert!(backup.integrations.is_empty());
+        assert!(backup.views.is_empty());
+    }
+
+    #[test]
+    fn test_backup_project_meta_alias() {
+        let json = r#"{"meta":{"name":"Aliased"},"templates":[]}"#;
+        let result: std::result::Result<BackupFormat, _> = serde_json::from_str(json);
+        // meta - это alias для project, поэтому десериализация должна работать
+        assert!(result.is_ok());
+        let backup = result.unwrap();
+        assert_eq!(backup.project.name, "Aliased");
+    }
+
+    #[test]
+    fn test_backup_access_keys_alias() {
+        let json = r#"{"project":{"name":"Test"},"keys":[],"templates":[]}"#;
+        let backup: BackupFormat = serde_json::from_str(json).unwrap();
+        assert_eq!(backup.project.name, "Test");
+        assert!(backup.access_keys.is_empty());
+    }
+
+    #[test]
+    fn test_make_unique_names_empty_slice() {
+        let mut items: Vec<BackupTemplate> = Vec::new();
+        make_unique_names(&mut items, |item| &item.name, |item, name| item.name = name);
+        assert!(items.is_empty());
+    }
+
+    #[test]
+    fn test_make_unique_names_single_item() {
+        let mut items = vec![BackupTemplate {
+            name: "Single".to_string(),
+            playbook: String::new(),
+            arguments: None,
+            template_type: String::new(),
+            inventory: None,
+            repository: None,
+            environment: None,
+            cron: None,
+        }];
+
+        make_unique_names(&mut items, |item| &item.name, |item, name| item.name = name);
+
+        assert_eq!(items[0].name, "Single");
+    }
+
+    #[test]
+    fn test_backup_template_default_fields() {
+        let template = BackupTemplate {
+            name: "Minimal".to_string(),
+            playbook: String::new(),
+            arguments: None,
+            template_type: String::new(),
+            inventory: None,
+            repository: None,
+            environment: None,
+            cron: None,
+        };
+        assert_eq!(template.playbook, "");
+        assert!(template.arguments.is_none());
+        assert!(template.inventory.is_none());
+    }
+
+    #[test]
+    fn test_backup_repository_default_branch() {
+        let repo = BackupRepository {
+            name: "Test".to_string(),
+            git_url: "https://example.com/repo.git".to_string(),
+            git_branch: String::new(),
+            ssh_key: None,
+        };
+        assert_eq!(repo.git_branch, "");
+    }
+
+    #[test]
+    fn test_backup_schedule_inactive() {
+        let schedule = BackupSchedule {
+            template: "Old".to_string(),
+            cron_format: "0 0 1 1 *".to_string(),
+            active: false,
+        };
+        assert!(!schedule.active);
+        assert_eq!(schedule.template, "Old");
+    }
+
+    #[test]
+    fn test_backup_integration_null_template_id() {
+        let integration = BackupIntegration {
+            name: "Global".to_string(),
+            template_id: None,
+        };
+        assert!(integration.template_id.is_none());
+        assert_eq!(integration.name, "Global");
+    }
+
+    #[test]
+    fn test_backup_view_default_position() {
+        let json = r#"{"name":"NoPos"}"#;
+        let view: BackupView = serde_json::from_str(json).unwrap();
+        assert_eq!(view.name, "NoPos");
+        assert_eq!(view.position, 0);
+    }
+
+    #[test]
+    fn test_backup_format_version_default() {
+        let json = r#"{"project":{"name":"Test"},"templates":[]}"#;
+        let backup: BackupFormat = serde_json::from_str(json).unwrap();
+        assert_eq!(backup.version, "1.0");
+    }
+
+    #[test]
+    fn test_backup_debug_traits() {
+        let project = BackupProject {
+            name: "Debug".to_string(),
+            alert: None,
+            alert_chat: None,
+            max_parallel_tasks: None,
+        };
+        let debug_str = format!("{:?}", project);
+        assert!(debug_str.contains("Debug"));
+        assert!(debug_str.contains("BackupProject"));
+    }
+
+    #[test]
+    fn test_backup_multiple_templates_and_repos() {
+        let backup = BackupFormat {
+            version: "1.0".to_string(),
+            project: BackupProject {
+                name: "Multi".to_string(),
+                alert: None,
+                alert_chat: None,
+                max_parallel_tasks: None,
+            },
+            templates: vec![
+                BackupTemplate {
+                    name: "Deploy".to_string(),
+                    playbook: "deploy.yml".to_string(),
+                    arguments: None,
+                    template_type: String::new(),
+                    inventory: None,
+                    repository: None,
+                    environment: None,
+                    cron: None,
+                },
+                BackupTemplate {
+                    name: "Test".to_string(),
+                    playbook: "test.yml".to_string(),
+                    arguments: None,
+                    template_type: String::new(),
+                    inventory: None,
+                    repository: None,
+                    environment: None,
+                    cron: None,
+                },
+            ],
+            repositories: vec![
+                BackupRepository {
+                    name: "Repo1".to_string(),
+                    git_url: "https://github.com/repo1.git".to_string(),
+                    git_branch: "main".to_string(),
+                    ssh_key: None,
+                },
+                BackupRepository {
+                    name: "Repo2".to_string(),
+                    git_url: "https://github.com/repo2.git".to_string(),
+                    git_branch: "develop".to_string(),
+                    ssh_key: None,
+                },
+            ],
+            inventories: Vec::new(),
+            environments: Vec::new(),
+            access_keys: Vec::new(),
+            schedules: Vec::new(),
+            integrations: Vec::new(),
+            views: Vec::new(),
+        };
+
+        assert_eq!(backup.templates.len(), 2);
+        assert_eq!(backup.repositories.len(), 2);
+        assert_eq!(backup.templates[0].name, "Deploy");
+        assert_eq!(backup.templates[1].name, "Test");
+        assert_eq!(backup.repositories[0].name, "Repo1");
+        assert_eq!(backup.repositories[1].name, "Repo2");
+    }
 }

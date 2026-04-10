@@ -804,4 +804,105 @@ mod tests {
         assert!(!job.active);
         assert!(job.next_run.is_some());
     }
+
+    #[test]
+    fn test_scheduled_job_debug_format() {
+        let job = ScheduledJob {
+            schedule_id: 42,
+            template_id: 10,
+            project_id: 5,
+            cron: "0 0 * * * *".to_string(),
+            name: "Debug Test".to_string(),
+            active: true,
+            next_run: Some(Utc::now()),
+        };
+        // Проверяем что структура имеет Debug
+        let debug_str = format!("{:?}", job);
+        assert!(debug_str.contains("ScheduledJob"));
+        assert!(debug_str.contains("Debug Test"));
+    }
+
+    #[test]
+    fn test_normalize_cron_with_leading_whitespace() {
+        assert_eq!(SchedulePool::normalize_cron_expression("  * * * * *"), "0 * * * * *");
+    }
+
+    #[test]
+    fn test_normalize_cron_with_trailing_whitespace() {
+        assert_eq!(SchedulePool::normalize_cron_expression("0 0 * * *  "), "0 0 0 * * *");
+    }
+
+    #[test]
+    fn test_normalize_cron_preserves_six_fields() {
+        assert_eq!(SchedulePool::normalize_cron_expression("0 0 0 1 1 *"), "0 0 0 1 1 *");
+    }
+
+    #[test]
+    fn test_calculate_next_run_cron_with_range() {
+        // Cron с диапазоном дней недели (пн-пт)
+        let result = SchedulePool::calculate_next_run("0 9 * * 1-5");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_calculate_next_run_cron_with_step() {
+        // Cron с шагом каждые 2 часа
+        let result = SchedulePool::calculate_next_run("0 */2 * * *");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_calculate_next_run_cron_specific_day() {
+        // Cron на 1-е число каждого месяца
+        let result = SchedulePool::calculate_next_run("0 0 1 * *");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_normalize_cron_every_second() {
+        assert_eq!(SchedulePool::normalize_cron_expression("* * * * * *"), "* * * * * *");
+    }
+
+    #[test]
+    fn test_scheduled_job_with_all_fields() {
+        let now = Utc::now();
+        let job = ScheduledJob {
+            schedule_id: 100,
+            template_id: 200,
+            project_id: 300,
+            cron: "0 0 1 1 *".to_string(),
+            name: "New Year Job".to_string(),
+            active: true,
+            next_run: Some(now),
+        };
+
+        assert_eq!(job.schedule_id, 100);
+        assert_eq!(job.template_id, 200);
+        assert_eq!(job.project_id, 300);
+        assert_eq!(job.cron, "0 0 1 1 *");
+        assert_eq!(job.name, "New Year Job");
+        assert!(job.active);
+        assert!(job.next_run.is_some());
+    }
+
+    #[test]
+    fn test_validate_cron_for_storage_valid_every_minute() {
+        let result = SchedulePool::validate_cron_for_storage("* * * * *");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_cron_for_storage_valid_complex() {
+        let result = SchedulePool::validate_cron_for_storage("0 0 1,15 * *");
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_schedule_pool_new_state() {
+        use crate::db::mock::MockStore;
+        let store = Arc::new(MockStore::new());
+        let pool = SchedulePool::new(store);
+        let jobs = pool.get_jobs().await;
+        assert_eq!(jobs.len(), 0);
+    }
 }

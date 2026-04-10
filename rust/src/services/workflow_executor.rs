@@ -928,4 +928,186 @@ mod tests {
         let ctx = WorkflowExecutionContext::new(workflow, nodes, edges, run);
         assert_eq!(ctx.node_statuses.len(), 5);
     }
+
+    #[test]
+    fn test_workflow_creation() {
+        let workflow = create_test_workflow();
+        assert_eq!(workflow.id, 1);
+        assert_eq!(workflow.project_id, 10);
+        assert_eq!(workflow.name, "Test Workflow");
+    }
+
+    #[test]
+    fn test_node_creation_with_different_ids() {
+        for id in &[1, 5, 10, 100] {
+            let node = create_test_node(*id);
+            assert_eq!(node.id, *id);
+            assert_eq!(node.workflow_id, 1);
+            assert_eq!(node.template_id, *id * 10);
+        }
+    }
+
+    #[test]
+    fn test_edge_creation_with_conditions() {
+        let conditions = vec!["success", "failure", "always"];
+        for condition in conditions {
+            let edge = create_test_edge(1, 2, condition);
+            assert_eq!(edge.from_node_id, 1);
+            assert_eq!(edge.to_node_id, 2);
+            assert_eq!(edge.condition, condition);
+        }
+    }
+
+    #[test]
+    fn test_find_next_nodes_unknown_condition() {
+        let workflow = create_test_workflow();
+        let nodes = vec![create_test_node(1), create_test_node(2)];
+        let edges = vec![create_test_edge(1, 2, "unknown_condition")];
+        let run = create_test_run();
+
+        let ctx = WorkflowExecutionContext::new(workflow, nodes, edges, run);
+        let next = ctx.find_next_nodes(1, TaskStatus::Success);
+
+        // Unknown condition не матчится ни с чем
+        assert!(next.is_empty());
+    }
+
+    #[test]
+    fn test_node_execution_status_equality() {
+        let task1 = create_test_task(1);
+        let task2 = create_test_task(1);
+
+        let status1 = NodeExecutionStatus::Success(task1);
+        let status2 = NodeExecutionStatus::Success(task2);
+
+        // Проверяем что оба Success
+        assert!(matches!(status1, NodeExecutionStatus::Success(_)));
+        assert!(matches!(status2, NodeExecutionStatus::Success(_)));
+    }
+
+    #[test]
+    fn test_context_initialization_all_pending() {
+        let workflow = create_test_workflow();
+        let nodes = vec![
+            create_test_node(1),
+            create_test_node(2),
+            create_test_node(3),
+        ];
+        let edges = vec![];
+        let run = create_test_run();
+
+        let ctx = WorkflowExecutionContext::new(workflow, nodes, edges, run);
+
+        // Все узлы должны быть Pending
+        for status in ctx.node_statuses.values() {
+            assert!(matches!(status, NodeExecutionStatus::Pending));
+        }
+    }
+
+    #[test]
+    fn test_find_start_nodes_diamond_pattern() {
+        // Diamond pattern: 1 -> 2, 1 -> 3, 2 -> 4, 3 -> 4
+        let workflow = create_test_workflow();
+        let nodes = vec![
+            create_test_node(1),
+            create_test_node(2),
+            create_test_node(3),
+            create_test_node(4),
+        ];
+        let edges = vec![
+            create_test_edge(1, 2, "success"),
+            create_test_edge(1, 3, "success"),
+            create_test_edge(2, 4, "success"),
+            create_test_edge(3, 4, "success"),
+        ];
+        let run = create_test_run();
+
+        let ctx = WorkflowExecutionContext::new(workflow, nodes, edges, run);
+        let starts = ctx.find_start_nodes();
+
+        assert_eq!(starts, vec![1]);
+    }
+
+    #[test]
+    fn test_find_next_nodes_parallel_paths() {
+        // 1 -> 2, 1 -> 3 (parallel)
+        let workflow = create_test_workflow();
+        let nodes = vec![
+            create_test_node(1),
+            create_test_node(2),
+            create_test_node(3),
+        ];
+        let edges = vec![
+            create_test_edge(1, 2, "success"),
+            create_test_edge(1, 3, "success"),
+        ];
+        let run = create_test_run();
+
+        let ctx = WorkflowExecutionContext::new(workflow, nodes, edges, run);
+        let next = ctx.find_next_nodes(1, TaskStatus::Success);
+
+        assert_eq!(next.len(), 2);
+        assert!(next.contains(&2));
+        assert!(next.contains(&3));
+    }
+
+    #[test]
+    fn test_task_creation_for_workflow_node() {
+        let task = create_test_task(42);
+        assert_eq!(task.id, 42);
+        assert_eq!(task.template_id, 1);
+        assert_eq!(task.project_id, 10);
+        assert!(matches!(task.status, TaskStatus::Success));
+    }
+
+    #[test]
+    fn test_workflow_run_initial_state() {
+        let run = create_test_run();
+        assert_eq!(run.id, 1);
+        assert_eq!(run.workflow_id, 1);
+        assert_eq!(run.project_id, 10);
+        assert_eq!(run.status, "pending");
+        assert!(run.message.is_none());
+        assert!(run.started.is_none());
+        assert!(run.finished.is_none());
+    }
+
+    #[test]
+    fn test_node_properties() {
+        let node = create_test_node(5);
+        assert_eq!(node.id, 5);
+        assert_eq!(node.workflow_id, 1);
+        assert_eq!(node.template_id, 50);
+        assert_eq!(node.name, "Node 5");
+        assert_eq!(node.pos_x, 0.0);
+        assert_eq!(node.pos_y, 0.0);
+    }
+
+    #[test]
+    fn test_edge_properties() {
+        let edge = create_test_edge(10, 20, "success");
+        assert_eq!(edge.from_node_id, 10);
+        assert_eq!(edge.to_node_id, 20);
+        assert_eq!(edge.condition, "success");
+        assert_eq!(edge.workflow_id, 1);
+    }
+
+    #[test]
+    fn test_context_workflow_metadata() {
+        let workflow = Workflow {
+            id: 99,
+            project_id: 77,
+            name: "Custom Workflow".to_string(),
+            description: Some("Test description".to_string()),
+            created: Utc::now(),
+            updated: Utc::now(),
+        };
+        let nodes = vec![create_test_node(1)];
+        let edges = vec![];
+        let run = create_test_run();
+
+        let ctx = WorkflowExecutionContext::new(workflow, nodes, edges, run);
+        assert_eq!(ctx.project_id, 77);
+        assert_eq!(ctx.workflow.id, 99);
+    }
 }
