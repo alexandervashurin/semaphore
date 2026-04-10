@@ -104,3 +104,117 @@ impl IntegrationManager for SqlStore {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::models::Integration;
+
+    #[test]
+    fn test_integration_serialization() {
+        let integration = Integration {
+            id: 1,
+            project_id: 10,
+            name: "GitHub Integration".to_string(),
+            template_id: 5,
+            auth_method: "hmac".to_string(),
+            auth_header: Some("X-Hub-Signature".to_string()),
+            auth_secret_id: Some(3),
+        };
+        let json = serde_json::to_string(&integration).unwrap();
+        assert!(json.contains("\"name\":\"GitHub Integration\""));
+        assert!(json.contains("\"auth_method\":\"hmac\""));
+    }
+
+    #[test]
+    fn test_integration_no_auth() {
+        let integration = Integration {
+            id: 2,
+            project_id: 1,
+            name: "Public Webhook".to_string(),
+            template_id: 1,
+            auth_method: "none".to_string(),
+            auth_header: None,
+            auth_secret_id: None,
+        };
+        let json = serde_json::to_string(&integration).unwrap();
+        assert!(!json.contains("auth_header"));
+        assert!(!json.contains("auth_secret_id"));
+    }
+
+    #[test]
+    fn test_integration_default_values() {
+        let integration = Integration {
+            id: 0,
+            project_id: 0,
+            name: String::new(),
+            template_id: 0,
+            auth_method: String::new(),
+            auth_header: None,
+            auth_secret_id: None,
+        };
+        assert_eq!(integration.id, 0);
+        assert_eq!(integration.template_id, 0);
+    }
+
+    #[test]
+    fn test_integration_clone() {
+        let integration = Integration {
+            id: 1,
+            project_id: 10,
+            name: "Clone Test".to_string(),
+            template_id: 5,
+            auth_method: "token".to_string(),
+            auth_header: Some("Authorization".to_string()),
+            auth_secret_id: Some(1),
+        };
+        let cloned = integration.clone();
+        assert_eq!(cloned.name, integration.name);
+        assert_eq!(cloned.auth_method, integration.auth_method);
+    }
+
+    #[test]
+    fn test_integration_deserialization() {
+        let json = r#"{"id":5,"project_id":20,"name":"Test Integration","template_id":10,"auth_method":"none","auth_header":null,"auth_secret_id":null}"#;
+        let integration: Integration = serde_json::from_str(json).unwrap();
+        assert_eq!(integration.id, 5);
+        assert_eq!(integration.name, "Test Integration");
+        assert_eq!(integration.auth_method, "none");
+    }
+
+    #[test]
+    fn test_integration_with_token_auth() {
+        let integration = Integration {
+            id: 3,
+            project_id: 2,
+            name: "Token Auth Integration".to_string(),
+            template_id: 7,
+            auth_method: "token".to_string(),
+            auth_header: Some("X-Auth-Token".to_string()),
+            auth_secret_id: Some(42),
+        };
+        let json = serde_json::to_string(&integration).unwrap();
+        assert!(json.contains("\"auth_method\":\"token\""));
+        assert!(json.contains("\"auth_header\":\"X-Auth-Token\""));
+    }
+
+    #[test]
+    fn test_integration_project_id() {
+        let integration = Integration {
+            id: 1,
+            project_id: 100,
+            name: "Project Test".to_string(),
+            template_id: 1,
+            auth_method: String::new(),
+            auth_header: None,
+            auth_secret_id: None,
+        };
+        assert_eq!(integration.project_id, 100);
+    }
+
+    #[test]
+    fn test_integration_name_empty_deserialize() {
+        let json = r#"{"id":1,"project_id":1,"name":"","template_id":1,"auth_method":"","auth_header":null,"auth_secret_id":null}"#;
+        let integration: Integration = serde_json::from_str(json).unwrap();
+        assert!(integration.name.is_empty());
+    }
+}

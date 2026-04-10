@@ -166,3 +166,94 @@ impl AppState {
         Ok(Arc::new(client))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_oidc_state_new() {
+        let state = OidcState {
+            pkce_verifier: "verifier123".to_string(),
+            provider: "google".to_string(),
+        };
+        assert_eq!(state.pkce_verifier, "verifier123");
+        assert_eq!(state.provider, "google");
+    }
+
+    #[test]
+    fn test_oidc_state_clone() {
+        let state = OidcState {
+            pkce_verifier: "abc".to_string(),
+            provider: "github".to_string(),
+        };
+        let cloned = state.clone();
+        assert_eq!(cloned.pkce_verifier, state.pkce_verifier);
+        assert_eq!(cloned.provider, state.provider);
+    }
+
+    #[test]
+    fn test_oidc_state_hashmap_insert() {
+        let mut map: HashMap<String, OidcState> = HashMap::new();
+        map.insert(
+            "session1".to_string(),
+            OidcState {
+                pkce_verifier: "v1".to_string(),
+                provider: "oidc".to_string(),
+            },
+        );
+        assert_eq!(map.len(), 1);
+        assert_eq!(map.get("session1").unwrap().pkce_verifier, "v1");
+    }
+
+    #[test]
+    fn test_oidc_state_hashmap_multiple() {
+        let mut map: HashMap<String, OidcState> = HashMap::new();
+        for i in 0..5 {
+            map.insert(
+                format!("session_{}", i),
+                OidcState {
+                    pkce_verifier: format!("verifier_{}", i),
+                    provider: "provider".to_string(),
+                },
+            );
+        }
+        assert_eq!(map.len(), 5);
+        assert_eq!(map.get("session_3").unwrap().pkce_verifier, "verifier_3");
+    }
+
+    #[test]
+    fn test_oidc_state_send_sync() {
+        fn assert_send_sync<T: Send + Sync>() {}
+        assert_send_sync::<OidcState>();
+    }
+
+    #[test]
+    fn test_oidc_state_different_providers() {
+        let providers = vec!["google", "github", "keycloak", "okta"];
+        for provider in providers {
+            let state = OidcState {
+                pkce_verifier: "test".to_string(),
+                provider: provider.to_string(),
+            };
+            assert_eq!(state.provider, provider);
+        }
+    }
+
+    #[test]
+    fn test_oidc_state_pkce_verifier_formats() {
+        let verifiers = vec![
+            "simple",
+            "with-dashes",
+            "with_underscores",
+            "base64urlencoded==",
+        ];
+        for v in verifiers {
+            let state = OidcState {
+                pkce_verifier: v.to_string(),
+                provider: "test".to_string(),
+            };
+            assert_eq!(state.pkce_verifier, v);
+        }
+    }
+}

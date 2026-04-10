@@ -84,3 +84,111 @@ impl SessionManager for SqlStore {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::models::{Session, SessionVerificationMethod};
+    use chrono::Utc;
+
+    #[test]
+    fn test_session_verification_method_serialization() {
+        assert_eq!(
+            serde_json::to_string(&SessionVerificationMethod::None).unwrap(),
+            "\"none\""
+        );
+        assert_eq!(
+            serde_json::to_string(&SessionVerificationMethod::Totp).unwrap(),
+            "\"totp\""
+        );
+        assert_eq!(
+            serde_json::to_string(&SessionVerificationMethod::EmailOtp).unwrap(),
+            "\"email_otp\""
+        );
+    }
+
+    #[test]
+    fn test_session_serialization() {
+        let session = Session {
+            id: 1, user_id: 10, created: Utc::now(), last_active: Utc::now(),
+            ip: "192.168.1.1".to_string(), user_agent: "Mozilla/5.0".to_string(),
+            expired: false,
+            verification_method: SessionVerificationMethod::Totp,
+            verified: true,
+        };
+        let json = serde_json::to_string(&session).unwrap();
+        assert!(json.contains("\"user_id\":10"));
+        assert!(json.contains("\"ip\":\"192.168.1.1\""));
+        assert!(json.contains("\"verified\":true"));
+    }
+
+    #[test]
+    fn test_session_clone() {
+        let session = Session {
+            id: 1, user_id: 1, created: Utc::now(), last_active: Utc::now(),
+            ip: "127.0.0.1".to_string(), user_agent: "Test".to_string(),
+            expired: false, verification_method: SessionVerificationMethod::None,
+            verified: false,
+        };
+        let cloned = session.clone();
+        assert_eq!(cloned.ip, session.ip);
+        assert_eq!(cloned.verification_method, session.verification_method);
+    }
+
+    #[test]
+    fn test_session_expired() {
+        let session = Session {
+            id: 1, user_id: 1, created: Utc::now(), last_active: Utc::now(),
+            ip: "10.0.0.1".to_string(), user_agent: "Agent".to_string(),
+            expired: true, verification_method: SessionVerificationMethod::None,
+            verified: false,
+        };
+        assert!(session.expired);
+    }
+
+    #[test]
+    fn test_session_verified() {
+        let session = Session {
+            id: 1, user_id: 1, created: Utc::now(), last_active: Utc::now(),
+            ip: String::new(), user_agent: String::new(),
+            expired: false, verification_method: SessionVerificationMethod::EmailOtp,
+            verified: true,
+        };
+        assert!(session.verified);
+        assert_eq!(session.verification_method, SessionVerificationMethod::EmailOtp);
+    }
+
+    #[test]
+    fn test_session_deserialization() {
+        let json = r#"{"id":5,"user_id":20,"created":"2024-01-01T00:00:00Z","last_active":"2024-01-01T01:00:00Z","ip":"10.0.0.5","user_agent":"Chrome","expired":false,"verification_method":"totp","verified":true}"#;
+        let session: Session = serde_json::from_str(json).unwrap();
+        assert_eq!(session.id, 5);
+        assert_eq!(session.user_id, 20);
+        assert_eq!(session.ip, "10.0.0.5");
+        assert_eq!(session.verification_method, SessionVerificationMethod::Totp);
+    }
+
+    #[test]
+    fn test_session_all_verification_methods() {
+        let methods = [
+            SessionVerificationMethod::None,
+            SessionVerificationMethod::Totp,
+            SessionVerificationMethod::EmailOtp,
+        ];
+        for method in &methods {
+            let json = serde_json::to_string(method).unwrap();
+            assert!(json.starts_with('"') && json.ends_with('"'));
+        }
+    }
+
+    #[test]
+    fn test_session_empty_strings() {
+        let session = Session {
+            id: 1, user_id: 1, created: Utc::now(), last_active: Utc::now(),
+            ip: String::new(), user_agent: String::new(),
+            expired: false, verification_method: SessionVerificationMethod::None,
+            verified: false,
+        };
+        assert!(session.ip.is_empty());
+        assert!(session.user_agent.is_empty());
+    }
+}

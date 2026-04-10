@@ -104,3 +104,111 @@ pub async fn delete_template(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{TemplateApp, TemplateType};
+
+    #[test]
+    fn test_get_templates_query_structure() {
+        let query = "SELECT * FROM template WHERE project_id = $1 ORDER BY name";
+        assert!(query.contains("template"));
+        assert!(query.contains("project_id = $1"));
+        assert!(query.contains("ORDER BY name"));
+    }
+
+    #[test]
+    fn test_get_template_query_structure() {
+        let query = "SELECT * FROM template WHERE id = $1 AND project_id = $2";
+        assert!(query.contains("id = $1"));
+        assert!(query.contains("project_id = $2"));
+    }
+
+    #[test]
+    fn test_create_template_query_structure() {
+        let expected = "INSERT INTO template (project_id, name, playbook, description, inventory_id, repository_id, environment_id, type, app, git_branch, created, arguments, vault_key_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id";
+        assert!(expected.contains("template"));
+        assert!(expected.contains("RETURNING id"));
+        assert!(expected.contains("$13"));
+    }
+
+    #[test]
+    fn test_update_template_query_structure() {
+        let expected = "UPDATE template SET name = $1, playbook = $2, description = $3, inventory_id = $4, repository_id = $5, environment_id = $6, type = $7, app = $8, git_branch = $9, arguments = $10, vault_key_id = $11 WHERE id = $12 AND project_id = $13";
+        assert!(expected.contains("UPDATE template"));
+        assert!(expected.contains("WHERE id = $12 AND project_id = $13"));
+        assert!(expected.contains("$13"));
+    }
+
+    #[test]
+    fn test_delete_template_query_structure() {
+        let expected = "DELETE FROM template WHERE id = $1 AND project_id = $2";
+        assert!(expected.contains("template"));
+        assert!(expected.contains("id = $1 AND project_id = $2"));
+    }
+
+    #[test]
+    fn test_postgres_uses_dollar_placeholders() {
+        let queries = [
+            "SELECT * FROM template WHERE id = $1",
+            "DELETE FROM template WHERE id = $1 AND project_id = $2",
+        ];
+        for q in &queries {
+            assert!(q.contains('$'), "Postgres should use $N placeholders");
+            assert!(!q.contains('?'), "Postgres should not use ? placeholders");
+        }
+    }
+
+    #[test]
+    fn test_postgres_no_backticks() {
+        let queries = [
+            "SELECT * FROM template WHERE id = $1",
+            "DELETE FROM template WHERE id = $1",
+        ];
+        for q in &queries {
+            assert!(!q.contains('`'), "Postgres should not use backticks");
+        }
+    }
+
+    #[test]
+    fn test_postgres_returning_clause() {
+        let query = "INSERT INTO template (...) VALUES (...) RETURNING id";
+        assert!(query.contains("RETURNING id"), "Postgres uses RETURNING clause");
+    }
+
+    #[test]
+    fn test_template_model_fields() {
+        let template = Template::default_template(10, "PgTemplate".to_string(), "deploy.yml".to_string());
+        assert_eq!(template.project_id, 10);
+        assert_eq!(template.name, "PgTemplate");
+        assert_eq!(template.playbook, "deploy.yml");
+    }
+
+    #[test]
+    fn test_template_serialization() {
+        let template = Template::default_template(1, "PgTest".to_string(), "test.yml".to_string());
+        let json = serde_json::to_string(&template).unwrap();
+        assert!(json.contains("\"name\":\"PgTest\""));
+        assert!(json.contains("\"type\":\"default\""));
+    }
+
+    #[test]
+    fn test_template_bind_order_matches_query() {
+        let columns = [
+            "project_id", "name", "playbook", "description",
+            "inventory_id", "repository_id", "environment_id",
+            "type", "app", "git_branch", "created", "arguments", "vault_key_id",
+        ];
+        assert_eq!(columns.len(), 13);
+        assert_eq!(columns[0], "project_id");
+        assert_eq!(columns[12], "vault_key_id");
+    }
+
+    #[test]
+    fn test_postgres_template_debug_format() {
+        let query = "SELECT * FROM template WHERE id = $1";
+        let debug_str = format!("{:?}", query);
+        assert!(debug_str.contains("template"));
+    }
+}

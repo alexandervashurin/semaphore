@@ -85,3 +85,92 @@ impl TokenManager for SqlStore {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::models::APIToken;
+    use chrono::Utc;
+
+    #[test]
+    fn test_api_token_serialization() {
+        let token = APIToken {
+            id: 1,
+            user_id: 10,
+            name: "My Token".to_string(),
+            token: "secret_token_value".to_string(),
+            created: Utc::now(),
+            expired: false,
+        };
+        let json = serde_json::to_string(&token).unwrap();
+        assert!(json.contains("\"name\":\"My Token\""));
+        assert!(json.contains("\"user_id\":10"));
+        assert!(json.contains("\"expired\":false"));
+    }
+
+    #[test]
+    fn test_api_token_deserialize() {
+        let json = r#"{"id":5,"user_id":20,"name":"Test Token","token":"abc123","created":"2024-01-01T00:00:00Z","expired":true}"#;
+        let token: APIToken = serde_json::from_str(json).unwrap();
+        assert_eq!(token.id, 5);
+        assert_eq!(token.name, "Test Token");
+        assert!(token.expired);
+    }
+
+    #[test]
+    fn test_api_token_clone() {
+        let token = APIToken {
+            id: 1, user_id: 1, name: "Clone".to_string(),
+            token: "val".to_string(), created: Utc::now(), expired: false,
+        };
+        let cloned = token.clone();
+        assert_eq!(cloned.name, token.name);
+        assert_eq!(cloned.user_id, token.user_id);
+    }
+
+    #[test]
+    fn test_api_token_expired() {
+        let token = APIToken {
+            id: 1, user_id: 1, name: "Expired".to_string(),
+            token: "expired".to_string(),
+            created: Utc::now() - chrono::Duration::days(30),
+            expired: true,
+        };
+        let json = serde_json::to_string(&token).unwrap();
+        assert!(json.contains("\"expired\":true"));
+    }
+
+    #[test]
+    fn test_api_token_not_expired() {
+        let token = APIToken {
+            id: 2, user_id: 1, name: "Active".to_string(),
+            token: "active_token".to_string(), created: Utc::now(), expired: false,
+        };
+        assert!(!token.expired);
+    }
+
+    #[test]
+    fn test_api_token_deserialize_full() {
+        let json = r#"{"id":10,"user_id":50,"name":"Full Token","token":"secret123","created":"2024-06-01T12:00:00Z","expired":false}"#;
+        let token: APIToken = serde_json::from_str(json).unwrap();
+        assert_eq!(token.id, 10);
+        assert_eq!(token.user_id, 50);
+        assert!(!token.expired);
+    }
+
+    #[test]
+    fn test_api_token_empty_name() {
+        let token = APIToken {
+            id: 1, user_id: 1, name: String::new(),
+            token: "tok".to_string(), created: Utc::now(), expired: false,
+        };
+        assert!(token.name.is_empty());
+    }
+
+    #[test]
+    fn test_api_token_different_users() {
+        let token1 = APIToken { id: 1, user_id: 1, name: "User1".to_string(), token: "t1".to_string(), created: Utc::now(), expired: false };
+        let token2 = APIToken { id: 2, user_id: 2, name: "User2".to_string(), token: "t2".to_string(), created: Utc::now(), expired: false };
+        assert_ne!(token1.user_id, token2.user_id);
+        assert_ne!(token1.name, token2.name);
+    }
+}

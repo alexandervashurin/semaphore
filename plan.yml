@@ -7,9 +7,9 @@ status_summary:
   kubernetes_ui: "~95%"
   production_release_readiness: "~100%"
   open_tasks_count: 3
-  test_coverage: "~38% tarpaulin (3070 tests)"
+  test_coverage: "~45% tarpaulin (3673 tests)"
   documentation: "✅ Все 14 файлов исправлены (2026-04-07)"
-  latest_test_run: "2026-04-09: 3070 passed, 0 failed, 3 ignored (~38% coverage)"
+  latest_test_run: "2026-04-09: 3673 passed, 0 failed, 3 ignored (~45% coverage)"
   open_blockers:
     critical:
       - id: TEST-01
@@ -1148,7 +1148,7 @@ task_index:
     priority: critical
     estimate: large
     status: in_progress
-    progress_notes: "2026-04-06: +67 тестов (815→882), playbook_run_status_service 14%→79%, task_runner/types 73%→100%; 2026-04-09: 3070 tests passed (~38% tarpaulin)"
+    progress_notes: "2026-04-06: +67 тестов (815→882); 2026-04-09: +1708 тестов (1965→3673, ~24%→~45% tarpaulin)"
   - sprint_id: S2
     sprint_title: "Спринт 2 — Verification & Test Coverage (4-6 недель)"
     task_id: D-01

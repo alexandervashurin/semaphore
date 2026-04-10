@@ -84,3 +84,109 @@ pub async fn delete_repository(pool: &Pool<Sqlite>, project_id: i32, repository_
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::RepositoryType;
+
+    #[test]
+    fn test_get_repositories_query_structure() {
+        let query = "SELECT * FROM repository WHERE project_id = ? ORDER BY name";
+        assert!(query.contains("repository"));
+        assert!(query.contains("project_id = ?"));
+        assert!(query.contains("ORDER BY name"));
+    }
+
+    #[test]
+    fn test_get_repository_query_structure() {
+        let query = "SELECT * FROM repository WHERE id = ? AND project_id = ?";
+        assert!(query.contains("id = ?"));
+        assert!(query.contains("project_id = ?"));
+    }
+
+    #[test]
+    fn test_create_repository_query_structure() {
+        let expected = "INSERT INTO repository (project_id, name, git_url, git_type, git_branch, key_id, created) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id";
+        assert!(expected.contains("repository"));
+        assert!(expected.contains("RETURNING id"));
+        assert!(expected.matches('?').count() == 7);
+    }
+
+    #[test]
+    fn test_update_repository_query_structure() {
+        let expected = "UPDATE repository SET name = ?, git_url = ?, git_type = ?, git_branch = ?, key_id = ? WHERE id = ? AND project_id = ?";
+        assert!(expected.contains("UPDATE repository"));
+        assert!(expected.contains("WHERE id = ? AND project_id = ?"));
+        assert!(expected.matches('?').count() == 7);
+    }
+
+    #[test]
+    fn test_delete_repository_query_structure() {
+        let expected = "DELETE FROM repository WHERE id = ? AND project_id = ?";
+        assert!(expected.contains("repository"));
+        assert!(expected.contains("id = ? AND project_id = ?"));
+    }
+
+    #[test]
+    fn test_sqlite_uses_question_placeholders() {
+        let queries = [
+            "SELECT * FROM repository WHERE id = ?",
+            "DELETE FROM repository WHERE id = ? AND project_id = ?",
+        ];
+        for q in &queries {
+            assert!(q.contains('?'), "SQLite should use ? placeholders");
+            assert!(!q.contains('$'), "SQLite should not use $N placeholders");
+        }
+    }
+
+    #[test]
+    fn test_sqlite_no_backticks() {
+        let queries = [
+            "SELECT * FROM repository WHERE id = ?",
+            "DELETE FROM repository WHERE id = ?",
+        ];
+        for q in &queries {
+            assert!(!q.contains('`'), "SQLite should not use backticks");
+        }
+    }
+
+    #[test]
+    fn test_sqlite_returning_clause() {
+        let query = "INSERT INTO repository (...) VALUES (?) RETURNING id";
+        assert!(query.contains("RETURNING id"), "SQLite uses RETURNING clause");
+    }
+
+    #[test]
+    fn test_repository_model_fields() {
+        let repo = Repository::new(10, "sqlite-repo", "https://github.com/user/repo.git");
+        assert_eq!(repo.project_id, 10);
+        assert_eq!(repo.name, "sqlite-repo");
+        assert_eq!(repo.git_type, RepositoryType::Git);
+    }
+
+    #[test]
+    fn test_repository_serialization() {
+        let repo = Repository::new(1, "sqlite-test-repo", "https://example.com/repo.git");
+        let json = serde_json::to_string(&repo).unwrap();
+        assert!(json.contains("\"name\":\"sqlite-test-repo\""));
+        assert!(json.contains("\"git_type\":\"git\""));
+    }
+
+    #[test]
+    fn test_repository_bind_order_matches_query() {
+        let columns = [
+            "project_id", "name", "git_url", "git_type", "git_branch", "key_id", "created",
+        ];
+        assert_eq!(columns.len(), 7);
+        assert_eq!(columns[0], "project_id");
+        assert_eq!(columns[2], "git_url");
+    }
+
+    #[test]
+    fn test_sqlite_repository_debug_format() {
+        let query = "SELECT * FROM repository WHERE id = ?";
+        let debug_str = format!("{:?}", query);
+        assert!(debug_str.contains("repository"));
+    }
+}

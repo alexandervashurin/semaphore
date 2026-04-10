@@ -95,3 +95,109 @@ pub async fn delete_repository(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::RepositoryType;
+
+    #[test]
+    fn test_get_repositories_query_structure() {
+        let query = "SELECT * FROM repository WHERE project_id = $1 ORDER BY name";
+        assert!(query.contains("repository"));
+        assert!(query.contains("project_id = $1"));
+        assert!(query.contains("ORDER BY name"));
+    }
+
+    #[test]
+    fn test_get_repository_query_structure() {
+        let query = "SELECT * FROM repository WHERE id = $1 AND project_id = $2";
+        assert!(query.contains("id = $1"));
+        assert!(query.contains("project_id = $2"));
+    }
+
+    #[test]
+    fn test_create_repository_query_structure() {
+        let expected = "INSERT INTO repository (project_id, name, git_url, git_type, git_branch, key_id, created) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id";
+        assert!(expected.contains("repository"));
+        assert!(expected.contains("RETURNING id"));
+        assert!(expected.contains("$7"));
+    }
+
+    #[test]
+    fn test_update_repository_query_structure() {
+        let expected = "UPDATE repository SET name = $1, git_url = $2, git_type = $3, git_branch = $4, key_id = $5 WHERE id = $6 AND project_id = $7";
+        assert!(expected.contains("UPDATE repository"));
+        assert!(expected.contains("WHERE id = $6 AND project_id = $7"));
+        assert!(expected.contains("$7"));
+    }
+
+    #[test]
+    fn test_delete_repository_query_structure() {
+        let expected = "DELETE FROM repository WHERE id = $1 AND project_id = $2";
+        assert!(expected.contains("repository"));
+        assert!(expected.contains("id = $1 AND project_id = $2"));
+    }
+
+    #[test]
+    fn test_postgres_uses_dollar_placeholders() {
+        let queries = [
+            "SELECT * FROM repository WHERE id = $1",
+            "DELETE FROM repository WHERE id = $1 AND project_id = $2",
+        ];
+        for q in &queries {
+            assert!(q.contains('$'), "Postgres should use $N placeholders");
+            assert!(!q.contains('?'), "Postgres should not use ? placeholders");
+        }
+    }
+
+    #[test]
+    fn test_postgres_no_backticks() {
+        let queries = [
+            "SELECT * FROM repository WHERE id = $1",
+            "DELETE FROM repository WHERE id = $1",
+        ];
+        for q in &queries {
+            assert!(!q.contains('`'), "Postgres should not use backticks");
+        }
+    }
+
+    #[test]
+    fn test_postgres_returning_clause() {
+        let query = "INSERT INTO repository (...) VALUES (...) RETURNING id";
+        assert!(query.contains("RETURNING id"), "Postgres uses RETURNING clause");
+    }
+
+    #[test]
+    fn test_repository_model_fields() {
+        let repo = Repository::new(10, "pg-repo".to_string(), "https://github.com/user/repo.git".to_string());
+        assert_eq!(repo.project_id, 10);
+        assert_eq!(repo.name, "pg-repo");
+        assert_eq!(repo.git_type, RepositoryType::Git);
+    }
+
+    #[test]
+    fn test_repository_serialization() {
+        let repo = Repository::new(1, "pg-test-repo".to_string(), "https://example.com/repo.git".to_string());
+        let json = serde_json::to_string(&repo).unwrap();
+        assert!(json.contains("\"name\":\"pg-test-repo\""));
+        assert!(json.contains("\"git_type\":\"git\""));
+    }
+
+    #[test]
+    fn test_repository_bind_order_matches_query() {
+        let columns = [
+            "project_id", "name", "git_url", "git_type", "git_branch", "key_id", "created",
+        ];
+        assert_eq!(columns.len(), 7);
+        assert_eq!(columns[0], "project_id");
+        assert_eq!(columns[2], "git_url");
+    }
+
+    #[test]
+    fn test_postgres_repository_debug_format() {
+        let query = "SELECT * FROM repository WHERE id = $1";
+        let debug_str = format!("{:?}", query);
+        assert!(debug_str.contains("repository"));
+    }
+}

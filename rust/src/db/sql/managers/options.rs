@@ -57,3 +57,75 @@ impl OptionsManager for SqlStore {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_options_hashmap_serialization() {
+        let mut options = HashMap::new();
+        options.insert("app_name".to_string(), "Semaphore".to_string());
+        options.insert("version".to_string(), "1.0.0".to_string());
+        let json = serde_json::to_string(&options).unwrap();
+        assert!(json.contains("\"app_name\""));
+        assert!(json.contains("\"Semaphore\""));
+        assert!(json.contains("\"version\""));
+    }
+
+    #[test]
+    fn test_options_hashmap_deserialization() {
+        let json = r#"{"key1":"val1","key2":"val2"}"#;
+        let options: HashMap<String, String> = serde_json::from_str(json).unwrap();
+        assert_eq!(options.get("key1"), Some(&"val1".to_string()));
+        assert_eq!(options.get("key2"), Some(&"val2".to_string()));
+    }
+
+    #[test]
+    fn test_options_empty_hashmap() {
+        let options: HashMap<String, String> = HashMap::new();
+        let json = serde_json::to_string(&options).unwrap();
+        assert_eq!(json, "{}");
+    }
+
+    #[test]
+    fn test_options_clone() {
+        let mut options = HashMap::new();
+        options.insert("max_tasks".to_string(), "100".to_string());
+        let cloned = options.clone();
+        assert_eq!(cloned.get("max_tasks"), options.get("max_tasks"));
+    }
+
+    #[test]
+    fn test_option_key_value_pair() {
+        let key = "feature_flag".to_string();
+        let value = "enabled".to_string();
+        assert_eq!(key, "feature_flag");
+        assert_eq!(value, "enabled");
+    }
+
+    #[test]
+    fn test_option_empty_value() {
+        let mut options = HashMap::new();
+        options.insert("empty_opt".to_string(), String::new());
+        assert_eq!(options.get("empty_opt"), Some(&String::new()));
+    }
+
+    #[test]
+    fn test_option_special_characters() {
+        let mut options = HashMap::new();
+        options.insert("url".to_string(), "https://example.com/path?q=test".to_string());
+        let json = serde_json::to_string(&options).unwrap();
+        assert!(json.contains("https://example.com/path?q=test"));
+    }
+
+    #[test]
+    fn test_option_multiple_entries() {
+        let mut options = HashMap::new();
+        for i in 0..10 {
+            options.insert(format!("opt_{}", i), format!("value_{}", i));
+        }
+        assert_eq!(options.len(), 10);
+        assert_eq!(options.get("opt_5"), Some(&"value_5".to_string()));
+    }
+}

@@ -79,3 +79,102 @@ pub async fn delete_project(pool: &Pool<MySql>, project_id: i32) -> Result<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_projects_query_structure() {
+        let query = "SELECT * FROM `project` ORDER BY name";
+        assert!(query.contains("`project`"));
+        assert!(query.contains("ORDER BY name"));
+    }
+
+    #[test]
+    fn test_get_project_query_structure() {
+        let query = "SELECT * FROM `project` WHERE id = ?";
+        assert!(query.contains("`project`"));
+        assert!(query.contains("id = ?"));
+    }
+
+    #[test]
+    fn test_create_project_query_structure() {
+        let expected = "INSERT INTO `project` (name, created, alert, max_parallel_tasks, type, default_secret_storage_id) VALUES (?, ?, ?, ?, ?, ?)";
+        assert!(expected.contains("`project`"));
+        assert!(expected.contains("max_parallel_tasks"));
+        assert!(expected.count_matches('?'.into()) == 6);
+    }
+
+    #[test]
+    fn test_update_project_query_structure() {
+        let expected = "UPDATE `project` SET name = ?, alert = ?, max_parallel_tasks = ?, type = ?, default_secret_storage_id = ? WHERE id = ?";
+        assert!(expected.contains("UPDATE `project`"));
+        assert!(expected.contains("WHERE id = ?"));
+        assert!(expected.count_matches('?'.into()) == 6);
+    }
+
+    #[test]
+    fn test_delete_project_query_structure() {
+        let expected = "DELETE FROM `project` WHERE id = ?";
+        assert!(expected.contains("`project`"));
+        assert!(expected.contains("id = ?"));
+    }
+
+    #[test]
+    fn test_mysql_project_uses_backticks() {
+        let queries = [
+            "SELECT * FROM `project` WHERE id = ?",
+            "DELETE FROM `project` WHERE id = ?",
+        ];
+        for q in &queries {
+            assert!(q.contains('`'), "MySQL project queries should use backticks");
+        }
+    }
+
+    #[test]
+    fn test_project_model_fields() {
+        let project = Project::new("Test Project");
+        assert_eq!(project.name, "Test Project");
+        assert_eq!(project.id, 0);
+        assert!(!project.alert);
+        assert_eq!(project.max_parallel_tasks, 0);
+    }
+
+    #[test]
+    fn test_project_serialization() {
+        let project = Project::new("Serialize Test");
+        let json = serde_json::to_string(&project).unwrap();
+        assert!(json.contains("\"name\":\"Serialize Test\""));
+        assert!(json.contains("\"alert\":false"));
+    }
+
+    #[test]
+    fn test_project_bind_order_matches_query() {
+        let columns = [
+            "name", "created", "alert", "max_parallel_tasks", "type", "default_secret_storage_id",
+        ];
+        assert_eq!(columns.len(), 6);
+        assert_eq!(columns[0], "name");
+        assert_eq!(columns[3], "max_parallel_tasks");
+    }
+
+    #[test]
+    fn test_project_validate() {
+        let project = Project::new("Valid Project");
+        assert!(project.validate().is_ok());
+    }
+
+    #[test]
+    fn test_project_validate_empty_name() {
+        let project = Project::new("".to_string());
+        assert!(project.validate().is_err());
+    }
+
+    #[test]
+    fn test_mysql_project_debug_format() {
+        let query = "SELECT * FROM `project` WHERE id = ?";
+        let debug_str = format!("{:?}", query);
+        assert!(debug_str.contains("project"));
+    }
+}

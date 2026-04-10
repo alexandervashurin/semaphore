@@ -185,3 +185,132 @@ impl Default for WebSocketPubSub {
         Self::new(RedisPubSubConfig::default())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_redis_pubsub_config_default() {
+        let config = RedisPubSubConfig::default();
+        assert_eq!(config.redis_url, "redis://localhost:6379");
+        assert_eq!(config.channel, "velum:websocket");
+        assert!(!config.enabled);
+    }
+
+    #[test]
+    fn test_redis_pubsub_config_custom() {
+        let config = RedisPubSubConfig {
+            redis_url: "redis://myhost:6379".to_string(),
+            channel: "custom:channel".to_string(),
+            enabled: true,
+        };
+        assert_eq!(config.redis_url, "redis://myhost:6379");
+        assert_eq!(config.channel, "custom:channel");
+        assert!(config.enabled);
+    }
+
+    #[test]
+    fn test_redis_pubsub_config_debug() {
+        let config = RedisPubSubConfig::default();
+        let debug_str = format!("{:?}", config);
+        assert!(debug_str.contains("RedisPubSubConfig"));
+        assert!(debug_str.contains("redis://localhost:6379"));
+    }
+
+    #[test]
+    fn test_redis_pubsub_config_clone() {
+        let config = RedisPubSubConfig {
+            redis_url: "redis://clone".to_string(),
+            channel: "ch".to_string(),
+            enabled: true,
+        };
+        let cloned = config.clone();
+        assert_eq!(cloned.redis_url, config.redis_url);
+        assert_eq!(cloned.enabled, config.enabled);
+    }
+
+    #[test]
+    fn test_websocket_pubsub_new() {
+        let config = RedisPubSubConfig {
+            redis_url: "redis://test".to_string(),
+            channel: "test:ch".to_string(),
+            enabled: false,
+        };
+        let pubsub = WebSocketPubSub::new(config);
+        // client is None until initialized
+        assert!(pubsub.client.is_none());
+    }
+
+    #[test]
+    fn test_websocket_pubsub_default() {
+        let pubsub = WebSocketPubSub::default();
+        assert!(pubsub.client.is_none());
+    }
+
+    #[test]
+    fn test_websocket_pubsub_initialize_disabled() {
+        let config = RedisPubSubConfig {
+            enabled: false,
+            ..Default::default()
+        };
+        let mut pubsub = WebSocketPubSub::new(config);
+        // Should succeed without Redis connection
+        assert!(pubsub.initialize().is_ok());
+    }
+
+    #[test]
+    fn test_websocket_pubsub_initialize_invalid_redis() {
+        let config = RedisPubSubConfig {
+            redis_url: "invalid://not-redis".to_string(),
+            channel: "test:ch".to_string(),
+            enabled: true,
+        };
+        let mut pubsub = WebSocketPubSub::new(config);
+        // Should fail with invalid URL
+        assert!(pubsub.initialize().is_err());
+    }
+
+    #[test]
+    fn test_websocket_pubsub_publish_disabled() {
+        let pubsub = WebSocketPubSub::default();
+        let msg = crate::api::websocket::WsMessage::Ping;
+        // Should succeed in disabled mode (falls back to local broadcast)
+        assert!(pubsub.publish(&msg).is_ok());
+    }
+
+    #[test]
+    fn test_websocket_pubsub_subscribe_local() {
+        let pubsub = WebSocketPubSub::default();
+        let receiver = pubsub.subscribe_local();
+        // Should return a valid receiver
+        assert!(!receiver.is_closed());
+    }
+
+    #[test]
+    fn test_websocket_pubsub_broadcast() {
+        let pubsub = WebSocketPubSub::default();
+        // Create a receiver first to keep the channel open
+        let mut _rx = pubsub.subscribe_local();
+        let msg = crate::api::websocket::WsMessage::Ping;
+        let result = pubsub.broadcast(msg);
+        // Should succeed when at least one receiver exists
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_redis_pubsub_config_url_variants() {
+        let urls = vec![
+            "redis://localhost:6379",
+            "redis://:password@host:6379/0",
+            "redis+sentinel://host1:26379,host2:26379/mymaster/0",
+        ];
+        for url in urls {
+            let config = RedisPubSubConfig {
+                redis_url: url.to_string(),
+                ..Default::default()
+            };
+            assert_eq!(config.redis_url, url);
+        }
+    }
+}

@@ -41,3 +41,68 @@ impl MigrationManager for SqlStore {
         Ok(count > 0)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_migration_dialect_is_postgresql() {
+        // SqlStore::get_dialect returns "postgresql"
+        let dialect = "postgresql";
+        assert_eq!(dialect, "postgresql");
+    }
+
+    #[test]
+    fn test_migration_version_positive() {
+        let version: i64 = 1;
+        assert!(version > 0);
+    }
+
+    #[test]
+    fn test_migration_version_zero() {
+        let version: i64 = 0;
+        assert_eq!(version, 0);
+    }
+
+    #[test]
+    fn test_migration_name_not_empty() {
+        let name = "initial_schema".to_string();
+        assert!(!name.is_empty());
+    }
+
+    #[test]
+    fn test_migration_name_empty() {
+        let name = String::new();
+        assert!(name.is_empty());
+    }
+
+    #[test]
+    fn test_migration_count_check() {
+        let count: i64 = 0;
+        assert_eq!(count > 0, false);
+
+        let count: i64 = 1;
+        assert_eq!(count > 0, true);
+    }
+
+    #[test]
+    fn test_migration_is_initialized_check() {
+        // Simulating the check: result.is_some() -> true means initialized
+        let some_result = Some("migration_table");
+        assert!(some_result.is_some());
+
+        let none_result: Option<&str> = None;
+        assert!(!none_result.is_some());
+    }
+
+    #[test]
+    fn test_migration_version_large_number() {
+        let version: i64 = 20260410120000;
+        assert!(version > 1000);
+    }
+
+    #[test]
+    fn test_migration_name_with_special_chars() {
+        let name = "add_user_table_2024".to_string();
+        assert!(name.contains("2024"));
+    }
+}

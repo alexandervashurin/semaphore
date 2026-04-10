@@ -117,3 +117,135 @@ impl LocalAppRunningArgs {
         self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // --- LocalAppInstallingArgs tests ---
+
+    #[test]
+    fn test_installing_args_new() {
+        let args = LocalAppInstallingArgs::new(1, 2, 3, "/repo".to_string());
+        assert_eq!(args.project_id, 1);
+        assert_eq!(args.template_id, 2);
+        assert_eq!(args.task_id, 3);
+        assert_eq!(args.repo_path, "/repo");
+        assert!(args.environment.is_empty());
+        assert!(args.extra_args.is_empty());
+    }
+
+    #[test]
+    fn test_installing_args_with_env() {
+        let args = LocalAppInstallingArgs::new(1, 2, 3, "/repo".to_string())
+            .with_env("KEY".to_string(), "VALUE".to_string())
+            .with_env("FOO".to_string(), "BAR".to_string());
+        assert_eq!(args.environment.len(), 2);
+        assert_eq!(args.environment.get("KEY"), Some(&"VALUE".to_string()));
+        assert_eq!(args.environment.get("FOO"), Some(&"BAR".to_string()));
+    }
+
+    #[test]
+    fn test_installing_args_with_extra_args() {
+        let args = LocalAppInstallingArgs::new(1, 2, 3, "/repo".to_string())
+            .with_extra_arg("--verbose".to_string())
+            .with_extra_arg("--dry-run".to_string());
+        assert_eq!(args.extra_args.len(), 2);
+        assert_eq!(args.extra_args[0], "--verbose");
+        assert_eq!(args.extra_args[1], "--dry-run");
+    }
+
+    #[test]
+    fn test_installing_args_chained() {
+        let args = LocalAppInstallingArgs::new(10, 20, 30, "/path".to_string())
+            .with_env("A".to_string(), "1".to_string())
+            .with_extra_arg("x".to_string());
+        assert_eq!(args.project_id, 10);
+        assert_eq!(args.environment.len(), 1);
+        assert_eq!(args.extra_args.len(), 1);
+    }
+
+    #[test]
+    fn test_installing_args_debug_impl() {
+        let args = LocalAppInstallingArgs::new(1, 2, 3, "/repo".to_string());
+        let debug_str = format!("{:?}", args);
+        assert!(debug_str.contains("LocalAppInstallingArgs"));
+        assert!(debug_str.contains("project_id"));
+    }
+
+    #[test]
+    fn test_installing_args_clone() {
+        let args = LocalAppInstallingArgs::new(1, 2, 3, "/repo".to_string())
+            .with_env("K".to_string(), "V".to_string());
+        let cloned = args.clone();
+        assert_eq!(cloned.project_id, args.project_id);
+        assert_eq!(cloned.environment, args.environment);
+    }
+
+    // --- LocalAppRunningArgs tests ---
+
+    #[test]
+    fn test_running_args_new() {
+        let args = LocalAppRunningArgs::new(1, 2, 3, "python main.py".to_string(), "/work".to_string());
+        assert_eq!(args.project_id, 1);
+        assert_eq!(args.template_id, 2);
+        assert_eq!(args.task_id, 3);
+        assert_eq!(args.command, "python main.py");
+        assert_eq!(args.working_dir, "/work");
+        assert!(args.args.is_empty());
+        assert!(args.environment.is_empty());
+        assert!(args.timeout_secs.is_none());
+    }
+
+    #[test]
+    fn test_running_args_with_arg() {
+        let args = LocalAppRunningArgs::new(1, 2, 3, "cmd".to_string(), "/dir".to_string())
+            .with_arg("--help".to_string())
+            .with_arg("-v".to_string());
+        assert_eq!(args.args.len(), 2);
+        assert_eq!(args.args[0], "--help");
+    }
+
+    #[test]
+    fn test_running_args_with_env() {
+        let args = LocalAppRunningArgs::new(1, 2, 3, "cmd".to_string(), "/dir".to_string())
+            .with_env("DEBUG".to_string(), "1".to_string());
+        assert_eq!(args.environment.len(), 1);
+        assert_eq!(args.environment.get("DEBUG"), Some(&"1".to_string()));
+    }
+
+    #[test]
+    fn test_running_args_with_timeout() {
+        let args = LocalAppRunningArgs::new(1, 2, 3, "cmd".to_string(), "/dir".to_string())
+            .with_timeout(300);
+        assert_eq!(args.timeout_secs, Some(300));
+    }
+
+    #[test]
+    fn test_running_args_chained() {
+        let args = LocalAppRunningArgs::new(5, 6, 7, "run".to_string(), "/tmp".to_string())
+            .with_arg("--config=prod.yml".to_string())
+            .with_env("NODE_ENV".to_string(), "production".to_string())
+            .with_timeout(60);
+        assert_eq!(args.args.len(), 1);
+        assert_eq!(args.environment.len(), 1);
+        assert_eq!(args.timeout_secs, Some(60));
+    }
+
+    #[test]
+    fn test_running_args_debug_impl() {
+        let args = LocalAppRunningArgs::new(1, 2, 3, "cmd".to_string(), "/dir".to_string());
+        let debug_str = format!("{:?}", args);
+        assert!(debug_str.contains("LocalAppRunningArgs"));
+        assert!(debug_str.contains("command"));
+    }
+
+    #[test]
+    fn test_running_args_clone() {
+        let args = LocalAppRunningArgs::new(1, 2, 3, "cmd".to_string(), "/dir".to_string())
+            .with_timeout(100);
+        let cloned = args.clone();
+        assert_eq!(cloned.timeout_secs, args.timeout_secs);
+        assert_eq!(cloned.working_dir, args.working_dir);
+    }
+}

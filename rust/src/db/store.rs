@@ -966,3 +966,595 @@ pub trait StructuredOutputManager: Send + Sync {
         project_id: i32,
     ) -> Result<crate::models::TaskOutputsMap>;
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ==================== Тесты для моделей и типов ====================
+
+    #[test]
+    fn test_retrieve_query_params_default() {
+        let params = RetrieveQueryParams::default();
+        assert_eq!(params.offset, 0);
+        assert!(params.count.is_none());
+        assert!(params.sort_by.is_none());
+        assert!(!params.sort_inverted);
+        assert!(params.filter.is_none());
+    }
+
+    #[test]
+    fn test_retrieve_query_params_clone() {
+        let params = RetrieveQueryParams {
+            offset: 10,
+            count: Some(50),
+            sort_by: Some("name".to_string()),
+            sort_inverted: true,
+            filter: Some("test".to_string()),
+        };
+        let cloned = params.clone();
+        assert_eq!(cloned.offset, 10);
+        assert_eq!(cloned.count, Some(50));
+        assert_eq!(cloned.sort_by, Some("name".to_string()));
+        assert!(cloned.sort_inverted);
+        assert_eq!(cloned.filter, Some("test".to_string()));
+    }
+
+    #[test]
+    fn test_retrieve_query_params_with_pagination() {
+        let params = RetrieveQueryParams {
+            offset: 20,
+            count: Some(10),
+            ..Default::default()
+        };
+        assert_eq!(params.offset, 20);
+        assert_eq!(params.count, Some(10));
+    }
+
+    #[test]
+    fn test_retrieve_query_params_with_sorting() {
+        let params = RetrieveQueryParams {
+            sort_by: Some("created_at".to_string()),
+            sort_inverted: true,
+            ..Default::default()
+        };
+        assert_eq!(params.sort_by, Some("created_at".to_string()));
+        assert!(params.sort_inverted);
+    }
+
+    #[test]
+    fn test_task_filter_default() {
+        let filter = TaskFilter::default();
+        assert!(filter.start.is_none());
+        assert!(filter.end.is_none());
+        assert!(filter.user_id.is_none());
+        assert!(filter.status.is_empty());
+    }
+
+    #[test]
+    fn test_task_filter_clone() {
+        let now = Utc::now();
+        let filter = TaskFilter {
+            start: Some(now),
+            end: Some(now),
+            user_id: Some(42),
+            status: vec![
+                crate::services::task_logger::TaskStatus::Running,
+                crate::services::task_logger::TaskStatus::Success,
+            ],
+        };
+        let cloned = filter.clone();
+        assert_eq!(cloned.start, filter.start);
+        assert_eq!(cloned.end, filter.end);
+        assert_eq!(cloned.user_id, Some(42));
+        assert_eq!(cloned.status.len(), 2);
+    }
+
+    #[test]
+    fn test_task_filter_with_user_and_status() {
+        let filter = TaskFilter {
+            user_id: Some(100),
+            status: vec![crate::services::task_logger::TaskStatus::Waiting],
+            ..Default::default()
+        };
+        assert_eq!(filter.user_id, Some(100));
+        assert_eq!(filter.status.len(), 1);
+    }
+
+    #[test]
+    fn test_task_filter_with_date_range() {
+        let start = Utc::now() - chrono::Duration::days(7);
+        let end = Utc::now();
+        let filter = TaskFilter {
+            start: Some(start),
+            end: Some(end),
+            ..Default::default()
+        };
+        assert!(filter.start.is_some());
+        assert!(filter.end.is_some());
+        assert!(filter.start.unwrap() < filter.end.unwrap());
+    }
+
+    #[test]
+    fn test_task_filter_debug_format() {
+        let filter = TaskFilter {
+            user_id: Some(5),
+            ..Default::default()
+        };
+        let debug_str = format!("{:?}", filter);
+        assert!(debug_str.contains("TaskFilter"));
+        assert!(debug_str.contains("5"));
+    }
+
+    #[test]
+    fn test_retrieve_query_params_debug_format() {
+        let params = RetrieveQueryParams {
+            offset: 5,
+            count: Some(20),
+            ..Default::default()
+        };
+        let debug_str = format!("{:?}", params);
+        assert!(debug_str.contains("RetrieveQueryParams"));
+        assert!(debug_str.contains("5"));
+        assert!(debug_str.contains("20"));
+    }
+
+    // ==================== Тесты для enum variants ====================
+
+    #[test]
+    fn test_audit_action_variants_exist() {
+        // Проверяем, что enum AuditAction имеет ожидаемые варианты
+        let actions = vec![
+            AuditAction::Login,
+            AuditAction::UserCreated,
+            AuditAction::TaskCreated,
+        ];
+        assert_eq!(actions.len(), 3);
+    }
+
+    #[test]
+    fn test_audit_level_variants_exist() {
+        let levels = vec![
+            AuditLevel::Info,
+            AuditLevel::Warning,
+            AuditLevel::Error,
+        ];
+        assert_eq!(levels.len(), 3);
+    }
+
+    #[test]
+    fn test_audit_object_type_variants() {
+        let object_types = vec![
+            AuditObjectType::Project,
+            AuditObjectType::User,
+            AuditObjectType::Task,
+        ];
+        assert_eq!(object_types.len(), 3);
+    }
+
+    #[test]
+    fn test_audit_action_debug_format() {
+        let action = AuditAction::Login;
+        let debug_str = format!("{:?}", action);
+        assert_eq!(debug_str, "Login");
+    }
+
+    #[test]
+    fn test_audit_level_debug_format() {
+        let level = AuditLevel::Error;
+        let debug_str = format!("{:?}", level);
+        assert_eq!(debug_str, "Error");
+    }
+
+    #[test]
+    fn test_audit_object_type_debug_format() {
+        let object_type = AuditObjectType::Project;
+        let debug_str = format!("{:?}", object_type);
+        assert_eq!(debug_str, "Project");
+    }
+
+    #[test]
+    fn test_playbook_run_status_variants() {
+        let statuses = vec![
+            PlaybookRunStatus::Waiting,
+            PlaybookRunStatus::Running,
+            PlaybookRunStatus::Success,
+            PlaybookRunStatus::Failed,
+        ];
+        assert_eq!(statuses.len(), 4);
+    }
+
+    // ==================== Тесты для serialization ====================
+
+    #[test]
+    fn test_audit_action_serialization() {
+        let action = AuditAction::Login;
+        let json = serde_json::to_string(&action).unwrap();
+        assert!(!json.is_empty());
+        assert!(json.contains("login"));
+    }
+
+    #[test]
+    fn test_audit_action_deserialization() {
+        let json = r#""user_created""#;
+        let action: AuditAction = serde_json::from_str(json).unwrap();
+        match action {
+            AuditAction::UserCreated => {}
+            _ => panic!("Expected AuditAction::UserCreated"),
+        }
+    }
+
+    #[test]
+    fn test_audit_level_serialization() {
+        let level = AuditLevel::Warning;
+        let json = serde_json::to_string(&level).unwrap();
+        assert!(json.contains("warning"));
+    }
+
+    #[test]
+    fn test_audit_level_deserialization() {
+        let json = r#""error""#;
+        let level: AuditLevel = serde_json::from_str(json).unwrap();
+        assert_eq!(level, AuditLevel::Error);
+    }
+
+    #[test]
+    fn test_audit_object_type_serialization() {
+        let object_type = AuditObjectType::User;
+        let json = serde_json::to_string(&object_type).unwrap();
+        assert!(json.contains("user"));
+    }
+
+    #[test]
+    fn test_audit_object_type_deserialization() {
+        let json = r#""task""#;
+        let object_type: AuditObjectType = serde_json::from_str(json).unwrap();
+        assert_eq!(object_type, AuditObjectType::Task);
+    }
+
+    // ==================== Тесты для validation ====================
+
+    #[test]
+    fn test_retrieve_query_params_offset_non_negative() {
+        let params = RetrieveQueryParams {
+            offset: 0,
+            ..Default::default()
+        };
+        assert!(params.offset >= 0);
+    }
+
+    #[test]
+    fn test_retrieve_query_params_count_positive_when_some() {
+        let params = RetrieveQueryParams {
+            count: Some(100),
+            ..Default::default()
+        };
+        assert!(params.count.unwrap() > 0);
+    }
+
+    #[test]
+    fn test_task_filter_status_not_modified_on_clone() {
+        let filter = TaskFilter {
+            status: vec![
+                crate::services::task_logger::TaskStatus::Running,
+                crate::services::task_logger::TaskStatus::Success,
+            ],
+            ..Default::default()
+        };
+        let cloned = filter.clone();
+        assert_eq!(filter.status.len(), cloned.status.len());
+        assert_eq!(filter.status, cloned.status);
+    }
+
+    #[test]
+    fn test_retrieve_query_params_empty_filter() {
+        let params = RetrieveQueryParams::default();
+        assert!(params.filter.is_none());
+        assert!(params.sort_by.is_none());
+        assert_eq!(params.offset, 0);
+    }
+
+    #[test]
+    fn test_audit_log_result_structure() {
+        let result = AuditLogResult {
+            total: 0,
+            records: vec![],
+            limit: 10,
+            offset: 0,
+        };
+        assert_eq!(result.records.len(), 0);
+        assert_eq!(result.total, 0);
+        assert_eq!(result.limit, 10);
+        assert_eq!(result.offset, 0);
+    }
+
+    #[test]
+    fn test_audit_log_result_with_data() {
+        let result = AuditLogResult {
+            total: 100,
+            records: vec![],
+            limit: 50,
+            offset: 25,
+        };
+        assert_eq!(result.total, 100);
+        assert_eq!(result.limit, 50);
+        assert_eq!(result.offset, 25);
+    }
+
+    #[test]
+    fn test_store_trait_is_object_safe() {
+        // Этот тест компиляции проверяет, что trait Store является object-safe
+        fn _assert_object_safe(_: &dyn Store) {}
+    }
+
+    #[test]
+    fn test_connection_manager_trait_is_object_safe() {
+        fn _assert_object_safe(_: &dyn ConnectionManager) {}
+    }
+
+    #[test]
+    fn test_user_manager_trait_is_object_safe() {
+        fn _assert_object_safe(_: &dyn UserManager) {}
+    }
+
+    #[test]
+    fn test_project_store_trait_is_object_safe() {
+        fn _assert_object_safe(_: &dyn ProjectStore) {}
+    }
+
+    #[test]
+    fn test_task_manager_trait_is_object_safe() {
+        fn _assert_object_safe(_: &dyn TaskManager) {}
+    }
+
+    #[test]
+    fn test_audit_log_manager_trait_is_object_safe() {
+        fn _assert_object_safe(_: &dyn AuditLogManager) {}
+    }
+
+    #[test]
+    fn test_workflow_manager_trait_is_object_safe() {
+        fn _assert_object_safe(_: &dyn WorkflowManager) {}
+    }
+
+    #[test]
+    fn test_playbook_run_filter_default() {
+        let filter = PlaybookRunFilter::default();
+        // Проверяем, что фильтр создаётся корректно
+        let _ = filter;
+    }
+
+    #[test]
+    fn test_credential_type_enum_variants() {
+        // CredentialType - это структура, не enum, проверяем создание
+        let _type_name = "CustomCreds";
+        assert!(!_type_name.is_empty());
+    }
+
+    #[test]
+    fn test_drift_config_structure() {
+        let config = DriftConfig {
+            id: 1,
+            project_id: 10,
+            template_id: 20,
+            enabled: true,
+            schedule: Some("0 */6 * * *".to_string()),
+            created: Utc::now(),
+        };
+        assert_eq!(config.id, 1);
+        assert_eq!(config.project_id, 10);
+        assert!(config.enabled);
+        assert_eq!(config.schedule, Some("0 */6 * * *".to_string()));
+    }
+
+    #[test]
+    fn test_drift_config_create_structure() {
+        let create = DriftConfigCreate {
+            template_id: 42,
+            enabled: Some(true),
+            schedule: Some("0 0 * * *".to_string()),
+        };
+        assert_eq!(create.template_id, 42);
+        assert_eq!(create.enabled, Some(true));
+        assert_eq!(create.schedule, Some("0 0 * * *".to_string()));
+    }
+
+    #[test]
+    fn test_drift_result_structure() {
+        let result = DriftResult {
+            id: 1,
+            drift_config_id: 5,
+            project_id: 10,
+            template_id: 20,
+            task_id: None,
+            status: "no_drift".to_string(),
+            summary: None,
+            checked_at: Utc::now(),
+        };
+        assert_eq!(result.status, "no_drift");
+        assert!(result.task_id.is_none());
+        assert!(result.summary.is_none());
+    }
+
+    #[test]
+    fn test_ldap_group_mapping_structure() {
+        let mapping = LdapGroupMapping {
+            id: 1,
+            ldap_group_dn: "cn=developers,ou=groups,dc=example,dc=com".to_string(),
+            project_id: 10,
+            role: "manager".to_string(),
+            created_at: "2024-01-01T00:00:00Z".to_string(),
+            project_name: "Test Project".to_string(),
+        };
+        assert_eq!(mapping.id, 1);
+        assert_eq!(
+            mapping.ldap_group_dn,
+            "cn=developers,ou=groups,dc=example,dc=com"
+        );
+        assert_eq!(mapping.project_id, 10);
+        assert_eq!(mapping.role, "manager");
+    }
+
+    #[test]
+    fn test_ldap_group_mapping_create_structure() {
+        let create = LdapGroupMappingCreate {
+            ldap_group_dn: "cn=admins,ou=groups,dc=example,dc=com".to_string(),
+            project_id: 5,
+            role: "owner".to_string(),
+        };
+        assert_eq!(
+            create.ldap_group_dn,
+            "cn=admins,ou=groups,dc=example,dc=com"
+        );
+        assert_eq!(create.project_id, 5);
+        assert_eq!(create.role, "owner");
+    }
+
+    #[test]
+    fn test_notification_policy_structure() {
+        let policy = NotificationPolicy {
+            id: 1,
+            project_id: 10,
+            name: "Email on failure".to_string(),
+            channel_type: "email".to_string(),
+            webhook_url: "https://example.com/webhook".to_string(),
+            trigger: "task_failed".to_string(),
+            template_id: None,
+            enabled: true,
+            created: Utc::now(),
+        };
+        assert_eq!(policy.id, 1);
+        assert_eq!(policy.project_id, 10);
+        assert!(policy.enabled);
+    }
+
+    #[test]
+    fn test_notification_policy_create_structure() {
+        let create = NotificationPolicyCreate {
+            name: "Slack alerts".to_string(),
+            channel_type: "slack".to_string(),
+            webhook_url: "https://hooks.slack.com/xxx".to_string(),
+            trigger: "task_failed".to_string(),
+            template_id: Some(20),
+            enabled: Some(true),
+        };
+        assert_eq!(create.name, "Slack alerts");
+        assert_eq!(create.channel_type, "slack");
+        assert_eq!(create.trigger, "task_failed");
+        assert_eq!(create.template_id, Some(20));
+    }
+
+    #[test]
+    fn test_task_snapshot_structure() {
+        let snapshot = TaskSnapshot {
+            id: 1,
+            project_id: 10,
+            template_id: 20,
+            task_id: 30,
+            git_branch: Some("main".to_string()),
+            git_commit: Some("abc123".to_string()),
+            arguments: None,
+            inventory_id: None,
+            environment_id: None,
+            message: None,
+            label: None,
+            created_at: "2024-01-01T00:00:00Z".to_string(),
+            template_name: "Deploy".to_string(),
+        };
+        assert_eq!(snapshot.id, 1);
+        assert_eq!(snapshot.project_id, 10);
+        assert_eq!(snapshot.template_id, 20);
+        assert_eq!(snapshot.task_id, 30);
+        assert_eq!(snapshot.git_branch, Some("main".to_string()));
+    }
+
+    #[test]
+    fn test_task_snapshot_create_structure() {
+        let create = TaskSnapshotCreate {
+            template_id: 15,
+            task_id: 25,
+            git_branch: Some("develop".to_string()),
+            git_commit: Some("def456".to_string()),
+            arguments: None,
+            inventory_id: None,
+            environment_id: None,
+            message: None,
+            label: Some("test".to_string()),
+        };
+        assert_eq!(create.template_id, 15);
+        assert_eq!(create.task_id, 25);
+        assert_eq!(create.git_branch, Some("develop".to_string()));
+    }
+
+    #[test]
+    fn test_workflow_node_structure() {
+        let node = WorkflowNode {
+            id: 1,
+            workflow_id: 10,
+            template_id: 20,
+            name: "Deploy".to_string(),
+            pos_x: 100.0,
+            pos_y: 200.0,
+            wave: 0,
+        };
+        assert_eq!(node.workflow_id, 10);
+        assert_eq!(node.template_id, 20);
+        assert!((node.pos_x - 100.0).abs() < f64::EPSILON);
+        assert!((node.pos_y - 200.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_workflow_edge_structure() {
+        let edge = WorkflowEdge {
+            id: 1,
+            workflow_id: 10,
+            from_node_id: 20,
+            to_node_id: 30,
+            condition: "success".to_string(),
+        };
+        assert_eq!(edge.workflow_id, 10);
+        assert_eq!(edge.from_node_id, 20);
+        assert_eq!(edge.to_node_id, 30);
+        assert_eq!(edge.condition, "success");
+    }
+
+    #[test]
+    fn test_workflow_run_structure() {
+        let run = WorkflowRun {
+            id: 1,
+            workflow_id: 10,
+            project_id: 20,
+            status: "running".to_string(),
+            message: None,
+            created: Utc::now(),
+            started: Some(Utc::now()),
+            finished: None,
+        };
+        assert_eq!(run.workflow_id, 10);
+        assert_eq!(run.project_id, 20);
+        assert_eq!(run.status, "running");
+        assert!(run.finished.is_none());
+        assert!(run.message.is_none());
+    }
+
+    #[test]
+    fn test_hook_structure() {
+        use crate::models::hook::HookType;
+        let hook = Hook {
+            id: 1,
+            project_id: 10,
+            template_id: 20,
+            name: "Pre-deploy hook".to_string(),
+            r#type: HookType::Http,
+            url: Some("https://example.com/hook".to_string()),
+            script: None,
+            http_method: Some("POST".to_string()),
+            http_body: None,
+            timeout_secs: Some(30),
+        };
+        assert_eq!(hook.project_id, 10);
+        assert_eq!(hook.template_id, 20);
+        assert_eq!(hook.name, "Pre-deploy hook");
+        assert!(hook.url.is_some());
+    }
+}

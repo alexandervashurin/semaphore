@@ -1888,3 +1888,1296 @@ impl crate::db::store::StructuredOutputManager for MockStore {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ============================================================
+    // 1. Тесты для MockStore::new() и Default
+    // ============================================================
+
+    #[test]
+    fn test_mock_store_new_is_empty() {
+        let store = MockStore::new();
+        assert_eq!(store.users.read().unwrap().len(), 0);
+        assert_eq!(store.projects.read().unwrap().len(), 0);
+        assert_eq!(store.tasks.read().unwrap().len(), 0);
+        assert_eq!(store.templates.read().unwrap().len(), 0);
+        assert_eq!(store.inventories.read().unwrap().len(), 0);
+        assert_eq!(store.repositories.read().unwrap().len(), 0);
+        assert_eq!(store.environments.read().unwrap().len(), 0);
+        assert_eq!(store.playbook_runs.read().unwrap().len(), 0);
+        assert_eq!(store.organizations.read().unwrap().len(), 0);
+        assert_eq!(store.organization_users.read().unwrap().len(), 0);
+        assert_eq!(store.terraform_plans.read().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn test_mock_store_default_is_empty() {
+        let store = MockStore::default();
+        assert_eq!(store.users.read().unwrap().len(), 0);
+        assert_eq!(store.templates.read().unwrap().len(), 0);
+        assert_eq!(store.inventories.read().unwrap().len(), 0);
+    }
+
+    // ============================================================
+    // 2. Тесты для seed_* helper функций
+    // ============================================================
+
+    fn make_template(id: i32, project_id: i32) -> Template {
+        Template {
+            id,
+            project_id,
+            inventory_id: Some(1),
+            repository_id: None,
+            environment_id: None,
+            name: format!("template_{id}"),
+            playbook: "test.yml".to_string(),
+            arguments: None,
+            allow_override_args_in_task: false,
+            allow_override_branch_in_task: false,
+            allow_inventory_in_task: false,
+            allow_parallel_tasks: false,
+            suppress_success_alerts: false,
+            require_approval: false,
+            description: String::new(),
+            r#type: TemplateType::Default,
+            app: TemplateApp::Ansible,
+            git_branch: None,
+            created: Utc::now(),
+            vault_key_id: None,
+            view_id: None,
+            build_template_id: None,
+            autorun: false,
+            task_params: None,
+            survey_vars: None,
+            vaults: None,
+            parent_template_id: None,
+            execution_image: None,
+            pre_template_id: None,
+            post_template_id: None,
+            fail_template_id: None,
+            deploy_environment_id: None,
+        }
+    }
+
+    fn make_inventory(id: i32) -> Inventory {
+        Inventory {
+            id,
+            project_id: 1,
+            name: format!("inventory_{id}"),
+            inventory_type: InventoryType::Static,
+            inventory_data: "localhost".to_string(),
+            key_id: None,
+            secret_storage_id: None,
+            ssh_login: String::new(),
+            ssh_port: 22,
+            extra_vars: None,
+            ssh_key_id: None,
+            become_key_id: None,
+            vaults: None,
+            created: None,
+            runner_tag: None,
+        }
+    }
+
+    fn make_repository(id: i32) -> Repository {
+        Repository {
+            id,
+            project_id: 1,
+            git_url: "https://github.com/test/repo.git".to_string(),
+            git_branch: Some("main".to_string()),
+            key_id: None,
+            name: format!("repo_{id}"),
+            git_type: RepositoryType::Https,
+            git_path: None,
+            created: None,
+        }
+    }
+
+    fn make_environment(id: i32) -> Environment {
+        Environment {
+            id,
+            project_id: 1,
+            name: format!("env_{id}"),
+            json: String::new(),
+            secret_storage_id: None,
+            secret_storage_key_prefix: None,
+            secrets: None,
+            created: Some(Utc::now()),
+        }
+    }
+
+    #[test]
+    fn test_seed_template() {
+        let store = MockStore::new();
+        let tpl = make_template(1, 1);
+        store.seed_template(tpl);
+        assert_eq!(store.templates.read().unwrap().len(), 1);
+        assert!(store.templates.read().unwrap().contains_key(&1));
+    }
+
+    #[test]
+    fn test_seed_multiple_templates() {
+        let store = MockStore::new();
+        store.seed_template(make_template(1, 1));
+        store.seed_template(make_template(2, 1));
+        store.seed_template(make_template(3, 2));
+        assert_eq!(store.templates.read().unwrap().len(), 3);
+    }
+
+    #[test]
+    fn test_seed_inventory() {
+        let store = MockStore::new();
+        let inv = make_inventory(1);
+        store.seed_inventory(inv);
+        assert_eq!(store.inventories.read().unwrap().len(), 1);
+        assert!(store.inventories.read().unwrap().contains_key(&1));
+    }
+
+    #[test]
+    fn test_seed_repository() {
+        let store = MockStore::new();
+        let repo = make_repository(1);
+        store.seed_repository(repo);
+        assert_eq!(store.repositories.read().unwrap().len(), 1);
+        assert!(store.repositories.read().unwrap().contains_key(&1));
+    }
+
+    #[test]
+    fn test_seed_environment() {
+        let store = MockStore::new();
+        let env = make_environment(1);
+        store.seed_environment(env);
+        assert_eq!(store.environments.read().unwrap().len(), 1);
+        assert!(store.environments.read().unwrap().contains_key(&1));
+    }
+
+    #[test]
+    fn test_seed_playbook_run() {
+        let store = MockStore::new();
+        let run = PlaybookRun {
+            id: 1,
+            project_id: 1,
+            playbook_id: 1,
+            task_id: Some(1),
+            template_id: Some(1),
+            inventory_id: Some(1),
+            environment_id: None,
+            extra_vars: None,
+            limit_hosts: None,
+            tags: None,
+            skip_tags: None,
+            user_id: Some(1),
+            status: PlaybookRunStatus::Waiting,
+            output: None,
+            error_message: None,
+            created: Utc::now(),
+            updated: Utc::now(),
+            start_time: None,
+            end_time: None,
+            duration_seconds: None,
+            hosts_total: Some(0),
+            hosts_changed: Some(0),
+            hosts_unreachable: Some(0),
+            hosts_failed: Some(0),
+        };
+        store.seed_playbook_run(run);
+        assert_eq!(store.playbook_runs.read().unwrap().len(), 1);
+        assert!(store.playbook_runs.read().unwrap().contains_key(&1));
+    }
+
+    #[test]
+    fn test_seed_terraform_plan() {
+        let store = MockStore::new();
+        let plan = TerraformPlan {
+            id: 1,
+            project_id: 1,
+            task_id: 1,
+            plan_output: "plan output".to_string(),
+            plan_json: None,
+            resources_added: 0,
+            resources_changed: 0,
+            resources_removed: 0,
+            status: "pending".to_string(),
+            created_at: Utc::now(),
+            reviewed_at: None,
+            reviewed_by: None,
+            review_comment: None,
+        };
+        store.seed_terraform_plan(plan);
+        assert_eq!(store.terraform_plans.read().unwrap().len(), 1);
+        assert!(store.terraform_plans.read().unwrap().contains_key(&(1, 1)));
+    }
+
+    // ============================================================
+    // 3. Тесты для моделей
+    // ============================================================
+
+    #[test]
+    fn test_template_equality_by_id() {
+        let tpl1 = make_template(1, 1);
+        let tpl2 = make_template(1, 1);
+        assert_eq!(tpl1.id, tpl2.id);
+        assert_eq!(tpl1.project_id, tpl2.project_id);
+    }
+
+    #[test]
+    fn test_inventory_type_static() {
+        let inv = make_inventory(1);
+        assert_eq!(inv.inventory_type, InventoryType::Static);
+    }
+
+    #[test]
+    fn test_repository_fields() {
+        let repo = make_repository(42);
+        assert_eq!(repo.id, 42);
+        assert_eq!(repo.git_branch, Some("main".to_string()));
+        assert!(repo.git_url.contains("github.com"));
+    }
+
+    #[test]
+    fn test_environment_optional_fields() {
+        let env = make_environment(1);
+        assert!(env.secret_storage_id.is_none());
+        assert!(env.secret_storage_key_prefix.is_none());
+        assert!(env.secrets.is_none());
+    }
+
+    #[test]
+    fn test_playbook_run_initial_status() {
+        let store = MockStore::new();
+        let run = PlaybookRun {
+            id: 1,
+            project_id: 1,
+            playbook_id: 1,
+            task_id: None,
+            template_id: Some(1),
+            inventory_id: Some(1),
+            environment_id: None,
+            extra_vars: None,
+            limit_hosts: None,
+            tags: None,
+            skip_tags: None,
+            user_id: None,
+            status: PlaybookRunStatus::Waiting,
+            output: None,
+            error_message: None,
+            created: Utc::now(),
+            updated: Utc::now(),
+            start_time: None,
+            end_time: None,
+            duration_seconds: None,
+            hosts_total: Some(0),
+            hosts_changed: Some(0),
+            hosts_unreachable: Some(0),
+            hosts_failed: Some(0),
+        };
+        store.seed_playbook_run(run);
+        let stored = store.playbook_runs.read().unwrap().get(&1).cloned().unwrap();
+        assert_eq!(stored.status, PlaybookRunStatus::Waiting);
+    }
+
+    #[test]
+    fn test_terraform_plan_key_is_composite() {
+        let store = MockStore::new();
+        let plan1 = TerraformPlan {
+            id: 1,
+            project_id: 1,
+            task_id: 10,
+            plan_output: "plan1".to_string(),
+            plan_json: None,
+            resources_added: 0,
+            resources_changed: 0,
+            resources_removed: 0,
+            status: "pending".to_string(),
+            created_at: Utc::now(),
+            reviewed_at: None,
+            reviewed_by: None,
+            review_comment: None,
+        };
+        let plan2 = TerraformPlan {
+            id: 2,
+            project_id: 1,
+            task_id: 20,
+            plan_output: "plan2".to_string(),
+            plan_json: None,
+            resources_added: 0,
+            resources_changed: 0,
+            resources_removed: 0,
+            status: "pending".to_string(),
+            created_at: Utc::now(),
+            reviewed_at: None,
+            reviewed_by: None,
+            review_comment: None,
+        };
+        store.seed_terraform_plan(plan1);
+        store.seed_terraform_plan(plan2);
+        assert_eq!(store.terraform_plans.read().unwrap().len(), 2);
+        assert!(store.terraform_plans.read().unwrap().contains_key(&(1, 10)));
+        assert!(store.terraform_plans.read().unwrap().contains_key(&(1, 20)));
+    }
+
+    // ============================================================
+    // 4. Тесты для ConnectionManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_connection_manager_connect_returns_ok() {
+        let store = MockStore::new();
+        assert!(store.connect().await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_connection_manager_close_returns_ok() {
+        let store = MockStore::new();
+        assert!(store.close().await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_connection_manager_is_permanent() {
+        let store = MockStore::new();
+        assert!(store.is_permanent());
+    }
+
+    // ============================================================
+    // 5. Тесты для MigrationManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_migration_manager_get_dialect() {
+        let store = MockStore::new();
+        assert_eq!(store.get_dialect(), "mock");
+    }
+
+    #[tokio::test]
+    async fn test_migration_manager_is_initialized() {
+        let store = MockStore::new();
+        let result = store.is_initialized().await.unwrap();
+        assert!(result);
+    }
+
+    #[tokio::test]
+    async fn test_migration_manager_apply_migration() {
+        let store = MockStore::new();
+        assert!(store.apply_migration(1, "test_migration".to_string()).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_migration_manager_is_migration_applied() {
+        let store = MockStore::new();
+        let result = store.is_migration_applied(42).await.unwrap();
+        assert!(result);
+    }
+
+    // ============================================================
+    // 6. Тесты для OptionsManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_options_manager_get_options_empty() {
+        let store = MockStore::new();
+        let opts = store.get_options().await.unwrap();
+        assert!(opts.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_options_manager_get_option_returns_none() {
+        let store = MockStore::new();
+        let opt = store.get_option("some_key").await.unwrap();
+        assert!(opt.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_options_manager_set_option_ok() {
+        let store = MockStore::new();
+        assert!(store.set_option("key", "value").await.is_ok());
+        let opt = store.get_option("key").await.unwrap();
+        assert!(opt.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_options_manager_delete_option_ok() {
+        let store = MockStore::new();
+        assert!(store.delete_option("nonexistent").await.is_ok());
+    }
+
+    // ============================================================
+    // 7. Тесты для UserManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_user_manager_get_users_empty() {
+        let store = MockStore::new();
+        let users = store.get_users(RetrieveQueryParams::default()).await.unwrap();
+        assert!(users.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_user_manager_get_user_not_found() {
+        let store = MockStore::new();
+        let result = store.get_user(999).await;
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            Error::NotFound(msg) => assert!(msg.contains("999")),
+            _ => panic!("Expected Error::NotFound"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_user_manager_get_all_admins_empty() {
+        let store = MockStore::new();
+        let admins = store.get_all_admins().await.unwrap();
+        assert!(admins.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_user_manager_get_user_count_empty() {
+        let store = MockStore::new();
+        let count = store.get_user_count().await.unwrap();
+        assert_eq!(count, 0);
+    }
+
+    #[tokio::test]
+    async fn test_user_manager_get_user_totp_none() {
+        let store = MockStore::new();
+        let totp = store.get_user_totp(1).await.unwrap();
+        assert!(totp.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_user_manager_set_user_totp_ok() {
+        let store = MockStore::new();
+        let totp = UserTotp {
+            id: 1,
+            created: Utc::now(),
+            user_id: 1,
+            url: "otpauth://totp/test".to_string(),
+            recovery_hash: "hash".to_string(),
+            recovery_code: None,
+        };
+        assert!(store.set_user_totp(999, &totp).await.is_ok());
+    }
+
+    // ============================================================
+    // 8. Тесты для ProjectStore
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_project_store_get_projects_empty() {
+        let store = MockStore::new();
+        let projects = store.get_projects(None).await.unwrap();
+        assert!(projects.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_project_store_get_project_not_found() {
+        let store = MockStore::new();
+        let result = store.get_project(1).await;
+        assert!(result.is_err());
+    }
+
+    // ============================================================
+    // 9. Тесты для TemplateManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_template_manager_get_templates_empty() {
+        let store = MockStore::new();
+        let templates = store.get_templates(1).await.unwrap();
+        assert!(templates.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_template_manager_get_template_not_found() {
+        let store = MockStore::new();
+        let result = store.get_template(1, 1).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_template_manager_get_template_wrong_project() {
+        let store = MockStore::new();
+        store.seed_template(make_template(1, 2));
+        let result = store.get_template(1, 1).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_template_manager_get_template_found() {
+        let store = MockStore::new();
+        store.seed_template(make_template(1, 1));
+        let tpl = store.get_template(1, 1).await.unwrap();
+        assert_eq!(tpl.id, 1);
+        assert_eq!(tpl.project_id, 1);
+    }
+
+    // ============================================================
+    // 10. Тесты для InventoryManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_inventory_manager_get_inventory_not_found() {
+        let store = MockStore::new();
+        let result = store.get_inventory(1, 1).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_inventory_manager_get_inventory_found() {
+        let store = MockStore::new();
+        store.seed_inventory(make_inventory(5));
+        let inv = store.get_inventory(1, 5).await.unwrap();
+        assert_eq!(inv.id, 5);
+    }
+
+    // ============================================================
+    // 11. Тесты для RepositoryManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_repository_manager_get_repository_not_found() {
+        let store = MockStore::new();
+        let result = store.get_repository(1, 1).await;
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            Error::NotFound(msg) => assert!(msg.contains("1")),
+            _ => panic!("Expected Error::NotFound"),
+        }
+    }
+
+    // ============================================================
+    // 12. Тесты для EnvironmentManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_environment_manager_get_environment_not_found() {
+        let store = MockStore::new();
+        let result = store.get_environment(1, 42).await;
+        assert!(result.is_err());
+    }
+
+    // ============================================================
+    // 13. Тесты для AccessKeyManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_access_key_manager_get_access_keys_empty() {
+        let store = MockStore::new();
+        let keys = store.get_access_keys(1).await.unwrap();
+        assert!(keys.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_access_key_manager_get_access_key_not_found() {
+        let store = MockStore::new();
+        let result = store.get_access_key(1, 1).await;
+        assert!(result.is_err());
+    }
+
+    // ============================================================
+    // 14. Тесты для ScheduleManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_schedule_manager_get_schedules_empty() {
+        let store = MockStore::new();
+        let schedules = store.get_schedules(1).await.unwrap();
+        assert!(schedules.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_schedule_manager_get_all_schedules_empty() {
+        let store = MockStore::new();
+        let schedules = store.get_all_schedules().await.unwrap();
+        assert!(schedules.is_empty());
+    }
+
+    // ============================================================
+    // 15. Тесты для SessionManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_session_manager_get_session_not_found() {
+        let store = MockStore::new();
+        let result = store.get_session(1, 1).await;
+        assert!(result.is_err());
+    }
+
+    // ============================================================
+    // 16. Тесты для TokenManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_token_manager_get_api_tokens_empty() {
+        let store = MockStore::new();
+        let tokens = store.get_api_tokens(1).await.unwrap();
+        assert!(tokens.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_token_manager_get_api_token_not_found() {
+        let store = MockStore::new();
+        let result = store.get_api_token(1).await;
+        assert!(result.is_err());
+    }
+
+    // ============================================================
+    // 17. Тесты для EventManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_event_manager_get_events_empty() {
+        let store = MockStore::new();
+        let events = store.get_events(None, 10).await.unwrap();
+        assert!(events.is_empty());
+    }
+
+    // ============================================================
+    // 18. Тесты для RunnerManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_runner_manager_get_runners_empty() {
+        let store = MockStore::new();
+        let runners = store.get_runners(None).await.unwrap();
+        assert!(runners.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_runner_manager_get_runner_not_found() {
+        let store = MockStore::new();
+        let result = store.get_runner(1).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_runner_manager_get_runners_count_zero() {
+        let store = MockStore::new();
+        let count = store.get_runners_count().await.unwrap();
+        assert_eq!(count, 0);
+    }
+
+    #[tokio::test]
+    async fn test_runner_manager_get_active_runners_count_zero() {
+        let store = MockStore::new();
+        let count = store.get_active_runners_count().await.unwrap();
+        assert_eq!(count, 0);
+    }
+
+    #[tokio::test]
+    async fn test_runner_manager_find_runner_by_token_not_found() {
+        let store = MockStore::new();
+        let result = store.find_runner_by_token("some_token").await;
+        assert!(result.is_err());
+    }
+
+    // ============================================================
+    // 19. Тесты для ViewManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_view_manager_get_views_empty() {
+        let store = MockStore::new();
+        let views = store.get_views(1).await.unwrap();
+        assert!(views.is_empty());
+    }
+
+    // ============================================================
+    // 20. Тесты для IntegrationManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_integration_manager_get_integrations_empty() {
+        let store = MockStore::new();
+        let integrations = store.get_integrations(1).await.unwrap();
+        assert!(integrations.is_empty());
+    }
+
+    // ============================================================
+    // 21. Тесты для SecretStorageManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_secret_storage_manager_get_secret_storages_empty() {
+        let store = MockStore::new();
+        let storages = store.get_secret_storages(1).await.unwrap();
+        assert!(storages.is_empty());
+    }
+
+    // ============================================================
+    // 22. Тесты для AuditLogManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_audit_log_manager_search_returns_empty_result() {
+        let store = MockStore::new();
+        let filter = AuditLogFilter::default();
+        let result = store.search_audit_logs(&filter).await.unwrap();
+        assert!(result.records.is_empty());
+        assert_eq!(result.total, 0);
+    }
+
+    // ============================================================
+    // 23. Тесты для OrganizationManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_organization_manager_get_organizations_empty() {
+        let store = MockStore::new();
+        let orgs = store.get_organizations().await.unwrap();
+        assert!(orgs.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_organization_manager_get_organization_not_found() {
+        let store = MockStore::new();
+        let result = store.get_organization(1).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_organization_manager_get_organizations_after_create() {
+        let store = MockStore::new();
+        let payload = OrganizationCreate {
+            name: "Test Org".to_string(),
+            slug: None,
+            description: None,
+            settings: None,
+            quota_max_projects: None,
+            quota_max_users: None,
+            quota_max_tasks_per_month: None,
+        };
+        let org = store.create_organization(payload).await.unwrap();
+        assert_eq!(org.name, "Test Org");
+        assert!(org.active);
+
+        let orgs = store.get_organizations().await.unwrap();
+        assert_eq!(orgs.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_organization_manager_check_quota_projects() {
+        let store = MockStore::new();
+        let payload = OrganizationCreate {
+            name: "Quota Org".to_string(),
+            slug: Some("quota-org".to_string()),
+            description: None,
+            settings: None,
+            quota_max_projects: Some(5),
+            quota_max_users: None,
+            quota_max_tasks_per_month: None,
+        };
+        let org = store.create_organization(payload).await.unwrap();
+        let allowed = store.check_organization_quota(org.id, "projects").await.unwrap();
+        assert!(allowed);
+    }
+
+    #[tokio::test]
+    async fn test_organization_manager_add_and_get_users() {
+        let store = MockStore::new();
+        let org_payload = OrganizationCreate {
+            name: "Org With Users".to_string(),
+            slug: Some("org-users".to_string()),
+            description: None,
+            settings: None,
+            quota_max_projects: None,
+            quota_max_users: None,
+            quota_max_tasks_per_month: None,
+        };
+        let org = store.create_organization(org_payload).await.unwrap();
+
+        let user_payload = OrganizationUserCreate {
+            org_id: org.id,
+            user_id: 10,
+            role: "member".to_string(),
+        };
+        let ou = store.add_user_to_organization(user_payload).await.unwrap();
+        assert_eq!(ou.org_id, org.id);
+        assert_eq!(ou.user_id, 10);
+        assert_eq!(ou.role, "member");
+
+        let org_users = store.get_organization_users(org.id).await.unwrap();
+        assert_eq!(org_users.len(), 1);
+        assert_eq!(org_users[0].user_id, 10);
+    }
+
+    #[tokio::test]
+    async fn test_organization_manager_remove_user() {
+        let store = MockStore::new();
+        let org_payload = OrganizationCreate {
+            name: "Remove User Org".to_string(),
+            slug: Some("remove-user".to_string()),
+            description: None,
+            settings: None,
+            quota_max_projects: None,
+            quota_max_users: None,
+            quota_max_tasks_per_month: None,
+        };
+        let org = store.create_organization(org_payload).await.unwrap();
+        store.add_user_to_organization(OrganizationUserCreate {
+            org_id: org.id,
+            user_id: 20,
+            role: "admin".to_string(),
+        }).await.unwrap();
+
+        assert_eq!(store.get_organization_users(org.id).await.unwrap().len(), 1);
+        store.remove_user_from_organization(org.id, 20).await.unwrap();
+        assert_eq!(store.get_organization_users(org.id).await.unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_organization_manager_update_role() {
+        let store = MockStore::new();
+        let org = store.create_organization(OrganizationCreate {
+            name: "Role Update Org".to_string(),
+            slug: Some("role-update".to_string()),
+            description: None,
+            settings: None,
+            quota_max_projects: None,
+            quota_max_users: None,
+            quota_max_tasks_per_month: None,
+        }).await.unwrap();
+
+        store.add_user_to_organization(OrganizationUserCreate {
+            org_id: org.id,
+            user_id: 30,
+            role: "member".to_string(),
+        }).await.unwrap();
+
+        store.update_user_organization_role(org.id, 30, "owner").await.unwrap();
+
+        let users = store.get_organization_users(org.id).await.unwrap();
+        assert_eq!(users[0].role, "owner");
+    }
+
+    #[tokio::test]
+    async fn test_organization_manager_delete_organization() {
+        let store = MockStore::new();
+        let org = store.create_organization(OrganizationCreate {
+            name: "To Delete".to_string(),
+            slug: Some("to-delete".to_string()),
+            description: None,
+            settings: None,
+            quota_max_projects: None,
+            quota_max_users: None,
+            quota_max_tasks_per_month: None,
+        }).await.unwrap();
+
+        assert_eq!(store.get_organizations().await.unwrap().len(), 1);
+        store.delete_organization(org.id).await.unwrap();
+        assert_eq!(store.get_organizations().await.unwrap().len(), 0);
+    }
+
+    // ============================================================
+    // 24. Тесты для PlaybookRunManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_playbook_run_manager_get_runs_empty() {
+        let store = MockStore::new();
+        let filter = PlaybookRunFilter::default();
+        let runs = store.get_playbook_runs(filter).await.unwrap();
+        assert!(runs.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_playbook_run_manager_get_run_not_found() {
+        let store = MockStore::new();
+        let result = store.get_playbook_run(1, 1).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_playbook_run_manager_get_stats_empty() {
+        let store = MockStore::new();
+        let stats = store.get_playbook_run_stats(1).await.unwrap();
+        assert_eq!(stats.total_runs, 0);
+        assert_eq!(stats.success_runs, 0);
+        assert_eq!(stats.failed_runs, 0);
+    }
+
+    // ============================================================
+    // 25. Тесты для TaskManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_task_manager_get_tasks_empty() {
+        let store = MockStore::new();
+        let tasks = store.get_tasks(1, None).await.unwrap();
+        assert!(tasks.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_task_manager_get_global_tasks_empty() {
+        let store = MockStore::new();
+        let tasks = store.get_global_tasks(None, None).await.unwrap();
+        assert!(tasks.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_task_manager_get_task_not_found() {
+        let store = MockStore::new();
+        let result = store.get_task(1, 1).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_task_manager_get_running_tasks_count_zero() {
+        let store = MockStore::new();
+        let count = store.get_running_tasks_count().await.unwrap();
+        assert_eq!(count, 0);
+    }
+
+    #[tokio::test]
+    async fn test_task_manager_get_waiting_tasks_count_zero() {
+        let store = MockStore::new();
+        let count = store.get_waiting_tasks_count().await.unwrap();
+        assert_eq!(count, 0);
+    }
+
+    // ============================================================
+    // 26. Тесты для HookManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_hook_manager_get_hooks_empty() {
+        let store = MockStore::new();
+        let hooks = store.get_hooks_by_template(1).await.unwrap();
+        assert!(hooks.is_empty());
+    }
+
+    // ============================================================
+    // 27. Тесты для ProjectInviteManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_project_invite_manager_get_invites_empty() {
+        let store = MockStore::new();
+        let invites = store.get_project_invites(1, RetrieveQueryParams::default()).await.unwrap();
+        assert!(invites.is_empty());
+    }
+
+    // ============================================================
+    // 28. Тесты для TerraformInventoryManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_terraform_inventory_get_aliases_empty() {
+        let store = MockStore::new();
+        let aliases = store.get_terraform_inventory_aliases(1, 1).await.unwrap();
+        assert!(aliases.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_terraform_inventory_get_state_count_zero() {
+        let store = MockStore::new();
+        let count = store.get_terraform_state_count().await.unwrap();
+        assert_eq!(count, 0);
+    }
+
+    // ============================================================
+    // 29. Тесты для TerraformStateManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_terraform_state_get_none() {
+        let store = MockStore::new();
+        let state = store.get_terraform_state(1, "default").await.unwrap();
+        assert!(state.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_terraform_state_list_empty() {
+        let store = MockStore::new();
+        let states = store.list_terraform_states(1, "default").await.unwrap();
+        assert!(states.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_terraform_state_list_workspaces_empty() {
+        let store = MockStore::new();
+        let workspaces = store.list_terraform_workspaces(1).await.unwrap();
+        assert!(workspaces.is_empty());
+    }
+
+    // ============================================================
+    // 30. Тесты для PlanApprovalManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_plan_approval_get_plan_by_task_none() {
+        let store = MockStore::new();
+        let plan = store.get_plan_by_task(1, 1).await.unwrap();
+        assert!(plan.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_plan_approval_list_pending_empty() {
+        let store = MockStore::new();
+        let plans = store.list_pending_plans(1).await.unwrap();
+        assert!(plans.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_plan_approval_create_and_get() {
+        let store = MockStore::new();
+        let plan = TerraformPlan {
+            id: 100,
+            project_id: 5,
+            task_id: 50,
+            plan_output: "plan output".to_string(),
+            plan_json: None,
+            resources_added: 2,
+            resources_changed: 1,
+            resources_removed: 0,
+            status: "pending".to_string(),
+            created_at: Utc::now(),
+            reviewed_at: None,
+            reviewed_by: None,
+            review_comment: None,
+        };
+        let created = store.create_plan(plan.clone()).await.unwrap();
+        assert_eq!(created.id, 100);
+
+        let found = store.get_plan_by_task(5, 50).await.unwrap();
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().id, 100);
+    }
+
+    #[tokio::test]
+    async fn test_plan_approval_approve_ok() {
+        let store = MockStore::new();
+        assert!(store.approve_plan(1, 2, Some("ok".to_string())).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_plan_approval_reject_ok() {
+        let store = MockStore::new();
+        assert!(store.reject_plan(1, 2, Some("no".to_string())).await.is_ok());
+    }
+
+    // ============================================================
+    // 31. Тесты для CostEstimateManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_cost_estimate_get_estimates_empty() {
+        let store = MockStore::new();
+        let estimates = store.get_cost_estimates(1, 10).await.unwrap();
+        assert!(estimates.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_cost_estimate_get_for_task_none() {
+        let store = MockStore::new();
+        let opt = store.get_cost_estimate_for_task(1, 1).await.unwrap();
+        assert!(opt.is_none());
+    }
+
+    // ============================================================
+    // 32. Тесты для SnapshotManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_snapshot_manager_get_snapshots_empty() {
+        let store = MockStore::new();
+        let snapshots = store.get_snapshots(1, None, 10).await.unwrap();
+        assert!(snapshots.is_empty());
+    }
+
+    // ============================================================
+    // 33. Тесты для CredentialTypeManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_credential_type_manager_get_types_empty() {
+        let store = MockStore::new();
+        let types = store.get_credential_types().await.unwrap();
+        assert!(types.is_empty());
+    }
+
+    // ============================================================
+    // 34. Тесты для NotificationPolicyManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_notification_policy_get_matching_empty() {
+        let store = MockStore::new();
+        let policies = store.get_matching_policies(1, "task_success", None).await.unwrap();
+        assert!(policies.is_empty());
+    }
+
+    // ============================================================
+    // 35. Тесты для DriftManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_drift_manager_get_configs_empty() {
+        let store = MockStore::new();
+        let configs = store.get_drift_configs(1).await.unwrap();
+        assert!(configs.is_empty());
+    }
+
+    // ============================================================
+    // 36. Тесты для LdapGroupMappingManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_ldap_group_mapping_get_empty() {
+        let store = MockStore::new();
+        let mappings = store.get_ldap_group_mappings().await.unwrap();
+        assert!(mappings.is_empty());
+    }
+
+    // ============================================================
+    // 37. Тесты для StructuredOutputManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_structured_output_manager_get_outputs_map() {
+        let store = MockStore::new();
+        let map = store.get_task_outputs_map(42, 1).await.unwrap();
+        assert_eq!(map.task_id, 42);
+        assert!(map.outputs.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_structured_output_manager_get_template_last_outputs() {
+        let store = MockStore::new();
+        let map = store.get_template_last_outputs(1, 1).await.unwrap();
+        assert_eq!(map.task_id, 0);
+    }
+
+    // ============================================================
+    // 38. Тесты для WebhookManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_webhook_manager_get_logs_empty() {
+        let store = MockStore::new();
+        let logs = store.get_webhook_logs(1).await.unwrap();
+        assert!(logs.is_empty());
+    }
+
+    // ============================================================
+    // 39. Тесты для DeploymentEnvironmentManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_deployment_env_get_history_empty() {
+        let store = MockStore::new();
+        let records = store.get_deployment_history(1, 1).await.unwrap();
+        assert!(records.is_empty());
+    }
+
+    // ============================================================
+    // 40. Тесты для WorkflowManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_workflow_manager_get_workflows_empty() {
+        let store = MockStore::new();
+        let workflows = store.get_workflows(1).await.unwrap();
+        assert!(workflows.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_workflow_manager_get_nodes_empty() {
+        let store = MockStore::new();
+        let nodes = store.get_workflow_nodes(1).await.unwrap();
+        assert!(nodes.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_workflow_manager_get_edges_empty() {
+        let store = MockStore::new();
+        let edges = store.get_workflow_edges(1).await.unwrap();
+        assert!(edges.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_workflow_manager_get_runs_empty() {
+        let store = MockStore::new();
+        let runs = store.get_workflow_runs(1, 1).await.unwrap();
+        assert!(runs.is_empty());
+    }
+
+    // ============================================================
+    // 41. Тесты для PlaybookManager
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_playbook_manager_get_playbooks_empty() {
+        let store = MockStore::new();
+        let playbooks = store.get_playbooks(1).await.unwrap();
+        assert!(playbooks.is_empty());
+    }
+
+    // ============================================================
+    // 42. Стресс-тест: множественные seed операции
+    // ============================================================
+
+    #[test]
+    fn test_bulk_seed_operations() {
+        let store = MockStore::new();
+        for i in 1..=50 {
+            store.seed_template(make_template(i, 1));
+        }
+        assert_eq!(store.templates.read().unwrap().len(), 50);
+
+        for i in 1..=30 {
+            store.seed_inventory(make_inventory(i));
+        }
+        assert_eq!(store.inventories.read().unwrap().len(), 30);
+
+        for i in 1..=20 {
+            store.seed_repository(make_repository(i));
+        }
+        assert_eq!(store.repositories.read().unwrap().len(), 20);
+    }
+
+    #[test]
+    fn test_seed_overwrite_same_id() {
+        let store = MockStore::new();
+        store.seed_template(make_template(1, 1));
+        let tpl2 = Template {
+            id: 1,
+            project_id: 2,
+            name: "overwritten".to_string(),
+            playbook: "new.yml".to_string(),
+            inventory_id: Some(1),
+            repository_id: None,
+            environment_id: None,
+            arguments: None,
+            allow_override_args_in_task: false,
+            allow_override_branch_in_task: false,
+            allow_inventory_in_task: false,
+            allow_parallel_tasks: false,
+            suppress_success_alerts: false,
+            require_approval: false,
+            description: String::new(),
+            r#type: TemplateType::Default,
+            app: TemplateApp::Ansible,
+            git_branch: None,
+            created: Utc::now(),
+            vault_key_id: None,
+            view_id: None,
+            build_template_id: None,
+            autorun: false,
+            task_params: None,
+            survey_vars: None,
+            vaults: None,
+            parent_template_id: None,
+            execution_image: None,
+            pre_template_id: None,
+            post_template_id: None,
+            fail_template_id: None,
+            deploy_environment_id: None,
+        };
+        store.seed_template(tpl2);
+        assert_eq!(store.templates.read().unwrap().len(), 1);
+        assert_eq!(store.templates.read().unwrap().get(&1).unwrap().name, "overwritten");
+    }
+}

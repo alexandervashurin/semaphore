@@ -118,3 +118,156 @@ impl KubernetesClusterManager {
         self.get("default").await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cluster_connection_meta_default_fields() {
+        let meta = ClusterConnectionMeta {
+            id: "cluster-1".to_string(),
+            name: "My Cluster".to_string(),
+            auth_method: "kubeconfig".to_string(),
+            context: None,
+        };
+        assert_eq!(meta.id, "cluster-1");
+        assert_eq!(meta.name, "My Cluster");
+        assert_eq!(meta.auth_method, "kubeconfig");
+        assert!(meta.context.is_none());
+    }
+
+    #[test]
+    fn test_cluster_connection_meta_with_context() {
+        let meta = ClusterConnectionMeta {
+            id: "prod".to_string(),
+            name: "Production".to_string(),
+            auth_method: "kubeconfig-file".to_string(),
+            context: Some("prod-context".to_string()),
+        };
+        assert_eq!(meta.context, Some("prod-context".to_string()));
+    }
+
+    #[test]
+    fn test_cluster_connection_meta_clone() {
+        let meta = ClusterConnectionMeta {
+            id: "test".to_string(),
+            name: "Test".to_string(),
+            auth_method: "test".to_string(),
+            context: Some("ctx".to_string()),
+        };
+        let cloned = meta.clone();
+        assert_eq!(cloned.id, meta.id);
+        assert_eq!(cloned.name, meta.name);
+    }
+
+    #[test]
+    fn test_cluster_connection_meta_debug() {
+        let meta = ClusterConnectionMeta {
+            id: "debug-test".to_string(),
+            name: "Debug".to_string(),
+            auth_method: "kubeconfig".to_string(),
+            context: None,
+        };
+        let debug_str = format!("{:?}", meta);
+        assert!(debug_str.contains("ClusterConnectionMeta"));
+        assert!(debug_str.contains("debug-test"));
+    }
+
+    #[test]
+    fn test_cluster_connection_meta_serialize() {
+        let meta = ClusterConnectionMeta {
+            id: "cluster-1".to_string(),
+            name: "My Cluster".to_string(),
+            auth_method: "in-cluster".to_string(),
+            context: None,
+        };
+        let json = serde_json::to_string(&meta).unwrap();
+        assert!(json.contains("cluster-1"));
+        assert!(json.contains("My Cluster"));
+        assert!(json.contains("in-cluster"));
+    }
+
+    #[test]
+    fn test_cluster_connection_meta_serialize_with_context() {
+        let meta = ClusterConnectionMeta {
+            id: "dev".to_string(),
+            name: "Dev".to_string(),
+            auth_method: "kubeconfig".to_string(),
+            context: Some("dev-ctx".to_string()),
+        };
+        let json = serde_json::to_string(&meta).unwrap();
+        assert!(json.contains("dev-ctx"));
+    }
+
+    #[test]
+    fn test_cluster_connection_meta_deserialize() {
+        let json = r#"{
+            "id": "cluster-1",
+            "name": "My Cluster",
+            "auth_method": "kubeconfig",
+            "context": null
+        }"#;
+        let meta: ClusterConnectionMeta = serde_json::from_str(json).unwrap();
+        assert_eq!(meta.id, "cluster-1");
+        assert_eq!(meta.name, "My Cluster");
+        assert!(meta.context.is_none());
+    }
+
+    #[test]
+    fn test_cluster_connection_meta_deserialize_with_context() {
+        let json = r#"{
+            "id": "prod",
+            "name": "Production",
+            "auth_method": "kubeconfig-file",
+            "context": "prod-context"
+        }"#;
+        let meta: ClusterConnectionMeta = serde_json::from_str(json).unwrap();
+        assert_eq!(meta.id, "prod");
+        assert_eq!(meta.context, Some("prod-context".to_string()));
+    }
+
+    #[test]
+    fn test_cluster_connection_meta_roundtrip() {
+        let original = ClusterConnectionMeta {
+            id: "roundtrip".to_string(),
+            name: "Roundtrip Cluster".to_string(),
+            auth_method: "service-account".to_string(),
+            context: Some("rt-ctx".to_string()),
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: ClusterConnectionMeta = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.id, original.id);
+        assert_eq!(restored.name, original.name);
+        assert_eq!(restored.context, original.context);
+    }
+
+    #[test]
+    fn test_connection_mode_variants() {
+        // Verify ConnectionMode enum variants exist and are distinct
+        let kubeconfig = crate::kubernetes::service::ConnectionMode::KubeConfig {
+            path: Some("/path/to/kubeconfig".to_string()),
+            context: Some("my-context".to_string()),
+        };
+        let in_cluster = crate::kubernetes::service::ConnectionMode::InCluster;
+        let infer = crate::kubernetes::service::ConnectionMode::Infer;
+
+        match kubeconfig {
+            crate::kubernetes::service::ConnectionMode::KubeConfig { path, context } => {
+                assert_eq!(path, Some("/path/to/kubeconfig".to_string()));
+                assert_eq!(context, Some("my-context".to_string()));
+            }
+            _ => panic!("Expected KubeConfig variant"),
+        }
+
+        match in_cluster {
+            crate::kubernetes::service::ConnectionMode::InCluster => {}
+            _ => panic!("Expected InCluster variant"),
+        }
+
+        match infer {
+            crate::kubernetes::service::ConnectionMode::Infer => {}
+            _ => panic!("Expected Infer variant"),
+        }
+    }
+}

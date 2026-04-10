@@ -100,3 +100,132 @@ impl EnvironmentManager for SqlStore {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::models::environment::{Environment, EnvironmentSecret, EnvironmentSecretType, EnvironmentSecretValue};
+
+    #[test]
+    fn test_environment_secret_type_serialization() {
+        assert_eq!(
+            serde_json::to_string(&EnvironmentSecretType::Env).unwrap(),
+            "\"env\""
+        );
+        assert_eq!(
+            serde_json::to_string(&EnvironmentSecretType::Var).unwrap(),
+            "\"var\""
+        );
+    }
+
+    #[test]
+    fn test_environment_secret_serialization() {
+        let secret = EnvironmentSecret {
+            id: 1,
+            environment_id: 10,
+            secret_id: 5,
+            secret_type: EnvironmentSecretType::Env,
+        };
+        let json = serde_json::to_string(&secret).unwrap();
+        assert!(json.contains("\"environment_id\":10"));
+        assert!(json.contains("\"secret_type\":\"env\""));
+    }
+
+    #[test]
+    fn test_environment_secret_value_serialization() {
+        let value = EnvironmentSecretValue {
+            name: "DB_PASSWORD".to_string(),
+            secret: "encrypted".to_string(),
+            secret_type: EnvironmentSecretType::Var,
+        };
+        let json = serde_json::to_string(&value).unwrap();
+        assert!(json.contains("\"name\":\"DB_PASSWORD\""));
+        assert!(json.contains("\"secret_type\":\"var\""));
+    }
+
+    #[test]
+    fn test_environment_new() {
+        let env = Environment::new(10, "production".to_string(), r#"{"KEY":"value"}"#.to_string());
+        assert_eq!(env.id, 0);
+        assert_eq!(env.project_id, 10);
+        assert_eq!(env.name, "production");
+        assert!(env.secret_storage_id.is_none());
+    }
+
+    #[test]
+    fn test_environment_parse_json() {
+        let env = Environment {
+            id: 1,
+            project_id: 10,
+            name: "test".to_string(),
+            json: r#"{"KEY1":"val1","KEY2":"val2"}"#.to_string(),
+            secret_storage_id: None,
+            secret_storage_key_prefix: None,
+            secrets: None,
+            created: None,
+        };
+        let parsed = env.parse_json().unwrap();
+        assert_eq!(parsed["KEY1"], "val1");
+        assert_eq!(parsed["KEY2"], "val2");
+    }
+
+    #[test]
+    fn test_environment_parse_invalid_json() {
+        let env = Environment {
+            id: 1,
+            project_id: 1,
+            name: "bad".to_string(),
+            json: "not valid json".to_string(),
+            secret_storage_id: None,
+            secret_storage_key_prefix: None,
+            secrets: None,
+            created: None,
+        };
+        assert!(env.parse_json().is_err());
+    }
+
+    #[test]
+    fn test_environment_default() {
+        let env = Environment::default();
+        assert_eq!(env.id, 0);
+        assert!(env.name.is_empty());
+        assert!(env.json.is_empty());
+    }
+
+    #[test]
+    fn test_environment_skip_nulls() {
+        let env = Environment::default();
+        let json = serde_json::to_string(&env).unwrap();
+        assert!(!json.contains("secret_storage_id"));
+        assert!(!json.contains("secrets"));
+    }
+
+    #[test]
+    fn test_environment_clone() {
+        let env = Environment::new(1, "clone".to_string(), "{}".to_string());
+        let cloned = env.clone();
+        assert_eq!(cloned.name, env.name);
+        assert_eq!(cloned.json, env.json);
+    }
+
+    #[test]
+    fn test_environment_with_secret_storage() {
+        let env = Environment {
+            id: 1,
+            project_id: 1,
+            name: "vault".to_string(),
+            json: "{}".to_string(),
+            secret_storage_id: Some(5),
+            secret_storage_key_prefix: Some("app/prod".to_string()),
+            secrets: None,
+            created: None,
+        };
+        assert_eq!(env.secret_storage_id, Some(5));
+        assert_eq!(env.secret_storage_key_prefix, Some("app/prod".to_string()));
+    }
+
+    #[test]
+    fn test_environment_secret_type_equality() {
+        assert_eq!(EnvironmentSecretType::Env, EnvironmentSecretType::Env);
+        assert_ne!(EnvironmentSecretType::Env, EnvironmentSecretType::Var);
+    }
+}
