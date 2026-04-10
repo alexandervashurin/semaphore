@@ -128,3 +128,200 @@ impl InventoryManager for SqlStore {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::models::{Inventory, InventoryType};
+
+    #[test]
+    fn test_inventory_type_display() {
+        assert_eq!(InventoryType::Static.to_string(), "static");
+        assert_eq!(InventoryType::StaticYaml.to_string(), "static_yaml");
+        assert_eq!(InventoryType::StaticJson.to_string(), "static_json");
+        assert_eq!(InventoryType::File.to_string(), "file");
+    }
+
+    #[test]
+    fn test_inventory_type_from_str() {
+        assert_eq!("static".parse::<InventoryType>().unwrap(), InventoryType::Static);
+        assert_eq!("static_yaml".parse::<InventoryType>().unwrap(), InventoryType::StaticYaml);
+        assert_eq!("static_json".parse::<InventoryType>().unwrap(), InventoryType::StaticJson);
+        assert_eq!("file".parse::<InventoryType>().unwrap(), InventoryType::File);
+        assert_eq!("invalid".parse::<InventoryType>().unwrap(), InventoryType::Static);
+    }
+
+    #[test]
+    fn test_inventory_type_serialize_all() {
+        let types = [
+            InventoryType::Static,
+            InventoryType::StaticYaml,
+            InventoryType::StaticJson,
+            InventoryType::File,
+        ];
+        for t in &types {
+            let json = serde_json::to_string(t).unwrap();
+            assert!(json.starts_with('"') && json.ends_with('"'));
+        }
+    }
+
+    #[test]
+    fn test_inventory_new() {
+        let inv = Inventory::new(10, "test-inv".to_string(), InventoryType::Static);
+        assert_eq!(inv.id, 0);
+        assert_eq!(inv.project_id, 10);
+        assert_eq!(inv.name, "test-inv");
+        assert_eq!(inv.inventory_type, InventoryType::Static);
+        assert_eq!(inv.ssh_login, "root");
+        assert_eq!(inv.ssh_port, 22);
+        assert!(inv.key_id.is_none());
+    }
+
+    #[test]
+    fn test_inventory_default() {
+        let inv = Inventory::default();
+        assert_eq!(inv.id, 0);
+        assert_eq!(inv.inventory_type, InventoryType::Static);
+        assert_eq!(inv.ssh_login, "root");
+        assert_eq!(inv.ssh_port, 22);
+        assert!(inv.key_id.is_none());
+        assert!(inv.extra_vars.is_none());
+    }
+
+    #[test]
+    fn test_inventory_serialization_skip_nulls() {
+        let inv = Inventory::default();
+        let json = serde_json::to_string(&inv).unwrap();
+        assert!(!json.contains("key_id"));
+        assert!(!json.contains("secret_storage_id"));
+        assert!(!json.contains("extra_vars"));
+    }
+
+    #[test]
+    fn test_inventory_serialization_with_values() {
+        let inv = Inventory {
+            id: 1,
+            project_id: 5,
+            name: "production".to_string(),
+            inventory_type: InventoryType::Static,
+            inventory_data: "[servers]\nserver1\n".to_string(),
+            key_id: Some(10),
+            secret_storage_id: Some(2),
+            ssh_login: "deploy".to_string(),
+            ssh_port: 2222,
+            extra_vars: Some(r#"{"env":"prod"}"#.to_string()),
+            ssh_key_id: Some(3),
+            become_key_id: Some(4),
+            vaults: None,
+            created: None,
+            runner_tag: Some("linux".to_string()),
+        };
+        let json = serde_json::to_string(&inv).unwrap();
+        assert!(json.contains("\"name\":\"production\""));
+        assert!(json.contains("\"key_id\":10"));
+        assert!(json.contains("\"runner_tag\":\"linux\""));
+    }
+
+    #[test]
+    fn test_inventory_clone() {
+        let inv = Inventory::new(10, "clone-test".to_string(), InventoryType::Static);
+        let cloned = inv.clone();
+        assert_eq!(cloned.name, inv.name);
+        assert_eq!(cloned.project_id, inv.project_id);
+    }
+
+    #[test]
+    fn test_inventory_with_file_type() {
+        let inv = Inventory::new(1, "file-inv".to_string(), InventoryType::File);
+        assert_eq!(inv.inventory_type, InventoryType::File);
+        let json = serde_json::to_string(&inv).unwrap();
+        assert!(json.contains("\"inventory_type\":\"file\""));
+    }
+
+    #[test]
+    fn test_inventory_with_static_json() {
+        let inv = Inventory::new(1, "json-inv".to_string(), InventoryType::StaticJson);
+        assert_eq!(inv.inventory_type, InventoryType::StaticJson);
+        assert_eq!(inv.ssh_login, "root");
+    }
+
+    #[test]
+    fn test_inventory_with_extra_vars() {
+        let inv = Inventory {
+            id: 1,
+            project_id: 1,
+            name: "extra".to_string(),
+            inventory_type: InventoryType::Static,
+            inventory_data: "data".to_string(),
+            key_id: None,
+            secret_storage_id: None,
+            ssh_login: "user".to_string(),
+            ssh_port: 22,
+            extra_vars: Some(r#"{"key":"value"}"#.to_string()),
+            ssh_key_id: None,
+            become_key_id: None,
+            vaults: None,
+            created: None,
+            runner_tag: None,
+        };
+        assert!(inv.extra_vars.is_some());
+    }
+
+    #[test]
+    fn test_inventory_with_runner_tag() {
+        let inv = Inventory {
+            id: 1,
+            project_id: 1,
+            name: "tagged".to_string(),
+            inventory_type: InventoryType::Static,
+            inventory_data: "".to_string(),
+            key_id: None,
+            secret_storage_id: None,
+            ssh_login: "root".to_string(),
+            ssh_port: 22,
+            extra_vars: None,
+            ssh_key_id: None,
+            become_key_id: None,
+            vaults: None,
+            created: None,
+            runner_tag: Some("docker".to_string()),
+        };
+        assert_eq!(inv.runner_tag, Some("docker".to_string()));
+    }
+
+    #[test]
+    fn test_inventory_port_custom() {
+        let inv = Inventory {
+            id: 0,
+            project_id: 0,
+            name: "custom-port".to_string(),
+            inventory_type: InventoryType::Static,
+            inventory_data: "".to_string(),
+            key_id: None,
+            secret_storage_id: None,
+            ssh_login: "admin".to_string(),
+            ssh_port: 8022,
+            extra_vars: None,
+            ssh_key_id: None,
+            become_key_id: None,
+            vaults: None,
+            created: None,
+            runner_tag: None,
+        };
+        assert_eq!(inv.ssh_port, 8022);
+    }
+
+    #[test]
+    fn test_inventory_type_roundtrip() {
+        let variants = [
+            InventoryType::Static,
+            InventoryType::StaticYaml,
+            InventoryType::StaticJson,
+            InventoryType::File,
+        ];
+        for t in &variants {
+            let json = serde_json::to_string(t).unwrap();
+            let parsed: InventoryType = serde_json::from_str(&json).unwrap();
+            assert_eq!(parsed, *t);
+        }
+    }
+}

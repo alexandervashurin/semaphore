@@ -149,3 +149,234 @@ impl IntegrationExtractValueManager for SqlStore {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::models::{IntegrationExtractValue, IntegrationMatcher};
+
+    #[test]
+    fn test_integration_matcher_serialization() {
+        let matcher = IntegrationMatcher {
+            id: 1,
+            integration_id: 10,
+            project_id: 5,
+            name: "Task Started".to_string(),
+            body_data_type: "json".to_string(),
+            key: Some("$.event".to_string()),
+            matcher_type: "equals".to_string(),
+            matcher_value: "task_started".to_string(),
+            method: "POST".to_string(),
+        };
+        let json = serde_json::to_string(&matcher).unwrap();
+        assert!(json.contains("\"name\":\"Task Started\""));
+        assert!(json.contains("\"method\":\"POST\""));
+    }
+
+    #[test]
+    fn test_integration_matcher_default_values() {
+        let matcher = IntegrationMatcher {
+            id: 0,
+            integration_id: 0,
+            project_id: 0,
+            name: String::new(),
+            body_data_type: String::new(),
+            key: None,
+            matcher_type: String::new(),
+            matcher_value: String::new(),
+            method: String::new(),
+        };
+        let json = serde_json::to_string(&matcher).unwrap();
+        assert!(json.contains("\"key\":null"));
+    }
+
+    #[test]
+    fn test_integration_matcher_clone() {
+        let matcher = IntegrationMatcher {
+            id: 1,
+            integration_id: 10,
+            project_id: 5,
+            name: "Clone Matcher".to_string(),
+            body_data_type: "json".to_string(),
+            key: Some("$.event".to_string()),
+            matcher_type: "contains".to_string(),
+            matcher_value: "deploy".to_string(),
+            method: "GET".to_string(),
+        };
+        let cloned = matcher.clone();
+        assert_eq!(cloned.name, matcher.name);
+        assert_eq!(cloned.matcher_type, matcher.matcher_type);
+    }
+
+    #[test]
+    fn test_integration_matcher_methods() {
+        let methods = vec!["GET", "POST", "PUT", "DELETE", "PATCH"];
+        for method in methods {
+            let matcher = IntegrationMatcher {
+                id: 0,
+                integration_id: 0,
+                project_id: 0,
+                name: "test".to_string(),
+                body_data_type: "json".to_string(),
+                key: None,
+                matcher_type: "equals".to_string(),
+                matcher_value: "x".to_string(),
+                method: method.to_string(),
+            };
+            let json = serde_json::to_string(&matcher).unwrap();
+            assert!(json.contains(&format!("\"method\":\"{}\"", method)));
+        }
+    }
+
+    #[test]
+    fn test_integration_matcher_body_data_types() {
+        let types = vec!["json", "xml", "form", "text"];
+        for body_type in types {
+            let matcher = IntegrationMatcher {
+                id: 0,
+                integration_id: 0,
+                project_id: 0,
+                name: "test".to_string(),
+                body_data_type: body_type.to_string(),
+                key: None,
+                matcher_type: "equals".to_string(),
+                matcher_value: "x".to_string(),
+                method: "POST".to_string(),
+            };
+            let json = serde_json::to_string(&matcher).unwrap();
+            assert!(json.contains(&format!("\"body_data_type\":\"{}\"", body_type)));
+        }
+    }
+
+    #[test]
+    fn test_integration_extract_value_serialization() {
+        let ev = IntegrationExtractValue {
+            id: 1,
+            integration_id: 10,
+            project_id: 5,
+            name: "Deploy URL".to_string(),
+            value_source: "body".to_string(),
+            body_data_type: "json".to_string(),
+            key: Some("$.url".to_string()),
+            variable: Some("DEPLOY_URL".to_string()),
+            value_name: "url".to_string(),
+            value_type: "string".to_string(),
+        };
+        let json = serde_json::to_string(&ev).unwrap();
+        assert!(json.contains("\"name\":\"Deploy URL\""));
+        assert!(json.contains("\"key\":\"$.url\""));
+    }
+
+    #[test]
+    fn test_integration_extract_value_default_values() {
+        let ev = IntegrationExtractValue {
+            id: 0,
+            integration_id: 0,
+            project_id: 0,
+            name: String::new(),
+            value_source: String::new(),
+            body_data_type: String::new(),
+            key: None,
+            variable: None,
+            value_name: String::new(),
+            value_type: String::new(),
+        };
+        let json = serde_json::to_string(&ev).unwrap();
+        assert!(json.contains("\"key\":null"));
+        assert!(json.contains("\"variable\":null"));
+    }
+
+    #[test]
+    fn test_integration_extract_value_clone() {
+        let ev = IntegrationExtractValue {
+            id: 1,
+            integration_id: 10,
+            project_id: 5,
+            name: "Clone EV".to_string(),
+            value_source: "header".to_string(),
+            body_data_type: "text".to_string(),
+            key: Some("X-Key".to_string()),
+            variable: Some("VAR".to_string()),
+            value_name: "key".to_string(),
+            value_type: "string".to_string(),
+        };
+        let cloned = ev.clone();
+        assert_eq!(cloned.name, ev.name);
+        assert_eq!(cloned.value_source, ev.value_source);
+    }
+
+    #[test]
+    fn test_integration_extract_value_types() {
+        let types = vec!["string", "number", "bool", "json"];
+        for vtype in types {
+            let ev = IntegrationExtractValue {
+                id: 0,
+                integration_id: 0,
+                project_id: 0,
+                name: "test".to_string(),
+                value_source: "body".to_string(),
+                body_data_type: "json".to_string(),
+                key: None,
+                variable: None,
+                value_name: "test".to_string(),
+                value_type: vtype.to_string(),
+            };
+            let json = serde_json::to_string(&ev).unwrap();
+            assert!(json.contains(&format!("\"value_type\":\"{}\"", vtype)));
+        }
+    }
+
+    #[test]
+    fn test_integration_extract_value_sources() {
+        let sources = vec!["body", "header", "query", "path"];
+        for source in sources {
+            let ev = IntegrationExtractValue {
+                id: 0,
+                integration_id: 0,
+                project_id: 0,
+                name: "test".to_string(),
+                value_source: source.to_string(),
+                body_data_type: "json".to_string(),
+                key: None,
+                variable: None,
+                value_name: "test".to_string(),
+                value_type: "string".to_string(),
+            };
+            assert_eq!(ev.value_source, source);
+        }
+    }
+
+    #[test]
+    fn test_integration_matcher_with_all_fields_some() {
+        let matcher = IntegrationMatcher {
+            id: 42,
+            integration_id: 100,
+            project_id: 200,
+            name: "full".to_string(),
+            body_data_type: "json".to_string(),
+            key: Some("$.data.id".to_string()),
+            matcher_type: "regex".to_string(),
+            matcher_value: "\\d+".to_string(),
+            method: "POST".to_string(),
+        };
+        assert_eq!(matcher.id, 42);
+        assert_eq!(matcher.key, Some("$.data.id".to_string()));
+    }
+
+    #[test]
+    fn test_integration_extract_value_with_all_fields_some() {
+        let ev = IntegrationExtractValue {
+            id: 7,
+            integration_id: 77,
+            project_id: 777,
+            name: "full".to_string(),
+            value_source: "body".to_string(),
+            body_data_type: "json".to_string(),
+            key: Some("$.id".to_string()),
+            variable: Some("ID".to_string()),
+            value_name: "id".to_string(),
+            value_type: "number".to_string(),
+        };
+        assert_eq!(ev.id, 7);
+        assert_eq!(ev.variable, Some("ID".to_string()));
+    }
+}

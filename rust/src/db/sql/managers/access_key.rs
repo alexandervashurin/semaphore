@@ -136,3 +136,230 @@ impl AccessKeyManager for SqlStore {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::models::access_key::{
+        AccessKey, AccessKeyOwner, AccessKeyType, AccessKeySourceStorageType,
+    };
+
+    #[test]
+    fn test_access_key_type_none_display() {
+        assert_eq!(AccessKeyType::None.to_string(), "none");
+    }
+
+    #[test]
+    fn test_access_key_type_ssh_display() {
+        assert_eq!(AccessKeyType::SSH.to_string(), "ssh");
+    }
+
+    #[test]
+    fn test_access_key_type_login_password_display() {
+        assert_eq!(AccessKeyType::LoginPassword.to_string(), "login_password");
+    }
+
+    #[test]
+    fn test_access_key_type_access_key_display() {
+        assert_eq!(AccessKeyType::AccessKey.to_string(), "access_key");
+    }
+
+    #[test]
+    fn test_access_key_type_from_str_all() {
+        assert_eq!("ssh".parse::<AccessKeyType>().unwrap(), AccessKeyType::SSH);
+        assert_eq!(
+            "login_password".parse::<AccessKeyType>().unwrap(),
+            AccessKeyType::LoginPassword
+        );
+        assert_eq!(
+            "access_key".parse::<AccessKeyType>().unwrap(),
+            AccessKeyType::AccessKey
+        );
+        assert_eq!("invalid".parse::<AccessKeyType>().unwrap(), AccessKeyType::None);
+    }
+
+    #[test]
+    fn test_access_key_owner_display() {
+        assert_eq!(AccessKeyOwner::User.to_string(), "user");
+        assert_eq!(AccessKeyOwner::Project.to_string(), "project");
+        assert_eq!(AccessKeyOwner::Shared.to_string(), "shared");
+    }
+
+    #[test]
+    fn test_access_key_owner_from_str() {
+        assert_eq!("user".parse::<AccessKeyOwner>().unwrap(), AccessKeyOwner::User);
+        assert_eq!(
+            "project".parse::<AccessKeyOwner>().unwrap(),
+            AccessKeyOwner::Project
+        );
+        assert_eq!(
+            "shared".parse::<AccessKeyOwner>().unwrap(),
+            AccessKeyOwner::Shared
+        );
+        assert_eq!(
+            "unknown".parse::<AccessKeyOwner>().unwrap(),
+            AccessKeyOwner::Shared
+        );
+    }
+
+    #[test]
+    fn test_source_storage_type_display() {
+        assert_eq!(AccessKeySourceStorageType::DB.to_string(), "db");
+        assert_eq!(AccessKeySourceStorageType::Storage.to_string(), "storage");
+        assert_eq!(AccessKeySourceStorageType::Env.to_string(), "env");
+        assert_eq!(AccessKeySourceStorageType::File.to_string(), "file");
+    }
+
+    #[test]
+    fn test_source_storage_type_from_str() {
+        assert_eq!(
+            "db".parse::<AccessKeySourceStorageType>().unwrap(),
+            AccessKeySourceStorageType::DB
+        );
+        assert_eq!(
+            "storage".parse::<AccessKeySourceStorageType>().unwrap(),
+            AccessKeySourceStorageType::Storage
+        );
+        assert_eq!(
+            "env".parse::<AccessKeySourceStorageType>().unwrap(),
+            AccessKeySourceStorageType::Env
+        );
+        assert_eq!(
+            "file".parse::<AccessKeySourceStorageType>().unwrap(),
+            AccessKeySourceStorageType::File
+        );
+        assert_eq!(
+            "unknown".parse::<AccessKeySourceStorageType>().unwrap(),
+            AccessKeySourceStorageType::DB
+        );
+    }
+
+    #[test]
+    fn test_access_key_new_none() {
+        let key = AccessKey::new("test-key".to_string(), AccessKeyType::None);
+        assert_eq!(key.name, "test-key");
+        assert_eq!(key.r#type, AccessKeyType::None);
+        assert!(key.project_id.is_none());
+    }
+
+    #[test]
+    fn test_access_key_new_ssh() {
+        let key = AccessKey::new_ssh(
+            1,
+            "ssh-key".to_string(),
+            "private_key_data".to_string(),
+            "passphrase".to_string(),
+            "deploy".to_string(),
+            Some(42),
+        );
+        assert_eq!(key.project_id, Some(1));
+        assert_eq!(key.r#type, AccessKeyType::SSH);
+        assert_eq!(key.login_password_login, Some("deploy".to_string()));
+        assert_eq!(key.ssh_key, Some("private_key_data".to_string()));
+        assert_eq!(key.ssh_passphrase, Some("passphrase".to_string()));
+        assert_eq!(key.user_id, Some(42));
+    }
+
+    #[test]
+    fn test_access_key_new_login_password() {
+        let key = AccessKey::new_login_password(
+            5,
+            "lp-key".to_string(),
+            "admin".to_string(),
+            "secret123".to_string(),
+            Some(10),
+        );
+        assert_eq!(key.project_id, Some(5));
+        assert_eq!(key.r#type, AccessKeyType::LoginPassword);
+        assert_eq!(key.login_password_login, Some("admin".to_string()));
+        assert_eq!(key.login_password_password, Some("secret123".to_string()));
+    }
+
+    #[test]
+    fn test_access_key_serialize() {
+        let key = AccessKey::new("ser-test".to_string(), AccessKeyType::SSH);
+        let json = serde_json::to_string(&key).unwrap();
+        assert!(json.contains("\"name\":\"ser-test\""));
+        assert!(json.contains("\"type\":\"ssh\""));
+    }
+
+    #[test]
+    fn test_access_key_serialize_skip_nulls() {
+        let key = AccessKey::new("minimal".to_string(), AccessKeyType::None);
+        let json = serde_json::to_string(&key).unwrap();
+        assert!(!json.contains("\"ssh_key\":"));
+        assert!(!json.contains("\"login_password_login\":"));
+    }
+
+    #[test]
+    fn test_access_key_get_ssh_key_data() {
+        let key = AccessKey::new_ssh(
+            1,
+            "key".to_string(),
+            "pk".to_string(),
+            "pp".to_string(),
+            "user".to_string(),
+            None,
+        );
+        let data = key.get_ssh_key_data().unwrap();
+        assert_eq!(data.private_key, "pk");
+        assert_eq!(data.passphrase, Some("pp".to_string()));
+        assert_eq!(data.login, "user");
+    }
+
+    #[test]
+    fn test_access_key_get_login_password_data() {
+        let key = AccessKey::new_login_password(
+            1,
+            "key".to_string(),
+            "u".to_string(),
+            "p".to_string(),
+            None,
+        );
+        let data = key.get_login_password_data().unwrap();
+        assert_eq!(data.login, "u");
+        assert_eq!(data.password, "p");
+    }
+
+    #[test]
+    fn test_access_key_get_type() {
+        let key = AccessKey::new("x".to_string(), AccessKeyType::AccessKey);
+        assert_eq!(*key.get_type(), AccessKeyType::AccessKey);
+    }
+
+    #[test]
+    fn test_access_key_clone() {
+        let key = AccessKey::new("clone".to_string(), AccessKeyType::LoginPassword);
+        let cloned = key.clone();
+        assert_eq!(cloned.name, key.name);
+        assert_eq!(cloned.r#type, key.r#type);
+    }
+
+    #[test]
+    fn test_access_key_type_serialize_roundtrip() {
+        let variants = vec![
+            AccessKeyType::None,
+            AccessKeyType::LoginPassword,
+            AccessKeyType::SSH,
+            AccessKeyType::AccessKey,
+        ];
+        for variant in variants {
+            let json = serde_json::to_string(&variant).unwrap();
+            let parsed: AccessKeyType = serde_json::from_str(&json).unwrap();
+            assert_eq!(parsed, variant);
+        }
+    }
+
+    #[test]
+    fn test_access_key_owner_serialize_roundtrip() {
+        let variants = vec![
+            AccessKeyOwner::User,
+            AccessKeyOwner::Project,
+            AccessKeyOwner::Shared,
+        ];
+        for variant in variants {
+            let json = serde_json::to_string(&variant).unwrap();
+            let parsed: AccessKeyOwner = serde_json::from_str(&json).unwrap();
+            assert_eq!(parsed, variant);
+        }
+    }
+}

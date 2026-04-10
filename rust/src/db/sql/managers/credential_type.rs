@@ -158,3 +158,195 @@ impl CredentialTypeManager for SqlStore {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::models::credential_type::{
+        CredentialField, CredentialInstance, CredentialInstanceCreate, CredentialInjector,
+        CredentialType, CredentialTypeCreate, CredentialTypeUpdate,
+    };
+    use chrono::Utc;
+
+    #[test]
+    fn test_credential_field_serialization() {
+        let field = CredentialField {
+            id: "username".to_string(),
+            label: "Username".to_string(),
+            field_type: "string".to_string(),
+            required: true,
+            default_value: None,
+            help_text: Some("Enter username".to_string()),
+        };
+        let json = serde_json::to_string(&field).unwrap();
+        assert!(json.contains("\"id\":\"username\""));
+        assert!(json.contains("\"required\":true"));
+    }
+
+    #[test]
+    fn test_credential_field_skip_nulls() {
+        let field = CredentialField {
+            id: "token".to_string(),
+            label: "Token".to_string(),
+            field_type: "password".to_string(),
+            required: false,
+            default_value: None,
+            help_text: None,
+        };
+        let json = serde_json::to_string(&field).unwrap();
+        assert!(!json.contains("default_value"));
+        assert!(!json.contains("help_text"));
+    }
+
+    #[test]
+    fn test_credential_injector_serialization() {
+        let injector = CredentialInjector {
+            injector_type: "env".to_string(),
+            key: "API_TOKEN".to_string(),
+            value_template: "{{ token }}".to_string(),
+        };
+        let json = serde_json::to_string(&injector).unwrap();
+        assert!(json.contains("\"injector_type\":\"env\""));
+        assert!(json.contains("\"key\":\"API_TOKEN\""));
+    }
+
+    #[test]
+    fn test_credential_injector_file_type() {
+        let injector = CredentialInjector {
+            injector_type: "file".to_string(),
+            key: "/tmp/cred_{{ id }}".to_string(),
+            value_template: "{{ secret }}".to_string(),
+        };
+        assert_eq!(injector.injector_type, "file");
+    }
+
+    #[test]
+    fn test_credential_type_create_serialization() {
+        let create = CredentialTypeCreate {
+            name: "API Credentials".to_string(),
+            description: Some("Custom API creds".to_string()),
+            input_schema: serde_json::json!([]),
+            injectors: serde_json::json!([]),
+        };
+        let json = serde_json::to_string(&create).unwrap();
+        assert!(json.contains("\"name\":\"API Credentials\""));
+    }
+
+    #[test]
+    fn test_credential_type_update_serialization() {
+        let update = CredentialTypeUpdate {
+            name: "Updated Name".to_string(),
+            description: None,
+            input_schema: serde_json::json!([]),
+            injectors: serde_json::json!([]),
+        };
+        let json = serde_json::to_string(&update).unwrap();
+        assert!(json.contains("\"name\":\"Updated Name\""));
+    }
+
+    #[test]
+    fn test_credential_instance_serialization() {
+        let instance = CredentialInstance {
+            id: 1,
+            project_id: 10,
+            credential_type_id: 5,
+            name: "My API Key".to_string(),
+            values: r#"{"token":"enc"}"#.to_string(),
+            description: Some("API key".to_string()),
+            created: Utc::now(),
+        };
+        let json = serde_json::to_string(&instance).unwrap();
+        assert!(json.contains("\"name\":\"My API Key\""));
+        assert!(json.contains("\"project_id\":10"));
+    }
+
+    #[test]
+    fn test_credential_instance_skip_nulls() {
+        let instance = CredentialInstance {
+            id: 1,
+            project_id: 10,
+            credential_type_id: 5,
+            name: "No Desc".to_string(),
+            values: "{}".to_string(),
+            description: None,
+            created: Utc::now(),
+        };
+        let json = serde_json::to_string(&instance).unwrap();
+        assert!(!json.contains("description"));
+    }
+
+    #[test]
+    fn test_credential_instance_create_serialization() {
+        let create = CredentialInstanceCreate {
+            credential_type_id: 5,
+            name: "New Cred".to_string(),
+            values: serde_json::json!({"token": "secret"}),
+            description: None,
+        };
+        let json = serde_json::to_string(&create).unwrap();
+        assert!(json.contains("\"credential_type_id\":5"));
+        assert!(json.contains("\"name\":\"New Cred\""));
+    }
+
+    #[test]
+    fn test_credential_type_clone() {
+        let ct = CredentialType {
+            id: 1,
+            name: "Clone".to_string(),
+            description: None,
+            input_schema: "[]".to_string(),
+            injectors: "[]".to_string(),
+            created: Utc::now(),
+            updated: Utc::now(),
+        };
+        let cloned = ct.clone();
+        assert_eq!(cloned.name, ct.name);
+        assert_eq!(cloned.input_schema, ct.input_schema);
+    }
+
+    #[test]
+    fn test_credential_field_clone() {
+        let field = CredentialField {
+            id: "f1".to_string(),
+            label: "F1".to_string(),
+            field_type: "string".to_string(),
+            required: true,
+            default_value: None,
+            help_text: None,
+        };
+        let cloned = field.clone();
+        assert_eq!(cloned.id, field.id);
+    }
+
+    #[test]
+    fn test_credential_injector_clone() {
+        let inj = CredentialInjector {
+            injector_type: "env".to_string(),
+            key: "KEY".to_string(),
+            value_template: "{{ val }}".to_string(),
+        };
+        let cloned = inj.clone();
+        assert_eq!(cloned.injector_type, inj.injector_type);
+    }
+
+    #[test]
+    fn test_credential_type_create_description_none() {
+        let create = CredentialTypeCreate {
+            name: "NoDesc".to_string(),
+            description: None,
+            input_schema: serde_json::json!([]),
+            injectors: serde_json::json!([]),
+        };
+        assert!(create.description.is_none());
+    }
+
+    #[test]
+    fn test_credential_instance_create_with_description() {
+        let create = CredentialInstanceCreate {
+            credential_type_id: 1,
+            name: "With Desc".to_string(),
+            values: serde_json::json!({}),
+            description: Some("Has description".to_string()),
+        };
+        assert_eq!(create.description, Some("Has description".to_string()));
+    }
+}

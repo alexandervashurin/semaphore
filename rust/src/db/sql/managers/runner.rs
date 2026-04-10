@@ -142,3 +142,258 @@ impl RunnerManager for SqlStore {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::models::Runner;
+    use chrono::Utc;
+
+    #[test]
+    fn test_runner_serialization() {
+        let runner = Runner {
+            id: 1,
+            project_id: Some(10),
+            token: "token123".to_string(),
+            name: "Build Runner".to_string(),
+            active: true,
+            last_active: Some(Utc::now()),
+            webhook: Some("https://example.com/webhook".to_string()),
+            max_parallel_tasks: Some(5),
+            tag: Some("linux".to_string()),
+            cleaning_requested: None,
+            touched: None,
+            created: None,
+        };
+        let json = serde_json::to_string(&runner).unwrap();
+        assert!(json.contains("\"name\":\"Build Runner\""));
+        assert!(json.contains("\"active\":true"));
+        assert!(json.contains("\"tag\":\"linux\""));
+    }
+
+    #[test]
+    fn test_runner_skip_nulls() {
+        let runner = Runner {
+            id: 1,
+            project_id: None,
+            token: "token".to_string(),
+            name: "Simple".to_string(),
+            active: true,
+            last_active: None,
+            webhook: None,
+            max_parallel_tasks: None,
+            tag: None,
+            cleaning_requested: None,
+            touched: None,
+            created: None,
+        };
+        let json = serde_json::to_string(&runner).unwrap();
+        assert!(!json.contains("\"webhook\":"));
+        assert!(!json.contains("\"tag\":"));
+        assert!(!json.contains("\"max_parallel_tasks\":"));
+    }
+
+    #[test]
+    fn test_runner_default_active() {
+        let runner = Runner {
+            id: 0,
+            project_id: None,
+            token: String::new(),
+            name: "Test".to_string(),
+            active: true,
+            last_active: None,
+            webhook: None,
+            max_parallel_tasks: None,
+            tag: None,
+            cleaning_requested: None,
+            touched: None,
+            created: None,
+        };
+        assert!(runner.active);
+    }
+
+    #[test]
+    fn test_runner_inactive() {
+        let runner = Runner {
+            id: 1,
+            project_id: None,
+            token: "token".to_string(),
+            name: "Inactive".to_string(),
+            active: false,
+            last_active: None,
+            webhook: None,
+            max_parallel_tasks: None,
+            tag: None,
+            cleaning_requested: None,
+            touched: None,
+            created: None,
+        };
+        let json = serde_json::to_string(&runner).unwrap();
+        assert!(json.contains("\"active\":false"));
+    }
+
+    #[test]
+    fn test_runner_clone() {
+        let runner = Runner {
+            id: 1,
+            project_id: Some(10),
+            token: "clone-token".to_string(),
+            name: "Clone Runner".to_string(),
+            active: true,
+            last_active: None,
+            webhook: None,
+            max_parallel_tasks: Some(3),
+            tag: Some("docker".to_string()),
+            cleaning_requested: None,
+            touched: None,
+            created: None,
+        };
+        let cloned = runner.clone();
+        assert_eq!(cloned.name, runner.name);
+        assert_eq!(cloned.max_parallel_tasks, runner.max_parallel_tasks);
+    }
+
+    #[test]
+    fn test_runner_deserialization() {
+        let json = r#"{"id":5,"project_id":20,"token":"tok","name":"Deser Runner","active":false,"last_active":null,"webhook":null,"max_parallel_tasks":10,"tag":"k8s","cleaning_requested":null,"touched":null,"created":null}"#;
+        let runner: Runner = serde_json::from_str(json).unwrap();
+        assert_eq!(runner.id, 5);
+        assert_eq!(runner.name, "Deser Runner");
+        assert!(!runner.active);
+        assert_eq!(runner.max_parallel_tasks, Some(10));
+    }
+
+    #[test]
+    fn test_runner_with_all_optional_fields() {
+        let now = Utc::now();
+        let runner = Runner {
+            id: 1,
+            project_id: Some(1),
+            token: "full".to_string(),
+            name: "Full Runner".to_string(),
+            active: true,
+            last_active: Some(now),
+            webhook: Some("https://hooks.example.com".to_string()),
+            max_parallel_tasks: Some(10),
+            tag: Some("prod".to_string()),
+            cleaning_requested: Some(now),
+            touched: Some(now),
+            created: Some(now),
+        };
+        let json = serde_json::to_string(&runner).unwrap();
+        assert!(json.contains("\"webhook\":\"https://hooks.example.com\""));
+        assert!(json.contains("\"max_parallel_tasks\":10"));
+        assert!(json.contains("\"tag\":\"prod\""));
+    }
+
+    #[test]
+    fn test_runner_global_vs_project() {
+        let global = Runner {
+            id: 1,
+            project_id: None,
+            token: "global".to_string(),
+            name: "Global Runner".to_string(),
+            active: true,
+            last_active: None,
+            webhook: None,
+            max_parallel_tasks: None,
+            tag: None,
+            cleaning_requested: None,
+            touched: None,
+            created: None,
+        };
+        assert!(global.project_id.is_none());
+
+        let project = Runner {
+            id: 2,
+            project_id: Some(5),
+            token: "proj".to_string(),
+            name: "Project Runner".to_string(),
+            active: true,
+            last_active: None,
+            webhook: None,
+            max_parallel_tasks: None,
+            tag: None,
+            cleaning_requested: None,
+            touched: None,
+            created: None,
+        };
+        assert_eq!(project.project_id, Some(5));
+    }
+
+    #[test]
+    fn test_runner_token_not_empty() {
+        let runner = Runner {
+            id: 1,
+            project_id: None,
+            token: "my-secret-token".to_string(),
+            name: "Token Test".to_string(),
+            active: true,
+            last_active: None,
+            webhook: None,
+            max_parallel_tasks: None,
+            tag: None,
+            cleaning_requested: None,
+            touched: None,
+            created: None,
+        };
+        assert!(!runner.token.is_empty());
+    }
+
+    #[test]
+    fn test_runner_tag_serialization() {
+        let runner = Runner {
+            id: 1,
+            project_id: None,
+            token: "t".to_string(),
+            name: "Tagged".to_string(),
+            active: true,
+            last_active: None,
+            webhook: None,
+            max_parallel_tasks: None,
+            tag: Some("windows".to_string()),
+            cleaning_requested: None,
+            touched: None,
+            created: None,
+        };
+        let json = serde_json::to_string(&runner).unwrap();
+        assert!(json.contains("\"tag\":\"windows\""));
+    }
+
+    #[test]
+    fn test_runner_max_parallel_zero() {
+        let runner = Runner {
+            id: 1,
+            project_id: None,
+            token: "t".to_string(),
+            name: "Zero Max".to_string(),
+            active: true,
+            last_active: None,
+            webhook: None,
+            max_parallel_tasks: Some(0),
+            tag: None,
+            cleaning_requested: None,
+            touched: None,
+            created: None,
+        };
+        assert_eq!(runner.max_parallel_tasks, Some(0));
+    }
+
+    #[test]
+    fn test_runner_name_not_empty() {
+        let runner = Runner {
+            id: 0,
+            project_id: None,
+            token: "".to_string(),
+            name: "Named Runner".to_string(),
+            active: true,
+            last_active: None,
+            webhook: None,
+            max_parallel_tasks: None,
+            tag: None,
+            cleaning_requested: None,
+            touched: None,
+            created: None,
+        };
+        assert!(!runner.name.is_empty());
+    }
+}

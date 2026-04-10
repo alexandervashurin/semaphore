@@ -132,3 +132,226 @@ impl DriftManager for SqlStore {
         Ok(rows)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::models::drift::{
+        DriftConfig, DriftConfigCreate, DriftConfigUpdate, DriftConfigWithStatus, DriftResult,
+    };
+    use chrono::Utc;
+
+    #[test]
+    fn test_drift_config_serialization() {
+        let config = DriftConfig {
+            id: 1,
+            project_id: 10,
+            template_id: 5,
+            enabled: true,
+            schedule: Some("0 * * * *".to_string()),
+            created: Utc::now(),
+        };
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains("\"enabled\":true"));
+        assert!(json.contains("\"schedule\":\"0 * * * *\""));
+    }
+
+    #[test]
+    fn test_drift_config_skip_null_schedule() {
+        let config = DriftConfig {
+            id: 1,
+            project_id: 10,
+            template_id: 5,
+            enabled: true,
+            schedule: None,
+            created: Utc::now(),
+        };
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(!json.contains("\"schedule\":"));
+    }
+
+    #[test]
+    fn test_drift_config_create_serialization() {
+        let create = DriftConfigCreate {
+            template_id: 5,
+            enabled: Some(true),
+            schedule: Some("daily".to_string()),
+        };
+        let json = serde_json::to_string(&create).unwrap();
+        assert!(json.contains("\"template_id\":5"));
+    }
+
+    #[test]
+    fn test_drift_config_create_defaults() {
+        let create = DriftConfigCreate {
+            template_id: 1,
+            enabled: None,
+            schedule: None,
+        };
+        assert!(create.enabled.is_none());
+        assert!(create.schedule.is_none());
+    }
+
+    #[test]
+    fn test_drift_config_update_serialization() {
+        let update = DriftConfigUpdate {
+            enabled: Some(false),
+            schedule: None,
+        };
+        let json = serde_json::to_string(&update).unwrap();
+        assert!(json.contains("\"enabled\":false"));
+        // DriftConfigUpdate doesn't have skip_serializing_if on schedule
+        assert!(json.contains("\"schedule\":null"));
+    }
+
+    #[test]
+    fn test_drift_result_serialization() {
+        let result = DriftResult {
+            id: 1,
+            drift_config_id: 10,
+            project_id: 5,
+            template_id: 3,
+            status: "drifted".to_string(),
+            summary: Some("3 resources changed".to_string()),
+            task_id: Some(100),
+            checked_at: Utc::now(),
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("\"status\":\"drifted\""));
+        assert!(json.contains("\"summary\":\"3 resources changed\""));
+    }
+
+    #[test]
+    fn test_drift_result_skip_nulls() {
+        let result = DriftResult {
+            id: 1,
+            drift_config_id: 10,
+            project_id: 5,
+            template_id: 3,
+            status: "clean".to_string(),
+            summary: None,
+            task_id: None,
+            checked_at: Utc::now(),
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(!json.contains("\"summary\":"));
+        assert!(!json.contains("\"task_id\":"));
+    }
+
+    #[test]
+    fn test_drift_config_with_status_serialization() {
+        let config = DriftConfig {
+            id: 1,
+            project_id: 10,
+            template_id: 5,
+            enabled: true,
+            schedule: None,
+            created: Utc::now(),
+        };
+        let with_status = DriftConfigWithStatus {
+            config,
+            latest_result: None,
+        };
+        let json = serde_json::to_string(&with_status).unwrap();
+        assert!(json.contains("\"enabled\":true"));
+        assert!(!json.contains("\"latest_result\":"));
+    }
+
+    #[test]
+    fn test_drift_config_with_status_with_result() {
+        let config = DriftConfig {
+            id: 1,
+            project_id: 10,
+            template_id: 5,
+            enabled: true,
+            schedule: None,
+            created: Utc::now(),
+        };
+        let result = DriftResult {
+            id: 1,
+            drift_config_id: 1,
+            project_id: 10,
+            template_id: 5,
+            status: "drifted".to_string(),
+            summary: Some("changed".to_string()),
+            task_id: None,
+            checked_at: Utc::now(),
+        };
+        let with_status = DriftConfigWithStatus {
+            config,
+            latest_result: Some(result),
+        };
+        let json = serde_json::to_string(&with_status).unwrap();
+        assert!(json.contains("\"status\":\"drifted\""));
+        assert!(json.contains("\"summary\":\"changed\""));
+    }
+
+    #[test]
+    fn test_drift_config_clone() {
+        let config = DriftConfig {
+            id: 1,
+            project_id: 10,
+            template_id: 5,
+            enabled: true,
+            schedule: None,
+            created: Utc::now(),
+        };
+        let cloned = config.clone();
+        assert_eq!(cloned.id, config.id);
+        assert_eq!(cloned.enabled, config.enabled);
+    }
+
+    #[test]
+    fn test_drift_result_clone() {
+        let result = DriftResult {
+            id: 1,
+            drift_config_id: 10,
+            project_id: 5,
+            template_id: 3,
+            status: "clean".to_string(),
+            summary: None,
+            task_id: None,
+            checked_at: Utc::now(),
+        };
+        let cloned = result.clone();
+        assert_eq!(cloned.status, result.status);
+    }
+
+    #[test]
+    fn test_drift_status_variants() {
+        let statuses = vec!["clean", "drifted", "error", "pending"];
+        for status in statuses {
+            let result = DriftResult {
+                id: 0,
+                drift_config_id: 0,
+                project_id: 0,
+                template_id: 0,
+                status: status.to_string(),
+                summary: None,
+                task_id: None,
+                checked_at: Utc::now(),
+            };
+            let json = serde_json::to_string(&result).unwrap();
+            assert!(json.contains(&format!("\"status\":\"{}\"", status)));
+        }
+    }
+
+    #[test]
+    fn test_drift_config_create_enabled_true() {
+        let create = DriftConfigCreate {
+            template_id: 1,
+            enabled: Some(true),
+            schedule: Some("*/5 * * * *".to_string()),
+        };
+        assert_eq!(create.enabled, Some(true));
+    }
+
+    #[test]
+    fn test_drift_config_update_both_none() {
+        let update = DriftConfigUpdate {
+            enabled: None,
+            schedule: None,
+        };
+        assert!(update.enabled.is_none());
+        assert!(update.schedule.is_none());
+    }
+}
