@@ -201,3 +201,174 @@ pub async fn get_namespace_limits(
 
     Ok(Json(limits.items))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_list_namespaces_query_deserialization() {
+        let json = r#"{"label_selector":"env=prod","limit":20}"#;
+        let query: ListNamespacesQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(query.label_selector, Some("env=prod".to_string()));
+        assert_eq!(query.limit, Some(20));
+    }
+
+    #[test]
+    fn test_list_namespaces_query_all_optional() {
+        let json = r#"{}"#;
+        let query: ListNamespacesQuery = serde_json::from_str(json).unwrap();
+        assert!(query.label_selector.is_none());
+        assert!(query.limit.is_none());
+    }
+
+    #[test]
+    fn test_create_namespace_payload_deserialization() {
+        let json = r#"{"name":"my-namespace","labels":{"env":"prod"},"annotations":{"description":"test ns"}}"#;
+        let payload: CreateNamespacePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.name, "my-namespace");
+        assert!(payload.labels.is_some());
+        assert!(payload.annotations.is_some());
+    }
+
+    #[test]
+    fn test_create_namespace_payload_minimal() {
+        let json = r#"{"name":"simple-ns"}"#;
+        let payload: CreateNamespacePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.name, "simple-ns");
+        assert!(payload.labels.is_none());
+        assert!(payload.annotations.is_none());
+    }
+
+    #[test]
+    fn test_create_namespace_payload_labels_map() {
+        let json = r#"{"name":"test","labels":{"team":"infra","tier":"backend"}}"#;
+        let payload: CreateNamespacePayload = serde_json::from_str(json).unwrap();
+        let labels = payload.labels.unwrap();
+        assert_eq!(labels.get("team").unwrap(), "infra");
+        assert_eq!(labels.get("tier").unwrap(), "backend");
+    }
+
+    #[test]
+    fn test_update_namespace_payload_deserialization() {
+        let json = r#"{"labels":{"app":"web"},"annotations":{"updated":"true"}}"#;
+        let payload: UpdateNamespacePayload = serde_json::from_str(json).unwrap();
+        let labels = payload.labels.unwrap();
+        assert_eq!(labels.get("app").unwrap(), "web");
+        let annotations = payload.annotations.unwrap();
+        assert_eq!(annotations.get("updated").unwrap(), "true");
+    }
+
+    #[test]
+    fn test_update_namespace_payload_partial() {
+        let json = r#"{"labels":{"role":"worker"}}"#;
+        let payload: UpdateNamespacePayload = serde_json::from_str(json).unwrap();
+        assert!(payload.labels.is_some());
+        assert!(payload.annotations.is_none());
+    }
+
+    #[test]
+    fn test_update_namespace_payload_both_none() {
+        let json = r#"{}"#;
+        let payload: UpdateNamespacePayload = serde_json::from_str(json).unwrap();
+        assert!(payload.labels.is_none());
+        assert!(payload.annotations.is_none());
+    }
+
+    #[test]
+    fn test_namespace_summary_serialization() {
+        let mut labels = HashMap::new();
+        labels.insert("env".to_string(), "staging".to_string());
+        let summary = NamespaceSummary {
+            name: "staging-ns".to_string(),
+            uid: "abc-123".to_string(),
+            status: "Active".to_string(),
+            created_at: "2024-01-01T00:00:00Z".to_string(),
+            labels,
+            annotations: HashMap::new(),
+            pods_count: Some(10),
+            services_count: Some(5),
+            deployments_count: Some(3),
+        };
+        let value = serde_json::to_value(&summary).unwrap();
+        assert_eq!(value["name"], "staging-ns");
+        assert_eq!(value["uid"], "abc-123");
+        assert_eq!(value["status"], "Active");
+        assert_eq!(value["labels"]["env"], "staging");
+        assert_eq!(value["pods_count"], 10);
+        assert_eq!(value["services_count"], 5);
+        assert_eq!(value["deployments_count"], 3);
+    }
+
+    #[test]
+    fn test_namespace_summary_none_counts() {
+        let summary = NamespaceSummary {
+            name: "test".to_string(),
+            uid: "uid".to_string(),
+            status: "Unknown".to_string(),
+            created_at: "unknown".to_string(),
+            labels: HashMap::new(),
+            annotations: HashMap::new(),
+            pods_count: None,
+            services_count: None,
+            deployments_count: None,
+        };
+        let value = serde_json::to_value(&summary).unwrap();
+        assert!(value["pods_count"].is_null());
+        assert!(value["services_count"].is_null());
+        assert!(value["deployments_count"].is_null());
+    }
+
+    #[test]
+    fn test_k8s_resource_types() {
+        let _ns_type = std::any::type_name::<Namespace>();
+        let _quota_type = std::any::type_name::<ResourceQuota>();
+        let _limit_type = std::any::type_name::<LimitRange>();
+        assert!(_ns_type.contains("Namespace"));
+        assert!(_quota_type.contains("ResourceQuota"));
+        assert!(_limit_type.contains("LimitRange"));
+    }
+
+    #[test]
+    fn test_k8s_namespace_api_resource() {
+        let ns = Namespace {
+            metadata: kube::api::ObjectMeta {
+                name: Some("test-ns".to_string()),
+                ..Default::default()
+            },
+            spec: None,
+            status: None,
+        };
+        assert_eq!(ns.metadata.name, Some("test-ns".to_string()));
+    }
+
+    #[test]
+    fn test_k8s_resource_quota_structure() {
+        let quota = ResourceQuota {
+            metadata: kube::api::ObjectMeta {
+                name: Some("compute-resources".to_string()),
+                namespace: Some("default".to_string()),
+                ..Default::default()
+            },
+            spec: None,
+            status: None,
+        };
+        assert_eq!(quota.metadata.name, Some("compute-resources".to_string()));
+        assert_eq!(quota.metadata.namespace, Some("default".to_string()));
+    }
+
+    #[test]
+    fn test_k8s_limit_range_structure() {
+        let lr = LimitRange {
+            metadata: kube::api::ObjectMeta {
+                name: Some("default-limits".to_string()),
+                namespace: Some("production".to_string()),
+                ..Default::default()
+            },
+            spec: None,
+        };
+        assert_eq!(lr.metadata.name, Some("default-limits".to_string()));
+        assert_eq!(lr.metadata.namespace, Some("production".to_string()));
+    }
+}

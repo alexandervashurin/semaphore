@@ -124,3 +124,103 @@ pub async fn delete_ingress(
         Err(e) => k8s_err(e),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_list_query_deserialize_default() {
+        let q: ListQuery = serde_json::from_str("{}").unwrap();
+        assert!(q.limit.is_none());
+        assert!(q.continue_token.is_none());
+    }
+
+    #[test]
+    fn test_list_query_deserialize_with_limit() {
+        let q: ListQuery = serde_json::from_str(r#"{"limit": 100}"#).unwrap();
+        assert_eq!(q.limit, Some(100));
+        assert!(q.continue_token.is_none());
+    }
+
+    #[test]
+    fn test_list_query_deserialize_with_continue_token() {
+        let q: ListQuery = serde_json::from_str(
+            r#"{"continue_token": "next-page-token"}"#
+        ).unwrap();
+        assert_eq!(q.continue_token, Some("next-page-token".to_string()));
+        assert!(q.limit.is_none());
+    }
+
+    #[test]
+    fn test_list_query_deserialize_full() {
+        let q: ListQuery = serde_json::from_str(
+            r#"{"limit": 25, "continue_token": "tok"}"#
+        ).unwrap();
+        assert_eq!(q.limit, Some(25));
+        assert_eq!(q.continue_token, Some("tok".to_string()));
+    }
+
+    #[test]
+    fn test_list_query_debug_format() {
+        let q = ListQuery { limit: Some(42), continue_token: Some("abc".into()) };
+        let debug_str = format!("{:?}", q);
+        assert!(debug_str.contains("ListQuery"));
+        assert!(debug_str.contains("42"));
+        assert!(debug_str.contains("abc"));
+    }
+
+    #[test]
+    fn test_k8s_err_forbidden() {
+        let err = Error::Forbidden("no access".to_string());
+        let (status, Json(val)) = k8s_err(err);
+        assert_eq!(status, StatusCode::FORBIDDEN);
+        assert_eq!(val["code"], "K8S_FORBIDDEN");
+        assert_eq!(val["error"], "Нет прав");
+    }
+
+    #[test]
+    fn test_k8s_err_not_found_prefix() {
+        let err = Error::NotFound("resource not found".to_string());
+        let (status, Json(val)) = k8s_err(err);
+        assert_eq!(status, StatusCode::NOT_FOUND);
+        assert_eq!(val["error"], "resource not found");
+    }
+
+    #[test]
+    fn test_k8s_err_not_found_contains() {
+        let err = Error::Kubernetes("the object was not found in cluster".to_string());
+        let (status, Json(val)) = k8s_err(err);
+        assert_eq!(status, StatusCode::NOT_FOUND);
+        assert_eq!(val["error"], "the object was not found in cluster");
+    }
+
+    #[test]
+    fn test_k8s_err_generic() {
+        let err = Error::Kubernetes("connection timeout".to_string());
+        let (status, Json(val)) = k8s_err(err);
+        assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(val["error"], "connection timeout");
+    }
+
+    #[test]
+    fn test_service_delete_json_payload() {
+        let val = json!({"message": "Service deleted"});
+        assert_eq!(val["message"], "Service deleted");
+    }
+
+    #[test]
+    fn test_ingress_delete_json_payload() {
+        let val = json!({"message": "Ingress deleted"});
+        assert_eq!(val["message"], "Ingress deleted");
+    }
+
+    #[test]
+    fn test_error_codes_constants() {
+        let not_found_val = json!({"error": "x", "code": "SERVICE_NOT_FOUND"});
+        assert_eq!(not_found_val["code"], "SERVICE_NOT_FOUND");
+
+        let ingress_not_found = json!({"error": "x", "code": "INGRESS_NOT_FOUND"});
+        assert_eq!(ingress_not_found["code"], "INGRESS_NOT_FOUND");
+    }
+}

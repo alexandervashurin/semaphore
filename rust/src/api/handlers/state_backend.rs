@@ -400,3 +400,229 @@ fn extract_serial_lineage(body: &[u8]) -> (i32, String) {
         .to_string();
     (serial, lineage)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_serial_lineage_valid() {
+        let body = br#"{"serial": 5, "lineage": "abc-123"}"#;
+        let (serial, lineage) = extract_serial_lineage(body);
+        assert_eq!(serial, 5);
+        assert_eq!(lineage, "abc-123");
+    }
+
+    #[test]
+    fn test_extract_serial_lineage_zero_serial() {
+        let body = br#"{"serial": 0, "lineage": "test"}"#;
+        let (serial, lineage) = extract_serial_lineage(body);
+        assert_eq!(serial, 0);
+        assert_eq!(lineage, "test");
+    }
+
+    #[test]
+    fn test_extract_serial_lineage_missing_serial() {
+        let body = br#"{"lineage": "no-serial"}"#;
+        let (serial, lineage) = extract_serial_lineage(body);
+        assert_eq!(serial, 0);
+        assert_eq!(lineage, "no-serial");
+    }
+
+    #[test]
+    fn test_extract_serial_lineage_missing_lineage() {
+        let body = br#"{"serial": 10}"#;
+        let (serial, lineage) = extract_serial_lineage(body);
+        assert_eq!(serial, 10);
+        assert_eq!(lineage, "");
+    }
+
+    #[test]
+    fn test_extract_serial_lineage_empty_body() {
+        let body = b"{}";
+        let (serial, lineage) = extract_serial_lineage(body);
+        assert_eq!(serial, 0);
+        assert_eq!(lineage, "");
+    }
+
+    #[test]
+    fn test_extract_serial_lineage_invalid_json() {
+        let body = b"not json";
+        let (serial, lineage) = extract_serial_lineage(body);
+        assert_eq!(serial, 0);
+        assert_eq!(lineage, "");
+    }
+
+    #[test]
+    fn test_extract_serial_lineage_serial_as_string() {
+        let body = br#"{"serial": "42", "lineage": "test"}"#;
+        let (serial, lineage) = extract_serial_lineage(body);
+        // as_i64() returns None for string, so defaults to 0
+        assert_eq!(serial, 0);
+        assert_eq!(lineage, "test");
+    }
+
+    #[test]
+    fn test_extract_serial_lineage_large_serial() {
+        let body = br#"{"serial": 999999, "lineage": "large"}"#;
+        let (serial, lineage) = extract_serial_lineage(body);
+        assert_eq!(serial, 999999);
+        assert_eq!(lineage, "large");
+    }
+
+    #[test]
+    fn test_state_post_query_from_query_string() {
+        let query = "ID=lock-123&foo=bar";
+        let lock_id = query.split('&').find_map(|pair| {
+            let (k, v) = pair.split_once('=')?;
+            if k.eq_ignore_ascii_case("id") {
+                Some(v.to_string())
+            } else {
+                None
+            }
+        });
+        assert_eq!(lock_id, Some("lock-123".to_string()));
+    }
+
+    #[test]
+    fn test_state_post_query_case_insensitive() {
+        let query = "id=lock-456&other=val";
+        let lock_id = query.split('&').find_map(|pair| {
+            let (k, v) = pair.split_once('=')?;
+            if k.eq_ignore_ascii_case("id") {
+                Some(v.to_string())
+            } else {
+                None
+            }
+        });
+        assert_eq!(lock_id, Some("lock-456".to_string()));
+    }
+
+    #[test]
+    fn test_state_post_query_no_id() {
+        let query = "foo=bar&baz=qux";
+        let lock_id = query.split('&').find_map(|pair| {
+            let (k, v) = pair.split_once('=')?;
+            if k.eq_ignore_ascii_case("id") {
+                Some(v.to_string())
+            } else {
+                None
+            }
+        });
+        assert!(lock_id.is_none());
+    }
+
+    #[test]
+    fn test_state_post_query_empty() {
+        let query = "";
+        let lock_id = query.split('&').find_map(|pair| {
+            let (k, v) = pair.split_once('=')?;
+            if k.eq_ignore_ascii_case("id") {
+                Some(v.to_string())
+            } else {
+                None
+            }
+        });
+        assert!(lock_id.is_none());
+    }
+
+    #[test]
+    fn test_lock_info_deserialization() {
+        let json = r#"{
+            "ID": "lock-abc",
+            "Operation": "OperationTypeApply",
+            "Info": "Apply",
+            "Who": "user@example.com",
+            "Version": "1.5.0",
+            "Path": "module.main"
+        }"#;
+        let lock: LockInfo = serde_json::from_str(json).unwrap();
+        assert_eq!(lock.id, "lock-abc");
+        assert_eq!(lock.operation, "OperationTypeApply");
+        assert_eq!(lock.info, "Apply");
+        assert_eq!(lock.who, "user@example.com");
+    }
+
+    #[test]
+    fn test_lock_info_with_optional_created() {
+        let json = r#"{
+            "ID": "lock-xyz",
+            "Operation": "OperationTypePlan",
+            "Info": "Plan",
+            "Who": "admin",
+            "Version": "1.6.0",
+            "Path": "root",
+            "Created": "2024-01-01T00:00:00Z"
+        }"#;
+        let lock: LockInfo = serde_json::from_str(json).unwrap();
+        assert_eq!(lock.id, "lock-xyz");
+        assert!(lock.created.is_some());
+        assert_eq!(lock.created, Some("2024-01-01T00:00:00Z".to_string()));
+    }
+
+    #[test]
+    fn test_terraform_state_summary_serialization() {
+        let summary = crate::models::TerraformStateSummary {
+            id: 1,
+            project_id: 10,
+            workspace: "production".to_string(),
+            serial: 42,
+            lineage: "line-xyz".to_string(),
+            encrypted: false,
+            md5: "abc123".to_string(),
+            created_at: chrono::Utc::now(),
+        };
+        let json = serde_json::to_string(&summary).unwrap();
+        assert!(json.contains("\"workspace\":\"production\""));
+        assert!(json.contains("\"serial\":42"));
+        assert!(json.contains("\"encrypted\":false"));
+    }
+
+    #[test]
+    fn test_state_diff_resource_serialization() {
+        use crate::models::StateDiffResource;
+        let resource = StateDiffResource {
+            address: "aws_instance.web".to_string(),
+            change_type: "added".to_string(),
+            resource_type: "aws_instance".to_string(),
+            name: "web".to_string(),
+        };
+        let json = serde_json::to_string(&resource).unwrap();
+        assert!(json.contains("\"address\":\"aws_instance.web\""));
+        assert!(json.contains("\"change_type\":\"added\""));
+    }
+
+    #[test]
+    fn test_state_diff_serialization() {
+        use crate::models::{StateDiff, StateDiffResource};
+        let diff = StateDiff {
+            from_serial: 1,
+            to_serial: 3,
+            resources: vec![StateDiffResource {
+                address: "aws_instance.app".to_string(),
+                change_type: "changed".to_string(),
+                resource_type: "aws_instance".to_string(),
+                name: "app".to_string(),
+            }],
+            added: 0,
+            changed: 1,
+            removed: 0,
+        };
+        let json = serde_json::to_string(&diff).unwrap();
+        assert!(json.contains("\"from_serial\":1"));
+        assert!(json.contains("\"to_serial\":3"));
+        assert!(json.contains("\"changed\":1"));
+    }
+
+    #[test]
+    fn test_method_dispatch_recognition() {
+        // Verify that uppercase method matching works
+        let methods = vec!["GET", "POST", "DELETE", "LOCK", "UNLOCK", "PATCH"];
+        let recognized: Vec<String> = methods
+            .iter()
+            .map(|m| m.to_uppercase())
+            .filter(|m| matches!(m.as_str(), "GET" | "POST" | "DELETE" | "LOCK" | "UNLOCK"))
+            .collect();
+        assert_eq!(recognized.len(), 5);
+    }
+}

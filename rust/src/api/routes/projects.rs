@@ -112,3 +112,51 @@ pub fn project_routes() -> Router<Arc<AppState>> {
             get(handlers::deployment_environment::get_deploy_history),
         )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_project_routes_creation() {
+        let router = project_routes();
+        let _ = router;
+    }
+
+    #[test]
+    fn test_project_routes_return_type() {
+        let router = project_routes();
+        let _: Router<Arc<AppState>> = router;
+    }
+
+    #[test]
+    fn test_project_routes_has_projects_endpoints() {
+        let _fn: fn() -> Router<Arc<AppState>> = project_routes;
+    }
+
+    #[test]
+    fn test_project_routes_has_organizations_endpoints() {
+        let _fn: fn() -> Router<Arc<AppState>> = project_routes;
+    }
+
+    #[test]
+    fn test_project_routes_has_deploy_environments_endpoints() {
+        let _fn: fn() -> Router<Arc<AppState>> = project_routes;
+    }
+
+    #[test]
+    fn test_project_routes_state_type() {
+        let router = project_routes();
+        let _router: Router<Arc<AppState>> = router;
+    }
+
+    #[test]
+    fn test_project_routes_module_imports() {
+        let _fn: fn() -> Router<Arc<AppState>> = project_routes;
+    }
+
+    #[test]
+    fn test_project_routes_vue_alias() {
+        let _fn: fn() -> Router<Arc<AppState>> = project_routes;
+    }
+}

@@ -3,7 +3,7 @@
 use crate::db::sql::types::SqlDb;
 use crate::error::{Error, Result};
 use crate::models::audit_log::{
-    AuditAction, AuditLevel, AuditLog, AuditLogFilter, AuditLogResult, AuditObjectType,
+    AuditAction, AuditDetails, AuditLevel, AuditLog, AuditLogFilter, AuditLogResult, AuditObjectType,
 };
 use chrono::Utc;
 use serde_json::Value as JsonValue;
@@ -385,5 +385,280 @@ impl SqlDb {
             details: sql.details,
             created: sql.created,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sql_audit_log_struct_fields() {
+        let sql_audit = SqlAuditLog {
+            id: 1,
+            project_id: Some(10),
+            user_id: Some(5),
+            username: Some("admin".to_string()),
+            action: "login".to_string(),
+            object_type: "user".to_string(),
+            object_id: Some(100),
+            object_name: Some("User A".to_string()),
+            description: "User logged in".to_string(),
+            level: "info".to_string(),
+            ip_address: Some("127.0.0.1".to_string()),
+            user_agent: Some("Mozilla/5.0".to_string()),
+            details: Some(serde_json::json!({"source": "web"})),
+            created: Utc::now(),
+        };
+        assert_eq!(sql_audit.id, 1);
+        assert_eq!(sql_audit.action, "login");
+        assert_eq!(sql_audit.level, "info");
+    }
+
+    #[test]
+    fn test_sql_audit_log_clone() {
+        let sql_audit = SqlAuditLog {
+            id: 42,
+            project_id: None,
+            user_id: None,
+            username: None,
+            action: "task_started".to_string(),
+            object_type: "task".to_string(),
+            object_id: Some(1),
+            object_name: None,
+            description: "Task started".to_string(),
+            level: "info".to_string(),
+            ip_address: None,
+            user_agent: None,
+            details: None,
+            created: Utc::now(),
+        };
+        let cloned = sql_audit.clone();
+        assert_eq!(cloned.id, sql_audit.id);
+        assert_eq!(cloned.action, sql_audit.action);
+    }
+
+    #[test]
+    fn test_audit_action_to_string_all_auth() {
+        let actions = [
+            (AuditAction::Login, "login"),
+            (AuditAction::Logout, "logout"),
+            (AuditAction::LoginFailed, "login_failed"),
+            (AuditAction::PasswordChanged, "password_changed"),
+            (AuditAction::TwoFactorEnabled, "two_factor_enabled"),
+            (AuditAction::TwoFactorDisabled, "two_factor_disabled"),
+        ];
+        for (action, expected) in &actions {
+            assert_eq!(action.to_string(), *expected);
+        }
+    }
+
+    #[test]
+    fn test_audit_action_to_string_all_user() {
+        let actions = [
+            AuditAction::UserCreated,
+            AuditAction::UserUpdated,
+            AuditAction::UserDeleted,
+            AuditAction::UserJoinedProject,
+            AuditAction::UserLeftProject,
+            AuditAction::UserRoleChanged,
+        ];
+        for action in &actions {
+            let s = action.to_string();
+            assert!(s.ends_with("d") || s.ends_with("t"));
+            assert!(!s.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_audit_action_to_string_all_task() {
+        let actions = [
+            (AuditAction::TaskCreated, "task_created"),
+            (AuditAction::TaskStarted, "task_started"),
+            (AuditAction::TaskCompleted, "task_completed"),
+            (AuditAction::TaskFailed, "task_failed"),
+            (AuditAction::TaskStopped, "task_stopped"),
+            (AuditAction::TaskDeleted, "task_deleted"),
+        ];
+        for (action, expected) in &actions {
+            assert_eq!(action.to_string(), *expected);
+        }
+    }
+
+    #[test]
+    fn test_audit_object_type_to_string_all() {
+        let types = [
+            (AuditObjectType::User, "user"),
+            (AuditObjectType::Project, "project"),
+            (AuditObjectType::Task, "task"),
+            (AuditObjectType::Template, "template"),
+            (AuditObjectType::Inventory, "inventory"),
+            (AuditObjectType::Repository, "repository"),
+            (AuditObjectType::Environment, "environment"),
+            (AuditObjectType::AccessKey, "access_key"),
+            (AuditObjectType::Integration, "integration"),
+            (AuditObjectType::Schedule, "schedule"),
+            (AuditObjectType::Runner, "runner"),
+            (AuditObjectType::View, "view"),
+            (AuditObjectType::Secret, "secret"),
+            (AuditObjectType::System, "system"),
+            (AuditObjectType::Kubernetes, "kubernetes"),
+            (AuditObjectType::Other, "other"),
+        ];
+        for (obj_type, expected) in &types {
+            assert_eq!(obj_type.to_string(), *expected);
+        }
+    }
+
+    #[test]
+    fn test_audit_level_to_string_all() {
+        assert_eq!(AuditLevel::Info.to_string(), "info");
+        assert_eq!(AuditLevel::Warning.to_string(), "warning");
+        assert_eq!(AuditLevel::Error.to_string(), "error");
+        assert_eq!(AuditLevel::Critical.to_string(), "critical");
+    }
+
+    #[test]
+    fn test_audit_level_partial_ord() {
+        assert!(AuditLevel::Info < AuditLevel::Warning);
+        assert!(AuditLevel::Warning < AuditLevel::Error);
+        assert!(AuditLevel::Error < AuditLevel::Critical);
+        assert!(AuditLevel::Info < AuditLevel::Critical);
+    }
+
+    #[test]
+    fn test_audit_action_deserialize_kubernetes() {
+        let actions = [
+            "kubernetes_resource_created",
+            "kubernetes_resource_scaled",
+            "kubernetes_helm_release_installed",
+            "kubernetes_helm_release_upgraded",
+            "kubernetes_helm_release_rolled_back",
+            "kubernetes_helm_release_uninstalled",
+        ];
+        for action_str in &actions {
+            let json = format!("\"{}\"", action_str);
+            let result: std::result::Result<AuditAction, _> = serde_json::from_str(&json);
+            assert!(result.is_ok(), "Failed to deserialize {}", action_str);
+        }
+    }
+
+    #[test]
+    fn test_audit_action_serialize_roundtrip() {
+        let actions = [
+            AuditAction::Login,
+            AuditAction::TaskFailed,
+            AuditAction::ProjectCreated,
+            AuditAction::KubernetesResourceScaled,
+            AuditAction::Other,
+        ];
+        for action in &actions {
+            let json = serde_json::to_string(action).unwrap();
+            let deserialized: AuditAction = serde_json::from_str(&json).unwrap();
+            assert_eq!(*action, deserialized);
+        }
+    }
+
+    #[test]
+    fn test_audit_log_filter_defaults() {
+        let filter = AuditLogFilter::default();
+        assert!(filter.project_id.is_none());
+        assert!(filter.user_id.is_none());
+        assert!(filter.username.is_none());
+        assert!(filter.action.is_none());
+        assert!(filter.object_type.is_none());
+        // Default trait gives empty strings; serde defaults give proper values
+        assert_eq!(filter.offset, 0);
+        assert!(filter.sort.is_empty());
+        assert!(filter.order.is_empty());
+    }
+
+    #[test]
+    fn test_audit_log_filter_serde_defaults() {
+        let json = "{}";
+        let filter: AuditLogFilter = serde_json::from_str(json).unwrap();
+        assert_eq!(filter.limit, 50);
+        assert_eq!(filter.sort, "created");
+        assert_eq!(filter.order, "desc");
+    }
+
+    #[test]
+    fn test_audit_log_filter_with_all_fields() {
+        let filter = AuditLogFilter {
+            project_id: Some(1),
+            user_id: Some(2),
+            username: Some("admin".to_string()),
+            action: Some(AuditAction::Login),
+            object_type: Some(AuditObjectType::User),
+            object_id: Some(3),
+            level: Some(AuditLevel::Warning),
+            search: Some("test".to_string()),
+            date_from: Some(Utc::now()),
+            date_to: Some(Utc::now()),
+            limit: 100,
+            offset: 50,
+            sort: "action".to_string(),
+            order: "asc".to_string(),
+        };
+        assert_eq!(filter.project_id, Some(1));
+        assert_eq!(filter.limit, 100);
+        assert_eq!(filter.offset, 50);
+        assert_eq!(filter.sort, "action");
+        assert_eq!(filter.order, "asc");
+    }
+
+    #[test]
+    fn test_audit_log_result_serialization() {
+        let log = AuditLog {
+            id: 1,
+            project_id: Some(10),
+            user_id: Some(5),
+            username: Some("admin".to_string()),
+            action: AuditAction::Login,
+            object_type: AuditObjectType::User,
+            object_id: None,
+            object_name: None,
+            description: "Login".to_string(),
+            level: AuditLevel::Info,
+            ip_address: None,
+            user_agent: None,
+            details: None,
+            created: Utc::now(),
+        };
+        let result = AuditLogResult {
+            total: 1,
+            records: vec![log],
+            limit: 50,
+            offset: 0,
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("\"total\":1"));
+        assert!(json.contains("\"records\":["));
+        assert!(json.contains("\"limit\":50"));
+        assert!(json.contains("\"offset\":0"));
+    }
+
+    #[test]
+    fn test_audit_details_serialize() {
+        let details = AuditDetails {
+            ip_address: Some("192.168.1.1".to_string()),
+            user_agent: Some("TestAgent".to_string()),
+            changes: Some(serde_json::json!({"field": "value"})),
+            reason: Some("test".to_string()),
+            metadata: None,
+        };
+        let json = serde_json::to_string(&details).unwrap();
+        assert!(json.contains("192.168.1.1"));
+        assert!(json.contains("TestAgent"));
+    }
+
+    #[test]
+    fn test_audit_details_default() {
+        let details = AuditDetails::default();
+        assert!(details.ip_address.is_none());
+        assert!(details.user_agent.is_none());
+        assert!(details.changes.is_none());
+        assert!(details.reason.is_none());
+        assert!(details.metadata.is_none());
     }
 }

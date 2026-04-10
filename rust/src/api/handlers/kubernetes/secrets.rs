@@ -251,3 +251,186 @@ pub async fn delete_secret(
     );
     Ok(Json(response))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use k8s_openapi::ByteString;
+
+    fn make_secret(name: &str, namespace: &str, type_: &str, data: BTreeMap<String, ByteString>) -> Secret {
+        Secret {
+            metadata: kube::api::ObjectMeta {
+                name: Some(name.to_string()),
+                namespace: Some(namespace.to_string()),
+                ..Default::default()
+            },
+            type_: Some(type_.to_string()),
+            data: if data.is_empty() { None } else { Some(data) },
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn test_secret_type_returns_opaque_when_none() {
+        let secret = Secret {
+            metadata: kube::api::ObjectMeta {
+                name: Some("test".to_string()),
+                ..Default::default()
+            },
+            type_: None,
+            data: None,
+            ..Default::default()
+        };
+        assert_eq!(secret_type(&secret), "Opaque");
+    }
+
+    #[test]
+    fn test_secret_type_returns_type_when_set() {
+        let secret = make_secret("test", "default", "kubernetes.io/tls", BTreeMap::new());
+        assert_eq!(secret_type(&secret), "kubernetes.io/tls");
+    }
+
+    #[test]
+    fn test_masked_data_returns_empty_when_no_data() {
+        let secret = Secret {
+            metadata: kube::api::ObjectMeta::default(),
+            type_: None,
+            data: None,
+            ..Default::default()
+        };
+        let masked = masked_data(&secret);
+        assert!(masked.is_empty());
+    }
+
+    #[test]
+    fn test_masked_data_replaces_values_with_stars() {
+        let mut data = BTreeMap::new();
+        data.insert("key1".to_string(), ByteString(vec![1, 2, 3]));
+        data.insert("key2".to_string(), ByteString(vec![4, 5, 6]));
+        let secret = make_secret("test", "default", "Opaque", data);
+        let masked = masked_data(&secret);
+        assert_eq!(masked.len(), 2);
+        assert_eq!(masked.get("key1").unwrap(), "***");
+        assert_eq!(masked.get("key2").unwrap(), "***");
+    }
+
+    #[test]
+    fn test_secret_summary_serialization() {
+        let summary = SecretSummary {
+            name: "my-secret".to_string(),
+            namespace: "production".to_string(),
+            type_: "Opaque".to_string(),
+            keys_count: 3,
+        };
+        let json = serde_json::to_string(&summary).unwrap();
+        assert!(json.contains("\"name\":\"my-secret\""));
+        assert!(json.contains("\"namespace\":\"production\""));
+        assert!(json.contains("\"type\":\"Opaque\""));
+        assert!(json.contains("\"keys_count\":3"));
+    }
+
+    #[test]
+    fn test_secret_masked_view_serialization() {
+        let mut data = BTreeMap::new();
+        data.insert("password".to_string(), "***".to_string());
+        let view = SecretMaskedView {
+            name: "db-credentials".to_string(),
+            namespace: "default".to_string(),
+            type_: "Opaque".to_string(),
+            data,
+        };
+        let json = serde_json::to_value(&view).unwrap();
+        assert_eq!(json["name"], "db-credentials");
+        assert_eq!(json["namespace"], "default");
+        assert_eq!(json["type"], "Opaque");
+        assert_eq!(json["data"]["password"], "***");
+    }
+
+    #[test]
+    fn test_secret_reveal_view_serialization() {
+        let mut data = BTreeMap::new();
+        data.insert("token".to_string(), "secret-value".to_string());
+        let view = SecretRevealView {
+            name: "api-token".to_string(),
+            namespace: "kube-system".to_string(),
+            type_: "Opaque".to_string(),
+            data,
+            warning: "Sensitive data disclosed".to_string(),
+        };
+        let json = serde_json::to_value(&view).unwrap();
+        assert_eq!(json["name"], "api-token");
+        assert_eq!(json["warning"], "Sensitive data disclosed");
+        assert_eq!(json["data"]["token"], "secret-value");
+    }
+
+    #[test]
+    fn test_list_secrets_query_deserialization() {
+        let json = r#"{"namespace":"default","label_selector":"app=myapp","limit":10}"#;
+        let query: ListSecretsQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(query.namespace, Some("default".to_string()));
+        assert_eq!(query.label_selector, Some("app=myapp".to_string()));
+        assert_eq!(query.limit, Some(10));
+    }
+
+    #[test]
+    fn test_list_secrets_query_all_optional() {
+        let json = r#"{}"#;
+        let query: ListSecretsQuery = serde_json::from_str(json).unwrap();
+        assert!(query.namespace.is_none());
+        assert!(query.label_selector.is_none());
+        assert!(query.limit.is_none());
+    }
+
+    #[test]
+    fn test_secret_summary_type_field_rename() {
+        let summary = SecretSummary {
+            name: "test".to_string(),
+            namespace: "ns".to_string(),
+            type_: "kubernetes.io/dockerconfigjson".to_string(),
+            keys_count: 1,
+        };
+        let value = serde_json::to_value(&summary).unwrap();
+        assert!(value.get("type").is_some());
+        assert!(value.get("type_").is_none());
+        assert_eq!(value["type"], "kubernetes.io/dockerconfigjson");
+    }
+
+    #[test]
+    fn test_masked_view_type_field_rename() {
+        let view = SecretMaskedView {
+            name: "s".to_string(),
+            namespace: "n".to_string(),
+            type_: "Opaque".to_string(),
+            data: BTreeMap::new(),
+        };
+        let value = serde_json::to_value(&view).unwrap();
+        assert!(value.get("type").is_some());
+        assert!(value.get("type_").is_none());
+    }
+
+    #[test]
+    fn test_reveal_view_type_field_rename() {
+        let view = SecretRevealView {
+            name: "s".to_string(),
+            namespace: "n".to_string(),
+            type_: "kubernetes.io/tls".to_string(),
+            data: BTreeMap::new(),
+            warning: "warn".to_string(),
+        };
+        let value = serde_json::to_value(&view).unwrap();
+        assert!(value.get("type").is_some());
+        assert!(value.get("type_").is_none());
+    }
+
+    #[test]
+    fn test_create_secret_payload_deserialization() {
+        let json = serde_json::json!({
+            "metadata": {"name": "my-secret", "namespace": "default"},
+            "type": "Opaque",
+            "data": {"key": "dmFsdWU="}
+        });
+        let payload: Secret = serde_json::from_value(json).unwrap();
+        assert_eq!(payload.metadata.name, Some("my-secret".to_string()));
+        assert_eq!(payload.type_, Some("Opaque".to_string()));
+    }
+}

@@ -856,3 +856,206 @@ fn generate_template_suggestion(description: &str) -> serde_json::Value {
         "notes": "Review and adjust before saving. Set inventory_id and repository_id from your project resources."
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── ToolResult ───────────────────────────────────────────────────────
+
+    #[test]
+    fn test_tool_result_ok() {
+        let v = json!({"key": "value"});
+        let result = ToolResult::ok(&v);
+        assert!(!result.is_error);
+        assert_eq!(result.content.len(), 1);
+        assert_eq!(result.content[0].kind, "text");
+    }
+
+    #[test]
+    fn test_tool_result_text() {
+        let result = ToolResult::text("hello world");
+        assert!(!result.is_error);
+        assert_eq!(result.content.len(), 1);
+        assert_eq!(result.content[0].text, "hello world");
+    }
+
+    #[test]
+    fn test_tool_result_error() {
+        let result = ToolResult::error("something went wrong");
+        assert!(result.is_error);
+        assert_eq!(result.content.len(), 1);
+        assert!(result.content[0].text.contains("something went wrong"));
+    }
+
+    #[test]
+    fn test_tool_result_ok_contains_json() {
+        let v = json!({"status": "success", "count": 5});
+        let result = ToolResult::ok(&v);
+        assert!(result.content[0].text.contains("\"status\""));
+        assert!(result.content[0].text.contains("\"success\""));
+    }
+
+    // ── tool() helper ────────────────────────────────────────────────────
+
+    #[test]
+    fn test_tool_helper_structure() {
+        let schema = json!({"type": "object", "properties": {}, "required": []});
+        let t = tool("test_tool", "A test tool", schema);
+        assert_eq!(t["name"], "test_tool");
+        assert_eq!(t["description"], "A test tool");
+        assert_eq!(t["inputSchema"]["type"], "object");
+    }
+
+    // ── all_definitions() ────────────────────────────────────────────────
+
+    #[test]
+    fn test_all_definitions_count() {
+        let defs = all_definitions();
+        // We expect 30+ tools defined
+        assert!(defs.len() >= 30);
+    }
+
+    #[test]
+    fn test_all_definitions_unique_names() {
+        let defs = all_definitions();
+        let names: Vec<&str> = defs
+            .iter()
+            .filter_map(|d| d["name"].as_str())
+            .collect();
+        let unique: std::collections::HashSet<_> = names.iter().collect();
+        assert_eq!(names.len(), unique.len(), "Tool names must be unique");
+    }
+
+    #[test]
+    fn test_all_definitions_no_empty_descriptions() {
+        let defs = all_definitions();
+        for def in defs {
+            let desc = def["description"].as_str().unwrap_or("");
+            assert!(!desc.is_empty(), "Tool '{}' has empty description", def["name"]);
+        }
+    }
+
+    // ── generate_template_suggestion ─────────────────────────────────────
+
+    #[test]
+    fn test_generate_template_ansible_default() {
+        let result = generate_template_suggestion("Deploy a web application");
+        assert_eq!(result["app"], "ansible");
+        assert_eq!(result["playbook"], "deploy.yml");
+        assert_eq!(result["type"], "deploy");
+    }
+
+    #[test]
+    fn test_generate_template_terraform() {
+        let result = generate_template_suggestion("Create terraform infrastructure in AWS");
+        assert_eq!(result["app"], "terraform");
+        assert_eq!(result["playbook"], "main.tf directory");
+    }
+
+    #[test]
+    fn test_generate_template_bash() {
+        let result = generate_template_suggestion("Run bash deploy script");
+        assert_eq!(result["app"], "bash");
+        assert_eq!(result["playbook"], "deploy.sh");
+    }
+
+    #[test]
+    fn test_generate_template_test_type() {
+        let result = generate_template_suggestion("Run test suite for the application");
+        assert_eq!(result["type"], "build");
+    }
+
+    #[test]
+    fn test_generate_template_survey_vars_version() {
+        let result = generate_template_suggestion("Deploy version 2.0 of the app");
+        let survey_vars = &result["survey_vars"];
+        assert!(survey_vars.is_array());
+        let names: Vec<&str> = survey_vars
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|v| v["name"].as_str())
+            .collect();
+        assert!(names.contains(&"app_version"));
+    }
+
+    #[test]
+    fn test_generate_template_survey_vars_env() {
+        let result = generate_template_suggestion("Deploy to production environment");
+        let survey_vars = &result["survey_vars"];
+        let names: Vec<&str> = survey_vars
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|v| v["name"].as_str())
+            .collect();
+        assert!(names.contains(&"target_env"));
+    }
+
+    #[test]
+    fn test_generate_template_survey_vars_secret() {
+        let result = generate_template_suggestion("Deploy with secret token and password");
+        let survey_vars = &result["survey_vars"];
+        let names: Vec<&str> = survey_vars
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|v| v["name"].as_str())
+            .collect();
+        assert!(names.contains(&"app_secret"));
+    }
+
+    #[test]
+    fn test_generate_template_extra_vars_become() {
+        let result = generate_template_suggestion("Deploy with sudo become");
+        let extra_vars = &result["extra_vars_hint"];
+        assert_eq!(extra_vars["ansible_become"], true);
+    }
+
+    #[test]
+    fn test_generate_template_extra_vars_nginx() {
+        let result = generate_template_suggestion("Setup nginx server");
+        let extra_vars = &result["extra_vars_hint"];
+        assert_eq!(extra_vars["web_server"], "nginx");
+    }
+
+    #[test]
+    fn test_generate_template_extra_vars_postgres() {
+        let result = generate_template_suggestion("Install postgresql database");
+        let extra_vars = &result["extra_vars_hint"];
+        assert_eq!(extra_vars["db_engine"], "postgresql");
+    }
+
+    #[test]
+    fn test_generate_template_has_name_prefix() {
+        let result = generate_template_suggestion("My custom deployment");
+        let name = result["name"].as_str().unwrap();
+        assert!(name.starts_with("Auto: "));
+        assert!(name.contains("My custom"));
+    }
+
+    #[test]
+    fn test_generate_template_long_description_truncation() {
+        let long_desc = "A".repeat(200);
+        let result = generate_template_suggestion(&long_desc);
+        let name = result["name"].as_str().unwrap();
+        // "Auto: " (6) + 50 chars = 56
+        assert!(name.len() <= 56);
+    }
+
+    #[test]
+    fn test_generate_template_has_notes() {
+        let result = generate_template_suggestion("Some deployment");
+        let notes = result["notes"].as_str().unwrap();
+        assert!(notes.contains("Review and adjust"));
+    }
+
+    #[test]
+    fn test_generate_template_empty_description() {
+        let result = generate_template_suggestion("");
+        assert_eq!(result["app"], "ansible");
+        assert_eq!(result["type"], "deploy");
+        assert_eq!(result["survey_vars"].as_array().unwrap().len(), 0);
+    }
+}

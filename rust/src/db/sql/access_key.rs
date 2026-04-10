@@ -2,6 +2,7 @@
 //!
 //! Операции с ключами доступа в SQL
 
+use chrono::Utc;
 use crate::db::sql::types::SqlDb;
 use crate::error::{Error, Result};
 use crate::models::AccessKey;
@@ -147,5 +148,178 @@ impl SqlDb {
             .await
             .map_err(Error::Database)?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::access_key::{AccessKeyType, AccessKeyOwner, AccessKeySourceStorageType};
+
+    #[test]
+    fn test_access_key_type_display() {
+        assert_eq!(AccessKeyType::None.to_string(), "none");
+        assert_eq!(AccessKeyType::LoginPassword.to_string(), "login_password");
+        assert_eq!(AccessKeyType::SSH.to_string(), "ssh");
+        assert_eq!(AccessKeyType::AccessKey.to_string(), "access_key");
+    }
+
+    #[test]
+    fn test_access_key_type_from_str() {
+        assert_eq!("ssh".parse::<AccessKeyType>().unwrap(), AccessKeyType::SSH);
+        assert_eq!("login_password".parse::<AccessKeyType>().unwrap(), AccessKeyType::LoginPassword);
+        assert_eq!("access_key".parse::<AccessKeyType>().unwrap(), AccessKeyType::AccessKey);
+        assert_eq!("none".parse::<AccessKeyType>().unwrap(), AccessKeyType::None);
+        assert_eq!("unknown".parse::<AccessKeyType>().unwrap(), AccessKeyType::None);
+    }
+
+    #[test]
+    fn test_access_key_type_serialize_all() {
+        let types = [
+            AccessKeyType::None,
+            AccessKeyType::LoginPassword,
+            AccessKeyType::SSH,
+            AccessKeyType::AccessKey,
+        ];
+        for t in &types {
+            let json = serde_json::to_string(t).unwrap();
+            assert!(json.starts_with('"') && json.ends_with('"'));
+        }
+    }
+
+    #[test]
+    fn test_access_key_type_deserialize_all() {
+        assert_eq!(
+            serde_json::from_str::<AccessKeyType>("\"ssh\"").unwrap(),
+            AccessKeyType::SSH
+        );
+        assert_eq!(
+            serde_json::from_str::<AccessKeyType>("\"login_password\"").unwrap(),
+            AccessKeyType::LoginPassword
+        );
+    }
+
+    #[test]
+    fn test_access_key_owner_display() {
+        assert_eq!(AccessKeyOwner::User.to_string(), "user");
+        assert_eq!(AccessKeyOwner::Project.to_string(), "project");
+        assert_eq!(AccessKeyOwner::Shared.to_string(), "shared");
+    }
+
+    #[test]
+    fn test_access_key_owner_from_str() {
+        assert_eq!("user".parse::<AccessKeyOwner>().unwrap(), AccessKeyOwner::User);
+        assert_eq!("project".parse::<AccessKeyOwner>().unwrap(), AccessKeyOwner::Project);
+        assert_eq!("shared".parse::<AccessKeyOwner>().unwrap(), AccessKeyOwner::Shared);
+        assert_eq!("unknown".parse::<AccessKeyOwner>().unwrap(), AccessKeyOwner::Shared);
+    }
+
+    #[test]
+    fn test_access_key_source_storage_type_display() {
+        assert_eq!(AccessKeySourceStorageType::DB.to_string(), "db");
+        assert_eq!(AccessKeySourceStorageType::Storage.to_string(), "storage");
+        assert_eq!(AccessKeySourceStorageType::Env.to_string(), "env");
+        assert_eq!(AccessKeySourceStorageType::File.to_string(), "file");
+    }
+
+    #[test]
+    fn test_access_key_source_storage_type_from_str() {
+        assert_eq!("db".parse::<AccessKeySourceStorageType>().unwrap(), AccessKeySourceStorageType::DB);
+        assert_eq!("storage".parse::<AccessKeySourceStorageType>().unwrap(), AccessKeySourceStorageType::Storage);
+        assert_eq!("env".parse::<AccessKeySourceStorageType>().unwrap(), AccessKeySourceStorageType::Env);
+        assert_eq!("file".parse::<AccessKeySourceStorageType>().unwrap(), AccessKeySourceStorageType::File);
+        assert_eq!("unknown".parse::<AccessKeySourceStorageType>().unwrap(), AccessKeySourceStorageType::DB);
+    }
+
+    #[test]
+    fn test_access_key_struct_fields() {
+        let key = AccessKey {
+            id: 1,
+            project_id: Some(10),
+            name: "Deploy Key".to_string(),
+            r#type: AccessKeyType::SSH,
+            user_id: Some(5),
+            login_password_login: None,
+            login_password_password: None,
+            ssh_key: Some("-----BEGIN RSA PRIVATE KEY-----".to_string()),
+            ssh_passphrase: Some("passphrase".to_string()),
+            access_key_access_key: None,
+            access_key_secret_key: None,
+            secret_storage_id: None,
+            source_storage_type: Some(AccessKeySourceStorageType::DB),
+            source_storage_id: None,
+            source_key: None,
+            owner: Some(AccessKeyOwner::Project),
+            environment_id: None,
+            created: Some(Utc::now()),
+        };
+        assert_eq!(key.id, 1);
+        assert_eq!(key.name, "Deploy Key");
+        assert_eq!(key.r#type, AccessKeyType::SSH);
+        assert_eq!(key.owner, Some(AccessKeyOwner::Project));
+    }
+
+    #[test]
+    fn test_access_key_clone() {
+        let key = AccessKey {
+            id: 1,
+            project_id: None,
+            name: "Test Key".to_string(),
+            r#type: AccessKeyType::None,
+            user_id: None,
+            login_password_login: None,
+            login_password_password: None,
+            ssh_key: None,
+            ssh_passphrase: None,
+            access_key_access_key: None,
+            access_key_secret_key: None,
+            secret_storage_id: None,
+            source_storage_type: None,
+            source_storage_id: None,
+            source_key: None,
+            owner: None,
+            environment_id: None,
+            created: None,
+        };
+        let cloned = key.clone();
+        assert_eq!(cloned.id, key.id);
+        assert_eq!(cloned.name, key.name);
+        assert_eq!(cloned.r#type, key.r#type);
+    }
+
+    #[test]
+    fn test_access_key_serialization() {
+        let key = AccessKey {
+            id: 1,
+            project_id: Some(1),
+            name: "Test".to_string(),
+            r#type: AccessKeyType::SSH,
+            user_id: None,
+            login_password_login: None,
+            login_password_password: None,
+            ssh_key: None,
+            ssh_passphrase: None,
+            access_key_access_key: None,
+            access_key_secret_key: None,
+            secret_storage_id: None,
+            source_storage_type: None,
+            source_storage_id: None,
+            source_key: None,
+            owner: None,
+            environment_id: None,
+            created: None,
+        };
+        let json = serde_json::to_string(&key).unwrap();
+        assert!(json.contains("\"name\":\"Test\""));
+        assert!(json.contains("\"type\":\"ssh\""));
+    }
+
+    #[test]
+    fn test_access_key_new_constructor() {
+        let key = AccessKey::new("My Key".to_string(), AccessKeyType::SSH);
+        assert_eq!(key.id, 0);
+        assert_eq!(key.name, "My Key");
+        assert_eq!(key.r#type, AccessKeyType::SSH);
+        assert!(key.project_id.is_none());
     }
 }

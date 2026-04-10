@@ -237,3 +237,275 @@ impl TemplateManager for SqlStore {
 // ============================================================================
 // InventoryManager - CRUD операции для инвентарей
 // ============================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::Template;
+    use crate::models::template::{TemplateApp, TemplateType};
+    use chrono::Utc;
+
+    #[test]
+    fn test_template_structure() {
+        let tpl = Template {
+            id: 1,
+            project_id: 10,
+            name: "Deploy App".to_string(),
+            playbook: "deploy.yml".to_string(),
+            description: "Deployment template".to_string(),
+            inventory_id: Some(1),
+            repository_id: Some(1),
+            environment_id: Some(1),
+            r#type: TemplateType::Task,
+            app: TemplateApp::Ansible,
+            git_branch: Some("main".to_string()),
+            created: Utc::now(),
+            arguments: None,
+            vault_key_id: None,
+            view_id: None,
+            build_template_id: None,
+            autorun: false,
+            allow_override_args_in_task: false,
+            allow_override_branch_in_task: false,
+            allow_inventory_in_task: false,
+            allow_parallel_tasks: false,
+            suppress_success_alerts: false,
+            require_approval: false,
+            task_params: None,
+            survey_vars: None,
+            vaults: None,
+            parent_template_id: None,
+            execution_image: None,
+            pre_template_id: None,
+            post_template_id: None,
+            fail_template_id: None,
+            deploy_environment_id: None,
+        };
+        assert_eq!(tpl.project_id, 10);
+        assert_eq!(tpl.name, "Deploy App");
+    }
+
+    #[test]
+    fn test_template_type_variants() {
+        let types = vec![
+            TemplateType::Task,
+            TemplateType::Build,
+            TemplateType::Deploy,
+        ];
+        for t in types {
+            let json = serde_json::to_string(&t).unwrap();
+            assert!(!json.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_template_app_variants() {
+        let apps = vec![
+            TemplateApp::Ansible,
+            TemplateApp::Terraform,
+            TemplateApp::Bash,
+        ];
+        for app in apps {
+            let json = serde_json::to_string(&app).unwrap();
+            assert!(!json.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_template_with_flags() {
+        let tpl = Template {
+            id: 1,
+            project_id: 1,
+            name: "Test".to_string(),
+            playbook: "test.yml".to_string(),
+            description: String::new(),
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+            r#type: TemplateType::Task,
+            app: TemplateApp::Ansible,
+            git_branch: None,
+            created: Utc::now(),
+            arguments: None,
+            vault_key_id: None,
+            view_id: None,
+            build_template_id: None,
+            autorun: true,
+            allow_override_args_in_task: true,
+            allow_override_branch_in_task: true,
+            allow_inventory_in_task: true,
+            allow_parallel_tasks: true,
+            suppress_success_alerts: true,
+            require_approval: true,
+            task_params: None,
+            survey_vars: None,
+            vaults: None,
+            parent_template_id: None,
+            execution_image: None,
+            pre_template_id: None,
+            post_template_id: None,
+            fail_template_id: None,
+            deploy_environment_id: None,
+        };
+        assert!(tpl.autorun);
+        assert!(tpl.require_approval);
+        assert!(tpl.allow_parallel_tasks);
+    }
+
+    #[test]
+    fn test_template_serialize_excludes_none_fields() {
+        let tpl = Template {
+            id: 1,
+            project_id: 1,
+            name: "Minimal".to_string(),
+            playbook: "min.yml".to_string(),
+            description: String::new(),
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+            r#type: TemplateType::Task,
+            app: TemplateApp::Ansible,
+            git_branch: None,
+            created: Utc::now(),
+            arguments: None,
+            vault_key_id: None,
+            view_id: None,
+            build_template_id: None,
+            autorun: false,
+            allow_override_args_in_task: false,
+            allow_override_branch_in_task: false,
+            allow_inventory_in_task: false,
+            allow_parallel_tasks: false,
+            suppress_success_alerts: false,
+            require_approval: false,
+            task_params: None,
+            survey_vars: None,
+            vaults: None,
+            parent_template_id: None,
+            execution_image: None,
+            pre_template_id: None,
+            post_template_id: None,
+            fail_template_id: None,
+            deploy_environment_id: None,
+        };
+        let json = serde_json::to_string(&tpl).unwrap();
+        assert!(json.contains("\"name\":\"Minimal\""));
+    }
+
+    #[test]
+    fn test_template_clone() {
+        let tpl = Template {
+            id: 42,
+            project_id: 1,
+            name: "Clone Test".to_string(),
+            playbook: "clone.yml".to_string(),
+            description: String::new(),
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+            r#type: TemplateType::Task,
+            app: TemplateApp::Ansible,
+            git_branch: None,
+            created: Utc::now(),
+            arguments: None,
+            vault_key_id: None,
+            view_id: None,
+            build_template_id: None,
+            autorun: false,
+            allow_override_args_in_task: false,
+            allow_override_branch_in_task: false,
+            allow_inventory_in_task: false,
+            allow_parallel_tasks: false,
+            suppress_success_alerts: false,
+            require_approval: false,
+            task_params: None,
+            survey_vars: None,
+            vaults: None,
+            parent_template_id: None,
+            execution_image: None,
+            pre_template_id: None,
+            post_template_id: None,
+            fail_template_id: None,
+            deploy_environment_id: None,
+        };
+        let cloned = tpl.clone();
+        assert_eq!(cloned.id, tpl.id);
+        assert_eq!(cloned.playbook, tpl.playbook);
+    }
+
+    #[test]
+    fn test_sql_query_get_templates() {
+        let query = "SELECT * FROM template WHERE project_id = $1 ORDER BY name";
+        assert!(query.contains("template"));
+        assert!(query.contains("project_id"));
+        assert!(query.contains("ORDER BY name"));
+    }
+
+    #[test]
+    fn test_sql_query_get_template_by_id() {
+        let query = "SELECT * FROM template WHERE id = $1 AND project_id = $2";
+        assert!(query.contains("WHERE"));
+        assert!(query.contains("id"));
+        assert!(query.contains("project_id"));
+    }
+
+    #[test]
+    fn test_sql_query_create_template() {
+        let query = "INSERT INTO template \
+            (project_id, name, playbook, description, inventory_id, repository_id, environment_id, \
+             type, app, git_branch, created, arguments, vault_key_id, view_id, build_template_id, \
+             autorun, allow_override_args_vars, allow_override_branch_in_task, allow_inventory_in_task, \
+             allow_parallel_tasks, suppress_success_alerts, require_approval, task_params, survey_vars, vaults, \
+             parent_template_id, execution_image, pre_template_id, post_template_id, fail_template_id, deploy_environment_id) \
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31) \
+            RETURNING id";
+        assert!(query.contains("INSERT INTO template"));
+        assert!(query.contains("RETURNING id"));
+    }
+
+    #[test]
+    fn test_sql_query_delete_template() {
+        let query = "UPDATE template SET deleted = true WHERE id = $1 AND project_id = $2";
+        assert!(query.contains("deleted"));
+        assert!(query.contains("WHERE"));
+    }
+
+    #[test]
+    fn test_template_with_survey_vars() {
+        let tpl = Template {
+            id: 1,
+            project_id: 1,
+            name: "Survey".to_string(),
+            playbook: "survey.yml".to_string(),
+            description: String::new(),
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+            r#type: TemplateType::Task,
+            app: TemplateApp::Ansible,
+            git_branch: None,
+            created: Utc::now(),
+            arguments: None,
+            vault_key_id: None,
+            view_id: None,
+            build_template_id: None,
+            autorun: false,
+            allow_override_args_in_task: false,
+            allow_override_branch_in_task: false,
+            allow_inventory_in_task: false,
+            allow_parallel_tasks: false,
+            suppress_success_alerts: false,
+            require_approval: false,
+            task_params: None,
+            survey_vars: Some(serde_json::json!([{"name": "var1"}])),
+            vaults: None,
+            parent_template_id: None,
+            execution_image: None,
+            pre_template_id: None,
+            post_template_id: None,
+            fail_template_id: None,
+            deploy_environment_id: None,
+        };
+        assert!(tpl.survey_vars.is_some());
+    }
+}

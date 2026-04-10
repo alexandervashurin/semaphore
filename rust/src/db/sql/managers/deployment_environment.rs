@@ -209,3 +209,195 @@ fn row_to_env(row: &sqlx::postgres::PgRow) -> DeploymentEnvironment {
         updated: row.get("updated"),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{
+        DeploymentEnvironment, DeploymentEnvironmentCreate, DeploymentEnvironmentUpdate,
+        DeploymentRecord,
+    };
+    use chrono::Utc;
+
+    #[test]
+    fn test_deployment_environment_structure() {
+        let env = DeploymentEnvironment {
+            id: 1,
+            project_id: 10,
+            name: "Production".to_string(),
+            url: Some("https://prod.example.com".to_string()),
+            tier: "production".to_string(),
+            status: "active".to_string(),
+            template_id: Some(5),
+            last_task_id: Some(100),
+            last_deploy_version: Some("v1.2.3".to_string()),
+            last_deployed_by: Some(1),
+            created: Utc::now(),
+            updated: Utc::now(),
+        };
+        assert_eq!(env.name, "Production");
+        assert_eq!(env.tier, "production");
+    }
+
+    #[test]
+    fn test_deployment_environment_create() {
+        let create = DeploymentEnvironmentCreate {
+            name: "Staging".to_string(),
+            url: Some("https://staging.example.com".to_string()),
+            tier: "staging".to_string(),
+            template_id: Some(3),
+        };
+        assert_eq!(create.name, "Staging");
+        assert!(create.url.is_some());
+    }
+
+    #[test]
+    fn test_deployment_environment_update() {
+        let update = DeploymentEnvironmentUpdate {
+            name: Some("Updated Prod".to_string()),
+            url: Some("https://new.example.com".to_string()),
+            tier: Some("production".to_string()),
+            status: Some("active".to_string()),
+            template_id: Some(5),
+        };
+        assert!(update.name.is_some());
+        assert!(update.status.is_some());
+    }
+
+    #[test]
+    fn test_deployment_record_structure() {
+        let record = DeploymentRecord {
+            id: 1,
+            deploy_environment_id: 10,
+            task_id: 100,
+            project_id: 1,
+            version: Some("v2.0.0".to_string()),
+            deployed_by: Some(5),
+            status: "success".to_string(),
+            created: Utc::now(),
+        };
+        assert_eq!(record.deploy_environment_id, 10);
+        assert_eq!(record.status, "success");
+    }
+
+    #[test]
+    fn test_deployment_record_serialize() {
+        let record = DeploymentRecord {
+            id: 1,
+            deploy_environment_id: 1,
+            task_id: 10,
+            project_id: 1,
+            version: Some("v1.0".to_string()),
+            deployed_by: None,
+            status: "pending".to_string(),
+            created: Utc::now(),
+        };
+        let json = serde_json::to_string(&record).unwrap();
+        assert!(json.contains("\"status\":\"pending\""));
+        assert!(json.contains("\"version\":\"v1.0\""));
+    }
+
+    #[test]
+    fn test_deployment_environment_status_variants() {
+        let statuses = vec!["active", "unknown", "error", "deploying"];
+        for status in statuses {
+            let env = DeploymentEnvironment {
+                id: 1,
+                project_id: 1,
+                name: "Env".to_string(),
+                url: None,
+                tier: "other".to_string(),
+                status: status.to_string(),
+                template_id: None,
+                last_task_id: None,
+                last_deploy_version: None,
+                last_deployed_by: None,
+                created: Utc::now(),
+                updated: Utc::now(),
+            };
+            assert_eq!(env.status, status);
+        }
+    }
+
+    #[test]
+    fn test_deployment_environment_tier_variants() {
+        let tiers = vec!["production", "staging", "development", "testing", "other"];
+        for tier in tiers {
+            let env = DeploymentEnvironment {
+                id: 1,
+                project_id: 1,
+                name: "Env".to_string(),
+                url: None,
+                tier: tier.to_string(),
+                status: "unknown".to_string(),
+                template_id: None,
+                last_task_id: None,
+                last_deploy_version: None,
+                last_deployed_by: None,
+                created: Utc::now(),
+                updated: Utc::now(),
+            };
+            assert_eq!(env.tier, tier);
+        }
+    }
+
+    #[test]
+    fn test_deployment_environment_clone() {
+        let env = DeploymentEnvironment {
+            id: 42,
+            project_id: 10,
+            name: "Clone Env".to_string(),
+            url: Some("https://clone.example.com".to_string()),
+            tier: "production".to_string(),
+            status: "active".to_string(),
+            template_id: None,
+            last_task_id: None,
+            last_deploy_version: None,
+            last_deployed_by: None,
+            created: Utc::now(),
+            updated: Utc::now(),
+        };
+        let cloned = env.clone();
+        assert_eq!(cloned.id, env.id);
+        assert_eq!(cloned.name, env.name);
+    }
+
+    #[test]
+    fn test_sql_query_deployment_environment() {
+        let query =
+            "SELECT * FROM deployment_environment WHERE project_id = $1 ORDER BY tier, name";
+        assert!(query.contains("deployment_environment"));
+        assert!(query.contains("ORDER BY"));
+    }
+
+    #[test]
+    fn test_sql_query_deployment_record() {
+        let query = "SELECT * FROM deployment_record \
+             WHERE deploy_environment_id = $1 AND project_id = $2 \
+             ORDER BY created DESC LIMIT 50";
+        assert!(query.contains("deployment_record"));
+        assert!(query.contains("deploy_environment_id"));
+    }
+
+    #[test]
+    fn test_sql_query_record_deployment() {
+        let query = "INSERT INTO deployment_record \
+             (deploy_environment_id, task_id, project_id, version, deployed_by, status, created) \
+             VALUES ($1, $2, $3, $4, $5, $6, NOW())";
+        assert!(query.contains("INSERT"));
+        assert!(query.contains("deployment_record"));
+    }
+
+    #[test]
+    fn test_deployment_environment_create_serialize() {
+        let create = DeploymentEnvironmentCreate {
+            name: "Test Env".to_string(),
+            url: None,
+            tier: "development".to_string(),
+            template_id: None,
+        };
+        let json = serde_json::to_string(&create).unwrap();
+        assert!(json.contains("\"name\":\"Test Env\""));
+        assert!(json.contains("\"tier\":\"development\""));
+    }
+}

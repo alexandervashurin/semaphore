@@ -523,3 +523,251 @@ pub async fn get_chart_default_values(
 
     Ok(Json(serde_json::json!({"values_yaml": vals})))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_helm_status_serialization() {
+        let status = HelmStatus {
+            available: true,
+            version: Some("v3.14.0".to_string()),
+            message: "Helm доступен: v3.14.0".to_string(),
+        };
+        assert!(status.available);
+        assert_eq!(status.version, Some("v3.14.0".to_string()));
+    }
+
+    #[test]
+    fn test_helm_status_not_available() {
+        let status = HelmStatus {
+            available: false,
+            version: None,
+            message: "helm not found".to_string(),
+        };
+        assert!(!status.available);
+        assert!(status.version.is_none());
+    }
+
+    #[test]
+    fn test_helm_repo_info() {
+        let repo = HelmRepoInfo {
+            name: "bitnami".to_string(),
+            url: "https://charts.bitnami.com/bitnami".to_string(),
+        };
+        assert_eq!(repo.name, "bitnami");
+        assert!(repo.url.contains("bitnami"));
+    }
+
+    #[test]
+    fn test_helm_release_info() {
+        let info = HelmReleaseInfo {
+            name: "my-release".to_string(),
+            namespace: "default".to_string(),
+            revision: "1".to_string(),
+            updated: "2024-01-01T00:00:00Z".to_string(),
+            status: "deployed".to_string(),
+            chart: "nginx-1.0.0".to_string(),
+            app_version: "1.21".to_string(),
+        };
+        assert_eq!(info.name, "my-release");
+        assert_eq!(info.status, "deployed");
+        assert_eq!(info.revision, "1");
+    }
+
+    #[test]
+    fn test_helm_history_entry() {
+        let entry = HelmHistoryEntry {
+            revision: 2,
+            updated: "2024-01-02T00:00:00Z".to_string(),
+            status: "superseded".to_string(),
+            chart: "nginx-1.0.0".to_string(),
+            app_version: "1.21".to_string(),
+            description: "Upgrade complete".to_string(),
+        };
+        assert_eq!(entry.revision, 2);
+        assert_eq!(entry.status, "superseded");
+        assert!(!entry.description.is_empty());
+    }
+
+    #[test]
+    fn test_helm_chart_result() {
+        let chart = HelmChartResult {
+            name: "bitnami/nginx".to_string(),
+            version: "15.0.0".to_string(),
+            app_version: "1.25.0".to_string(),
+            description: "NGINX Open Source".to_string(),
+        };
+        assert_eq!(chart.name, "bitnami/nginx");
+        assert_eq!(chart.version, "15.0.0");
+    }
+
+    #[test]
+    fn test_add_repo_payload() {
+        let payload = AddRepoPayload {
+            name: "jetstack".to_string(),
+            url: "https://charts.jetstack.io".to_string(),
+            username: Some("user".to_string()),
+            password: Some("pass".to_string()),
+        };
+        assert_eq!(payload.name, "jetstack");
+        assert!(payload.username.is_some());
+        assert!(payload.password.is_some());
+    }
+
+    #[test]
+    fn test_add_repo_payload_no_auth() {
+        let payload = AddRepoPayload {
+            name: "stable".to_string(),
+            url: "https://charts.helm.sh/stable".to_string(),
+            username: None,
+            password: None,
+        };
+        assert!(payload.username.is_none());
+        assert!(payload.password.is_none());
+    }
+
+    #[test]
+    fn test_install_payload() {
+        let mut values = HashMap::new();
+        values.insert("replicaCount".to_string(), "3".to_string());
+        let payload = InstallPayload {
+            release_name: "my-nginx".to_string(),
+            chart: "bitnami/nginx".to_string(),
+            version: Some("15.0.0".to_string()),
+            namespace: "production".to_string(),
+            values: Some(values),
+            dry_run: Some(true),
+        };
+        assert_eq!(payload.release_name, "my-nginx");
+        assert!(payload.dry_run.unwrap_or(false));
+        assert!(payload.values.as_ref().unwrap().contains_key("replicaCount"));
+    }
+
+    #[test]
+    fn test_install_payload_defaults() {
+        let payload = InstallPayload {
+            release_name: "test".to_string(),
+            chart: "test/chart".to_string(),
+            version: None,
+            namespace: "default".to_string(),
+            values: None,
+            dry_run: None,
+        };
+        assert!(payload.version.is_none());
+        assert!(payload.values.is_none());
+        assert!(!payload.dry_run.unwrap_or(false));
+    }
+
+    #[test]
+    fn test_rollback_payload() {
+        let payload = RollbackPayload {
+            revision: 3,
+        };
+        assert_eq!(payload.revision, 3);
+    }
+
+    #[test]
+    fn test_search_query() {
+        let q = SearchQuery {
+            q: Some("nginx".to_string()),
+            repo: Some("bitnami".to_string()),
+        };
+        assert_eq!(q.q, Some("nginx".to_string()));
+        assert_eq!(q.repo, Some("bitnami".to_string()));
+    }
+
+    #[test]
+    fn test_search_query_empty() {
+        let q = SearchQuery {
+            q: None,
+            repo: None,
+        };
+        assert!(q.q.is_none());
+        assert!(q.repo.is_none());
+    }
+
+    #[test]
+    fn test_release_list_query_all_namespaces() {
+        let q = ReleaseListQuery {
+            namespace: None,
+            all_namespaces: Some(true),
+        };
+        assert!(q.all_namespaces.unwrap_or(false));
+    }
+
+    #[test]
+    fn test_release_list_query_specific_namespace() {
+        let q = ReleaseListQuery {
+            namespace: Some("kube-system".to_string()),
+            all_namespaces: Some(false),
+        };
+        assert_eq!(q.namespace, Some("kube-system".to_string()));
+        assert!(!q.all_namespaces.unwrap_or(true));
+    }
+
+    #[test]
+    fn test_release_list_query_defaults() {
+        let q = ReleaseListQuery {
+            namespace: None,
+            all_namespaces: None,
+        };
+        // When None, unwrap_or(true) means default is true
+        assert!(q.all_namespaces.unwrap_or(true));
+    }
+
+    #[test]
+    fn test_helm_cmd_without_kubeconfig() {
+        let cmd = helm_cmd(&None);
+        // Command should be "helm" with no KUBECONFIG env
+        assert_eq!(cmd.get_program(), "helm");
+    }
+
+    #[test]
+    fn test_helm_cmd_with_kubeconfig() {
+        let kc = Some("/path/to/kubeconfig".to_string());
+        let cmd = helm_cmd(&kc);
+        assert_eq!(cmd.get_program(), "helm");
+        // KUBECONFIG env var is set inside the Command
+    }
+
+    #[test]
+    fn test_helm_status_json_serialization() {
+        let status = HelmStatus {
+            available: true,
+            version: Some("v3.14.0".to_string()),
+            message: "OK".to_string(),
+        };
+        let json = serde_json::to_string(&status).unwrap();
+        assert!(json.contains("available"));
+        assert!(json.contains("v3.14.0"));
+    }
+
+    #[test]
+    fn test_helm_repo_info_json_serialization() {
+        let repo = HelmRepoInfo {
+            name: "bitnami".to_string(),
+            url: "https://charts.bitnami.com/bitnami".to_string(),
+        };
+        let json = serde_json::to_string(&repo).unwrap();
+        assert!(json.contains("bitnami"));
+        assert!(json.contains("https://charts.bitnami.com/bitnami"));
+    }
+
+    #[test]
+    fn test_helm_release_info_json_serialization() {
+        let info = HelmReleaseInfo {
+            name: "release".to_string(),
+            namespace: "ns".to_string(),
+            revision: "1".to_string(),
+            updated: "2024-01-01".to_string(),
+            status: "deployed".to_string(),
+            chart: "chart-1.0".to_string(),
+            app_version: "1.0".to_string(),
+        };
+        let json = serde_json::to_string(&info).unwrap();
+        assert!(json.contains("release"));
+        assert!(json.contains("deployed"));
+    }
+}

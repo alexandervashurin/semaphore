@@ -4,7 +4,7 @@
 
 use crate::db::sql::types::SqlDb;
 use crate::error::{Error, Result};
-use crate::models::Event;
+use crate::models::{Event, EventType};
 use sqlx::Row;
 
 impl SqlDb {
@@ -62,5 +62,137 @@ impl SqlDb {
 
         event.id = id;
         Ok(event)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Utc;
+
+    #[test]
+    fn test_event_type_task_created_display() {
+        assert_eq!(EventType::TaskCreated.to_string(), "task_created");
+    }
+
+    #[test]
+    fn test_event_type_task_deleted_display() {
+        assert_eq!(EventType::TaskDeleted.to_string(), "task_deleted");
+    }
+
+    #[test]
+    fn test_event_type_serialization() {
+        let json = serde_json::to_string(&EventType::TaskCreated).unwrap();
+        assert_eq!(json, "\"task_created\"");
+    }
+
+    #[test]
+    fn test_event_type_deserialization() {
+        let event_type: EventType = serde_json::from_str("\"task_created\"").unwrap();
+        assert_eq!(event_type, EventType::TaskCreated);
+    }
+
+    #[test]
+    fn test_event_serialization() {
+        let event = Event {
+            id: 1,
+            project_id: Some(10),
+            user_id: Some(5),
+            object_id: Some(100),
+            object_type: "task".to_string(),
+            description: "Task created".to_string(),
+            created: Utc::now(),
+        };
+        let json = serde_json::to_string(&event).unwrap();
+        assert!(json.contains("\"object_type\":\"task\""));
+        assert!(json.contains("\"description\":\"Task created\""));
+        assert!(json.contains("\"project_id\":10"));
+    }
+
+    #[test]
+    fn test_event_serialization_null_fields() {
+        let event = Event {
+            id: 1,
+            project_id: None,
+            user_id: None,
+            object_id: None,
+            object_type: "system".to_string(),
+            description: "System event".to_string(),
+            created: Utc::now(),
+        };
+        let json = serde_json::to_string(&event).unwrap();
+        assert!(json.contains("\"project_id\":null"));
+        assert!(json.contains("\"user_id\":null"));
+    }
+
+    #[test]
+    fn test_event_deserialization() {
+        let json = r#"{"id":5,"project_id":20,"user_id":3,"object_id":100,"object_type":"template","description":"Template updated","created":"2024-01-01T00:00:00Z"}"#;
+        let event: Event = serde_json::from_str(json).unwrap();
+        assert_eq!(event.id, 5);
+        assert_eq!(event.project_id, Some(20));
+        assert_eq!(event.object_type, "template");
+        assert_eq!(event.description, "Template updated");
+    }
+
+    #[test]
+    fn test_event_clone() {
+        let event = Event {
+            id: 1,
+            project_id: Some(1),
+            user_id: Some(1),
+            object_id: Some(1),
+            object_type: "clone".to_string(),
+            description: "Clone event".to_string(),
+            created: Utc::now(),
+        };
+        let cloned = event.clone();
+        assert_eq!(cloned.description, event.description);
+        assert_eq!(cloned.object_type, event.object_type);
+    }
+
+    #[test]
+    fn test_event_debug_format() {
+        let event = Event {
+            id: 42,
+            project_id: None,
+            user_id: None,
+            object_id: None,
+            object_type: "debug".to_string(),
+            description: "Debug event".to_string(),
+            created: Utc::now(),
+        };
+        let debug_str = format!("{:?}", event);
+        assert!(debug_str.contains("Event"));
+        assert!(debug_str.contains("Debug event"));
+    }
+
+    #[test]
+    fn test_event_type_equality() {
+        assert_eq!(EventType::TaskCreated, EventType::TaskCreated);
+        assert_ne!(EventType::TaskCreated, EventType::TaskDeleted);
+    }
+
+    #[test]
+    fn test_event_type_all_variants_serialize() {
+        let types = vec![
+            EventType::TaskCreated,
+            EventType::TaskUpdated,
+            EventType::TaskDeleted,
+            EventType::TemplateCreated,
+            EventType::InventoryUpdated,
+            EventType::RepositoryDeleted,
+            EventType::EnvironmentCreated,
+            EventType::AccessKeyUpdated,
+            EventType::IntegrationDeleted,
+            EventType::ScheduleCreated,
+            EventType::UserJoined,
+            EventType::ProjectUpdated,
+            EventType::Other,
+        ];
+        for t in types {
+            let json = serde_json::to_string(&t).unwrap();
+            assert!(json.starts_with('"') && json.ends_with('"'));
+        }
     }
 }

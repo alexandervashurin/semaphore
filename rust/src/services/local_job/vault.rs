@@ -218,4 +218,25 @@ mod tests {
         job.clear_vault_key_files();
         assert!(job.vault_file_installations.is_empty());
     }
+
+    #[tokio::test]
+    async fn test_create_vault_password_file_special_chars() {
+        let job = create_test_job();
+        let result = job.create_vault_password_file("my-vault_123", "p@ssw0rd!").await;
+        assert!(result.is_ok());
+        let path = result.unwrap();
+        // Проверяем что специальные символы сохранены в имени файла
+        assert!(path.to_string_lossy().contains("my-vault_123"));
+    }
+
+    #[test]
+    fn test_clear_vault_key_files_idempotent() {
+        let mut job = create_test_job();
+        // Вызываем clear на пустом
+        job.clear_vault_key_files();
+        assert!(job.vault_file_installations.is_empty());
+        // Повторный вызов не должен паниковать
+        job.clear_vault_key_files();
+        assert!(job.vault_file_installations.is_empty());
+    }
 }

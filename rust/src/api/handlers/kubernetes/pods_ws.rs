@@ -297,3 +297,151 @@ where
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_log_ws_message_subscribe_serialization() {
+        let msg = LogWsMessage::Subscribe {
+            container: Some("app".to_string()),
+            tail_lines: Some(100),
+            follow: Some(true),
+        };
+        let json = serde_json::to_string(&msg).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["action"], "subscribe");
+        assert_eq!(parsed["container"], "app");
+        assert_eq!(parsed["tail_lines"], 100);
+        assert_eq!(parsed["follow"], true);
+    }
+
+    #[test]
+    fn test_log_ws_message_subscribe_minimal() {
+        let msg = LogWsMessage::Subscribe {
+            container: None,
+            tail_lines: None,
+            follow: None,
+        };
+        let json = serde_json::to_string(&msg).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["action"], "subscribe");
+        assert!(parsed["container"].is_null());
+        assert!(parsed["tail_lines"].is_null());
+    }
+
+    #[test]
+    fn test_log_ws_message_disconnect_serialization() {
+        let msg = LogWsMessage::Disconnect;
+        let json = serde_json::to_string(&msg).unwrap();
+        assert_eq!(json, r#"{"action":"disconnect"}"#);
+    }
+
+    #[test]
+    fn test_log_ws_message_deserialize_subscribe() {
+        let json = r#"{"action":"subscribe","container":"nginx","tail_lines":50,"follow":false}"#;
+        let msg: LogWsMessage = serde_json::from_str(json).unwrap();
+        match msg {
+            LogWsMessage::Subscribe { container, tail_lines, follow } => {
+                assert_eq!(container, Some("nginx".to_string()));
+                assert_eq!(tail_lines, Some(50));
+                assert_eq!(follow, Some(false));
+            }
+            _ => panic!("Expected Subscribe variant"),
+        }
+    }
+
+    #[test]
+    fn test_log_ws_message_deserialize_disconnect() {
+        let json = r#"{"action":"disconnect"}"#;
+        let msg: LogWsMessage = serde_json::from_str(json).unwrap();
+        match msg {
+            LogWsMessage::Disconnect => {}
+            _ => panic!("Expected Disconnect variant"),
+        }
+    }
+
+    #[test]
+    fn test_exec_ws_message_stdin_serialization() {
+        let msg = ExecWsMessage::Stdin { data: "ls -la\n".to_string() };
+        let json = serde_json::to_string(&msg).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["type"], "stdin");
+        assert_eq!(parsed["data"], "ls -la\n");
+    }
+
+    #[test]
+    fn test_exec_ws_message_resize_serialization() {
+        let msg = ExecWsMessage::Resize { cols: 80, rows: 24 };
+        let json = serde_json::to_string(&msg).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["type"], "resize");
+        assert_eq!(parsed["cols"], 80);
+        assert_eq!(parsed["rows"], 24);
+    }
+
+    #[test]
+    fn test_exec_ws_message_deserialize_stdin() {
+        let json = r#"{"type":"stdin","data":"echo hello"}"#;
+        let msg: ExecWsMessage = serde_json::from_str(json).unwrap();
+        match msg {
+            ExecWsMessage::Stdin { data } => {
+                assert_eq!(data, "echo hello");
+            }
+            _ => panic!("Expected Stdin variant"),
+        }
+    }
+
+    #[test]
+    fn test_exec_ws_message_deserialize_resize() {
+        let json = r#"{"type":"resize","cols":120,"rows":40}"#;
+        let msg: ExecWsMessage = serde_json::from_str(json).unwrap();
+        match msg {
+            ExecWsMessage::Resize { cols, rows } => {
+                assert_eq!(cols, 120);
+                assert_eq!(rows, 40);
+            }
+            _ => panic!("Expected Resize variant"),
+        }
+    }
+
+    #[test]
+    fn test_log_ws_subscribe_with_only_container() {
+        let json = r#"{"action":"subscribe","container":"sidecar"}"#;
+        let msg: LogWsMessage = serde_json::from_str(json).unwrap();
+        match msg {
+            LogWsMessage::Subscribe { container, tail_lines, follow } => {
+                assert_eq!(container, Some("sidecar".to_string()));
+                assert!(tail_lines.is_none());
+                assert!(follow.is_none());
+            }
+            _ => panic!("Expected Subscribe variant"),
+        }
+    }
+
+    #[test]
+    fn test_exec_ws_message_roundtrip() {
+        let original = ExecWsMessage::Resize { cols: 200, rows: 60 };
+        let json = serde_json::to_string(&original).unwrap();
+        let parsed: ExecWsMessage = serde_json::from_str(&json).unwrap();
+        match (original, parsed) {
+            (ExecWsMessage::Resize { cols: c1, rows: r1 }, ExecWsMessage::Resize { cols: c2, rows: r2 }) => {
+                assert_eq!(c1, c2);
+                assert_eq!(r1, r2);
+            }
+            _ => panic!("Mismatch"),
+        }
+    }
+
+    #[test]
+    fn test_log_ws_action_tag_is_lowercase() {
+        let msg = LogWsMessage::Subscribe {
+            container: None,
+            tail_lines: None,
+            follow: None,
+        };
+        let val: serde_json::Value = serde_json::to_value(&msg).unwrap();
+        assert_eq!(val["action"], "subscribe");
+    }
+}

@@ -112,3 +112,144 @@ impl SqlDb {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_integration_struct_fields() {
+        let integration = Integration {
+            id: 1,
+            project_id: 10,
+            name: "GitHub Webhook".to_string(),
+            template_id: 5,
+            auth_method: "hmac".to_string(),
+            auth_header: Some("X-Hub-Signature".to_string()),
+            auth_secret_id: Some(3),
+        };
+        assert_eq!(integration.id, 1);
+        assert_eq!(integration.name, "GitHub Webhook");
+        assert_eq!(integration.auth_method, "hmac");
+    }
+
+    #[test]
+    fn test_integration_clone() {
+        let integration = Integration {
+            id: 1,
+            project_id: 10,
+            name: "Clone Test".to_string(),
+            template_id: 5,
+            auth_method: "token".to_string(),
+            auth_header: None,
+            auth_secret_id: None,
+        };
+        let cloned = integration.clone();
+        assert_eq!(cloned.id, integration.id);
+        assert_eq!(cloned.name, integration.name);
+    }
+
+    #[test]
+    fn test_integration_serialization() {
+        let integration = Integration {
+            id: 1,
+            project_id: 10,
+            name: "Serialize Test".to_string(),
+            template_id: 5,
+            auth_method: "none".to_string(),
+            auth_header: None,
+            auth_secret_id: None,
+        };
+        let json = serde_json::to_string(&integration).unwrap();
+        assert!(json.contains("\"name\":\"Serialize Test\""));
+        assert!(json.contains("\"auth_method\":\"none\""));
+    }
+
+    #[test]
+    fn test_integration_deserialization() {
+        let json = r#"{"id":10,"project_id":20,"name":"Deserialized","template_id":15,"auth_method":"token","auth_header":"Authorization","auth_secret_id":5}"#;
+        let integration: Integration = serde_json::from_str(json).unwrap();
+        assert_eq!(integration.id, 10);
+        assert_eq!(integration.name, "Deserialized");
+    }
+
+    #[test]
+    fn test_integration_skip_nulls() {
+        let integration = Integration {
+            id: 1,
+            project_id: 10,
+            name: "Null Test".to_string(),
+            template_id: 5,
+            auth_method: "none".to_string(),
+            auth_header: None,
+            auth_secret_id: None,
+        };
+        let json = serde_json::to_string(&integration).unwrap();
+        assert!(!json.contains("auth_header"));
+        assert!(!json.contains("auth_secret_id"));
+    }
+
+    #[test]
+    fn test_integration_auth_methods() {
+        let methods = ["none", "hmac", "token", "basic", "oauth2"];
+        for method in &methods {
+            let integration = Integration {
+                id: 1, project_id: 1, name: "Test".to_string(), template_id: 1,
+                auth_method: method.to_string(), auth_header: None, auth_secret_id: None,
+            };
+            assert_eq!(integration.auth_method, *method);
+        }
+    }
+
+    #[test]
+    fn test_integration_with_all_fields() {
+        let integration = Integration {
+            id: 1,
+            project_id: 10,
+            name: "Full Auth".to_string(),
+            template_id: 5,
+            auth_method: "hmac".to_string(),
+            auth_header: Some("X-Signature-256".to_string()),
+            auth_secret_id: Some(42),
+        };
+        assert_eq!(integration.auth_header, Some("X-Signature-256".to_string()));
+        assert_eq!(integration.auth_secret_id, Some(42));
+    }
+
+    #[test]
+    fn test_integration_zero_values() {
+        let integration = Integration {
+            id: 0,
+            project_id: 0,
+            name: String::new(),
+            template_id: 0,
+            auth_method: String::new(),
+            auth_header: None,
+            auth_secret_id: None,
+        };
+        assert_eq!(integration.id, 0);
+        assert!(integration.name.is_empty());
+    }
+
+    #[test]
+    fn test_integration_vec_serialization() {
+        let integrations = vec![
+            Integration { id: 1, project_id: 10, name: "A".to_string(), template_id: 1, auth_method: "none".to_string(), auth_header: None, auth_secret_id: None },
+            Integration { id: 2, project_id: 10, name: "B".to_string(), template_id: 2, auth_method: "token".to_string(), auth_header: Some("Auth".to_string()), auth_secret_id: Some(1) },
+        ];
+        let json = serde_json::to_string(&integrations).unwrap();
+        assert!(json.contains("\"A\""));
+        assert!(json.contains("\"B\""));
+    }
+
+    #[test]
+    fn test_integration_debug() {
+        let integration = Integration {
+            id: 1, project_id: 10, name: "Debug".to_string(), template_id: 5,
+            auth_method: "hmac".to_string(), auth_header: None, auth_secret_id: None,
+        };
+        let debug_str = format!("{:?}", integration);
+        assert!(debug_str.contains("Debug"));
+        assert!(debug_str.contains("Integration"));
+    }
+}

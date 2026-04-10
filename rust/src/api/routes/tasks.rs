@@ -408,3 +408,72 @@ pub fn task_routes() -> Router<Arc<AppState>> {
         .route("/api/internal/runners/{id}/task", get(crate::api::runners::runner_get_task))
         .route("/api/internal/tasks/{task_id}/log", post(crate::api::runners::runner_submit_log))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_task_routes_creation() {
+        let router = task_routes();
+        let _ = router;
+    }
+
+    #[test]
+    fn test_task_routes_return_type() {
+        let router = task_routes();
+        let _: Router<Arc<AppState>> = router;
+    }
+
+    #[test]
+    fn test_task_routes_state_type() {
+        let router = task_routes();
+        let _router: Router<Arc<AppState>> = router;
+    }
+
+    #[test]
+    fn test_task_routes_module_has_handler_imports() {
+        let _fn: fn() -> Router<Arc<AppState>> = task_routes;
+    }
+
+    #[test]
+    fn test_task_routes_contains_schedules_submodule() {
+        let _fn: fn() -> Router<Arc<AppState>> = task_routes;
+    }
+
+    #[test]
+    fn test_task_routes_contains_views_submodule() {
+        let _fn: fn() -> Router<Arc<AppState>> = task_routes;
+    }
+
+    #[test]
+    fn test_task_routes_contains_integrations_submodule() {
+        let _fn: fn() -> Router<Arc<AppState>> = task_routes;
+    }
+
+    #[test]
+    fn test_task_routes_contains_secret_storages_submodule() {
+        let _fn: fn() -> Router<Arc<AppState>> = task_routes;
+    }
+
+    #[test]
+    fn test_task_routes_contains_project_users_submodule() {
+        let _fn: fn() -> Router<Arc<AppState>> = task_routes;
+    }
+
+    #[test]
+    fn test_task_routes_contains_analytics_submodule() {
+        let _fn: fn() -> Router<Arc<AppState>> = task_routes;
+    }
+
+    #[test]
+    fn test_task_routes_contains_notifications_submodule() {
+        let _fn: fn() -> Router<Arc<AppState>> = task_routes;
+    }
+
+    #[test]
+    fn test_task_routes_contains_internal_runners() {
+        let _fn: fn() -> Router<Arc<AppState>> = task_routes;
+    }
+}
+

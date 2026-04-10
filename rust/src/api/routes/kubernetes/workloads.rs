@@ -55,3 +55,20 @@ pub fn workloads_routes() -> Router<Arc<AppState>> {
         .route("/api/kubernetes/namespaces/{namespace}/statefulsets/{name}/scale", post(handlers::scale_statefulset))
         .route("/api/kubernetes/namespaces/{namespace}/statefulsets/{name}/pods", get(handlers::list_statefulset_pods))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_workloads_routes_creates() {
+        let _router: Router<Arc<AppState>> = workloads_routes();
+    }
+
+    #[test]
+    fn test_workloads_routes_returns_router() {
+        let router = workloads_routes();
+        // Проверяем что тип именно Router<Arc<AppState>>
+        let _: Router<Arc<AppState>> = router;
+    }
+}

@@ -44,3 +44,19 @@ pub fn rbac_routes() -> Router<Arc<AppState>> {
         .route("/api/kubernetes/clusterrolebindings/{name}", put(handlers::update_cluster_role_binding))
         .route("/api/kubernetes/clusterrolebindings/{name}", delete(handlers::delete_cluster_role_binding))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_rbac_routes_creates() {
+        let _router: Router<Arc<AppState>> = rbac_routes();
+    }
+
+    #[test]
+    fn test_rbac_routes_returns_router() {
+        let router = rbac_routes();
+        let _: Router<Arc<AppState>> = router;
+    }
+}

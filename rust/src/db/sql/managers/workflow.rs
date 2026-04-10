@@ -241,3 +241,183 @@ impl WorkflowManager for SqlStore {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::workflow::{
+        EdgeCondition, Workflow, WorkflowCreate, WorkflowEdge, WorkflowEdgeCreate, WorkflowNode,
+        WorkflowNodeCreate, WorkflowNodeUpdate, WorkflowRun, WorkflowUpdate,
+    };
+    use chrono::Utc;
+
+    #[test]
+    fn test_workflow_structure() {
+        let wf = Workflow {
+            id: 1,
+            project_id: 10,
+            name: "Deploy Pipeline".to_string(),
+            description: Some("CD pipeline".to_string()),
+            created: Utc::now(),
+            updated: Utc::now(),
+        };
+        assert_eq!(wf.project_id, 10);
+        assert_eq!(wf.name, "Deploy Pipeline");
+    }
+
+    #[test]
+    fn test_workflow_create_structure() {
+        let create = WorkflowCreate {
+            name: "New Workflow".to_string(),
+            description: Some("Description".to_string()),
+        };
+        assert_eq!(create.name, "New Workflow");
+    }
+
+    #[test]
+    fn test_workflow_update_structure() {
+        let update = WorkflowUpdate {
+            name: "Updated Name".to_string(),
+            description: None,
+        };
+        let json = serde_json::to_string(&update).unwrap();
+        assert!(json.contains("\"name\":\"Updated Name\""));
+        assert!(json.contains("\"description\":null"));
+    }
+
+    #[test]
+    fn test_workflow_node_structure() {
+        let node = WorkflowNode {
+            id: 1,
+            workflow_id: 5,
+            template_id: 10,
+            name: "Deploy Step".to_string(),
+            pos_x: 100.0,
+            pos_y: 200.0,
+            wave: 0,
+        };
+        assert_eq!(node.template_id, 10);
+        assert_eq!(node.wave, 0);
+    }
+
+    #[test]
+    fn test_workflow_node_create() {
+        let create = WorkflowNodeCreate {
+            template_id: 5,
+            name: "Test Node".to_string(),
+            pos_x: 0.0,
+            pos_y: 0.0,
+            wave: 1,
+        };
+        assert_eq!(create.wave, 1);
+    }
+
+    #[test]
+    fn test_workflow_node_update() {
+        let update = WorkflowNodeUpdate {
+            name: "Renamed".to_string(),
+            pos_x: 150.0,
+            pos_y: 250.0,
+            wave: 2,
+        };
+        assert_eq!(update.name, "Renamed");
+    }
+
+    #[test]
+    fn test_edge_condition_variants() {
+        assert_eq!(EdgeCondition::Success.to_string(), "success");
+        assert_eq!(EdgeCondition::Failure.to_string(), "failure");
+        assert_eq!(EdgeCondition::Always.to_string(), "always");
+    }
+
+    #[test]
+    fn test_edge_condition_equality() {
+        assert_eq!(EdgeCondition::Success, EdgeCondition::Success);
+        assert_ne!(EdgeCondition::Success, EdgeCondition::Failure);
+    }
+
+    #[test]
+    fn test_workflow_edge_structure() {
+        let edge = WorkflowEdge {
+            id: 1,
+            workflow_id: 5,
+            from_node_id: 2,
+            to_node_id: 3,
+            condition: "success".to_string(),
+        };
+        assert_eq!(edge.from_node_id, 2);
+        assert_eq!(edge.to_node_id, 3);
+    }
+
+    #[test]
+    fn test_workflow_edge_create() {
+        let create = WorkflowEdgeCreate {
+            from_node_id: 1,
+            to_node_id: 2,
+            condition: "always".to_string(),
+        };
+        let json = serde_json::to_string(&create).unwrap();
+        assert!(json.contains("\"from_node_id\":1"));
+        assert!(json.contains("\"to_node_id\":2"));
+    }
+
+    #[test]
+    fn test_workflow_run_structure() {
+        let run = WorkflowRun {
+            id: 1,
+            workflow_id: 5,
+            project_id: 10,
+            status: "running".to_string(),
+            message: None,
+            created: Utc::now(),
+            started: None,
+            finished: None,
+        };
+        assert_eq!(run.workflow_id, 5);
+        assert_eq!(run.status, "running");
+    }
+
+    #[test]
+    fn test_sql_query_get_workflows() {
+        let query = "SELECT * FROM workflow WHERE project_id = $1 ORDER BY name";
+        assert!(query.contains("workflow"));
+        assert!(query.contains("project_id"));
+    }
+
+    #[test]
+    fn test_sql_query_create_workflow_node() {
+        let query = "INSERT INTO workflow_node (workflow_id, template_id, name, pos_x, pos_y)
+                 VALUES ($1, $2, $3, $4, $5) RETURNING *";
+        assert!(query.contains("workflow_node"));
+        assert!(query.contains("template_id"));
+    }
+
+    #[test]
+    fn test_sql_query_workflow_edges() {
+        let query = "SELECT * FROM workflow_edge WHERE workflow_id = $1 ORDER BY id";
+        assert!(query.contains("workflow_edge"));
+    }
+
+    #[test]
+    fn test_sql_query_workflow_run() {
+        let query = "INSERT INTO workflow_run (workflow_id, project_id, status, created)
+                 VALUES ($1, $2, 'pending', NOW()) RETURNING *";
+        assert!(query.contains("workflow_run"));
+        assert!(query.contains("'pending'"));
+    }
+
+    #[test]
+    fn test_workflow_serialize() {
+        let wf = Workflow {
+            id: 1,
+            project_id: 1,
+            name: "Test WF".to_string(),
+            description: None,
+            created: Utc::now(),
+            updated: Utc::now(),
+        };
+        let json = serde_json::to_string(&wf).unwrap();
+        assert!(json.contains("\"name\":\"Test WF\""));
+        assert!(json.contains("\"project_id\":1"));
+    }
+}

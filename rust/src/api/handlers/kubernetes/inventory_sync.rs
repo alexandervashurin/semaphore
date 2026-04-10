@@ -394,6 +394,235 @@ fn sanitize_value(value: &str) -> String {
         .collect()
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json;
+
+    // --- SyncType tests ---
+
+    #[test]
+    fn test_sync_type_default_is_nodes() {
+        let st = SyncType::default();
+        assert_eq!(st, SyncType::Nodes);
+    }
+
+    #[test]
+    fn test_sync_type_serialize_nodes() {
+        let json = serde_json::to_string(&SyncType::Nodes).unwrap();
+        assert_eq!(json, "\"nodes\"");
+    }
+
+    #[test]
+    fn test_sync_type_serialize_pods() {
+        let json = serde_json::to_string(&SyncType::Pods).unwrap();
+        assert_eq!(json, "\"pods\"");
+    }
+
+    #[test]
+    fn test_sync_type_serialize_all() {
+        let json = serde_json::to_string(&SyncType::All).unwrap();
+        assert_eq!(json, "\"all\"");
+    }
+
+    #[test]
+    fn test_sync_type_deserialize_nodes() {
+        let st: SyncType = serde_json::from_str("\"nodes\"").unwrap();
+        assert_eq!(st, SyncType::Nodes);
+    }
+
+    #[test]
+    fn test_sync_type_deserialize_pods() {
+        let st: SyncType = serde_json::from_str("\"pods\"").unwrap();
+        assert_eq!(st, SyncType::Pods);
+    }
+
+    #[test]
+    fn test_sync_type_deserialize_all() {
+        let st: SyncType = serde_json::from_str("\"all\"").unwrap();
+        assert_eq!(st, SyncType::All);
+    }
+
+    #[test]
+    fn test_sync_type_deserialize_invalid_returns_error() {
+        let result: serde_json::Result<SyncType> = serde_json::from_str("\"invalid\"");
+        assert!(result.is_err());
+    }
+
+    // --- InventorySyncParams tests ---
+
+    #[test]
+    fn test_inventory_sync_params_deserialize_minimal() {
+        let json = r#"{"project_id": 1}"#;
+        let params: InventorySyncParams = serde_json::from_str(json).unwrap();
+        assert_eq!(params.project_id, 1);
+        assert_eq!(params.sync_type, SyncType::Nodes);
+        assert!(params.namespace.is_none());
+        assert!(params.label_selector.is_none());
+        assert!(params.name_prefix.is_none());
+        assert!(!params.create_new);
+        assert!(params.inventory_id.is_none());
+    }
+
+    #[test]
+    fn test_inventory_sync_params_deserialize_full() {
+        let json = r#"{
+            "project_id": 42,
+            "sync_type": "pods",
+            "namespace": "kube-system",
+            "label_selector": "app=nginx",
+            "name_prefix": "my-inventory",
+            "create_new": true,
+            "inventory_id": 7
+        }"#;
+        let params: InventorySyncParams = serde_json::from_str(json).unwrap();
+        assert_eq!(params.project_id, 42);
+        assert_eq!(params.sync_type, SyncType::Pods);
+        assert_eq!(params.namespace, Some("kube-system".to_string()));
+        assert_eq!(params.label_selector, Some("app=nginx".to_string()));
+        assert_eq!(params.name_prefix, Some("my-inventory".to_string()));
+        assert!(params.create_new);
+        assert_eq!(params.inventory_id, Some(7));
+    }
+
+    #[test]
+    fn test_inventory_sync_params_missing_project_id_errors() {
+        let json = r#"{}"#;
+        let result: serde_json::Result<InventorySyncParams> = serde_json::from_str(json);
+        assert!(result.is_err());
+    }
+
+    // --- sanitize_value tests ---
+
+    #[test]
+    fn test_sanitize_value_spaces() {
+        assert_eq!(sanitize_value("my value"), "my_value");
+    }
+
+    #[test]
+    fn test_sanitize_value_slashes() {
+        assert_eq!(sanitize_value("my/value"), "my_value");
+    }
+
+    #[test]
+    fn test_sanitize_value_dashes() {
+        assert_eq!(sanitize_value("my-value"), "my_value");
+    }
+
+    #[test]
+    fn test_sanitize_value_dots() {
+        assert_eq!(sanitize_value("my.value"), "my_value");
+    }
+
+    #[test]
+    fn test_sanitize_value_mixed() {
+        assert_eq!(sanitize_value("my-app.k8s.io/name"), "my_app_k8s_io_name");
+    }
+
+    #[test]
+    fn test_sanitize_value_already_clean() {
+        assert_eq!(sanitize_value("alphanumeric123"), "alphanumeric123");
+    }
+
+    #[test]
+    fn test_sanitize_value_empty() {
+        assert_eq!(sanitize_value(""), "");
+    }
+
+    #[test]
+    fn test_sanitize_value_removes_special_chars() {
+        assert_eq!(sanitize_value("val@#$%^&*!"), "val");
+    }
+
+    // --- ResourcePreview / InventorySyncPreview / InventorySyncResult ---
+
+    #[test]
+    fn test_resource_preview_serialize() {
+        let mut labels = std::collections::BTreeMap::new();
+        labels.insert("app".to_string(), "nginx".to_string());
+        let mut annotations = std::collections::BTreeMap::new();
+        annotations.insert("description".to_string(), "test".to_string());
+
+        let preview = ResourcePreview {
+            name: "node-1".to_string(),
+            ip: "10.0.0.1".to_string(),
+            labels,
+            annotations,
+        };
+        let json = serde_json::to_string(&preview).unwrap();
+        assert!(json.contains("\"name\":\"node-1\""));
+        assert!(json.contains("\"ip\":\"10.0.0.1\""));
+        assert!(json.contains("\"app\""));
+        assert!(json.contains("\"nginx\""));
+    }
+
+    #[test]
+    fn test_inventory_sync_preview_serialize() {
+        let preview = InventorySyncPreview {
+            sync_type: SyncType::Nodes,
+            resource_count: 3,
+            examples: vec![],
+            inventory_content: "# test\n".to_string(),
+            warnings: vec!["warn1".to_string()],
+        };
+        let json = serde_json::to_string(&preview).unwrap();
+        assert!(json.contains("\"sync_type\":\"nodes\""));
+        assert!(json.contains("\"resource_count\":3"));
+        assert!(json.contains("\"warnings\":[\"warn1\"]"));
+    }
+
+    #[test]
+    fn test_inventory_sync_result_serialize() {
+        let result = InventorySyncResult {
+            inventory_id: 10,
+            inventory_name: "K8s Nodes".to_string(),
+            sync_type: SyncType::Nodes,
+            synced_count: 5,
+            message: "ok".to_string(),
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("\"inventory_id\":10"));
+        assert!(json.contains("\"inventory_name\":\"K8s Nodes\""));
+        assert!(json.contains("\"sync_type\":\"nodes\""));
+        assert!(json.contains("\"synced_count\":5"));
+        assert!(json.contains("\"message\":\"ok\""));
+    }
+
+    // --- Inventory content generation (pure function tests) ---
+
+    #[test]
+    fn test_generate_nodes_inventory_empty() {
+        let nodes: Vec<Node> = vec![];
+        let content = generate_nodes_inventory(&nodes);
+        assert!(content.contains("# Kubernetes Nodes Inventory"));
+        assert!(content.contains("[k8s_nodes]"));
+        assert!(content.contains("[k8s_masters]"));
+        assert!(content.contains("[k8s_workers]"));
+    }
+
+    #[test]
+    fn test_generate_pods_inventory_empty() {
+        let pods: Vec<Pod> = vec![];
+        let content = generate_pods_inventory(&pods, "default");
+        assert!(content.contains("# Kubernetes Pods Inventory - Namespace: default"));
+        assert!(content.contains("[k8s_pods]"));
+    }
+
+    #[test]
+    fn test_generate_nodes_inventory_has_section_headers() {
+        let nodes: Vec<Node> = vec![];
+        let content = generate_nodes_inventory(&nodes);
+        // Verify all three group sections are present
+        assert!(content.contains("[k8s_nodes]"));
+        assert!(content.contains("[k8s_masters]"));
+        assert!(content.contains("[k8s_workers]"));
+        // Verify order: nodes section comes before masters
+        let nodes_pos = content.find("[k8s_nodes]").unwrap();
+        let masters_pos = content.find("[k8s_masters]").unwrap();
+        assert!(nodes_pos < masters_pos);
+    }
+}
+
 /// Выполнить синхронизацию инвентаря
 pub async fn execute_inventory_sync(
     State(state): State<Arc<AppState>>,

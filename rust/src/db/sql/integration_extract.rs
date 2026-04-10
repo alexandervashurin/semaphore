@@ -117,3 +117,170 @@ impl SqlDb {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_integration_extract_value_struct_fields() {
+        let value = IntegrationExtractValue {
+            id: 1,
+            integration_id: 10,
+            project_id: 5,
+            name: "Extract URL".to_string(),
+            value_source: "body".to_string(),
+            body_data_type: "json".to_string(),
+            key: Some("$.url".to_string()),
+            variable: Some("DEPLOY_URL".to_string()),
+            value_name: "url".to_string(),
+            value_type: "string".to_string(),
+        };
+        assert_eq!(value.id, 1);
+        assert_eq!(value.integration_id, 10);
+        assert_eq!(value.name, "Extract URL");
+        assert_eq!(value.value_source, "body");
+        assert_eq!(value.value_type, "string");
+    }
+
+    #[test]
+    fn test_integration_extract_value_clone() {
+        let value = IntegrationExtractValue {
+            id: 1,
+            integration_id: 10,
+            project_id: 5,
+            name: "Clone Extract".to_string(),
+            value_source: "header".to_string(),
+            body_data_type: "text".to_string(),
+            key: None,
+            variable: None,
+            value_name: "header_val".to_string(),
+            value_type: "string".to_string(),
+        };
+        let cloned = value.clone();
+        assert_eq!(cloned.id, value.id);
+        assert_eq!(cloned.name, value.name);
+        assert_eq!(cloned.key, value.key);
+    }
+
+    #[test]
+    fn test_integration_extract_value_serialization() {
+        let value = IntegrationExtractValue {
+            id: 1,
+            integration_id: 10,
+            project_id: 5,
+            name: "Test Extract".to_string(),
+            value_source: "body".to_string(),
+            body_data_type: "json".to_string(),
+            key: Some("$.data.id".to_string()),
+            variable: Some("DATA_ID".to_string()),
+            value_name: "data_id".to_string(),
+            value_type: "integer".to_string(),
+        };
+        let json = serde_json::to_string(&value).unwrap();
+        assert!(json.contains("\"name\":\"Test Extract\""));
+        assert!(json.contains("\"key\":\"$.data.id\""));
+        assert!(json.contains("\"value_type\":\"integer\""));
+    }
+
+    #[test]
+    fn test_integration_extract_value_deserialization() {
+        let json = r#"{"id":5,"integration_id":20,"project_id":10,"name":"Deserialized","value_source":"body","body_data_type":"json","key":"$.name","variable":"NAME","value_name":"name","value_type":"string"}"#;
+        let value: IntegrationExtractValue = serde_json::from_str(json).unwrap();
+        assert_eq!(value.id, 5);
+        assert_eq!(value.name, "Deserialized");
+        assert_eq!(value.key, Some("$.name".to_string()));
+    }
+
+    #[test]
+    fn test_integration_extract_value_null_fields() {
+        let value = IntegrationExtractValue {
+            id: 1,
+            integration_id: 10,
+            project_id: 5,
+            name: "Null Fields".to_string(),
+            value_source: "body".to_string(),
+            body_data_type: "json".to_string(),
+            key: None,
+            variable: None,
+            value_name: "test".to_string(),
+            value_type: "string".to_string(),
+        };
+        let json = serde_json::to_string(&value).unwrap();
+        assert!(json.contains("\"key\":null"));
+        assert!(json.contains("\"variable\":null"));
+    }
+
+    #[test]
+    fn test_integration_extract_value_all_value_sources() {
+        let sources = ["body", "header", "query", "cookie", "path"];
+        for source in &sources {
+            let value = IntegrationExtractValue {
+                id: 1, integration_id: 1, project_id: 1, name: "Test".to_string(),
+                value_source: source.to_string(), body_data_type: "json".to_string(),
+                key: None, variable: None, value_name: "test".to_string(),
+                value_type: "string".to_string(),
+            };
+            let json = serde_json::to_string(&value).unwrap();
+            assert!(json.contains(source));
+        }
+    }
+
+    #[test]
+    fn test_integration_extract_value_all_data_types() {
+        let data_types = ["json", "xml", "text", "form", "yaml"];
+        for dt in &data_types {
+            let value = IntegrationExtractValue {
+                id: 1, integration_id: 1, project_id: 1, name: "Test".to_string(),
+                value_source: "body".to_string(), body_data_type: dt.to_string(),
+                key: None, variable: None, value_name: "test".to_string(),
+                value_type: "string".to_string(),
+            };
+            assert_eq!(value.body_data_type, *dt);
+        }
+    }
+
+    #[test]
+    fn test_integration_extract_value_zero_id() {
+        let value = IntegrationExtractValue {
+            id: 0,
+            integration_id: 0,
+            project_id: 0,
+            name: String::new(),
+            value_source: String::new(),
+            body_data_type: String::new(),
+            key: None,
+            variable: None,
+            value_name: String::new(),
+            value_type: String::new(),
+        };
+        assert_eq!(value.id, 0);
+        assert!(value.name.is_empty());
+    }
+
+    #[test]
+    fn test_integration_extract_value_vec_serialization() {
+        let values = vec![
+            IntegrationExtractValue { id: 1, integration_id: 10, project_id: 5, name: "A".to_string(), value_source: "body".to_string(), body_data_type: "json".to_string(), key: None, variable: None, value_name: "a".to_string(), value_type: "string".to_string() },
+            IntegrationExtractValue { id: 2, integration_id: 10, project_id: 5, name: "B".to_string(), value_source: "header".to_string(), body_data_type: "text".to_string(), key: Some("X-Val".to_string()), variable: None, value_name: "b".to_string(), value_type: "string".to_string() },
+        ];
+        let json = serde_json::to_string(&values).unwrap();
+        assert!(json.contains("\"A\""));
+        assert!(json.contains("\"B\""));
+        assert!(json.contains("\"id\":1"));
+        assert!(json.contains("\"id\":2"));
+    }
+
+    #[test]
+    fn test_integration_extract_value_debug() {
+        let value = IntegrationExtractValue {
+            id: 1, integration_id: 10, project_id: 5, name: "Debug".to_string(),
+            value_source: "body".to_string(), body_data_type: "json".to_string(),
+            key: None, variable: None, value_name: "debug".to_string(),
+            value_type: "string".to_string(),
+        };
+        let debug_str = format!("{:?}", value);
+        assert!(debug_str.contains("Debug"));
+        assert!(debug_str.contains("IntegrationExtractValue"));
+    }
+}

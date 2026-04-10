@@ -154,3 +154,137 @@ pub async fn update_mcp_settings(
 pub async fn get_mcp_tools(_auth: AuthUser) -> impl IntoResponse {
     Json(json!({ "tools": tools::all_definitions() }))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── Constants ────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_mcp_version_is_non_empty() {
+        assert!(!MCP_VERSION.is_empty());
+        assert_eq!(MCP_VERSION, "2024-11-05");
+    }
+
+    #[test]
+    fn test_server_name_is_non_empty() {
+        assert!(!SERVER_NAME.is_empty());
+        assert_eq!(SERVER_NAME, "velum-mcp");
+    }
+
+    #[test]
+    fn test_server_version_from_cargo() {
+        assert!(!SERVER_VERSION.is_empty());
+        // CARGO_PKG_VERSION should be a valid semver string
+        assert!(SERVER_VERSION
+            .chars()
+            .next()
+            .map(|c| c.is_ascii_digit())
+            .unwrap_or(false));
+    }
+
+    // ── McpSettings ──────────────────────────────────────────────────────
+
+    #[test]
+    fn test_mcp_settings_serializes() {
+        let settings = McpSettings {
+            enabled: true,
+            tool_count: 30,
+            endpoint: "/mcp",
+            transport: "http (JSON-RPC 2.0)",
+            version: "2024-11-05",
+        };
+        let serialized = serde_json::to_string(&settings).unwrap();
+        assert!(serialized.contains("\"enabled\":true"));
+        assert!(serialized.contains("\"tool_count\":30"));
+        assert!(serialized.contains("\"endpoint\":\"/mcp\""));
+    }
+
+    #[test]
+    fn test_mcp_settings_disabled() {
+        let settings = McpSettings {
+            enabled: false,
+            tool_count: 0,
+            endpoint: "/mcp",
+            transport: "http",
+            version: "v1",
+        };
+        let val = serde_json::to_value(&settings).unwrap();
+        assert_eq!(val["enabled"], false);
+        assert_eq!(val["tool_count"], 0);
+    }
+
+    // ── McpSettingsUpdate ────────────────────────────────────────────────
+
+    #[test]
+    fn test_mcp_settings_update_deserialize_enabled() {
+        let body = json!({"enabled": true});
+        let update: McpSettingsUpdate = serde_json::from_value(body).unwrap();
+        assert_eq!(update.enabled, Some(true));
+    }
+
+    #[test]
+    fn test_mcp_settings_update_deserialize_disabled() {
+        let body = json!({"enabled": false});
+        let update: McpSettingsUpdate = serde_json::from_value(body).unwrap();
+        assert_eq!(update.enabled, Some(false));
+    }
+
+    #[test]
+    fn test_mcp_settings_update_deserialize_null_enabled() {
+        let body = json!({"enabled": null});
+        let update: McpSettingsUpdate = serde_json::from_value(body).unwrap();
+        assert_eq!(update.enabled, None);
+    }
+
+    #[test]
+    fn test_mcp_settings_update_missing_enabled() {
+        let body = json!({});
+        let update: McpSettingsUpdate = serde_json::from_value(body).unwrap();
+        assert_eq!(update.enabled, None);
+    }
+
+    // ── Tool definitions count ───────────────────────────────────────────
+
+    #[test]
+    fn test_all_definitions_not_empty() {
+        let defs = tools::all_definitions();
+        assert!(!defs.is_empty());
+    }
+
+    #[test]
+    fn test_all_definitions_have_required_fields() {
+        let defs = tools::all_definitions();
+        for def in defs {
+            assert!(def.get("name").is_some(), "tool missing name");
+            assert!(def.get("description").is_some(), "tool missing description");
+            assert!(def.get("inputSchema").is_some(), "tool missing inputSchema");
+        }
+    }
+
+    #[test]
+    fn test_specific_tool_names_exist() {
+        let defs = tools::all_definitions();
+        let names: Vec<&str> = defs
+            .iter()
+            .filter_map(|d| d["name"].as_str())
+            .collect();
+        assert!(names.contains(&"list_projects"));
+        assert!(names.contains(&"run_template"));
+        assert!(names.contains(&"stop_task"));
+        assert!(names.contains(&"create_schedule"));
+        assert!(names.contains(&"ai_create_template"));
+    }
+
+    #[test]
+    fn test_tool_schema_has_valid_input_schema() {
+        let defs = tools::all_definitions();
+        for def in defs {
+            let schema = &def["inputSchema"];
+            assert_eq!(schema["type"], "object");
+            assert!(schema.get("properties").is_some());
+            assert!(schema.get("required").is_some());
+        }
+    }
+}

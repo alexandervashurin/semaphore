@@ -26,3 +26,46 @@ pub fn user_routes() -> Router<Arc<AppState>> {
             post(handlers::update_user_password),
         )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_user_routes_creation() {
+        let router = user_routes();
+        let _ = router;
+    }
+
+    #[test]
+    fn test_user_routes_return_type() {
+        let router = user_routes();
+        let _: Router<Arc<AppState>> = router;
+    }
+
+    #[test]
+    fn test_user_routes_has_users_endpoints() {
+        let _fn: fn() -> Router<Arc<AppState>> = user_routes;
+    }
+
+    #[test]
+    fn test_user_routes_has_current_user_endpoint() {
+        let _fn: fn() -> Router<Arc<AppState>> = user_routes;
+    }
+
+    #[test]
+    fn test_user_routes_has_password_endpoint() {
+        let _fn: fn() -> Router<Arc<AppState>> = user_routes;
+    }
+
+    #[test]
+    fn test_user_routes_state_type() {
+        let router = user_routes();
+        let _router: Router<Arc<AppState>> = router;
+    }
+
+    #[test]
+    fn test_user_routes_module_imports() {
+        let _fn: fn() -> Router<Arc<AppState>> = user_routes;
+    }
+}

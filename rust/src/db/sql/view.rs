@@ -93,3 +93,130 @@ impl SqlDb {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_view_name_method() {
+        let view = View {
+            id: 1,
+            project_id: 10,
+            title: "My View".to_string(),
+            position: 0,
+        };
+        assert_eq!(view.name(), "My View");
+    }
+
+    #[test]
+    fn test_view_serialization() {
+        let view = View {
+            id: 5,
+            project_id: 20,
+            title: "Production".to_string(),
+            position: 1,
+        };
+        let json = serde_json::to_string(&view).unwrap();
+        assert!(json.contains("\"title\":\"Production\""));
+        assert!(json.contains("\"id\":5"));
+        assert!(json.contains("\"position\":1"));
+    }
+
+    #[test]
+    fn test_view_deserialization() {
+        let json = r#"{"id":3,"project_id":15,"title":"Dev View","position":2}"#;
+        let view: View = serde_json::from_str(json).unwrap();
+        assert_eq!(view.id, 3);
+        assert_eq!(view.title, "Dev View");
+        assert_eq!(view.position, 2);
+    }
+
+    #[test]
+    fn test_view_deserialization_with_name_alias() {
+        let json = r#"{"id":1,"project_id":1,"name":"Alias Name","position":0}"#;
+        let view: View = serde_json::from_str(json).unwrap();
+        assert_eq!(view.title, "Alias Name");
+    }
+
+    #[test]
+    fn test_view_clone() {
+        let view = View {
+            id: 10,
+            project_id: 5,
+            title: "Clone View".to_string(),
+            position: 3,
+        };
+        let cloned = view.clone();
+        assert_eq!(cloned.title, view.title);
+        assert_eq!(cloned.position, view.position);
+    }
+
+    #[test]
+    fn test_view_debug_format() {
+        let view = View {
+            id: 1,
+            project_id: 1,
+            title: "Debug".to_string(),
+            position: 0,
+        };
+        let debug_str = format!("{:?}", view);
+        assert!(debug_str.contains("View"));
+        assert!(debug_str.contains("Debug"));
+    }
+
+    #[test]
+    fn test_view_default_values() {
+        let view = View {
+            id: 0,
+            project_id: 0,
+            title: String::new(),
+            position: 0,
+        };
+        assert_eq!(view.id, 0);
+        assert_eq!(view.title, "");
+        assert_eq!(view.name(), "");
+    }
+
+    #[test]
+    fn test_view_position_ordering() {
+        let views = vec![
+            View { id: 3, project_id: 1, title: "Third".to_string(), position: 2 },
+            View { id: 1, project_id: 1, title: "First".to_string(), position: 0 },
+            View { id: 2, project_id: 1, title: "Second".to_string(), position: 1 },
+        ];
+        let mut sorted = views.clone();
+        sorted.sort_by_key(|v| v.position);
+        assert_eq!(sorted[0].title, "First");
+        assert_eq!(sorted[1].title, "Second");
+        assert_eq!(sorted[2].title, "Third");
+    }
+
+    #[test]
+    fn test_view_serialization_roundtrip() {
+        let original = View {
+            id: 99,
+            project_id: 42,
+            title: "Roundtrip".to_string(),
+            position: 10,
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let decoded: View = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.id, original.id);
+        assert_eq!(decoded.title, original.title);
+        assert_eq!(decoded.position, original.position);
+    }
+
+    #[test]
+    fn test_view_with_special_characters() {
+        let view = View {
+            id: 1,
+            project_id: 1,
+            title: "View with \"quotes\" & <tags>".to_string(),
+            position: 0,
+        };
+        let json = serde_json::to_string(&view).unwrap();
+        let decoded: View = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.title, "View with \"quotes\" & <tags>");
+    }
+}

@@ -324,3 +324,181 @@ impl QueryRoot {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::api::graphql::types::{User, Project, Template, Task, Inventory, Repository, Environment, Schedule, Runner, AuditEvent, KubernetesNamespace, KubernetesNode, KubernetesClusterInfo};
+
+    #[test]
+    fn test_query_root_exists() {
+        let root = QueryRoot;
+        drop(root);
+    }
+
+    #[test]
+    fn test_user_type_fields() {
+        let user = User {
+            id: 1,
+            username: "admin".to_string(),
+            name: "Admin".to_string(),
+            email: "admin@test.com".to_string(),
+            admin: true,
+        };
+        assert_eq!(user.id, 1);
+        assert_eq!(user.username, "admin");
+        assert!(user.admin);
+    }
+
+    #[test]
+    fn test_project_type_fields() {
+        let project = Project {
+            id: 42,
+            name: "My Project".to_string(),
+        };
+        assert_eq!(project.id, 42);
+        assert_eq!(project.name, "My Project");
+    }
+
+    #[test]
+    fn test_template_type_fields() {
+        let template = Template {
+            id: 1,
+            project_id: 10,
+            name: "deploy".to_string(),
+            playbook: "deploy.yml".to_string(),
+        };
+        assert_eq!(template.project_id, 10);
+        assert_eq!(template.playbook, "deploy.yml");
+    }
+
+    #[test]
+    fn test_task_type_fields() {
+        let task = Task {
+            id: 100,
+            template_id: 5,
+            project_id: 10,
+            status: "running".to_string(),
+            created: "2024-01-01T00:00:00Z".to_string(),
+        };
+        assert_eq!(task.id, 100);
+        assert_eq!(task.status, "running");
+    }
+
+    #[test]
+    fn test_inventory_type_fields() {
+        let inventory = Inventory {
+            id: 1,
+            project_id: 10,
+            name: "hosts".to_string(),
+            r#type: "static".to_string(),
+        };
+        assert_eq!(inventory.r#type, "static");
+        assert_eq!(inventory.name, "hosts");
+    }
+
+    #[test]
+    fn test_repository_type_fields() {
+        let repo = Repository {
+            id: 1,
+            project_id: 10,
+            name: "my-repo".to_string(),
+            git_url: "https://github.com/test/repo.git".to_string(),
+            git_branch: "main".to_string(),
+        };
+        assert_eq!(repo.git_url, "https://github.com/test/repo.git");
+        assert_eq!(repo.git_branch, "main");
+    }
+
+    #[test]
+    fn test_environment_type_fields() {
+        let env = Environment {
+            id: 1,
+            project_id: 10,
+            name: "production".to_string(),
+        };
+        assert_eq!(env.name, "production");
+    }
+
+    #[test]
+    fn test_schedule_type_fields() {
+        let schedule = Schedule {
+            id: 1,
+            project_id: 10,
+            template_id: 5,
+            name: "nightly".to_string(),
+            cron_format: "0 0 * * *".to_string(),
+            active: true,
+        };
+        assert_eq!(schedule.cron_format, "0 0 * * *");
+        assert!(schedule.active);
+    }
+
+    #[test]
+    fn test_runner_type_fields() {
+        let runner = Runner {
+            id: 1,
+            name: "runner-1".to_string(),
+            active: true,
+            webhook: "https://runner.example.com/hook".to_string(),
+        };
+        assert_eq!(runner.name, "runner-1");
+        assert!(runner.active);
+    }
+
+    #[test]
+    fn test_audit_event_type_fields() {
+        let event = AuditEvent {
+            id: 1,
+            project_id: Some(10),
+            object_type: "template".to_string(),
+            object_id: 5,
+            description: "Template created".to_string(),
+            created: "2024-01-01T00:00:00Z".to_string(),
+        };
+        assert_eq!(event.object_type, "template");
+        assert_eq!(event.description, "Template created");
+    }
+
+    #[test]
+    fn test_kubernetes_namespace_fields() {
+        let ns = KubernetesNamespace {
+            name: "default".to_string(),
+            status: "Active".to_string(),
+            labels: vec!["kubernetes.io/metadata.name=default".to_string()],
+        };
+        assert_eq!(ns.name, "default");
+        assert_eq!(ns.status, "Active");
+    }
+
+    #[test]
+    fn test_kubernetes_node_fields() {
+        let node = KubernetesNode {
+            name: "node-1".to_string(),
+            status: "Ready".to_string(),
+            roles: vec!["master".to_string(), "control-plane".to_string()],
+            version: "v1.30.0".to_string(),
+            os_image: "Ubuntu 22.04.3 LTS".to_string(),
+        };
+        assert_eq!(node.version, "v1.30.0");
+        assert_eq!(node.os_image, "Ubuntu 22.04.3 LTS");
+    }
+
+    #[test]
+    fn test_kubernetes_cluster_info_fields() {
+        let info = KubernetesClusterInfo {
+            server_url: "https://k8s.example.com:6443".to_string(),
+            version: "v1.30.0".to_string(),
+            namespace: "velum".to_string(),
+        };
+        assert_eq!(info.server_url, "https://k8s.example.com:6443");
+        assert_eq!(info.namespace, "velum");
+    }
+
+    #[test]
+    fn test_query_root_multiple_instances() {
+        let _root1 = QueryRoot;
+        let _root2 = QueryRoot;
+        // Multiple instances should be possible
+    }
+}

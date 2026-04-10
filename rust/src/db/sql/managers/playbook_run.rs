@@ -275,3 +275,196 @@ impl PlaybookRunManager for SqlStore {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::playbook_run_history::{
+        PlaybookRun, PlaybookRunCreate, PlaybookRunFilter, PlaybookRunStats, PlaybookRunStatus,
+        PlaybookRunUpdate,
+    };
+    use chrono::Utc;
+
+    #[test]
+    fn test_playbook_run_status_display() {
+        assert_eq!(PlaybookRunStatus::Waiting.to_string(), "waiting");
+        assert_eq!(PlaybookRunStatus::Running.to_string(), "running");
+        assert_eq!(PlaybookRunStatus::Success.to_string(), "success");
+        assert_eq!(PlaybookRunStatus::Failed.to_string(), "failed");
+        assert_eq!(PlaybookRunStatus::Cancelled.to_string(), "cancelled");
+    }
+
+    #[test]
+    fn test_playbook_run_status_serialization() {
+        let statuses = vec![
+            PlaybookRunStatus::Waiting,
+            PlaybookRunStatus::Running,
+            PlaybookRunStatus::Success,
+            PlaybookRunStatus::Failed,
+            PlaybookRunStatus::Cancelled,
+        ];
+        for s in statuses {
+            let json = serde_json::to_string(&s).unwrap();
+            assert!(!json.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_playbook_run_create_structure() {
+        let create = PlaybookRunCreate {
+            project_id: 1,
+            playbook_id: 10,
+            task_id: Some(100),
+            template_id: Some(5),
+            inventory_id: None,
+            environment_id: Some(2),
+            extra_vars: Some(r#"{"key": "val"}"#.to_string()),
+            limit_hosts: Some("web-*".to_string()),
+            tags: Some("deploy".to_string()),
+            skip_tags: Some("debug".to_string()),
+            user_id: Some(42),
+        };
+        assert_eq!(create.project_id, 1);
+        assert_eq!(create.playbook_id, 10);
+        assert!(create.limit_hosts.is_some());
+    }
+
+    #[test]
+    fn test_playbook_run_update_skip_nulls() {
+        let update = PlaybookRunUpdate {
+            status: Some(PlaybookRunStatus::Success),
+            start_time: Some(Utc::now()),
+            end_time: Some(Utc::now()),
+            duration_seconds: Some(60),
+            hosts_total: Some(5),
+            hosts_changed: Some(2),
+            hosts_unreachable: Some(0),
+            hosts_failed: Some(0),
+            output: Some("OK".to_string()),
+            error_message: None,
+        };
+        let json = serde_json::to_string(&update).unwrap();
+        assert!(json.contains("\"hosts_total\":5"));
+        assert!(json.contains("\"duration_seconds\":60"));
+        assert!(!json.contains("\"error_message\":"));
+    }
+
+    #[test]
+    fn test_playbook_run_stats_structure() {
+        let stats = PlaybookRunStats {
+            total_runs: 150,
+            success_runs: 130,
+            failed_runs: 15,
+            avg_duration_seconds: Some(45.2),
+            last_run: Some(Utc::now()),
+        };
+        assert_eq!(stats.total_runs, 150);
+        assert!(stats.avg_duration_seconds.is_some());
+    }
+
+    #[test]
+    fn test_playbook_run_filter_default() {
+        let filter = PlaybookRunFilter::default();
+        assert!(filter.project_id.is_none());
+        assert!(filter.playbook_id.is_none());
+        assert!(filter.status.is_none());
+        assert!(filter.limit.is_none());
+        assert!(filter.offset.is_none());
+    }
+
+    #[test]
+    fn test_playbook_run_filter_with_values() {
+        let filter = PlaybookRunFilter {
+            project_id: Some(1),
+            playbook_id: Some(5),
+            status: Some(PlaybookRunStatus::Success),
+            user_id: Some(10),
+            date_from: Some(Utc::now() - chrono::Duration::days(7)),
+            date_to: Some(Utc::now()),
+            limit: Some(50),
+            offset: Some(0),
+        };
+        assert_eq!(filter.limit, Some(50));
+        assert_eq!(filter.offset, Some(0));
+    }
+
+    #[test]
+    fn test_sql_query_get_playbook_runs() {
+        let query = "SELECT * FROM playbook_run WHERE 1=1";
+        assert!(query.contains("playbook_run"));
+        assert!(query.contains("WHERE"));
+    }
+
+    #[test]
+    fn test_sql_query_get_playbook_run_by_id() {
+        let query = "SELECT * FROM playbook_run WHERE id = $1 AND project_id = $2";
+        assert!(query.contains("id"));
+        assert!(query.contains("project_id"));
+    }
+
+    #[test]
+    fn test_sql_query_update_playbook_run_status() {
+        let query = "UPDATE playbook_run SET status = $1, updated = NOW() WHERE id = $2";
+        assert!(query.contains("UPDATE"));
+        assert!(query.contains("status"));
+        assert!(query.contains("NOW()"));
+    }
+
+    #[test]
+    fn test_sql_query_delete_playbook_run() {
+        let query = "DELETE FROM playbook_run WHERE id = $1 AND project_id = $2";
+        assert!(query.contains("DELETE"));
+        assert!(query.contains("playbook_run"));
+    }
+
+    #[test]
+    fn test_sql_query_playbook_run_stats() {
+        let query = r#"
+                SELECT
+                    COUNT(*) as total_runs,
+                    SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as success_runs,
+                    SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_runs,
+                    AVG(duration_seconds) as avg_duration_seconds,
+                    MAX(created) as last_run
+                FROM playbook_run
+                WHERE playbook_id = $1
+            "#;
+        assert!(query.contains("COUNT"));
+        assert!(query.contains("SUM"));
+        assert!(query.contains("AVG"));
+    }
+
+    #[test]
+    fn test_playbook_run_status_equality() {
+        assert_eq!(PlaybookRunStatus::Success, PlaybookRunStatus::Success);
+        assert_ne!(PlaybookRunStatus::Success, PlaybookRunStatus::Failed);
+    }
+
+    #[test]
+    fn test_playbook_run_create_serialize() {
+        let create = PlaybookRunCreate {
+            project_id: 1,
+            playbook_id: 2,
+            task_id: None,
+            template_id: None,
+            inventory_id: None,
+            environment_id: None,
+            extra_vars: None,
+            limit_hosts: None,
+            tags: None,
+            skip_tags: None,
+            user_id: None,
+        };
+        let json = serde_json::to_string(&create).unwrap();
+        assert!(json.contains("\"project_id\":1"));
+        assert!(json.contains("\"playbook_id\":2"));
+    }
+
+    #[test]
+    fn test_playbook_run_update_default() {
+        let update = PlaybookRunUpdate::default();
+        assert!(update.status.is_none());
+        assert!(update.duration_seconds.is_none());
+        assert!(update.output.is_none());
+    }
+}

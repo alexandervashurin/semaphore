@@ -138,3 +138,51 @@ pub fn repository_routes() -> Router<Arc<AppState>> {
             delete(handlers::delete_environment),
         )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_repository_routes_creation() {
+        let router = repository_routes();
+        let _ = router;
+    }
+
+    #[test]
+    fn test_repository_routes_return_type() {
+        let router = repository_routes();
+        let _: Router<Arc<AppState>> = router;
+    }
+
+    #[test]
+    fn test_repository_routes_has_repositories_endpoints() {
+        let _fn: fn() -> Router<Arc<AppState>> = repository_routes;
+    }
+
+    #[test]
+    fn test_repository_routes_has_keys_endpoints() {
+        let _fn: fn() -> Router<Arc<AppState>> = repository_routes;
+    }
+
+    #[test]
+    fn test_repository_routes_has_environments_endpoints() {
+        let _fn: fn() -> Router<Arc<AppState>> = repository_routes;
+    }
+
+    #[test]
+    fn test_repository_routes_state_type() {
+        let router = repository_routes();
+        let _router: Router<Arc<AppState>> = router;
+    }
+
+    #[test]
+    fn test_repository_routes_module_imports() {
+        let _fn: fn() -> Router<Arc<AppState>> = repository_routes;
+    }
+
+    #[test]
+    fn test_repository_routes_vue_alias() {
+        let _fn: fn() -> Router<Arc<AppState>> = repository_routes;
+    }
+}

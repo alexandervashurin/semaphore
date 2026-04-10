@@ -1,5 +1,6 @@
 //! Task CRUD - операции с задачами (PostgreSQL)
 
+use chrono::Utc;
 use crate::db::sql::types::SqlDb;
 use crate::error::{Error, Result};
 use crate::models::*;
@@ -262,5 +263,194 @@ impl SqlDb {
             .await
             .map_err(Error::Database)?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::task_logger::TaskStatus;
+
+    #[test]
+    fn test_task_status_to_string() {
+        let statuses = [
+            (TaskStatus::Waiting, "waiting"),
+            (TaskStatus::Starting, "starting"),
+            (TaskStatus::WaitingConfirmation, "waiting_confirmation"),
+            (TaskStatus::Running, "running"),
+            (TaskStatus::Success, "success"),
+            (TaskStatus::Error, "error"),
+            (TaskStatus::Stopped, "stopped"),
+        ];
+        for (status, expected) in &statuses {
+            assert_eq!(status.to_string(), *expected);
+        }
+    }
+
+    #[test]
+    fn test_task_status_from_str() {
+        let parsed: TaskStatus = "running".parse().unwrap();
+        assert_eq!(parsed, TaskStatus::Running);
+
+        let parsed: TaskStatus = "success".parse().unwrap();
+        assert_eq!(parsed, TaskStatus::Success);
+
+        // Unknown status returns error, not default
+        let result: std::result::Result<TaskStatus, _> = "unknown_status".parse();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_task_struct_fields() {
+        let task = Task {
+            id: 1,
+            template_id: 10,
+            project_id: 5,
+            status: TaskStatus::Running,
+            playbook: Some("deploy.yml".to_string()),
+            environment: Some("production".to_string()),
+            secret: None,
+            arguments: None,
+            git_branch: Some("main".to_string()),
+            user_id: Some(2),
+            integration_id: None,
+            schedule_id: None,
+            created: Utc::now(),
+            start: None,
+            end: None,
+            message: Some("Deploy started".to_string()),
+            commit_hash: Some("abc123".to_string()),
+            commit_message: None,
+            build_task_id: None,
+            version: Some("1.0.0".to_string()),
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+            params: None,
+        };
+        assert_eq!(task.id, 1);
+        assert_eq!(task.template_id, 10);
+        assert_eq!(task.status, TaskStatus::Running);
+        assert_eq!(task.playbook, Some("deploy.yml".to_string()));
+    }
+
+    #[test]
+    fn test_task_default() {
+        let task = Task::default();
+        assert_eq!(task.id, 0);
+        assert_eq!(task.status, TaskStatus::Waiting);
+        assert!(task.playbook.is_none());
+        assert!(task.secret.is_none());
+    }
+
+    #[test]
+    fn test_task_get_url() {
+        let task = Task::default();
+        let url = task.get_url();
+        assert_eq!(url, "/project/0/tasks/0");
+    }
+
+    #[test]
+    fn test_task_with_tpl_struct() {
+        let task = Task::default();
+        let with_tpl = TaskWithTpl {
+            task,
+            tpl_playbook: Some("site.yml".to_string()),
+            tpl_type: None,
+            tpl_app: None,
+            user_name: Some("admin".to_string()),
+            build_task: None,
+        };
+        assert_eq!(with_tpl.tpl_playbook, Some("site.yml".to_string()));
+        assert_eq!(with_tpl.user_name, Some("admin".to_string()));
+    }
+
+    #[test]
+    fn test_task_status_serialization() {
+        let status = TaskStatus::Running;
+        let json = serde_json::to_string(&status).unwrap();
+        assert!(json.contains("running"));
+    }
+
+    #[test]
+    fn test_task_status_deserialization() {
+        let json = "\"success\"";
+        let status: TaskStatus = serde_json::from_str(json).unwrap();
+        assert_eq!(status, TaskStatus::Success);
+    }
+
+    #[test]
+    fn test_task_status_all_variants_serialize() {
+        let statuses = [
+            TaskStatus::Waiting,
+            TaskStatus::Starting,
+            TaskStatus::WaitingConfirmation,
+            TaskStatus::Running,
+            TaskStatus::Success,
+            TaskStatus::Error,
+            TaskStatus::Stopped,
+        ];
+        for status in &statuses {
+            let json = serde_json::to_string(status).unwrap();
+            assert!(json.starts_with('"') && json.ends_with('"'));
+        }
+    }
+
+    #[test]
+    fn test_task_status_equality() {
+        assert_eq!(TaskStatus::Running, TaskStatus::Running);
+        assert_ne!(TaskStatus::Success, TaskStatus::Error);
+    }
+
+    #[test]
+    fn test_task_clone() {
+        let task = Task::default();
+        let cloned = task.clone();
+        assert_eq!(cloned.id, task.id);
+        assert_eq!(cloned.status, task.status);
+    }
+
+    #[test]
+    fn test_task_with_tpl_clone() {
+        let task = Task::default();
+        let with_tpl = TaskWithTpl {
+            task,
+            tpl_playbook: None,
+            tpl_type: None,
+            tpl_app: None,
+            user_name: None,
+            build_task: None,
+        };
+        let cloned = with_tpl.clone();
+        assert_eq!(cloned.task.id, with_tpl.task.id);
+    }
+
+    #[test]
+    fn test_ansible_task_params_default() {
+        let params = AnsibleTaskParams::default();
+        assert!(!params.debug);
+        assert_eq!(params.debug_level, 0);
+        assert!(!params.dry_run);
+        assert!(!params.diff);
+        assert!(params.limit.is_empty());
+        assert!(params.tags.is_empty());
+        assert!(params.skip_tags.is_empty());
+    }
+
+    #[test]
+    fn test_terraform_task_params_default() {
+        let params = TerraformTaskParams::default();
+        assert!(!params.plan);
+        assert!(!params.destroy);
+        assert!(!params.auto_approve);
+        assert!(!params.upgrade);
+        assert!(!params.reconfigure);
+    }
+
+    #[test]
+    fn test_default_task_params_struct() {
+        let params = DefaultTaskParams {};
+        let json = serde_json::to_string(&params).unwrap();
+        assert_eq!(json, "{}");
     }
 }

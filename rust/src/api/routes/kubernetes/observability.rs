@@ -22,3 +22,19 @@ pub fn observability_routes() -> Router<Arc<AppState>> {
         // Topology
         .route("/api/kubernetes/topology", get(handlers::get_topology))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_observability_routes_creates() {
+        let _router: Router<Arc<AppState>> = observability_routes();
+    }
+
+    #[test]
+    fn test_observability_routes_returns_router() {
+        let router = observability_routes();
+        let _: Router<Arc<AppState>> = router;
+    }
+}

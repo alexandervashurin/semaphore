@@ -21,3 +21,19 @@ pub fn helm_routes() -> Router<Arc<AppState>> {
         .route("/api/kubernetes/helm/releases/{namespace}/{name}/values", get(handlers::get_helm_release_values))
         .route("/api/kubernetes/helm/releases/{namespace}/{name}/values", put(handlers::update_helm_release_values))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_helm_routes_creates() {
+        let _router: Router<Arc<AppState>> = helm_routes();
+    }
+
+    #[test]
+    fn test_helm_routes_returns_router() {
+        let router = helm_routes();
+        let _: Router<Arc<AppState>> = router;
+    }
+}

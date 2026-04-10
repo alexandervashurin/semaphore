@@ -9,7 +9,7 @@ use chrono::Utc;
 use sqlx::{FromRow, Row};
 
 // Helper types для SQLx
-#[derive(FromRow)]
+#[derive(Debug, Clone, FromRow)]
 struct WebhookRow {
     id: i64,
     project_id: Option<i64>,
@@ -27,7 +27,7 @@ struct WebhookRow {
     updated_at: chrono::DateTime<chrono::Utc>,
 }
 
-#[derive(FromRow)]
+#[derive(Debug, Clone, FromRow)]
 struct WebhookLogRow {
     id: i64,
     webhook_id: i64,
@@ -269,5 +269,192 @@ impl SqlDb {
             "custom" => WebhookType::Custom,
             _ => WebhookType::Generic,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_webhook_row_struct_fields() {
+        let row = WebhookRow {
+            id: 1,
+            project_id: Some(10),
+            name: "test".to_string(),
+            webhook_type: "slack".to_string(),
+            url: "https://example.com".to_string(),
+            secret: Some("secret".to_string()),
+            headers: Some(serde_json::json!({"Content-Type": "application/json"})),
+            active: true,
+            events: serde_json::json!(["task_completed"]),
+            retry_count: 3,
+            timeout_secs: 30,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+        assert_eq!(row.id, 1);
+        assert_eq!(row.webhook_type, "slack");
+        assert!(row.active);
+    }
+
+    #[test]
+    fn test_webhook_log_row_struct_fields() {
+        let row = WebhookLogRow {
+            id: 1,
+            webhook_id: 10,
+            event_type: "task_completed".to_string(),
+            status_code: Some(200),
+            success: true,
+            error: None,
+            attempts: 1,
+            payload: Some(serde_json::json!({"task_id": 5})),
+            response: Some(serde_json::json!({"ok": true})),
+            created_at: Utc::now(),
+        };
+        assert_eq!(row.id, 1);
+        assert_eq!(row.webhook_id, 10);
+        assert!(row.success);
+    }
+
+    #[test]
+    fn test_webhook_type_to_string_all_variants() {
+        let db = SqlDb::new();
+        assert_eq!(db.webhook_type_to_string(&WebhookType::Generic), "generic");
+        assert_eq!(db.webhook_type_to_string(&WebhookType::Slack), "slack");
+        assert_eq!(db.webhook_type_to_string(&WebhookType::Teams), "teams");
+        assert_eq!(db.webhook_type_to_string(&WebhookType::Discord), "discord");
+        assert_eq!(db.webhook_type_to_string(&WebhookType::Telegram), "telegram");
+        assert_eq!(db.webhook_type_to_string(&WebhookType::Custom), "custom");
+    }
+
+    #[test]
+    fn test_string_to_webhook_type_all_variants() {
+        let db = SqlDb::new();
+        assert_eq!(db.string_to_webhook_type("generic"), WebhookType::Generic);
+        assert_eq!(db.string_to_webhook_type("slack"), WebhookType::Slack);
+        assert_eq!(db.string_to_webhook_type("teams"), WebhookType::Teams);
+        assert_eq!(db.string_to_webhook_type("discord"), WebhookType::Discord);
+        assert_eq!(db.string_to_webhook_type("telegram"), WebhookType::Telegram);
+        assert_eq!(db.string_to_webhook_type("custom"), WebhookType::Custom);
+    }
+
+    #[test]
+    fn test_string_to_webhook_type_unknown() {
+        let db = SqlDb::new();
+        assert_eq!(db.string_to_webhook_type("unknown"), WebhookType::Generic);
+        assert_eq!(db.string_to_webhook_type(""), WebhookType::Generic);
+    }
+
+    #[test]
+    fn test_webhook_row_clone() {
+        let row = WebhookRow {
+            id: 1,
+            project_id: None,
+            name: "test".to_string(),
+            webhook_type: "generic".to_string(),
+            url: "https://example.com".to_string(),
+            secret: None,
+            headers: None,
+            active: false,
+            events: serde_json::json!([]),
+            retry_count: 0,
+            timeout_secs: 30,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+        let cloned = row.clone();
+        assert_eq!(cloned.id, row.id);
+        assert_eq!(cloned.name, row.name);
+    }
+
+    #[test]
+    fn test_webhook_log_row_clone() {
+        let row = WebhookLogRow {
+            id: 1,
+            webhook_id: 5,
+            event_type: "task_failed".to_string(),
+            status_code: Some(500),
+            success: false,
+            error: Some("connection refused".to_string()),
+            attempts: 3,
+            payload: None,
+            response: None,
+            created_at: Utc::now(),
+        };
+        let cloned = row.clone();
+        assert_eq!(cloned.id, row.id);
+        assert_eq!(cloned.success, row.success);
+    }
+
+    #[test]
+    fn test_webhook_type_serialization() {
+        let t = WebhookType::Slack;
+        let json = serde_json::to_string(&t).unwrap();
+        assert!(json.contains("slack"));
+    }
+
+    #[test]
+    fn test_webhook_type_deserialization() {
+        let json = "\"discord\"";
+        let t: WebhookType = serde_json::from_str(json).unwrap();
+        assert_eq!(t, WebhookType::Discord);
+    }
+
+    #[test]
+    fn test_webhook_type_equality() {
+        assert_eq!(WebhookType::Generic, WebhookType::Generic);
+        assert_ne!(WebhookType::Slack, WebhookType::Teams);
+    }
+
+    #[test]
+    fn test_update_webhook_struct_all_fields() {
+        let update = UpdateWebhook {
+            name: Some("new name".to_string()),
+            r#type: Some(WebhookType::Telegram),
+            url: Some("https://new.url".to_string()),
+            secret: Some("new secret".to_string()),
+            headers: Some(serde_json::json!({})),
+            active: Some(true),
+            events: Some(vec!["task_started".to_string()]),
+            retry_count: Some(5),
+            timeout_secs: Some(60),
+        };
+        assert!(update.name.is_some());
+        assert!(update.active.is_some());
+        assert_eq!(update.retry_count, Some(5));
+    }
+
+    #[test]
+    fn test_update_webhook_default() {
+        let update = UpdateWebhook::default();
+        assert!(update.name.is_none());
+        assert!(update.r#type.is_none());
+        assert!(update.url.is_none());
+        assert!(update.secret.is_none());
+        assert!(update.headers.is_none());
+        assert!(update.active.is_none());
+        assert!(update.events.is_none());
+        assert!(update.retry_count.is_none());
+        assert!(update.timeout_secs.is_none());
+    }
+
+    #[test]
+    fn test_webhook_log_struct() {
+        let log = WebhookLog {
+            id: 1,
+            webhook_id: 10,
+            event_type: "task_completed".to_string(),
+            status_code: Some(200),
+            success: true,
+            error: None,
+            attempts: 1,
+            payload: Some(serde_json::json!({"task_id": 100})),
+            response: Some(serde_json::json!({"status": "ok"})),
+            created: Utc::now(),
+        };
+        assert!(log.success);
+        assert_eq!(log.attempts, 1);
+        assert!(log.error.is_none());
     }
 }

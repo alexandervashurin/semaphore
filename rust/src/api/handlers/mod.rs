@@ -20,6 +20,7 @@ pub mod metrics;
 pub mod notification;
 pub mod oidc;
 pub mod organization;
+pub mod organizations;
 pub mod plan_approval;
 pub mod playbook;
 pub mod playbook_runs;
@@ -34,6 +35,7 @@ pub mod templates;
 mod tests;
 pub mod totp;
 pub mod users;
+pub mod webhooks;
 pub mod workflow;
 
 // Ре-экспорт всех handlers для удобства

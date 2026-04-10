@@ -196,3 +196,163 @@ fn parse_project_role(s: &str) -> crate::models::ProjectUserRole {
         _ => ProjectUserRole::Guest,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_create_invite_payload_serialization() {
+        let payload = CreateInvitePayload {
+            user_id: 42,
+            role: "editor".to_string(),
+        };
+        let json = serde_json::to_string(&payload).unwrap();
+        assert!(json.contains("42"));
+        assert!(json.contains("editor"));
+    }
+
+    #[test]
+    fn test_create_invite_payload_deserialization() {
+        let json = r#"{"user_id": 10, "role": "viewer"}"#;
+        let payload: CreateInvitePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.user_id, 10);
+        assert_eq!(payload.role, "viewer");
+    }
+
+    #[test]
+    fn test_create_invite_payload_roundtrip() {
+        let original = CreateInvitePayload {
+            user_id: 7,
+            role: "admin".to_string(),
+        };
+        let json = serde_json::to_value(&original).unwrap();
+        let restored: CreateInvitePayload = serde_json::from_value(json).unwrap();
+        assert_eq!(restored.user_id, 7);
+        assert_eq!(restored.role, "admin");
+    }
+
+    #[test]
+    fn test_invite_response_serialization() {
+        let response = InviteResponse {
+            id: 1,
+            project_id: 100,
+            user_id: 42,
+            role: "editor".to_string(),
+            token: "abc-123-token".to_string(),
+        };
+        let json = serde_json::to_string(&response).unwrap();
+        assert!(json.contains("abc-123-token"));
+        assert!(json.contains("editor"));
+    }
+
+    #[test]
+    fn test_invite_response_deserialization() {
+        let json = r#"{"id":5,"project_id":10,"user_id":20,"role":"viewer","token":"tok-xyz"}"#;
+        let response: InviteResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(response.id, 5);
+        assert_eq!(response.project_id, 10);
+        assert_eq!(response.user_id, 20);
+        assert_eq!(response.role, "viewer");
+        assert_eq!(response.token, "tok-xyz");
+    }
+
+    #[test]
+    fn test_invite_response_roundtrip() {
+        let original = InviteResponse {
+            id: 99,
+            project_id: 200,
+            user_id: 300,
+            role: "owner".to_string(),
+            token: "secret-token".to_string(),
+        };
+        let json = serde_json::to_value(&original).unwrap();
+        let restored: InviteResponse = serde_json::from_value(json).unwrap();
+        assert_eq!(restored.id, 99);
+        assert_eq!(restored.token, "secret-token");
+    }
+
+    #[test]
+    fn test_parse_project_role_owner() {
+        assert!(matches!(
+            parse_project_role("owner"),
+            crate::models::ProjectUserRole::Owner
+        ));
+    }
+
+    #[test]
+    fn test_parse_project_role_manager() {
+        assert!(matches!(
+            parse_project_role("manager"),
+            crate::models::ProjectUserRole::Manager
+        ));
+    }
+
+    #[test]
+    fn test_parse_project_role_task_runner() {
+        assert!(matches!(
+            parse_project_role("task_runner"),
+            crate::models::ProjectUserRole::TaskRunner
+        ));
+    }
+
+    #[test]
+    fn test_parse_project_role_guest() {
+        assert!(matches!(
+            parse_project_role("guest"),
+            crate::models::ProjectUserRole::Guest
+        ));
+    }
+
+    #[test]
+    fn test_parse_project_role_unknown_defaults_to_guest() {
+        assert!(matches!(
+            parse_project_role("unknown_role"),
+            crate::models::ProjectUserRole::Guest
+        ));
+    }
+
+    #[test]
+    fn test_parse_project_role_case_insensitive() {
+        assert!(matches!(
+            parse_project_role("OWNER"),
+            crate::models::ProjectUserRole::Owner
+        ));
+        assert!(matches!(
+            parse_project_role("Manager"),
+            crate::models::ProjectUserRole::Manager
+        ));
+        assert!(matches!(
+            parse_project_role("TASK_RUNNER"),
+            crate::models::ProjectUserRole::TaskRunner
+        ));
+    }
+
+    #[test]
+    fn test_create_invite_payload_empty_role() {
+        let payload = CreateInvitePayload {
+            user_id: 1,
+            role: "".to_string(),
+        };
+        let json = serde_json::to_value(&payload).unwrap();
+        assert_eq!(json["user_id"], 1);
+        assert_eq!(json["role"], "");
+    }
+
+    #[test]
+    fn test_invite_response_all_fields() {
+        let response = InviteResponse {
+            id: 0,
+            project_id: 0,
+            user_id: 0,
+            role: String::new(),
+            token: String::new(),
+        };
+        let json = serde_json::to_value(&response).unwrap();
+        assert_eq!(json["id"], 0);
+        assert_eq!(json["project_id"], 0);
+        assert_eq!(json["user_id"], 0);
+        assert_eq!(json["role"], "");
+        assert_eq!(json["token"], "");
+    }
+}

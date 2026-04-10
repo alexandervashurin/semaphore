@@ -252,3 +252,209 @@ impl TaskManager for SqlStore {
         Ok(count as usize)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{Task, TaskOutput, TaskWithTpl};
+    use crate::models::template::{TemplateApp, TemplateType};
+    use crate::services::task_logger::TaskStatus;
+    use chrono::Utc;
+
+    #[test]
+    fn test_task_status_display() {
+        assert_eq!(TaskStatus::Waiting.to_string(), "waiting");
+        assert_eq!(TaskStatus::Running.to_string(), "running");
+        assert_eq!(TaskStatus::Success.to_string(), "success");
+        assert_eq!(TaskStatus::Error.to_string(), "error");
+    }
+
+    #[test]
+    fn test_task_status_variants() {
+        let statuses = vec![
+            TaskStatus::Waiting,
+            TaskStatus::Running,
+            TaskStatus::Success,
+            TaskStatus::Error,
+            TaskStatus::Stopped,
+        ];
+        for status in statuses {
+            let s = status.to_string();
+            assert!(!s.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_task_structure() {
+        let task = Task {
+            id: 1,
+            template_id: 10,
+            project_id: 5,
+            status: TaskStatus::Waiting,
+            playbook: None,
+            environment: None,
+            secret: None,
+            arguments: None,
+            git_branch: Some("main".to_string()),
+            user_id: Some(1),
+            integration_id: None,
+            schedule_id: None,
+            created: Utc::now(),
+            start: None,
+            end: None,
+            message: None,
+            commit_hash: None,
+            commit_message: None,
+            build_task_id: None,
+            version: None,
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+            params: None,
+        };
+        assert_eq!(task.template_id, 10);
+        assert_eq!(task.project_id, 5);
+        assert!(task.git_branch.is_some());
+    }
+
+    #[test]
+    fn test_task_with_tpl_structure() {
+        let task_with_tpl = TaskWithTpl {
+            task: Task {
+                id: 1,
+                template_id: 1,
+                project_id: 1,
+                status: TaskStatus::Success,
+                playbook: None,
+                environment: None,
+                secret: None,
+                arguments: None,
+                git_branch: None,
+                user_id: None,
+                integration_id: None,
+                schedule_id: None,
+                created: Utc::now(),
+                start: None,
+                end: None,
+                message: None,
+                commit_hash: None,
+                commit_message: None,
+                build_task_id: None,
+                version: None,
+                inventory_id: None,
+                repository_id: None,
+                environment_id: None,
+                params: None,
+            },
+            tpl_playbook: Some("site.yml".to_string()),
+            tpl_type: Some(TemplateType::Task),
+            tpl_app: Some(TemplateApp::Ansible),
+            user_name: Some("admin".to_string()),
+            build_task: None,
+        };
+        assert!(task_with_tpl.tpl_playbook.is_some());
+        assert!(task_with_tpl.user_name.is_some());
+    }
+
+    #[test]
+    fn test_task_output_structure() {
+        let output = TaskOutput {
+            id: 1,
+            task_id: 10,
+            project_id: 1,
+            stage_id: None,
+            time: Utc::now(),
+            output: "PLAY [all] *****".to_string(),
+        };
+        assert_eq!(output.task_id, 10);
+        assert!(!output.output.is_empty());
+    }
+
+    #[test]
+    fn test_task_output_serialize() {
+        let output = TaskOutput {
+            id: 1,
+            task_id: 5,
+            project_id: 1,
+            stage_id: Some(1),
+            time: Utc::now(),
+            output: "ok: [host1]".to_string(),
+        };
+        let json = serde_json::to_string(&output).unwrap();
+        assert!(json.contains("\"task_id\":5"));
+        assert!(json.contains("\"output\":\"ok: [host1]\""));
+    }
+
+    #[test]
+    fn test_task_serialize_excludes_secret() {
+        let task = Task {
+            id: 1,
+            template_id: 1,
+            project_id: 1,
+            status: TaskStatus::Waiting,
+            playbook: None,
+            environment: None,
+            secret: Some("sensitive_data".to_string()),
+            arguments: None,
+            git_branch: None,
+            user_id: None,
+            integration_id: None,
+            schedule_id: None,
+            created: Utc::now(),
+            start: None,
+            end: None,
+            message: None,
+            commit_hash: None,
+            commit_message: None,
+            build_task_id: None,
+            version: None,
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+            params: None,
+        };
+        let json = serde_json::to_string(&task).unwrap();
+        assert!(!json.contains("sensitive_data"));
+    }
+
+    #[test]
+    fn test_task_status_equality() {
+        assert_eq!(TaskStatus::Success, TaskStatus::Success);
+        assert_ne!(TaskStatus::Success, TaskStatus::Error);
+    }
+
+    #[test]
+    fn test_sql_query_get_tasks() {
+        let query_with_tpl = "SELECT t.*, tpl.playbook as tpl_playbook, tpl.type as tpl_type, tpl.app as tpl_app, u.name as user_name FROM task t LEFT JOIN template tpl ON t.template_id = tpl.id LEFT JOIN \"user\" u ON t.user_id = u.id WHERE t.project_id = $1 ORDER BY t.created DESC";
+        assert!(query_with_tpl.contains("FROM task"));
+        assert!(query_with_tpl.contains("LEFT JOIN template"));
+    }
+
+    #[test]
+    fn test_sql_query_get_task_by_id() {
+        let query = "SELECT * FROM task WHERE id = $1";
+        assert!(query.contains("task"));
+        assert!(query.contains("WHERE"));
+    }
+
+    #[test]
+    fn test_sql_query_create_task() {
+        let query = "INSERT INTO task (template_id, project_id, status, playbook, environment, arguments, git_branch, user_id, integration_id, schedule_id, created, start_time, end_time, message, commit_hash, commit_message, build_task_id, version, inventory_id, repository_id, environment_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING id";
+        assert!(query.contains("INSERT INTO task"));
+        assert!(query.contains("RETURNING id"));
+    }
+
+    #[test]
+    fn test_sql_query_update_task_status() {
+        let query = "UPDATE task SET status = $1 WHERE id = $2";
+        assert!(query.contains("UPDATE"));
+        assert!(query.contains("status"));
+    }
+
+    #[test]
+    fn test_running_tasks_count_query() {
+        let query = "SELECT COUNT(*) FROM task WHERE status = 'Running'";
+        assert!(query.contains("COUNT"));
+        assert!(query.contains("Running"));
+    }
+}

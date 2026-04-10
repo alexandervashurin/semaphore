@@ -16,3 +16,19 @@ pub fn namespaces_routes() -> Router<Arc<AppState>> {
         .route("/api/kubernetes/namespaces/{name}/quota", get(handlers::get_namespace_quota))
         .route("/api/kubernetes/namespaces/{name}/limits", get(handlers::get_namespace_limits))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_namespaces_routes_creates() {
+        let _router: Router<Arc<AppState>> = namespaces_routes();
+    }
+
+    #[test]
+    fn test_namespaces_routes_returns_router() {
+        let router = namespaces_routes();
+        let _: Router<Arc<AppState>> = router;
+    }
+}

@@ -315,3 +315,165 @@ fn convert_event(event: &Event) -> Option<EventStreamMessage> {
         }),
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_event_stream_message_connected_serialization() {
+        let msg = EventStreamMessage::Connected {
+            namespace: "default".to_string(),
+            count: 5,
+        };
+        let json = serde_json::to_string(&msg).unwrap();
+        assert!(json.contains("\"type\":\"connected\""));
+        assert!(json.contains("\"namespace\":\"default\""));
+        assert!(json.contains("\"count\":5"));
+    }
+
+    #[test]
+    fn test_event_stream_message_event_serialization() {
+        let msg = EventStreamMessage::Event {
+            name: "my-event".to_string(),
+            namespace: "kube-system".to_string(),
+            type_: "Warning".to_string(),
+            reason: "FailedScheduling".to_string(),
+            message: "No nodes available".to_string(),
+            count: 3,
+            first_seen: Some("2024-01-01T00:00:00Z".to_string()),
+            last_seen: Some("2024-01-01T00:05:00Z".to_string()),
+            involved_object: Box::new(EventInvolvedObject {
+                kind: "Pod".to_string(),
+                name: "my-pod".to_string(),
+                api_version: Some("v1".to_string()),
+                uid: Some("uid-123".to_string()),
+            }),
+        };
+        let json = serde_json::to_string(&msg).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["type"], "event");
+        assert_eq!(parsed["name"], "my-event");
+        assert_eq!(parsed["reason"], "FailedScheduling");
+        assert_eq!(parsed["involved_object"]["kind"], "Pod");
+    }
+
+    #[test]
+    fn test_event_stream_message_error_serialization() {
+        let msg = EventStreamMessage::Error {
+            message: "Connection failed".to_string(),
+        };
+        let json = serde_json::to_string(&msg).unwrap();
+        assert!(json.contains("\"type\":\"error\""));
+        assert!(json.contains("Connection failed"));
+    }
+
+    #[test]
+    fn test_event_stream_message_heartbeat_serialization() {
+        let msg = EventStreamMessage::Heartbeat;
+        let json = serde_json::to_string(&msg).unwrap();
+        assert_eq!(json, r#"{"type":"heartbeat"}"#);
+    }
+
+    #[test]
+    fn test_event_stream_message_deserialization() {
+        let json = r#"{"type":"connected","namespace":"default","count":0}"#;
+        let msg: EventStreamMessage = serde_json::from_str(json).unwrap();
+        match msg {
+            EventStreamMessage::Connected { namespace, count } => {
+                assert_eq!(namespace, "default");
+                assert_eq!(count, 0);
+            }
+            _ => panic!("Expected Connected variant"),
+        }
+    }
+
+    #[test]
+    fn test_event_involved_object_serialization() {
+        let obj = EventInvolvedObject {
+            kind: "Deployment".to_string(),
+            name: "my-deploy".to_string(),
+            api_version: Some("apps/v1".to_string()),
+            uid: Some("uid-456".to_string()),
+        };
+        let json = serde_json::to_string(&obj).unwrap();
+        let parsed: EventInvolvedObject = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.kind, "Deployment");
+        assert_eq!(parsed.name, "my-deploy");
+        assert_eq!(parsed.api_version, Some("apps/v1".to_string()));
+    }
+
+    #[test]
+    fn test_event_stream_query_types_parsing() {
+        let json = r#"{"namespace":"default","types":"Normal,Warning"}"#;
+        let query: EventStreamQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(query.namespace, Some("default".to_string()));
+        assert_eq!(query.types, Some("Normal,Warning".to_string()));
+    }
+
+    #[test]
+    fn test_event_stream_query_optional_fields() {
+        let json = r#"{}"#;
+        let query: EventStreamQuery = serde_json::from_str(json).unwrap();
+        assert!(query.namespace.is_none());
+        assert!(query.types.is_none());
+    }
+
+    #[test]
+    fn test_event_message_event_type_tag_correct() {
+        let msg = EventStreamMessage::Event {
+            name: "e1".to_string(),
+            namespace: "ns".to_string(),
+            type_: "Normal".to_string(),
+            reason: "Scheduled".to_string(),
+            message: "msg".to_string(),
+            count: 1,
+            first_seen: None,
+            last_seen: None,
+            involved_object: Box::new(EventInvolvedObject {
+                kind: "Pod".to_string(),
+                name: "p".to_string(),
+                api_version: None,
+                uid: None,
+            }),
+        };
+        let val: serde_json::Value = serde_json::to_value(&msg).unwrap();
+        assert_eq!(val["type"], "event");
+    }
+
+    #[test]
+    fn test_event_message_error_type_tag_correct() {
+        let msg = EventStreamMessage::Error {
+            message: "err".to_string(),
+        };
+        let val: serde_json::Value = serde_json::to_value(&msg).unwrap();
+        assert_eq!(val["type"], "error");
+        assert_eq!(val["message"], "err");
+    }
+
+    #[test]
+    fn test_event_stream_types_filter_parsing() {
+        let types_str = "Normal,Warning";
+        let selectors: Vec<String> = types_str
+            .split(',')
+            .map(|t| format!("type={}", t.trim()))
+            .collect();
+        assert_eq!(selectors.len(), 2);
+        assert_eq!(selectors[0], "type=Normal");
+        assert_eq!(selectors[1], "type=Warning");
+    }
+
+    #[test]
+    fn test_event_involved_object_minimal() {
+        let obj = EventInvolvedObject {
+            kind: "Node".to_string(),
+            name: "node-1".to_string(),
+            api_version: None,
+            uid: None,
+        };
+        let json = serde_json::to_string(&obj).unwrap();
+        let parsed: EventInvolvedObject = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.kind, "Node");
+        assert!(parsed.api_version.is_none());
+    }
+}

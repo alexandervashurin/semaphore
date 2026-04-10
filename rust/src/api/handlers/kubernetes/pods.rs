@@ -247,3 +247,193 @@ where
 
 // Re-export pod CRUD functions from workloads_k8s
 pub use super::workloads_k8s::{list_pods, get_pod, delete_pod, pod_logs, evict_pod, PodLogsQuery};
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── PodExecQuery deserialization ──
+
+    #[test]
+    fn test_pod_exec_query_default_command() {
+        let json = r#"{}"#;
+        let q: PodExecQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(q.command, None);
+        assert_eq!(q.container, None);
+    }
+
+    #[test]
+    fn test_pod_exec_query_with_command() {
+        let json = r#"{"command": "/bin/bash -l", "container": "app"}"#;
+        let q: PodExecQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(q.command, Some("/bin/bash -l".to_string()));
+        assert_eq!(q.container, Some("app".to_string()));
+    }
+
+    #[test]
+    fn test_pod_exec_query_command_splitting() {
+        let json = r#"{"command": "ls -la /tmp"}"#;
+        let q: PodExecQuery = serde_json::from_str(json).unwrap();
+        let parts: Vec<String> = q.command.unwrap().split_whitespace().map(String::from).collect();
+        assert_eq!(parts, vec!["ls", "-la", "/tmp"]);
+    }
+
+    #[test]
+    fn test_pod_exec_default_command_is_sh() {
+        let q = PodExecQuery { command: None, container: None };
+        let default_cmd = q.command.unwrap_or_else(|| "/bin/sh".to_string());
+        assert_eq!(default_cmd, "/bin/sh");
+    }
+
+    // ── PodPortForwardQuery deserialization ──
+
+    #[test]
+    fn test_pod_portforward_query_port_8080() {
+        let json = r#"{"port": 8080}"#;
+        let q: PodPortForwardQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(q.port, 8080);
+    }
+
+    #[test]
+    fn test_pod_portforward_query_port_80() {
+        let json = r#"{"port": 80}"#;
+        let q: PodPortForwardQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(q.port, 80);
+    }
+
+    #[test]
+    fn test_pod_portforward_query_port_range() {
+        let json = r#"{"port": 3000}"#;
+        let q: PodPortForwardQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(q.port, 3000);
+        assert!(q.port > 0);
+    }
+
+    #[test]
+    fn test_pod_portforward_query_max_port() {
+        let json = r#"{"port": 65535}"#;
+        let q: PodPortForwardQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(q.port, 65535);
+    }
+
+    #[test]
+    fn test_pod_portforward_query_min_port() {
+        let json = r#"{"port": 1}"#;
+        let q: PodPortForwardQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(q.port, 1);
+    }
+
+    // ── PodLogsQuery (re-exported) ──
+
+    #[test]
+    fn test_pod_logs_query_with_container() {
+        let json = r#"{"container": "sidecar", "tail_lines": 200, "previous": false}"#;
+        let q: PodLogsQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(q.container, Some("sidecar".to_string()));
+        assert_eq!(q.tail_lines, Some(200));
+        assert_eq!(q.previous, Some(false));
+    }
+
+    #[test]
+    fn test_pod_logs_query_minimal() {
+        let json = r#"{}"#;
+        let q: PodLogsQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(q.container, None);
+        assert_eq!(q.tail_lines, None);
+        assert_eq!(q.previous, None);
+    }
+
+    #[test]
+    fn test_pod_logs_query_with_tail_lines() {
+        let json = r#"{"tail_lines": 1000}"#;
+        let q: PodLogsQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(q.tail_lines, Some(1000));
+    }
+
+    // ── AttachParams configuration ──
+
+    #[test]
+    fn test_attach_params_defaults() {
+        let ap = AttachParams {
+            container: None,
+            stdin: true,
+            stdout: true,
+            stderr: false,
+            tty: true,
+            ..AttachParams::default()
+        };
+        assert!(ap.stdin);
+        assert!(ap.stdout);
+        assert!(!ap.stderr);
+        assert!(ap.tty);
+        assert!(ap.container.is_none());
+    }
+
+    // ── Command parsing ──
+
+    #[test]
+    fn test_command_split_single_word() {
+        let cmd = "/bin/sh";
+        let parts: Vec<String> = cmd.split_whitespace().map(String::from).collect();
+        assert_eq!(parts, vec!["/bin/sh"]);
+    }
+
+    #[test]
+    fn test_command_split_multiple_words() {
+        let cmd = "python -c 'print(1)'";
+        let parts: Vec<String> = cmd.split_whitespace().map(String::from).collect();
+        assert_eq!(parts, vec!["python", "-c", "'print(1)'"]);
+    }
+
+    #[test]
+    fn test_command_empty_string() {
+        let cmd = "";
+        let parts: Vec<String> = cmd.split_whitespace().map(String::from).collect();
+        assert!(parts.is_empty());
+    }
+
+    // ── PodPath tuple ──
+
+    #[test]
+    fn test_path_tuple_structure() {
+        let path: (String, String, String) = (
+            "cluster-1".to_string(),
+            "default".to_string(),
+            "my-pod".to_string(),
+        );
+        let (cluster_id, namespace, name) = path;
+        assert_eq!(cluster_id, "cluster-1");
+        assert_eq!(namespace, "default");
+        assert_eq!(name, "my-pod");
+    }
+
+    // ── WebSocket Message types ──
+
+    #[test]
+    fn test_message_binary_variant() {
+        let data = vec![1u8, 2, 3, 4];
+        let msg = Message::Binary(data.clone().into());
+        match msg {
+            Message::Binary(bytes) => assert_eq!(bytes.to_vec(), data),
+            _ => panic!("Expected Binary message"),
+        }
+    }
+
+    #[test]
+    fn test_message_text_variant() {
+        let msg = Message::Text("hello".into());
+        match msg {
+            Message::Text(text) => assert_eq!(text, "hello"),
+            _ => panic!("Expected Text message"),
+        }
+    }
+
+    #[test]
+    fn test_message_close_variant() {
+        let msg = Message::Close(None);
+        match msg {
+            Message::Close(_) => {} // expected
+            _ => panic!("Expected Close message"),
+        }
+    }
+}

@@ -36,3 +36,19 @@ pub fn networking_routes() -> Router<Arc<AppState>> {
         .route("/api/kubernetes/httproutes", get(handlers::list_httproutes))
         .route("/api/kubernetes/grpcroutes", get(handlers::list_grpcroutes))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_networking_routes_creates() {
+        let _router: Router<Arc<AppState>> = networking_routes();
+    }
+
+    #[test]
+    fn test_networking_routes_returns_router() {
+        let router = networking_routes();
+        let _: Router<Arc<AppState>> = router;
+    }
+}

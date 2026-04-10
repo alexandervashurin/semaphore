@@ -2,6 +2,7 @@
 //!
 //! Операции с расписаниями в SQL
 
+use chrono::Utc;
 use crate::db::sql::types::SqlDb;
 use crate::error::{Error, Result};
 use crate::models::{Schedule, ScheduleWithTpl};
@@ -156,5 +157,213 @@ impl SqlDb {
             .await
             .map_err(Error::Database)?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_schedule_struct_fields() {
+        let schedule = Schedule {
+            id: 1,
+            template_id: 10,
+            project_id: 5,
+            cron: "0 * * * *".to_string(),
+            cron_format: Some("standard".to_string()),
+            name: "Hourly Build".to_string(),
+            active: true,
+            last_commit_hash: Some("abc123".to_string()),
+            repository_id: Some(3),
+            created: Some("2024-01-01T00:00:00Z".to_string()),
+            run_at: None,
+            delete_after_run: false,
+        };
+        assert_eq!(schedule.id, 1);
+        assert_eq!(schedule.cron, "0 * * * *");
+        assert!(schedule.active);
+        assert!(!schedule.delete_after_run);
+    }
+
+    #[test]
+    fn test_schedule_clone() {
+        let schedule = Schedule {
+            id: 1,
+            template_id: 10,
+            project_id: 5,
+            cron: "*/5 * * * *".to_string(),
+            cron_format: None,
+            name: "Frequent".to_string(),
+            active: false,
+            last_commit_hash: None,
+            repository_id: None,
+            created: None,
+            run_at: None,
+            delete_after_run: false,
+        };
+        let cloned = schedule.clone();
+        assert_eq!(cloned.id, schedule.id);
+        assert_eq!(cloned.name, schedule.name);
+        assert_eq!(cloned.active, schedule.active);
+    }
+
+    #[test]
+    fn test_schedule_serialization() {
+        let schedule = Schedule {
+            id: 1,
+            template_id: 10,
+            project_id: 5,
+            cron: "0 0 * * *".to_string(),
+            cron_format: Some("daily".to_string()),
+            name: "Daily Build".to_string(),
+            active: true,
+            last_commit_hash: None,
+            repository_id: None,
+            created: None,
+            run_at: None,
+            delete_after_run: false,
+        };
+        let json = serde_json::to_string(&schedule).unwrap();
+        assert!(json.contains("\"name\":\"Daily Build\""));
+        assert!(json.contains("\"cron\":\"0 0 * * *\""));
+        assert!(json.contains("\"active\":true"));
+    }
+
+    #[test]
+    fn test_schedule_deserialization() {
+        let json = r#"{"id":5,"template_id":20,"project_id":10,"cron":"*/10 * * * *","cron_format":"frequent","name":"Every 10 min","active":true,"last_commit_hash":null,"repository_id":null,"created":null,"delete_after_run":false}"#;
+        let schedule: Schedule = serde_json::from_str(json).unwrap();
+        assert_eq!(schedule.id, 5);
+        assert_eq!(schedule.name, "Every 10 min");
+        assert!(schedule.active);
+    }
+
+    #[test]
+    fn test_schedule_with_tpl_struct() {
+        let schedule = Schedule {
+            id: 1,
+            template_id: 10,
+            project_id: 5,
+            cron: "0 * * * *".to_string(),
+            cron_format: None,
+            name: "Test".to_string(),
+            active: true,
+            last_commit_hash: None,
+            repository_id: None,
+            created: None,
+            run_at: None,
+            delete_after_run: false,
+        };
+        let with_tpl = ScheduleWithTpl {
+            schedule,
+            tpl_playbook: Some("deploy.yml".to_string()),
+        };
+        assert_eq!(with_tpl.tpl_playbook, Some("deploy.yml".to_string()));
+        assert_eq!(with_tpl.schedule.name, "Test");
+    }
+
+    #[test]
+    fn test_schedule_with_tpl_clone() {
+        let schedule = Schedule {
+            id: 0, template_id: 0, project_id: 0, cron: "".to_string(),
+            cron_format: None, name: "".to_string(), active: false,
+            last_commit_hash: None, repository_id: None, created: None,
+            run_at: None, delete_after_run: false,
+        };
+        let with_tpl = ScheduleWithTpl {
+            schedule,
+            tpl_playbook: None,
+        };
+        let cloned = with_tpl.clone();
+        assert_eq!(cloned.schedule.id, with_tpl.schedule.id);
+        assert_eq!(cloned.tpl_playbook, with_tpl.tpl_playbook);
+    }
+
+    #[test]
+    fn test_schedule_run_at_field() {
+        let schedule = Schedule {
+            id: 1,
+            template_id: 10,
+            project_id: 5,
+            cron: String::new(),
+            cron_format: Some("run_at".to_string()),
+            name: "One-time".to_string(),
+            active: true,
+            last_commit_hash: None,
+            repository_id: None,
+            created: None,
+            run_at: Some("2024-12-31T23:59:59Z".to_string()),
+            delete_after_run: true,
+        };
+        let json = serde_json::to_string(&schedule).unwrap();
+        assert!(json.contains("\"run_at\":\"2024-12-31T23:59:59Z\""));
+        assert!(json.contains("\"delete_after_run\":true"));
+    }
+
+    #[test]
+    fn test_schedule_default_values() {
+        let schedule = Schedule {
+            id: 0, template_id: 0, project_id: 0, cron: "".to_string(),
+            cron_format: None, name: "".to_string(), active: false,
+            last_commit_hash: None, repository_id: None, created: None,
+            run_at: None, delete_after_run: false,
+        };
+        assert_eq!(schedule.id, 0);
+        assert_eq!(schedule.template_id, 0);
+        assert_eq!(schedule.project_id, 0);
+        assert_eq!(schedule.cron, "");
+        assert!(schedule.cron_format.is_none());
+        assert_eq!(schedule.name, "");
+        assert!(!schedule.active);
+        assert!(schedule.last_commit_hash.is_none());
+        assert!(schedule.repository_id.is_none());
+        assert!(schedule.created.is_none());
+        assert!(schedule.run_at.is_none());
+        assert!(!schedule.delete_after_run);
+    }
+
+    #[test]
+    fn test_schedule_serialization_skip_nulls() {
+        let schedule = Schedule {
+            id: 1,
+            template_id: 10,
+            project_id: 5,
+            cron: "0 * * * *".to_string(),
+            cron_format: None,
+            name: "Test".to_string(),
+            active: true,
+            last_commit_hash: None,
+            repository_id: None,
+            created: None,
+            run_at: None,
+            delete_after_run: false,
+        };
+        let json = serde_json::to_string(&schedule).unwrap();
+        // run_at uses skip_serializing_if
+        assert!(!json.contains("\"run_at\":"));
+    }
+
+    #[test]
+    fn test_schedule_all_fields_set() {
+        let schedule = Schedule {
+            id: 100,
+            template_id: 200,
+            project_id: 300,
+            cron: "0 12 * * 1".to_string(),
+            cron_format: Some("weekly".to_string()),
+            name: "Weekly Monday Noon".to_string(),
+            active: true,
+            last_commit_hash: Some("def456".to_string()),
+            repository_id: Some(7),
+            created: Some("2024-06-01T00:00:00Z".to_string()),
+            run_at: Some("2024-06-03T12:00:00Z".to_string()),
+            delete_after_run: false,
+        };
+        assert_eq!(schedule.id, 100);
+        assert_eq!(schedule.template_id, 200);
+        assert_eq!(schedule.project_id, 300);
+        assert_eq!(schedule.cron, "0 12 * * 1");
+        assert_eq!(schedule.repository_id, Some(7));
     }
 }

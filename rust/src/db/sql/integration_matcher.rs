@@ -111,3 +111,163 @@ impl SqlDb {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_integration_matcher_struct_fields() {
+        let matcher = IntegrationMatcher {
+            id: 1,
+            integration_id: 10,
+            project_id: 5,
+            name: "Event Matcher".to_string(),
+            body_data_type: "json".to_string(),
+            key: Some("$.event".to_string()),
+            matcher_type: "equals".to_string(),
+            matcher_value: "task_started".to_string(),
+            method: "POST".to_string(),
+        };
+        assert_eq!(matcher.id, 1);
+        assert_eq!(matcher.name, "Event Matcher");
+        assert_eq!(matcher.matcher_type, "equals");
+        assert_eq!(matcher.method, "POST");
+    }
+
+    #[test]
+    fn test_integration_matcher_clone() {
+        let matcher = IntegrationMatcher {
+            id: 1,
+            integration_id: 10,
+            project_id: 5,
+            name: "Clone Matcher".to_string(),
+            body_data_type: "json".to_string(),
+            key: Some("$.event".to_string()),
+            matcher_type: "equals".to_string(),
+            matcher_value: "deploy".to_string(),
+            method: "POST".to_string(),
+        };
+        let cloned = matcher.clone();
+        assert_eq!(cloned.id, matcher.id);
+        assert_eq!(cloned.name, matcher.name);
+        assert_eq!(cloned.matcher_type, matcher.matcher_type);
+    }
+
+    #[test]
+    fn test_integration_matcher_serialization() {
+        let matcher = IntegrationMatcher {
+            id: 1,
+            integration_id: 10,
+            project_id: 5,
+            name: "Serialize Matcher".to_string(),
+            body_data_type: "json".to_string(),
+            key: Some("$.action".to_string()),
+            matcher_type: "regex".to_string(),
+            matcher_value: "deploy.*".to_string(),
+            method: "POST".to_string(),
+        };
+        let json = serde_json::to_string(&matcher).unwrap();
+        assert!(json.contains("\"name\":\"Serialize Matcher\""));
+        assert!(json.contains("\"matcher_type\":\"regex\""));
+        assert!(json.contains("\"method\":\"POST\""));
+    }
+
+    #[test]
+    fn test_integration_matcher_deserialization() {
+        let json = r#"{"id":5,"integration_id":20,"project_id":10,"name":"Deserialized","body_data_type":"json","key":"$.id","matcher_type":"equals","matcher_value":"123","method":"GET"}"#;
+        let matcher: IntegrationMatcher = serde_json::from_str(json).unwrap();
+        assert_eq!(matcher.id, 5);
+        assert_eq!(matcher.name, "Deserialized");
+        assert_eq!(matcher.method, "GET");
+    }
+
+    #[test]
+    fn test_integration_matcher_null_key() {
+        let matcher = IntegrationMatcher {
+            id: 1,
+            integration_id: 10,
+            project_id: 5,
+            name: "Null Key".to_string(),
+            body_data_type: "text".to_string(),
+            key: None,
+            matcher_type: "contains".to_string(),
+            matcher_value: "substring".to_string(),
+            method: "POST".to_string(),
+        };
+        let json = serde_json::to_string(&matcher).unwrap();
+        assert!(json.contains("\"key\":null"));
+    }
+
+    #[test]
+    fn test_integration_matcher_matcher_types() {
+        let types = ["equals", "contains", "regex", "starts_with", "ends_with", "not_equals"];
+        for mt in &types {
+            let matcher = IntegrationMatcher {
+                id: 1, integration_id: 1, project_id: 1, name: "Test".to_string(),
+                body_data_type: "json".to_string(), key: None,
+                matcher_type: mt.to_string(), matcher_value: "val".to_string(),
+                method: "POST".to_string(),
+            };
+            assert_eq!(matcher.matcher_type, *mt);
+        }
+    }
+
+    #[test]
+    fn test_integration_matcher_http_methods() {
+        let methods = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"];
+        for method in &methods {
+            let matcher = IntegrationMatcher {
+                id: 1, integration_id: 1, project_id: 1, name: "Test".to_string(),
+                body_data_type: "json".to_string(), key: None,
+                matcher_type: "equals".to_string(), matcher_value: "val".to_string(),
+                method: method.to_string(),
+            };
+            assert_eq!(matcher.method, *method);
+        }
+    }
+
+    #[test]
+    fn test_integration_matcher_zero_values() {
+        let matcher = IntegrationMatcher {
+            id: 0,
+            integration_id: 0,
+            project_id: 0,
+            name: String::new(),
+            body_data_type: String::new(),
+            key: None,
+            matcher_type: String::new(),
+            matcher_value: String::new(),
+            method: String::new(),
+        };
+        assert_eq!(matcher.id, 0);
+        assert!(matcher.name.is_empty());
+        assert!(matcher.key.is_none());
+    }
+
+    #[test]
+    fn test_integration_matcher_vec_serialization() {
+        let matchers = vec![
+            IntegrationMatcher { id: 1, integration_id: 10, project_id: 5, name: "A".to_string(), body_data_type: "json".to_string(), key: None, matcher_type: "equals".to_string(), matcher_value: "a".to_string(), method: "POST".to_string() },
+            IntegrationMatcher { id: 2, integration_id: 10, project_id: 5, name: "B".to_string(), body_data_type: "text".to_string(), key: Some("X".to_string()), matcher_type: "contains".to_string(), matcher_value: "b".to_string(), method: "GET".to_string() },
+        ];
+        let json = serde_json::to_string(&matchers).unwrap();
+        assert!(json.contains("\"A\""));
+        assert!(json.contains("\"B\""));
+        assert!(json.contains("\"id\":1"));
+        assert!(json.contains("\"id\":2"));
+    }
+
+    #[test]
+    fn test_integration_matcher_debug() {
+        let matcher = IntegrationMatcher {
+            id: 1, integration_id: 10, project_id: 5, name: "Debug".to_string(),
+            body_data_type: "json".to_string(), key: None,
+            matcher_type: "equals".to_string(), matcher_value: "test".to_string(),
+            method: "POST".to_string(),
+        };
+        let debug_str = format!("{:?}", matcher);
+        assert!(debug_str.contains("Debug"));
+        assert!(debug_str.contains("IntegrationMatcher"));
+    }
+}

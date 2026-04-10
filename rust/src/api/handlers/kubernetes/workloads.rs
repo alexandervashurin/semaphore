@@ -180,3 +180,107 @@ pub async fn list_events(
         Err(e) => k8s_err(e),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_scale_body_deserialization() {
+        let json = r#"{"replicas": 3}"#;
+        let body: ScaleBody = serde_json::from_str(json).unwrap();
+        assert_eq!(body.replicas, 3);
+    }
+
+    #[test]
+    fn test_scale_body_zero_replicas() {
+        let json = r#"{"replicas": 0}"#;
+        let body: ScaleBody = serde_json::from_str(json).unwrap();
+        assert_eq!(body.replicas, 0);
+    }
+
+    #[test]
+    fn test_scale_body_negative_replicas() {
+        let json = r#"{"replicas": -1}"#;
+        let body: ScaleBody = serde_json::from_str(json).unwrap();
+        assert_eq!(body.replicas, -1);
+    }
+
+    #[test]
+    fn test_scale_body_large_replicas() {
+        let json = r#"{"replicas": 100}"#;
+        let body: ScaleBody = serde_json::from_str(json).unwrap();
+        assert_eq!(body.replicas, 100);
+    }
+
+    #[test]
+    fn test_list_query_with_limit() {
+        let json = r#"{"limit": 50, "continue_token": "abc123"}"#;
+        let query: ListQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(query.limit, Some(50));
+        assert_eq!(query.continue_token, Some("abc123".to_string()));
+    }
+
+    #[test]
+    fn test_list_query_empty() {
+        let json = r#"{}"#;
+        let query: ListQuery = serde_json::from_str(json).unwrap();
+        assert!(query.limit.is_none());
+        assert!(query.continue_token.is_none());
+    }
+
+    #[test]
+    fn test_event_query_with_filters() {
+        let json = r#"{"limit": 20, "object_name": "my-pod", "object_kind": "Pod", "event_type": "Warning"}"#;
+        let query: EventQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(query.limit, Some(20));
+        assert_eq!(query.object_name, Some("my-pod".to_string()));
+        assert_eq!(query.object_kind, Some("Pod".to_string()));
+        assert_eq!(query.event_type, Some("Warning".to_string()));
+    }
+
+    #[test]
+    fn test_event_query_partial() {
+        let json = r#"{"object_name": "test-deploy", "limit": 10}"#;
+        let query: EventQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(query.object_name, Some("test-deploy".to_string()));
+        assert_eq!(query.limit, Some(10));
+        assert!(query.object_kind.is_none());
+        assert!(query.event_type.is_none());
+    }
+
+    #[test]
+    fn test_event_query_empty() {
+        let json = r#"{}"#;
+        let query: EventQuery = serde_json::from_str(json).unwrap();
+        assert!(query.limit.is_none());
+        assert!(query.object_name.is_none());
+        assert!(query.object_kind.is_none());
+        assert!(query.event_type.is_none());
+    }
+
+    #[test]
+    fn test_scale_body_serialization() {
+        let body = ScaleBody { replicas: 5 };
+        let json = serde_json::to_string(&body).unwrap();
+        assert_eq!(json, r#"{"replicas":5}"#);
+    }
+
+    #[test]
+    fn test_k8s_resource_types_daemonset() {
+        let daemonset_kind = "DaemonSet";
+        assert_eq!(daemonset_kind, "DaemonSet");
+    }
+
+    #[test]
+    fn test_k8s_resource_types_statefulset() {
+        let statefulset_kind = "StatefulSet";
+        assert_eq!(statefulset_kind, "StatefulSet");
+    }
+
+    #[test]
+    fn test_k8s_resource_types_replicaset() {
+        let replicaset_kind = "ReplicaSet";
+        assert_eq!(replicaset_kind, "ReplicaSet");
+    }
+}

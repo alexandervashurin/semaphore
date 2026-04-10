@@ -18,3 +18,19 @@ pub fn cluster_routes() -> Router<Arc<AppState>> {
         .route("/api/kubernetes/cluster/health", get(handlers::get_cluster_health))
         .route("/api/kubernetes/cluster/aggregate", get(handlers::get_aggregate_view))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cluster_routes_creates() {
+        let _router: Router<Arc<AppState>> = cluster_routes();
+    }
+
+    #[test]
+    fn test_cluster_routes_returns_router() {
+        let router = cluster_routes();
+        let _: Router<Arc<AppState>> = router;
+    }
+}

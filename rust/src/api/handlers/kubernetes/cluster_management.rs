@@ -304,3 +304,242 @@ pub async fn get_aggregate_view(
         ],
     }))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_add_cluster_request_deserialization() {
+        let json = r#"{"name":"dev","kubeconfig":"Y29uZmln","set_current":true}"#;
+        let req: AddClusterRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.name, "dev");
+        assert_eq!(req.kubeconfig, "Y29uZmln");
+        assert_eq!(req.set_current, Some(true));
+    }
+
+    #[test]
+    fn test_add_cluster_request_set_current_is_optional() {
+        let json = r#"{"name":"test","kubeconfig":"a2M="}"#;
+        let req: AddClusterRequest = serde_json::from_str(json).unwrap();
+        assert!(req.set_current.is_none());
+    }
+
+    #[test]
+    fn test_kubernetes_cluster_serialization() {
+        let cluster = KubernetesCluster {
+            name: "prod".to_string(),
+            context: "prod-ctx".to_string(),
+            server: "https://prod.example.com:6443".to_string(),
+            version: Some("v1.29.0".to_string()),
+            is_current: true,
+            is_reachable: true,
+            namespaces_count: Some(12),
+        };
+        let value = serde_json::to_value(&cluster).unwrap();
+        assert_eq!(value["name"], "prod");
+        assert_eq!(value["server"], "https://prod.example.com:6443");
+        assert_eq!(value["version"], "v1.29.0");
+        assert_eq!(value["is_current"], true);
+        assert_eq!(value["is_reachable"], true);
+        assert_eq!(value["namespaces_count"], 12);
+    }
+
+    #[test]
+    fn test_kubernetes_cluster_version_none() {
+        let cluster = KubernetesCluster {
+            name: "unknown".to_string(),
+            context: "unknown".to_string(),
+            server: "https://unknown:6443".to_string(),
+            version: None,
+            is_current: false,
+            is_reachable: false,
+            namespaces_count: None,
+        };
+        let value = serde_json::to_value(&cluster).unwrap();
+        assert!(value["version"].is_null());
+        assert!(value["namespaces_count"].is_null());
+    }
+
+    #[test]
+    fn test_cluster_list_serialization() {
+        let list = ClusterList {
+            clusters: vec![
+                KubernetesCluster {
+                    name: "a".to_string(),
+                    context: "a".to_string(),
+                    server: "https://a:6443".to_string(),
+                    version: None,
+                    is_current: true,
+                    is_reachable: true,
+                    namespaces_count: Some(1),
+                },
+            ],
+            current_context: "a".to_string(),
+        };
+        let value = serde_json::to_value(&list).unwrap();
+        assert_eq!(value["current_context"], "a");
+        assert_eq!(value["clusters"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_cluster_health_serialization() {
+        let health = ClusterHealth {
+            name: "default".to_string(),
+            is_healthy: true,
+            api_server: true,
+            etcd: true,
+            scheduler: true,
+            controller_manager: true,
+            nodes_ready: 3,
+            nodes_total: 3,
+            pods_running: 42,
+            error: None,
+        };
+        let value = serde_json::to_value(&health).unwrap();
+        assert_eq!(value["is_healthy"], true);
+        assert_eq!(value["nodes_ready"], 3);
+        assert_eq!(value["pods_running"], 42);
+        assert!(value["error"].is_null());
+    }
+
+    #[test]
+    fn test_cluster_health_with_error() {
+        let health = ClusterHealth {
+            name: "broken".to_string(),
+            is_healthy: false,
+            api_server: false,
+            etcd: false,
+            scheduler: true,
+            controller_manager: true,
+            nodes_ready: 0,
+            nodes_total: 2,
+            pods_running: 0,
+            error: Some("API server unreachable".to_string()),
+        };
+        let value = serde_json::to_value(&health).unwrap();
+        assert_eq!(value["is_healthy"], false);
+        assert_eq!(value["error"], "API server unreachable");
+    }
+
+    #[test]
+    fn test_cluster_summary_serialization() {
+        let summary = ClusterSummary {
+            name: "prod".to_string(),
+            version: Some("v1.28.0".to_string()),
+            nodes: NodeSummary {
+                total: 5,
+                ready: 5,
+                not_ready: 0,
+            },
+            resources: ResourceSummary {
+                pods: ResourceCount { total: 100, running: 95 },
+                deployments: ResourceCount { total: 20, running: 20 },
+                services: ResourceCount { total: 30, running: 30 },
+                configmaps: ResourceCount { total: 50, running: 50 },
+                secrets: ResourceCount { total: 40, running: 40 },
+            },
+        };
+        let value = serde_json::to_value(&summary).unwrap();
+        assert_eq!(value["name"], "prod");
+        assert_eq!(value["nodes"]["total"], 5);
+        assert_eq!(value["resources"]["pods"]["total"], 100);
+        assert_eq!(value["resources"]["pods"]["running"], 95);
+    }
+
+    #[test]
+    fn test_aggregate_view_serialization() {
+        let view = AggregateView {
+            total_clusters: 2,
+            healthy_clusters: 1,
+            total_nodes: 8,
+            total_pods: 120,
+            total_deployments: 30,
+            clusters: vec![
+                ClusterStatus {
+                    name: "prod".to_string(),
+                    status: "healthy".to_string(),
+                    nodes: 5,
+                    pods: 80,
+                },
+                ClusterStatus {
+                    name: "staging".to_string(),
+                    status: "unknown".to_string(),
+                    nodes: 3,
+                    pods: 40,
+                },
+            ],
+        };
+        let value = serde_json::to_value(&view).unwrap();
+        assert_eq!(value["total_clusters"], 2);
+        assert_eq!(value["healthy_clusters"], 1);
+        assert_eq!(value["clusters"].as_array().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn test_cluster_status_serialization() {
+        let status = ClusterStatus {
+            name: "dev".to_string(),
+            status: "unhealthy".to_string(),
+            nodes: 1,
+            pods: 5,
+        };
+        let value = serde_json::to_value(&status).unwrap();
+        assert_eq!(value["name"], "dev");
+        assert_eq!(value["status"], "unhealthy");
+    }
+
+    #[test]
+    fn test_resource_count_serialization() {
+        let rc = ResourceCount {
+            total: 50,
+            running: 48,
+        };
+        let value = serde_json::to_value(&rc).unwrap();
+        assert_eq!(value["total"], 50);
+        assert_eq!(value["running"], 48);
+    }
+
+    #[test]
+    fn test_node_summary_serialization() {
+        let ns = NodeSummary {
+            total: 10,
+            ready: 8,
+            not_ready: 2,
+        };
+        let value = serde_json::to_value(&ns).unwrap();
+        assert_eq!(value["total"], 10);
+        assert_eq!(value["ready"], 8);
+        assert_eq!(value["not_ready"], 2);
+    }
+
+    #[test]
+    fn test_derive_encryption_key_from_env() {
+        let config = crate::config::Config::default();
+        std::env::set_var("SEMAPHORE_KUBECONFIG_KEY", "my-secret-key-12345678901234567890");
+        let key = derive_encryption_key(&config);
+        assert_eq!(key.len(), 32);
+        assert_eq!(&key[..6], b"my-sec");
+        std::env::remove_var("SEMAPHORE_KUBECONFIG_KEY");
+    }
+
+    #[test]
+    fn test_derive_encryption_key_fallback_to_cookie_hash() {
+        std::env::remove_var("SEMAPHORE_KUBECONFIG_KEY");
+        std::env::remove_var("SEMAPHORE_ACCESS_KEY_ENCRYPTION");
+        let config = crate::config::Config::default();
+        let key = derive_encryption_key(&config);
+        assert_eq!(key.len(), 32);
+    }
+
+    #[test]
+    fn test_derive_encryption_key_short_value_padded() {
+        let config = crate::config::Config::default();
+        std::env::set_var("SEMAPHORE_KUBECONFIG_KEY", "short");
+        let key = derive_encryption_key(&config);
+        assert_eq!(key.len(), 32);
+        assert_eq!(&key[..5], b"short");
+        assert_eq!(&key[5..], &[0u8; 27]);
+        std::env::remove_var("SEMAPHORE_KUBECONFIG_KEY");
+    }
+}

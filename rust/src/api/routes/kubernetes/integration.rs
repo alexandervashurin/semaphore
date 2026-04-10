@@ -48,3 +48,19 @@ pub fn integration_routes() -> Router<Arc<AppState>> {
         .route("/api/kubernetes/inventory/sync/preview", get(handlers::get_inventory_sync_preview))
         .route("/api/kubernetes/inventory/sync", post(handlers::execute_inventory_sync))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_integration_routes_creates() {
+        let _router: Router<Arc<AppState>> = integration_routes();
+    }
+
+    #[test]
+    fn test_integration_routes_returns_router() {
+        let router = integration_routes();
+        let _: Router<Arc<AppState>> = router;
+    }
+}

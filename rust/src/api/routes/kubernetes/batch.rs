@@ -30,3 +30,19 @@ pub fn batch_routes() -> Router<Arc<AppState>> {
         .route("/api/kubernetes/namespaces/{namespace}/poddisruptionbudgets", post(handlers::create_pdb))
         .route("/api/kubernetes/namespaces/{namespace}/poddisruptionbudgets/{name}", delete(handlers::delete_pdb))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_batch_routes_creates() {
+        let _router: Router<Arc<AppState>> = batch_routes();
+    }
+
+    #[test]
+    fn test_batch_routes_returns_router() {
+        let router = batch_routes();
+        let _: Router<Arc<AppState>> = router;
+    }
+}

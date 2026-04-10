@@ -34,3 +34,19 @@ pub fn storage_routes() -> Router<Arc<AppState>> {
         .route("/api/kubernetes/csinodes", get(handlers::list_csi_nodes))
         .route("/api/kubernetes/volumeattachments", get(handlers::list_volume_attachments))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_storage_routes_creates() {
+        let _router: Router<Arc<AppState>> = storage_routes();
+    }
+
+    #[test]
+    fn test_storage_routes_returns_router() {
+        let router = storage_routes();
+        let _: Router<Arc<AppState>> = router;
+    }
+}

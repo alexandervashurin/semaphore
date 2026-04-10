@@ -57,3 +57,53 @@ pub fn static_routes() -> Router<Arc<AppState>> {
         .fallback_service(serve_dir)
         .layer(middleware::from_fn(check_api_path))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_static_routes_creation() {
+        let router = static_routes();
+        // Router всегда создаётся успешно, даже если web_path не существует
+        // (в этом случае возвращается пустой Router с warning в логах)
+    }
+
+    #[test]
+    fn test_static_routes_router_type() {
+        let router = static_routes();
+        let _: Router<Arc<AppState>> = router;
+    }
+
+    #[test]
+    fn test_web_path_env_variable() {
+        let web_path = std::env::var("SEMAPHORE_WEB_PATH");
+        // Переменная может быть не установлена - это нормально
+        let _ = web_path;
+    }
+
+    #[test]
+    fn test_default_web_path_structure() {
+        let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let default_path = manifest_dir.join("..").join("web").join("public");
+        let path_str = default_path.to_string_lossy();
+        assert!(path_str.contains("web"), "Default path should contain 'web'");
+        assert!(path_str.contains("public"), "Default path should contain 'public'");
+    }
+
+    #[test]
+    fn test_check_api_path_logic_blocks_api_paths() {
+        let api_path = "/api/tasks";
+        let non_api_path = "/index.html";
+        assert!(api_path.starts_with("/api/"), "API path should start with /api/");
+        assert!(!non_api_path.starts_with("/api/"), "Static path should not start with /api/");
+    }
+
+    #[test]
+    fn test_check_api_path_allows_static_paths() {
+        let static_paths = ["/index.html", "/assets/app.js", "/favicon.ico", "/"];
+        for path in static_paths {
+            assert!(!path.starts_with("/api/"), "{} should not be blocked", path);
+        }
+    }
+}

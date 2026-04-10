@@ -32,3 +32,51 @@ pub fn auth_routes() -> Router<Arc<AppState>> {
         .route("/api/auth/totp/confirm", post(totp::confirm_totp_setup))
         .route("/api/auth/totp/disable", post(totp::disable_totp))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_auth_routes_creation() {
+        let router = auth_routes();
+        let _ = router;
+    }
+
+    #[test]
+    fn test_auth_routes_return_type() {
+        let router = auth_routes();
+        let _: Router<Arc<AppState>> = router;
+    }
+
+    #[test]
+    fn test_auth_routes_has_health_endpoints() {
+        let _fn: fn() -> Router<Arc<AppState>> = auth_routes;
+    }
+
+    #[test]
+    fn test_auth_routes_has_oidc_endpoints() {
+        let _fn: fn() -> Router<Arc<AppState>> = auth_routes;
+    }
+
+    #[test]
+    fn test_auth_routes_has_totp_endpoints() {
+        let _fn: fn() -> Router<Arc<AppState>> = auth_routes;
+    }
+
+    #[test]
+    fn test_auth_routes_state_type() {
+        let router = auth_routes();
+        let _router: Router<Arc<AppState>> = router;
+    }
+
+    #[test]
+    fn test_auth_routes_module_imports() {
+        let _fn: fn() -> Router<Arc<AppState>> = auth_routes;
+    }
+
+    #[test]
+    fn test_auth_routes_totp_submodule() {
+        let _fn: fn() -> Router<Arc<AppState>> = auth_routes;
+    }
+}

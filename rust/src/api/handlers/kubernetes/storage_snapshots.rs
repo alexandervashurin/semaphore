@@ -120,3 +120,131 @@ pub async fn list_volume_snapshot_classes(
         items.items.iter().map(|x| serde_json::json!(x)).collect(),
     ))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_snapshot_list_query_default() {
+        let q: SnapshotListQuery = serde_json::from_str("{}").unwrap();
+        assert!(q.namespace.is_none());
+        assert!(q.limit.is_none());
+    }
+
+    #[test]
+    fn test_snapshot_list_query_with_namespace() {
+        let q: SnapshotListQuery =
+            serde_json::from_str(r#"{"namespace": "kube-system"}"#).unwrap();
+        assert_eq!(q.namespace, Some("kube-system".to_string()));
+        assert!(q.limit.is_none());
+    }
+
+    #[test]
+    fn test_snapshot_list_query_with_limit() {
+        let q: SnapshotListQuery = serde_json::from_str(r#"{"limit": 50}"#).unwrap();
+        assert_eq!(q.limit, Some(50));
+        assert!(q.namespace.is_none());
+    }
+
+    #[test]
+    fn test_snapshot_list_query_full() {
+        let q: SnapshotListQuery = serde_json::from_str(
+            r#"{"namespace": "default", "limit": 10}"#
+        ).unwrap();
+        assert_eq!(q.namespace, Some("default".to_string()));
+        assert_eq!(q.limit, Some(10));
+    }
+
+    #[test]
+    fn test_snapshot_list_query_debug_format() {
+        let q = SnapshotListQuery {
+            namespace: Some("test".into()),
+            limit: Some(5),
+        };
+        let debug_str = format!("{:?}", q);
+        assert!(debug_str.contains("SnapshotListQuery"));
+    }
+
+    #[test]
+    fn test_snapshot_api_status_default_true() {
+        let status = SnapshotApiStatus {
+            installed: true,
+            volume_snapshot: true,
+            volume_snapshot_class: true,
+        };
+        let serialized = serde_json::to_string(&status).unwrap();
+        assert!(serialized.contains("true"));
+    }
+
+    #[test]
+    fn test_snapshot_api_status_all_false() {
+        let status = SnapshotApiStatus {
+            installed: false,
+            volume_snapshot: false,
+            volume_snapshot_class: false,
+        };
+        let serialized = serde_json::to_string(&status).unwrap();
+        assert!(serialized.contains(r#""installed":false"#));
+        assert!(serialized.contains(r#""volume_snapshot":false"#));
+        assert!(serialized.contains(r#""volume_snapshot_class":false"#));
+    }
+
+    #[test]
+    fn test_snapshot_api_status_mixed() {
+        let status = SnapshotApiStatus {
+            installed: true,
+            volume_snapshot: true,
+            volume_snapshot_class: false,
+        };
+        let json_val = serde_json::to_value(&status).unwrap();
+        assert_eq!(json_val["installed"], true);
+        assert_eq!(json_val["volume_snapshot"], true);
+        assert_eq!(json_val["volume_snapshot_class"], false);
+    }
+
+    #[test]
+    fn test_gvk_creation() {
+        let gvk_result = gvk("snapshot.storage.k8s.io", "v1", "VolumeSnapshot");
+        assert_eq!(gvk_result.group, "snapshot.storage.k8s.io");
+        assert_eq!(gvk_result.version, "v1");
+        assert_eq!(gvk_result.kind, "VolumeSnapshot");
+    }
+
+    #[test]
+    fn test_api_resource_creation() {
+        let ar_result = ar(
+            "snapshot.storage.k8s.io",
+            "v1",
+            "VolumeSnapshot",
+            "volumesnapshots",
+        );
+        assert_eq!(ar_result.group, "snapshot.storage.k8s.io");
+        assert_eq!(ar_result.version, "v1");
+        assert_eq!(ar_result.plural, "volumesnapshots");
+    }
+
+    #[test]
+    fn test_snapshot_api_status_serialize_fields() {
+        let original = SnapshotApiStatus {
+            installed: true,
+            volume_snapshot: false,
+            volume_snapshot_class: true,
+        };
+        let serialized = serde_json::to_string(&original).unwrap();
+        assert!(serialized.contains(r#""installed":true"#));
+        assert!(serialized.contains(r#""volume_snapshot":false"#));
+        assert!(serialized.contains(r#""volume_snapshot_class":true"#));
+    }
+
+    #[test]
+    fn test_snapshot_api_status_debug_format() {
+        let status = SnapshotApiStatus {
+            installed: true,
+            volume_snapshot: false,
+            volume_snapshot_class: true,
+        };
+        let debug_str = format!("{:?}", status);
+        assert!(debug_str.contains("SnapshotApiStatus"));
+    }
+}

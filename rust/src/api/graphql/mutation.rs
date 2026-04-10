@@ -396,3 +396,213 @@ impl MutationRoot {
         Ok(true)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_create_user_input_fields() {
+        let input = CreateUserInput {
+            username: "admin".to_string(),
+            email: "admin@example.com".to_string(),
+            name: Some("Admin User".to_string()),
+            password: "secret123".to_string(),
+            admin: Some(true),
+        };
+        assert_eq!(input.username, "admin");
+        assert_eq!(input.email, "admin@example.com");
+        assert_eq!(input.name, Some("Admin User".to_string()));
+        assert_eq!(input.admin, Some(true));
+    }
+
+    #[test]
+    fn test_create_user_input_optional_fields_none() {
+        let input = CreateUserInput {
+            username: "user".to_string(),
+            email: "user@example.com".to_string(),
+            name: None,
+            password: "pass".to_string(),
+            admin: None,
+        };
+        assert_eq!(input.username, "user");
+        assert!(input.name.is_none());
+        assert!(input.admin.is_none());
+    }
+
+    #[test]
+    fn test_create_user_input_field_values() {
+        let input = CreateUserInput {
+            username: "test".to_string(),
+            email: "test@test.com".to_string(),
+            name: Some("Test".to_string()),
+            password: "pwd".to_string(),
+            admin: Some(false),
+        };
+        assert_eq!(input.username, "test");
+        assert_eq!(input.email, "test@test.com");
+        assert_eq!(input.name, Some("Test".to_string()));
+        assert_eq!(input.admin, Some(false));
+    }
+
+    #[test]
+    fn test_create_project_input_fields() {
+        let input = CreateProjectInput {
+            name: "My Project".to_string(),
+            description: Some("A test project".to_string()),
+            color: Some("#FF0000".to_string()),
+        };
+        assert_eq!(input.name, "My Project");
+        assert_eq!(input.description, Some("A test project".to_string()));
+        assert_eq!(input.color, Some("#FF0000".to_string()));
+    }
+
+    #[test]
+    fn test_create_project_input_values() {
+        let input = CreateProjectInput {
+            name: "TestProject".to_string(),
+            description: None,
+            color: None,
+        };
+        assert_eq!(input.name, "TestProject");
+        assert!(input.description.is_none());
+        assert!(input.color.is_none());
+    }
+
+    #[test]
+    fn test_create_project_input_minimal() {
+        let input = CreateProjectInput {
+            name: "Minimal".to_string(),
+            description: None,
+            color: None,
+        };
+        assert_eq!(input.name, "Minimal");
+    }
+
+    #[test]
+    fn test_create_template_input_fields() {
+        let input = CreateTemplateInput {
+            project_id: 1,
+            name: "deploy-template".to_string(),
+            playbook: "deploy.yml".to_string(),
+            description: Some("Deployment template".to_string()),
+            inventory_id: Some(2),
+            repository_id: Some(3),
+            environment_id: Some(4),
+        };
+        assert_eq!(input.project_id, 1);
+        assert_eq!(input.name, "deploy-template");
+        assert_eq!(input.playbook, "deploy.yml");
+        assert_eq!(input.inventory_id, Some(2));
+    }
+
+    #[test]
+    fn test_create_template_input_minimal() {
+        let input = CreateTemplateInput {
+            project_id: 1,
+            name: "simple".to_string(),
+            playbook: "simple.yml".to_string(),
+            description: None,
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+        };
+        assert_eq!(input.project_id, 1);
+        assert!(input.inventory_id.is_none());
+        assert!(input.repository_id.is_none());
+    }
+
+    #[test]
+    fn test_create_template_input_values() {
+        let input = CreateTemplateInput {
+            project_id: 5,
+            name: "tpl".to_string(),
+            playbook: "run.yml".to_string(),
+            description: Some("desc".to_string()),
+            inventory_id: Some(10),
+            repository_id: None,
+            environment_id: None,
+        };
+        assert_eq!(input.project_id, 5);
+        assert_eq!(input.name, "tpl");
+        assert_eq!(input.inventory_id, Some(10));
+    }
+
+    #[test]
+    fn test_create_task_input_fields() {
+        let input = CreateTaskInput {
+            template_id: 1,
+            project_id: 2,
+            debug: Some(true),
+            dry_run: Some(false),
+            diff: Some(true),
+        };
+        assert_eq!(input.template_id, 1);
+        assert_eq!(input.project_id, 2);
+        assert_eq!(input.debug, Some(true));
+        assert_eq!(input.dry_run, Some(false));
+        assert_eq!(input.diff, Some(true));
+    }
+
+    #[test]
+    fn test_create_task_input_all_none() {
+        let input = CreateTaskInput {
+            template_id: 1,
+            project_id: 2,
+            debug: None,
+            dry_run: None,
+            diff: None,
+        };
+        assert!(input.debug.is_none());
+        assert!(input.dry_run.is_none());
+        assert!(input.diff.is_none());
+    }
+
+    #[test]
+    fn test_create_task_input_values() {
+        let input = CreateTaskInput {
+            template_id: 10,
+            project_id: 20,
+            debug: Some(true),
+            dry_run: Some(true),
+            diff: Some(false),
+        };
+        assert_eq!(input.template_id, 10);
+        assert_eq!(input.project_id, 20);
+        assert_eq!(input.debug, Some(true));
+        assert_eq!(input.dry_run, Some(true));
+        assert_eq!(input.diff, Some(false));
+    }
+
+    #[test]
+    fn test_mutation_root_exists() {
+        let root = MutationRoot;
+        // Verify MutationRoot can be instantiated
+        drop(root);
+    }
+
+    #[test]
+    fn test_create_user_input_fields_equality() {
+        let input = CreateUserInput {
+            username: "clone_user".to_string(),
+            email: "clone@test.com".to_string(),
+            name: Some("Clone".to_string()),
+            password: "pass".to_string(),
+            admin: Some(false),
+        };
+        assert_eq!(input.username, "clone_user");
+        assert_eq!(input.email, "clone@test.com");
+        assert_eq!(input.name, Some("Clone".to_string()));
+    }
+
+    #[test]
+    fn test_create_project_input_fields_equality() {
+        let input = CreateProjectInput {
+            name: "clone-project".to_string(),
+            description: None,
+            color: Some("#00FF00".to_string()),
+        };
+        assert_eq!(input.name, "clone-project");
+        assert_eq!(input.color, Some("#00FF00".to_string()));
+    }
+}

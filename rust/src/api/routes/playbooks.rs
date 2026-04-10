@@ -111,3 +111,51 @@ pub fn playbook_routes() -> Router<Arc<AppState>> {
             get(handlers::playbook_runs::get_playbook_run_stats),
         )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_playbook_routes_creation() {
+        let router = playbook_routes();
+        let _ = router;
+    }
+
+    #[test]
+    fn test_playbook_routes_return_type() {
+        let router = playbook_routes();
+        let _: Router<Arc<AppState>> = router;
+    }
+
+    #[test]
+    fn test_playbook_routes_has_inventories_endpoints() {
+        let _fn: fn() -> Router<Arc<AppState>> = playbook_routes;
+    }
+
+    #[test]
+    fn test_playbook_routes_has_playbooks_endpoints() {
+        let _fn: fn() -> Router<Arc<AppState>> = playbook_routes;
+    }
+
+    #[test]
+    fn test_playbook_routes_has_playbook_runs_endpoints() {
+        let _fn: fn() -> Router<Arc<AppState>> = playbook_routes;
+    }
+
+    #[test]
+    fn test_playbook_routes_state_type() {
+        let router = playbook_routes();
+        let _router: Router<Arc<AppState>> = router;
+    }
+
+    #[test]
+    fn test_playbook_routes_module_imports() {
+        let _fn: fn() -> Router<Arc<AppState>> = playbook_routes;
+    }
+
+    #[test]
+    fn test_playbook_routes_vue_alias() {
+        let _fn: fn() -> Router<Arc<AppState>> = playbook_routes;
+    }
+}

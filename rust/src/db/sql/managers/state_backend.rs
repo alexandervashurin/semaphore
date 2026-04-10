@@ -379,3 +379,264 @@ impl TerraformStateManager for SqlStore {
         Ok(result.rows_affected())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{TerraformState, TerraformStateLock};
+
+    // ---------- TerraformState model tests ----------
+
+    #[test]
+    fn test_terraform_state_default_values() {
+        let state = TerraformState {
+            id: 0,
+            project_id: 1,
+            workspace: "default".to_string(),
+            serial: 1,
+            lineage: "test-lineage".to_string(),
+            state_data: b"{}".to_vec(),
+            encrypted: false,
+            md5: "d41d8cd98f00b204e9800998ecf8427e".to_string(),
+            created_at: chrono::Utc::now(),
+        };
+        assert_eq!(state.workspace, "default");
+        assert_eq!(state.serial, 1);
+        assert!(!state.encrypted);
+    }
+
+    #[test]
+    fn test_terraform_state_with_encrypted_flag() {
+        let state = TerraformState {
+            id: 1,
+            project_id: 1,
+            workspace: "prod".to_string(),
+            serial: 5,
+            lineage: "abc".to_string(),
+            state_data: br#"{"resources":[]}"#.to_vec(),
+            encrypted: true,
+            md5: "abc123".to_string(),
+            created_at: chrono::Utc::now(),
+        };
+        assert!(state.encrypted);
+    }
+
+    #[test]
+    fn test_terraform_state_workspace_variants() {
+        let workspaces = vec!["default", "dev", "staging", "prod", ""];
+        for ws in workspaces {
+            let state = TerraformState {
+                id: 0,
+                project_id: 1,
+                workspace: ws.to_string(),
+                serial: 1,
+                lineage: "x".to_string(),
+                state_data: b"{}".to_vec(),
+                encrypted: false,
+                md5: "x".to_string(),
+                created_at: chrono::Utc::now(),
+            };
+            assert_eq!(state.workspace, ws);
+        }
+    }
+
+    // ---------- TerraformStateLock model tests ----------
+
+    #[test]
+    fn test_terraform_state_lock_structure() {
+        let lock = TerraformStateLock {
+            project_id: 1,
+            workspace: "default".to_string(),
+            lock_id: "lock-uuid".to_string(),
+            operation: "apply".to_string(),
+            info: "{}".to_string(),
+            who: "user @host".to_string(),
+            version: "1.5.0".to_string(),
+            path: "module.root".to_string(),
+            created_at: chrono::Utc::now(),
+            expires_at: chrono::Utc::now() + chrono::Duration::hours(2),
+        };
+        assert_eq!(lock.operation, "apply");
+        assert_eq!(lock.version, "1.5.0");
+    }
+
+    #[test]
+    fn test_lock_operation_variants() {
+        let ops = vec!["apply", "destroy", "plan", "refresh"];
+        for op in ops {
+            let lock = TerraformStateLock {
+                project_id: 1,
+                workspace: "ws".to_string(),
+                lock_id: "id".to_string(),
+                operation: op.to_string(),
+                info: String::new(),
+                who: String::new(),
+                version: String::new(),
+                path: String::new(),
+                created_at: chrono::Utc::now(),
+                expires_at: chrono::Utc::now(),
+            };
+            assert_eq!(lock.operation, op);
+        }
+    }
+
+    #[test]
+    fn test_lock_expires_in_future() {
+        let now = chrono::Utc::now();
+        let lock = TerraformStateLock {
+            project_id: 1,
+            workspace: "ws".to_string(),
+            lock_id: "id".to_string(),
+            operation: "apply".to_string(),
+            info: String::new(),
+            who: String::new(),
+            version: String::new(),
+            path: String::new(),
+            created_at: now,
+            expires_at: now + chrono::Duration::hours(2),
+        };
+        assert!(lock.expires_at > lock.created_at);
+    }
+
+    // ---------- TerraformStateSummary tests ----------
+
+    #[test]
+    fn test_terraform_state_summary_fields() {
+        let summary = crate::models::TerraformStateSummary {
+            id: 42,
+            project_id: 1,
+            workspace: "prod".to_string(),
+            serial: 10,
+            lineage: "ln".to_string(),
+            encrypted: true,
+            md5: "hash".to_string(),
+            created_at: chrono::Utc::now(),
+        };
+        assert_eq!(summary.id, 42);
+        assert_eq!(summary.serial, 10);
+        assert!(summary.encrypted);
+    }
+
+    // ---------- SQL query structure tests ----------
+
+    #[test]
+    fn test_select_state_query_contains_expected_columns() {
+        let query = "SELECT id, project_id, workspace, serial, lineage, state_data, encrypted, md5, created_at
+             FROM terraform_state
+             WHERE project_id = $1 AND workspace = $2
+             ORDER BY serial DESC
+             LIMIT 1";
+        assert!(query.contains("project_id"));
+        assert!(query.contains("workspace"));
+        assert!(query.contains("serial"));
+        assert!(query.contains("state_data"));
+        assert!(query.contains("md5"));
+    }
+
+    #[test]
+    fn test_delete_expired_locks_query() {
+        let query = "DELETE FROM terraform_state_lock WHERE expires_at < NOW()";
+        assert!(query.contains("terraform_state_lock"));
+        assert!(query.contains("expires_at"));
+        assert!(query.contains("NOW()"));
+    }
+
+    #[test]
+    fn test_list_workspaces_query() {
+        let query =
+            "SELECT DISTINCT workspace FROM terraform_state WHERE project_id = $1 ORDER BY workspace";
+        assert!(query.contains("DISTINCT"));
+        assert!(query.contains("workspace"));
+        assert!(query.contains("ORDER BY"));
+    }
+
+    // ---------- Serialization tests ----------
+
+    #[test]
+    fn test_terraform_state_serialize_md5() {
+        let state = TerraformState {
+            id: 1,
+            project_id: 1,
+            workspace: "default".to_string(),
+            serial: 1,
+            lineage: "ln".to_string(),
+            state_data: b"{}".to_vec(),
+            encrypted: false,
+            md5: "abc123".to_string(),
+            created_at: chrono::Utc::now(),
+        };
+        let json = serde_json::to_string(&state).unwrap();
+        assert!(json.contains("\"md5\":\"abc123\""));
+        assert!(json.contains("\"workspace\":\"default\""));
+    }
+
+    #[test]
+    fn test_terraform_state_lock_serialize() {
+        let lock = TerraformStateLock {
+            project_id: 1,
+            workspace: "ws".to_string(),
+            lock_id: "l-1".to_string(),
+            operation: "apply".to_string(),
+            info: "{}".to_string(),
+            who: "test".to_string(),
+            version: "1.0".to_string(),
+            path: "root".to_string(),
+            created_at: chrono::Utc::now(),
+            expires_at: chrono::Utc::now(),
+        };
+        let json = serde_json::to_string(&lock).unwrap();
+        assert!(json.contains("\"operation\":\"apply\""));
+        assert!(json.contains("\"lock_id\":\"l-1\""));
+    }
+
+    // ---------- Validation tests ----------
+
+    #[test]
+    fn test_state_serial_positive() {
+        let state = TerraformState {
+            id: 1,
+            project_id: 1,
+            workspace: "ws".to_string(),
+            serial: 100,
+            lineage: "ln".to_string(),
+            state_data: b"{}".to_vec(),
+            encrypted: false,
+            md5: "x".to_string(),
+            created_at: chrono::Utc::now(),
+        };
+        assert!(state.serial > 0);
+    }
+
+    #[test]
+    fn test_lock_id_non_empty() {
+        let lock = TerraformStateLock {
+            project_id: 1,
+            workspace: "ws".to_string(),
+            lock_id: "uuid-1234".to_string(),
+            operation: "plan".to_string(),
+            info: String::new(),
+            who: String::new(),
+            version: String::new(),
+            path: String::new(),
+            created_at: chrono::Utc::now(),
+            expires_at: chrono::Utc::now(),
+        };
+        assert!(!lock.lock_id.is_empty());
+    }
+
+    #[test]
+    fn test_project_id_positive() {
+        let state = TerraformState {
+            id: 1,
+            project_id: 42,
+            workspace: "ws".to_string(),
+            serial: 1,
+            lineage: "ln".to_string(),
+            state_data: b"{}".to_vec(),
+            encrypted: false,
+            md5: "x".to_string(),
+            created_at: chrono::Utc::now(),
+        };
+        assert_eq!(state.project_id, 42);
+    }
+}

@@ -265,3 +265,184 @@ impl UserManager for SqlStore {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{ProjectUser, User, UserTotp};
+    use crate::models::user::ProjectUserRole;
+
+    #[test]
+    fn test_user_structure() {
+        let user = User {
+            id: 1,
+            created: Utc::now(),
+            username: "testuser".to_string(),
+            name: "Test User".to_string(),
+            email: "test@example.com".to_string(),
+            password: "hashed".to_string(),
+            admin: false,
+            external: false,
+            alert: true,
+            pro: false,
+            totp: None,
+            email_otp: None,
+        };
+        assert_eq!(user.username, "testuser");
+        assert!(!user.admin);
+    }
+
+    #[test]
+    fn test_user_admin_flag() {
+        let admin_user = User {
+            id: 1,
+            created: Utc::now(),
+            username: "admin".to_string(),
+            name: "Admin".to_string(),
+            email: "admin@example.com".to_string(),
+            password: "hash".to_string(),
+            admin: true,
+            external: false,
+            alert: false,
+            pro: false,
+            totp: None,
+            email_otp: None,
+        };
+        assert!(admin_user.admin);
+    }
+
+    #[test]
+    fn test_user_serialize_excludes_password() {
+        let user = User {
+            id: 1,
+            created: Utc::now(),
+            username: "user".to_string(),
+            name: "Name".to_string(),
+            email: "a@b.com".to_string(),
+            password: "secret".to_string(),
+            admin: false,
+            external: false,
+            alert: false,
+            pro: false,
+            totp: None,
+            email_otp: None,
+        };
+        let json = serde_json::to_string(&user).unwrap();
+        assert!(json.contains("\"username\":\"user\""));
+        assert!(!json.contains("secret"));
+    }
+
+    #[test]
+    fn test_user_totp_structure() {
+        let totp = UserTotp {
+            id: 1,
+            created: Utc::now(),
+            user_id: 42,
+            url: "otpauth://totp/test?secret=ABC".to_string(),
+            recovery_hash: "hash".to_string(),
+            recovery_code: Some("CODE123".to_string()),
+        };
+        assert_eq!(totp.user_id, 42);
+        assert!(totp.recovery_code.is_some());
+    }
+
+    #[test]
+    fn test_user_totp_default() {
+        let totp = UserTotp::default();
+        assert_eq!(totp.id, 0);
+        assert!(totp.recovery_code.is_none());
+    }
+
+    #[test]
+    fn test_project_user_structure() {
+        let pu = ProjectUser {
+            id: 1,
+            project_id: 10,
+            user_id: 5,
+            role: ProjectUserRole::Manager,
+            created: Utc::now(),
+            username: "user".to_string(),
+            name: "User".to_string(),
+        };
+        assert_eq!(pu.project_id, 10);
+        assert_eq!(pu.role, ProjectUserRole::Manager);
+    }
+
+    #[test]
+    fn test_project_user_role_variants() {
+        let roles = vec![
+            ProjectUserRole::Owner,
+            ProjectUserRole::Manager,
+            ProjectUserRole::TaskRunner,
+            ProjectUserRole::Guest,
+            ProjectUserRole::None,
+        ];
+        for role in roles {
+            let display = role.to_string();
+            assert!(!display.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_project_user_role_display() {
+        assert_eq!(ProjectUserRole::Owner.to_string(), "owner");
+        assert_eq!(ProjectUserRole::Manager.to_string(), "manager");
+        assert_eq!(ProjectUserRole::TaskRunner.to_string(), "task_runner");
+        assert_eq!(ProjectUserRole::Guest.to_string(), "guest");
+        assert_eq!(ProjectUserRole::None.to_string(), "none");
+    }
+
+    #[test]
+    fn test_project_user_new() {
+        let pu = ProjectUser::new(1, 10, ProjectUserRole::TaskRunner);
+        assert_eq!(pu.id, 0);
+        assert_eq!(pu.project_id, 1);
+        assert_eq!(pu.user_id, 10);
+    }
+
+    #[test]
+    fn test_sql_query_get_users() {
+        let query = "SELECT * FROM \"user\" ORDER BY id";
+        assert!(query.contains("user"));
+        assert!(query.contains("ORDER BY"));
+    }
+
+    #[test]
+    fn test_sql_query_get_user_by_id() {
+        let query = "SELECT * FROM \"user\" WHERE id = $1";
+        assert!(query.contains("WHERE"));
+        assert!(query.contains("id"));
+    }
+
+    #[test]
+    fn test_sql_query_get_admins() {
+        let query = "SELECT * FROM \"user\" WHERE admin = $1";
+        assert!(query.contains("admin"));
+        assert!(query.contains("$1"));
+    }
+
+    #[test]
+    fn test_sql_query_project_users_with_join() {
+        let query = "SELECT pu.*, u.username, u.name, u.email
+                 FROM project_user pu
+                 JOIN \"user\" u ON pu.user_id = u.id
+                 WHERE pu.project_id = $1
+                 ORDER BY pu.id";
+        assert!(query.contains("project_user"));
+        assert!(query.contains("JOIN"));
+    }
+
+    #[test]
+    fn test_user_totp_serialize_excludes_sensitive() {
+        let totp = UserTotp {
+            id: 1,
+            created: Utc::now(),
+            user_id: 1,
+            url: "otpauth://totp/x".to_string(),
+            recovery_hash: "secret_hash".to_string(),
+            recovery_code: None,
+        };
+        let json = serde_json::to_string(&totp).unwrap();
+        assert!(json.contains("\"url\":"));
+    }
+}

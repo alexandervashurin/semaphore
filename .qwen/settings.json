@@ -43,7 +43,18 @@
       "Bash(docker build *)",
       "Bash(sed *)",
       "Bash(do *)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(cat *)",
+      "Bash(then *)",
+      "Bash(fi)",
+      "Bash(cargo test *)",
+      "Bash(tail *)",
+      "Bash(sort)",
+      "Bash(comm *)",
+      "Bash(rustfmt *)",
+      "Bash(tr *)",
+      "Bash(eof)",
+      "Bash(bash *)"
     ]
   },
   "$version": 3

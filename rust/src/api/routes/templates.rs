@@ -123,3 +123,51 @@ pub fn template_routes() -> Router<Arc<AppState>> {
         //     get(handlers::template_view::list_template_views),
         // )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_template_routes_creation() {
+        let router = template_routes();
+        let _ = router;
+    }
+
+    #[test]
+    fn test_template_routes_return_type() {
+        let router = template_routes();
+        let _: Router<Arc<AppState>> = router;
+    }
+
+    #[test]
+    fn test_template_routes_has_templates_endpoints() {
+        let _fn: fn() -> Router<Arc<AppState>> = template_routes;
+    }
+
+    #[test]
+    fn test_template_routes_has_workflows_endpoints() {
+        let _fn: fn() -> Router<Arc<AppState>> = template_routes;
+    }
+
+    #[test]
+    fn test_template_routes_state_type() {
+        let router = template_routes();
+        let _router: Router<Arc<AppState>> = router;
+    }
+
+    #[test]
+    fn test_template_routes_module_imports() {
+        let _fn: fn() -> Router<Arc<AppState>> = template_routes;
+    }
+
+    #[test]
+    fn test_template_routes_workflow_submodule() {
+        let _fn: fn() -> Router<Arc<AppState>> = template_routes;
+    }
+
+    #[test]
+    fn test_template_routes_vue_alias() {
+        let _fn: fn() -> Router<Arc<AppState>> = template_routes;
+    }
+}

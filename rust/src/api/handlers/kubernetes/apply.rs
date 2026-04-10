@@ -375,3 +375,316 @@ fn parse_kubectl_apply_output(stdout: &[u8]) -> Vec<AppliedResource> {
     }
     vec![]
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── ApplyPayload deserialization ──
+
+    #[test]
+    fn test_apply_payload_minimal() {
+        let json = r#"{"manifest": "apiVersion: v1\nkind: ConfigMap"}"#;
+        let payload: ApplyPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.manifest, "apiVersion: v1\nkind: ConfigMap");
+        assert_eq!(payload.dry_run, None);
+        assert_eq!(payload.field_manager, None);
+        assert_eq!(payload.force, None);
+    }
+
+    #[test]
+    fn test_apply_payload_all_fields() {
+        let json = r#"{"manifest": "kind: Pod", "dry_run": true, "field_manager": "my-app", "force": true}"#;
+        let payload: ApplyPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.manifest, "kind: Pod");
+        assert_eq!(payload.dry_run, Some(true));
+        assert_eq!(payload.field_manager, Some("my-app".to_string()));
+        assert_eq!(payload.force, Some(true));
+    }
+
+    #[test]
+    fn test_apply_payload_dry_run_false() {
+        let json = r#"{"manifest": "kind: Service", "dry_run": false}"#;
+        let payload: ApplyPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.dry_run, Some(false));
+    }
+
+    // ── AppliedResource ──
+
+    #[test]
+    fn test_applied_resource_with_namespace() {
+        let res = AppliedResource {
+            kind: "Deployment".to_string(),
+            name: "my-app".to_string(),
+            namespace: Some("production".to_string()),
+            action: "created".to_string(),
+        };
+        let json = serde_json::to_value(&res).unwrap();
+        assert_eq!(json["kind"], "Deployment");
+        assert_eq!(json["name"], "my-app");
+        assert_eq!(json["namespace"], "production");
+        assert_eq!(json["action"], "created");
+    }
+
+    #[test]
+    fn test_applied_resource_without_namespace() {
+        let res = AppliedResource {
+            kind: "Namespace".to_string(),
+            name: "test-ns".to_string(),
+            namespace: None,
+            action: "configured".to_string(),
+        };
+        assert_eq!(res.kind, "Namespace");
+        assert!(res.namespace.is_none());
+        assert_eq!(res.action, "configured");
+    }
+
+    // ── ApplyResult ──
+
+    #[test]
+    fn test_apply_result_success() {
+        let result = ApplyResult {
+            success: true,
+            dry_run: false,
+            output: "deployment.apps/my-app created".to_string(),
+            kubectl_command: "kubectl apply -f manifest.yaml --field-manager=velum".to_string(),
+            resources: vec![AppliedResource {
+                kind: "Deployment".to_string(),
+                name: "my-app".to_string(),
+                namespace: Some("default".to_string()),
+                action: "created".to_string(),
+            }],
+            warnings: vec![],
+        };
+        let json = serde_json::to_value(&result).unwrap();
+        assert_eq!(json["success"], true);
+        assert_eq!(json["dry_run"], false);
+        assert_eq!(json["resources"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_apply_result_with_warnings() {
+        let result = ApplyResult {
+            success: true,
+            dry_run: true,
+            output: "".to_string(),
+            kubectl_command: "kubectl apply --dry-run=server".to_string(),
+            resources: vec![],
+            warnings: vec!["Warning: resource already exists".to_string()],
+        };
+        let json = serde_json::to_value(&result).unwrap();
+        assert_eq!(json["warnings"].as_array().unwrap().len(), 1);
+        assert!(json["warnings"][0].as_str().unwrap().starts_with("Warning:"));
+    }
+
+    // ── DiffQuery / DiffResult ──
+
+    #[test]
+    fn test_diff_query_with_namespace() {
+        let json = r#"{"namespace": "staging"}"#;
+        let q: DiffQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(q.namespace, Some("staging".to_string()));
+    }
+
+    #[test]
+    fn test_diff_result_no_diff() {
+        let result = DiffResult {
+            has_diff: false,
+            diff: "".to_string(),
+            kubectl_command: "kubectl diff -f -".to_string(),
+        };
+        assert!(!result.has_diff);
+        assert!(result.diff.is_empty());
+    }
+
+    #[test]
+    fn test_diff_result_has_diff() {
+        let result = DiffResult {
+            has_diff: true,
+            diff: "+ replicas: 3\n- replicas: 1".to_string(),
+            kubectl_command: "kubectl diff -f -".to_string(),
+        };
+        assert!(result.has_diff);
+        assert!(result.diff.contains("replicas"));
+    }
+
+    // ── KubectlGenQuery ──
+
+    #[test]
+    fn test_kubectl_gen_query_apply() {
+        let json = r#"{"action": "apply", "namespace": "default"}"#;
+        let q: KubectlGenQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(q.action, "apply");
+        assert_eq!(q.namespace, Some("default".to_string()));
+        assert_eq!(q.kind, None);
+        assert_eq!(q.replicas, None);
+    }
+
+    #[test]
+    fn test_kubectl_gen_query_scale() {
+        let json = r#"{"action": "scale", "kind": "deployment", "name": "api", "replicas": 5}"#;
+        let q: KubectlGenQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(q.action, "scale");
+        assert_eq!(q.kind, Some("deployment".to_string()));
+        assert_eq!(q.name, Some("api".to_string()));
+        assert_eq!(q.replicas, Some(5));
+    }
+
+    // ── KubectlCommand ──
+
+    #[test]
+    fn test_kubectl_command_serialization() {
+        let cmd = KubectlCommand {
+            command: "kubectl get pods -n default".to_string(),
+            description: "Получить поды".to_string(),
+        };
+        let json = serde_json::to_value(&cmd).unwrap();
+        assert_eq!(json["command"], "kubectl get pods -n default");
+        assert_eq!(json["description"], "Получить поды");
+    }
+
+    // ── build_apply_command ──
+
+    #[test]
+    fn test_build_apply_command_simple() {
+        let cmd = build_apply_command("velum", false, false);
+        assert_eq!(cmd, "kubectl apply -f manifest.yaml --field-manager=velum");
+    }
+
+    #[test]
+    fn test_build_apply_command_with_dry_run() {
+        let cmd = build_apply_command("my-manager", true, false);
+        assert!(cmd.contains("--dry-run=server"));
+        assert!(cmd.contains("--field-manager=my-manager"));
+        assert!(!cmd.contains("--force-conflicts"));
+    }
+
+    #[test]
+    fn test_build_apply_command_with_force() {
+        let cmd = build_apply_command("velum", true, true);
+        assert!(cmd.contains("--dry-run=server"));
+        assert!(cmd.contains("--force-conflicts"));
+    }
+
+    // ── parse_kubectl_apply_output ──
+
+    #[test]
+    fn test_parse_single_resource_created() {
+        let output = serde_json::json!({
+            "kind": "ConfigMap",
+            "metadata": {
+                "name": "my-config",
+                "namespace": "default"
+            }
+        })
+        .to_string()
+        .into_bytes();
+
+        let resources = parse_kubectl_apply_output(&output);
+        assert_eq!(resources.len(), 1);
+        assert_eq!(resources[0].kind, "ConfigMap");
+        assert_eq!(resources[0].name, "my-config");
+        assert_eq!(resources[0].namespace, Some("default".to_string()));
+        assert_eq!(resources[0].action, "created");
+    }
+
+    #[test]
+    fn test_parse_resource_configured() {
+        let output = serde_json::json!({
+            "kind": "Service",
+            "metadata": {
+                "name": "my-svc",
+                "annotations": {
+                    "kubectl.kubernetes.io/last-applied-configuration": "{}"
+                }
+            }
+        })
+        .to_string()
+        .into_bytes();
+
+        let resources = parse_kubectl_apply_output(&output);
+        assert_eq!(resources.len(), 1);
+        assert_eq!(resources[0].action, "configured");
+    }
+
+    #[test]
+    fn test_parse_list_output() {
+        let output = serde_json::json!({
+            "kind": "List",
+            "items": [
+                {
+                    "kind": "Deployment",
+                    "metadata": {"name": "web", "namespace": "prod"}
+                },
+                {
+                    "kind": "Service",
+                    "metadata": {"name": "web-svc"}
+                }
+            ]
+        })
+        .to_string()
+        .into_bytes();
+
+        let resources = parse_kubectl_apply_output(&output);
+        assert_eq!(resources.len(), 2);
+        assert_eq!(resources[0].kind, "Deployment");
+        assert_eq!(resources[0].name, "web");
+        assert_eq!(resources[1].kind, "Service");
+        assert_eq!(resources[1].name, "web-svc");
+        assert!(resources[1].namespace.is_none());
+    }
+
+    #[test]
+    fn test_parse_empty_output() {
+        let resources = parse_kubectl_apply_output(b"");
+        assert!(resources.is_empty());
+    }
+
+    #[test]
+    fn test_parse_invalid_json() {
+        let resources = parse_kubectl_apply_output(b"not json");
+        assert!(resources.is_empty());
+    }
+
+    #[test]
+    fn test_parse_missing_kind() {
+        let output = serde_json::json!({
+            "metadata": {"name": "test"}
+        })
+        .to_string()
+        .into_bytes();
+
+        let resources = parse_kubectl_apply_output(&output);
+        assert!(resources.is_empty());
+    }
+
+    // ── build_apply_command (re-verified) ──
+
+    #[test]
+    fn test_build_apply_command_custom_manager() {
+        let cmd = build_apply_command("custom-mgr", false, false);
+        assert_eq!(cmd, "kubectl apply -f manifest.yaml --field-manager=custom-mgr");
+    }
+
+    // ── generate_kubectl_command actions ──
+
+    #[test]
+    fn test_kubectl_gen_query_all_actions() {
+        let actions = vec![
+            "apply", "delete", "scale", "rollout-restart", "rollout-undo",
+            "get-yaml", "logs", "exec", "port-forward", "describe",
+        ];
+        for action in actions {
+            let json = format!(r#"{{"action": "{}", "kind": "deployment", "name": "api"}}"#, action);
+            let q: KubectlGenQuery = serde_json::from_str(&json).unwrap();
+            assert_eq!(q.action, action);
+        }
+    }
+
+    #[test]
+    fn test_kubectl_gen_query_unknown_action() {
+        let json = r#"{"action": "custom-action", "kind": "pod", "name": "my-pod"}"#;
+        let q: KubectlGenQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(q.action, "custom-action");
+    }
+}

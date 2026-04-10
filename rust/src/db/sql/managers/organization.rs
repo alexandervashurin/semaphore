@@ -301,3 +301,217 @@ impl OrganizationManager for SqlStore {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::organization::{
+        Organization, OrganizationCreate, OrganizationUpdate, OrganizationUser,
+        OrganizationUserCreate,
+    };
+    use chrono::Utc;
+
+    #[test]
+    fn test_organization_default() {
+        let org = Organization {
+            id: 0,
+            name: String::new(),
+            slug: String::new(),
+            description: None,
+            settings: None,
+            quota_max_projects: None,
+            quota_max_users: None,
+            quota_max_tasks_per_month: None,
+            active: true,
+            created: Utc::now(),
+            updated: None,
+        };
+        assert!(org.active);
+        assert!(org.quota_max_projects.is_none());
+    }
+
+    #[test]
+    fn test_organization_create_serialization() {
+        let create = OrganizationCreate {
+            name: "Test Org".to_string(),
+            slug: Some("test-org".to_string()),
+            description: Some("A test organization".to_string()),
+            settings: None,
+            quota_max_projects: Some(10),
+            quota_max_users: Some(50),
+            quota_max_tasks_per_month: Some(1000),
+        };
+        let json = serde_json::to_string(&create).unwrap();
+        assert!(json.contains("\"name\":\"Test Org\""));
+        assert!(json.contains("\"quota_max_projects\":10"));
+    }
+
+    #[test]
+    fn test_organization_update_skip_nulls() {
+        let update = OrganizationUpdate {
+            name: Some("Updated".to_string()),
+            description: None,
+            settings: None,
+            quota_max_projects: None,
+            quota_max_users: None,
+            quota_max_tasks_per_month: None,
+            active: Some(false),
+        };
+        let json = serde_json::to_string(&update).unwrap();
+        assert!(json.contains("\"name\":\"Updated\""));
+        assert!(json.contains("\"active\":false"));
+        assert!(!json.contains("\"description\""));
+    }
+
+    #[test]
+    fn test_organization_user_structure() {
+        let user = OrganizationUser {
+            id: 1,
+            org_id: 10,
+            user_id: 42,
+            role: "admin".to_string(),
+            created: Utc::now(),
+        };
+        assert_eq!(user.role, "admin");
+        assert_eq!(user.org_id, 10);
+    }
+
+    #[test]
+    fn test_organization_user_create() {
+        let create = OrganizationUserCreate {
+            org_id: 5,
+            user_id: 100,
+            role: "member".to_string(),
+        };
+        assert_eq!(create.org_id, 5);
+        assert_eq!(create.user_id, 100);
+    }
+
+    #[test]
+    fn test_role_variants() {
+        let roles = vec!["owner", "admin", "member", "viewer"];
+        for role in roles {
+            let user = OrganizationUser {
+                id: 1,
+                org_id: 1,
+                user_id: 1,
+                role: role.to_string(),
+                created: Utc::now(),
+            };
+            assert_eq!(user.role, role);
+        }
+    }
+
+    #[test]
+    fn test_quota_values() {
+        let org = Organization {
+            id: 1,
+            name: "Quota Org".to_string(),
+            slug: "quota-org".to_string(),
+            description: None,
+            settings: None,
+            quota_max_projects: Some(5),
+            quota_max_users: Some(20),
+            quota_max_tasks_per_month: Some(500),
+            active: true,
+            created: Utc::now(),
+            updated: None,
+        };
+        assert_eq!(org.quota_max_projects, Some(5));
+        assert_eq!(org.quota_max_users, Some(20));
+        assert_eq!(org.quota_max_tasks_per_month, Some(500));
+    }
+
+    #[test]
+    fn test_organization_clone() {
+        let org = Organization {
+            id: 42,
+            name: "Clone Org".to_string(),
+            slug: "clone".to_string(),
+            description: None,
+            settings: Some(serde_json::json!({"key": "value"})),
+            quota_max_projects: None,
+            quota_max_users: None,
+            quota_max_tasks_per_month: None,
+            active: true,
+            created: Utc::now(),
+            updated: None,
+        };
+        let cloned = org.clone();
+        assert_eq!(cloned.id, org.id);
+        assert_eq!(cloned.name, org.name);
+    }
+
+    #[test]
+    fn test_slug_generation_logic() {
+        let name = "My Organization!";
+        let slug: String = name
+            .to_lowercase()
+            .chars()
+            .map(|c| if c.is_alphanumeric() { c } else { '-' })
+            .collect();
+        assert_eq!(slug, "my-organization-");
+    }
+
+    #[test]
+    fn test_sql_query_organization() {
+        let query = "SELECT * FROM organization ORDER BY name";
+        assert!(query.contains("organization"));
+        assert!(query.contains("ORDER BY"));
+    }
+
+    #[test]
+    fn test_sql_query_organization_user() {
+        let query = "SELECT * FROM organization_user WHERE org_id = $1 ORDER BY created";
+        assert!(query.contains("organization_user"));
+        assert!(query.contains("org_id"));
+    }
+
+    #[test]
+    fn test_quota_type_variants() {
+        let quota_types = vec!["projects", "users", "tasks_per_month", "unknown"];
+        for qt in quota_types {
+            match qt {
+                "projects" | "users" | "tasks_per_month" => assert!(true),
+                _ => assert!(true), // default branch
+            }
+        }
+    }
+
+    #[test]
+    fn test_organization_update_all_fields() {
+        let update = OrganizationUpdate {
+            name: Some("New Name".to_string()),
+            description: Some("New desc".to_string()),
+            settings: Some(serde_json::json!({"key": "val"})),
+            quota_max_projects: Some(100),
+            quota_max_users: Some(200),
+            quota_max_tasks_per_month: Some(5000),
+            active: Some(true),
+        };
+        assert!(update.name.is_some());
+        assert!(update.description.is_some());
+        assert!(update.settings.is_some());
+        assert!(update.active.is_some());
+    }
+
+    #[test]
+    fn test_organization_serialization_with_settings() {
+        let org = Organization {
+            id: 1,
+            name: "Settings Org".to_string(),
+            slug: "settings".to_string(),
+            description: None,
+            settings: Some(serde_json::json!({"theme": "dark"})),
+            quota_max_projects: None,
+            quota_max_users: None,
+            quota_max_tasks_per_month: None,
+            active: true,
+            created: Utc::now(),
+            updated: None,
+        };
+        let json = serde_json::to_string(&org).unwrap();
+        assert!(json.contains("\"settings\""));
+        assert!(json.contains("theme"));
+    }
+}

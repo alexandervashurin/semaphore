@@ -239,3 +239,228 @@ pub async fn get_cluster_summary(
         memory_allocatable: "0".to_string(),
     }))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cluster_info_serialization() {
+        let info = ClusterInfo {
+            kubernetes_version: "v1.28.0".to_string(),
+            platform: "linux/amd64".to_string(),
+            git_version: "v1.28.0+k3s1".to_string(),
+            git_commit: "abc123".to_string(),
+            build_date: "2024-01-01T00:00:00Z".to_string(),
+            go_version: "go1.21.0".to_string(),
+            compiler: "gc".to_string(),
+            platform_os: "linux".to_string(),
+            architecture: "amd64".to_string(),
+        };
+        let json = serde_json::to_string(&info).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["kubernetes_version"], "v1.28.0");
+        assert_eq!(parsed["platform"], "linux/amd64");
+        assert_eq!(parsed["go_version"], "go1.21.0");
+    }
+
+    #[test]
+    fn test_node_summary_serialization() {
+        let node = NodeSummary {
+            name: "node-1".to_string(),
+            status: "Ready".to_string(),
+            roles: vec!["control-plane".to_string(), "master".to_string()],
+            version: "v1.28.0".to_string(),
+            internal_ip: "10.0.0.1".to_string(),
+            external_ip: Some("203.0.113.1".to_string()),
+            os_image: "Ubuntu 22.04".to_string(),
+            kernel_version: "5.15.0".to_string(),
+            container_runtime: "containerd://1.7.0".to_string(),
+            cpu_capacity: "8".to_string(),
+            memory_capacity: "16Gi".to_string(),
+            pods_capacity: 110,
+            cpu_allocatable: "7.5".to_string(),
+            memory_allocatable: "15Gi".to_string(),
+            pods_allocatable: 100,
+        };
+        let json = serde_json::to_string(&node).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["name"], "node-1");
+        assert_eq!(parsed["status"], "Ready");
+        assert_eq!(parsed["roles"].as_array().unwrap().len(), 2);
+        assert_eq!(parsed["cpu_capacity"], "8");
+        assert_eq!(parsed["pods_capacity"], 110);
+    }
+
+    #[test]
+    fn test_node_summary_no_external_ip() {
+        let node = NodeSummary {
+            name: "worker-1".to_string(),
+            status: "Ready".to_string(),
+            roles: vec!["worker".to_string()],
+            version: "v1.27.0".to_string(),
+            internal_ip: "10.0.0.2".to_string(),
+            external_ip: None,
+            os_image: "Debian 12".to_string(),
+            kernel_version: "6.1.0".to_string(),
+            container_runtime: "containerd://1.6.0".to_string(),
+            cpu_capacity: "4".to_string(),
+            memory_capacity: "8Gi".to_string(),
+            pods_capacity: 110,
+            cpu_allocatable: "3.5".to_string(),
+            memory_allocatable: "7Gi".to_string(),
+            pods_allocatable: 100,
+        };
+        let json = serde_json::to_string(&node).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert!(parsed["external_ip"].is_null());
+    }
+
+    #[test]
+    fn test_cluster_summary_serialization() {
+        let summary = ClusterSummary {
+            kubernetes_version: "v1.29.0".to_string(),
+            nodes_count: 5,
+            nodes_ready: 5,
+            namespaces_count: 12,
+            pods_total: 80,
+            pods_running: 70,
+            pods_pending: 5,
+            pods_failed: 5,
+            cpu_capacity: "40".to_string(),
+            memory_capacity: "128Gi".to_string(),
+            cpu_allocatable: "38".to_string(),
+            memory_allocatable: "120Gi".to_string(),
+        };
+        let json = serde_json::to_string(&summary).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["nodes_count"], 5);
+        assert_eq!(parsed["nodes_ready"], 5);
+        assert_eq!(parsed["pods_total"], 80);
+        assert_eq!(parsed["pods_failed"], 5);
+    }
+
+    #[test]
+    fn test_cluster_info_display_fields_correct() {
+        let info = ClusterInfo {
+            kubernetes_version: "v1.28.0".to_string(),
+            platform: "linux/arm64".to_string(),
+            git_version: "v1.28.0".to_string(),
+            git_commit: "def456".to_string(),
+            build_date: "2024-02-01".to_string(),
+            go_version: "go1.21.1".to_string(),
+            compiler: "gc".to_string(),
+            platform_os: "linux".to_string(),
+            architecture: "arm64".to_string(),
+        };
+        assert_eq!(info.platform_os, "linux");
+        assert_eq!(info.architecture, "arm64");
+    }
+
+    #[test]
+    fn test_cluster_info_empty_roles_node() {
+        let node = NodeSummary {
+            name: "worker-2".to_string(),
+            status: "NotReady".to_string(),
+            roles: vec![],
+            version: "v1.26.0".to_string(),
+            internal_ip: "10.0.0.3".to_string(),
+            external_ip: None,
+            os_image: "Alpine".to_string(),
+            kernel_version: "5.10.0".to_string(),
+            container_runtime: "cri-o://1.25".to_string(),
+            cpu_capacity: "2".to_string(),
+            memory_capacity: "4Gi".to_string(),
+            pods_capacity: 50,
+            cpu_allocatable: "1.8".to_string(),
+            memory_allocatable: "3.5Gi".to_string(),
+            pods_allocatable: 45,
+        };
+        let json = serde_json::to_string(&node).unwrap();
+        let parsed: NodeSummary = serde_json::from_str(&json).unwrap();
+        assert!(parsed.roles.is_empty());
+        assert_eq!(parsed.status, "NotReady");
+    }
+
+    #[test]
+    fn test_cluster_summary_zero_nodes() {
+        let summary = ClusterSummary {
+            kubernetes_version: "v1.28.0".to_string(),
+            nodes_count: 0,
+            nodes_ready: 0,
+            namespaces_count: 1,
+            pods_total: 0,
+            pods_running: 0,
+            pods_pending: 0,
+            pods_failed: 0,
+            cpu_capacity: "0".to_string(),
+            memory_capacity: "0".to_string(),
+            cpu_allocatable: "0".to_string(),
+            memory_allocatable: "0".to_string(),
+        };
+        assert_eq!(summary.nodes_count, 0);
+        assert_eq!(summary.pods_total, 0);
+    }
+
+    #[test]
+    fn test_node_summary_multiple_roles() {
+        let node = NodeSummary {
+            name: "multi-role".to_string(),
+            status: "Ready".to_string(),
+            roles: vec!["master".to_string(), "worker".to_string(), "etcd".to_string()],
+            version: "v1.28.0".to_string(),
+            internal_ip: "10.0.0.10".to_string(),
+            external_ip: None,
+            os_image: "Ubuntu".to_string(),
+            kernel_version: "5.15.0".to_string(),
+            container_runtime: "containerd".to_string(),
+            cpu_capacity: "16".to_string(),
+            memory_capacity: "64Gi".to_string(),
+            pods_capacity: 200,
+            cpu_allocatable: "15".to_string(),
+            memory_allocatable: "60Gi".to_string(),
+            pods_allocatable: 180,
+        };
+        assert_eq!(node.roles.len(), 3);
+        assert!(node.roles.contains(&"etcd".to_string()));
+    }
+
+    #[test]
+    fn test_cluster_info_serialization_roundtrip() {
+        let original = ClusterInfo {
+            kubernetes_version: "v1.29.1".to_string(),
+            platform: "darwin/amd64".to_string(),
+            git_version: "v1.29.1".to_string(),
+            git_commit: "xyz789".to_string(),
+            build_date: "2024-03-01".to_string(),
+            go_version: "go1.22.0".to_string(),
+            compiler: "gc".to_string(),
+            platform_os: "darwin".to_string(),
+            architecture: "amd64".to_string(),
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let parsed: ClusterInfo = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.kubernetes_version, original.kubernetes_version);
+        assert_eq!(parsed.platform, original.platform);
+    }
+
+    #[test]
+    fn test_cluster_health_zero_nodes_scenario() {
+        let summary = ClusterSummary {
+            kubernetes_version: "unknown".to_string(),
+            nodes_count: 0,
+            nodes_ready: 0,
+            namespaces_count: 0,
+            pods_total: 0,
+            pods_running: 0,
+            pods_pending: 0,
+            pods_failed: 0,
+            cpu_capacity: "0".to_string(),
+            memory_capacity: "0".to_string(),
+            cpu_allocatable: "0".to_string(),
+            memory_allocatable: "0".to_string(),
+        };
+        assert_eq!(summary.kubernetes_version, "unknown");
+        assert_eq!(summary.nodes_ready, 0);
+    }
+}

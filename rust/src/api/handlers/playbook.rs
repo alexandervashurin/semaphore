@@ -187,3 +187,175 @@ pub async fn run_playbook(
 
     Ok((StatusCode::ACCEPTED, Json(result)))
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::models::playbook::{Playbook, PlaybookCreate, PlaybookUpdate};
+    use crate::models::playbook_run::{PlaybookRunRequest, PlaybookRunResult};
+    use chrono::Utc;
+
+    #[test]
+    fn test_playbook_serialization_full() {
+        let playbook = Playbook {
+            id: 1,
+            project_id: 10,
+            name: "deploy.yml".to_string(),
+            content: "---\n- hosts: all".to_string(),
+            description: Some("Deploy playbook".to_string()),
+            playbook_type: "ansible".to_string(),
+            repository_id: Some(5),
+            created: Utc::now(),
+            updated: Utc::now(),
+        };
+        let json = serde_json::to_string(&playbook).unwrap();
+        assert!(json.contains("\"name\":\"deploy.yml\""));
+        assert!(json.contains("\"playbook_type\":\"ansible\""));
+        assert!(json.contains("\"description\":\"Deploy playbook\""));
+    }
+
+    #[test]
+    fn test_playbook_serialization_null_fields() {
+        let playbook = Playbook {
+            id: 2,
+            project_id: 10,
+            name: "simple.sh".to_string(),
+            content: "#!/bin/bash".to_string(),
+            description: None,
+            playbook_type: "shell".to_string(),
+            repository_id: None,
+            created: Utc::now(),
+            updated: Utc::now(),
+        };
+        let json = serde_json::to_string(&playbook).unwrap();
+        assert!(!json.contains("\"description\":"));
+        assert!(!json.contains("\"repository_id\":"));
+    }
+
+    #[test]
+    fn test_playbook_create_serialization() {
+        let create = PlaybookCreate {
+            name: "new.yml".to_string(),
+            content: "---".to_string(),
+            description: Some("New playbook".to_string()),
+            playbook_type: "terraform".to_string(),
+            repository_id: Some(3),
+        };
+        let json = serde_json::to_string(&create).unwrap();
+        assert!(json.contains("\"name\":\"new.yml\""));
+        assert!(json.contains("\"playbook_type\":\"terraform\""));
+    }
+
+    #[test]
+    fn test_playbook_create_deserialization() {
+        let json = r#"{"name":"test.yml","content":"---","description":null,"playbook_type":"ansible","repository_id":null}"#;
+        let create: PlaybookCreate = serde_json::from_str(json).unwrap();
+        assert_eq!(create.name, "test.yml");
+        assert_eq!(create.playbook_type, "ansible");
+    }
+
+    #[test]
+    fn test_playbook_update_serialization() {
+        let update = PlaybookUpdate {
+            name: "updated.yml".to_string(),
+            content: "---\nupdated".to_string(),
+            description: None,
+            playbook_type: "ansible".to_string(),
+        };
+        let json = serde_json::to_string(&update).unwrap();
+        assert!(json.contains("\"name\":\"updated.yml\""));
+    }
+
+    #[test]
+    fn test_playbook_update_partial_fields() {
+        let update = PlaybookUpdate {
+            name: "rename.yml".to_string(),
+            content: "---".to_string(),
+            description: Some("Renamed".to_string()),
+            playbook_type: "ansible".to_string(),
+        };
+        let json = serde_json::to_string(&update).unwrap();
+        assert!(json.contains("\"description\":\"Renamed\""));
+        let deserialized: PlaybookUpdate = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.description, Some("Renamed".to_string()));
+    }
+
+    #[test]
+    fn test_playbook_run_request_serialization() {
+        let req = PlaybookRunRequest::new()
+            .with_inventory(1)
+            .with_environment(2);
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(json.contains("\"inventory_id\":1"));
+        assert!(json.contains("\"environment_id\":2"));
+    }
+
+    #[test]
+    fn test_playbook_run_request_with_extra_vars() {
+        let req = PlaybookRunRequest::new()
+            .with_extra_vars(serde_json::json!({"app": "web", "env": "prod"}));
+        let json = serde_json::to_string(&req).unwrap();
+        let parsed: PlaybookRunRequest = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.extra_vars.unwrap()["app"], "web");
+    }
+
+    #[test]
+    fn test_playbook_run_request_with_tags() {
+        let req = PlaybookRunRequest::new()
+            .with_tags(vec!["deploy".to_string(), "web".to_string()])
+            .with_limit("web_servers".to_string());
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(json.contains("\"tags\":[\"deploy\",\"web\"]"));
+        assert!(json.contains("\"limit\":\"web_servers\""));
+    }
+
+    #[test]
+    fn test_playbook_run_result_serialization() {
+        let result = PlaybookRunResult {
+            task_id: 100,
+            template_id: 5,
+            status: "waiting".to_string(),
+            message: "Task queued".to_string(),
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("\"task_id\":100"));
+        assert!(json.contains("\"message\":\"Task queued\""));
+    }
+
+    #[test]
+    fn test_playbook_run_result_deserialization() {
+        let json = r#"{"task_id":42,"template_id":10,"status":"running","message":"started"}"#;
+        let result: PlaybookRunResult = serde_json::from_str(json).unwrap();
+        assert_eq!(result.task_id, 42);
+        assert_eq!(result.status, "running");
+    }
+
+    #[test]
+    fn test_playbook_run_request_validate_null_extra_vars() {
+        let req = PlaybookRunRequest::new().with_extra_vars(serde_json::json!(null));
+        assert!(req.validate().is_ok());
+    }
+
+    #[test]
+    fn test_playbook_run_request_validate_array_extra_vars() {
+        let req = PlaybookRunRequest::new().with_extra_vars(serde_json::json!(["a", "b"]));
+        assert!(req.validate().is_err());
+    }
+
+    #[test]
+    fn test_playbook_clone() {
+        let playbook = Playbook {
+            id: 1,
+            project_id: 10,
+            name: "clone.yml".to_string(),
+            content: "---".to_string(),
+            description: None,
+            playbook_type: "ansible".to_string(),
+            repository_id: None,
+            created: Utc::now(),
+            updated: Utc::now(),
+        };
+        let cloned = playbook.clone();
+        assert_eq!(cloned.name, playbook.name);
+        assert_eq!(cloned.content, playbook.content);
+    }
+}

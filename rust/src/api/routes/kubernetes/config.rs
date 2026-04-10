@@ -25,3 +25,19 @@ pub fn config_routes() -> Router<Arc<AppState>> {
         .route("/api/kubernetes/namespaces/{namespace}/secrets/{name}", delete(handlers::delete_secret))
         .route("/api/kubernetes/namespaces/{namespace}/secrets/{name}/reveal", get(handlers::reveal_secret))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_config_routes_creates() {
+        let _router: Router<Arc<AppState>> = config_routes();
+    }
+
+    #[test]
+    fn test_config_routes_returns_router() {
+        let router = config_routes();
+        let _: Router<Arc<AppState>> = router;
+    }
+}

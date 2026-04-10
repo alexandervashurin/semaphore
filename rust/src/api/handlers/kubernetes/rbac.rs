@@ -386,3 +386,230 @@ pub async fn clear_rbac_cache() -> Result<Json<serde_json::Value>> {
     cache.clear().await;
     Ok(Json(serde_json::json!({"cleared": true, "message": "RBAC cache cleared"})))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── RbacCheckRequest deserialization ──
+
+    #[test]
+    fn test_rbac_check_request_with_namespace() {
+        let json = r#"{"namespace": "default"}"#;
+        let req: RbacCheckRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.namespace, Some("default".to_string()));
+    }
+
+    #[test]
+    fn test_rbac_check_request_without_namespace() {
+        let json = r#"{}"#;
+        let req: RbacCheckRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.namespace, None);
+    }
+
+    // ── RbacVerbMatrix serialization ──
+
+    #[test]
+    fn test_rbac_verb_matrix_all_true() {
+        let matrix = RbacVerbMatrix {
+            get: true, list: true, watch: true,
+            create: true, update: true, patch: true, delete: true,
+        };
+        let json = serde_json::to_string(&matrix).unwrap();
+        assert!(json.contains("\"get\":true"));
+        assert!(json.contains("\"delete\":true"));
+    }
+
+    #[test]
+    fn test_rbac_verb_matrix_all_false() {
+        let matrix = RbacVerbMatrix {
+            get: false, list: false, watch: false,
+            create: false, update: false, patch: false, delete: false,
+        };
+        let json = serde_json::to_string(&matrix).unwrap();
+        assert!(json.contains("\"get\":false"));
+        assert!(json.contains("\"delete\":false"));
+    }
+
+    #[test]
+    fn test_rbac_verb_matrix_mixed() {
+        let matrix = RbacVerbMatrix {
+            get: true, list: true, watch: false,
+            create: false, update: false, patch: false, delete: true,
+        };
+        assert!(matrix.get);
+        assert!(matrix.list);
+        assert!(!matrix.watch);
+        assert!(matrix.delete);
+        assert!(!matrix.create);
+    }
+
+    // ── RbacResourceCheck ──
+
+    #[test]
+    fn test_rbac_resource_check_serialization() {
+        let check = RbacResourceCheck {
+            resource: "pods".to_string(),
+            namespaced: true,
+            verbs: RbacVerbMatrix {
+                get: true, list: true, watch: true,
+                create: false, update: false, patch: false, delete: false,
+            },
+        };
+        let json = serde_json::to_value(&check).unwrap();
+        assert_eq!(json["resource"], "pods");
+        assert_eq!(json["namespaced"], true);
+        assert_eq!(json["verbs"]["get"], true);
+    }
+
+    #[test]
+    fn test_rbac_resource_check_cluster_scoped() {
+        let check = RbacResourceCheck {
+            resource: "namespaces".to_string(),
+            namespaced: false,
+            verbs: RbacVerbMatrix {
+                get: true, list: true, watch: false,
+                create: false, update: false, patch: false, delete: false,
+            },
+        };
+        assert!(!check.namespaced);
+        assert_eq!(check.resource, "namespaces");
+    }
+
+    // ── SecretAccessHints ──
+
+    #[test]
+    fn test_secret_access_hints_full_access() {
+        let hints = SecretAccessHints {
+            has_get: true, has_list: true, has_watch: true,
+            warning: None,
+        };
+        let json = serde_json::to_value(&hints).unwrap();
+        assert_eq!(json["has_get"], true);
+        assert_eq!(json["has_watch"], true);
+        assert!(json["warning"].is_null());
+    }
+
+    #[test]
+    fn test_secret_access_hints_with_warning() {
+        let hints = SecretAccessHints {
+            has_get: true, has_list: false, has_watch: false,
+            warning: Some("Limited permissions".to_string()),
+        };
+        assert!(hints.has_get);
+        assert!(!hints.has_list);
+        assert_eq!(hints.warning, Some("Limited permissions".to_string()));
+    }
+
+    // ── RbacCheckResponse ──
+
+    #[test]
+    fn test_rbac_check_response_serialization() {
+        let resp = RbacCheckResponse {
+            namespace: Some("kube-system".to_string()),
+            resources: vec![],
+            secrets_hints: SecretAccessHints {
+                has_get: false, has_list: false, has_watch: false,
+                warning: None,
+            },
+        };
+        let json = serde_json::to_value(&resp).unwrap();
+        assert_eq!(json["namespace"], "kube-system");
+        assert!(json["resources"].is_array());
+        assert_eq!(json["resources"].as_array().unwrap().len(), 0);
+    }
+
+    // ── RbacActionCheck ──
+
+    #[test]
+    fn test_rbac_action_check_with_all_fields() {
+        let json = r#"{"namespace": "default", "group": "apps", "resource": "deployments", "verb": "get"}"#;
+        let req: RbacActionCheck = serde_json::from_str(json).unwrap();
+        assert_eq!(req.namespace, Some("default".to_string()));
+        assert_eq!(req.group, Some("apps".to_string()));
+        assert_eq!(req.resource, "deployments");
+        assert_eq!(req.verb, "get");
+    }
+
+    #[test]
+    fn test_rbac_action_check_minimal() {
+        let json = r#"{"resource": "pods", "verb": "list"}"#;
+        let req: RbacActionCheck = serde_json::from_str(json).unwrap();
+        assert_eq!(req.namespace, None);
+        assert_eq!(req.group, None);
+        assert_eq!(req.resource, "pods");
+        assert_eq!(req.verb, "list");
+    }
+
+    // ── RbacActionResponse ──
+
+    #[test]
+    fn test_rbac_action_response_serialization() {
+        let resp = RbacActionResponse {
+            allowed: true,
+            namespace: Some("test".to_string()),
+            group: None,
+            resource: "configmaps".to_string(),
+            verb: "list".to_string(),
+            cached: false,
+        };
+        let json = serde_json::to_value(&resp).unwrap();
+        assert_eq!(json["allowed"], true);
+        assert_eq!(json["resource"], "configmaps");
+        assert_eq!(json["cached"], false);
+    }
+
+    #[test]
+    fn test_rbac_action_response_cached() {
+        let resp = RbacActionResponse {
+            allowed: false,
+            namespace: None,
+            group: Some("batch".to_string()),
+            resource: "jobs".to_string(),
+            verb: "delete".to_string(),
+            cached: true,
+        };
+        assert!(resp.cached);
+        assert!(!resp.allowed);
+        assert_eq!(resp.group, Some("batch".to_string()));
+    }
+
+    // ── RbacCache ──
+
+    #[test]
+    fn test_rbac_cache_new() {
+        let cache = RbacCache::new();
+        assert_eq!(cache.ttl, Duration::from_secs(300));
+    }
+
+    #[tokio::test]
+    async fn test_rbac_cache_set_and_get() {
+        let cache = RbacCache::new();
+        cache.set("test-key".to_string(), true).await;
+        let result = cache.get("test-key").await;
+        assert_eq!(result, Some(true));
+    }
+
+    #[tokio::test]
+    async fn test_rbac_cache_get_missing_key() {
+        let cache = RbacCache::new();
+        let result = cache.get("nonexistent").await;
+        assert_eq!(result, None);
+    }
+
+    #[tokio::test]
+    async fn test_rbac_cache_clear() {
+        let cache = RbacCache::new();
+        cache.set("key1".to_string(), true).await;
+        cache.set("key2".to_string(), false).await;
+        cache.clear().await;
+        assert_eq!(cache.get("key1").await, None);
+        assert_eq!(cache.get("key2").await, None);
+    }
+
+    #[test]
+    fn test_rbac_cache_default() {
+        let cache = RbacCache::default();
+        assert_eq!(cache.ttl, Duration::from_secs(300));
+    }
+}

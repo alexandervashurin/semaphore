@@ -371,3 +371,381 @@ pub async fn get_system_analytics(
         tasks_30d: 0,
     }))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ===== Тесты для AnalyticsParams (deserialization) =====
+
+    #[test]
+    fn test_analytics_params_default() {
+        let params = AnalyticsParams { period: None };
+        assert!(params.period.is_none());
+        assert_eq!(params.period.as_deref().unwrap_or("week"), "week");
+    }
+
+    #[test]
+    fn test_analytics_params_with_day() {
+        let params = AnalyticsParams {
+            period: Some("day".to_string()),
+        };
+        assert_eq!(params.period.as_deref(), Some("day"));
+    }
+
+    #[test]
+    fn test_analytics_params_with_week() {
+        let params = AnalyticsParams {
+            period: Some("week".to_string()),
+        };
+        assert_eq!(params.period.as_deref(), Some("week"));
+    }
+
+    #[test]
+    fn test_analytics_params_with_month() {
+        let params = AnalyticsParams {
+            period: Some("month".to_string()),
+        };
+        assert_eq!(params.period.as_deref(), Some("month"));
+    }
+
+    #[test]
+    fn test_analytics_params_with_year() {
+        let params = AnalyticsParams {
+            period: Some("year".to_string()),
+        };
+        assert_eq!(params.period.as_deref(), Some("year"));
+    }
+
+    #[test]
+    fn test_analytics_params_deserialize_from_json() {
+        let json = r#"{"period": "month"}"#;
+        let params: AnalyticsParams = serde_json::from_str(json).unwrap();
+        assert_eq!(params.period.as_deref(), Some("month"));
+    }
+
+    #[test]
+    fn test_analytics_params_deserialize_empty_from_json() {
+        let json = r#"{}"#;
+        let params: AnalyticsParams = serde_json::from_str(json).unwrap();
+        assert!(params.period.is_none());
+    }
+
+    // ===== Тесты для period parsing логики =====
+
+    #[test]
+    fn test_period_parsing_returns_correct_days() {
+        let cases = [
+            ("month", 30),
+            ("year", 365),
+            ("week", 7),
+            ("day", 7),     // default
+            ("unknown", 7), // default fallback
+            ("", 7),        // default fallback
+        ];
+        for (period, expected_days) in cases {
+            let days: i64 = match period {
+                "month" => 30,
+                "year" => 365,
+                _ => 7,
+            };
+            assert_eq!(
+                days, expected_days,
+                "period '{}' should yield {} days",
+                period, expected_days
+            );
+        }
+    }
+
+    // ===== Тесты для моделей analytics =====
+
+    #[test]
+    fn test_project_stats_serialization() {
+        let stats = ProjectStats {
+            project_id: 42,
+            project_name: "My Project".to_string(),
+            total_tasks: 100,
+            successful_tasks: 80,
+            failed_tasks: 15,
+            stopped_tasks: 3,
+            pending_tasks: 1,
+            running_tasks: 1,
+            total_templates: 5,
+            total_users: 3,
+            total_inventories: 2,
+            total_repositories: 1,
+            total_environments: 2,
+            total_keys: 4,
+            total_schedules: 1,
+            success_rate: 80.0,
+            avg_task_duration_secs: 150.5,
+        };
+        let json = serde_json::to_string(&stats).unwrap();
+        assert!(json.contains("\"project_id\":42"));
+        assert!(json.contains("\"project_name\":\"My Project\""));
+        assert!(json.contains("\"total_tasks\":100"));
+        assert!(json.contains("\"success_rate\":80.0"));
+    }
+
+    #[test]
+    fn test_project_stats_deserialization() {
+        let json = r#"{
+            "project_id": 1,
+            "project_name": "Test",
+            "total_tasks": 10,
+            "successful_tasks": 8,
+            "failed_tasks": 2,
+            "stopped_tasks": 0,
+            "pending_tasks": 0,
+            "running_tasks": 0,
+            "total_templates": 3,
+            "total_users": 2,
+            "total_inventories": 1,
+            "total_repositories": 1,
+            "total_environments": 1,
+            "total_keys": 2,
+            "total_schedules": 0,
+            "success_rate": 80.0,
+            "avg_task_duration_secs": 60.0
+        }"#;
+        let stats: ProjectStats = serde_json::from_str(json).unwrap();
+        assert_eq!(stats.project_id, 1);
+        assert_eq!(stats.project_name, "Test");
+        assert_eq!(stats.success_rate, 80.0);
+    }
+
+    #[test]
+    fn test_task_stats_serialization() {
+        let stats = TaskStats {
+            period: "week".to_string(),
+            total: 25,
+            success: 20,
+            failed: 4,
+            stopped: 1,
+            avg_duration_secs: 90.0,
+            max_duration_secs: 300.0,
+            min_duration_secs: 5.0,
+            total_duration_secs: 2250,
+        };
+        let json = serde_json::to_string(&stats).unwrap();
+        assert!(json.contains("\"period\":\"week\""));
+        assert!(json.contains("\"total\":25"));
+        assert!(json.contains("\"success\":20"));
+    }
+
+    #[test]
+    fn test_performance_metrics_serialization() {
+        let perf = PerformanceMetrics {
+            avg_queue_time_secs: 3.5,
+            avg_execution_time_secs: 120.0,
+            tasks_per_hour: 8.0,
+            tasks_per_day: 192.0,
+            concurrent_tasks_avg: 2.0,
+            concurrent_tasks_max: 4,
+            resource_usage: ResourceUsage::default(),
+        };
+        let json = serde_json::to_string(&perf).unwrap();
+        assert!(json.contains("\"tasks_per_hour\":8.0"));
+        assert!(json.contains("\"tasks_per_day\":192.0"));
+        assert!(json.contains("\"concurrent_tasks_max\":4"));
+    }
+
+    #[test]
+    fn test_resource_usage_default_values() {
+        let usage = ResourceUsage::default();
+        assert_eq!(usage.cpu_usage_percent, 0.0);
+        assert_eq!(usage.memory_usage_mb, 0.0);
+        assert_eq!(usage.disk_usage_mb, 0.0);
+        assert_eq!(usage.network_rx_bytes, 0);
+        assert_eq!(usage.network_tx_bytes, 0);
+    }
+
+    #[test]
+    fn test_resource_usage_serialization() {
+        let usage = ResourceUsage {
+            cpu_usage_percent: 75.5,
+            memory_usage_mb: 2048.0,
+            disk_usage_mb: 10240.0,
+            network_rx_bytes: 1_000_000,
+            network_tx_bytes: 500_000,
+        };
+        let json = serde_json::to_string(&usage).unwrap();
+        assert!(json.contains("\"cpu_usage_percent\":75.5"));
+        assert!(json.contains("\"memory_usage_mb\":2048.0"));
+        assert!(json.contains("\"network_rx_bytes\":1000000"));
+    }
+
+    #[test]
+    fn test_system_metrics_serialization() {
+        let metrics = SystemMetrics {
+            total_projects: 5,
+            total_users: 10,
+            total_tasks: 500,
+            total_templates: 20,
+            total_runners: 3,
+            active_runners: 2,
+            running_tasks: 4,
+            queued_tasks: 1,
+            success_rate_24h: 95.5,
+            avg_task_duration_24h: 45.0,
+            tasks_24h: 50,
+            tasks_7d: 300,
+            tasks_30d: 1200,
+        };
+        let json = serde_json::to_string(&metrics).unwrap();
+        assert!(json.contains("\"total_projects\":5"));
+        assert!(json.contains("\"success_rate_24h\":95.5"));
+        assert!(json.contains("\"tasks_30d\":1200"));
+    }
+
+    #[test]
+    fn test_system_metrics_default() {
+        let metrics = SystemMetrics::default();
+        assert_eq!(metrics.total_projects, 0);
+        assert_eq!(metrics.total_users, 0);
+        assert_eq!(metrics.success_rate_24h, 0.0);
+        assert_eq!(metrics.avg_task_duration_24h, 0.0);
+    }
+
+    // ===== Тесты для ChartData =====
+
+    #[test]
+    fn test_chart_data_with_timestamp() {
+        let now = Utc::now();
+        let data = ChartData {
+            label: "2024-01-15".to_string(),
+            value: 42.0,
+            timestamp: Some(now),
+        };
+        let json = serde_json::to_string(&data).unwrap();
+        assert!(json.contains("\"label\":\"2024-01-15\""));
+        assert!(json.contains("\"value\":42.0"));
+    }
+
+    #[test]
+    fn test_chart_data_without_timestamp() {
+        let data = ChartData {
+            label: "Success".to_string(),
+            value: 15.0,
+            timestamp: None,
+        };
+        let json = serde_json::to_string(&data).unwrap();
+        assert!(json.contains("\"timestamp\":null"));
+        assert!(json.contains("\"value\":15.0"));
+    }
+
+    #[test]
+    fn test_chart_data_deserialization() {
+        let json = r#"{"label":"2024-03-01","value":10.5,"timestamp":null}"#;
+        let data: ChartData = serde_json::from_str(json).unwrap();
+        assert_eq!(data.label, "2024-03-01");
+        assert_eq!(data.value, 10.5);
+        assert!(data.timestamp.is_none());
+    }
+
+    // ===== Тесты для логики фильтрации по статусам =====
+
+    #[test]
+    fn test_task_status_filtering_success() {
+        let statuses = [
+            TaskStatus::Success,
+            TaskStatus::Error,
+            TaskStatus::Success,
+            TaskStatus::Stopped,
+        ];
+        let success_count = statuses
+            .iter()
+            .filter(|s| **s == TaskStatus::Success)
+            .count();
+        assert_eq!(success_count, 2);
+    }
+
+    #[test]
+    fn test_task_status_filtering_pending() {
+        let statuses = [
+            TaskStatus::Waiting,
+            TaskStatus::Starting,
+            TaskStatus::Running,
+            TaskStatus::Success,
+        ];
+        let pending_count = statuses
+            .iter()
+            .filter(|s| **s == TaskStatus::Waiting || **s == TaskStatus::Starting)
+            .count();
+        assert_eq!(pending_count, 2);
+    }
+
+    #[test]
+    fn test_task_status_distribution() {
+        let statuses = [
+            TaskStatus::Success,
+            TaskStatus::Success,
+            TaskStatus::Error,
+            TaskStatus::Stopped,
+            TaskStatus::Waiting,
+            TaskStatus::Running,
+            TaskStatus::Running,
+        ];
+        let distribution: std::collections::HashMap<String, i64> = statuses
+            .iter()
+            .fold(std::collections::HashMap::new(), |mut acc, s| {
+                let key = format!("{:?}", s);
+                *acc.entry(key).or_insert(0) += 1;
+                acc
+            });
+        assert_eq!(*distribution.get("Success").unwrap(), 2);
+        assert_eq!(*distribution.get("Error").unwrap(), 1);
+        assert_eq!(*distribution.get("Running").unwrap(), 2);
+    }
+
+    // ===== Тесты для TopItem =====
+
+    #[test]
+    fn test_top_item_serialization() {
+        let item = TopItem {
+            id: 100,
+            name: "Deploy Template".to_string(),
+            value: 50,
+            r#type: "template".to_string(),
+        };
+        let json = serde_json::to_string(&item).unwrap();
+        assert!(json.contains("\"name\":\"Deploy Template\""));
+        assert!(json.contains("\"type\":\"template\""));
+    }
+
+    // ===== Тесты для ProjectAnalytics =====
+
+    #[test]
+    fn test_project_analytics_roundtrip() {
+        let analytics = ProjectAnalytics {
+            stats: ProjectStats::default(),
+            task_stats: TaskStats {
+                period: "day".to_string(),
+                total: 0,
+                success: 0,
+                failed: 0,
+                stopped: 0,
+                avg_duration_secs: 0.0,
+                max_duration_secs: 0.0,
+                min_duration_secs: 0.0,
+                total_duration_secs: 0,
+            },
+            performance: PerformanceMetrics {
+                avg_queue_time_secs: 0.0,
+                avg_execution_time_secs: 0.0,
+                tasks_per_hour: 0.0,
+                tasks_per_day: 0.0,
+                concurrent_tasks_avg: 0.0,
+                concurrent_tasks_max: 0,
+                resource_usage: ResourceUsage::default(),
+            },
+            top_users: vec![],
+            top_templates: vec![],
+            recent_activity: vec![],
+        };
+        let json = serde_json::to_string(&analytics).unwrap();
+        let parsed: ProjectAnalytics = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.task_stats.period, "day");
+        assert!(parsed.top_users.is_empty());
+    }
+}

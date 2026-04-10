@@ -44,3 +44,19 @@ pub fn advanced_routes() -> Router<Arc<AppState>> {
         .route("/api/kubernetes/verticalpodautoscalers", get(handlers::list_vertical_pod_autoscalers))
         .route("/api/kubernetes/namespaces/{namespace}/verticalpodautoscalers/{name}", get(handlers::get_vertical_pod_autoscaler))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_advanced_routes_creates() {
+        let _router: Router<Arc<AppState>> = advanced_routes();
+    }
+
+    #[test]
+    fn test_advanced_routes_returns_router() {
+        let router = advanced_routes();
+        let _: Router<Arc<AppState>> = router;
+    }
+}

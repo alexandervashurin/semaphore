@@ -12,3 +12,19 @@ pub fn apply_routes() -> Router<Arc<AppState>> {
         .route("/api/kubernetes/apply/diff", post(handlers::diff_manifest))
         .route("/api/kubernetes/apply/kubectl", get(handlers::generate_kubectl_command))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_apply_routes_creates() {
+        let _router: Router<Arc<AppState>> = apply_routes();
+    }
+
+    #[test]
+    fn test_apply_routes_returns_router() {
+        let router = apply_routes();
+        let _: Router<Arc<AppState>> = router;
+    }
+}

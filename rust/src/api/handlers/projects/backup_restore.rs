@@ -252,3 +252,215 @@ pub async fn verify_backup(
     });
     Ok(Json(result))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_empty_backup() -> BackupFormat {
+        BackupFormat {
+            meta: crate::models::Project {
+                id: 1,
+                name: "test-project".to_string(),
+                created: chrono::Utc::now(),
+                alert: false,
+                alert_chat: None,
+                max_parallel_tasks: 0,
+                r#type: "default".to_string(),
+                default_secret_storage_id: None,
+            },
+            templates: vec![],
+            repositories: vec![],
+            keys: vec![],
+            views: vec![],
+            inventories: vec![],
+            environments: vec![],
+            integrations: vec![],
+            schedules: vec![],
+            secret_storages: vec![],
+            roles: vec![],
+        }
+    }
+
+    #[test]
+    fn test_backup_format_serialization_empty() {
+        let backup = make_empty_backup();
+        let json = serde_json::to_string(&backup).unwrap();
+        assert!(json.contains("test-project"));
+        assert!(json.contains("templates"));
+        assert!(json.contains("repositories"));
+    }
+
+    #[test]
+    fn test_backup_format_deserialization() {
+        let backup = make_empty_backup();
+        let json = serde_json::to_value(&backup).unwrap();
+        let deserialized: BackupFormat = serde_json::from_value(json).unwrap();
+        assert_eq!(deserialized.meta.name, "test-project");
+        assert_eq!(deserialized.meta.id, 1);
+    }
+
+    #[test]
+    fn test_backup_format_with_templates() {
+        let mut backup = make_empty_backup();
+        backup
+            .templates
+            .push(serde_json::json!({"id": 1, "name": "deploy"}));
+        backup
+            .templates
+            .push(serde_json::json!({"id": 2, "name": "build"}));
+        let json = serde_json::to_value(&backup).unwrap();
+        assert_eq!(json["templates"].as_array().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn test_backup_format_with_repositories() {
+        let mut backup = make_empty_backup();
+        backup
+            .repositories
+            .push(serde_json::json!({"id": 1, "git_url": "https://example.com"}));
+        let json = serde_json::to_value(&backup).unwrap();
+        assert_eq!(json["repositories"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_backup_format_with_keys() {
+        let mut backup = make_empty_backup();
+        backup
+            .keys
+            .push(serde_json::json!({"id": 1, "name": "ssh-key", "type": "ssh"}));
+        let json = serde_json::to_value(&backup).unwrap();
+        assert_eq!(json["keys"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_backup_format_with_views() {
+        let mut backup = make_empty_backup();
+        backup
+            .views
+            .push(serde_json::json!({"id": 1, "title": "Production", "position": 0}));
+        let json = serde_json::to_value(&backup).unwrap();
+        assert_eq!(json["views"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_backup_format_with_inventories() {
+        let mut backup = make_empty_backup();
+        backup
+            .inventories
+            .push(serde_json::json!({"id": 1, "name": "hosts", "type": "static"}));
+        let json = serde_json::to_value(&backup).unwrap();
+        assert_eq!(json["inventories"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_backup_format_with_environments() {
+        let mut backup = make_empty_backup();
+        backup
+            .environments
+            .push(serde_json::json!({"id": 1, "name": "production", "password": null}));
+        let json = serde_json::to_value(&backup).unwrap();
+        assert_eq!(json["environments"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_backup_format_with_schedules() {
+        let mut backup = make_empty_backup();
+        backup
+            .schedules
+            .push(serde_json::json!({"id": 1, "cron_format": "0 * * * *"}));
+        let json = serde_json::to_value(&backup).unwrap();
+        assert_eq!(json["schedules"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_backup_format_with_secret_storages() {
+        let mut backup = make_empty_backup();
+        backup
+            .secret_storages
+            .push(serde_json::json!({"id": 1, "type": "vault"}));
+        let json = serde_json::to_value(&backup).unwrap();
+        assert_eq!(json["secret_storages"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_backup_format_with_roles() {
+        let mut backup = make_empty_backup();
+        backup.roles.push(serde_json::json!({"id": 1, "name": "admin"}));
+        backup.roles.push(serde_json::json!({"id": 2, "name": "viewer"}));
+        let json = serde_json::to_value(&backup).unwrap();
+        assert_eq!(json["roles"].as_array().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn test_backup_format_full_roundtrip() {
+        let mut backup = make_empty_backup();
+        backup
+            .templates
+            .push(serde_json::json!({"id": 10, "name": "deploy-prod"}));
+        backup
+            .repositories
+            .push(serde_json::json!({"id": 20, "git_url": "git@example.com:repo.git"}));
+        backup
+            .keys
+            .push(serde_json::json!({"id": 30, "name": "deploy-key"}));
+        backup
+            .views
+            .push(serde_json::json!({"id": 40, "title": "Main", "position": 1}));
+
+        let json = serde_json::to_value(&backup).unwrap();
+        let restored: BackupFormat = serde_json::from_value(json).unwrap();
+
+        assert_eq!(restored.templates.len(), 1);
+        assert_eq!(restored.repositories.len(), 1);
+        assert_eq!(restored.keys.len(), 1);
+        assert_eq!(restored.views.len(), 1);
+        assert_eq!(restored.meta.name, "test-project");
+    }
+
+    #[test]
+    fn test_backup_format_project_meta() {
+        let backup = make_empty_backup();
+        assert_eq!(backup.meta.id, 1);
+        assert_eq!(backup.meta.name, "test-project");
+    }
+
+    #[test]
+    fn test_backup_format_all_sections_empty() {
+        let backup = make_empty_backup();
+        assert!(backup.meta.name.len() > 0);
+        assert!(backup.templates.is_empty());
+        assert!(backup.repositories.is_empty());
+        assert!(backup.keys.is_empty());
+        assert!(backup.views.is_empty());
+        assert!(backup.inventories.is_empty());
+        assert!(backup.environments.is_empty());
+        assert!(backup.integrations.is_empty());
+        assert!(backup.schedules.is_empty());
+        assert!(backup.secret_storages.is_empty());
+        assert!(backup.roles.is_empty());
+    }
+
+    #[test]
+    fn test_backup_format_json_field_presence() {
+        let backup = make_empty_backup();
+        let value = serde_json::to_value(&backup).unwrap();
+        let keys: Vec<&str> = value
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(|s| s.as_str())
+            .collect();
+        assert!(keys.contains(&"meta"));
+        assert!(keys.contains(&"templates"));
+        assert!(keys.contains(&"repositories"));
+        assert!(keys.contains(&"keys"));
+        assert!(keys.contains(&"views"));
+        assert!(keys.contains(&"inventories"));
+        assert!(keys.contains(&"environments"));
+        assert!(keys.contains(&"integrations"));
+        assert!(keys.contains(&"schedules"));
+        assert!(keys.contains(&"secret_storages"));
+        assert!(keys.contains(&"roles"));
+    }
+}

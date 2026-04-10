@@ -429,3 +429,438 @@ pub async fn export_kubernetes_audit(
         Ok(Json(rows).into_response())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::audit_log::{AuditAction, AuditLevel, AuditLog, AuditObjectType};
+
+    // --- action_to_verb tests ---
+
+    #[test]
+    fn test_action_to_verb_create() {
+        assert_eq!(action_to_verb(&AuditAction::KubernetesResourceCreated), "create");
+        assert_eq!(action_to_verb(&AuditAction::KubernetesHelmReleaseInstalled), "create");
+    }
+
+    #[test]
+    fn test_action_to_verb_update() {
+        assert_eq!(action_to_verb(&AuditAction::KubernetesResourceUpdated), "update");
+        assert_eq!(action_to_verb(&AuditAction::KubernetesResourceScaled), "update");
+        assert_eq!(action_to_verb(&AuditAction::KubernetesHelmReleaseUpgraded), "update");
+        assert_eq!(action_to_verb(&AuditAction::KubernetesHelmReleaseRolledBack), "update");
+    }
+
+    #[test]
+    fn test_action_to_verb_delete() {
+        assert_eq!(action_to_verb(&AuditAction::KubernetesResourceDeleted), "delete");
+        assert_eq!(action_to_verb(&AuditAction::KubernetesHelmReleaseUninstalled), "delete");
+    }
+
+    #[test]
+    fn test_action_to_verb_other() {
+        assert_eq!(action_to_verb(&AuditAction::Login), "other");
+        assert_eq!(action_to_verb(&AuditAction::Logout), "other");
+        assert_eq!(action_to_verb(&AuditAction::UserCreated), "other");
+    }
+
+    // --- level_to_str tests ---
+
+    #[test]
+    fn test_level_to_str_info() {
+        assert_eq!(level_to_str(&AuditLevel::Info), "info");
+    }
+
+    #[test]
+    fn test_level_to_str_warning() {
+        assert_eq!(level_to_str(&AuditLevel::Warning), "warning");
+    }
+
+    #[test]
+    fn test_level_to_str_error() {
+        assert_eq!(level_to_str(&AuditLevel::Error), "error");
+    }
+
+    #[test]
+    fn test_level_to_str_critical() {
+        assert_eq!(level_to_str(&AuditLevel::Critical), "critical");
+    }
+
+    // --- extract_meta tests ---
+
+    #[test]
+    fn test_extract_meta_with_full_metadata() {
+        let details = Some(serde_json::json!({
+            "metadata": {
+                "resource_kind": "Deployment",
+                "resource_name": "my-app",
+                "namespace": "production"
+            }
+        }));
+        let (resource, resource_name, namespace) = extract_meta(&details);
+        assert_eq!(resource, Some("Deployment".to_string()));
+        assert_eq!(resource_name, Some("my-app".to_string()));
+        assert_eq!(namespace, Some("production".to_string()));
+    }
+
+    #[test]
+    fn test_extract_meta_with_none_details() {
+        let (resource, resource_name, namespace) = extract_meta(&None);
+        assert!(resource.is_none());
+        assert!(resource_name.is_none());
+        assert!(namespace.is_none());
+    }
+
+    #[test]
+    fn test_extract_meta_with_partial_metadata() {
+        let details = Some(serde_json::json!({
+            "metadata": {
+                "resource_kind": "Service"
+            }
+        }));
+        let (resource, resource_name, namespace) = extract_meta(&details);
+        assert_eq!(resource, Some("Service".to_string()));
+        assert!(resource_name.is_none());
+        assert!(namespace.is_none());
+    }
+
+    #[test]
+    fn test_extract_meta_ignores_extra_fields() {
+        let details = Some(serde_json::json!({
+            "metadata": {
+                "resource_kind": "Pod",
+                "resource_name": "test-pod",
+                "namespace": "default",
+                "extra_field": "ignored"
+            },
+            "other": "data"
+        }));
+        let (resource, resource_name, namespace) = extract_meta(&details);
+        assert_eq!(resource, Some("Pod".to_string()));
+        assert_eq!(resource_name, Some("test-pod".to_string()));
+        assert_eq!(namespace, Some("default".to_string()));
+    }
+
+    // --- map_rows tests ---
+
+    #[test]
+    fn test_map_rows_empty() {
+        let logs: Vec<AuditLog> = vec![];
+        let rows = map_rows(&logs, Some("test-cluster".to_string()));
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn test_map_rows_single() {
+        let logs = vec![AuditLog {
+            id: 1,
+            project_id: None,
+            user_id: Some(1),
+            username: Some("admin".to_string()),
+            action: AuditAction::KubernetesResourceCreated,
+            object_type: AuditObjectType::Kubernetes,
+            object_id: None,
+            object_name: Some("Deployment/my-app".to_string()),
+            description: "Создан ресурс Deployment/my-app".to_string(),
+            level: AuditLevel::Info,
+            ip_address: None,
+            user_agent: None,
+            details: Some(serde_json::json!({
+                "metadata": {
+                    "resource_kind": "Deployment",
+                    "resource_name": "my-app",
+                    "namespace": "default"
+                }
+            })),
+            created: chrono::Utc::now(),
+        }];
+        let rows = map_rows(&logs, Some("test-cluster".to_string()));
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].id, 1);
+        assert_eq!(rows[0].username, Some("admin".to_string()));
+        assert_eq!(rows[0].cluster, Some("test-cluster".to_string()));
+        assert_eq!(rows[0].resource, Some("Deployment".to_string()));
+        assert_eq!(rows[0].resource_name, Some("my-app".to_string()));
+        assert_eq!(rows[0].namespace, Some("default".to_string()));
+        assert_eq!(rows[0].verb, "create");
+        assert_eq!(rows[0].level, "info");
+    }
+
+    // --- apply_filters tests ---
+
+    #[test]
+    fn test_apply_filters_no_filters() {
+        let rows = vec![KubernetesAuditRow {
+            id: 1,
+            created: chrono::Utc::now(),
+            username: Some("admin".to_string()),
+            cluster: None,
+            namespace: Some("default".to_string()),
+            resource: Some("Pod".to_string()),
+            resource_name: Some("my-pod".to_string()),
+            verb: "create".to_string(),
+            action: "kubernetes_resource_created".to_string(),
+            description: "Created".to_string(),
+            level: "info".to_string(),
+        }];
+        let query = KubernetesAuditQuery {
+            username: None,
+            resource: None,
+            verb: None,
+            namespace: None,
+            search: None,
+            limit: None,
+            offset: None,
+        };
+        let filtered = apply_filters(rows, &query);
+        assert_eq!(filtered.len(), 1);
+    }
+
+    #[test]
+    fn test_apply_filters_by_resource() {
+        let rows = vec![
+            KubernetesAuditRow {
+                id: 1, created: chrono::Utc::now(), username: None, cluster: None,
+                namespace: Some("default".to_string()), resource: Some("Pod".to_string()),
+                resource_name: Some("pod-1".to_string()), verb: "create".to_string(),
+                action: "kubernetes_resource_created".to_string(), description: "Created".to_string(),
+                level: "info".to_string(),
+            },
+            KubernetesAuditRow {
+                id: 2, created: chrono::Utc::now(), username: None, cluster: None,
+                namespace: Some("default".to_string()), resource: Some("Service".to_string()),
+                resource_name: Some("svc-1".to_string()), verb: "create".to_string(),
+                action: "kubernetes_resource_created".to_string(), description: "Created".to_string(),
+                level: "info".to_string(),
+            },
+        ];
+        let query = KubernetesAuditQuery {
+            username: None,
+            resource: Some("pod".to_string()),
+            verb: None,
+            namespace: None,
+            search: None,
+            limit: None,
+            offset: None,
+        };
+        let filtered = apply_filters(rows, &query);
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].id, 1);
+    }
+
+    #[test]
+    fn test_apply_filters_by_verb() {
+        let rows = vec![
+            KubernetesAuditRow {
+                id: 1, created: chrono::Utc::now(), username: None, cluster: None,
+                namespace: Some("default".to_string()), resource: Some("Pod".to_string()),
+                resource_name: Some("pod-1".to_string()), verb: "create".to_string(),
+                action: "kubernetes_resource_created".to_string(), description: "Created".to_string(),
+                level: "info".to_string(),
+            },
+            KubernetesAuditRow {
+                id: 2, created: chrono::Utc::now(), username: None, cluster: None,
+                namespace: Some("default".to_string()), resource: Some("Pod".to_string()),
+                resource_name: Some("pod-2".to_string()), verb: "delete".to_string(),
+                action: "kubernetes_resource_deleted".to_string(), description: "Deleted".to_string(),
+                level: "info".to_string(),
+            },
+        ];
+        let query = KubernetesAuditQuery {
+            username: None,
+            resource: None,
+            verb: Some("delete".to_string()),
+            namespace: None,
+            search: None,
+            limit: None,
+            offset: None,
+        };
+        let filtered = apply_filters(rows, &query);
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].id, 2);
+    }
+
+    #[test]
+    fn test_apply_filters_by_namespace() {
+        let rows = vec![
+            KubernetesAuditRow {
+                id: 1, created: chrono::Utc::now(), username: None, cluster: None,
+                namespace: Some("kube-system".to_string()), resource: Some("Pod".to_string()),
+                resource_name: Some("coredns".to_string()), verb: "create".to_string(),
+                action: "kubernetes_resource_created".to_string(), description: "Created".to_string(),
+                level: "info".to_string(),
+            },
+            KubernetesAuditRow {
+                id: 2, created: chrono::Utc::now(), username: None, cluster: None,
+                namespace: Some("default".to_string()), resource: Some("Pod".to_string()),
+                resource_name: Some("nginx".to_string()), verb: "create".to_string(),
+                action: "kubernetes_resource_created".to_string(), description: "Created".to_string(),
+                level: "info".to_string(),
+            },
+        ];
+        let query = KubernetesAuditQuery {
+            username: None,
+            resource: None,
+            verb: None,
+            namespace: Some("kube-system".to_string()),
+            search: None,
+            limit: None,
+            offset: None,
+        };
+        let filtered = apply_filters(rows, &query);
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].id, 1);
+    }
+
+    #[test]
+    fn test_apply_filters_by_search_description() {
+        let rows = vec![
+            KubernetesAuditRow {
+                id: 1, created: chrono::Utc::now(), username: Some("alice".to_string()),
+                cluster: None, namespace: Some("default".to_string()),
+                resource: Some("Deployment".to_string()), resource_name: Some("app-1".to_string()),
+                verb: "update".to_string(), action: "kubernetes_resource_updated".to_string(),
+                description: "Обновлен ресурс Deployment/app-1 в namespace default".to_string(),
+                level: "info".to_string(),
+            },
+            KubernetesAuditRow {
+                id: 2, created: chrono::Utc::now(), username: Some("bob".to_string()),
+                cluster: None, namespace: Some("default".to_string()),
+                resource: Some("Pod".to_string()), resource_name: Some("pod-1".to_string()),
+                verb: "create".to_string(), action: "kubernetes_resource_created".to_string(),
+                description: "Создан ресурс Pod/pod-1".to_string(),
+                level: "info".to_string(),
+            },
+        ];
+        let query = KubernetesAuditQuery {
+            username: None,
+            resource: None,
+            verb: None,
+            namespace: None,
+            search: Some("app-1".to_string()),
+            limit: None,
+            offset: None,
+        };
+        let filtered = apply_filters(rows, &query);
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].id, 1);
+    }
+
+    #[test]
+    fn test_apply_filters_search_by_username() {
+        let rows = vec![
+            KubernetesAuditRow {
+                id: 1, created: chrono::Utc::now(), username: Some("alice".to_string()),
+                cluster: None, namespace: None, resource: None, resource_name: None,
+                verb: "create".to_string(), action: "kubernetes_resource_created".to_string(),
+                description: "test".to_string(), level: "info".to_string(),
+            },
+            KubernetesAuditRow {
+                id: 2, created: chrono::Utc::now(), username: Some("bob".to_string()),
+                cluster: None, namespace: None, resource: None, resource_name: None,
+                verb: "create".to_string(), action: "kubernetes_resource_created".to_string(),
+                description: "test".to_string(), level: "info".to_string(),
+            },
+        ];
+        let query = KubernetesAuditQuery {
+            username: None,
+            resource: None,
+            verb: None,
+            namespace: None,
+            search: Some("alice".to_string()),
+            limit: None,
+            offset: None,
+        };
+        let filtered = apply_filters(rows, &query);
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].username, Some("alice".to_string()));
+    }
+
+    // --- KubernetesAuditQuery deserialization tests ---
+
+    #[test]
+    fn test_kubernetes_audit_query_deserialize_empty() {
+        let query: KubernetesAuditQuery = serde_json::from_str("{}").unwrap();
+        assert!(query.username.is_none());
+        assert!(query.resource.is_none());
+        assert!(query.verb.is_none());
+        assert!(query.namespace.is_none());
+        assert!(query.search.is_none());
+        assert!(query.limit.is_none());
+        assert!(query.offset.is_none());
+    }
+
+    #[test]
+    fn test_kubernetes_audit_query_deserialize_with_values() {
+        let json = r#"{"username": "admin", "verb": "create", "limit": 50}"#;
+        let query: KubernetesAuditQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(query.username, Some("admin".to_string()));
+        assert_eq!(query.verb, Some("create".to_string()));
+        assert_eq!(query.limit, Some(50));
+    }
+
+    // --- KubernetesAuditExportQuery tests ---
+
+    #[test]
+    fn test_kubernetes_audit_export_query_deserialize_default_format() {
+        let query: KubernetesAuditExportQuery = serde_json::from_str("{}").unwrap();
+        assert!(query.format.is_none());
+    }
+
+    #[test]
+    fn test_kubernetes_audit_export_query_deserialize_csv_format() {
+        let json = r#"{"format": "csv"}"#;
+        let query: KubernetesAuditExportQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(query.format, Some("csv".to_string()));
+    }
+
+    // --- KubernetesAuditRow serialization tests ---
+
+    #[test]
+    fn test_kubernetes_audit_row_serialize() {
+        let row = KubernetesAuditRow {
+            id: 42,
+            created: chrono::Utc::now(),
+            username: Some("admin".to_string()),
+            cluster: Some("prod-cluster".to_string()),
+            namespace: Some("kube-system".to_string()),
+            resource: Some("Deployment".to_string()),
+            resource_name: Some("nginx".to_string()),
+            verb: "create".to_string(),
+            action: "kubernetes_resource_created".to_string(),
+            description: "Created nginx deployment".to_string(),
+            level: "info".to_string(),
+        };
+        let json = serde_json::to_string(&row).unwrap();
+        assert!(json.contains("\"id\":42"));
+        assert!(json.contains("\"username\":\"admin\""));
+        assert!(json.contains("\"cluster\":\"prod-cluster\""));
+        assert!(json.contains("\"namespace\":\"kube-system\""));
+        assert!(json.contains("\"resource\":\"Deployment\""));
+        assert!(json.contains("\"verb\":\"create\""));
+        assert!(json.contains("\"level\":\"info\""));
+    }
+
+    #[test]
+    fn test_kubernetes_audit_row_serialize_with_none_fields() {
+        let row = KubernetesAuditRow {
+            id: 1,
+            created: chrono::Utc::now(),
+            username: None,
+            cluster: None,
+            namespace: None,
+            resource: None,
+            resource_name: None,
+            verb: "delete".to_string(),
+            action: "kubernetes_resource_deleted".to_string(),
+            description: "Deleted".to_string(),
+            level: "warning".to_string(),
+        };
+        let json = serde_json::to_string(&row).unwrap();
+        assert!(json.contains("\"username\":null"));
+        assert!(json.contains("\"cluster\":null"));
+        assert!(json.contains("\"namespace\":null"));
+        assert!(json.contains("\"verb\":\"delete\""));
+        assert!(json.contains("\"level\":\"warning\""));
+    }
+}
