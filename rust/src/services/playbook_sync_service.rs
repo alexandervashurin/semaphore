@@ -411,4 +411,172 @@ mod tests {
         assert_eq!(cloned.name, update.name);
         assert_eq!(cloned.content, update.content);
     }
+
+    #[test]
+    fn test_determine_playbook_path_prefers_exact_match_over_extensions() {
+        let temp_dir = TempDir::new().unwrap();
+        // Создаём playbook без расширения и с .yml
+        std::fs::write(temp_dir.path().join("setup"), "#no ext").unwrap();
+        std::fs::write(temp_dir.path().join("setup.yml"), "#yml").unwrap();
+
+        // Точное совпадение должно быть первым
+        let path = determine_playbook_path(temp_dir.path(), "setup");
+        assert!(path.exists());
+        assert!(path.to_string_lossy().ends_with("setup"));
+    }
+
+    #[test]
+    fn test_determine_playbook_path_yaml_in_root_before_playbooks() {
+        let temp_dir = TempDir::new().unwrap();
+        std::fs::write(temp_dir.path().join("deploy.yaml"), "#root").unwrap();
+
+        let playbooks_dir = temp_dir.path().join("playbooks");
+        std::fs::create_dir_all(&playbooks_dir).unwrap();
+        std::fs::write(playbooks_dir.join("deploy.yaml"), "#playbooks").unwrap();
+
+        // Должен найти root версию первым
+        let path = determine_playbook_path(temp_dir.path(), "deploy.yaml");
+        assert!(path.exists());
+        assert!(!path.to_string_lossy().contains("playbooks"));
+    }
+
+    #[test]
+    fn test_determine_playbook_path_returns_first_path_when_none_exist() {
+        let temp_dir = TempDir::new().unwrap();
+        let path = determine_playbook_path(temp_dir.path(), "missing.yml");
+        assert!(!path.exists());
+        assert_eq!(path, temp_dir.path().join("missing.yml"));
+    }
+
+    #[test]
+    fn test_playbook_update_debug_format() {
+        let update = PlaybookUpdate {
+            name: "Debug Test".to_string(),
+            content: "content".to_string(),
+            description: Some("desc".to_string()),
+            playbook_type: "terraform".to_string(),
+        };
+        let debug_str = format!("{:?}", update);
+        assert!(debug_str.contains("PlaybookUpdate"));
+        assert!(debug_str.contains("Debug Test"));
+    }
+
+    #[test]
+    fn test_determine_playbook_path_with_yaml_in_playbooks_and_yml_in_root() {
+        let temp_dir = TempDir::new().unwrap();
+        std::fs::write(temp_dir.path().join("site.yml"), "#root yml").unwrap();
+
+        let playbooks_dir = temp_dir.path().join("playbooks");
+        std::fs::create_dir_all(&playbooks_dir).unwrap();
+        std::fs::write(playbooks_dir.join("site.yaml"), "#playbooks yaml").unwrap();
+
+        // Ищем site.yaml -- должен найти playbooks/site.yaml
+        let path = determine_playbook_path(temp_dir.path(), "site.yaml");
+        assert!(path.exists());
+        assert!(path.to_string_lossy().contains("playbooks"));
+    }
+
+    #[test]
+    fn test_determine_playbook_path_long_name_with_dashes() {
+        let temp_dir = TempDir::new().unwrap();
+        std::fs::write(temp_dir.path().join("deploy-to-production.yml"), "---").unwrap();
+
+        let path = determine_playbook_path(temp_dir.path(), "deploy-to-production");
+        assert!(path.exists());
+        assert!(path.to_string_lossy().ends_with("deploy-to-production.yml"));
+    }
+
+    #[test]
+    fn test_playbook_update_with_none_description() {
+        let update = PlaybookUpdate {
+            name: "Test".to_string(),
+            content: "---".to_string(),
+            description: None,
+            playbook_type: "ansible".to_string(),
+        };
+        assert!(update.description.is_none());
+        assert_eq!(update.name, "Test");
+    }
+
+    #[test]
+    fn test_playbook_update_equality() {
+        let u1 = PlaybookUpdate {
+            name: "A".to_string(),
+            content: "---".to_string(),
+            description: Some("d".to_string()),
+            playbook_type: "ansible".to_string(),
+        };
+        let u2 = PlaybookUpdate {
+            name: "A".to_string(),
+            content: "---".to_string(),
+            description: Some("d".to_string()),
+            playbook_type: "ansible".to_string(),
+        };
+        assert_eq!(u1.name, u2.name);
+        assert_eq!(u1.content, u2.content);
+        assert_eq!(u1.description, u2.description);
+        assert_eq!(u1.playbook_type, u2.playbook_type);
+    }
+
+    #[test]
+    fn test_determine_playbook_path_with_underscore_name() {
+        let temp_dir = TempDir::new().unwrap();
+        std::fs::write(temp_dir.path().join("my_playbook.yml"), "---").unwrap();
+
+        let path = determine_playbook_path(temp_dir.path(), "my_playbook");
+        assert!(path.exists());
+        assert!(path.to_string_lossy().ends_with("my_playbook.yml"));
+    }
+
+    #[test]
+    fn test_determine_playbook_path_numbered_name() {
+        let temp_dir = TempDir::new().unwrap();
+        std::fs::write(temp_dir.path().join("playbook2.yml"), "---").unwrap();
+
+        let path = determine_playbook_path(temp_dir.path(), "playbook2");
+        assert!(path.exists());
+    }
+
+    #[test]
+    fn test_playbook_service_struct_exists() {
+        // Just verify the struct can be referenced
+        let _ = std::mem::size_of::<PlaybookSyncService>();
+    }
+
+    #[test]
+    fn test_determine_playbook_path_with_dotted_directory() {
+        let temp_dir = TempDir::new().unwrap();
+        let playbooks_dir = temp_dir.path().join("playbooks");
+        std::fs::create_dir_all(&playbooks_dir).unwrap();
+        std::fs::write(playbooks_dir.join("main.yaml"), "---").unwrap();
+
+        let path = determine_playbook_path(temp_dir.path(), "main.yaml");
+        assert!(path.exists());
+        assert!(path.to_string_lossy().contains("playbooks/main.yaml"));
+    }
+
+    #[test]
+    fn test_determine_playbook_path_root_yml_first() {
+        let temp_dir = TempDir::new().unwrap();
+        // Создаём только .yml в корне
+        std::fs::write(temp_dir.path().join("deploy.yml"), "---").unwrap();
+
+        let path = determine_playbook_path(temp_dir.path(), "deploy");
+        assert!(path.exists());
+        assert!(path.to_string_lossy().ends_with("deploy.yml"));
+    }
+
+    #[test]
+    fn test_playbook_update_clone_with_empty_content() {
+        let update = PlaybookUpdate {
+            name: "".to_string(),
+            content: "".to_string(),
+            description: None,
+            playbook_type: "".to_string(),
+        };
+        let cloned = update.clone();
+        assert_eq!(cloned.name, "");
+        assert_eq!(cloned.content, "");
+        assert!(cloned.description.is_none());
+    }
 }

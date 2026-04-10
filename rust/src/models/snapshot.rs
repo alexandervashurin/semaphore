@@ -174,4 +174,73 @@ mod tests {
         assert!(json.contains("\"label\":null"));
         assert!(json.contains("\"message\":null"));
     }
+
+    #[test]
+    fn test_task_snapshot_debug() {
+        let snapshot = TaskSnapshot {
+            id: 1, project_id: 10, template_id: 5, task_id: 100,
+            git_branch: Some("main".to_string()), git_commit: None, arguments: None,
+            inventory_id: None, environment_id: None, message: None,
+            label: None, created_at: "2024-01-01".to_string(),
+            template_name: "Debug Snap".to_string(),
+        };
+        let debug_str = format!("{:?}", snapshot);
+        assert!(debug_str.contains("TaskSnapshot"));
+        assert!(debug_str.contains("Debug Snap"));
+    }
+
+    #[test]
+    fn test_rollback_request_clone() {
+        let req = RollbackRequest { message: Some("Clone rollback".to_string()) };
+        let cloned = req.clone();
+        assert_eq!(cloned.message, req.message);
+    }
+
+    #[test]
+    fn test_task_snapshot_create_debug() {
+        let create = TaskSnapshotCreate {
+            template_id: 1, task_id: 1, git_branch: None, git_commit: None,
+            arguments: None, inventory_id: None, environment_id: None,
+            message: None, label: None,
+        };
+        let debug_str = format!("{:?}", create);
+        assert!(debug_str.contains("TaskSnapshotCreate"));
+    }
+
+    #[test]
+    fn test_rollback_request_debug() {
+        let req = RollbackRequest { message: Some("Debug rollback".to_string()) };
+        let debug_str = format!("{:?}", req);
+        assert!(debug_str.contains("RollbackRequest"));
+    }
+
+    #[test]
+    fn test_task_snapshot_deserialization_minimal() {
+        let json = r#"{"id":1,"project_id":1,"template_id":1,"task_id":1,"git_branch":null,"git_commit":null,"arguments":null,"inventory_id":null,"environment_id":null,"message":null,"label":null,"created_at":"2024-01-01","template_name":""}"#;
+        let snapshot: TaskSnapshot = serde_json::from_str(json).unwrap();
+        assert_eq!(snapshot.id, 1);
+        assert!(snapshot.git_branch.is_none());
+    }
+
+    #[test]
+    fn test_task_snapshot_create_all_populated() {
+        let create = TaskSnapshotCreate {
+            template_id: 10, task_id: 100,
+            git_branch: Some("develop".to_string()), git_commit: Some("abc".to_string()),
+            arguments: Some("--arg".to_string()), inventory_id: Some(1),
+            environment_id: Some(2), message: Some("Auto".to_string()),
+            label: Some("v2.0".to_string()),
+        };
+        let json = serde_json::to_string(&create).unwrap();
+        assert!(json.contains("\"template_id\":10"));
+        assert!(json.contains("\"git_branch\":\"develop\""));
+        assert!(json.contains("\"label\":\"v2.0\""));
+    }
+
+    #[test]
+    fn test_rollback_request_deserialization() {
+        let json = r#"{"message":"Please rollback"}"#;
+        let req: RollbackRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.message, Some("Please rollback".to_string()));
+    }
 }

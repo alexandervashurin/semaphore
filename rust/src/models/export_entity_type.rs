@@ -108,4 +108,63 @@ mod tests {
         let cloned = t.clone();
         assert_eq!(cloned, t);
     }
+
+    #[test]
+    fn test_export_entity_type_debug() {
+        let t = ExportEntityType::Project;
+        let debug_str = format!("{:?}", t);
+        assert!(debug_str.contains("Project"));
+    }
+
+    #[test]
+    fn test_export_entity_type_deserialization() {
+        let project: ExportEntityType = serde_json::from_str("\"project\"").unwrap();
+        let template: ExportEntityType = serde_json::from_str("\"template\"").unwrap();
+        let task: ExportEntityType = serde_json::from_str("\"task\"").unwrap();
+        assert_eq!(project, ExportEntityType::Project);
+        assert_eq!(template, ExportEntityType::Template);
+        assert_eq!(task, ExportEntityType::Task);
+    }
+
+    #[test]
+    fn test_export_entity_type_all_variants_as_str() {
+        assert_eq!(ExportEntityType::Inventory.as_str(), "inventory");
+        assert_eq!(ExportEntityType::Repository.as_str(), "repository");
+        assert_eq!(ExportEntityType::Environment.as_str(), "environment");
+        assert_eq!(ExportEntityType::AccessKey.as_str(), "access_key");
+        assert_eq!(ExportEntityType::Schedule.as_str(), "schedule");
+        assert_eq!(ExportEntityType::Other.as_str(), "other");
+    }
+
+    #[test]
+    fn test_export_entity_type_equality() {
+        let a = ExportEntityType::Project;
+        let b = ExportEntityType::Project;
+        let c = ExportEntityType::Template;
+        assert_eq!(a, b);
+        assert_ne!(a, c);
+    }
+
+    #[test]
+    fn test_export_entity_type_serialization_roundtrip() {
+        for t in vec![
+            ExportEntityType::Project, ExportEntityType::Template, ExportEntityType::Task,
+            ExportEntityType::User, ExportEntityType::Inventory, ExportEntityType::Repository,
+            ExportEntityType::Environment, ExportEntityType::AccessKey,
+            ExportEntityType::Integration, ExportEntityType::Schedule, ExportEntityType::Other,
+        ] {
+            let json = serde_json::to_string(&t).unwrap();
+            let deserialized: ExportEntityType = serde_json::from_str(&json).unwrap();
+            assert_eq!(deserialized, t);
+        }
+    }
+
+    #[test]
+    fn test_export_entity_type_default_deserialization() {
+        // Test deserializing user and other variants
+        let user: ExportEntityType = serde_json::from_str("\"user\"").unwrap();
+        assert_eq!(user, ExportEntityType::User);
+        let other: ExportEntityType = serde_json::from_str("\"other\"").unwrap();
+        assert_eq!(other, ExportEntityType::Other);
+    }
 }

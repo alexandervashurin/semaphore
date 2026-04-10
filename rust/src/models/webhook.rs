@@ -182,4 +182,93 @@ mod tests {
         assert!(json.contains("\"status_code\":200"));
         assert!(json.contains("\"success\":true"));
     }
+
+    #[test]
+    fn test_webhook_type_clone() {
+        let wt = WebhookType::Custom;
+        let cloned = wt.clone();
+        assert_eq!(cloned, wt);
+    }
+
+    #[test]
+    fn test_webhook_type_equality() {
+        assert_eq!(WebhookType::Slack, WebhookType::Slack);
+        assert_ne!(WebhookType::Slack, WebhookType::Teams);
+    }
+
+    #[test]
+    fn test_webhook_type_all_serialization() {
+        let types = [WebhookType::Generic, WebhookType::Slack, WebhookType::Teams,
+                     WebhookType::Discord, WebhookType::Telegram, WebhookType::Custom];
+        for t in &types {
+            let json = serde_json::to_string(t).unwrap();
+            assert!(json.starts_with('"') && json.ends_with('"'));
+        }
+    }
+
+    #[test]
+    fn test_create_webhook_clone() {
+        let create = CreateWebhook {
+            project_id: Some(1), name: "Clone Webhook".to_string(),
+            r#type: WebhookType::Generic, url: "https://example.com".to_string(),
+            secret: None, headers: None, active: true, events: vec![],
+            retry_count: 3, timeout_secs: 30,
+        };
+        let cloned = create.clone();
+        assert_eq!(cloned.name, create.name);
+        assert_eq!(cloned.r#type, create.r#type);
+    }
+
+    #[test]
+    fn test_update_webhook_clone() {
+        let update = UpdateWebhook {
+            name: Some("Clone Update".to_string()), r#type: None, url: None,
+            secret: None, headers: None, active: Some(true), events: None,
+            retry_count: None, timeout_secs: None,
+        };
+        let cloned = update.clone();
+        assert_eq!(cloned.name, update.name);
+        assert_eq!(cloned.active, update.active);
+    }
+
+    #[test]
+    fn test_webhook_log_clone() {
+        let log = WebhookLog {
+            id: 1, webhook_id: 10, event_type: "task_failed".to_string(),
+            status_code: Some(500), success: false, error: Some("Error".to_string()),
+            attempts: 3, payload: None, response: None, created: Utc::now(),
+        };
+        let cloned = log.clone();
+        assert_eq!(cloned.event_type, log.event_type);
+        assert_eq!(cloned.status_code, log.status_code);
+    }
+
+    #[test]
+    fn test_test_webhook_serialization() {
+        let test = TestWebhook {
+            url: "https://test.com/hook".to_string(),
+            r#type: WebhookType::Slack,
+            secret: Some("test_secret".to_string()),
+            headers: Some(serde_json::json!({"Authorization": "Bearer token"})),
+        };
+        let json = serde_json::to_string(&test).unwrap();
+        assert!(json.contains("\"url\":\"https://test.com/hook\""));
+        assert!(json.contains("\"type\":\"slack\""));
+    }
+
+    #[test]
+    fn test_webhook_deserialization() {
+        let json = r#"{"id":5,"project_id":10,"name":"Deser Webhook","type":"discord","url":"https://discord.com/webhook","secret":null,"headers":null,"active":true,"events":["task_completed"],"retry_count":3,"timeout_secs":30,"created":"2024-01-01T00:00:00Z","updated":"2024-01-01T00:00:00Z"}"#;
+        let webhook: Webhook = serde_json::from_str(json).unwrap();
+        assert_eq!(webhook.id, 5);
+        assert_eq!(webhook.name, "Deser Webhook");
+        assert_eq!(webhook.r#type, WebhookType::Discord);
+    }
+
+    #[test]
+    fn test_webhook_type_debug() {
+        let wt = WebhookType::Generic;
+        let debug_str = format!("{:?}", wt);
+        assert!(debug_str.contains("Generic"));
+    }
 }

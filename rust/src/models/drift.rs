@@ -163,4 +163,78 @@ mod tests {
         let cloned = result.clone();
         assert_eq!(cloned.status, result.status);
     }
+
+    #[test]
+    fn test_drift_config_update_serialization() {
+        let update = DriftConfigUpdate {
+            enabled: Some(false),
+            schedule: Some("0 0 * * *".to_string()),
+        };
+        let json = serde_json::to_string(&update).unwrap();
+        assert!(json.contains("\"enabled\":false"));
+        assert!(json.contains("\"schedule\":\"0 0 * * *\""));
+    }
+
+    #[test]
+    fn test_drift_config_with_status_clone() {
+        let config = DriftConfig {
+            id: 1, project_id: 10, template_id: 5, enabled: true,
+            schedule: None, created: Utc::now(),
+        };
+        let with_status = DriftConfigWithStatus { config, latest_result: None };
+        let cloned = with_status.clone();
+        assert_eq!(cloned.config.enabled, with_status.config.enabled);
+    }
+
+    #[test]
+    fn test_drift_result_all_statuses() {
+        let statuses = ["clean", "drifted", "error", "pending"];
+        for s in statuses {
+            let result = DriftResult {
+                id: 1, drift_config_id: 1, project_id: 1, template_id: 1,
+                status: s.to_string(), summary: None, task_id: None, checked_at: Utc::now(),
+            };
+            let json = serde_json::to_string(&result).unwrap();
+            assert!(json.contains(&format!("\"status\":\"{}\"", s)));
+        }
+    }
+
+    #[test]
+    fn test_drift_config_deserialization() {
+        let json = r#"{"id":5,"project_id":20,"template_id":10,"enabled":true,"schedule":"daily","created":"2024-01-01T00:00:00Z"}"#;
+        let config: DriftConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.id, 5);
+        assert_eq!(config.template_id, 10);
+        assert!(config.enabled);
+    }
+
+    #[test]
+    fn test_drift_result_debug() {
+        let result = DriftResult {
+            id: 1, drift_config_id: 1, project_id: 1, template_id: 1,
+            status: "debug".to_string(), summary: Some("Debug summary".to_string()),
+            task_id: None, checked_at: Utc::now(),
+        };
+        let debug_str = format!("{:?}", result);
+        assert!(debug_str.contains("DriftResult"));
+    }
+
+    #[test]
+    fn test_drift_config_create_all_nulls() {
+        let create = DriftConfigCreate {
+            template_id: 1, enabled: None, schedule: None,
+        };
+        let json = serde_json::to_string(&create).unwrap();
+        assert!(json.contains("\"enabled\":null"));
+        assert!(json.contains("\"schedule\":null"));
+    }
+
+    #[test]
+    fn test_drift_config_update_all_nulls() {
+        let update = DriftConfigUpdate {
+            enabled: None, schedule: None,
+        };
+        let json = serde_json::to_string(&update).unwrap();
+        assert!(json.contains("\"enabled\":null"));
+    }
 }

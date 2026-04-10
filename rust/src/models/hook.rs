@@ -173,4 +173,63 @@ mod tests {
         assert_eq!(hook.r#type, HookType::Http);
         assert_eq!(hook.url, Some("https://test.com".to_string()));
     }
+
+    #[test]
+    fn test_hook_debug() {
+        let hook = Hook::new(1, 1, "Debug Hook".to_string(), HookType::Http);
+        let debug_str = format!("{:?}", hook);
+        assert!(debug_str.contains("Hook"));
+        assert!(debug_str.contains("Debug Hook"));
+    }
+
+    #[test]
+    fn test_hook_type_debug() {
+        let ht = HookType::Bash;
+        let debug_str = format!("{:?}", ht);
+        assert!(debug_str.contains("Bash"));
+    }
+
+    #[test]
+    fn test_hook_type_equality() {
+        assert_eq!(HookType::Http, HookType::Http);
+        assert_ne!(HookType::Bash, HookType::Python);
+    }
+
+    #[test]
+    fn test_hook_serialization_with_python_type() {
+        let hook = Hook::new(1, 1, "Python Hook".to_string(), HookType::Python);
+        let json = serde_json::to_string(&hook).unwrap();
+        assert!(json.contains("\"type\":\"python\""));
+        assert!(json.contains("\"name\":\"Python Hook\""));
+    }
+
+    #[test]
+    fn test_hook_with_all_fields_populated() {
+        let hook = Hook {
+            id: 10, project_id: 50, template_id: 25, name: "Full Hook".to_string(),
+            r#type: HookType::Http, url: Some("https://full.com".to_string()),
+            script: Some("echo hello".to_string()), http_method: Some("PUT".to_string()),
+            http_body: Some(r#"{"key":"value"}"#.to_string()), timeout_secs: Some(60),
+        };
+        let json = serde_json::to_string(&hook).unwrap();
+        assert!(json.contains("\"id\":10"));
+        assert!(json.contains("\"timeout_secs\":60"));
+        assert!(json.contains("\"http_method\":\"PUT\""));
+    }
+
+    #[test]
+    fn test_hook_deserialization_all_types() {
+        for hook_type in &["http", "bash", "python"] {
+            let json = format!(r#"{{"id":1,"project_id":1,"template_id":1,"name":"T","type":"{}","url":null,"script":null,"http_method":null,"http_body":null,"timeout_secs":null}}"#, hook_type);
+            let hook: Hook = serde_json::from_str(&json).unwrap();
+            assert_eq!(hook.name, "T");
+        }
+    }
+
+    #[test]
+    fn test_hook_empty_name() {
+        let hook = Hook::new(0, 0, "".to_string(), HookType::Bash);
+        assert!(hook.name.is_empty());
+        assert_eq!(hook.project_id, 0);
+    }
 }

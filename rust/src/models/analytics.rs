@@ -308,4 +308,106 @@ mod tests {
         assert!(json.contains("\"tasks_per_hour\":10.0"));
         assert!(json.contains("\"tasks_per_day\":240.0"));
     }
+
+    #[test]
+    fn test_chart_data_serialization() {
+        let data = ChartData {
+            label: "CPU".to_string(),
+            value: 75.5,
+            timestamp: Some(Utc::now()),
+        };
+        let json = serde_json::to_string(&data).unwrap();
+        assert!(json.contains("\"label\":\"CPU\""));
+        assert!(json.contains("\"value\":75.5"));
+    }
+
+    #[test]
+    fn test_chart_data_null_timestamp() {
+        let data = ChartData { label: "Mem".to_string(), value: 60.0, timestamp: None };
+        let json = serde_json::to_string(&data).unwrap();
+        assert!(json.contains("\"timestamp\":null"));
+    }
+
+    #[test]
+    fn test_time_series_serialization() {
+        let series = TimeSeries {
+            metric: "cpu".to_string(),
+            data: vec![ChartData { label: "point1".to_string(), value: 1.0, timestamp: None }],
+        };
+        let json = serde_json::to_string(&series).unwrap();
+        assert!(json.contains("\"metric\":\"cpu\""));
+        assert!(json.contains("\"data\":["));
+    }
+
+    #[test]
+    fn test_top_item_serialization() {
+        let item = TopItem { id: 1, name: "Top Template".to_string(), value: 100, r#type: "template".to_string() };
+        let json = serde_json::to_string(&item).unwrap();
+        assert!(json.contains("\"name\":\"Top Template\""));
+        assert!(json.contains("\"value\":100"));
+    }
+
+    #[test]
+    fn test_top_slow_task_serialization() {
+        let task = TopSlowTask {
+            task_id: 1, task_name: "Slow Task".to_string(),
+            template_name: "Slow Template".to_string(), duration_secs: 300.0,
+            status: "success".to_string(), created: Utc::now(),
+        };
+        let json = serde_json::to_string(&task).unwrap();
+        assert!(json.contains("\"task_name\":\"Slow Task\""));
+        assert!(json.contains("\"duration_secs\":300.0"));
+    }
+
+    #[test]
+    fn test_top_user_serialization() {
+        let user = TopUser { user_id: 1, username: "top_user".to_string(), tasks_count: 500, success_rate: 95.0 };
+        let json = serde_json::to_string(&user).unwrap();
+        assert!(json.contains("\"username\":\"top_user\""));
+        assert!(json.contains("\"tasks_count\":500"));
+    }
+
+    #[test]
+    fn test_analytics_query_params_serialization() {
+        let params = AnalyticsQueryParams {
+            project_id: Some(10), date_from: Some(Utc::now()), date_to: None,
+            period: Some("daily".to_string()), limit: Some(100), group_by: Some("template".to_string()),
+        };
+        let json = serde_json::to_string(&params).unwrap();
+        assert!(json.contains("\"project_id\":10"));
+        assert!(json.contains("\"limit\":100"));
+    }
+
+    #[test]
+    fn test_runner_metrics_serialization() {
+        let metrics = RunnerMetrics {
+            runner_id: 1, runner_name: "Runner 1".to_string(), active: true,
+            tasks_completed: 100, tasks_failed: 5, avg_execution_time_secs: 60.0,
+            last_seen: Some(Utc::now()), uptime_secs: 86400,
+        };
+        let json = serde_json::to_string(&metrics).unwrap();
+        assert!(json.contains("\"runner_name\":\"Runner 1\""));
+        assert!(json.contains("\"tasks_completed\":100"));
+    }
+
+    #[test]
+    fn test_project_analytics_serialization() {
+        let analytics = ProjectAnalytics {
+            stats: ProjectStats::default(),
+            task_stats: TaskStats {
+                period: "daily".to_string(), total: 10, success: 8, failed: 2, stopped: 0,
+                avg_duration_secs: 60.0, max_duration_secs: 120.0, min_duration_secs: 10.0,
+                total_duration_secs: 600,
+            },
+            performance: PerformanceMetrics {
+                avg_queue_time_secs: 5.0, avg_execution_time_secs: 60.0,
+                tasks_per_hour: 10.0, tasks_per_day: 240.0, concurrent_tasks_avg: 2.0,
+                concurrent_tasks_max: 5, resource_usage: ResourceUsage::default(),
+            },
+            top_users: vec![], top_templates: vec![], recent_activity: vec![],
+        };
+        let json = serde_json::to_string(&analytics).unwrap();
+        assert!(json.contains("\"task_stats\":"));
+        assert!(json.contains("\"performance\":"));
+    }
 }

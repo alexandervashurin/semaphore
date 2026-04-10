@@ -191,4 +191,74 @@ mod tests {
         assert!(json.contains("\"max_parallel_tasks\":10"));
         assert!(json.contains("\"tag\":\"prod\""));
     }
+
+    #[test]
+    fn test_runner_debug() {
+        let runner = Runner {
+            id: 1, project_id: None, token: "debug".to_string(),
+            name: "Debug Runner".to_string(), active: true, last_active: None,
+            webhook: None, max_parallel_tasks: None, tag: None,
+            cleaning_requested: None, touched: None, created: None,
+        };
+        let debug_str = format!("{:?}", runner);
+        assert!(debug_str.contains("Runner"));
+        assert!(debug_str.contains("Debug Runner"));
+    }
+
+    #[test]
+    fn test_runner_empty_token() {
+        let runner = Runner {
+            id: 1, project_id: None, token: String::new(),
+            name: "Empty Token".to_string(), active: true, last_active: None,
+            webhook: None, max_parallel_tasks: None, tag: None,
+            cleaning_requested: None, touched: None, created: None,
+        };
+        assert!(runner.token.is_empty());
+    }
+
+    #[test]
+    fn test_runner_max_parallel_tasks_zero() {
+        let runner = Runner {
+            id: 1, project_id: None, token: "t".to_string(),
+            name: "Zero Parallel".to_string(), active: true, last_active: None,
+            webhook: None, max_parallel_tasks: Some(0), tag: None,
+            cleaning_requested: None, touched: None, created: None,
+        };
+        assert_eq!(runner.max_parallel_tasks, Some(0));
+    }
+
+    #[test]
+    fn test_runner_deserialization_minimal() {
+        let json = r#"{"id":1,"project_id":null,"token":"tok","name":"Minimal","active":true,"last_active":null,"webhook":null,"max_parallel_tasks":null,"tag":null,"cleaning_requested":null,"touched":null,"created":null}"#;
+        let runner: Runner = serde_json::from_str(json).unwrap();
+        assert_eq!(runner.id, 1);
+        assert_eq!(runner.name, "Minimal");
+    }
+
+    #[test]
+    fn test_runner_cleaning_requested_set() {
+        let now = Utc::now();
+        let runner = Runner {
+            id: 1, project_id: None, token: "clean".to_string(),
+            name: "Clean Runner".to_string(), active: true, last_active: None,
+            webhook: None, max_parallel_tasks: None, tag: None,
+            cleaning_requested: Some(now), touched: None, created: None,
+        };
+        assert!(runner.cleaning_requested.is_some());
+    }
+
+    #[test]
+    fn test_runner_all_tags() {
+        let tags = ["linux", "docker", "k8s", "prod", "staging"];
+        for tag in tags {
+            let runner = Runner {
+                id: 1, project_id: None, token: "t".to_string(),
+                name: "Tag Runner".to_string(), active: true, last_active: None,
+                webhook: None, max_parallel_tasks: None, tag: Some(tag.to_string()),
+                cleaning_requested: None, touched: None, created: None,
+            };
+            let json = serde_json::to_string(&runner).unwrap();
+            assert!(json.contains(&format!("\"tag\":\"{}\"", tag)));
+        }
+    }
 }

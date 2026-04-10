@@ -228,4 +228,89 @@ mod tests {
         assert!(json.contains("\"key\":null"));
         assert!(json.contains("\"variable\":null"));
     }
+
+    #[test]
+    fn test_integration_alias_clone() {
+        let alias = IntegrationAlias {
+            id: 1, integration_id: 10, project_id: 5,
+            alias: "clone-alias".to_string(),
+        };
+        let cloned = alias.clone();
+        assert_eq!(cloned.alias, alias.alias);
+    }
+
+    #[test]
+    fn test_integration_alias_debug() {
+        let alias = IntegrationAlias {
+            id: 1, integration_id: 1, project_id: 1,
+            alias: "debug-alias".to_string(),
+        };
+        let debug_str = format!("{:?}", alias);
+        assert!(debug_str.contains("IntegrationAlias"));
+    }
+
+    #[test]
+    fn test_integration_debug() {
+        let integration = Integration {
+            id: 1, project_id: 1, name: "Debug Int".to_string(),
+            template_id: 1, auth_method: "none".to_string(),
+            auth_header: None, auth_secret_id: None,
+        };
+        let debug_str = format!("{:?}", integration);
+        assert!(debug_str.contains("Integration"));
+    }
+
+    #[test]
+    fn test_integration_extract_value_debug() {
+        let extract = IntegrationExtractValue {
+            id: 1, integration_id: 1, project_id: 1,
+            name: "Debug Extract".to_string(), value_source: "body".to_string(),
+            body_data_type: "json".to_string(), key: None, variable: None,
+            value_name: "key".to_string(), value_type: "string".to_string(),
+        };
+        let debug_str = format!("{:?}", extract);
+        assert!(debug_str.contains("IntegrationExtractValue"));
+    }
+
+    #[test]
+    fn test_integration_matcher_debug() {
+        let matcher = IntegrationMatcher {
+            id: 1, integration_id: 1, project_id: 1,
+            name: "Debug Matcher".to_string(), body_data_type: "json".to_string(),
+            key: None, matcher_type: "equals".to_string(), matcher_value: "val".to_string(),
+            method: "POST".to_string(),
+        };
+        let debug_str = format!("{:?}", matcher);
+        assert!(debug_str.contains("IntegrationMatcher"));
+    }
+
+    #[test]
+    fn test_integration_deserialization() {
+        let json = r#"{"id":5,"project_id":20,"name":"Deser Int","template_id":10,"auth_method":"none","auth_header":null,"auth_secret_id":null}"#;
+        let integration: Integration = serde_json::from_str(json).unwrap();
+        assert_eq!(integration.id, 5);
+        assert_eq!(integration.name, "Deser Int");
+        assert_eq!(integration.auth_method, "none");
+    }
+
+    #[test]
+    fn test_integration_alias_deserialization() {
+        let json = r#"{"id":3,"integration_id":10,"project_id":5,"alias":"deser-alias"}"#;
+        let alias: IntegrationAlias = serde_json::from_str(json).unwrap();
+        assert_eq!(alias.alias, "deser-alias");
+    }
+
+    #[test]
+    fn test_integration_auth_methods() {
+        let methods = ["none", "hmac", "token"];
+        for method in methods {
+            let integration = Integration {
+                id: 1, project_id: 1, name: "Auth Test".to_string(),
+                template_id: 1, auth_method: method.to_string(),
+                auth_header: None, auth_secret_id: None,
+            };
+            let json = serde_json::to_string(&integration).unwrap();
+            assert!(json.contains(&format!("\"auth_method\":\"{}\"", method)));
+        }
+    }
 }

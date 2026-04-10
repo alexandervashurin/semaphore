@@ -114,4 +114,81 @@ mod tests {
         // PlanReviewPayload doesn't have skip_serializing_if
         assert!(json.contains("\"comment\":null"));
     }
+
+    #[test]
+    fn test_plan_status_clone() {
+        let status = PlanStatus::Approved;
+        let cloned = status.clone();
+        assert_eq!(cloned, status);
+    }
+
+    #[test]
+    fn test_plan_status_equality() {
+        assert_eq!(PlanStatus::Pending, PlanStatus::Pending);
+        assert_ne!(PlanStatus::Approved, PlanStatus::Rejected);
+    }
+
+    #[test]
+    fn test_terraform_plan_clone() {
+        let plan = TerraformPlan {
+            id: 1, task_id: 100, project_id: 10,
+            plan_output: "Plan output".to_string(), plan_json: None,
+            resources_added: 1, resources_changed: 0, resources_removed: 0,
+            status: "pending".to_string(), created_at: Utc::now(),
+            reviewed_at: None, reviewed_by: None, review_comment: None,
+        };
+        let cloned = plan.clone();
+        assert_eq!(cloned.plan_output, plan.plan_output);
+        assert_eq!(cloned.resources_added, plan.resources_added);
+    }
+
+    #[test]
+    fn test_terraform_plan_with_review() {
+        let plan = TerraformPlan {
+            id: 2, task_id: 200, project_id: 20,
+            plan_output: "Reviewed plan".to_string(), plan_json: Some("{}" .to_string()),
+            resources_added: 3, resources_changed: 1, resources_removed: 2,
+            status: "approved".to_string(), created_at: Utc::now(),
+            reviewed_at: Some(Utc::now()), reviewed_by: Some(5),
+            review_comment: Some("LGTM".to_string()),
+        };
+        let json = serde_json::to_string(&plan).unwrap();
+        assert!(json.contains("\"status\":\"approved\""));
+        assert!(json.contains("\"review_comment\":\"LGTM\""));
+    }
+
+    #[test]
+    fn test_plan_review_payload_clone() {
+        let payload = PlanReviewPayload { comment: Some("Test".to_string()) };
+        let cloned = payload.clone();
+        assert_eq!(cloned.comment, payload.comment);
+    }
+
+    #[test]
+    fn test_terraform_plan_deserialization() {
+        let json = r#"{"id":10,"task_id":50,"project_id":5,"plan_output":"diff","plan_json":null,"resources_added":0,"resources_changed":0,"resources_removed":0,"status":"pending","created_at":"2024-01-01T00:00:00Z","reviewed_at":null,"reviewed_by":null,"review_comment":null}"#;
+        let plan: TerraformPlan = serde_json::from_str(json).unwrap();
+        assert_eq!(plan.id, 10);
+        assert_eq!(plan.task_id, 50);
+        assert_eq!(plan.status, "pending");
+    }
+
+    #[test]
+    fn test_terraform_plan_debug() {
+        let plan = TerraformPlan {
+            id: 1, task_id: 1, project_id: 1,
+            plan_output: "Debug".to_string(), plan_json: None,
+            resources_added: 0, resources_changed: 0, resources_removed: 0,
+            status: "pending".to_string(), created_at: Utc::now(),
+            reviewed_at: None, reviewed_by: None, review_comment: None,
+        };
+        let debug_str = format!("{:?}", plan);
+        assert!(debug_str.contains("TerraformPlan"));
+    }
+
+    #[test]
+    fn test_plan_status_from_str_default() {
+        let result = "invalid_status".parse::<PlanStatus>().unwrap();
+        assert_eq!(result, PlanStatus::Pending);
+    }
 }

@@ -614,4 +614,234 @@ mod tests {
         assert_eq!(format!("{}", AccessKeyType::SSH), "ssh");
         assert_eq!(format!("{}", AccessKeyType::AccessKey), "access_key");
     }
+
+    #[test]
+    fn test_simple_encryption_service_new_uses_first_32_bytes() {
+        let svc = SimpleEncryptionService::new("short");
+        assert_eq!(svc.key.len(), 32);
+    }
+
+    #[test]
+    fn test_simple_encryption_service_default_key_not_all_zeros() {
+        let svc = SimpleEncryptionService::default();
+        assert!(svc.key.iter().any(|&b| b != 0));
+    }
+
+    #[test]
+    fn test_simple_encryption_service_encrypt_empty_secret() {
+        let encryption = SimpleEncryptionService::default();
+        let mut key = DbAccessKey {
+            id: 1,
+            name: "Test".to_string(),
+            key_type: DbAccessKeyType::Ssh,
+            project_id: Some(1),
+            secret: None,
+            plain: None,
+            string_value: None,
+            login_password: None,
+            ssh_key: None,
+            override_secret: false,
+            storage_id: None,
+            environment_id: None,
+            user_id: None,
+            empty: false,
+            owner: crate::db_lib::DbAccessKeyOwner::Shared,
+            source_storage_id: None,
+            source_storage_key: None,
+            source_storage_type: None,
+        };
+
+        let result = encryption.encrypt_secret(&mut key);
+        assert!(result.is_ok());
+        assert!(key.secret.is_none());
+    }
+
+    #[test]
+    fn test_simple_encryption_service_decrypt_empty_secret() {
+        let encryption = SimpleEncryptionService::default();
+        let mut key = DbAccessKey {
+            id: 1,
+            name: "Test".to_string(),
+            key_type: DbAccessKeyType::Ssh,
+            project_id: Some(1),
+            secret: None,
+            plain: None,
+            string_value: None,
+            login_password: None,
+            ssh_key: None,
+            override_secret: false,
+            storage_id: None,
+            environment_id: None,
+            user_id: None,
+            empty: false,
+            owner: crate::db_lib::DbAccessKeyOwner::Shared,
+            source_storage_id: None,
+            source_storage_key: None,
+            source_storage_type: None,
+        };
+
+        let result = encryption.decrypt_secret(&mut key);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_simple_encryption_service_serialize_empty_key_type() {
+        let encryption = SimpleEncryptionService::default();
+        let mut key = DbAccessKey {
+            id: 1,
+            name: "Test".to_string(),
+            key_type: DbAccessKeyType::None,
+            project_id: Some(1),
+            secret: None,
+            plain: None,
+            string_value: None,
+            login_password: None,
+            ssh_key: None,
+            override_secret: false,
+            storage_id: None,
+            environment_id: None,
+            user_id: None,
+            empty: false,
+            owner: crate::db_lib::DbAccessKeyOwner::Shared,
+            source_storage_id: None,
+            source_storage_key: None,
+            source_storage_type: None,
+        };
+
+        let result = encryption.serialize_secret(&mut key);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_simple_encryption_service_deserialize_empty_secret() {
+        let encryption = SimpleEncryptionService::default();
+        let mut key = DbAccessKey {
+            id: 1,
+            name: "Test".to_string(),
+            key_type: DbAccessKeyType::None,
+            project_id: Some(1),
+            secret: None,
+            plain: None,
+            string_value: None,
+            login_password: None,
+            ssh_key: None,
+            override_secret: false,
+            storage_id: None,
+            environment_id: None,
+            user_id: None,
+            empty: false,
+            owner: crate::db_lib::DbAccessKeyOwner::Shared,
+            source_storage_id: None,
+            source_storage_key: None,
+            source_storage_type: None,
+        };
+
+        let result = encryption.deserialize_secret(&mut key);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_access_key_install_service_with_installer_constructor() {
+        let encryption = Box::new(SimpleEncryptionService::default());
+        let installer = AccessKeyInstallerImpl::new();
+        let service = AccessKeyInstallationServiceImpl::with_installer(encryption, installer);
+
+        let key = DbAccessKey {
+            id: 1,
+            name: "Test".to_string(),
+            key_type: DbAccessKeyType::None,
+            project_id: Some(1),
+            secret: None,
+            plain: None,
+            string_value: None,
+            login_password: None,
+            ssh_key: None,
+            override_secret: false,
+            storage_id: None,
+            environment_id: None,
+            user_id: None,
+            empty: false,
+            owner: crate::db_lib::DbAccessKeyOwner::Shared,
+            source_storage_id: None,
+            source_storage_key: None,
+            source_storage_type: None,
+        };
+
+        let logger = BasicLogger::new();
+        let result = service.install(&key, DbAccessKeyRole::Git, &logger);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_db_access_key_role_display_ansible_user() {
+        let role = DbAccessKeyRole::AnsibleUser;
+        let debug = format!("{:?}", role);
+        assert!(debug.contains("AnsibleUser"));
+    }
+
+    #[test]
+    fn test_db_access_key_role_display_ansible_become_user() {
+        let role = DbAccessKeyRole::AnsibleBecomeUser;
+        let debug = format!("{:?}", role);
+        assert!(debug.contains("AnsibleBecomeUser"));
+    }
+
+    #[test]
+    fn test_db_access_key_role_display_git() {
+        let role = DbAccessKeyRole::Git;
+        let debug = format!("{:?}", role);
+        assert!(debug.contains("Git"));
+    }
+
+    #[test]
+    fn test_access_key_install_service_install_login_password() {
+        let encryption = Box::new(SimpleEncryptionService::default());
+        let service = AccessKeyInstallationServiceImpl::new(encryption);
+        let logger = BasicLogger::new();
+
+        let key = DbAccessKey {
+            id: 1,
+            name: "LP Key".to_string(),
+            key_type: DbAccessKeyType::LoginPassword,
+            project_id: Some(1),
+            secret: None,
+            plain: None,
+            string_value: None,
+            login_password: Some(DbLoginPassword {
+                login: "admin".to_string(),
+                password: "pass".to_string(),
+            }),
+            ssh_key: None,
+            override_secret: false,
+            storage_id: None,
+            environment_id: None,
+            user_id: None,
+            empty: false,
+            owner: crate::db_lib::DbAccessKeyOwner::Shared,
+            source_storage_id: None,
+            source_storage_key: None,
+            source_storage_type: None,
+        };
+
+        let installation = service.install(&key, DbAccessKeyRole::AnsibleUser, &logger).unwrap();
+        assert!(installation.login.is_some());
+    }
+
+    #[test]
+    fn test_simple_encryption_service_key_length_32() {
+        let svc = SimpleEncryptionService::new("a");
+        assert_eq!(svc.key.len(), 32);
+    }
+
+    #[test]
+    fn test_access_key_installation_service_trait_is_send_sync() {
+        fn assert_send_sync<T: Send + Sync>() {}
+        assert_send_sync::<Box<dyn AccessKeyInstallationServiceTrait>>();
+    }
+
+    #[test]
+    fn test_access_key_encryption_service_trait_is_send_sync() {
+        fn assert_send_sync<T: Send + Sync>() {}
+        assert_send_sync::<Box<dyn AccessKeyEncryptionService>>();
+    }
 }

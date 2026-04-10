@@ -89,4 +89,39 @@ mod tests {
         let json = serde_json::to_string(&entity).unwrap();
         assert!(json.contains("quotes"));
     }
+
+    #[test]
+    fn test_backup_entity_roundtrip() {
+        let original = TestBackupEntity {
+            name: "Roundtrip Entity".to_string(),
+            entity_type: "test_roundtrip".to_string(),
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: TestBackupEntity = serde_json::from_str(&json).unwrap();
+        assert_eq!(original.name, restored.name);
+        assert_eq!(original.entity_type, restored.entity_type);
+    }
+
+    #[test]
+    fn test_backup_entity_long_name() {
+        let long_name = "A".repeat(1000);
+        let entity = TestBackupEntity::new(&long_name);
+        assert_eq!(entity.get_name().len(), 1000);
+    }
+
+    #[test]
+    fn test_backup_entity_debug() {
+        let entity = TestBackupEntity::new("Debug Entity");
+        let debug_str = format!("{:?}", entity);
+        assert!(debug_str.contains("TestBackupEntity"));
+        assert!(debug_str.contains("Debug Entity"));
+    }
+
+    #[test]
+    fn test_backup_entity_unicode_name() {
+        let entity = TestBackupEntity::new("Тестовая сущность 🚀");
+        let json = serde_json::to_string(&entity).unwrap();
+        let restored: TestBackupEntity = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.get_name(), "Тестовая сущность 🚀");
+    }
 }

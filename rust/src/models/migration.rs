@@ -90,4 +90,60 @@ mod tests {
         assert_eq!(migration.version, 0);
         assert_eq!(migration.name, "initial");
     }
+
+    #[test]
+    fn test_migration_debug() {
+        let migration = Migration::new(1, "debug_migration".to_string());
+        let debug_str = format!("{:?}", migration);
+        assert!(debug_str.contains("Migration"));
+        assert!(debug_str.contains("debug_migration"));
+    }
+
+    #[test]
+    fn test_migration_deserialization_full() {
+        let json = r#"{"id":5,"version":20240301000000,"name":"add_roles","applied":"2024-03-01T00:00:00Z"}"#;
+        let migration: Migration = serde_json::from_str(json).unwrap();
+        assert_eq!(migration.id, 5);
+        assert_eq!(migration.version, 20240301000000);
+        assert_eq!(migration.name, "add_roles");
+    }
+
+    #[test]
+    fn test_migration_negative_version() {
+        let migration = Migration::new(-1, "rollback".to_string());
+        assert_eq!(migration.version, -1);
+        let json = serde_json::to_string(&migration).unwrap();
+        assert!(json.contains("\"version\":-1"));
+    }
+
+    #[test]
+    fn test_migration_long_name() {
+        let name = "add_very_long_migration_name_for_testing_purposes_2024".to_string();
+        let migration = Migration::new(100, name.clone());
+        let json = serde_json::to_string(&migration).unwrap();
+        let restored: Migration = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.name, name);
+    }
+
+    #[test]
+    fn test_migration_special_chars_name() {
+        let migration = Migration::new(1, "migration_&_\"quotes\"".to_string());
+        let json = serde_json::to_string(&migration).unwrap();
+        let restored: Migration = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.name, "migration_&_\"quotes\"");
+    }
+
+    #[test]
+    fn test_migration_serialization_all_fields() {
+        let migration = Migration {
+            id: 99,
+            version: 9999999,
+            name: "full_migration".to_string(),
+            applied: Utc::now(),
+        };
+        let json = serde_json::to_string(&migration).unwrap();
+        assert!(json.contains("\"id\":99"));
+        assert!(json.contains("\"version\":9999999"));
+        assert!(json.contains("\"name\":\"full_migration\""));
+    }
 }

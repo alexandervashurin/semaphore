@@ -113,4 +113,46 @@ mod tests {
         assert_eq!(alias.alias, "my-alias");
         assert_eq!(alias.owner_type, "playbook");
     }
+
+    #[test]
+    fn test_alias_debug() {
+        let alias = Alias::new(1, "debug-alias".to_string(), 1, "template".to_string());
+        let debug_str = format!("{:?}", alias);
+        assert!(debug_str.contains("Alias"));
+        assert!(debug_str.contains("debug-alias"));
+    }
+
+    #[test]
+    fn test_alias_empty_string() {
+        let alias = Alias::new(1, "".to_string(), 0, "".to_string());
+        assert!(alias.alias.is_empty());
+        assert!(alias.owner_type.is_empty());
+        assert_eq!(alias.owner_id, 0);
+    }
+
+    #[test]
+    fn test_alias_special_characters() {
+        let alias = Alias::new(1, "alias&<special>".to_string(), 1, "type\"quoted\"".to_string());
+        let json = serde_json::to_string(&alias).unwrap();
+        let restored: Alias = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.alias, "alias&<special>");
+        assert_eq!(restored.owner_type, "type\"quoted\"");
+    }
+
+    #[test]
+    fn test_alias_large_ids() {
+        let alias = Alias::new(i32::MAX, "large-id".to_string(), i32::MAX, "template".to_string());
+        assert_eq!(alias.project_id, i32::MAX);
+        assert_eq!(alias.owner_id, i32::MAX);
+    }
+
+    #[test]
+    fn test_alias_different_owner_types() {
+        let owner_types = ["template", "playbook", "workflow", "custom"];
+        for ot in owner_types {
+            let alias = Alias::new(1, "test".to_string(), 1, ot.to_string());
+            let json = serde_json::to_string(&alias).unwrap();
+            assert!(json.contains(&format!("\"owner_type\":\"{}\"", ot)));
+        }
+    }
 }

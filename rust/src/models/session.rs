@@ -129,4 +129,79 @@ mod tests {
         assert_eq!(cloned.ip, session.ip);
         assert_eq!(cloned.verification_method, session.verification_method);
     }
+
+    #[test]
+    fn test_session_verification_method_deserialization() {
+        let none_method: SessionVerificationMethod = serde_json::from_str("\"none\"").unwrap();
+        let totp_method: SessionVerificationMethod = serde_json::from_str("\"totp\"").unwrap();
+        let email_method: SessionVerificationMethod = serde_json::from_str("\"email_otp\"").unwrap();
+        assert_eq!(none_method, SessionVerificationMethod::None);
+        assert_eq!(totp_method, SessionVerificationMethod::Totp);
+        assert_eq!(email_method, SessionVerificationMethod::EmailOtp);
+    }
+
+    #[test]
+    fn test_session_verification_method_unknown_deserialization() {
+        let result: Result<SessionVerificationMethod, _> = serde_json::from_str("\"unknown\"");
+        assert!(result.is_err()); // unknown variant is rejected
+    }
+
+    #[test]
+    fn test_session_debug() {
+        let session = Session {
+            id: 1, user_id: 1, created: Utc::now(), last_active: Utc::now(),
+            ip: "127.0.0.1".to_string(), user_agent: "Test".to_string(),
+            expired: false, verification_method: SessionVerificationMethod::None, verified: false,
+        };
+        let debug_str = format!("{:?}", session);
+        assert!(debug_str.contains("Session"));
+    }
+
+    #[test]
+    fn test_session_expired_true() {
+        let session = Session {
+            id: 1, user_id: 1, created: Utc::now(), last_active: Utc::now(),
+            ip: "10.0.0.1".to_string(), user_agent: "Browser".to_string(),
+            expired: true, verification_method: SessionVerificationMethod::EmailOtp, verified: true,
+        };
+        let json = serde_json::to_string(&session).unwrap();
+        assert!(json.contains("\"expired\":true"));
+        assert!(json.contains("\"verified\":true"));
+    }
+
+    #[test]
+    fn test_session_full_serialization() {
+        let session = Session {
+            id: 100,
+            user_id: 50,
+            created: Utc::now(),
+            last_active: Utc::now(),
+            ip: "192.168.0.1".to_string(),
+            user_agent: "Chrome/120.0".to_string(),
+            expired: false,
+            verification_method: SessionVerificationMethod::Totp,
+            verified: true,
+        };
+        let json = serde_json::to_string(&session).unwrap();
+        assert!(json.contains("\"id\":100"));
+        assert!(json.contains("\"user_id\":50"));
+        assert!(json.contains("\"ip\":\"192.168.0.1\""));
+    }
+
+    #[test]
+    fn test_session_deserialization_full() {
+        let json = r#"{"id":5,"user_id":10,"created":"2024-01-01T00:00:00Z","last_active":"2024-01-01T01:00:00Z","ip":"10.0.0.1","user_agent":"Firefox","expired":false,"verification_method":"totp","verified":true}"#;
+        let session: Session = serde_json::from_str(json).unwrap();
+        assert_eq!(session.id, 5);
+        assert_eq!(session.user_id, 10);
+        assert_eq!(session.ip, "10.0.0.1");
+        assert_eq!(session.verification_method, SessionVerificationMethod::Totp);
+    }
+
+    #[test]
+    fn test_session_verification_method_clone() {
+        let method = SessionVerificationMethod::EmailOtp;
+        let cloned = method.clone();
+        assert_eq!(cloned, method);
+    }
 }

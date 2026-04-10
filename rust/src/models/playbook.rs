@@ -123,4 +123,96 @@ mod tests {
         assert!(json.contains("\"name\":\"updated.yml\""));
         assert!(json.contains("\"playbook_type\":\"terraform\""));
     }
+
+    #[test]
+    fn test_playbook_clone() {
+        let playbook = Playbook {
+            id: 1, project_id: 10, name: "clone.yml".to_string(),
+            content: "---".to_string(), description: None,
+            playbook_type: "ansible".to_string(), repository_id: None,
+            created: Utc::now(), updated: Utc::now(),
+        };
+        let cloned = playbook.clone();
+        assert_eq!(cloned.name, playbook.name);
+        assert_eq!(cloned.playbook_type, playbook.playbook_type);
+    }
+
+    #[test]
+    fn test_playbook_debug() {
+        let playbook = Playbook {
+            id: 1, project_id: 1, name: "debug.yml".to_string(),
+            content: "---".to_string(), description: None,
+            playbook_type: "ansible".to_string(), repository_id: None,
+            created: Utc::now(), updated: Utc::now(),
+        };
+        let debug_str = format!("{:?}", playbook);
+        assert!(debug_str.contains("Playbook"));
+        assert!(debug_str.contains("debug.yml"));
+    }
+
+    #[test]
+    fn test_playbook_create_clone() {
+        let create = PlaybookCreate {
+            name: "clone-create.yml".to_string(), content: "---".to_string(),
+            description: None, playbook_type: "shell".to_string(), repository_id: None,
+        };
+        let cloned = create.clone();
+        assert_eq!(cloned.name, create.name);
+        assert_eq!(cloned.playbook_type, create.playbook_type);
+    }
+
+    #[test]
+    fn test_playbook_update_clone() {
+        let update = PlaybookUpdate {
+            name: "clone-update.yml".to_string(), content: "---".to_string(),
+            description: Some("Clone".to_string()), playbook_type: "ansible".to_string(),
+        };
+        let cloned = update.clone();
+        assert_eq!(cloned.name, update.name);
+        assert_eq!(cloned.description, update.description);
+    }
+
+    #[test]
+    fn test_playbook_deserialization() {
+        let json = r#"{"id":5,"project_id":20,"name":"deser.yml","content":"---","description":"Desc","playbook_type":"ansible","repository_id":null,"created":"2024-01-01T00:00:00Z","updated":"2024-01-01T00:00:00Z"}"#;
+        let playbook: Playbook = serde_json::from_str(json).unwrap();
+        assert_eq!(playbook.id, 5);
+        assert_eq!(playbook.name, "deser.yml");
+        assert_eq!(playbook.playbook_type, "ansible");
+    }
+
+    #[test]
+    fn test_playbook_create_deserialization() {
+        let json = r#"{"name":"create.yml","content":"---","description":null,"playbook_type":"terraform","repository_id":null}"#;
+        let create: PlaybookCreate = serde_json::from_str(json).unwrap();
+        assert_eq!(create.name, "create.yml");
+        assert_eq!(create.playbook_type, "terraform");
+    }
+
+    #[test]
+    fn test_playbook_empty_description() {
+        let playbook = Playbook {
+            id: 1, project_id: 1, name: "empty.yml".to_string(),
+            content: "---".to_string(), description: Some("".to_string()),
+            playbook_type: "ansible".to_string(), repository_id: None,
+            created: Utc::now(), updated: Utc::now(),
+        };
+        let json = serde_json::to_string(&playbook).unwrap();
+        assert!(json.contains("\"description\":\"\""));
+    }
+
+    #[test]
+    fn test_playbook_all_types() {
+        let types = ["ansible", "terraform", "shell"];
+        for pt in types {
+            let playbook = Playbook {
+                id: 1, project_id: 1, name: "test.yml".to_string(),
+                content: "---".to_string(), description: None,
+                playbook_type: pt.to_string(), repository_id: None,
+                created: Utc::now(), updated: Utc::now(),
+            };
+            let json = serde_json::to_string(&playbook).unwrap();
+            assert!(json.contains(&format!("\"playbook_type\":\"{}\"", pt)));
+        }
+    }
 }

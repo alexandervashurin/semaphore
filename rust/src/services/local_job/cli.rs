@@ -611,4 +611,342 @@ mod tests {
         assert!(task_map.contains_key("deploy"));
         assert_eq!(task_map["deploy"], vec!["--force"]);
     }
+
+    #[test]
+    fn test_get_cli_args_with_single_argument() {
+        let logger = Arc::new(BasicLogger::new());
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let mut task = crate::models::Task::default();
+        task.id = 1;
+        task.template_id = 1;
+        task.project_id = 1;
+        task.created = Utc::now();
+        task.arguments = Some(r#"["--only"]"#.to_string());
+
+        let mut template = crate::models::Template::default();
+        template.id = 1;
+        template.name = "Test".to_string();
+        template.project_id = 1;
+        template.playbook = "test.yml".to_string();
+        template.r#type = TemplateType::Task;
+        template.arguments = None;
+
+        let job = LocalJob::new(
+            task, template,
+            crate::models::Inventory::default(),
+            crate::models::Repository::default(),
+            crate::models::Environment::default(),
+            logger, key_installer,
+            PathBuf::from("/tmp/work"),
+            PathBuf::from("/tmp/tmp"),
+        );
+
+        let (template_args, task_args) = job.get_cli_args().unwrap();
+        assert!(template_args.is_empty());
+        assert_eq!(task_args.len(), 1);
+        assert_eq!(task_args[0], "--only");
+    }
+
+    #[test]
+    fn test_get_cli_args_map_with_both_hashmap_format() {
+        let logger = Arc::new(BasicLogger::new());
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let mut task = crate::models::Task::default();
+        task.id = 1;
+        task.template_id = 1;
+        task.project_id = 1;
+        task.created = Utc::now();
+        task.arguments = Some(r#"{"apply": ["-auto-approve"]}"#.to_string());
+
+        let mut template = crate::models::Template::default();
+        template.id = 1;
+        template.name = "Test".to_string();
+        template.project_id = 1;
+        template.playbook = "test.yml".to_string();
+        template.r#type = TemplateType::Task;
+        template.arguments = Some(r#"{"init": ["-backend=false"]}"#.to_string());
+
+        let job = LocalJob::new(
+            task, template,
+            crate::models::Inventory::default(),
+            crate::models::Repository::default(),
+            crate::models::Environment::default(),
+            logger, key_installer,
+            PathBuf::from("/tmp/work"),
+            PathBuf::from("/tmp/tmp"),
+        );
+
+        let (tmpl_map, task_map) = job.get_cli_args_map().unwrap();
+        assert_eq!(tmpl_map["init"], vec!["-backend=false"]);
+        assert_eq!(task_map["apply"], vec!["-auto-approve"]);
+    }
+
+    #[test]
+    fn test_get_template_params_with_empty_object() {
+        let logger = Arc::new(BasicLogger::new());
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let mut task = crate::models::Task::default();
+        task.id = 1;
+        task.template_id = 1;
+        task.project_id = 1;
+        task.created = Utc::now();
+        task.params = Some(serde_json::json!({}));
+
+        let mut template = crate::models::Template::default();
+        template.id = 1;
+        template.playbook = "test.yml".to_string();
+        template.r#type = TemplateType::Task;
+
+        let job = LocalJob::new(
+            task, template,
+            crate::models::Inventory::default(),
+            crate::models::Repository::default(),
+            crate::models::Environment::default(),
+            logger, key_installer,
+            PathBuf::from("/tmp/work"),
+            PathBuf::from("/tmp/tmp"),
+        );
+
+        let params = job.get_template_params().unwrap();
+        assert!(params.is_object());
+        assert!(params.as_object().unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_get_params_with_empty_string_returns_error() {
+        use serde::Deserialize;
+
+        #[derive(Deserialize)]
+        struct TestParams {
+            key: String,
+        }
+
+        let logger = Arc::new(BasicLogger::new());
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let mut task = crate::models::Task::default();
+        task.id = 1;
+        task.template_id = 1;
+        task.project_id = 1;
+        task.created = Utc::now();
+        task.params = Some(serde_json::json!(""));
+
+        let mut template = crate::models::Template::default();
+        template.id = 1;
+        template.playbook = "test.yml".to_string();
+        template.r#type = TemplateType::Task;
+
+        let job = LocalJob::new(
+            task, template,
+            crate::models::Inventory::default(),
+            crate::models::Repository::default(),
+            crate::models::Environment::default(),
+            logger, key_installer,
+            PathBuf::from("/tmp/work"),
+            PathBuf::from("/tmp/tmp"),
+        );
+
+        let result: std::result::Result<TestParams, _> = job.get_params();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_get_cli_args_with_invalid_task_json_valid_template() {
+        let logger = Arc::new(BasicLogger::new());
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let mut task = crate::models::Task::default();
+        task.id = 1;
+        task.template_id = 1;
+        task.project_id = 1;
+        task.created = Utc::now();
+        task.arguments = Some("invalid json".to_string());
+
+        let mut template = crate::models::Template::default();
+        template.id = 1;
+        template.playbook = "test.yml".to_string();
+        template.r#type = TemplateType::Task;
+        template.arguments = Some(r#"["--valid"]"#.to_string());
+
+        let job = LocalJob::new(
+            task, template,
+            crate::models::Inventory::default(),
+            crate::models::Repository::default(),
+            crate::models::Environment::default(),
+            logger, key_installer,
+            PathBuf::from("/tmp/work"),
+            PathBuf::from("/tmp/tmp"),
+        );
+
+        let (tmpl, task_args) = job.get_cli_args().unwrap();
+        assert_eq!(tmpl, vec!["--valid"]);
+        assert!(task_args.is_empty());
+    }
+
+    #[test]
+    fn test_get_cli_args_map_with_invalid_json_falls_back() {
+        let logger = Arc::new(BasicLogger::new());
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let mut task = crate::models::Task::default();
+        task.id = 1;
+        task.template_id = 1;
+        task.project_id = 1;
+        task.created = Utc::now();
+        task.arguments = Some("not json".to_string());
+
+        let mut template = crate::models::Template::default();
+        template.id = 1;
+        template.playbook = "test.yml".to_string();
+        template.r#type = TemplateType::Task;
+        template.arguments = Some("also not json".to_string());
+
+        let job = LocalJob::new(
+            task, template,
+            crate::models::Inventory::default(),
+            crate::models::Repository::default(),
+            crate::models::Environment::default(),
+            logger, key_installer,
+            PathBuf::from("/tmp/work"),
+            PathBuf::from("/tmp/tmp"),
+        );
+
+        let (tmpl_map, task_map) = job.get_cli_args_map().unwrap();
+        assert!(tmpl_map.is_empty());
+        assert!(task_map.is_empty());
+    }
+
+    #[test]
+    fn test_get_cli_args_with_args_array_containing_empty_string() {
+        let job = create_test_job_with_args();
+        let (template_args, task_args) = job.get_cli_args().unwrap();
+        assert_eq!(template_args, vec!["--template-arg"]);
+        assert_eq!(task_args, vec!["--arg1", "--arg2"]);
+    }
+
+    #[test]
+    fn test_get_template_params_returns_json_value() {
+        let job = create_test_job_with_args();
+        let params = job.get_template_params().unwrap();
+        assert!(params.is_object());
+        assert_eq!(params.get("key").unwrap().as_str().unwrap(), "value");
+    }
+
+    #[test]
+    fn test_get_params_deserializes_integer_field() {
+        use serde::Deserialize;
+
+        #[derive(Deserialize)]
+        struct NumParams {
+            key: serde_json::Value,
+        }
+
+        let job = create_test_job_with_args();
+        let params: NumParams = job.get_params().unwrap();
+        assert_eq!(params.key, "value");
+    }
+
+    #[test]
+    fn test_get_cli_args_map_with_only_template_args() {
+        let logger = Arc::new(BasicLogger::new());
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let mut task = crate::models::Task::default();
+        task.id = 1;
+        task.template_id = 1;
+        task.project_id = 1;
+        task.created = Utc::now();
+        task.arguments = None;
+
+        let mut template = crate::models::Template::default();
+        template.id = 1;
+        template.playbook = "test.yml".to_string();
+        template.r#type = TemplateType::Task;
+        template.arguments = Some(r#"{"plan": ["-out=tfplan"]}"#.to_string());
+
+        let job = LocalJob::new(
+            task, template,
+            crate::models::Inventory::default(),
+            crate::models::Repository::default(),
+            crate::models::Environment::default(),
+            logger, key_installer,
+            PathBuf::from("/tmp/work"),
+            PathBuf::from("/tmp/tmp"),
+        );
+
+        let (tmpl_map, task_map) = job.get_cli_args_map().unwrap();
+        assert!(tmpl_map.contains_key("plan"));
+        assert!(task_map.is_empty());
+    }
+
+    #[test]
+    fn test_get_cli_args_with_long_argument_values() {
+        let logger = Arc::new(BasicLogger::new());
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let long_val = "a".repeat(1000);
+        let mut task = crate::models::Task::default();
+        task.id = 1;
+        task.template_id = 1;
+        task.project_id = 1;
+        task.created = Utc::now();
+        task.arguments = Some(serde_json::json!([format!("--val={}", long_val)]).to_string());
+
+        let mut template = crate::models::Template::default();
+        template.id = 1;
+        template.playbook = "test.yml".to_string();
+        template.r#type = TemplateType::Task;
+        template.arguments = None;
+
+        let job = LocalJob::new(
+            task, template,
+            crate::models::Inventory::default(),
+            crate::models::Repository::default(),
+            crate::models::Environment::default(),
+            logger, key_installer,
+            PathBuf::from("/tmp/work"),
+            PathBuf::from("/tmp/tmp"),
+        );
+
+        let (_, task_args) = job.get_cli_args().unwrap();
+        assert_eq!(task_args.len(), 1);
+        assert!(task_args[0].starts_with("--val="));
+    }
+
+    #[test]
+    fn test_get_cli_args_map_multiple_keys() {
+        let logger = Arc::new(BasicLogger::new());
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let mut task = crate::models::Task::default();
+        task.id = 1;
+        task.template_id = 1;
+        task.project_id = 1;
+        task.created = Utc::now();
+        task.arguments = Some(r#"{"plan": ["-out=p"], "apply": ["-auto-approve"]}"#.to_string());
+
+        let mut template = crate::models::Template::default();
+        template.id = 1;
+        template.playbook = "test.yml".to_string();
+        template.r#type = TemplateType::Task;
+        template.arguments = None;
+
+        let job = LocalJob::new(
+            task, template,
+            crate::models::Inventory::default(),
+            crate::models::Repository::default(),
+            crate::models::Environment::default(),
+            logger, key_installer,
+            PathBuf::from("/tmp/work"),
+            PathBuf::from("/tmp/tmp"),
+        );
+
+        let (_, task_map) = job.get_cli_args_map().unwrap();
+        assert_eq!(task_map.len(), 2);
+        assert!(task_map.contains_key("plan"));
+        assert!(task_map.contains_key("apply"));
+    }
 }

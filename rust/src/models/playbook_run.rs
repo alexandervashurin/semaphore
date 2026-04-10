@@ -244,4 +244,80 @@ mod tests {
         assert!(json.contains("\"playbook\":\"site.yml\""));
         assert!(json.contains("\"inventory_id\":null"));
     }
+
+    #[test]
+    fn test_playbook_run_result_clone() {
+        let result = PlaybookRunResult {
+            task_id: 100, template_id: 5, status: "waiting".to_string(),
+            message: "Task created".to_string(),
+        };
+        let cloned = result.clone();
+        assert_eq!(cloned.task_id, result.task_id);
+        assert_eq!(cloned.message, result.message);
+    }
+
+    #[test]
+    fn test_playbook_run_result_debug() {
+        let result = PlaybookRunResult {
+            task_id: 1, template_id: 1, status: "running".to_string(),
+            message: "Debug result".to_string(),
+        };
+        let debug_str = format!("{:?}", result);
+        assert!(debug_str.contains("PlaybookRunResult"));
+    }
+
+    #[test]
+    fn test_ansible_playbook_params_clone() {
+        let params = AnsiblePlaybookParams {
+            playbook: "clone.yml".to_string(), inventory_id: Some(1),
+            environment_id: Some(2), extra_vars: Some("{}".to_string()),
+            limit: Some("localhost".to_string()), tags: Some("deploy".to_string()),
+            skip_tags: Some("test".to_string()),
+        };
+        let cloned = params.clone();
+        assert_eq!(cloned.playbook, params.playbook);
+        assert_eq!(cloned.limit, params.limit);
+    }
+
+    #[test]
+    fn test_ansible_playbook_params_debug() {
+        let params = AnsiblePlaybookParams {
+            playbook: "debug.yml".to_string(), inventory_id: None,
+            environment_id: None, extra_vars: None, limit: None,
+            tags: None, skip_tags: None,
+        };
+        let debug_str = format!("{:?}", params);
+        assert!(debug_str.contains("AnsiblePlaybookParams"));
+    }
+
+    #[test]
+    fn test_playbook_run_request_with_extra_vars_object() {
+        let request = PlaybookRunRequest::new()
+            .with_extra_vars(serde_json::json!({"app": "test", "env": "prod"}));
+        assert!(request.validate().is_ok());
+    }
+
+    #[test]
+    fn test_playbook_run_request_validate_with_null() {
+        let request = PlaybookRunRequest::new().with_extra_vars(serde_json::json!(null));
+        assert!(request.validate().is_ok());
+    }
+
+    #[test]
+    fn test_playbook_run_request_validate_empty() {
+        let request = PlaybookRunRequest::new();
+        assert!(request.validate().is_ok());
+    }
+
+    #[test]
+    fn test_playbook_run_request_all_builder_methods() {
+        let request = PlaybookRunRequest::new()
+            .with_inventory(1)
+            .with_environment(2)
+            .with_extra_vars(serde_json::json!({"key": "val"}))
+            .with_limit("web".to_string())
+            .with_tags(vec!["deploy".to_string()]);
+        assert_eq!(request.inventory_id, Some(1));
+        assert!(request.extra_vars.is_some());
+    }
 }

@@ -86,4 +86,77 @@ mod tests {
         assert_eq!(cloned.ldap_group_dn, create.ldap_group_dn);
         assert_eq!(cloned.project_id, create.project_id);
     }
+
+    #[test]
+    fn test_ldap_group_mapping_debug() {
+        let mapping = LdapGroupMapping {
+            id: 1, ldap_group_dn: "CN=test".to_string(), project_id: 1,
+            role: "manager".to_string(), created_at: "2024-01-01".to_string(),
+            project_name: "Debug".to_string(),
+        };
+        let debug_str = format!("{:?}", mapping);
+        assert!(debug_str.contains("LdapGroupMapping"));
+    }
+
+    #[test]
+    fn test_ldap_group_mapping_create_debug() {
+        let create = LdapGroupMappingCreate {
+            ldap_group_dn: "CN=debug".to_string(), project_id: 1, role: "owner".to_string(),
+        };
+        let debug_str = format!("{:?}", create);
+        assert!(debug_str.contains("LdapGroupMappingCreate"));
+    }
+
+    #[test]
+    fn test_ldap_group_mapping_deserialization() {
+        let json = r#"{"id":10,"ldap_group_dn":"CN=admins,DC=test,DC=com","project_id":50,"role":"owner","created_at":"2024-06-01T00:00:00Z","project_name":"Admin Project"}"#;
+        let mapping: LdapGroupMapping = serde_json::from_str(json).unwrap();
+        assert_eq!(mapping.id, 10);
+        assert_eq!(mapping.project_id, 50);
+        assert_eq!(mapping.role, "owner");
+    }
+
+    #[test]
+    fn test_ldap_group_mapping_create_deserialization() {
+        let json = r#"{"ldap_group_dn":"CN=newgroup,DC=test,DC=com","project_id":5,"role":"manager"}"#;
+        let create: LdapGroupMappingCreate = serde_json::from_str(json).unwrap();
+        assert_eq!(create.ldap_group_dn, "CN=newgroup,DC=test,DC=com");
+        assert_eq!(create.role, "manager");
+    }
+
+    #[test]
+    fn test_ldap_group_mapping_all_roles() {
+        let roles = ["owner", "manager", "task_runner"];
+        for role in roles {
+            let mapping = LdapGroupMapping {
+                id: 1, ldap_group_dn: "CN=test".to_string(), project_id: 1,
+                role: role.to_string(), created_at: "2024-01-01".to_string(),
+                project_name: "Test".to_string(),
+            };
+            let json = serde_json::to_string(&mapping).unwrap();
+            assert!(json.contains(&format!("\"role\":\"{}\"", role)));
+        }
+    }
+
+    #[test]
+    fn test_ldap_group_mapping_empty_project_name() {
+        let mapping = LdapGroupMapping {
+            id: 1, ldap_group_dn: "CN=test".to_string(), project_id: 1,
+            role: "manager".to_string(), created_at: "2024-01-01".to_string(),
+            project_name: String::new(),
+        };
+        let json = serde_json::to_string(&mapping).unwrap();
+        assert!(json.contains("\"project_name\":\"\""));
+    }
+
+    #[test]
+    fn test_ldap_group_mapping_create_equality() {
+        let a = LdapGroupMappingCreate {
+            ldap_group_dn: "CN=same".to_string(), project_id: 1, role: "owner".to_string(),
+        };
+        let b = a.clone();
+        assert_eq!(a.ldap_group_dn, b.ldap_group_dn);
+        assert_eq!(a.project_id, b.project_id);
+        assert_eq!(a.role, b.role);
+    }
 }

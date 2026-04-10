@@ -98,4 +98,85 @@ mod tests {
         assert_eq!(referrers.templates.len(), 1);
         assert_eq!(referrers.integrations.len(), 1);
     }
+
+    #[test]
+    fn test_object_referrers_clone() {
+        let referrers = ObjectReferrers {
+            templates: vec![1, 2], tasks: vec![3], schedules: vec![4, 5, 6],
+            integrations: vec![],
+        };
+        let cloned = referrers.clone();
+        assert_eq!(cloned.templates, referrers.templates);
+        assert_eq!(cloned.schedules, referrers.schedules);
+    }
+
+    #[test]
+    fn test_object_referrers_debug() {
+        let referrers = ObjectReferrers {
+            templates: vec![1], tasks: vec![], schedules: vec![], integrations: vec![],
+        };
+        let debug_str = format!("{:?}", referrers);
+        assert!(debug_str.contains("ObjectReferrers"));
+    }
+
+    #[test]
+    fn test_object_referrers_deserialization_empty() {
+        let json = r#"{"templates":[],"tasks":[],"schedules":[],"integrations":[]}"#;
+        let referrers: ObjectReferrers = serde_json::from_str(json).unwrap();
+        assert!(referrers.is_empty());
+        assert!(referrers.templates.is_empty());
+    }
+
+    #[test]
+    fn test_object_referrers_many_refs() {
+        let referrers = ObjectReferrers {
+            templates: (1..=100).collect(),
+            tasks: (101..=200).collect(),
+            schedules: vec![],
+            integrations: vec![],
+        };
+        assert_eq!(referrers.templates.len(), 100);
+        assert_eq!(referrers.tasks.len(), 100);
+    }
+
+    #[test]
+    fn test_object_referrers_is_empty_individual() {
+        let referrers = ObjectReferrers {
+            templates: vec![],
+            tasks: vec![],
+            schedules: vec![],
+            integrations: vec![],
+        };
+        assert!(referrers.templates.is_empty());
+        assert!(referrers.tasks.is_empty());
+        assert!(referrers.schedules.is_empty());
+        assert!(referrers.integrations.is_empty());
+    }
+
+    #[test]
+    fn test_object_referrers_serialization_all() {
+        let referrers = ObjectReferrers {
+            templates: vec![1, 2, 3],
+            tasks: vec![4, 5],
+            schedules: vec![6],
+            integrations: vec![7, 8, 9, 10],
+        };
+        let json = serde_json::to_string(&referrers).unwrap();
+        assert!(json.contains("\"templates\":[1,2,3]"));
+        assert!(json.contains("\"tasks\":[4,5]"));
+        assert!(json.contains("\"schedules\":[6]"));
+        assert!(json.contains("\"integrations\":[7,8,9,10]"));
+    }
+
+    #[test]
+    fn test_object_referrers_only_integrations() {
+        let referrers = ObjectReferrers {
+            templates: vec![],
+            tasks: vec![],
+            schedules: vec![],
+            integrations: vec![1],
+        };
+        assert!(!referrers.is_empty());
+        assert_eq!(referrers.integrations, vec![1]);
+    }
 }

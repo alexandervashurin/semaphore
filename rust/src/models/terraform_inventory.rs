@@ -164,4 +164,66 @@ mod tests {
         let state = TerraformInventoryState::new(10, 5, "{}".to_string());
         assert!(state.task_id.is_none());
     }
+
+    #[test]
+    fn test_terraform_inventory_alias_debug() {
+        let alias = TerraformInventoryAlias::new(1, 1, 1, "debug-alias".to_string());
+        let debug_str = format!("{:?}", alias);
+        assert!(debug_str.contains("TerraformInventoryAlias"));
+    }
+
+    #[test]
+    fn test_terraform_inventory_state_debug() {
+        let state = TerraformInventoryState::new(1, 1, "debug-state".to_string());
+        let debug_str = format!("{:?}", state);
+        assert!(debug_str.contains("TerraformInventoryState"));
+    }
+
+    #[test]
+    fn test_terraform_inventory_alias_clone() {
+        let alias = TerraformInventoryAlias::new(5, 10, 3, "clone-alias".to_string());
+        let cloned = alias.clone();
+        assert_eq!(cloned.inventory_id, alias.inventory_id);
+        assert_eq!(cloned.auth_key_id, alias.auth_key_id);
+    }
+
+    #[test]
+    fn test_terraform_inventory_state_clone() {
+        let state = TerraformInventoryState::new(1, 1, "clone-state".to_string());
+        let cloned = state.clone();
+        assert_eq!(cloned.project_id, state.project_id);
+        assert_eq!(cloned.state, state.state);
+    }
+
+    #[test]
+    fn test_alias_clone() {
+        let alias = Alias { alias: "clone-base".to_string(), project_id: 42 };
+        let cloned = alias.clone();
+        assert_eq!(cloned.alias, alias.alias);
+        assert_eq!(cloned.project_id, alias.project_id);
+    }
+
+    #[test]
+    fn test_terraform_inventory_alias_deserialization() {
+        let json = r#"{"project_id":10,"inventory_id":5,"auth_key_id":3,"alias":"deser-alias"}"#;
+        let alias: TerraformInventoryAlias = serde_json::from_str(json).unwrap();
+        assert_eq!(alias.project_id, 10);
+        assert_eq!(alias.alias, "deser-alias");
+    }
+
+    #[test]
+    fn test_terraform_inventory_state_deserialization() {
+        let json = r#"{"id":1,"created":"2024-01-01T00:00:00Z","task_id":null,"project_id":10,"inventory_id":5,"state":"{}"}"#;
+        let state: TerraformInventoryState = serde_json::from_str(json).unwrap();
+        assert_eq!(state.id, 1);
+        assert_eq!(state.project_id, 10);
+    }
+
+    #[test]
+    fn test_alias_serialization() {
+        let alias = Alias { alias: "base-alias".to_string(), project_id: 100 };
+        let json = serde_json::to_string(&alias).unwrap();
+        assert!(json.contains("\"alias\":\"base-alias\""));
+        assert!(json.contains("\"project_id\":100"));
+    }
 }

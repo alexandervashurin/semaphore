@@ -182,4 +182,76 @@ mod tests {
             assert!(json.contains(&format!("\"role\":\"{}\"", role)));
         }
     }
+
+    #[test]
+    fn test_project_invite_debug() {
+        let invite = ProjectInvite {
+            id: 1, project_id: 10, user_id: 5, role: "manager".to_string(),
+            created: Utc::now(), updated: Utc::now(), token: "debug".to_string(),
+            inviter_user_id: 1,
+        };
+        let debug_str = format!("{:?}", invite);
+        assert!(debug_str.contains("ProjectInvite"));
+    }
+
+    #[test]
+    fn test_project_invite_with_user_debug() {
+        let invite = ProjectInviteWithUser {
+            id: 1, project_id: 10, user_id: 5, role: "manager".to_string(),
+            created: Utc::now(), updated: Utc::now(), token: "debug".to_string(),
+            inviter_user_id: 1, user_name: "Debug User".to_string(),
+            user_email: "debug@test.com".to_string(),
+        };
+        let debug_str = format!("{:?}", invite);
+        assert!(debug_str.contains("ProjectInviteWithUser"));
+        assert!(debug_str.contains("Debug User"));
+    }
+
+    #[test]
+    fn test_project_invite_empty_token() {
+        let invite = ProjectInvite {
+            id: 1, project_id: 1, user_id: 1, role: "viewer".to_string(),
+            created: Utc::now(), updated: Utc::now(), token: "".to_string(),
+            inviter_user_id: 1,
+        };
+        assert!(invite.token.is_empty());
+    }
+
+    #[test]
+    fn test_project_invite_same_inviter() {
+        let invite = ProjectInvite {
+            id: 1, project_id: 10, user_id: 5, role: "manager".to_string(),
+            created: Utc::now(), updated: Utc::now(), token: "self-invite".to_string(),
+            inviter_user_id: 5, // same as user_id
+        };
+        assert_eq!(invite.user_id, invite.inviter_user_id);
+    }
+
+    #[test]
+    fn test_project_invite_with_user_empty_fields() {
+        let invite = ProjectInviteWithUser {
+            id: 0, project_id: 0, user_id: 0, role: String::new(),
+            created: Utc::now(), updated: Utc::now(), token: String::new(),
+            inviter_user_id: 0, user_name: String::new(), user_email: String::new(),
+        };
+        assert!(invite.role.is_empty());
+        assert!(invite.token.is_empty());
+        assert!(invite.user_name.is_empty());
+    }
+
+    #[test]
+    fn test_project_invite_deserialization_minimal() {
+        let json = r#"{"id":1,"project_id":1,"user_id":1,"role":"viewer","created":"2024-01-01T00:00:00Z","updated":"2024-01-01T00:00:00Z","token":"t","inviter_user_id":1}"#;
+        let invite: ProjectInvite = serde_json::from_str(json).unwrap();
+        assert_eq!(invite.token, "t");
+        assert_eq!(invite.role, "viewer");
+    }
+
+    #[test]
+    fn test_project_invite_with_user_deserialization_minimal() {
+        let json = r#"{"id":1,"project_id":1,"user_id":1,"role":"owner","created":"2024-01-01T00:00:00Z","updated":"2024-01-01T00:00:00Z","token":"t","inviter_user_id":1,"user_name":"N","user_email":"e@t.com"}"#;
+        let invite: ProjectInviteWithUser = serde_json::from_str(json).unwrap();
+        assert_eq!(invite.user_name, "N");
+        assert_eq!(invite.user_email, "e@t.com");
+    }
 }

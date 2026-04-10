@@ -697,4 +697,153 @@ mod tests {
         // Just verify creation doesn't panic
         let _ = service;
     }
+
+    #[test]
+    fn test_alert_color_for_starting_status() {
+        let mut task = create_test_task();
+        task.status = TaskStatus::Starting;
+        let service = AlertService::new(task, "Test".to_string(), "user".to_string());
+        assert_eq!(service.alert_color("generic"), "gray");
+    }
+
+    #[test]
+    fn test_alert_color_for_stopped_teams() {
+        let mut task = create_test_task();
+        task.status = TaskStatus::Stopped;
+        let service = AlertService::new(task, "Test".to_string(), "user".to_string());
+        assert_eq!(service.alert_color("teams"), "FFC107");
+    }
+
+    #[test]
+    fn test_alert_color_for_error_slack() {
+        let mut task = create_test_task();
+        task.status = TaskStatus::Error;
+        let service = AlertService::new(task, "Test".to_string(), "user".to_string());
+        assert_eq!(service.alert_color("slack"), "danger");
+    }
+
+    #[test]
+    fn test_alert_task_struct_serializable() {
+        let task = create_test_task();
+        let service = AlertService::new(task, "Tpl".to_string(), "user".to_string());
+        let alert = service.create_alert();
+        let json = serde_json::to_string(&alert).unwrap();
+        assert!(json.contains("\"name\":\"Tpl\""));
+        assert!(json.contains("\"author\":\"user\""));
+    }
+
+    #[test]
+    fn test_alert_chat_struct_default() {
+        let alert = Alert {
+            name: "test".to_string(),
+            author: "user".to_string(),
+            color: "green".to_string(),
+            task: AlertTask {
+                id: "1".to_string(),
+                url: "http://example.com".to_string(),
+                result: "success".to_string(),
+                desc: "ok".to_string(),
+                version: "1.0".to_string(),
+            },
+            chat: AlertChat { id: String::new() },
+        };
+        assert!(alert.chat.id.is_empty());
+    }
+
+    #[test]
+    fn test_alert_task_url_not_empty() {
+        let task = create_test_task();
+        let service = AlertService::new(task, "Tpl".to_string(), "user".to_string());
+        let alert = service.create_alert();
+        assert!(!alert.task.url.is_empty());
+    }
+
+    #[test]
+    fn test_alert_task_result_matches_status() {
+        let mut task = create_test_task();
+        task.status = TaskStatus::Error;
+        let service = AlertService::new(task, "Tpl".to_string(), "user".to_string());
+        let alert = service.create_alert();
+        assert_eq!(alert.task.result, "error");
+    }
+
+    #[test]
+    fn test_alert_desc_uses_task_message() {
+        let task = create_test_task();
+        let service = AlertService::new(task, "Tpl".to_string(), "user".to_string());
+        let alert = service.create_alert();
+        assert_eq!(alert.task.desc, "Test message");
+    }
+
+    #[test]
+    fn test_alert_desc_empty_when_no_message() {
+        let mut task = create_test_task();
+        task.message = None;
+        let service = AlertService::new(task, "Tpl".to_string(), "user".to_string());
+        let alert = service.create_alert();
+        assert!(alert.task.desc.is_empty());
+    }
+
+    #[test]
+    fn test_alert_color_success_teams() {
+        let task = create_test_task();
+        let service = AlertService::new(task, "Test".to_string(), "user".to_string());
+        assert_eq!(service.alert_color("teams"), "8BC34A");
+    }
+
+    #[test]
+    fn test_alert_color_stopped_slack() {
+        let mut task = create_test_task();
+        task.status = TaskStatus::Stopped;
+        let service = AlertService::new(task, "Test".to_string(), "user".to_string());
+        assert_eq!(service.alert_color("slack"), "warning");
+    }
+
+    #[test]
+    fn test_alert_color_error_generic() {
+        let mut task = create_test_task();
+        task.status = TaskStatus::Error;
+        let service = AlertService::new(task, "Test".to_string(), "user".to_string());
+        assert_eq!(service.alert_color("generic"), "red");
+    }
+
+    #[test]
+    fn test_alert_struct_clone() {
+        let alert = Alert {
+            name: "n".to_string(),
+            author: "a".to_string(),
+            color: "c".to_string(),
+            task: AlertTask {
+                id: "1".to_string(),
+                url: "u".to_string(),
+                result: "r".to_string(),
+                desc: "d".to_string(),
+                version: "v".to_string(),
+            },
+            chat: AlertChat { id: "ch".to_string() },
+        };
+        let cloned = alert.clone();
+        assert_eq!(cloned.name, alert.name);
+        assert_eq!(cloned.task.id, alert.task.id);
+        assert_eq!(cloned.chat.id, alert.chat.id);
+    }
+
+    #[test]
+    fn test_alert_task_version_empty_when_none() {
+        let mut task = create_test_task();
+        task.version = None;
+        let service = AlertService::new(task, "Tpl".to_string(), "user".to_string());
+        let (author, version) = service.alert_infos();
+        assert_eq!(author, "user");
+        assert_eq!(version, "");
+    }
+
+    #[test]
+    fn test_alert_task_id_matches_task_id() {
+        let mut task = create_test_task();
+        task.id = 42;
+        let service = AlertService::new(task, "Tpl".to_string(), "user".to_string());
+        let alert = service.create_alert();
+        assert_eq!(alert.task.id, "42");
+    }
 }

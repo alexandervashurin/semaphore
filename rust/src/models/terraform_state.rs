@@ -257,4 +257,107 @@ mod tests {
         assert_eq!(cloned.address, resource.address);
         assert_eq!(cloned.change_type, resource.change_type);
     }
+
+    #[test]
+    fn test_terraform_state_summary_clone() {
+        let summary = TerraformStateSummary {
+            id: 1, project_id: 10, workspace: "prod".to_string(), serial: 5,
+            lineage: "line-1".to_string(), encrypted: true,
+            md5: "abc123".to_string(), created_at: Utc::now(),
+        };
+        let cloned = summary.clone();
+        assert_eq!(cloned.workspace, summary.workspace);
+        assert_eq!(cloned.serial, summary.serial);
+    }
+
+    #[test]
+    fn test_terraform_state_summary_debug() {
+        let summary = TerraformStateSummary {
+            id: 1, project_id: 1, workspace: "debug".to_string(), serial: 1,
+            lineage: "line-1".to_string(), encrypted: false,
+            md5: "md5".to_string(), created_at: Utc::now(),
+        };
+        let debug_str = format!("{:?}", summary);
+        assert!(debug_str.contains("TerraformStateSummary"));
+    }
+
+    #[test]
+    fn test_terraform_state_lock_debug() {
+        let lock = TerraformStateLock {
+            project_id: 1, workspace: "debug-lock".to_string(),
+            lock_id: "lock-123".to_string(), operation: "Plan".to_string(),
+            info: "Debug info".to_string(), who: "debug@test.com".to_string(),
+            version: "1.0".to_string(), path: "module.test".to_string(),
+            created_at: Utc::now(), expires_at: Utc::now() + chrono::Duration::hours(1),
+        };
+        let debug_str = format!("{:?}", lock);
+        assert!(debug_str.contains("TerraformStateLock"));
+        assert!(debug_str.contains("debug-lock"));
+    }
+
+    #[test]
+    fn test_lock_info_clone() {
+        let lock = TerraformStateLock {
+            project_id: 1, workspace: "clone-lock".to_string(),
+            lock_id: "clone-id".to_string(), operation: "Apply".to_string(),
+            info: "Clone info".to_string(), who: "clone@test.com".to_string(),
+            version: "2.0".to_string(), path: "module.clone".to_string(),
+            created_at: Utc::now(), expires_at: Utc::now(),
+        };
+        let info = LockInfo::from_lock(&lock);
+        let cloned = info.clone();
+        assert_eq!(cloned.id, info.id);
+        assert_eq!(cloned.operation, info.operation);
+    }
+
+    #[test]
+    fn test_state_diff_resource_all_change_types() {
+        let change_types = ["added", "changed", "removed", "unchanged"];
+        for ct in change_types {
+            let resource = StateDiffResource {
+                address: "res.addr".to_string(),
+                change_type: ct.to_string(),
+                resource_type: "aws_instance".to_string(),
+                name: "test".to_string(),
+            };
+            let json = serde_json::to_string(&resource).unwrap();
+            assert!(json.contains(&format!("\"change_type\":\"{}\"", ct)));
+        }
+    }
+
+    #[test]
+    fn test_state_diff_clone() {
+        let diff = StateDiff {
+            from_serial: 1, to_serial: 3, resources: vec![],
+            added: 2, changed: 1, removed: 0,
+        };
+        let cloned = diff.clone();
+        assert_eq!(cloned.from_serial, diff.from_serial);
+        assert_eq!(cloned.added, diff.added);
+    }
+
+    #[test]
+    fn test_terraform_state_summary_deserialization() {
+        let json = r#"{"id":5,"project_id":20,"workspace":"staging","serial":10,"lineage":"line-5","encrypted":false,"md5":"xyz","created_at":"2024-01-01T00:00:00Z"}"#;
+        let summary: TerraformStateSummary = serde_json::from_str(json).unwrap();
+        assert_eq!(summary.workspace, "staging");
+        assert_eq!(summary.serial, 10);
+    }
+
+    #[test]
+    fn test_lock_info_with_optional_created() {
+        let lock_info = LockInfo {
+            id: "test-lock".to_string(),
+            operation: "Test".to_string(),
+            info: "Test info".to_string(),
+            who: "test@test.com".to_string(),
+            version: "1.0".to_string(),
+            created: None,
+            path: "module.test".to_string(),
+        };
+        let json = serde_json::to_string(&lock_info).unwrap();
+        assert!(json.contains("\"ID\":\"test-lock\""));
+        // created is None - may be skipped or null depending on serde config
+        assert!(!json.contains("\"created\":\"2024")); // no actual date
+    }
 }
