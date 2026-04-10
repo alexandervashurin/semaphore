@@ -509,4 +509,295 @@ mod tests {
         assert_eq!(cloned.status, message.status);
         assert_eq!(cloned.version, message.version);
     }
+
+    #[test]
+    fn test_task_status_message_debug_format() {
+        let task = Task {
+            id: 7,
+            project_id: 1,
+            template_id: 1,
+            status: TaskStatus::Error,
+            message: None,
+            commit_hash: None,
+            commit_message: None,
+            version: None,
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+            arguments: None,
+            params: None,
+            playbook: None,
+            start: None,
+            end: None,
+            created: Utc::now(),
+            user_id: None,
+            integration_id: None,
+            schedule_id: None,
+            git_branch: None,
+            secret: None,
+            environment: None,
+            build_task_id: None,
+        };
+
+        let message = TaskStatusMessage::new(&task);
+        let debug_str = format!("{:?}", message);
+        assert!(debug_str.contains("TaskStatusMessage"));
+        assert!(debug_str.contains("7"));
+    }
+
+    #[test]
+    fn test_task_status_message_json_deserialization_contains_fields() {
+        let task = Task {
+            id: 200,
+            project_id: 5,
+            template_id: 10,
+            status: TaskStatus::Stopped,
+            message: Some("Stopped by user".to_string()),
+            commit_hash: None,
+            commit_message: None,
+            version: None,
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+            arguments: None,
+            params: None,
+            playbook: None,
+            start: Some(Utc::now()),
+            end: Some(Utc::now()),
+            created: Utc::now(),
+            user_id: None,
+            integration_id: None,
+            schedule_id: None,
+            git_branch: None,
+            secret: None,
+            environment: None,
+            build_task_id: None,
+        };
+
+        let message = TaskStatusMessage::new(&task);
+        let json = message.to_json();
+
+        // Проверяем что JSON валидный и содержит ключевые поля
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["task_id"], 200);
+        assert_eq!(parsed["project_id"], 5);
+        assert_eq!(parsed["template_id"], 10);
+        assert_eq!(parsed["status"], "stopped");
+    }
+
+    #[test]
+    fn test_task_status_message_json_roundtrip_valid() {
+        let task = Task {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            status: TaskStatus::Success,
+            message: None,
+            commit_hash: None,
+            commit_message: None,
+            version: None,
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+            arguments: None,
+            params: None,
+            playbook: None,
+            start: None,
+            end: None,
+            created: Utc::now(),
+            user_id: None,
+            integration_id: None,
+            schedule_id: None,
+            git_branch: None,
+            secret: None,
+            environment: None,
+            build_task_id: None,
+        };
+
+        let message = TaskStatusMessage::new(&task);
+        let json = message.to_json();
+
+        // JSON должен быть валидным
+        let result: Result<serde_json::Value, _> = serde_json::from_str(&json);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_task_status_message_starting_status() {
+        let task = Task {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            status: TaskStatus::Starting,
+            message: None,
+            commit_hash: None,
+            commit_message: None,
+            version: None,
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+            arguments: None,
+            params: None,
+            playbook: None,
+            start: None,
+            end: None,
+            created: Utc::now(),
+            user_id: None,
+            integration_id: None,
+            schedule_id: None,
+            git_branch: None,
+            secret: None,
+            environment: None,
+            build_task_id: None,
+        };
+
+        let message = TaskStatusMessage::new(&task);
+        assert_eq!(message.status, TaskStatus::Starting);
+        let json = message.to_json();
+        assert!(json.contains("\"status\":\"starting\""));
+    }
+
+    #[test]
+    fn test_task_status_message_stopped_status() {
+        let task = Task {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            status: TaskStatus::Stopped,
+            message: None,
+            commit_hash: None,
+            commit_message: None,
+            version: None,
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+            arguments: None,
+            params: None,
+            playbook: None,
+            start: None,
+            end: None,
+            created: Utc::now(),
+            user_id: None,
+            integration_id: None,
+            schedule_id: None,
+            git_branch: None,
+            secret: None,
+            environment: None,
+            build_task_id: None,
+        };
+
+        let message = TaskStatusMessage::new(&task);
+        assert_eq!(message.status, TaskStatus::Stopped);
+        let json = message.to_json();
+        assert!(json.contains("\"status\":\"stopped\""));
+    }
+
+    #[test]
+    fn test_task_status_message_json_with_empty_message() {
+        let task = Task {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            status: TaskStatus::Waiting,
+            message: None,
+            commit_hash: None,
+            commit_message: None,
+            version: None,
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+            arguments: None,
+            params: None,
+            playbook: None,
+            start: None,
+            end: None,
+            created: Utc::now(),
+            user_id: None,
+            integration_id: None,
+            schedule_id: None,
+            git_branch: None,
+            secret: None,
+            environment: None,
+            build_task_id: None,
+        };
+
+        let message = TaskStatusMessage::new(&task);
+        let json = message.to_json();
+
+        // JSON должен быть валидным даже с пустыми полями
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["task_id"], 1);
+        assert!(parsed.get("message").is_none() || parsed["message"].is_null());
+    }
+
+    #[test]
+    fn test_task_status_message_with_all_null_optional_fields() {
+        let task = Task {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            status: TaskStatus::Waiting,
+            message: None,
+            commit_hash: None,
+            commit_message: None,
+            version: None,
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+            arguments: None,
+            params: None,
+            playbook: None,
+            start: None,
+            end: None,
+            created: Utc::now(),
+            user_id: None,
+            integration_id: None,
+            schedule_id: None,
+            git_branch: None,
+            secret: None,
+            environment: None,
+            build_task_id: None,
+        };
+
+        let message = TaskStatusMessage::new(&task);
+        assert!(message.start.is_none());
+        assert!(message.end.is_none());
+        assert!(message.version.is_none());
+        assert_eq!(message.message_type, "update");
+    }
+
+    #[test]
+    fn test_task_status_message_json_type_field() {
+        let task = Task {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            status: TaskStatus::Waiting,
+            message: None,
+            commit_hash: None,
+            commit_message: None,
+            version: None,
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+            arguments: None,
+            params: None,
+            playbook: None,
+            start: None,
+            end: None,
+            created: Utc::now(),
+            user_id: None,
+            integration_id: None,
+            schedule_id: None,
+            git_branch: None,
+            secret: None,
+            environment: None,
+            build_task_id: None,
+        };
+
+        let message = TaskStatusMessage::new(&task);
+        let json = message.to_json();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["type"], "update");
+    }
 }

@@ -240,4 +240,165 @@ mod tests {
         let running_task = RunningTask::new(task, logger, template.clone());
         assert_eq!(running_task.template.id, template.id);
     }
+
+    #[test]
+    fn test_running_task_with_running_status() {
+        let mut task = Task::default();
+        task.id = 42;
+        task.project_id = 5;
+        task.template_id = 10;
+        task.status = TaskStatus::Running;
+
+        let logger = Arc::new(crate::services::task_logger::BasicLogger::new());
+        let template = Template::default();
+
+        let running = RunningTask::new(task, logger, template);
+        assert!(!running.killed);
+        assert_eq!(running.task.status, TaskStatus::Running);
+        assert_eq!(running.task.id, 42);
+    }
+
+    #[test]
+    fn test_running_task_kill_does_not_affect_task_status() {
+        let mut task = Task::default();
+        task.id = 1;
+        task.project_id = 1;
+        task.template_id = 1;
+        task.status = TaskStatus::Running;
+
+        let logger = Arc::new(crate::services::task_logger::BasicLogger::new());
+        let template = Template::default();
+
+        let mut running = RunningTask::new(task.clone(), logger, template);
+        let original_status = running.task.status;
+
+        running.kill();
+
+        // Статус внутри task не должен измениться при kill
+        assert_eq!(running.task.status, original_status);
+        // Только killed флаг меняется
+        assert!(running.killed);
+    }
+
+    #[test]
+    fn test_running_task_template_clone_independence() {
+        let mut task = Task::default();
+        task.id = 1;
+        task.project_id = 1;
+        task.template_id = 1;
+
+        let logger = Arc::new(crate::services::task_logger::BasicLogger::new());
+        let mut template = Template::default();
+        template.name = "original".to_string();
+
+        let running = RunningTask::new(task, logger, template.clone());
+        assert_eq!(running.template.name, "original");
+
+        // Изменение оригинального template не влияет на running
+        template.name = "modified".to_string();
+        assert_eq!(running.template.name, "original");
+    }
+
+    #[test]
+    fn test_task_pool_project_reference() {
+        let store = create_test_store();
+        let mut project = create_test_project();
+        project.name = "My Project".to_string();
+        project.max_parallel_tasks = 10;
+        let ws_manager = Arc::new(crate::api::websocket::WebSocketManager::new());
+
+        let pool = TaskPool::new(store, project, ws_manager);
+
+        assert_eq!(pool.project.name, "My Project");
+        assert_eq!(pool.project.max_parallel_tasks, 10);
+    }
+
+    #[test]
+    fn test_running_task_with_success_status() {
+        let mut task = Task::default();
+        task.id = 100;
+        task.project_id = 1;
+        task.template_id = 1;
+        task.status = TaskStatus::Success;
+
+        let logger = Arc::new(crate::services::task_logger::BasicLogger::new());
+        let template = Template::default();
+
+        let running = RunningTask::new(task, logger, template);
+        assert_eq!(running.task.status, TaskStatus::Success);
+        assert!(!running.killed);
+    }
+
+    #[test]
+    fn test_running_task_fields_are_set_correctly() {
+        let mut task = Task::default();
+        task.id = 777;
+        task.project_id = 1;
+        task.template_id = 1;
+        task.status = TaskStatus::Waiting;
+
+        let logger = Arc::new(crate::services::task_logger::BasicLogger::new());
+        let template = Template::default();
+
+        let running = RunningTask::new(task, logger, template);
+        // Проверяем что все поля корректно установлены
+        assert_eq!(running.task.id, 777);
+        assert_eq!(running.task.status, TaskStatus::Waiting);
+        assert!(!running.killed);
+    }
+
+    #[test]
+    fn test_running_task_logger_is_arc_shared() {
+        let mut task = Task::default();
+        task.id = 1;
+        task.project_id = 1;
+        task.template_id = 1;
+
+        let logger = Arc::new(crate::services::task_logger::BasicLogger::new());
+        let template = Template::default();
+
+        let running = RunningTask::new(task, logger.clone(), template);
+
+        // Arc::strong_count должен быть >= 2 (original + running)
+        assert!(Arc::strong_count(&logger) >= 2);
+        assert_eq!(Arc::strong_count(&running.logger), Arc::strong_count(&logger));
+    }
+
+    #[test]
+    fn test_running_task_with_error_status() {
+        let mut task = Task::default();
+        task.id = 1;
+        task.project_id = 1;
+        task.template_id = 1;
+        task.status = TaskStatus::Error;
+
+        let logger = Arc::new(crate::services::task_logger::BasicLogger::new());
+        let template = Template::default();
+
+        let mut running = RunningTask::new(task, logger, template);
+        assert_eq!(running.task.status, TaskStatus::Error);
+        assert!(!running.killed);
+
+        running.kill();
+        assert!(running.is_killed());
+    }
+
+    #[test]
+    fn test_running_task_with_custom_template() {
+        let mut task = Task::default();
+        task.id = 1;
+        task.project_id = 1;
+        task.template_id = 5;
+
+        let logger = Arc::new(crate::services::task_logger::BasicLogger::new());
+        let mut template = Template::default();
+        template.id = 5;
+        template.name = "Deploy Template".to_string();
+        template.playbook = "deploy.yml".to_string();
+
+        let running = RunningTask::new(task, logger, template);
+        assert_eq!(running.template.id, 5);
+        assert_eq!(running.template.name, "Deploy Template");
+        assert_eq!(running.template.playbook, "deploy.yml");
+    }
 }

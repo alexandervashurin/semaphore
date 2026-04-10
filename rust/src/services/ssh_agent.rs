@@ -1204,4 +1204,623 @@ mod key_installer_tests {
         assert_eq!(installation.login, Some("ansible_user".to_string()));
         assert_eq!(installation.password, Some("pass".to_string()));
     }
+
+    // ========================================================================
+    // Расширенные тесты для SshAgent, helper функций, сериализации и enum
+    // ========================================================================
+
+    // ── SshAgent struct и методы ──
+
+    #[test]
+    fn test_ssh_agent_new() {
+        let config = SshConfig::new("localhost".to_string(), "testuser".to_string());
+        let agent = SshAgent::new(config);
+        assert_eq!(agent.config.host, "localhost");
+        assert_eq!(agent.config.username, "testuser");
+        assert!(!agent.is_connected());
+    }
+
+    #[test]
+    fn test_ssh_agent_simple_constructor() {
+        let key = SshKey::new(b"key_data".to_vec(), None);
+        let agent = SshAgent::simple("10.0.0.1".to_string(), "admin".to_string(), key);
+        assert_eq!(agent.config.host, "10.0.0.1");
+        assert_eq!(agent.config.port, 22);
+        assert_eq!(agent.config.keys.len(), 1);
+    }
+
+    #[test]
+    fn test_ssh_agent_session_is_none_initially() {
+        let config = SshConfig::default();
+        let agent = SshAgent::new(config);
+        assert!(agent.session().is_none());
+    }
+
+    #[test]
+    fn test_ssh_agent_is_connected_false() {
+        let config = SshConfig::default();
+        let agent = SshAgent::new(config);
+        assert!(!agent.is_connected());
+    }
+
+    #[test]
+    fn test_ssh_agent_disconnect_when_not_connected() {
+        let mut agent = SshAgent::new(SshConfig::default());
+        let result = agent.disconnect();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_ssh_agent_clone() {
+        let config = SshConfig::new("host".to_string(), "user".to_string());
+        let agent = SshAgent::new(config);
+        let cloned = agent.clone();
+        assert_eq!(agent.config.host, cloned.config.host);
+        assert_eq!(agent.config.username, cloned.config.username);
+    }
+
+    // ── SshConfig builder pattern ──
+
+    #[test]
+    fn test_ssh_config_with_port_chain() {
+        let config = SshConfig::default().with_port(8022);
+        assert_eq!(config.port, 8022);
+    }
+
+    #[test]
+    fn test_ssh_config_with_timeout_chain() {
+        let config = SshConfig::default().with_timeout(120);
+        assert_eq!(config.timeout_secs, 120);
+    }
+
+    #[test]
+    fn test_ssh_config_add_multiple_keys() {
+        let key1 = SshKey::new(b"key1".to_vec(), None);
+        let key2 = SshKey::new(b"key2".to_vec(), Some("pass".to_string()));
+        let config = SshConfig::new("host".to_string(), "user".to_string())
+            .add_key(key1)
+            .add_key(key2);
+        assert_eq!(config.keys.len(), 2);
+        assert!(config.keys[0].passphrase.is_none());
+        assert_eq!(config.keys[1].passphrase, Some("pass".to_string()));
+    }
+
+    #[test]
+    fn test_ssh_config_default_values() {
+        let config = SshConfig::default();
+        assert!(config.host.is_empty());
+        assert_eq!(config.port, 22);
+        assert_eq!(config.username, "root");
+        assert_eq!(config.timeout_secs, 30);
+        assert!(config.keys.is_empty());
+    }
+
+    // ── SshKey tests ──
+
+    #[test]
+    fn test_ssh_key_new_with_passphrase() {
+        let key = SshKey::new(b"private_key".to_vec(), Some("mypass".to_string()));
+        assert_eq!(key.private_key, b"private_key");
+        assert_eq!(key.passphrase, Some("mypass".to_string()));
+        assert!(key.public_key.is_none());
+    }
+
+    #[test]
+    fn test_ssh_key_new_without_passphrase() {
+        let key = SshKey::new(b"private_key".to_vec(), None);
+        assert_eq!(key.private_key, b"private_key");
+        assert!(key.passphrase.is_none());
+        assert!(key.public_key.is_none());
+    }
+
+    #[test]
+    fn test_ssh_key_from_string_with_passphrase() {
+        let key = SshKey::from_string("some_key_data".to_string(), Some("secret".to_string()));
+        assert_eq!(key.private_key, b"some_key_data".to_vec());
+        assert_eq!(key.passphrase, Some("secret".to_string()));
+    }
+
+    #[test]
+    fn test_ssh_key_from_string_without_passphrase() {
+        let key = SshKey::from_string("key_data".to_string(), None);
+        assert_eq!(key.private_key, b"key_data".to_vec());
+        assert!(key.passphrase.is_none());
+    }
+
+    #[test]
+    fn test_ssh_key_with_public_key_returns_self() {
+        let key = SshKey::new(b"priv".to_vec(), None);
+        let key_with_pub = key.clone().with_public_key(b"pub".to_vec());
+        assert_eq!(key_with_pub.public_key, Some(b"pub".to_vec()));
+        // Оригинальный key не изменён
+        assert!(key.public_key.is_none());
+    }
+
+    #[test]
+    fn test_ssh_key_clone() {
+        let key = SshKey::new(b"key".to_vec(), Some("pass".to_string()))
+            .with_public_key(b"pub".to_vec());
+        let cloned = key.clone();
+        assert_eq!(cloned.private_key, key.private_key);
+        assert_eq!(cloned.passphrase, key.passphrase);
+        assert_eq!(cloned.public_key, key.public_key);
+    }
+
+    #[test]
+    fn test_ssh_key_empty_private_key() {
+        let key = SshKey::new(vec![], None);
+        assert!(key.private_key.is_empty());
+    }
+
+    // ── SshCommandResult tests ──
+
+    #[test]
+    fn test_ssh_command_result_debug() {
+        let result = SshCommandResult {
+            exit_code: 0,
+            stdout: "output".to_string(),
+            stderr: "".to_string(),
+        };
+        // Проверяем, что Debug реализован
+        let debug_str = format!("{:?}", result);
+        assert!(debug_str.contains("SshCommandResult"));
+    }
+
+    #[test]
+    fn test_ssh_command_result_with_error_code() {
+        let result = SshCommandResult {
+            exit_code: 127,
+            stdout: "".to_string(),
+            stderr: "command not found".to_string(),
+        };
+        assert_eq!(result.exit_code, 127);
+        assert_eq!(result.stderr, "command not found");
+    }
+
+    // ── AccessKeyRole enum tests ──
+
+    #[test]
+    fn test_access_key_role_equality() {
+        assert_eq!(AccessKeyRole::Git, AccessKeyRole::Git);
+        assert_ne!(AccessKeyRole::Git, AccessKeyRole::AnsibleUser);
+    }
+
+    #[test]
+    fn test_access_key_role_copy() {
+        let role = AccessKeyRole::Git;
+        let copied = role;
+        assert_eq!(role, copied);
+    }
+
+    #[test]
+    fn test_access_key_role_from_str_empty() {
+        assert!(AccessKeyRole::from_str("").is_err());
+    }
+
+    #[test]
+    fn test_access_key_role_from_str_whitespace() {
+        assert!(AccessKeyRole::from_str(" git ").is_err());
+    }
+
+    #[test]
+    fn test_access_key_role_display_all_variants() {
+        let roles = vec![
+            (AccessKeyRole::Git, "git"),
+            (AccessKeyRole::AnsiblePasswordVault, "ansible_password_vault"),
+            (AccessKeyRole::AnsibleBecomeUser, "ansible_become_user"),
+            (AccessKeyRole::AnsibleUser, "ansible_user"),
+        ];
+        for (role, expected) in roles {
+            assert_eq!(format!("{}", role), expected);
+        }
+    }
+
+    // ── AccessKeyType enum tests ──
+
+    #[test]
+    fn test_access_key_type_equality() {
+        assert_eq!(AccessKeyType::Ssh, AccessKeyType::Ssh);
+        assert_eq!(AccessKeyType::LoginPassword, AccessKeyType::LoginPassword);
+        assert_eq!(AccessKeyType::None, AccessKeyType::None);
+        assert_ne!(AccessKeyType::Ssh, AccessKeyType::LoginPassword);
+    }
+
+    #[test]
+    fn test_access_key_type_debug() {
+        let ssh_type = AccessKeyType::Ssh;
+        let debug_str = format!("{:?}", ssh_type);
+        assert!(debug_str.contains("Ssh"));
+    }
+
+    // ── AccessKey construction tests ──
+
+    #[test]
+    fn test_access_key_ssh_with_empty_passphrase() {
+        let key = AccessKey::new_ssh(1, "private".to_string(), "".to_string(), "user".to_string(), None);
+        assert!(key.ssh_key.is_some());
+        let ssh_data = key.get_ssh_key_data().unwrap();
+        assert!(ssh_data.passphrase.is_empty());
+        assert_eq!(ssh_data.login, "user");
+    }
+
+    #[test]
+    fn test_access_key_ssh_with_passphrase() {
+        let key = AccessKey::new_ssh(
+            42,
+            "encrypted_key".to_string(),
+            "secret_pass".to_string(),
+            "admin".to_string(),
+            Some(10),
+        );
+        let ssh_data = key.get_ssh_key_data().unwrap();
+        assert_eq!(ssh_data.passphrase, "secret_pass");
+        assert_eq!(key.id, 42);
+        assert_eq!(key.project_id, Some(10));
+    }
+
+    #[test]
+    fn test_access_key_login_password_data() {
+        let key = AccessKey::new_login_password(5, "root".to_string(), "toor".to_string(), Some(3));
+        let lp_data = key.get_login_password_data().unwrap();
+        assert_eq!(lp_data.login, "root");
+        assert_eq!(lp_data.password, "toor");
+    }
+
+    #[test]
+    fn test_access_key_ssh_data_is_none_for_login_password() {
+        let key = AccessKey::new_login_password(1, "u".into(), "p".into(), None);
+        assert!(key.get_ssh_key_data().is_none());
+    }
+
+    #[test]
+    fn test_access_key_login_password_is_none_for_ssh() {
+        let key = AccessKey::new_ssh(1, "pk".into(), "".into(), "u".into(), None);
+        assert!(key.get_login_password_data().is_none());
+    }
+
+    #[test]
+    fn test_access_key_none_type_has_no_data() {
+        let key = AccessKey::new_none(1, None);
+        assert!(key.get_ssh_key_data().is_none());
+        assert!(key.get_login_password_data().is_none());
+    }
+
+    // ── SshKeyData tests ──
+
+    #[test]
+    fn test_ssh_key_data_debug() {
+        let data = SshKeyData {
+            private_key: "key".to_string(),
+            passphrase: "pass".to_string(),
+            login: "user".to_string(),
+        };
+        let debug_str = format!("{:?}", data);
+        assert!(debug_str.contains("SshKeyData"));
+    }
+
+    #[test]
+    fn test_ssh_key_data_clone() {
+        let data = SshKeyData {
+            private_key: "pk".to_string(),
+            passphrase: "".to_string(),
+            login: "u".to_string(),
+        };
+        let cloned = data.clone();
+        assert_eq!(cloned.private_key, data.private_key);
+        assert_eq!(cloned.login, data.login);
+    }
+
+    // ── LoginPasswordData tests ──
+
+    #[test]
+    fn test_login_password_data_debug() {
+        let data = LoginPasswordData {
+            login: "admin".to_string(),
+            password: "secret".to_string(),
+        };
+        let debug_str = format!("{:?}", data);
+        assert!(debug_str.contains("LoginPasswordData"));
+    }
+
+    #[test]
+    fn test_login_password_data_clone() {
+        let data = LoginPasswordData {
+            login: "u".to_string(),
+            password: "p".to_string(),
+        };
+        let cloned = data.clone();
+        assert_eq!(cloned.login, data.login);
+        assert_eq!(cloned.password, data.password);
+    }
+
+    // ── AccessKeyInstallation tests ──
+
+    #[test]
+    fn test_access_key_installation_default() {
+        let installation = AccessKeyInstallation::default();
+        assert!(installation.ssh_agent.is_none());
+        assert!(installation.login.is_none());
+        assert!(installation.password.is_none());
+        assert!(installation.script.is_none());
+    }
+
+    #[test]
+    fn test_access_key_installation_script_none_by_default() {
+        let installation = AccessKeyInstallation::new();
+        assert!(installation.script.is_none());
+    }
+
+    #[test]
+    fn test_access_key_installation_git_env_multiple_calls() {
+        let installation = AccessKeyInstallation::new();
+        let env1 = installation.get_git_env();
+        let env2 = installation.get_git_env();
+        assert_eq!(env1.len(), env2.len());
+    }
+
+    #[test]
+    fn test_access_key_installation_get_git_env_contains_terminal_prompt() {
+        let installation = AccessKeyInstallation::new();
+        let env = installation.get_git_env();
+        let has_terminal_prompt = env.iter().any(|(k, v)| k == "GIT_TERMINAL_PROMPT" && v == "0");
+        assert!(has_terminal_prompt);
+    }
+
+    #[test]
+    fn test_access_key_installation_destroy_multiple_calls() {
+        let mut installation = AccessKeyInstallation::new();
+        assert!(installation.destroy().is_ok());
+        assert!(installation.destroy().is_ok());
+    }
+
+    // ── KeyInstaller tests ──
+
+    #[test]
+    fn test_key_installer_default() {
+        let installer = KeyInstaller::default();
+        // KeyInstaller - unit struct, проверяем что default создаётся
+        let _ = installer;
+    }
+
+    #[test]
+    fn test_key_installer_new() {
+        let installer = KeyInstaller::new();
+        let _ = installer;
+    }
+
+    #[test]
+    fn test_key_installer_install_ansible_user_ssh() {
+        let installer = KeyInstaller::new();
+        let logger = BasicLogger::new();
+
+        let key = AccessKey::new_ssh(
+            10,
+            "-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----".to_string(),
+            "".to_string(),
+            "ansible_user".to_string(),
+            Some(1),
+        );
+
+        let result = installer.install(&key, AccessKeyRole::AnsibleUser, &logger);
+        assert!(result.is_ok());
+        let installation = result.unwrap();
+        assert!(installation.ssh_agent.is_some());
+        assert_eq!(installation.login, Some("ansible_user".to_string()));
+    }
+
+    #[test]
+    fn test_key_installer_install_ansible_vault_wrong_key_type() {
+        let installer = KeyInstaller::new();
+        let logger = BasicLogger::new();
+
+        let key = AccessKey::new_ssh(1, "pk".into(), "".into(), "u".into(), None);
+        let result = installer.install(&key, AccessKeyRole::AnsiblePasswordVault, &logger);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_key_installer_install_ansible_become_wrong_key_type() {
+        let installer = KeyInstaller::new();
+        let logger = BasicLogger::new();
+
+        let key = AccessKey::new_ssh(1, "pk".into(), "".into(), "u".into(), None);
+        let result = installer.install(&key, AccessKeyRole::AnsibleBecomeUser, &logger);
+        assert!(result.is_err());
+    }
+
+    // ── Utils tests ──
+
+    #[test]
+    fn test_utils_validate_key_with_begin_and_end_markers() {
+        let key = SshKey::new(
+            b"-----BEGIN DSA PRIVATE KEY-----\ntest\n-----END DSA PRIVATE KEY-----".to_vec(),
+            None,
+        );
+        assert!(utils::validate_key(&key).is_ok());
+    }
+
+    #[test]
+    fn test_utils_validate_key_only_begin_no_private_keyword() {
+        // "BEGIN RSA PUBLIC KEY" содержит BEGIN, но не содержит PRIVATE KEY
+        let key = SshKey::new(b"-----BEGIN RSA PUBLIC KEY-----\ntest\n-----END RSA PUBLIC KEY-----".to_vec(), None);
+        let result = utils::validate_key(&key);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_utils_validate_key_only_end() {
+        let key = SshKey::new(b"no begin\n-----END PRIVATE KEY-----".to_vec(), None);
+        let result = utils::validate_key(&key);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_utils_create_temp_ssh_dir() {
+        let dir = utils::create_temp_ssh_dir();
+        assert!(dir.is_ok());
+        let path = dir.unwrap();
+        assert!(path.exists());
+        assert!(path.is_dir());
+        // Cleanup
+        let _ = std::fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn test_utils_create_temp_ssh_dir_unique_paths() {
+        let dir1 = utils::create_temp_ssh_dir().unwrap();
+        let dir2 = utils::create_temp_ssh_dir().unwrap();
+        assert_ne!(dir1, dir2);
+        // Cleanup
+        let _ = std::fs::remove_dir_all(&dir1);
+        let _ = std::fs::remove_dir_all(&dir2);
+    }
+
+    #[test]
+    fn test_utils_load_key_from_string_with_passphrase() {
+        let key_data = "-----BEGIN EC PRIVATE KEY-----\ntest\n-----END EC PRIVATE KEY-----";
+        let key = utils::load_key_from_string(key_data, Some("ec_pass"));
+        assert_eq!(key.passphrase, Some("ec_pass".to_string()));
+        assert!(key.private_key.len() > 0);
+    }
+
+    #[test]
+    fn test_utils_load_key_from_string_without_passphrase() {
+        let key_data = "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----";
+        let key = utils::load_key_from_string(key_data, None);
+        assert!(key.passphrase.is_none());
+    }
+
+    // ── Integration: SshAgent + SshConfig ──
+
+    #[test]
+    fn test_ssh_agent_with_full_config() {
+        let key = SshKey::new(b"key".to_vec(), Some("pass".to_string()));
+        let config = SshConfig::new("example.com".to_string(), "deployer".to_string())
+            .with_port(2222)
+            .with_timeout(60)
+            .add_key(key);
+        let agent = SshAgent::new(config);
+        assert_eq!(agent.config.host, "example.com");
+        assert_eq!(agent.config.port, 2222);
+        assert_eq!(agent.config.timeout_secs, 60);
+        assert_eq!(agent.config.keys.len(), 1);
+    }
+
+    #[test]
+    fn test_ssh_agent_with_multiple_keys() {
+        let key1 = SshKey::new(b"key1".to_vec(), None);
+        let key2 = SshKey::new(b"key2".to_vec(), Some("pass2".to_string()));
+        let config = SshConfig::new("host".to_string(), "user".to_string())
+            .add_key(key1)
+            .add_key(key2);
+        let agent = SshAgent::new(config);
+        assert_eq!(agent.config.keys.len(), 2);
+    }
+
+    // ── Enum serialization: Display + FromStr roundtrip ──
+
+    #[test]
+    fn test_access_key_role_roundtrip_git() {
+        let role = AccessKeyRole::Git;
+        let s = format!("{}", role);
+        let parsed = AccessKeyRole::from_str(&s).unwrap();
+        assert_eq!(role, parsed);
+    }
+
+    #[test]
+    fn test_access_key_role_roundtrip_ansible_password_vault() {
+        let role = AccessKeyRole::AnsiblePasswordVault;
+        let s = format!("{}", role);
+        let parsed = AccessKeyRole::from_str(&s).unwrap();
+        assert_eq!(role, parsed);
+    }
+
+    #[test]
+    fn test_access_key_role_roundtrip_ansible_become_user() {
+        let role = AccessKeyRole::AnsibleBecomeUser;
+        let s = format!("{}", role);
+        let parsed = AccessKeyRole::from_str(&s).unwrap();
+        assert_eq!(role, parsed);
+    }
+
+    #[test]
+    fn test_access_key_role_roundtrip_ansible_user() {
+        let role = AccessKeyRole::AnsibleUser;
+        let s = format!("{}", role);
+        let parsed = AccessKeyRole::from_str(&s).unwrap();
+        assert_eq!(role, parsed);
+    }
+
+    // ── SshConfig Debug trait ──
+
+    #[test]
+    fn test_ssh_config_debug() {
+        let config = SshConfig::new("myhost".to_string(), "myuser".to_string());
+        let debug_str = format!("{:?}", config);
+        assert!(debug_str.contains("SshConfig"));
+        assert!(debug_str.contains("myhost"));
+    }
+
+    // ── AccessKey Debug trait ──
+
+    #[test]
+    fn test_access_key_debug_ssh() {
+        let key = AccessKey::new_ssh(1, "pk".into(), "".into(), "u".into(), None);
+        let debug_str = format!("{:?}", key);
+        assert!(debug_str.contains("AccessKey"));
+    }
+
+    #[test]
+    fn test_access_key_debug_login_password() {
+        let key = AccessKey::new_login_password(1, "u".into(), "p".into(), None);
+        let debug_str = format!("{:?}", key);
+        assert!(debug_str.contains("AccessKey"));
+    }
+
+    #[test]
+    fn test_access_key_debug_none() {
+        let key = AccessKey::new_none(1, None);
+        let debug_str = format!("{:?}", key);
+        assert!(debug_str.contains("AccessKey"));
+    }
+
+    // ── Edge cases ──
+
+    #[test]
+    fn test_ssh_key_from_string_empty() {
+        let key = SshKey::from_string("".to_string(), None);
+        assert!(key.private_key.is_empty());
+    }
+
+    #[test]
+    fn test_ssh_config_empty_keys() {
+        let config = SshConfig::default();
+        assert!(config.keys.is_empty());
+    }
+
+    #[test]
+    fn test_access_key_installation_git_env_idempotent() {
+        let installation = AccessKeyInstallation::new();
+        let env = installation.get_git_env();
+        assert!(env.iter().any(|(k, v)| k == "GIT_TERMINAL_PROMPT" && v == "0"));
+    }
+
+    #[test]
+    fn test_key_installer_install_with_nonempty_passphrase() {
+        let installer = KeyInstaller::new();
+        let logger = BasicLogger::new();
+
+        let key = AccessKey::new_ssh(
+            1,
+            "-----BEGIN RSA PRIVATE KEY-----\ntest\n-----END RSA PRIVATE KEY-----".to_string(),
+            "encrypted".to_string(),
+            "user".to_string(),
+            None,
+        );
+
+        let result = installer.install(&key, AccessKeyRole::Git, &logger);
+        assert!(result.is_ok());
+        let installation = result.unwrap();
+        assert!(installation.ssh_agent.is_some());
+    }
 }

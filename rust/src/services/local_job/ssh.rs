@@ -270,4 +270,190 @@ mod tests {
         assert!(db.ssh_key.is_none());
         assert!(db.login_password.is_none());
     }
+
+    #[test]
+    fn test_model_access_key_to_db_ssh_key_with_passphrase() {
+        let ak = crate::models::AccessKey::new_ssh(
+            10,
+            "key_with_passphrase".to_string(),
+            "-----BEGIN RSA PRIVATE KEY-----\ntest_key\n-----END RSA PRIVATE KEY-----".to_string(),
+            "my_passphrase".to_string(),
+            "deploy".to_string(),
+            None,
+        );
+        let db = model_access_key_to_db(&ak);
+        assert!(db.ssh_key.is_some());
+        let ssh = db.ssh_key.as_ref().unwrap();
+        assert_eq!(ssh.passphrase, "my_passphrase");
+        assert!(ssh.private_key.contains("BEGIN RSA PRIVATE KEY"));
+    }
+
+    #[test]
+    fn test_model_access_key_to_db_preserves_name() {
+        let ak = crate::models::AccessKey::new_ssh(
+            5,
+            "my-ssh-key".to_string(),
+            "key".to_string(),
+            "".to_string(),
+            "user".to_string(),
+            None,
+        );
+        let db = model_access_key_to_db(&ak);
+        assert_eq!(db.name, "my-ssh-key");
+    }
+
+    #[test]
+    fn test_model_access_key_to_db_preserves_id() {
+        // new_ssh всегда ставит id=0, проверяем это поведение
+        let ak = crate::models::AccessKey::new_ssh(
+            42,
+            "key".to_string(),
+            "key".to_string(),
+            "".to_string(),
+            "".to_string(),
+            None,
+        );
+        let db = model_access_key_to_db(&ak);
+        assert_eq!(db.id, 0); // new_ssh всегда ставит 0
+        assert_eq!(db.project_id, Some(42));
+    }
+
+    #[test]
+    fn test_model_access_key_to_db_login_password_preserves_credentials() {
+        use crate::models::access_key::AccessKeyType;
+        use crate::models::AccessKeyOwner;
+        let ak = crate::models::AccessKey {
+            id: 7,
+            project_id: Some(1),
+            name: "LP".to_string(),
+            r#type: AccessKeyType::LoginPassword,
+            user_id: None,
+            login_password_login: Some("root".to_string()),
+            login_password_password: Some("p@ss".to_string()),
+            ssh_key: None,
+            ssh_passphrase: None,
+            access_key_access_key: None,
+            access_key_secret_key: None,
+            secret_storage_id: None,
+            environment_id: None,
+            owner: Some(AccessKeyOwner::Project),
+            created: None,
+            source_storage_type: None,
+            source_storage_id: None,
+            source_key: None,
+        };
+        let db = model_access_key_to_db(&ak);
+        assert!(db.login_password.is_some());
+        let lp = db.login_password.as_ref().unwrap();
+        assert_eq!(lp.login, "root");
+        assert_eq!(lp.password, "p@ss");
+    }
+
+    #[test]
+    fn test_model_access_key_to_db_access_key_type() {
+        use crate::models::access_key::AccessKeyType;
+        use crate::models::AccessKeyOwner;
+        let ak = crate::models::AccessKey {
+            id: 8,
+            project_id: Some(1),
+            name: "Access Key".to_string(),
+            r#type: AccessKeyType::AccessKey,
+            user_id: None,
+            login_password_login: None,
+            login_password_password: None,
+            ssh_key: None,
+            ssh_passphrase: None,
+            access_key_access_key: Some("AKIAIOSFODNN7EXAMPLE".to_string()),
+            access_key_secret_key: Some("wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY".to_string()),
+            secret_storage_id: None,
+            environment_id: None,
+            owner: Some(AccessKeyOwner::Project),
+            created: None,
+            source_storage_type: None,
+            source_storage_id: None,
+            source_key: None,
+        };
+        let db = model_access_key_to_db(&ak);
+        // AccessKey тип маппится на None в DbAccessKeyType
+        assert_eq!(db.key_type, crate::db_lib::DbAccessKeyType::None);
+        assert!(db.ssh_key.is_none());
+        assert!(db.login_password.is_none());
+    }
+
+    #[test]
+    fn test_clear_ssh_keys_resets_both_installations() {
+        let mut job = create_test_job();
+        // Установим фейковые значения
+        job.ssh_key_installation = Some(crate::services::ssh_agent::AccessKeyInstallation::default());
+        job.become_key_installation = Some(crate::services::ssh_agent::AccessKeyInstallation::default());
+
+        assert!(job.ssh_key_installation.is_some());
+        assert!(job.become_key_installation.is_some());
+
+        job.clear_ssh_keys();
+
+        assert!(job.ssh_key_installation.is_none());
+        assert!(job.become_key_installation.is_none());
+    }
+
+    #[test]
+    fn test_model_access_key_to_db_empty_ssh_login() {
+        let ak = crate::models::AccessKey::new_ssh(
+            1,
+            "key".to_string(),
+            "key_data".to_string(),
+            "".to_string(),
+            "".to_string(),
+            None,
+        );
+        let db = model_access_key_to_db(&ak);
+        assert_eq!(db.ssh_key.as_ref().map(|s| s.login.clone()), Some("".to_string()));
+    }
+
+    #[test]
+    fn test_model_access_key_to_db_project_id_preserved() {
+        use crate::models::access_key::AccessKeyType;
+        let ak = crate::models::AccessKey {
+            id: 1,
+            project_id: Some(99),
+            name: "Key".to_string(),
+            r#type: AccessKeyType::SSH,
+            user_id: None,
+            login_password_login: Some("u".to_string()),
+            login_password_password: None,
+            ssh_key: Some("key_data".to_string()),
+            ssh_passphrase: None,
+            access_key_access_key: None,
+            access_key_secret_key: None,
+            secret_storage_id: None,
+            environment_id: None,
+            owner: None,
+            created: None,
+            source_storage_type: None,
+            source_storage_id: None,
+            source_key: None,
+        };
+        let db = model_access_key_to_db(&ak);
+        assert_eq!(db.project_id, Some(99));
+    }
+
+    #[tokio::test]
+    async fn test_install_ssh_keys_become_key_no_store() {
+        let mut job = create_test_job();
+        // inventory с become_key_id но без store
+        job.inventory.become_key_id = Some(5);
+        // Без store метод должен просто залогировать и вернуть Ok
+        let result = job.install_ssh_keys().await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_install_ssh_keys_no_inventory_keys() {
+        let mut job = create_test_job();
+        // inventory без ssh_key_id и become_key_id
+        job.inventory.ssh_key_id = None;
+        job.inventory.become_key_id = None;
+        let result = job.install_ssh_keys().await;
+        assert!(result.is_ok());
+    }
 }

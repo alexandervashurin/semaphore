@@ -294,4 +294,163 @@ mod tests {
         let _ = job.checkout_repository().await;
         // Результат может быть Ok или Err в зависимости от окружения
     }
+
+    #[test]
+    fn test_update_repository_with_file_url_nonexistent_path() {
+        let logger = Arc::new(BasicLogger::new());
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let mut task = crate::models::Task::default();
+        task.id = 1;
+        task.created = Utc::now();
+        task.template_id = 1;
+        task.project_id = 1;
+
+        let mut repo = crate::models::Repository::default();
+        repo.git_url = "file:///nonexistent/path".to_string();
+
+        let mut template = crate::models::Template::default();
+        template.id = 1;
+        template.project_id = 1;
+
+        let mut job = LocalJob::new(
+            task, template,
+            crate::models::Inventory::default(),
+            repo,
+            crate::models::Environment::default(),
+            logger, key_installer,
+            PathBuf::from("/tmp/work"),
+            PathBuf::from("/tmp/tmp"),
+        );
+
+        // Должен вернуть Ok даже если путь не существует (просто лог warning)
+        let result = futures::executor::block_on(job.update_repository());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_update_repository_with_file_url_existing_path() {
+        let logger = Arc::new(BasicLogger::new());
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let mut task = crate::models::Task::default();
+        task.id = 1;
+        task.created = Utc::now();
+        task.template_id = 1;
+        task.project_id = 1;
+
+        // Создаём временную директорию с файлами
+        let temp_src = std::env::temp_dir().join("repo_file_src");
+        std::fs::create_dir_all(&temp_src).unwrap();
+        std::fs::write(temp_src.join("main.go"), "package main").unwrap();
+        std::fs::create_dir_all(temp_src.join("sub")).unwrap();
+        std::fs::write(temp_src.join("sub/util.go"), "package sub").unwrap();
+
+        let mut repo = crate::models::Repository::default();
+        repo.git_url = format!("file://{}", temp_src.display());
+
+        let mut template = crate::models::Template::default();
+        template.id = 1;
+        template.project_id = 1;
+
+        let mut job = LocalJob::new(
+            task, template,
+            crate::models::Inventory::default(),
+            repo,
+            crate::models::Environment::default(),
+            logger, key_installer,
+            PathBuf::from("/tmp/work"),
+            PathBuf::from("/tmp/tmp"),
+        );
+
+        let result = futures::executor::block_on(job.update_repository());
+        assert!(result.is_ok());
+
+        // Проверяем что файлы скопированы
+        let repo_path = job.get_repository_path();
+        assert!(repo_path.join("main.go").exists());
+        assert!(repo_path.join("sub/util.go").exists());
+
+        // Чистим
+        std::fs::remove_dir_all(&temp_src).ok();
+    }
+
+    #[test]
+    fn test_get_repository_path_uses_work_dir() {
+        let job = create_test_job();
+        let path = job.get_repository_path();
+        assert!(path.starts_with("/tmp/work"));
+        assert!(path.to_string_lossy().ends_with("repository"));
+    }
+
+    #[test]
+    fn test_update_repository_with_empty_git_url() {
+        let logger = Arc::new(BasicLogger::new());
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let mut task = crate::models::Task::default();
+        task.id = 1;
+        task.created = Utc::now();
+        task.template_id = 1;
+        task.project_id = 1;
+
+        let repo = crate::models::Repository::default();
+        // git_url по умолчанию пустой
+
+        let mut template = crate::models::Template::default();
+        template.id = 1;
+        template.project_id = 1;
+
+        let mut job = LocalJob::new(
+            task, template,
+            crate::models::Inventory::default(),
+            repo,
+            crate::models::Environment::default(),
+            logger, key_installer,
+            PathBuf::from("/tmp/work"),
+            PathBuf::from("/tmp/tmp"),
+        );
+
+        let result = futures::executor::block_on(job.update_repository());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_copy_dir_recursive_preserves_file_content() {
+        let src = std::env::temp_dir().join("test_copy_content_src");
+        let dst = std::env::temp_dir().join("test_copy_content_dst");
+
+        std::fs::create_dir_all(&src).unwrap();
+        let content = "Hello, World! Test content with special chars: $HOME & <tag>";
+        std::fs::write(src.join("data.txt"), content).unwrap();
+
+        let result = copy_dir_recursive(&src, &dst);
+        assert!(result.is_ok());
+
+        let dst_content = std::fs::read_to_string(dst.join("data.txt")).unwrap();
+        assert_eq!(dst_content, content);
+
+        std::fs::remove_dir_all(&src).ok();
+        std::fs::remove_dir_all(&dst).ok();
+    }
+
+    #[test]
+    fn test_copy_dir_recursive_multiple_files() {
+        let src = std::env::temp_dir().join("test_copy_multi_src");
+        let dst = std::env::temp_dir().join("test_copy_multi_dst");
+
+        std::fs::create_dir_all(&src).unwrap();
+        std::fs::write(src.join("a.txt"), "a").unwrap();
+        std::fs::write(src.join("b.txt"), "b").unwrap();
+        std::fs::write(src.join("c.txt"), "c").unwrap();
+
+        let result = copy_dir_recursive(&src, &dst);
+        assert!(result.is_ok());
+        assert!(dst.join("a.txt").exists());
+        assert!(dst.join("b.txt").exists());
+        assert!(dst.join("c.txt").exists());
+
+        std::fs::remove_dir_all(&src).ok();
+        std::fs::remove_dir_all(&dst).ok();
+    }
 }

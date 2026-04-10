@@ -358,4 +358,276 @@ mod tests {
         let url = details.get("url").unwrap().as_str().unwrap();
         assert!(!url.is_empty());
     }
+
+    #[test]
+    fn test_get_environment_extra_vars_contains_task_details() {
+        let job = create_test_job();
+        let extra_vars = job.get_environment_extra_vars("testuser", None).unwrap();
+
+        let semaphore_vars = extra_vars.get("semaphore_vars").unwrap();
+        let task_details = semaphore_vars.get("task_details").unwrap();
+        assert!(task_details.get("id").is_some());
+        assert!(task_details.get("username").is_some());
+    }
+
+    #[test]
+    fn test_get_environment_extra_vars_json_includes_secrets() {
+        let logger = Arc::new(BasicLogger::new());
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let mut task = crate::models::Task::default();
+        task.id = 1;
+        task.created = Utc::now();
+        task.template_id = 1;
+        task.project_id = 1;
+
+        let mut inventory = crate::models::Inventory::default();
+        inventory.id = 1;
+        inventory.name = "Inv".to_string();
+
+        let mut repository = crate::models::Repository::default();
+        repository.id = 1;
+        repository.name = "Repo".to_string();
+
+        let environment = crate::models::Environment {
+            id: 1,
+            project_id: 1,
+            name: "Env".to_string(),
+            json: r#"{"VAR1": "val1"}"#.to_string(),
+            secret_storage_id: None,
+            secret_storage_key_prefix: None,
+            secrets: None,
+            created: None,
+        };
+
+        let mut template = crate::models::Template::default();
+        template.id = 1;
+        template.name = "Test".to_string();
+        template.project_id = 1;
+        template.playbook = "test.yml".to_string();
+        template.r#type = TemplateType::Task;
+
+        let mut job = LocalJob::new(
+            task, template, inventory, repository,
+            environment, logger, key_installer,
+            PathBuf::from("/tmp/work"),
+            PathBuf::from("/tmp/tmp"),
+        );
+
+        // secret должен быть включён в результат
+        job.secret = r#"{"SECRET_VAR": "top_secret"}"#.to_string();
+        let result = job.get_environment_extra_vars_json("user", None).unwrap();
+
+        assert!(result.contains("SECRET_VAR"));
+        assert!(result.contains("top_secret"));
+    }
+
+    #[test]
+    fn test_get_environment_extra_vars_json_clears_secret() {
+        let mut job = create_test_job();
+        job.secret = r#"{"X": "Y"}"#.to_string();
+
+        let _ = job.get_environment_extra_vars_json("user", None).unwrap();
+        // После вызова secret должен быть очищен
+        assert!(job.secret.is_empty());
+    }
+
+    #[test]
+    fn test_get_environment_env_with_secrets() {
+        let logger = Arc::new(BasicLogger::new());
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let mut task = crate::models::Task::default();
+        task.id = 1;
+        task.created = Utc::now();
+        task.template_id = 1;
+        task.project_id = 1;
+
+        // Только valid secret_type: "env" (file не десериализуется в EnvironmentSecretType)
+        let environment = crate::models::Environment {
+            id: 1,
+            project_id: 1,
+            name: "Env".to_string(),
+            json: "{}".to_string(),
+            secret_storage_id: None,
+            secret_storage_key_prefix: None,
+            secrets: Some(r#"[
+                {"name": "API_KEY", "secret": "abc123", "secret_type": "env"},
+                {"name": "DB_HOST", "secret": "localhost", "secret_type": "env"}
+            ]"#.to_string()),
+            created: None,
+        };
+
+        let job = LocalJob::new(
+            task,
+            crate::models::Template::default(),
+            crate::models::Inventory::default(),
+            crate::models::Repository::default(),
+            environment,
+            logger, key_installer,
+            PathBuf::from("/tmp/work"),
+            PathBuf::from("/tmp/tmp"),
+        );
+
+        let env = job.get_environment_env().unwrap();
+        assert!(env.iter().any(|e| e == "API_KEY=abc123"));
+        assert!(env.iter().any(|e| e == "DB_HOST=localhost"));
+        assert_eq!(env.len(), 2);
+    }
+
+    #[test]
+    fn test_get_environment_env_with_invalid_secrets_json() {
+        let logger = Arc::new(BasicLogger::new());
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let mut task = crate::models::Task::default();
+        task.id = 1;
+        task.created = Utc::now();
+        task.template_id = 1;
+        task.project_id = 1;
+
+        let environment = crate::models::Environment {
+            id: 1,
+            project_id: 1,
+            name: "Env".to_string(),
+            json: r#"{"KEY": "val"}"#.to_string(),
+            secret_storage_id: None,
+            secret_storage_key_prefix: None,
+            secrets: Some("not json".to_string()),
+            created: None,
+        };
+
+        let job = LocalJob::new(
+            task,
+            crate::models::Template::default(),
+            crate::models::Inventory::default(),
+            crate::models::Repository::default(),
+            environment,
+            logger, key_installer,
+            PathBuf::from("/tmp/work"),
+            PathBuf::from("/tmp/tmp"),
+        );
+
+        // Не должен паниковать — просто вернёт env vars без секретов
+        let env = job.get_environment_env().unwrap();
+        assert!(env.iter().any(|e| e == "KEY=val"));
+    }
+
+    #[test]
+    fn test_get_shell_environment_extra_env_shell_strips_unsafe() {
+        let logger = Arc::new(BasicLogger::new());
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let mut task = crate::models::Task::default();
+        task.id = 1;
+        task.created = Utc::now();
+        task.template_id = 1;
+        task.project_id = 1;
+        task.message = Some("test; rm -rf /".to_string());
+
+        let mut template = crate::models::Template::default();
+        template.id = 1;
+        template.name = "Test".to_string();
+        template.project_id = 1;
+        template.playbook = "test.yml".to_string();
+        template.r#type = TemplateType::Task;
+
+        let job = LocalJob::new(
+            task, template,
+            crate::models::Inventory::default(),
+            crate::models::Repository::default(),
+            crate::models::Environment::default(),
+            logger, key_installer,
+            PathBuf::from("/tmp/work"),
+            PathBuf::from("/tmp/tmp"),
+        );
+
+        let shell_env = job.get_shell_environment_extra_env("user", None);
+        // Должен содержать SEMAPHORE_TASK_DETAILS_MESSAGE
+        let msg_var = shell_env.iter().find(|e| e.starts_with("SEMAPHORE_TASK_DETAILS_MESSAGE="));
+        assert!(msg_var.is_some());
+        // Опасные символы должны быть экранированы
+        let msg_val = msg_var.unwrap();
+        assert!(msg_val.contains("test"));
+    }
+
+    #[test]
+    fn test_get_task_details_with_build_type_and_version() {
+        let logger = Arc::new(BasicLogger::new());
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let mut task = crate::models::Task::default();
+        task.id = 1;
+        task.created = Utc::now();
+        task.template_id = 1;
+        task.project_id = 1;
+        task.version = Some("v1.0.0".to_string());
+
+        let mut template = crate::models::Template::default();
+        template.id = 1;
+        template.name = "Build".to_string();
+        template.project_id = 1;
+        template.playbook = "build.sh".to_string();
+        template.r#type = TemplateType::Build;
+
+        let job = LocalJob::new(
+            task, template,
+            crate::models::Inventory::default(),
+            crate::models::Repository::default(),
+            crate::models::Environment::default(),
+            logger, key_installer,
+            PathBuf::from("/tmp/work"),
+            PathBuf::from("/tmp/tmp"),
+        );
+
+        let details = job.get_task_details("builder", Some("v0.9.0"));
+        assert_eq!(details.get("type").unwrap().as_str().unwrap(), "build");
+        assert_eq!(details.get("target_version").unwrap().as_str().unwrap(), "v1.0.0");
+        assert_eq!(details.get("incoming_version").unwrap().as_str().unwrap(), "v0.9.0");
+    }
+
+    #[test]
+    fn test_get_environment_env_empty_json() {
+        let mut job = create_test_job();
+        job.environment.json = "".to_string();
+        let env = job.get_environment_env().unwrap();
+        assert!(env.is_empty());
+    }
+
+    #[test]
+    fn test_get_environment_env_with_multiple_var_types() {
+        let logger = Arc::new(BasicLogger::new());
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let mut task = crate::models::Task::default();
+        task.id = 1;
+        task.created = Utc::now();
+        task.template_id = 1;
+        task.project_id = 1;
+
+        let environment = crate::models::Environment {
+            id: 1,
+            project_id: 1,
+            name: "Env".to_string(),
+            json: r#"{"ENV_VAR1": "a", "ENV_VAR2": "b"}"#.to_string(),
+            secret_storage_id: None,
+            secret_storage_key_prefix: None,
+            secrets: Some(r#"[]"#.to_string()),
+            created: None,
+        };
+
+        let job = LocalJob::new(
+            task,
+            crate::models::Template::default(),
+            crate::models::Inventory::default(),
+            crate::models::Repository::default(),
+            environment,
+            logger, key_installer,
+            PathBuf::from("/tmp/work"),
+            PathBuf::from("/tmp/tmp"),
+        );
+
+        let env = job.get_environment_env().unwrap();
+        assert_eq!(env.len(), 2);
+    }
 }

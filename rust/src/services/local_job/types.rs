@@ -310,4 +310,28 @@ mod tests {
         assert_eq!(job.incoming_version, Some("v1.2.3".to_string()));
         assert_eq!(job.alias, "deploy");
     }
+
+    #[test]
+    fn test_local_job_secret_initially_empty() {
+        let job = create_test_local_job();
+        assert!(job.secret.is_empty());
+    }
+
+    #[test]
+    fn test_local_job_vault_installations_initially_empty() {
+        let job = create_test_local_job();
+        assert!(job.vault_file_installations.is_empty());
+    }
+
+    #[test]
+    fn test_local_job_process_initially_none() {
+        let job = create_test_local_job();
+        assert!(job.process.is_none());
+    }
+
+    #[test]
+    fn test_local_job_store_initially_none() {
+        let job = create_test_local_job();
+        assert!(job.store.is_none());
+    }
 }

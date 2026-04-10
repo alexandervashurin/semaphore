@@ -765,41 +765,575 @@ mod tests {
     }
 
     #[test]
-    fn test_backup_schedule_has_template() {
+    fn test_backup_access_key_get_name() {
+        let key = BackupAccessKey {
+            name: "MyKey".to_string(),
+            key_type: "none".to_string(),
+            owner: "shared".to_string(),
+            ssh_key: None,
+            login_password: None,
+        };
+        assert_eq!(key.get_name(), "MyKey");
+    }
+
+    #[test]
+    fn test_backup_access_key_verify_no_duplicates() {
+        let backup = BackupFormat {
+            version: "1.0".to_string(),
+            project: BackupProject {
+                name: "Test".to_string(),
+                alert: None,
+                alert_chat: None,
+                max_parallel_tasks: None,
+            },
+            templates: vec![],
+            repositories: vec![],
+            inventories: vec![],
+            environments: vec![],
+            access_keys: vec![BackupAccessKey {
+                name: "Key1".to_string(),
+                key_type: "none".to_string(),
+                owner: "shared".to_string(),
+                ssh_key: None,
+                login_password: None,
+            }],
+            schedules: vec![],
+            integrations: vec![],
+            views: vec![],
+        };
+        let key = BackupAccessKey {
+            name: "Key1".to_string(),
+            key_type: "none".to_string(),
+            owner: "shared".to_string(),
+            ssh_key: None,
+            login_password: None,
+        };
+        assert!(key.verify(&backup).is_ok());
+    }
+
+    #[test]
+    fn test_backup_access_key_verify_duplicate() {
+        let backup = BackupFormat {
+            version: "1.0".to_string(),
+            project: BackupProject {
+                name: "Test".to_string(),
+                alert: None,
+                alert_chat: None,
+                max_parallel_tasks: None,
+            },
+            templates: vec![],
+            repositories: vec![],
+            inventories: vec![],
+            environments: vec![],
+            access_keys: vec![
+                BackupAccessKey {
+                    name: "DupKey".to_string(),
+                    key_type: "none".to_string(),
+                    owner: "shared".to_string(),
+                    ssh_key: None,
+                    login_password: None,
+                },
+                BackupAccessKey {
+                    name: "DupKey".to_string(),
+                    key_type: "ssh".to_string(),
+                    owner: "shared".to_string(),
+                    ssh_key: None,
+                    login_password: None,
+                },
+            ],
+            schedules: vec![],
+            integrations: vec![],
+            views: vec![],
+        };
+        let key = BackupAccessKey {
+            name: "DupKey".to_string(),
+            key_type: "none".to_string(),
+            owner: "shared".to_string(),
+            ssh_key: None,
+            login_password: None,
+        };
+        assert!(key.verify(&backup).is_err());
+    }
+
+    #[test]
+    fn test_backup_inventory_get_name() {
+        let inv = BackupInventory {
+            name: "MyInventory".to_string(),
+            inventory_type: "static".to_string(),
+            inventory: "localhost".to_string(),
+            ssh_key: None,
+            become_key: None,
+        };
+        assert_eq!(inv.get_name(), "MyInventory");
+    }
+
+    #[test]
+    fn test_backup_inventory_verify_unique() {
+        let backup = BackupFormat {
+            version: "1.0".to_string(),
+            project: BackupProject {
+                name: "Test".to_string(),
+                alert: None,
+                alert_chat: None,
+                max_parallel_tasks: None,
+            },
+            templates: vec![],
+            repositories: vec![],
+            inventories: vec![BackupInventory {
+                name: "Inv1".to_string(),
+                inventory_type: "static".to_string(),
+                inventory: "localhost".to_string(),
+                ssh_key: None,
+                become_key: None,
+            }],
+            environments: vec![],
+            access_keys: vec![],
+            schedules: vec![],
+            integrations: vec![],
+            views: vec![],
+        };
+        let inv = BackupInventory {
+            name: "Inv1".to_string(),
+            inventory_type: "static".to_string(),
+            inventory: "localhost".to_string(),
+            ssh_key: None,
+            become_key: None,
+        };
+        assert!(inv.verify(&backup).is_ok());
+    }
+
+    #[test]
+    fn test_backup_inventory_verify_duplicate() {
+        let backup = BackupFormat {
+            version: "1.0".to_string(),
+            project: BackupProject {
+                name: "Test".to_string(),
+                alert: None,
+                alert_chat: None,
+                max_parallel_tasks: None,
+            },
+            templates: vec![],
+            repositories: vec![],
+            inventories: vec![
+                BackupInventory {
+                    name: "DupInv".to_string(),
+                    inventory_type: "static".to_string(),
+                    inventory: "localhost".to_string(),
+                    ssh_key: None,
+                    become_key: None,
+                },
+                BackupInventory {
+                    name: "DupInv".to_string(),
+                    inventory_type: "file".to_string(),
+                    inventory: "/etc/hosts".to_string(),
+                    ssh_key: None,
+                    become_key: None,
+                },
+            ],
+            environments: vec![],
+            access_keys: vec![],
+            schedules: vec![],
+            integrations: vec![],
+            views: vec![],
+        };
+        let inv = BackupInventory {
+            name: "DupInv".to_string(),
+            inventory_type: "static".to_string(),
+            inventory: "localhost".to_string(),
+            ssh_key: None,
+            become_key: None,
+        };
+        assert!(inv.verify(&backup).is_err());
+    }
+
+    #[test]
+    fn test_backup_repository_get_name() {
+        let repo = BackupRepository {
+            name: "MyRepo".to_string(),
+            git_url: "https://github.com/test/repo.git".to_string(),
+            git_branch: "main".to_string(),
+            ssh_key: None,
+        };
+        assert_eq!(repo.get_name(), "MyRepo");
+    }
+
+    #[test]
+    fn test_backup_repository_verify_unique() {
+        let backup = BackupFormat {
+            version: "1.0".to_string(),
+            project: BackupProject {
+                name: "Test".to_string(),
+                alert: None,
+                alert_chat: None,
+                max_parallel_tasks: None,
+            },
+            templates: vec![],
+            repositories: vec![BackupRepository {
+                name: "Repo1".to_string(),
+                git_url: "https://github.com/test/repo.git".to_string(),
+                git_branch: "main".to_string(),
+                ssh_key: None,
+            }],
+            inventories: vec![],
+            environments: vec![],
+            access_keys: vec![],
+            schedules: vec![],
+            integrations: vec![],
+            views: vec![],
+        };
+        let repo = BackupRepository {
+            name: "Repo1".to_string(),
+            git_url: "https://github.com/test/repo.git".to_string(),
+            git_branch: "main".to_string(),
+            ssh_key: None,
+        };
+        assert!(repo.verify(&backup).is_ok());
+    }
+
+    #[test]
+    fn test_backup_repository_verify_duplicate() {
+        let backup = BackupFormat {
+            version: "1.0".to_string(),
+            project: BackupProject {
+                name: "Test".to_string(),
+                alert: None,
+                alert_chat: None,
+                max_parallel_tasks: None,
+            },
+            templates: vec![],
+            repositories: vec![
+                BackupRepository {
+                    name: "MyRepo".to_string(),
+                    git_url: "https://github.com/a/b.git".to_string(),
+                    git_branch: "main".to_string(),
+                    ssh_key: None,
+                },
+                BackupRepository {
+                    name: "MyRepo".to_string(),
+                    git_url: "https://github.com/c/d.git".to_string(),
+                    git_branch: "develop".to_string(),
+                    ssh_key: None,
+                },
+            ],
+            inventories: vec![],
+            environments: vec![],
+            access_keys: vec![],
+            schedules: vec![],
+            integrations: vec![],
+            views: vec![],
+        };
+        let repo = BackupRepository {
+            name: "MyRepo".to_string(),
+            git_url: "https://github.com/a/b.git".to_string(),
+            git_branch: "main".to_string(),
+            ssh_key: None,
+        };
+        assert!(repo.verify(&backup).is_err());
+    }
+
+    #[test]
+    fn test_backup_template_get_name() {
+        let tpl = BackupTemplate {
+            name: "DeployTemplate".to_string(),
+            playbook: "deploy.yml".to_string(),
+            arguments: None,
+            template_type: "ansible".to_string(),
+            inventory: None,
+            repository: None,
+            environment: None,
+            cron: None,
+        };
+        assert_eq!(tpl.get_name(), "DeployTemplate");
+    }
+
+    #[test]
+    fn test_backup_template_verify_unique() {
+        let backup = BackupFormat {
+            version: "1.0".to_string(),
+            project: BackupProject {
+                name: "Test".to_string(),
+                alert: None,
+                alert_chat: None,
+                max_parallel_tasks: None,
+            },
+            templates: vec![BackupTemplate {
+                name: "Tpl1".to_string(),
+                playbook: "playbook.yml".to_string(),
+                arguments: None,
+                template_type: "ansible".to_string(),
+                inventory: None,
+                repository: None,
+                environment: None,
+                cron: None,
+            }],
+            repositories: vec![],
+            inventories: vec![],
+            environments: vec![],
+            access_keys: vec![],
+            schedules: vec![],
+            integrations: vec![],
+            views: vec![],
+        };
+        let tpl = BackupTemplate {
+            name: "Tpl1".to_string(),
+            playbook: "playbook.yml".to_string(),
+            arguments: None,
+            template_type: "ansible".to_string(),
+            inventory: None,
+            repository: None,
+            environment: None,
+            cron: None,
+        };
+        assert!(tpl.verify(&backup).is_ok());
+    }
+
+    #[test]
+    fn test_backup_template_verify_duplicate() {
+        let backup = BackupFormat {
+            version: "1.0".to_string(),
+            project: BackupProject {
+                name: "Test".to_string(),
+                alert: None,
+                alert_chat: None,
+                max_parallel_tasks: None,
+            },
+            templates: vec![
+                BackupTemplate {
+                    name: "Deploy".to_string(),
+                    playbook: "deploy.yml".to_string(),
+                    arguments: None,
+                    template_type: "ansible".to_string(),
+                    inventory: None,
+                    repository: None,
+                    environment: None,
+                    cron: None,
+                },
+                BackupTemplate {
+                    name: "Deploy".to_string(),
+                    playbook: "deploy2.yml".to_string(),
+                    arguments: None,
+                    template_type: "ansible".to_string(),
+                    inventory: None,
+                    repository: None,
+                    environment: None,
+                    cron: None,
+                },
+            ],
+            repositories: vec![],
+            inventories: vec![],
+            environments: vec![],
+            access_keys: vec![],
+            schedules: vec![],
+            integrations: vec![],
+            views: vec![],
+        };
+        let tpl = BackupTemplate {
+            name: "Deploy".to_string(),
+            playbook: "deploy.yml".to_string(),
+            arguments: None,
+            template_type: "ansible".to_string(),
+            inventory: None,
+            repository: None,
+            environment: None,
+            cron: None,
+        };
+        assert!(tpl.verify(&backup).is_err());
+    }
+
+    #[test]
+    fn test_backup_schedule_get_name() {
         let sched = BackupSchedule {
-            template: "Deploy".to_string(),
-            cron_format: "".to_string(),
+            template: "MyTemplate".to_string(),
+            cron_format: "0 0 * * *".to_string(),
             active: true,
         };
-        assert_eq!(sched.template, "Deploy");
-        assert!(sched.active);
+        assert_eq!(sched.get_name(), "MyTemplate");
     }
 
     #[test]
-    fn test_backup_integration_structure() {
-        let integ = BackupIntegration {
-            name: "GitHub".to_string(),
-            template_id: Some(1),
+    fn test_backup_schedule_verify_duplicate() {
+        let backup = BackupFormat {
+            version: "1.0".to_string(),
+            project: BackupProject {
+                name: "Test".to_string(),
+                alert: None,
+                alert_chat: None,
+                max_parallel_tasks: None,
+            },
+            templates: vec![],
+            repositories: vec![],
+            inventories: vec![],
+            environments: vec![],
+            access_keys: vec![],
+            schedules: vec![
+                BackupSchedule {
+                    template: "Deploy".to_string(),
+                    cron_format: "0 0 * * *".to_string(),
+                    active: true,
+                },
+                BackupSchedule {
+                    template: "Deploy".to_string(),
+                    cron_format: "0 12 * * *".to_string(),
+                    active: false,
+                },
+            ],
+            integrations: vec![],
+            views: vec![],
         };
-        assert_eq!(integ.name, "GitHub");
-        assert_eq!(integ.template_id, Some(1));
+        let sched = BackupSchedule {
+            template: "Deploy".to_string(),
+            cron_format: "0 0 * * *".to_string(),
+            active: true,
+        };
+        assert!(sched.verify(&backup).is_err());
     }
 
     #[test]
-    fn test_restore_db_can_add_multiple_entries() {
-        let project = Project::default();
-        let mut db = RestoreDB::new(project);
+    fn test_backup_view_get_name() {
+        let view = BackupView {
+            name: "Dashboard".to_string(),
+            position: 1,
+        };
+        assert_eq!(view.get_name(), "Dashboard");
+    }
 
-        for i in 0..5 {
-            db.environments.push(Environment {
-                id: i,
-                name: format!("Env {}", i),
-                ..Default::default()
-            });
+    #[test]
+    fn test_backup_view_verify_duplicate() {
+        let backup = BackupFormat {
+            version: "1.0".to_string(),
+            project: BackupProject {
+                name: "Test".to_string(),
+                alert: None,
+                alert_chat: None,
+                max_parallel_tasks: None,
+            },
+            templates: vec![],
+            repositories: vec![],
+            inventories: vec![],
+            environments: vec![],
+            access_keys: vec![],
+            schedules: vec![],
+            integrations: vec![],
+            views: vec![
+                BackupView {
+                    name: "MainView".to_string(),
+                    position: 0,
+                },
+                BackupView {
+                    name: "MainView".to_string(),
+                    position: 1,
+                },
+            ],
+        };
+        let view = BackupView {
+            name: "MainView".to_string(),
+            position: 0,
+        };
+        assert!(view.verify(&backup).is_err());
+    }
+
+    #[test]
+    fn test_backup_environment_verify_duplicate() {
+        let backup = BackupFormat {
+            version: "1.0".to_string(),
+            project: BackupProject {
+                name: "Test".to_string(),
+                alert: None,
+                alert_chat: None,
+                max_parallel_tasks: None,
+            },
+            templates: vec![],
+            repositories: vec![],
+            inventories: vec![],
+            environments: vec![
+                BackupEnvironment {
+                    name: "Prod".to_string(),
+                    json: "{}".to_string(),
+                },
+                BackupEnvironment {
+                    name: "Prod".to_string(),
+                    json: "{\"key\":\"val\"}".to_string(),
+                },
+            ],
+            access_keys: vec![],
+            schedules: vec![],
+            integrations: vec![],
+            views: vec![],
+        };
+        let env = BackupEnvironment {
+            name: "Prod".to_string(),
+            json: "{}".to_string(),
+        };
+        assert!(env.verify(&backup).is_err());
+    }
+
+    #[test]
+    fn test_verify_backup_format_with_all_empty() {
+        let backup = BackupFormat {
+            version: "1.0".to_string(),
+            project: BackupProject {
+                name: "Empty".to_string(),
+                alert: None,
+                alert_chat: None,
+                max_parallel_tasks: None,
+            },
+            templates: vec![],
+            repositories: vec![],
+            inventories: vec![],
+            environments: vec![],
+            access_keys: vec![],
+            schedules: vec![],
+            integrations: vec![],
+            views: vec![],
+        };
+        assert!(backup.verify().is_ok());
+    }
+
+    #[test]
+    fn test_generate_random_slug_is_hex() {
+        let slug = generate_random_slug();
+        for c in slug.chars() {
+            assert!(c.is_ascii_hexdigit(), "Symbol '{}' is not hex", c);
         }
+    }
 
-        assert_eq!(db.environments.len(), 5);
-        assert_eq!(db.environments[0].name, "Env 0");
-        assert_eq!(db.environments[4].name, "Env 4");
+    #[test]
+    fn test_verify_duplicate_single_item() {
+        let items = vec![BackupEnvironment {
+            name: "Single".to_string(),
+            json: String::new(),
+        }];
+        assert!(verify_duplicate("Single", &items).is_ok());
+    }
+
+    #[test]
+    fn test_verify_duplicate_empty_list() {
+        let items: Vec<BackupEnvironment> = vec![];
+        assert!(verify_duplicate("Any", &items).is_ok());
+    }
+
+    #[test]
+    fn test_restore_db_meta_reference() {
+        let project = Project {
+            id: 42,
+            name: "MetaProject".to_string(),
+            created: chrono::Utc::now(),
+            alert: false,
+            alert_chat: None,
+            max_parallel_tasks: 0,
+            r#type: "default".to_string(),
+            default_secret_storage_id: None,
+        };
+        let db = RestoreDB::new(project);
+        assert_eq!(db.meta.id, 42);
+        assert_eq!(db.meta.name, "MetaProject");
+    }
+
+    #[test]
+    fn test_restore_db_meta_default_project() {
+        let project = Project::default();
+        let db = RestoreDB::new(project.clone());
+        assert_eq!(db.meta.name, project.name);
+        assert_eq!(db.meta.id, project.id);
     }
 }

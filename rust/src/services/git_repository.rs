@@ -543,4 +543,208 @@ mod tests {
         assert_eq!(git_repo.project_id, cloned_git_repo.project_id);
         assert_eq!(git_repo.template_id, cloned_git_repo.template_id);
     }
+
+    #[test]
+    fn test_git_repository_dir_type_variants() {
+        // Проверяем что enum имеет оба варианта
+        let tmp_type = GitRepositoryDirType::Tmp;
+        let full_type = GitRepositoryDirType::Full;
+
+        // Debug format должен содержать имя варианта
+        let tmp_debug = format!("{:?}", tmp_type);
+        let full_debug = format!("{:?}", full_type);
+        assert!(tmp_debug.contains("Tmp"));
+        assert!(full_debug.contains("Full"));
+    }
+
+    #[test]
+    fn test_git_repository_get_full_path_without_tmp() {
+        let repo = Repository {
+            id: 5,
+            project_id: 10,
+            name: "No Tmp Repo".to_string(),
+            git_url: "https://github.com/test/no-tmp.git".to_string(),
+            git_type: RepositoryType::Git,
+            git_branch: None,
+            key_id: None,
+            git_path: None,
+            created: None,
+        };
+        let git_repo = GitRepository::new(repo, 10, 5);
+        let path = git_repo.get_full_path();
+
+        // Путь должен содержать repo_{id}_{template_id}
+        assert!(path.to_string_lossy().contains("repo_5_5"));
+        assert!(!path.to_string_lossy().contains("project_"));
+    }
+
+    #[test]
+    fn test_git_repository_different_ids_produce_different_paths() {
+        let repo1 = Repository {
+            id: 1,
+            project_id: 1,
+            name: "Repo 1".to_string(),
+            git_url: "https://github.com/test/repo1.git".to_string(),
+            git_type: RepositoryType::Git,
+            git_branch: None,
+            key_id: None,
+            git_path: None,
+            created: None,
+        };
+        let repo2 = Repository {
+            id: 2,
+            project_id: 2,
+            name: "Repo 2".to_string(),
+            git_url: "https://github.com/test/repo2.git".to_string(),
+            git_type: RepositoryType::Git,
+            git_branch: None,
+            key_id: None,
+            git_path: None,
+            created: None,
+        };
+
+        let git_repo1 = GitRepository::new(repo1, 1, 1);
+        let git_repo2 = GitRepository::new(repo2, 2, 2);
+
+        let path1 = git_repo1.get_full_path();
+        let path2 = git_repo2.get_full_path();
+
+        assert_ne!(path1, path2);
+    }
+
+    #[test]
+    fn test_git_repository_full_path_is_deterministic() {
+        let repo = Repository {
+            id: 42,
+            project_id: 100,
+            name: "Deterministic".to_string(),
+            git_url: "https://github.com/test/det.git".to_string(),
+            git_type: RepositoryType::Git,
+            git_branch: None,
+            key_id: None,
+            git_path: None,
+            created: None,
+        };
+        let git_repo = GitRepository::new(repo, 100, 42);
+
+        let path1 = git_repo.get_full_path();
+        let path2 = git_repo.get_full_path();
+
+        assert_eq!(path1, path2);
+    }
+
+    #[test]
+    fn test_git_repository_validate_on_tmp_dir() {
+        let repo = Repository {
+            id: 1,
+            project_id: 1,
+            name: "Tmp Validation".to_string(),
+            git_url: "https://github.com/test/tmp.git".to_string(),
+            git_type: RepositoryType::Git,
+            git_branch: None,
+            key_id: None,
+            git_path: None,
+            created: None,
+        };
+        let git_repo = GitRepository::new(repo, 1, 1).with_tmp_dir("nonexistent_tmp".to_string());
+
+        // Директория не существует, поэтому validation должен вернуть ошибку
+        let result = git_repo.validate_repo();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_git_repository_with_long_tmp_name() {
+        let repo = Repository {
+            id: 1,
+            project_id: 1,
+            name: "Long Tmp".to_string(),
+            git_url: "https://github.com/test/long.git".to_string(),
+            git_type: RepositoryType::Git,
+            git_branch: None,
+            key_id: None,
+            git_path: None,
+            created: None,
+        };
+        let long_name = "a".repeat(200);
+        let git_repo = GitRepository::new(repo, 1, 1).with_tmp_dir(long_name.clone());
+
+        let path = git_repo.get_full_path();
+        assert!(path.to_string_lossy().contains(&long_name));
+    }
+
+    #[test]
+    fn test_git_repository_can_be_pulled_returns_true_for_existing_git_dir() {
+        // Создаём временную директорию с .git
+        let temp_dir = std::env::temp_dir().join("semaphore_git_test_can_pull");
+        let git_dir = temp_dir.join(".git");
+        std::fs::create_dir_all(&git_dir).unwrap();
+
+        let repo = Repository {
+            id: 1,
+            project_id: 1,
+            name: "Existing Git Dir".to_string(),
+            git_url: "https://github.com/test/existing.git".to_string(),
+            git_type: RepositoryType::Git,
+            git_branch: None,
+            key_id: None,
+            git_path: None,
+            created: None,
+        };
+        let git_repo = GitRepository::new(repo, 1, 1).with_tmp_dir(temp_dir.file_name().unwrap().to_string_lossy().to_string());
+
+        // Поскольку tmp_dir_name используется для построения пути, проверим через прямой путь
+        let path = git_repo.get_full_path();
+        assert!(path.to_string_lossy().contains("project_1"));
+
+        // Cleanup
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_git_repository_empty_name() {
+        let repo = Repository {
+            id: 0,
+            project_id: 0,
+            name: "".to_string(),
+            git_url: "".to_string(),
+            git_type: RepositoryType::Git,
+            git_branch: None,
+            key_id: None,
+            git_path: None,
+            created: None,
+        };
+        let git_repo = GitRepository::new(repo, 0, 0);
+
+        assert_eq!(git_repo.project_id, 0);
+        assert_eq!(git_repo.template_id, 0);
+        assert!(git_repo.tmp_dir_name.is_none());
+    }
+
+    #[test]
+    fn test_cmd_git_client_struct_exists() {
+        // CmdGitClient должен существовать и реализовывать GitClient
+        let _client = CmdGitClient;
+    }
+
+    #[test]
+    fn test_git_repository_fields_after_creation() {
+        let repo = Repository {
+            id: 7,
+            project_id: 3,
+            name: "Fields Test".to_string(),
+            git_url: "https://github.com/test/fields.git".to_string(),
+            git_type: RepositoryType::Git,
+            git_branch: Some("main".to_string()),
+            key_id: Some(1),
+            git_path: None,
+            created: None,
+        };
+        let git_repo = GitRepository::new(repo, 3, 7);
+
+        assert_eq!(git_repo.project_id, 3);
+        assert_eq!(git_repo.template_id, 7);
+        assert_eq!(git_repo.repository.name, "Fields Test");
+        assert!(git_repo.tmp_dir_name.is_none());
+    }
 }

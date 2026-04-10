@@ -523,4 +523,220 @@ mod tests {
         assert_eq!(config.max_backups, 7);
         assert!(config.compress);
     }
+
+    #[test]
+    fn test_auto_backup_config_clone_debug() {
+        let config = AutoBackupConfig {
+            enabled: true,
+            interval_hours: 48,
+            backup_path: "/opt/backups".to_string(),
+            max_backups: 30,
+            compress: false,
+        };
+        let cloned = config.clone();
+        assert_eq!(cloned.enabled, true);
+        assert_eq!(cloned.interval_hours, 48);
+        assert_eq!(cloned.backup_path, "/opt/backups");
+        assert_eq!(cloned.max_backups, 30);
+        assert!(!cloned.compress);
+    }
+
+    #[test]
+    fn test_backup_stats_debug_trait() {
+        let stats = BackupStats {
+            total_backups: 50,
+            successful_backups: 48,
+            failed_backups: 2,
+            last_backup_time: Some(Utc::now()),
+            last_backup_size_bytes: 2048,
+            next_backup_time: Some(Utc::now() + chrono::Duration::hours(12)),
+        };
+        let debug_str = format!("{:?}", stats);
+        assert!(debug_str.contains("BackupStats"));
+        assert!(debug_str.contains("total_backups"));
+    }
+
+    #[test]
+    fn test_backup_stats_default_all_fields() {
+        let stats = BackupStats::default();
+        assert_eq!(stats.total_backups, 0);
+        assert_eq!(stats.successful_backups, 0);
+        assert_eq!(stats.failed_backups, 0);
+        assert!(stats.last_backup_time.is_none());
+        assert_eq!(stats.last_backup_size_bytes, 0);
+        assert!(stats.next_backup_time.is_none());
+    }
+
+    #[test]
+    fn test_backup_stats_next_backup_time_calculation() {
+        let now = Utc::now();
+        let interval = 6u64;
+        let expected_next = now + chrono::Duration::hours(interval as i64);
+        let diff = expected_next.signed_duration_since(now);
+        assert_eq!(diff.num_hours(), interval as i64);
+    }
+
+    #[test]
+    fn test_backup_stats_update_counters() {
+        let mut stats = BackupStats::default();
+        stats.total_backups += 1;
+        stats.successful_backups += 1;
+        stats.last_backup_time = Some(Utc::now());
+        stats.last_backup_size_bytes = 4096;
+
+        assert_eq!(stats.total_backups, 1);
+        assert_eq!(stats.successful_backups, 1);
+        assert_eq!(stats.failed_backups, 0);
+        assert!(stats.last_backup_time.is_some());
+    }
+
+    #[test]
+    fn test_backup_stats_failed_counter() {
+        let mut stats = BackupStats::default();
+        stats.total_backups += 1;
+        stats.failed_backups += 1;
+
+        assert_eq!(stats.total_backups, 1);
+        assert_eq!(stats.failed_backups, 1);
+        assert_eq!(stats.successful_backups, 0);
+    }
+
+    #[test]
+    fn test_auto_backup_config_all_values_varied() {
+        let configs: Vec<AutoBackupConfig> = vec![
+            AutoBackupConfig { enabled: true, interval_hours: 1, ..AutoBackupConfig::default() },
+            AutoBackupConfig { enabled: false, interval_hours: 168, ..AutoBackupConfig::default() },
+            AutoBackupConfig { compress: false, ..AutoBackupConfig::default() },
+            AutoBackupConfig { max_backups: 100, ..AutoBackupConfig::default() },
+        ];
+        assert_eq!(configs[0].interval_hours, 1);
+        assert_eq!(configs[1].interval_hours, 168);
+        assert!(!configs[2].compress);
+        assert_eq!(configs[3].max_backups, 100);
+    }
+
+    #[test]
+    fn test_backup_format_serialization_with_templates() {
+        let backup = BackupFormat {
+            version: "2.0".to_string(),
+            project: crate::services::backup::BackupProject {
+                name: "Full Project".to_string(),
+                alert: Some(true),
+                alert_chat: Some("#alerts".to_string()),
+                max_parallel_tasks: Some(3),
+            },
+            templates: vec![crate::services::backup::BackupTemplate {
+                name: "Deploy".to_string(),
+                playbook: "deploy.yml".to_string(),
+                arguments: None,
+                template_type: "ansible".to_string(),
+                inventory: None,
+                repository: None,
+                environment: None,
+                cron: None,
+            }],
+            repositories: vec![],
+            inventories: vec![],
+            environments: vec![],
+            access_keys: vec![],
+            schedules: vec![],
+            integrations: vec![],
+            views: vec![],
+        };
+        let json = serde_json::to_string(&backup).unwrap();
+        assert!(json.contains("\"version\":\"2.0\""));
+        assert!(json.contains("\"name\":\"Full Project\""));
+        assert!(json.contains("\"alert\":true"));
+        assert!(json.contains("\"playbook\":\"deploy.yml\""));
+    }
+
+    #[test]
+    fn test_backup_format_deserialization() {
+        let json = r#"{
+            "version":"1.0",
+            "project":{"name":"Test","alert":null,"alert_chat":null,"max_parallel_tasks":null},
+            "templates":[],
+            "repositories":[],
+            "inventories":[],
+            "environments":[],
+            "access_keys":[],
+            "schedules":[],
+            "integrations":[],
+            "views":[]
+        }"#;
+        let backup: BackupFormat = serde_json::from_str(json).unwrap();
+        assert_eq!(backup.version, "1.0");
+        assert_eq!(backup.project.name, "Test");
+        assert_eq!(backup.templates.len(), 0);
+    }
+
+    #[test]
+    fn test_auto_backup_config_boundary_values() {
+        let config = AutoBackupConfig {
+            enabled: true,
+            interval_hours: 0,
+            backup_path: "".to_string(),
+            max_backups: 0,
+            compress: true,
+        };
+        assert_eq!(config.interval_hours, 0);
+        assert_eq!(config.max_backups, 0);
+        assert!(config.enabled);
+    }
+
+    #[test]
+    fn test_backup_stats_equality_after_clone() {
+        let stats = BackupStats {
+            total_backups: 777,
+            successful_backups: 770,
+            failed_backups: 7,
+            last_backup_time: None,
+            last_backup_size_bytes: 999999,
+            next_backup_time: None,
+        };
+        let cloned = stats.clone();
+        assert_eq!(stats.total_backups, cloned.total_backups);
+        assert_eq!(stats.successful_backups, cloned.successful_backups);
+        assert_eq!(stats.failed_backups, cloned.failed_backups);
+        assert_eq!(stats.last_backup_size_bytes, cloned.last_backup_size_bytes);
+    }
+
+    #[test]
+    fn test_gzip_encode_large_data() {
+        let data = vec![b'a'; 10000];
+        let compressed = gzip_encode(&data).unwrap();
+        // Compressed data should be smaller for repetitive data
+        assert!(compressed.len() < data.len());
+        // Verify round-trip
+        use flate2::read::GzDecoder;
+        use std::io::Read;
+        let mut decoder = GzDecoder::new(&compressed[..]);
+        let mut decompressed = Vec::new();
+        decoder.read_to_end(&mut decompressed).unwrap();
+        assert_eq!(decompressed, data);
+    }
+
+    #[test]
+    fn test_cleanup_old_backups_nonexistent_dir() {
+        let result = cleanup_old_backups("/nonexistent/path/that/does/not/exist", 5);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_auto_backup_service_config_reference() {
+        let store: Arc<dyn Store + Send + Sync> = Arc::new(MockStore::new());
+        let config = AutoBackupConfig {
+            enabled: true,
+            interval_hours: 2,
+            backup_path: "/tmp/test".to_string(),
+            max_backups: 1,
+            compress: false,
+        };
+        let service = AutoBackupService::new(config, store);
+        let retrieved = service.get_config();
+        assert_eq!(retrieved.interval_hours, 2);
+        assert_eq!(retrieved.backup_path, "/tmp/test");
+        assert_eq!(retrieved.max_backups, 1);
+        assert!(!retrieved.compress);
+    }
 }

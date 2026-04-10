@@ -515,4 +515,191 @@ mod tests {
         assert_eq!(ref_item.kind, "Deployment");
         assert_eq!(ref_item.name, "my-deploy");
     }
+
+    #[test]
+    fn test_list_configmaps_query_all_none() {
+        let query = ListConfigMapsQuery {
+            namespace: None,
+            label_selector: None,
+            limit: None,
+        };
+        assert!(query.namespace.is_none());
+        assert!(query.label_selector.is_none());
+        assert!(query.limit.is_none());
+    }
+
+    #[test]
+    fn test_list_configmaps_query_with_params() {
+        let query = ListConfigMapsQuery {
+            namespace: Some("kube-system".to_string()),
+            label_selector: Some("app=coredns".to_string()),
+            limit: Some(50),
+        };
+        assert_eq!(query.namespace, Some("kube-system".to_string()));
+        assert_eq!(query.label_selector, Some("app=coredns".to_string()));
+        assert_eq!(query.limit, Some(50));
+    }
+
+    #[test]
+    fn test_configmap_editor_mode_keyvalues() {
+        let json = "\"key_values\"";
+        let mode: ConfigMapEditorMode = serde_json::from_str(json).unwrap();
+        assert!(matches!(mode, ConfigMapEditorMode::KeyValues));
+    }
+
+    #[test]
+    fn test_configmap_editor_mode_raw_yaml() {
+        let json = "\"raw_yaml\"";
+        let mode: ConfigMapEditorMode = serde_json::from_str(json).unwrap();
+        assert!(matches!(mode, ConfigMapEditorMode::RawYaml));
+    }
+
+    #[test]
+    fn test_configmap_editor_mode_raw_json() {
+        let json = "\"raw_json\"";
+        let mode: ConfigMapEditorMode = serde_json::from_str(json).unwrap();
+        assert!(matches!(mode, ConfigMapEditorMode::RawJson));
+    }
+
+    #[test]
+    fn test_validate_configmap_request_keyvalue_mode() {
+        let mut data = BTreeMap::new();
+        data.insert("key1".to_string(), "value1".to_string());
+        let req = ValidateConfigMapRequest {
+            mode: ConfigMapEditorMode::KeyValues,
+            name: Some("my-config".to_string()),
+            namespace: Some("default".to_string()),
+            labels: None,
+            annotations: None,
+            data: Some(data),
+            raw: None,
+        };
+        assert_eq!(req.name, Some("my-config".to_string()));
+        assert!(matches!(req.mode, ConfigMapEditorMode::KeyValues));
+    }
+
+    #[test]
+    fn test_validate_configmap_request_raw_mode() {
+        let req = ValidateConfigMapRequest {
+            mode: ConfigMapEditorMode::RawYaml,
+            name: None,
+            namespace: None,
+            labels: None,
+            annotations: None,
+            data: None,
+            raw: Some("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: test".to_string()),
+        };
+        assert!(req.raw.is_some());
+        assert!(matches!(req.mode, ConfigMapEditorMode::RawYaml));
+    }
+
+    #[test]
+    fn test_validate_configmap_response_valid() {
+        let resp = ValidateConfigMapResponse {
+            valid: true,
+            errors: vec![],
+            summary: Some(ConfigMapSummary {
+                name: "test".to_string(),
+                namespace: "default".to_string(),
+                data_keys: 1,
+                binary_data_keys: 0,
+                binary_total_bytes: 0,
+            }),
+            normalized: None,
+        };
+        assert!(resp.valid);
+        assert!(resp.errors.is_empty());
+        assert!(resp.summary.is_some());
+    }
+
+    #[test]
+    fn test_validate_configmap_response_with_errors() {
+        let resp = ValidateConfigMapResponse {
+            valid: false,
+            errors: vec!["metadata.name is required".to_string()],
+            summary: None,
+            normalized: None,
+        };
+        assert!(!resp.valid);
+        assert_eq!(resp.errors.len(), 1);
+        assert!(resp.summary.is_none());
+    }
+
+    #[test]
+    fn test_configmap_summary_zero_keys() {
+        let summary = ConfigMapSummary {
+            name: "empty-cm".to_string(),
+            namespace: "default".to_string(),
+            data_keys: 0,
+            binary_data_keys: 0,
+            binary_total_bytes: 0,
+        };
+        assert_eq!(summary.data_keys, 0);
+        assert_eq!(summary.binary_total_bytes, 0);
+    }
+
+    #[test]
+    fn test_configmap_reference_pod_kind() {
+        let ref_item = ConfigMapReference {
+            kind: "Pod".to_string(),
+            name: "my-pod-abc123".to_string(),
+            namespace: "production".to_string(),
+            field: "spec.containers[*].env".to_string(),
+        };
+        assert_eq!(ref_item.kind, "Pod");
+        assert_eq!(ref_item.namespace, "production");
+    }
+
+    #[test]
+    fn test_to_summary_struct_creation() {
+        let cm = ConfigMap {
+            metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+                name: Some("my-config".to_string()),
+                namespace: Some("production".to_string()),
+                ..Default::default()
+            },
+            data: Some(BTreeMap::from([
+                ("key1".to_string(), "val1".to_string()),
+                ("key2".to_string(), "val2".to_string()),
+            ])),
+            binary_data: None,
+            ..Default::default()
+        };
+        let summary = to_summary(&cm);
+        assert_eq!(summary.name, "my-config");
+        assert_eq!(summary.namespace, "production");
+        assert_eq!(summary.data_keys, 2);
+        assert_eq!(summary.binary_data_keys, 0);
+        assert_eq!(summary.binary_total_bytes, 0);
+    }
+
+    #[test]
+    fn test_container_references_configmap_env_from() {
+        use k8s_openapi::api::core::v1::{EnvFromSource, ConfigMapEnvSource};
+        let container = Container {
+            name: "app".to_string(),
+            env_from: Some(vec![EnvFromSource {
+                prefix: None,
+                config_map_ref: Some(ConfigMapEnvSource {
+                    name: "my-config".to_string(),
+                    optional: None,
+                }),
+                secret_ref: None,
+            }]),
+            ..Default::default()
+        };
+        assert!(container_references_configmap(&container, "my-config"));
+        assert!(!container_references_configmap(&container, "other-config"));
+    }
+
+    #[test]
+    fn test_container_references_configmap_no_match() {
+        let container = Container {
+            name: "app".to_string(),
+            env: None,
+            env_from: None,
+            ..Default::default()
+        };
+        assert!(!container_references_configmap(&container, "any-config"));
+    }
 }

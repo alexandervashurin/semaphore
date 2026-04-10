@@ -682,4 +682,440 @@ mod tests {
         let result = manager.unregister_runner("does-not-exist").await;
         assert!(result.is_err());
     }
+
+    #[tokio::test]
+    async fn test_multiple_runner_registrations_unique_tokens() {
+        let config = RemoteRunnersConfig::default();
+        let manager = RemoteRunnersManager::new(config);
+
+        for i in 1..=5 {
+            let runner = Runner {
+                id: i,
+                project_id: Some(1),
+                token: format!("token-{}", i),
+                name: format!("Runner {}", i),
+                active: true,
+                last_active: None,
+                webhook: None,
+                max_parallel_tasks: None,
+                tag: None,
+                cleaning_requested: None,
+                touched: None,
+                created: None,
+            };
+            let result = manager.register_runner(runner, RunnerCapabilities::default()).await;
+            assert!(result.is_ok());
+        }
+
+        let active = manager.get_active_runners().await;
+        assert_eq!(active.len(), 5);
+    }
+
+    #[tokio::test]
+    async fn test_reregister_runner_same_token_overwrites() {
+        let config = RemoteRunnersConfig::default();
+        let manager = RemoteRunnersManager::new(config);
+
+        let runner1 = Runner {
+            id: 1,
+            project_id: Some(1),
+            token: "same-token".to_string(),
+            name: "Runner 1".to_string(),
+            active: true,
+            last_active: None,
+            webhook: None,
+            max_parallel_tasks: None,
+            tag: None,
+            cleaning_requested: None,
+            touched: None,
+            created: None,
+        };
+        manager.register_runner(runner1, RunnerCapabilities::default()).await.unwrap();
+
+        let runner2 = Runner {
+            id: 2,
+            project_id: Some(1),
+            token: "same-token".to_string(),
+            name: "Runner 2".to_string(),
+            active: true,
+            last_active: None,
+            webhook: None,
+            max_parallel_tasks: None,
+            tag: None,
+            cleaning_requested: None,
+            touched: None,
+            created: None,
+        };
+        manager.register_runner(runner2, RunnerCapabilities::default()).await.unwrap();
+
+        let active = manager.get_active_runners().await;
+        assert_eq!(active.len(), 1);
+        assert_eq!(active[0].runner.name, "Runner 2");
+    }
+
+    #[tokio::test]
+    async fn test_assign_multiple_tasks_to_same_runner() {
+        let config = RemoteRunnersConfig::default();
+        let manager = RemoteRunnersManager::new(config);
+
+        let runner = Runner {
+            id: 1,
+            project_id: Some(1),
+            token: "multi-task-token".to_string(),
+            name: "Multi-Task Runner".to_string(),
+            active: true,
+            last_active: None,
+            webhook: None,
+            max_parallel_tasks: None,
+            tag: None,
+            cleaning_requested: None,
+            touched: None,
+            created: None,
+        };
+        manager.register_runner(runner, RunnerCapabilities::default()).await.unwrap();
+
+        manager.assign_task("multi-task-token", 10).await.unwrap();
+        manager.assign_task("multi-task-token", 20).await.unwrap();
+        manager.assign_task("multi-task-token", 30).await.unwrap();
+
+        let stats = manager.get_stats().await;
+        assert_eq!(stats.total_tasks_running, 3);
+    }
+
+    #[tokio::test]
+    async fn test_complete_nonexistent_task_on_runner() {
+        let config = RemoteRunnersConfig::default();
+        let manager = RemoteRunnersManager::new(config);
+
+        let runner = Runner {
+            id: 1,
+            project_id: Some(1),
+            token: "task-token".to_string(),
+            name: "Runner".to_string(),
+            active: true,
+            last_active: None,
+            webhook: None,
+            max_parallel_tasks: None,
+            tag: None,
+            cleaning_requested: None,
+            touched: None,
+            created: None,
+        };
+        manager.register_runner(runner, RunnerCapabilities::default()).await.unwrap();
+
+        let result = manager.complete_task("task-token", 999).await;
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_runner_capabilities_empty_serialization() {
+        let caps = RunnerCapabilities::default();
+        let json = serde_json::to_string(&caps).unwrap();
+        let deserialized: RunnerCapabilities = serde_json::from_str(&json).unwrap();
+        assert!(!deserialized.ansible);
+        assert!(deserialized.tags.is_empty());
+        assert_eq!(deserialized.max_parallel_tasks, 0);
+    }
+
+    #[test]
+    fn test_runner_capabilities_full_serialization() {
+        let caps = RunnerCapabilities {
+            ansible: true,
+            terraform: true,
+            bash: true,
+            powershell: true,
+            kubernetes: true,
+            max_parallel_tasks: 10,
+            tags: vec!["linux".to_string(), "windows".to_string(), "macos".to_string()],
+        };
+
+        let json = serde_json::to_value(&caps).unwrap();
+        assert_eq!(json["ansible"], true);
+        assert_eq!(json["terraform"], true);
+        assert_eq!(json["bash"], true);
+        assert_eq!(json["powershell"], true);
+        assert_eq!(json["kubernetes"], true);
+        assert_eq!(json["max_parallel_tasks"], 10);
+        assert_eq!(json["tags"].as_array().unwrap().len(), 3);
+    }
+
+    #[test]
+    fn test_runner_progress_serialization() {
+        let progress = RunnerProgress {
+            task_id: 42,
+            percent: 75.5,
+            message: "Running playbook 3/5".to_string(),
+        };
+
+        let json = serde_json::to_string(&progress).unwrap();
+        let deserialized: RunnerProgress = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.task_id, 42);
+        assert!((deserialized.percent - 75.5).abs() < f64::EPSILON);
+        assert_eq!(deserialized.message, "Running playbook 3/5");
+    }
+
+    #[test]
+    fn test_heartbeat_request_deserialization() {
+        let json = r#"{
+            "token": "test-runner-token",
+            "current_tasks": [1, 2, 3]
+        }"#;
+
+        let request: HeartbeatRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(request.token, "test-runner-token");
+        assert_eq!(request.current_tasks, vec![1, 2, 3]);
+        assert!(request.progress.is_none());
+    }
+
+    #[test]
+    fn test_task_result_request_deserialization() {
+        let json = r#"{
+            "token": "runner-token",
+            "task_id": 100,
+            "status": "success",
+            "output": "All tasks completed",
+            "duration_secs": 45.2
+        }"#;
+
+        let request: TaskResultRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(request.token, "runner-token");
+        assert_eq!(request.task_id, 100);
+        assert_eq!(request.status, "success");
+        assert_eq!(request.output, "All tasks completed");
+        assert_eq!(request.duration_secs, Some(45.2));
+    }
+
+    #[tokio::test]
+    async fn test_task_queue_order_fifo() {
+        let config = RemoteRunnersConfig::default();
+        let manager = RemoteRunnersManager::new(config);
+
+        for i in 1..=10 {
+            manager.queue_task(i).await;
+        }
+
+        for expected in 1..=10 {
+            let task = manager.dequeue_task().await;
+            assert_eq!(task, Some(expected));
+        }
+
+        assert!(manager.dequeue_task().await.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_heartbeat_updates_timestamp() {
+        let config = RemoteRunnersConfig::default();
+        let manager = RemoteRunnersManager::new(config);
+
+        let runner = Runner {
+            id: 1,
+            project_id: Some(1),
+            token: "hb-test".to_string(),
+            name: "Heartbeat Test".to_string(),
+            active: true,
+            last_active: None,
+            webhook: None,
+            max_parallel_tasks: None,
+            tag: None,
+            cleaning_requested: None,
+            touched: None,
+            created: None,
+        };
+        manager.register_runner(runner, RunnerCapabilities::default()).await.unwrap();
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+        let result = manager.heartbeat("hb-test").await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_unregistered_runner_not_in_active_list() {
+        let config = RemoteRunnersConfig::default();
+        let manager = RemoteRunnersManager::new(config);
+
+        let runner = Runner {
+            id: 1,
+            project_id: Some(1),
+            token: "to-remove".to_string(),
+            name: "To Remove".to_string(),
+            active: true,
+            last_active: None,
+            webhook: None,
+            max_parallel_tasks: None,
+            tag: None,
+            cleaning_requested: None,
+            touched: None,
+            created: None,
+        };
+        manager.register_runner(runner, RunnerCapabilities::default()).await.unwrap();
+
+        let active_before = manager.get_active_runners().await;
+        assert_eq!(active_before.len(), 1);
+
+        manager.unregister_runner("to-remove").await.unwrap();
+
+        let active_after = manager.get_active_runners().await;
+        assert_eq!(active_after.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_stats_tasks_queued_reflects_queue_state() {
+        let config = RemoteRunnersConfig::default();
+        let manager = RemoteRunnersManager::new(config);
+
+        let stats_empty = manager.get_stats().await;
+        assert_eq!(stats_empty.tasks_queued, 0);
+
+        manager.queue_task(1).await;
+        manager.queue_task(2).await;
+        manager.queue_task(3).await;
+
+        let stats_full = manager.get_stats().await;
+        assert_eq!(stats_full.tasks_queued, 3);
+
+        manager.dequeue_task().await;
+        let stats_one_dequeued = manager.get_stats().await;
+        assert_eq!(stats_one_dequeued.tasks_queued, 2);
+    }
+
+    #[tokio::test]
+    async fn test_runner_tasks_cleared_after_complete() {
+        let config = RemoteRunnersConfig::default();
+        let manager = RemoteRunnersManager::new(config);
+
+        let runner = Runner {
+            id: 1,
+            project_id: Some(1),
+            token: "clear-test".to_string(),
+            name: "Clear Test".to_string(),
+            active: true,
+            last_active: None,
+            webhook: None,
+            max_parallel_tasks: None,
+            tag: None,
+            cleaning_requested: None,
+            touched: None,
+            created: None,
+        };
+        manager.register_runner(runner, RunnerCapabilities::default()).await.unwrap();
+
+        manager.assign_task("clear-test", 1).await.unwrap();
+        manager.assign_task("clear-test", 2).await.unwrap();
+        manager.assign_task("clear-test", 3).await.unwrap();
+
+        assert_eq!(manager.get_stats().await.total_tasks_running, 3);
+
+        manager.complete_task("clear-test", 2).await.unwrap();
+        assert_eq!(manager.get_stats().await.total_tasks_running, 2);
+
+        manager.complete_task("clear-test", 1).await.unwrap();
+        manager.complete_task("clear-test", 3).await.unwrap();
+        assert_eq!(manager.get_stats().await.total_tasks_running, 0);
+    }
+
+    #[test]
+    fn test_registered_runner_clone() {
+        let runner = Runner {
+            id: 1,
+            project_id: Some(1),
+            token: "clone-token".to_string(),
+            name: "Clone Test".to_string(),
+            active: true,
+            last_active: None,
+            webhook: None,
+            max_parallel_tasks: None,
+            tag: None,
+            cleaning_requested: None,
+            touched: None,
+            created: None,
+        };
+
+        let registered = RegisteredRunner {
+            runner: runner.clone(),
+            last_heartbeat: Utc::now(),
+            current_tasks: vec![1, 2],
+            capabilities: RunnerCapabilities::default(),
+        };
+
+        let cloned = registered.clone();
+        assert_eq!(cloned.runner.token, registered.runner.token);
+        assert_eq!(cloned.current_tasks, registered.current_tasks);
+    }
+
+    #[test]
+    fn test_runner_progress_percent_boundary_values() {
+        let progress_zero = RunnerProgress {
+            task_id: 1,
+            percent: 0.0,
+            message: "Just started".to_string(),
+        };
+        assert!((progress_zero.percent - 0.0).abs() < f64::EPSILON);
+
+        let progress_full = RunnerProgress {
+            task_id: 1,
+            percent: 100.0,
+            message: "Completed".to_string(),
+        };
+        assert!((progress_full.percent - 100.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_task_result_request_optional_fields() {
+        let json_no_optional = r#"{
+            "token": "r1",
+            "task_id": 1,
+            "status": "failed",
+            "output": "Error"
+        }"#;
+
+        let request: TaskResultRequest = serde_json::from_str(json_no_optional).unwrap();
+        assert_eq!(request.token, "r1");
+        assert_eq!(request.task_id, 1);
+        assert_eq!(request.status, "failed");
+        assert_eq!(request.output, "Error");
+        assert!(request.duration_secs.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_concurrent_task_assignments() {
+        let config = RemoteRunnersConfig::default();
+        let manager = Arc::new(RemoteRunnersManager::new(config));
+
+        let runner = Runner {
+            id: 1,
+            project_id: Some(1),
+            token: "concurrent".to_string(),
+            name: "Concurrent Runner".to_string(),
+            active: true,
+            last_active: None,
+            webhook: None,
+            max_parallel_tasks: None,
+            tag: None,
+            cleaning_requested: None,
+            touched: None,
+            created: None,
+        };
+
+        Arc::clone(&manager)
+            .register_runner(runner, RunnerCapabilities::default())
+            .await
+            .unwrap();
+
+        let mut handles = vec![];
+        for task_id in 1..=20 {
+            let mgr = Arc::clone(&manager);
+            let token = "concurrent".to_string();
+            handles.push(tokio::spawn(async move {
+                mgr.assign_task(&token, task_id).await
+            }));
+        }
+
+        let results: Vec<Result<Result<(), String>, _>> = futures::future::join_all(handles).await;
+        for result in results {
+            assert!(result.unwrap().is_ok());
+        }
+
+        let stats = manager.get_stats().await;
+        assert_eq!(stats.total_tasks_running, 20);
+    }
 }

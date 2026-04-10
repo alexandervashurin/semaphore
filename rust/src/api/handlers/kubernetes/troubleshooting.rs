@@ -607,4 +607,190 @@ mod tests {
         ];
         assert_eq!(calculate_health_status(&timeline, &None), HealthStatus::Healthy);
     }
+
+    #[test]
+    fn test_resource_target_struct() {
+        let target = ResourceTarget {
+            kind: "Deployment".to_string(),
+            name: "web-app".to_string(),
+            namespace: "production".to_string(),
+            api_version: Some("apps/v1".to_string()),
+            uid: Some("uid-123".to_string()),
+        };
+        assert_eq!(target.kind, "Deployment");
+        assert_eq!(target.name, "web-app");
+        assert!(target.api_version.is_some());
+    }
+
+    #[test]
+    fn test_timeline_event_struct() {
+        let event = TimelineEvent {
+            timestamp: chrono::Utc::now(),
+            event_type: TimelineEventType::AuditLog,
+            source: EventSource::VelumAudit,
+            summary: "Config changed".to_string(),
+            details: Some("Updated replica count".to_string()),
+            severity: Severity::Info,
+        };
+        assert!(matches!(event.event_type, TimelineEventType::AuditLog));
+        assert!(matches!(event.source, EventSource::VelumAudit));
+        assert!(matches!(event.severity, Severity::Info));
+    }
+
+    #[test]
+    fn test_audit_record_struct() {
+        let record = AuditRecord {
+            id: 42,
+            timestamp: chrono::Utc::now(),
+            user_id: Some(1),
+            username: Some("admin".to_string()),
+            action: "update".to_string(),
+            resource_kind: "Deployment".to_string(),
+            resource_name: "web".to_string(),
+            namespace: "default".to_string(),
+            description: "Updated deployment".to_string(),
+            level: "info".to_string(),
+        };
+        assert_eq!(record.id, 42);
+        assert_eq!(record.username, Some("admin".to_string()));
+    }
+
+    #[test]
+    fn test_resource_metrics_struct() {
+        let metrics = ResourceMetrics {
+            cpu_usage: Some("0.5 cores".to_string()),
+            memory_usage: Some("256.00 MiB".to_string()),
+            cpu_request: Some("0.25 cores".to_string()),
+            memory_request: Some("128Mi".to_string()),
+            cpu_limit: Some("1 cores".to_string()),
+            memory_limit: Some("512Mi".to_string()),
+            restart_count: Some(2),
+        };
+        assert_eq!(metrics.restart_count, Some(2));
+        assert!(metrics.cpu_usage.is_some());
+    }
+
+    #[test]
+    fn test_recommendation_struct() {
+        let rec = Recommendation {
+            priority: Priority::High,
+            title: "High restart count".to_string(),
+            description: "Pod restarted 5 times".to_string(),
+            suggested_actions: vec![
+                "Check logs".to_string(),
+                "Review resource limits".to_string(),
+            ],
+        };
+        assert_eq!(rec.priority, Priority::High);
+        assert_eq!(rec.suggested_actions.len(), 2);
+    }
+
+    #[test]
+    fn test_troubleshoot_query_defaults() {
+        let query = TroubleshootQuery {
+            namespace: "default".to_string(),
+            kind: "Pod".to_string(),
+            name: "test-pod".to_string(),
+            lookback_hours: None,
+            include_metrics: None,
+            include_audit: None,
+        };
+        assert_eq!(query.lookback_hours, None);
+        assert_eq!(query.include_metrics, None);
+    }
+
+    #[test]
+    fn test_troubleshoot_query_with_options() {
+        let query = TroubleshootQuery {
+            namespace: "production".to_string(),
+            kind: "Deployment".to_string(),
+            name: "web".to_string(),
+            lookback_hours: Some(48),
+            include_metrics: Some(true),
+            include_audit: Some(false),
+        };
+        assert_eq!(query.lookback_hours, Some(48));
+        assert_eq!(query.include_metrics, Some(true));
+        assert_eq!(query.include_audit, Some(false));
+    }
+
+    #[test]
+    fn test_timeline_event_type_enum_all_variants() {
+        let types = [
+            TimelineEventType::KubernetesEvent,
+            TimelineEventType::AuditLog,
+            TimelineEventType::MetricAlert,
+            TimelineEventType::StateChange,
+        ];
+        for t in &types {
+            let json = serde_json::to_string(t).unwrap();
+            assert!(json.starts_with('"'));
+        }
+    }
+
+    #[test]
+    fn test_event_source_enum_all_variants() {
+        let sources = [
+            EventSource::Kubernetes,
+            EventSource::VelumAudit,
+            EventSource::Metrics,
+            EventSource::User,
+        ];
+        for s in &sources {
+            let json = serde_json::to_string(s).unwrap();
+            assert!(json.starts_with('"'));
+        }
+    }
+
+    #[test]
+    fn test_severity_enum_serialization() {
+        assert_eq!(serde_json::to_string(&Severity::Critical).unwrap(), "\"critical\"");
+        assert_eq!(serde_json::to_string(&Severity::Warning).unwrap(), "\"warning\"");
+        assert_eq!(serde_json::to_string(&Severity::Normal).unwrap(), "\"normal\"");
+        assert_eq!(serde_json::to_string(&Severity::Info).unwrap(), "\"info\"");
+    }
+
+    #[test]
+    fn test_priority_enum_all_variants() {
+        let priorities = [Priority::High, Priority::Medium, Priority::Low];
+        for p in &priorities {
+            let json = serde_json::to_string(p).unwrap();
+            assert!(json.starts_with('"'));
+        }
+    }
+
+    #[test]
+    fn test_health_status_enum_all_variants() {
+        let statuses = [
+            HealthStatus::Healthy,
+            HealthStatus::Degraded,
+            HealthStatus::Critical,
+            HealthStatus::Unknown,
+        ];
+        for s in &statuses {
+            let json = serde_json::to_string(s).unwrap();
+            assert!(json.starts_with('"'));
+        }
+    }
+
+    #[test]
+    fn test_troubleshooting_report_struct() {
+        let report = TroubleshootingReport {
+            target: ResourceTarget {
+                kind: "Pod".to_string(),
+                name: "test".to_string(),
+                namespace: "default".to_string(),
+                api_version: None,
+                uid: None,
+            },
+            timeline: vec![],
+            audit_records: vec![],
+            metrics: None,
+            recommendations: vec![],
+            health_status: HealthStatus::Unknown,
+        };
+        assert_eq!(report.target.kind, "Pod");
+        assert!(report.timeline.is_empty());
+        assert!(report.metrics.is_none());
+    }
 }

@@ -483,4 +483,132 @@ mod tests {
         assert_eq!(query.namespace, Some("default".to_string()));
         assert_eq!(query.limit, Some(10));
     }
+
+    #[test]
+    fn test_service_port_payload_minimal() {
+        let port = ServicePortPayload {
+            name: None,
+            port: 443,
+            target_port: None,
+            protocol: None,
+            node_port: None,
+        };
+        assert_eq!(port.port, 443);
+        assert!(port.name.is_none());
+        assert!(port.protocol.is_none());
+    }
+
+    #[test]
+    fn test_service_port_payload_udp() {
+        let port = ServicePortPayload {
+            name: Some("dns".to_string()),
+            port: 53,
+            target_port: Some("53".to_string()),
+            protocol: Some("UDP".to_string()),
+            node_port: None,
+        };
+        assert_eq!(port.protocol, Some("UDP".to_string()));
+        assert_eq!(port.port, 53);
+    }
+
+    #[test]
+    fn test_service_spec_payload() {
+        let spec = ServiceSpecPayload {
+            type_: Some("LoadBalancer".to_string()),
+            ports: vec![ServicePortPayload {
+                name: Some("http".to_string()),
+                port: 80,
+                target_port: Some("8080".to_string()),
+                protocol: Some("TCP".to_string()),
+                node_port: None,
+            }],
+            selector: Some(BTreeMap::from([("app".to_string(), "web".to_string())])),
+            cluster_ip: None,
+            external_ips: None,
+            load_balancer_ip: None,
+        };
+        assert_eq!(spec.type_, Some("LoadBalancer".to_string()));
+        assert_eq!(spec.ports.len(), 1);
+        assert!(spec.selector.is_some());
+    }
+
+    #[test]
+    fn test_service_payload_full() {
+        let payload = ServicePayload {
+            name: "my-svc".to_string(),
+            namespace: "production".to_string(),
+            labels: Some(BTreeMap::from([("env".to_string(), "prod".to_string())])),
+            annotations: Some(BTreeMap::new()),
+            spec: ServiceSpecPayload {
+                type_: Some("NodePort".to_string()),
+                ports: vec![],
+                selector: None,
+                cluster_ip: Some("10.0.0.5".to_string()),
+                external_ips: Some(vec!["192.168.1.1".to_string()]),
+                load_balancer_ip: None,
+            },
+        };
+        assert_eq!(payload.name, "my-svc");
+        assert_eq!(payload.namespace, "production");
+        assert_eq!(payload.spec.type_, Some("NodePort".to_string()));
+    }
+
+    #[test]
+    fn test_service_summary_with_load_balancer() {
+        let summary = ServiceSummary {
+            name: "lb-service".to_string(),
+            namespace: "default".to_string(),
+            uid: "uid-lb".to_string(),
+            type_: "LoadBalancer".to_string(),
+            cluster_ip: "10.0.0.10".to_string(),
+            external_ips: vec!["203.0.113.1".to_string()],
+            ports: vec!["80:8080/TCP".to_string()],
+            selector: BTreeMap::new(),
+            age: "2d".to_string(),
+            load_balancer_ip: Some("203.0.113.1".to_string()),
+        };
+        assert_eq!(summary.type_, "LoadBalancer");
+        assert_eq!(summary.load_balancer_ip, Some("203.0.113.1".to_string()));
+    }
+
+    #[test]
+    fn test_service_backends_response_with_fallback() {
+        let resp = ServiceBackendsResponse {
+            source: "endpoints".to_string(),
+            fallback_used: true,
+            items: vec![serde_json::json!({"kind": "Endpoints"})],
+        };
+        assert!(resp.fallback_used);
+        assert_eq!(resp.items.len(), 1);
+    }
+
+    #[test]
+    fn test_list_services_query_all_none() {
+        let query = ListServicesQuery {
+            namespace: None,
+            label_selector: None,
+            limit: None,
+        };
+        assert!(query.namespace.is_none());
+        assert!(query.label_selector.is_none());
+        assert!(query.limit.is_none());
+    }
+
+    #[test]
+    fn test_service_summary_empty_selector() {
+        let summary = ServiceSummary {
+            name: "headless".to_string(),
+            namespace: "default".to_string(),
+            uid: "uid-headless".to_string(),
+            type_: "ClusterIP".to_string(),
+            cluster_ip: "None".to_string(),
+            external_ips: vec![],
+            ports: vec![],
+            selector: BTreeMap::new(),
+            age: "1h".to_string(),
+            load_balancer_ip: None,
+        };
+        assert_eq!(summary.cluster_ip, "None");
+        assert!(summary.selector.is_empty());
+    }
 }

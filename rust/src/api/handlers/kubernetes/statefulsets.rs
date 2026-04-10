@@ -470,4 +470,144 @@ mod tests {
         let age = format_age(&make_ts(31536000 * 2)); // 2 years
         assert!(age.ends_with('y'));
     }
+
+    #[test]
+    fn test_statefulset_summary_struct() {
+        let summary = StatefulSetSummary {
+            name: "postgres".to_string(),
+            namespace: "database".to_string(),
+            replicas: 3,
+            ready_replicas: 3,
+            current_replicas: 3,
+            updated_replicas: 3,
+            age: "10d".to_string(),
+        };
+        assert_eq!(summary.name, "postgres");
+        assert_eq!(summary.replicas, 3);
+        assert_eq!(summary.ready_replicas, 3);
+    }
+
+    #[test]
+    fn test_statefulset_detail_struct() {
+        let detail = StatefulSetDetail {
+            name: "redis".to_string(),
+            namespace: "cache".to_string(),
+            replicas: 5,
+            ready_replicas: 5,
+            current_replicas: 5,
+            updated_replicas: 4,
+            selector: BTreeMap::new(),
+            template_labels: BTreeMap::new(),
+            containers: vec![ContainerInfo {
+                name: "redis".to_string(),
+                image: Some("redis:7".to_string()),
+            }],
+            volume_claim_templates: vec![VolumeClaimTemplate {
+                name: "data".to_string(),
+                access_modes: vec!["ReadWriteOnce".to_string()],
+                storage_class: Some("gp2".to_string()),
+                storage_size: Some("10Gi".to_string()),
+            }],
+            service_name: "redis-headless".to_string(),
+            update_strategy: "RollingUpdate".to_string(),
+            conditions: vec![],
+            created_at: Some(Utc::now()),
+        };
+        assert_eq!(detail.name, "redis");
+        assert_eq!(detail.volume_claim_templates.len(), 1);
+        assert_eq!(detail.service_name, "redis-headless");
+        assert_eq!(detail.update_strategy, "RollingUpdate");
+    }
+
+    #[test]
+    fn test_volume_claim_template() {
+        let vct = VolumeClaimTemplate {
+            name: "data".to_string(),
+            access_modes: vec!["ReadWriteOnce".to_string(), "ReadOnlyMany".to_string()],
+            storage_class: Some("standard".to_string()),
+            storage_size: Some("50Gi".to_string()),
+        };
+        assert_eq!(vct.access_modes.len(), 2);
+        assert!(vct.access_modes.contains(&"ReadWriteOnce".to_string()));
+    }
+
+    #[test]
+    fn test_statefulset_condition() {
+        let cond = StatefulSetCondition {
+            condition_type: "Available".to_string(),
+            status: "True".to_string(),
+            reason: Some("MinimumReplicasAvailable".to_string()),
+            message: None,
+        };
+        assert_eq!(cond.condition_type, "Available");
+        assert_eq!(cond.status, "True");
+        assert!(cond.reason.is_some());
+    }
+
+    #[test]
+    fn test_scale_statefulset_payload() {
+        let payload = ScaleStatefulSetPayload { replicas: 5 };
+        assert_eq!(payload.replicas, 5);
+    }
+
+    #[test]
+    fn test_statefulset_operation_response_with_replicas() {
+        let resp = StatefulSetOperationResponse {
+            message: "StatefulSet scaled".to_string(),
+            name: "web".to_string(),
+            namespace: "default".to_string(),
+            replicas: Some(5),
+        };
+        assert_eq!(resp.replicas, Some(5));
+        assert!(resp.message.contains("scaled"));
+    }
+
+    #[test]
+    fn test_statefulset_operation_response_delete() {
+        let resp = StatefulSetOperationResponse {
+            message: "StatefulSet web deleted".to_string(),
+            name: "web".to_string(),
+            namespace: "default".to_string(),
+            replicas: None,
+        };
+        assert!(resp.replicas.is_none());
+    }
+
+    #[test]
+    fn test_statefulset_list_query_with_namespace() {
+        let query = StatefulSetListQuery {
+            namespace: Some("production".to_string()),
+            label_selector: Some("tier=backend".to_string()),
+            limit: Some(20),
+        };
+        assert_eq!(query.namespace, Some("production".to_string()));
+        assert_eq!(query.limit, Some(20));
+    }
+
+    #[test]
+    fn test_statefulset_list_query_empty() {
+        let query = StatefulSetListQuery {
+            namespace: None,
+            label_selector: None,
+            limit: None,
+        };
+        assert!(query.namespace.is_none());
+        assert!(query.label_selector.is_none());
+    }
+
+    #[test]
+    fn test_container_info_empty_image() {
+        let info = ContainerInfo {
+            name: "init-container".to_string(),
+            image: None,
+        };
+        assert_eq!(info.name, "init-container");
+        assert!(info.image.is_none());
+    }
+
+    #[test]
+    fn test_format_age_zero() {
+        let age = format_age(&make_ts(0));
+        assert!(age.ends_with("s"));
+    }
 }

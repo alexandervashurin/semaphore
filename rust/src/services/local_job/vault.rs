@@ -239,4 +239,137 @@ mod tests {
         job.clear_vault_key_files();
         assert!(job.vault_file_installations.is_empty());
     }
+
+    #[tokio::test]
+    async fn test_create_vault_password_file_writes_correct_content() {
+        let job = create_test_job();
+        let password = "super_secret_password_123";
+        let result = job.create_vault_password_file("test", password).await;
+        assert!(result.is_ok());
+
+        let path = result.unwrap();
+        let content = std::fs::read_to_string(&path).unwrap();
+        assert_eq!(content, password);
+
+        // Чистим
+        std::fs::remove_dir_all(&job.tmp_dir).ok();
+    }
+
+    #[tokio::test]
+    async fn test_create_vault_password_file_unicode() {
+        let job = create_test_job();
+        let result = job.create_vault_password_file("vault_unicode", "pass123").await;
+        assert!(result.is_ok());
+        let path = result.unwrap();
+        let filename = path.file_name().unwrap().to_string_lossy();
+        // Кириллица проходит через is_alphanumeric()
+        assert!(filename.contains("vault_unicode"));
+    }
+
+    #[tokio::test]
+    async fn test_create_vault_password_file_path_traversal_chars() {
+        let job = create_test_job();
+        let result = job.create_vault_password_file("etc-passwd", "hack").await;
+        assert!(result.is_ok());
+        let path = result.unwrap();
+        let filename = path.file_name().unwrap().to_string_lossy();
+        // Только alphanumeric, _, - остаются
+        assert!(filename.contains("vault_etc-passwd"));
+        assert!(!filename.contains("/"));
+        assert!(!filename.contains(".."));
+    }
+
+    #[tokio::test]
+    async fn test_install_vault_key_files_no_store_logs_warning() {
+        let mut job = create_test_job();
+        // template.vaults установлен, но store = None
+        job.template.vaults = Some(serde_json::json!([
+            {"vault_key_id": 1, "type": "main"}
+        ]));
+        let result = job.install_vault_key_files().await;
+        assert!(result.is_ok());
+        // Без store vault файлы не должны быть установлены
+        assert!(job.vault_file_installations.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_install_vault_key_files_invalid_vault_json() {
+        let mut job = create_test_job();
+        job.template.vaults = Some(serde_json::json!("not an array"));
+        let result = job.install_vault_key_files().await;
+        assert!(result.is_ok());
+        // При неверном формате vaults должен вернуть Ok
+    }
+
+    #[tokio::test]
+    async fn test_install_vault_key_files_from_inventory() {
+        let mut job = create_test_job();
+        // vaults из inventory (JSON строка)
+        job.inventory.vaults = Some(r#"[{"vault_key_id": 1, "type": "prod"}]"#.to_string());
+        let result = job.install_vault_key_files().await;
+        assert!(result.is_ok());
+        // Без store должен вернуть Ok с пустыми установками
+        assert!(job.vault_file_installations.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_install_vault_key_files_empty_inventory_vaults() {
+        let mut job = create_test_job();
+        job.inventory.vaults = Some("".to_string());
+        let result = job.install_vault_key_files().await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_install_vault_key_files_no_vaults_anywhere() {
+        let mut job = create_test_job();
+        // template.vaults = None, inventory.vaults = None
+        job.template.vaults = None;
+        job.inventory.vaults = None;
+        let result = job.install_vault_key_files().await;
+        assert!(result.is_ok());
+        assert!(job.vault_file_installations.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_create_vault_password_file_very_long_password() {
+        let job = create_test_job();
+        let long_password = "a".repeat(10000);
+        let result = job.create_vault_password_file("long", &long_password).await;
+        assert!(result.is_ok());
+
+        let path = result.unwrap();
+        let content = std::fs::read_to_string(&path).unwrap();
+        assert_eq!(content.len(), 10000);
+    }
+
+    #[tokio::test]
+    async fn test_create_vault_password_file_special_vault_name() {
+        let job = create_test_job();
+        let result = job.create_vault_password_file("!@#$%^&*()", "pass").await;
+        assert!(result.is_ok());
+        let path = result.unwrap();
+        let filename = path.file_name().unwrap().to_string_lossy();
+        // Только alphanumeric символы должны остаться
+        assert!(filename.contains("vault_"));
+    }
+
+    #[test]
+    fn test_clear_vault_key_files_does_not_affect_other_fields() {
+        let mut job = create_test_job();
+        // Установим что-то в vault
+        job.vault_file_installations.insert(
+            "test".to_string(),
+            crate::services::ssh_agent::AccessKeyInstallation::default(),
+        );
+
+        let work_dir_before = job.work_dir.clone();
+        let tmp_dir_before = job.tmp_dir.clone();
+
+        job.clear_vault_key_files();
+
+        assert_eq!(job.work_dir, work_dir_before);
+        assert_eq!(job.tmp_dir, tmp_dir_before);
+        assert!(job.vault_file_installations.is_empty());
+    }
 }

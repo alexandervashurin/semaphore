@@ -270,4 +270,89 @@ mod tests {
 
         assert!(pool.get_next_task().await.is_none());
     }
+
+    #[tokio::test]
+    async fn test_remove_nonexistent_task() {
+        let pool = create_test_pool().await;
+
+        pool.add_task(create_test_task(1)).await.unwrap();
+
+        let removed = pool.remove_task(999).await;
+        assert!(!removed);
+
+        // Очередь не должна измениться
+        assert_eq!(pool.queue_size().await, 1);
+    }
+
+    #[tokio::test]
+    async fn test_remove_task_from_middle() {
+        let pool = create_test_pool().await;
+
+        pool.add_task(create_test_task(1)).await.unwrap();
+        pool.add_task(create_test_task(2)).await.unwrap();
+        pool.add_task(create_test_task(3)).await.unwrap();
+        pool.add_task(create_test_task(4)).await.unwrap();
+
+        // Удаляем элемент из середины
+        let removed = pool.remove_task(3).await;
+        assert!(removed);
+
+        let queue = pool.get_queue().await;
+        assert_eq!(queue.len(), 3);
+        assert_eq!(queue[0].id, 1);
+        assert_eq!(queue[1].id, 2);
+        assert_eq!(queue[2].id, 4);
+    }
+
+    #[tokio::test]
+    async fn test_clear_queue_empty() {
+        let pool = create_test_pool().await;
+
+        assert_eq!(pool.queue_size().await, 0);
+
+        // Очистка пустой очереди не должна вызывать ошибок
+        pool.clear_queue().await;
+        assert_eq!(pool.queue_size().await, 0);
+    }
+
+    #[tokio::test]
+    async fn test_get_next_task_removes_from_queue() {
+        let pool = create_test_pool().await;
+
+        pool.add_task(create_test_task(1)).await.unwrap();
+        pool.add_task(create_test_task(2)).await.unwrap();
+
+        assert_eq!(pool.queue_size().await, 2);
+
+        let task = pool.get_next_task().await.unwrap();
+        assert_eq!(task.id, 1);
+        assert_eq!(pool.queue_size().await, 1);
+
+        let task = pool.get_next_task().await.unwrap();
+        assert_eq!(task.id, 2);
+        assert_eq!(pool.queue_size().await, 0);
+    }
+
+    #[tokio::test]
+    async fn test_add_multiple_tasks_different_projects() {
+        let pool = create_test_pool().await;
+
+        let mut task1 = create_test_task(1);
+        task1.project_id = 10;
+        let mut task2 = create_test_task(2);
+        task2.project_id = 20;
+        let mut task3 = create_test_task(3);
+        task3.project_id = 10;
+
+        pool.add_task(task1).await.unwrap();
+        pool.add_task(task2).await.unwrap();
+        pool.add_task(task3).await.unwrap();
+
+        assert_eq!(pool.queue_size().await, 3);
+
+        let queue = pool.get_queue().await;
+        assert_eq!(queue[0].project_id, 10);
+        assert_eq!(queue[1].project_id, 20);
+        assert_eq!(queue[2].project_id, 10);
+    }
 }

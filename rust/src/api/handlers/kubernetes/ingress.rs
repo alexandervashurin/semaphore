@@ -314,4 +314,108 @@ mod tests {
         assert_eq!(tls.hosts.len(), 1);
         assert_eq!(tls.secret_name, Some("tls-secret".to_string()));
     }
+
+    #[test]
+    fn test_list_ingress_query_with_namespace() {
+        let query = ListIngressQuery {
+            namespace: Some("production".to_string()),
+            label_selector: Some("app=nginx".to_string()),
+            limit: Some(25),
+        };
+        assert_eq!(query.namespace, Some("production".to_string()));
+        assert_eq!(query.label_selector, Some("app=nginx".to_string()));
+        assert_eq!(query.limit, Some(25));
+    }
+
+    #[test]
+    fn test_list_ingress_query_empty() {
+        let query = ListIngressQuery {
+            namespace: None,
+            label_selector: None,
+            limit: None,
+        };
+        assert!(query.namespace.is_none());
+        assert!(query.limit.is_none());
+    }
+
+    #[test]
+    fn test_list_ingress_class_query() {
+        let query = ListIngressClassQuery {
+            limit: Some(10),
+        };
+        assert_eq!(query.limit, Some(10));
+    }
+
+    #[test]
+    fn test_ingress_rule_view_wildcard_host() {
+        let rule = IngressRuleView {
+            host: "*".to_string(),
+            backends: vec![],
+        };
+        assert_eq!(rule.host, "*");
+        assert!(rule.backends.is_empty());
+    }
+
+    #[test]
+    fn test_ingress_rule_view_with_backends() {
+        let backends = vec![
+            IngressPathBackend {
+                path: "/".to_string(),
+                path_type: Some("Prefix".to_string()),
+                service_name: Some("frontend".to_string()),
+                service_port: Some("80".to_string()),
+            },
+            IngressPathBackend {
+                path: "/api".to_string(),
+                path_type: Some("Exact".to_string()),
+                service_name: Some("backend".to_string()),
+                service_port: Some("8080".to_string()),
+            },
+        ];
+        let rule = IngressRuleView {
+            host: "example.com".to_string(),
+            backends,
+        };
+        assert_eq!(rule.backends.len(), 2);
+        assert_eq!(rule.backends[0].path, "/");
+        assert_eq!(rule.backends[1].path, "/api");
+    }
+
+    #[test]
+    fn test_ingress_tls_view_no_secret() {
+        let tls = IngressTlsView {
+            hosts: vec!["wildcard.example.com".to_string()],
+            secret_name: None,
+        };
+        assert_eq!(tls.hosts.len(), 1);
+        assert!(tls.secret_name.is_none());
+    }
+
+    #[test]
+    fn test_ingress_tls_view_multiple_hosts() {
+        let tls = IngressTlsView {
+            hosts: vec![
+                "example.com".to_string(),
+                "www.example.com".to_string(),
+            ],
+            secret_name: Some("example-tls".to_string()),
+        };
+        assert_eq!(tls.hosts.len(), 2);
+        assert!(tls.hosts.contains(&"www.example.com".to_string()));
+    }
+
+    #[test]
+    fn test_ingress_view_minimal() {
+        let view = IngressView {
+            name: "my-ingress".to_string(),
+            namespace: "default".to_string(),
+            ingress_class_name: None,
+            annotations: BTreeMap::new(),
+            rules: vec![],
+            tls: vec![],
+        };
+        assert_eq!(view.name, "my-ingress");
+        assert!(view.ingress_class_name.is_none());
+        assert!(view.rules.is_empty());
+    }
 }

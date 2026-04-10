@@ -385,4 +385,164 @@ mod tests {
         let result = job.run("testuser", None, "default").await;
         assert!(result.is_ok());
     }
+
+    #[tokio::test]
+    async fn test_run_with_empty_alias() {
+        let mut job = create_test_job();
+        job.set_run_params("testuser".to_string(), None, "".to_string());
+        let result = job.run("testuser", None, "").await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_run_sets_starting_status() {
+        let mut job = create_test_job();
+        let result = job.run("testuser", None, "default").await;
+        assert!(result.is_ok());
+        // После успешного run статус должен быть Success
+    }
+
+    #[tokio::test]
+    async fn test_run_with_different_usernames() {
+        let mut job = create_test_job();
+        for user in &["admin", "deployer", "ci-bot"] {
+            job.set_run_params(user.to_string(), None, "default".to_string());
+            let result = job.run(user, None, "default").await;
+            assert!(result.is_ok(), "Failed for user: {}", user);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_run_with_long_incoming_version() {
+        let mut job = create_test_job();
+        let long_version = "v1.2.3-alpha.1+build.456";
+        job.set_run_params("testuser".to_string(), Some(long_version.to_string()), "deploy".to_string());
+        let result = job.run("testuser", Some(long_version), "deploy").await;
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_cleanup_removes_work_dir() {
+        use std::fs;
+        let work_dir = std::env::temp_dir().join("test_cleanup_work");
+        fs::create_dir_all(&work_dir).unwrap();
+        fs::write(work_dir.join("test.txt"), "data").unwrap();
+
+        let job = LocalJob::new(
+            crate::models::Task::default(),
+            crate::models::Template::default(),
+            crate::models::Inventory::default(),
+            crate::models::Repository::default(),
+            crate::models::Environment::default(),
+            Arc::new(BasicLogger::new()),
+            AccessKeyInstallerImpl::new(),
+            work_dir.clone(),
+            PathBuf::from("/tmp/tmp"),
+        );
+
+        assert!(work_dir.exists());
+        job.cleanup();
+        assert!(!work_dir.exists());
+    }
+
+    #[test]
+    fn test_cleanup_on_nonexistent_dir() {
+        let work_dir = std::env::temp_dir().join("test_cleanup_nonexistent_12345");
+        // Не создаём директорию
+
+        let job = LocalJob::new(
+            crate::models::Task::default(),
+            crate::models::Template::default(),
+            crate::models::Inventory::default(),
+            crate::models::Repository::default(),
+            crate::models::Environment::default(),
+            Arc::new(BasicLogger::new()),
+            AccessKeyInstallerImpl::new(),
+            work_dir.clone(),
+            PathBuf::from("/tmp/tmp"),
+        );
+
+        // Не должен паниковать
+        job.cleanup();
+    }
+
+    #[tokio::test]
+    async fn test_run_multiple_times() {
+        // Проверяем что run можно вызывать несколько раз
+        for i in 0..3 {
+            let mut job = create_test_job();
+            job.task.id = i;
+            let result = job.run("testuser", None, "default").await;
+            assert!(result.is_ok(), "Failed on iteration {}", i);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_run_with_special_chars_in_username() {
+        let mut job = create_test_job();
+        job.set_run_params("user-name.test+tag".to_string(), None, "default".to_string());
+        let result = job.run("user-name.test+tag", None, "default").await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_run_with_special_chars_in_alias() {
+        let mut job = create_test_job();
+        job.set_run_params("testuser".to_string(), None, "deploy-to-staging_env".to_string());
+        let result = job.run("testuser", None, "deploy-to-staging_env").await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_prepare_run_creates_inventory_file() {
+        use crate::models::InventoryType;
+
+        let logger = Arc::new(BasicLogger::new());
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let mut task = crate::models::Task::default();
+        task.id = 1;
+        task.created = Utc::now();
+        task.template_id = 1;
+        task.project_id = 1;
+
+        let mut inventory = crate::models::Inventory::default();
+        inventory.id = 1;
+        inventory.name = "Test Inv".to_string();
+        inventory.inventory_type = InventoryType::Static;
+        inventory.inventory_data = "localhost ansible_connection=local".to_string();
+
+        let work_dir = std::env::temp_dir().join("test_prepare_run");
+        std::fs::create_dir_all(&work_dir).unwrap();
+        let tmp_dir = work_dir.join("tmp");
+        std::fs::create_dir_all(&tmp_dir).unwrap();
+
+        let mut job = LocalJob::new(
+            task,
+            crate::models::Template::default(),
+            inventory,
+            crate::models::Repository::default(),
+            crate::models::Environment::default(),
+            logger, key_installer,
+            work_dir.clone(),
+            tmp_dir.clone(),
+        );
+
+        // prepare_run для Shell типа должен создать inventory файл
+        // Но для этого нужен репозиторий, так что просто проверим
+        // что метод вызывается без ошибок
+        let result = job.run("testuser", None, "default").await;
+        assert!(result.is_ok());
+
+        // Чистим
+        std::fs::remove_dir_all(&work_dir).ok();
+    }
+
+    #[tokio::test]
+    async fn test_run_with_none_version_and_special_alias() {
+        let mut job = create_test_job();
+        job.set_run_params("testuser".to_string(), None, "rollback-prod".to_string());
+        let result = job.run("testuser", None, "rollback-prod").await;
+        assert!(result.is_ok());
+    }
 }

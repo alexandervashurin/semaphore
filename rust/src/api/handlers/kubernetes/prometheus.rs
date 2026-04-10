@@ -539,4 +539,142 @@ mod tests {
         assert!(result.value.is_some());
         assert!(result.values.is_empty());
     }
+
+    #[test]
+    fn test_calculate_range_start_1h() {
+        let start = calculate_range_start("1h");
+        let now = Utc::now().timestamp();
+        assert!((now - start - 3600).abs() < 5);
+    }
+
+    #[test]
+    fn test_calculate_range_start_6h() {
+        let start = calculate_range_start("6h");
+        let now = Utc::now().timestamp();
+        assert!((now - start - 6 * 3600).abs() < 5);
+    }
+
+    #[test]
+    fn test_calculate_range_start_24h() {
+        let start = calculate_range_start("24h");
+        let now = Utc::now().timestamp();
+        assert!((now - start - 24 * 3600).abs() < 5);
+    }
+
+    #[test]
+    fn test_calculate_range_start_1d_alias() {
+        let start_1d = calculate_range_start("1d");
+        let start_24h = calculate_range_start("24h");
+        assert_eq!(start_1d, start_24h);
+    }
+
+    #[test]
+    fn test_calculate_range_start_7d() {
+        let start = calculate_range_start("7d");
+        let now = Utc::now().timestamp();
+        assert!((now - start - 7 * 24 * 3600).abs() < 5);
+    }
+
+    #[test]
+    fn test_calculate_range_start_1w_alias() {
+        let start_7d = calculate_range_start("7d");
+        let start_1w = calculate_range_start("1w");
+        assert_eq!(start_7d, start_1w);
+    }
+
+    #[test]
+    fn test_calculate_range_start_default() {
+        let start = calculate_range_start("unknown");
+        let now = Utc::now().timestamp();
+        assert!((now - start - 3600).abs() < 5);
+    }
+
+    #[test]
+    fn test_prometheus_data_default_result_type() {
+        let data = PrometheusData {
+            result_type: String::new(),
+            result: vec![],
+        };
+        assert!(data.result_type.is_empty());
+        assert!(data.result.is_empty());
+    }
+
+    #[test]
+    fn test_metrics_query_struct() {
+        let query = MetricsQuery {
+            namespace: "monitoring".to_string(),
+            kind: "Pod".to_string(),
+            name: "prometheus-0".to_string(),
+            metric_type: Some("cpu".to_string()),
+            range: Some("6h".to_string()),
+        };
+        assert_eq!(query.namespace, "monitoring");
+        assert_eq!(query.metric_type, Some("cpu".to_string()));
+        assert_eq!(query.range, Some("6h".to_string()));
+    }
+
+    #[test]
+    fn test_resource_ref_struct() {
+        let ref_item = ResourceRef {
+            kind: "Deployment".to_string(),
+            name: "web".to_string(),
+            namespace: "production".to_string(),
+        };
+        assert_eq!(ref_item.kind, "Deployment");
+        assert_eq!(ref_item.name, "web");
+    }
+
+    #[test]
+    fn test_prometheus_metrics_response() {
+        let resp = PrometheusMetricsResponse {
+            resource: ResourceRef {
+                kind: "Pod".to_string(),
+                name: "test-pod".to_string(),
+                namespace: "default".to_string(),
+            },
+            metrics: vec![],
+            range: "1h".to_string(),
+            timestamp: Utc::now(),
+        };
+        assert_eq!(resp.resource.kind, "Pod");
+        assert!(resp.metrics.is_empty());
+        assert_eq!(resp.range, "1h");
+    }
+
+    #[test]
+    fn test_prometheus_query_with_timeout() {
+        let query = PrometheusQuery {
+            query: "node_cpu_seconds_total".to_string(),
+            time: Some("2024-01-01T00:00:00Z".to_string()),
+            timeout: Some(30),
+        };
+        assert_eq!(query.timeout, Some(30));
+        assert!(query.time.is_some());
+    }
+
+    #[test]
+    fn test_prometheus_range_query_with_timeout() {
+        let query = PrometheusRangeQuery {
+            query: "up".to_string(),
+            start: "now-1h".to_string(),
+            end: "now".to_string(),
+            step: "30s".to_string(),
+            timeout: Some(60),
+        };
+        assert_eq!(query.timeout, Some(60));
+        assert_eq!(query.step, "30s");
+    }
+
+    #[test]
+    fn test_prometheus_metric_with_labels() {
+        let mut labels = std::collections::HashMap::new();
+        labels.insert("namespace".to_string(), "default".to_string());
+        labels.insert("pod".to_string(), "web-abc123".to_string());
+        let metric = PrometheusMetric {
+            metric: "http_requests_total".to_string(),
+            value: MetricValue::Single(1500.0),
+            labels,
+        };
+        assert_eq!(metric.labels.get("namespace"), Some(&"default".to_string()));
+    }
 }

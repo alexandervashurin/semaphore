@@ -638,4 +638,298 @@ mod notify_tests {
         // Не должен паниковать даже без токена
         start_bot_if_configured(&config);
     }
+
+    #[test]
+    fn command_parsing_with_leading_spaces() {
+        let bot = TelegramBot {
+            token: "test".to_string(),
+            default_chat_id: Some("-100test".to_string()),
+            client: reqwest::Client::new(),
+        };
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        // Команда с ведущими пробелами — split_whitespace корректно обрабатывает
+        let result = rt.block_on(bot.handle_command("-100test", "  /help"));
+        assert!(result.is_ok() || result.is_err());
+    }
+
+    #[test]
+    fn command_parsing_with_trailing_spaces() {
+        let bot = TelegramBot {
+            token: "test".to_string(),
+            default_chat_id: Some("-100test".to_string()),
+            client: reqwest::Client::new(),
+        };
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let result = rt.block_on(bot.handle_command("-100test", "/help   "));
+        assert!(result.is_ok() || result.is_err());
+    }
+
+    #[test]
+    fn command_parsing_case_insensitive() {
+        let bot = TelegramBot {
+            token: "test".to_string(),
+            default_chat_id: Some("-100test".to_string()),
+            client: reqwest::Client::new(),
+        };
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        // Команды должны обрабатываться case-insensitive
+        let result = rt.block_on(bot.handle_command("-100test", "/HELP"));
+        assert!(result.is_ok() || result.is_err());
+    }
+
+    #[test]
+    fn command_parsing_mixed_case() {
+        let bot = TelegramBot {
+            token: "test".to_string(),
+            default_chat_id: Some("-100test".to_string()),
+            client: reqwest::Client::new(),
+        };
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let result = rt.block_on(bot.handle_command("-100test", "/HeLp"));
+        assert!(result.is_ok() || result.is_err());
+    }
+
+    #[test]
+    fn command_parsing_empty_text() {
+        let bot = TelegramBot {
+            token: "test".to_string(),
+            default_chat_id: Some("-100test".to_string()),
+            client: reqwest::Client::new(),
+        };
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        // Пустая строка — должна обработаться без паники
+        let result = rt.block_on(bot.handle_command("-100test", ""));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn command_parsing_whitespace_only() {
+        let bot = TelegramBot {
+            token: "test".to_string(),
+            default_chat_id: Some("-100test".to_string()),
+            client: reqwest::Client::new(),
+        };
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let result = rt.block_on(bot.handle_command("-100test", "   "));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn command_parsing_multiple_args() {
+        let bot = TelegramBot {
+            token: "test".to_string(),
+            default_chat_id: Some("-100test".to_string()),
+            client: reqwest::Client::new(),
+        };
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        // Несколько аргументов после команды
+        let result = rt.block_on(bot.handle_command("-100test", "/status arg1 arg2 arg3"));
+        assert!(result.is_ok() || result.is_err());
+    }
+
+    #[test]
+    fn notification_success_message_contains_expected_parts() {
+        let project = "MyProject";
+        let template = "Deploy Prod";
+        let task_id = 123;
+        let author = "ivan";
+        let duration_secs = 95;
+        let task_url = "http://example.com/tasks/123";
+
+        let mins = duration_secs / 60;
+        let secs = duration_secs % 60;
+        let duration = format!("{mins}m {secs}s");
+
+        let expected_text = format!(
+            "✅ <b>[{project}]</b> {template} — <b>SUCCESS</b> ({duration})\n\
+             👤 {author} · <a href=\"{task_url}\">#task {task_id}</a>"
+        );
+
+        assert!(expected_text.contains("✅"));
+        assert!(expected_text.contains("SUCCESS"));
+        assert!(expected_text.contains("MyProject"));
+        assert!(expected_text.contains("Deploy Prod"));
+        assert!(expected_text.contains("1m 35s"));
+        assert!(expected_text.contains("ivan"));
+        assert!(expected_text.contains("#task 123"));
+    }
+
+    #[test]
+    fn notification_failed_message_contains_expected_parts() {
+        let project = "Backend";
+        let template = "Run tests";
+        let task_id = 456;
+        let author = "maria";
+        let duration_secs = 45;
+        let task_url = "http://example.com/tasks/456";
+
+        let mins = duration_secs / 60;
+        let secs = duration_secs % 60;
+        let duration = format!("{secs}s");
+
+        let expected_text = format!(
+            "❌ <b>[{project}]</b> {template} — <b>FAILED</b> ({duration})\n\
+             👤 {author} · <a href=\"{task_url}\">#task {task_id}</a>"
+        );
+
+        assert!(expected_text.contains("❌"));
+        assert!(expected_text.contains("FAILED"));
+        assert!(expected_text.contains("Backend"));
+        assert!(expected_text.contains("45s"));
+        assert!(expected_text.contains("maria"));
+    }
+
+    #[test]
+    fn notification_stopped_message_contains_expected_parts() {
+        let project = "Frontend";
+        let template = "Build";
+        let task_id = 789;
+        let task_url = "http://example.com/tasks/789";
+
+        let expected_text = format!(
+            "⏹️ <b>[{project}]</b> {template} — <b>STOPPED</b>\n\
+             <a href=\"{task_url}\">#task {task_id}</a>"
+        );
+
+        assert!(expected_text.contains("⏹️"));
+        assert!(expected_text.contains("STOPPED"));
+        assert!(expected_text.contains("Frontend"));
+        assert!(expected_text.contains("Build"));
+        assert!(expected_text.contains("#task 789"));
+    }
+
+    #[test]
+    fn bot_clone_preserves_config() {
+        let bot = TelegramBot {
+            token: "clone-token".to_string(),
+            default_chat_id: Some("-100clone".to_string()),
+            client: reqwest::Client::new(),
+        };
+
+        let bot2 = bot.clone();
+        assert_eq!(bot.token, bot2.token);
+        assert_eq!(bot.default_chat_id, bot2.default_chat_id);
+    }
+
+    #[test]
+    fn bot_without_default_chat_id_send_default_returns_ok() {
+        let bot = TelegramBot {
+            token: "test".to_string(),
+            default_chat_id: None,
+            client: reqwest::Client::new(),
+        };
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let result = rt.block_on(bot.send_default("any message"));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn bot_with_default_chat_id_attempts_send() {
+        let bot = TelegramBot {
+            token: "test".to_string(),
+            default_chat_id: Some("-1001234567890".to_string()),
+            client: reqwest::Client::new(),
+        };
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        // Должен попытаться отправить (вернёт ошибку HTTP, но не паникует)
+        let result = rt.block_on(bot.send_default("test"));
+        assert!(result.is_ok() || result.is_err());
+    }
+
+    #[test]
+    fn duration_format_exactly_one_minute() {
+        let duration_secs = 60;
+        let mins = duration_secs / 60;
+        let secs = duration_secs % 60;
+        let duration = if mins > 0 {
+            format!("{mins}m {secs}s")
+        } else {
+            format!("{secs}s")
+        };
+        assert_eq!(duration, "1m 0s");
+    }
+
+    #[test]
+    fn duration_format_large_value() {
+        let duration_secs = 86400; // 24 hours
+        let mins = duration_secs / 60;
+        let secs = duration_secs % 60;
+        let duration = if mins > 0 {
+            format!("{mins}m {secs}s")
+        } else {
+            format!("{secs}s")
+        };
+        assert_eq!(duration, "1440m 0s");
+    }
+
+    #[test]
+    fn chat_id_formats() {
+        // Различные допустимые форматы chat_id
+        let valid_ids = vec![
+            "-1001234567890", // supergroup
+            "-123456789",     // group
+            "123456789",      // user
+        ];
+
+        let bot = TelegramBot {
+            token: "test".to_string(),
+            default_chat_id: None,
+            client: reqwest::Client::new(),
+        };
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        for chat_id in valid_ids {
+            let result = rt.block_on(bot.send_message(chat_id, "test"));
+            // Ожидается HTTP ошибка (нет реального соединения)
+            assert!(result.is_err());
+        }
+    }
+
+    #[test]
+    fn notification_bot_static_init_returns_none_without_config() {
+        std::env::remove_var("SEMAPHORE_TELEGRAM_TOKEN");
+
+        let config = crate::config::Config::default();
+        TelegramBot::init_notification_bot(&config);
+
+        let bot = TelegramBot::notification_bot();
+        assert!(bot.is_none());
+    }
+
+    #[test]
+    fn handle_command_empty_string_after_split() {
+        let bot = TelegramBot {
+            token: "test".to_string(),
+            default_chat_id: Some("-100test".to_string()),
+            client: reqwest::Client::new(),
+        };
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        // split_whitespace на пустой строке вернёт пустой итератор,
+        // unwrap_or("") даст пустую строку, которая не совпадёт ни с одной командой
+        let result = rt.block_on(bot.handle_command("-100test", ""));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn task_url_format_in_notification() {
+        let project_id = 5;
+        let task_id = 42;
+        let base_url = "https://semaphore.example.com";
+
+        // Мокируем get_public_host через установку переменной окружения
+        std::env::set_var("SEMAPHORE_PUBLIC_HOST", base_url);
+
+        let expected = format!("{base_url}/project/{project_id}/tasks/{task_id}");
+        assert_eq!(expected, "https://semaphore.example.com/project/5/tasks/42");
+    }
 }

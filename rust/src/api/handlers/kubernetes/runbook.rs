@@ -510,4 +510,169 @@ mod tests {
             assert!(json.starts_with('"'));
         }
     }
+
+    #[test]
+    fn test_kubernetes_context_with_labels() {
+        let mut labels = std::collections::HashMap::new();
+        labels.insert("app".to_string(), "web".to_string());
+        labels.insert("version".to_string(), "v2".to_string());
+        let ctx = KubernetesContext {
+            kind: "StatefulSet".to_string(),
+            name: "postgres".to_string(),
+            namespace: "database".to_string(),
+            cluster: Some("cluster-1".to_string()),
+            uid: Some("uid-789".to_string()),
+            labels: Some(labels),
+        };
+        assert_eq!(ctx.kind, "StatefulSet");
+        assert!(ctx.labels.is_some());
+        assert_eq!(ctx.labels.as_ref().unwrap().get("app"), Some(&"web".to_string()));
+    }
+
+    #[test]
+    fn test_runbook_task_params_with_flags() {
+        let params = RunbookTaskParams {
+            arguments: Some("--extra-vars=key=val".to_string()),
+            git_branch: Some("develop".to_string()),
+            environment_id: Some(1),
+            inventory_id: Some(2),
+            limit: Some("web-servers".to_string()),
+            tags: Some("deploy,config".to_string()),
+            skip_tags: Some("restart".to_string()),
+            debug: true,
+            dry_run: true,
+            diff: true,
+        };
+        assert!(params.debug);
+        assert!(params.dry_run);
+        assert!(params.diff);
+        assert_eq!(params.git_branch, Some("develop".to_string()));
+    }
+
+    #[test]
+    fn test_auto_runbook_params_defaults() {
+        let params = AutoRunbookParams::default();
+        assert!(!params.inject_resource_name);
+        assert!(!params.inject_namespace);
+        assert!(!params.inject_labels);
+        assert!(params.arguments_template.is_none());
+    }
+
+    #[test]
+    fn test_kubernetes_runbook_template() {
+        let template = KubernetesRunbookTemplate {
+            id: 10,
+            name: "Diagnose Pod".to_string(),
+            description: "Run diagnostic checks".to_string(),
+            resource_kinds: vec!["Pod".to_string(), "Deployment".to_string()],
+            category: RunbookCategory::Diagnostic,
+            auto_params: AutoRunbookParams {
+                inject_resource_name: true,
+                inject_namespace: true,
+                inject_labels: false,
+                arguments_template: Some("-e resource={{ name }}".to_string()),
+            },
+        };
+        assert_eq!(template.id, 10);
+        assert_eq!(template.resource_kinds.len(), 2);
+        assert_eq!(template.category, RunbookCategory::Diagnostic);
+    }
+
+    #[test]
+    fn test_runbook_resource_query() {
+        let query = RunbookResourceQuery {
+            kind: "Pod".to_string(),
+            namespace: Some("kube-system".to_string()),
+        };
+        assert_eq!(query.kind, "Pod");
+        assert_eq!(query.namespace, Some("kube-system".to_string()));
+    }
+
+    #[test]
+    fn test_runbook_request_serialization() {
+        let req = RunbookRequest {
+            template_id: 1,
+            kubernetes_context: KubernetesContext {
+                kind: "Pod".to_string(),
+                name: "test-pod".to_string(),
+                namespace: "default".to_string(),
+                cluster: None,
+                uid: None,
+                labels: None,
+            },
+            task_params: RunbookTaskParams::default(),
+            message: None,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(json.contains("template_id"));
+        assert!(json.contains("kubernetes_context"));
+    }
+
+    #[test]
+    fn test_build_runbook_arguments_with_cluster() {
+        let payload = RunbookRequest {
+            template_id: 1,
+            kubernetes_context: KubernetesContext {
+                kind: "Deployment".to_string(),
+                name: "web".to_string(),
+                namespace: "production".to_string(),
+                cluster: Some("prod-east".to_string()),
+                uid: None,
+                labels: None,
+            },
+            task_params: RunbookTaskParams::default(),
+            message: None,
+        };
+        let args = build_runbook_arguments(&payload, "diagnose.yml");
+        assert!(args.is_some());
+        let args_str = args.unwrap();
+        assert!(args_str.contains("target_resource=web"));
+        assert!(args_str.contains("target_namespace=production"));
+        assert!(args_str.contains("target_cluster=prod-east"));
+    }
+
+    #[test]
+    fn test_build_runbook_arguments_with_labels() {
+        let mut labels = std::collections::HashMap::new();
+        labels.insert("env".to_string(), "prod".to_string());
+        let payload = RunbookRequest {
+            template_id: 2,
+            kubernetes_context: KubernetesContext {
+                kind: "Pod".to_string(),
+                name: "api-pod".to_string(),
+                namespace: "api".to_string(),
+                cluster: None,
+                uid: None,
+                labels: Some(labels),
+            },
+            task_params: RunbookTaskParams::default(),
+            message: None,
+        };
+        let args = build_runbook_arguments(&payload, "check.yml");
+        assert!(args.is_some());
+        let args_str = args.unwrap();
+        assert!(args_str.contains("label_env=prod"));
+    }
+
+    #[test]
+    fn test_build_runbook_arguments_empty_result() {
+        let payload = RunbookRequest {
+            template_id: 1,
+            kubernetes_context: KubernetesContext {
+                kind: "Pod".to_string(),
+                name: "test".to_string(),
+                namespace: "default".to_string(),
+                cluster: None,
+                uid: None,
+                labels: None,
+            },
+            task_params: RunbookTaskParams {
+                arguments: Some("custom-args".to_string()),
+                ..Default::default()
+            },
+            message: None,
+        };
+        let args = build_runbook_arguments(&payload, "playbook.yml");
+        assert_eq!(args, Some("custom-args".to_string()));
+    }
 }

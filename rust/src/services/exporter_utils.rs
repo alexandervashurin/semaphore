@@ -280,4 +280,215 @@ mod tests {
         let result = validate_after_import::<String>("not valid json");
         assert!(result.is_err());
     }
+
+    // ── Additional tests ──
+
+    #[test]
+    fn test_serialize_empty_vec() {
+        let data: Vec<String> = Vec::new();
+        let json = serialize_to_json(&data).unwrap();
+        assert_eq!(json, "[]");
+    }
+
+    #[test]
+    fn test_serialize_boolean_value() {
+        let data = true;
+        let json = serialize_to_json(&data).unwrap();
+        assert_eq!(json, "true");
+    }
+
+    #[test]
+    fn test_serialize_numeric_value() {
+        let data = 42i32;
+        let json = serialize_to_json(&data).unwrap();
+        assert_eq!(json, "42");
+    }
+
+    #[test]
+    fn test_deserialize_numeric_value() {
+        let json = "123";
+        let data: i32 = deserialize_from_json(json).unwrap();
+        assert_eq!(data, 123);
+    }
+
+    #[test]
+    fn test_deserialize_boolean_value() {
+        let json = "false";
+        let data: bool = deserialize_from_json(json).unwrap();
+        assert!(!data);
+    }
+
+    #[test]
+    fn test_check_dependencies_empty_required() {
+        let exported = HashMap::new();
+        let required: Vec<&str> = Vec::new();
+        let result = check_dependencies(&exported, &required);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_check_dependencies_all_missing() {
+        let exported = HashMap::new();
+        let required = vec!["User", "Project", "Template"];
+        let result = check_dependencies(&exported, &required);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.contains("Missing dependency"));
+    }
+
+    #[test]
+    fn test_check_dependencies_partial_match() {
+        let mut exported = HashMap::new();
+        exported.insert("User", true);
+        exported.insert("Template", true);
+
+        let required = vec!["User", "Project", "Template"];
+        let result = check_dependencies(&exported, &required);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Project"));
+    }
+
+    #[test]
+    fn test_create_dependency_map_user_no_deps() {
+        let deps = create_dependency_map();
+        let user_deps = deps.get("User").unwrap();
+        assert!(user_deps.is_empty());
+    }
+
+    #[test]
+    fn test_create_dependency_map_repository_deps() {
+        let deps = create_dependency_map();
+        let repo_deps = deps.get("Repository").unwrap();
+        assert_eq!(repo_deps.len(), 2);
+        assert!(repo_deps.contains(&"Project"));
+        assert!(repo_deps.contains(&"AccessKey"));
+    }
+
+    #[test]
+    fn test_create_dependency_map_inventory_deps() {
+        let deps = create_dependency_map();
+        let inv_deps = deps.get("Inventory").unwrap();
+        assert_eq!(inv_deps.len(), 2);
+        assert!(inv_deps.contains(&"Project"));
+        assert!(inv_deps.contains(&"AccessKey"));
+    }
+
+    #[test]
+    fn test_create_dependency_map_view_deps() {
+        let deps = create_dependency_map();
+        let view_deps = deps.get("View").unwrap();
+        assert_eq!(view_deps.len(), 1);
+        assert!(view_deps.contains(&"Project"));
+    }
+
+    #[test]
+    fn test_export_order_contains_all_entities() {
+        let order = get_export_order().unwrap();
+        assert!(order.contains(&"User"));
+        assert!(order.contains(&"Project"));
+        assert!(order.contains(&"Template"));
+        assert!(order.contains(&"Schedule"));
+    }
+
+    #[test]
+    fn test_export_order_no_duplicates() {
+        let order = get_export_order().unwrap();
+        let mut seen = std::collections::HashSet::new();
+        for entity in &order {
+            assert!(seen.insert(*entity), "Duplicate found: {}", entity);
+        }
+    }
+
+    #[test]
+    fn test_import_order_is_reverse_of_export() {
+        let export_order = get_export_order().unwrap();
+        let import_order = get_import_order().unwrap();
+        let reversed_export: Vec<&str> = export_order.into_iter().rev().collect();
+        assert_eq!(import_order.len(), reversed_export.len());
+        for (a, b) in import_order.iter().zip(reversed_export.iter()) {
+            assert_eq!(a, b);
+        }
+    }
+
+    #[test]
+    fn test_export_order_template_after_dependencies() {
+        let order = get_export_order().unwrap();
+        let project_pos = order.iter().position(|&x| x == "Project").unwrap();
+        let inventory_pos = order.iter().position(|&x| x == "Inventory").unwrap();
+        let repository_pos = order.iter().position(|&x| x == "Repository").unwrap();
+        let environment_pos = order.iter().position(|&x| x == "Environment").unwrap();
+        let template_pos = order.iter().position(|&x| x == "Template").unwrap();
+
+        assert!(template_pos > project_pos);
+        assert!(template_pos > inventory_pos);
+        assert!(template_pos > repository_pos);
+        assert!(template_pos > environment_pos);
+    }
+
+    #[test]
+    fn test_export_order_schedule_after_template() {
+        let order = get_export_order().unwrap();
+        let template_pos = order.iter().position(|&x| x == "Template").unwrap();
+        let schedule_pos = order.iter().position(|&x| x == "Schedule").unwrap();
+        assert!(schedule_pos > template_pos);
+    }
+
+    #[test]
+    fn test_export_order_integration_after_template() {
+        let order = get_export_order().unwrap();
+        let template_pos = order.iter().position(|&x| x == "Template").unwrap();
+        let integration_pos = order.iter().position(|&x| x == "Integration").unwrap();
+        assert!(integration_pos > template_pos);
+    }
+
+    #[test]
+    fn test_export_order_task_after_template() {
+        let order = get_export_order().unwrap();
+        let template_pos = order.iter().position(|&x| x == "Template").unwrap();
+        let task_pos = order.iter().position(|&x| x == "Task").unwrap();
+        assert!(task_pos > template_pos);
+    }
+
+    #[test]
+    fn test_serialize_nested_struct() {
+        #[derive(Serialize)]
+        struct Inner {
+            value: i32,
+        }
+
+        #[derive(Serialize)]
+        struct Outer {
+            inner: Inner,
+            label: String,
+        }
+
+        let data = Outer {
+            inner: Inner { value: 99 },
+            label: "outer".to_string(),
+        };
+        let json = serialize_to_json(&data).unwrap();
+        assert!(json.contains("\"value\": 99"));
+        assert!(json.contains("\"label\": \"outer\""));
+    }
+
+    #[test]
+    fn test_deserialize_hashmap() {
+        let json = r#"{"key1":"val1","key2":"val2"}"#;
+        let data: HashMap<String, String> = deserialize_from_json(json).unwrap();
+        assert_eq!(data.get("key1").unwrap(), "val1");
+        assert_eq!(data.get("key2").unwrap(), "val2");
+    }
+
+    #[test]
+    fn test_validate_before_export_with_vec() {
+        let data = vec![1, 2, 3, 4, 5];
+        assert!(validate_before_export(&data).is_ok());
+    }
+
+    #[test]
+    fn test_dependency_map_entity_count() {
+        let deps = create_dependency_map();
+        // User, Project, AccessKey, Environment, Repository, Inventory, Template, View, Schedule, Integration, Task
+        assert_eq!(deps.len(), 11);
+    }
 }

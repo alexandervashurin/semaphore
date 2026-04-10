@@ -357,4 +357,137 @@ mod tests {
     fn test_format_age_days() {
         assert_eq!(format_age(&make_ts(259200)), "3d");
     }
+
+    #[test]
+    fn test_format_age_months() {
+        let age = format_age(&make_ts(2592000));
+        assert!(age.ends_with('d'));
+    }
+
+    #[test]
+    fn test_format_age_years() {
+        let age = format_age(&make_ts(94608000)); // 3 years
+        assert!(age.ends_with('y'));
+    }
+
+    #[test]
+    fn test_daemonset_summary_struct() {
+        let summary = DaemonSetSummary {
+            name: "fluentd".to_string(),
+            namespace: "kube-system".to_string(),
+            desired_number_scheduled: 5,
+            current_number_scheduled: 5,
+            number_ready: 5,
+            number_available: 5,
+            number_misscheduled: 0,
+            age: "30d".to_string(),
+        };
+        assert_eq!(summary.name, "fluentd");
+        assert_eq!(summary.desired_number_scheduled, 5);
+        assert_eq!(summary.number_misscheduled, 0);
+    }
+
+    #[test]
+    fn test_daemonset_detail_struct() {
+        let detail = DaemonSetDetail {
+            name: "kube-proxy".to_string(),
+            namespace: "kube-system".to_string(),
+            desired_number_scheduled: 10,
+            current_number_scheduled: 10,
+            number_ready: 9,
+            number_available: 9,
+            number_misscheduled: 1,
+            selector: BTreeMap::new(),
+            template_labels: BTreeMap::new(),
+            containers: vec![ContainerInfo {
+                name: "kube-proxy".to_string(),
+                image: Some("k8s.gcr.io/kube-proxy:v1.28".to_string()),
+            }],
+            conditions: vec![],
+            created_at: Some(Utc::now()),
+        };
+        assert_eq!(detail.name, "kube-proxy");
+        assert_eq!(detail.containers.len(), 1);
+        assert_eq!(detail.number_misscheduled, 1);
+    }
+
+    #[test]
+    fn test_daemonset_condition() {
+        let cond = DaemonSetCondition {
+            condition_type: "DaemonSetAvailable".to_string(),
+            status: "True".to_string(),
+            reason: None,
+            message: None,
+        };
+        assert_eq!(cond.condition_type, "DaemonSetAvailable");
+        assert_eq!(cond.status, "True");
+        assert!(cond.reason.is_none());
+    }
+
+    #[test]
+    fn test_daemonset_list_query_with_selector() {
+        let query = DaemonSetListQuery {
+            namespace: Some("monitoring".to_string()),
+            label_selector: Some("app=prometheus".to_string()),
+            limit: Some(10),
+        };
+        assert_eq!(query.namespace, Some("monitoring".to_string()));
+        assert_eq!(query.label_selector, Some("app=prometheus".to_string()));
+    }
+
+    #[test]
+    fn test_daemonset_list_query_empty() {
+        let query = DaemonSetListQuery {
+            namespace: None,
+            label_selector: None,
+            limit: None,
+        };
+        assert!(query.namespace.is_none());
+        assert!(query.limit.is_none());
+    }
+
+    #[test]
+    fn test_daemonset_operation_response() {
+        let resp = DaemonSetOperationResponse {
+            message: "DaemonSet fluentd deleted".to_string(),
+            name: "fluentd".to_string(),
+            namespace: "kube-system".to_string(),
+        };
+        assert!(resp.message.contains("deleted"));
+        assert_eq!(resp.name, "fluentd");
+    }
+
+    #[test]
+    fn test_container_info_with_image() {
+        let info = ContainerInfo {
+            name: "log-collector".to_string(),
+            image: Some("fluentd:v1.16".to_string()),
+        };
+        assert_eq!(info.name, "log-collector");
+        assert_eq!(info.image, Some("fluentd:v1.16".to_string()));
+    }
+
+    #[test]
+    fn test_container_info_without_image() {
+        let info = ContainerInfo {
+            name: "init-setup".to_string(),
+            image: None,
+        };
+        assert!(info.image.is_none());
+    }
+
+    #[test]
+    fn test_format_age_one_minute() {
+        assert_eq!(format_age(&make_ts(60)), "1m");
+    }
+
+    #[test]
+    fn test_format_age_one_hour() {
+        assert_eq!(format_age(&make_ts(3600)), "1h");
+    }
+
+    #[test]
+    fn test_format_age_one_day() {
+        assert_eq!(format_age(&make_ts(86400)), "1d");
+    }
 }

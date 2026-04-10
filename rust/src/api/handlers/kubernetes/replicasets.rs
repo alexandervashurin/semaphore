@@ -386,4 +386,176 @@ mod tests {
     fn test_format_age_days() {
         assert_eq!(format_age(&make_ts(432000)), "5d");
     }
+
+    #[test]
+    fn test_format_age_months() {
+        let age = format_age(&make_ts(2592000)); // 30 days
+        assert!(age.ends_with('d'));
+    }
+
+    #[test]
+    fn test_format_age_years() {
+        let age = format_age(&make_ts(63072000)); // 2 years
+        assert!(age.ends_with('y'));
+    }
+
+    #[test]
+    fn test_replicaset_summary_struct_fields() {
+        let summary = ReplicaSetSummary {
+            name: "my-rs".to_string(),
+            namespace: "production".to_string(),
+            replicas: 3,
+            ready_replicas: 2,
+            available_replicas: 2,
+            age: "5d".to_string(),
+            owner: Some("my-deployment".to_string()),
+        };
+        assert_eq!(summary.name, "my-rs");
+        assert_eq!(summary.namespace, "production");
+        assert_eq!(summary.replicas, 3);
+        assert_eq!(summary.ready_replicas, 2);
+        assert_eq!(summary.available_replicas, 2);
+        assert_eq!(summary.age, "5d");
+        assert_eq!(summary.owner, Some("my-deployment".to_string()));
+    }
+
+    #[test]
+    fn test_replicaset_summary_owner_none() {
+        let summary = ReplicaSetSummary {
+            name: "standalone-rs".to_string(),
+            namespace: "default".to_string(),
+            replicas: 1,
+            ready_replicas: 1,
+            available_replicas: 1,
+            age: "1h".to_string(),
+            owner: None,
+        };
+        assert!(summary.owner.is_none());
+    }
+
+    #[test]
+    fn test_replicaset_detail_struct() {
+        let mut selector = BTreeMap::new();
+        selector.insert("app".to_string(), "web".to_string());
+        let detail = ReplicaSetDetail {
+            name: "web-rs".to_string(),
+            namespace: "default".to_string(),
+            replicas: 3,
+            ready_replicas: 3,
+            available_replicas: 3,
+            selector: selector.clone(),
+            template_labels: selector,
+            containers: vec![ContainerInfo {
+                name: "nginx".to_string(),
+                image: Some("nginx:1.21".to_string()),
+            }],
+            owner_references: vec![OwnerReference {
+                api_version: "apps/v1".to_string(),
+                kind: "Deployment".to_string(),
+                name: "web".to_string(),
+                uid: "uid-123".to_string(),
+            }],
+            conditions: vec![ReplicaSetCondition {
+                condition_type: "ReplicaFailure".to_string(),
+                status: "False".to_string(),
+                reason: None,
+                message: None,
+            }],
+            created_at: Some(Utc::now()),
+        };
+        assert_eq!(detail.name, "web-rs");
+        assert_eq!(detail.containers.len(), 1);
+        assert_eq!(detail.containers[0].image, Some("nginx:1.21".to_string()));
+        assert_eq!(detail.owner_references.len(), 1);
+        assert_eq!(detail.conditions.len(), 1);
+    }
+
+    #[test]
+    fn test_container_info_without_image() {
+        let info = ContainerInfo {
+            name: "sidecar".to_string(),
+            image: None,
+        };
+        assert_eq!(info.name, "sidecar");
+        assert!(info.image.is_none());
+    }
+
+    #[test]
+    fn test_owner_reference_struct() {
+        let owner = OwnerReference {
+            api_version: "apps/v1".to_string(),
+            kind: "Deployment".to_string(),
+            name: "my-deploy".to_string(),
+            uid: "uid-456".to_string(),
+        };
+        assert_eq!(owner.kind, "Deployment");
+        assert_eq!(owner.api_version, "apps/v1");
+    }
+
+    #[test]
+    fn test_replicaset_condition_with_reason() {
+        let cond = ReplicaSetCondition {
+            condition_type: "ReplicaFailure".to_string(),
+            status: "True".to_string(),
+            reason: Some("FailedCreate".to_string()),
+            message: Some("Error creating pod".to_string()),
+        };
+        assert_eq!(cond.condition_type, "ReplicaFailure");
+        assert_eq!(cond.status, "True");
+        assert!(cond.reason.is_some());
+        assert!(cond.message.is_some());
+    }
+
+    #[test]
+    fn test_replicaset_list_query_all_none() {
+        let query = ReplicaSetListQuery {
+            namespace: None,
+            label_selector: None,
+            limit: None,
+        };
+        assert!(query.namespace.is_none());
+        assert!(query.label_selector.is_none());
+        assert!(query.limit.is_none());
+    }
+
+    #[test]
+    fn test_replicaset_list_query_with_params() {
+        let query = ReplicaSetListQuery {
+            namespace: Some("kube-system".to_string()),
+            label_selector: Some("app=coredns".to_string()),
+            limit: Some(50),
+        };
+        assert_eq!(query.namespace, Some("kube-system".to_string()));
+        assert_eq!(query.label_selector, Some("app=coredns".to_string()));
+        assert_eq!(query.limit, Some(50));
+    }
+
+    #[test]
+    fn test_replicaset_operation_response() {
+        let resp = ReplicaSetOperationResponse {
+            message: "ReplicaSet test-rs deleted".to_string(),
+            name: "test-rs".to_string(),
+            namespace: "default".to_string(),
+        };
+        assert!(resp.message.contains("deleted"));
+        assert_eq!(resp.name, "test-rs");
+    }
+
+    #[test]
+    fn test_format_age_zero_seconds() {
+        let age = format_age(&make_ts(0));
+        assert!(age.ends_with("s"));
+    }
+
+    #[test]
+    fn test_format_age_exactly_one_minute() {
+        let age = format_age(&make_ts(60));
+        assert_eq!(age, "1m");
+    }
+
+    #[test]
+    fn test_format_age_exactly_one_hour() {
+        let age = format_age(&make_ts(3600));
+        assert_eq!(age, "1h");
+    }
 }
