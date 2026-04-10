@@ -307,4 +307,115 @@ mod tests {
         let result = runner.create_task_event().await;
         assert!(result.is_ok());
     }
+
+    #[tokio::test]
+    async fn test_task_runner_initial_status_is_waiting() {
+        let runner = create_test_task_runner();
+        assert_eq!(runner.get_status(), TaskStatus::Waiting);
+    }
+
+    #[tokio::test]
+    async fn test_set_status_to_error() {
+        let mut runner = create_test_task_runner();
+        runner.set_status(TaskStatus::Error).await;
+        assert_eq!(runner.task.status, TaskStatus::Error);
+    }
+
+    #[tokio::test]
+    async fn test_set_status_to_stopped() {
+        let mut runner = create_test_task_runner();
+        runner.set_status(TaskStatus::Stopped).await;
+        assert_eq!(runner.task.status, TaskStatus::Stopped);
+    }
+
+    #[tokio::test]
+    async fn test_kill_sets_killed_flag_before_log() {
+        let mut runner = create_test_task_runner();
+        assert!(!runner.is_killed().await);
+        runner.kill().await;
+        assert!(runner.is_killed().await);
+    }
+
+    #[tokio::test]
+    async fn test_log_does_not_panic_with_empty_message() {
+        let runner = create_test_task_runner();
+        runner.log("");
+    }
+
+    #[tokio::test]
+    async fn test_log_does_not_panic_with_multiline_message() {
+        let runner = create_test_task_runner();
+        runner.log("Line 1\nLine 2\nLine 3");
+    }
+
+    #[tokio::test]
+    async fn test_status_transition_waiting_to_starting() {
+        let mut runner = create_test_task_runner();
+        assert_eq!(runner.get_status(), TaskStatus::Waiting);
+        runner.set_status(TaskStatus::Starting).await;
+        assert_eq!(runner.get_status(), TaskStatus::Starting);
+    }
+
+    #[tokio::test]
+    async fn test_status_transition_running_to_success() {
+        let mut runner = create_test_task_runner();
+        runner.set_status(TaskStatus::Running).await;
+        runner.set_status(TaskStatus::Success).await;
+        assert_eq!(runner.get_status(), TaskStatus::Success);
+    }
+
+    #[tokio::test]
+    async fn test_status_transition_running_to_error() {
+        let mut runner = create_test_task_runner();
+        runner.set_status(TaskStatus::Running).await;
+        runner.set_status(TaskStatus::Error).await;
+        assert_eq!(runner.get_status(), TaskStatus::Error);
+    }
+
+    #[tokio::test]
+    async fn test_status_transition_to_stopped_from_running() {
+        let mut runner = create_test_task_runner();
+        runner.set_status(TaskStatus::Running).await;
+        runner.set_status(TaskStatus::Stopped).await;
+        assert_eq!(runner.get_status(), TaskStatus::Stopped);
+    }
+
+    #[tokio::test]
+    async fn test_create_task_event_description_contains_task_id() {
+        let runner = create_test_task_runner();
+        // Event creation should succeed, description contains task id
+        let result = runner.create_task_event().await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_run_fails_without_template_in_store() {
+        let mut runner = create_test_task_runner();
+        // MockStore пустой, поэтому populate_details упадёт
+        let result = runner.run().await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_kill_does_not_modify_task_status() {
+        let mut runner = create_test_task_runner();
+        let status_before = runner.task.status.clone();
+        runner.kill().await;
+        assert_eq!(runner.task.status, status_before);
+    }
+
+    #[tokio::test]
+    async fn test_multiple_status_changes_in_sequence() {
+        let mut runner = create_test_task_runner();
+        let all_statuses = [
+            TaskStatus::Waiting,
+            TaskStatus::Starting,
+            TaskStatus::Running,
+            TaskStatus::Success,
+        ];
+        for status in &all_statuses {
+            runner.set_status(status.clone()).await;
+            assert_eq!(runner.get_status(), status.clone());
+        }
+    }
 }

@@ -312,4 +312,352 @@ mod tests {
         // Метод-заглушка всегда возвращает Ok(())
         assert!(result.is_ok());
     }
+
+    #[tokio::test]
+    async fn test_populate_details_fails_with_nonexistent_template_id() {
+        let store = Arc::new(MockStore::new());
+        let task = Task {
+            id: 1,
+            created: Utc::now(),
+            template_id: 999,
+            status: TaskStatus::Waiting,
+            project_id: 1,
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+            ..Default::default()
+        };
+        let pool = Arc::new(TaskPool::new(store, 5));
+        let mut runner = TaskRunner::new(
+            task,
+            pool,
+            "testuser".to_string(),
+            AccessKeyInstallerImpl::new(),
+        );
+        let result = runner.populate_details().await;
+        assert!(result.is_err(), "Should fail with nonexistent template");
+    }
+
+    #[tokio::test]
+    async fn test_populate_details_with_zero_project_id() {
+        let store = Arc::new(MockStore::new());
+        let mut tpl = Template::default();
+        tpl.id = 1;
+        tpl.project_id = 0;
+        tpl.name = "test_template".to_string();
+        store.as_ref().create_template(tpl).await.unwrap();
+
+        let task = Task {
+            id: 1,
+            created: Utc::now(),
+            template_id: 1,
+            status: TaskStatus::Waiting,
+            project_id: 0,
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+            ..Default::default()
+        };
+
+        let pool = Arc::new(TaskPool::new(store, 5));
+        let mut runner = TaskRunner::new(
+            task,
+            pool,
+            "testuser".to_string(),
+            AccessKeyInstallerImpl::new(),
+        );
+
+        let result = runner.populate_details().await;
+        assert!(result.is_ok(), "Should succeed with only template");
+    }
+
+    #[tokio::test]
+    async fn test_populate_details_loads_inventory_only() {
+        let store = Arc::new(MockStore::new());
+        let mut tpl = Template::default();
+        tpl.id = 1;
+        tpl.project_id = 1;
+        store.as_ref().create_template(tpl).await.unwrap();
+
+        let mut inv = Inventory::default();
+        inv.id = 1;
+        inv.project_id = 1;
+        inv.name = "test_inv".to_string();
+        store.as_ref().create_inventory(inv).await.unwrap();
+
+        let task = Task {
+            id: 1,
+            created: Utc::now(),
+            template_id: 1,
+            status: TaskStatus::Waiting,
+            project_id: 1,
+            inventory_id: Some(1),
+            repository_id: None,
+            environment_id: None,
+            ..Default::default()
+        };
+
+        let pool = Arc::new(TaskPool::new(store, 5));
+        let mut runner = TaskRunner::new(
+            task,
+            pool,
+            "testuser".to_string(),
+            AccessKeyInstallerImpl::new(),
+        );
+
+        let result = runner.populate_details().await;
+        assert!(result.is_ok());
+        assert_eq!(runner.template.id, 1);
+        assert_eq!(runner.inventory.id, 1);
+    }
+
+    #[tokio::test]
+    async fn test_populate_details_loads_repository_only() {
+        let store = Arc::new(MockStore::new());
+        let mut tpl = Template::default();
+        tpl.id = 1;
+        tpl.project_id = 1;
+        store.as_ref().create_template(tpl).await.unwrap();
+
+        let mut repo = Repository::default();
+        repo.id = 1;
+        repo.project_id = 1;
+        repo.name = "test_repo".to_string();
+        store.as_ref().create_repository(repo).await.unwrap();
+
+        let task = Task {
+            id: 1,
+            created: Utc::now(),
+            template_id: 1,
+            status: TaskStatus::Waiting,
+            project_id: 1,
+            inventory_id: None,
+            repository_id: Some(1),
+            environment_id: None,
+            ..Default::default()
+        };
+
+        let pool = Arc::new(TaskPool::new(store, 5));
+        let mut runner = TaskRunner::new(
+            task,
+            pool,
+            "testuser".to_string(),
+            AccessKeyInstallerImpl::new(),
+        );
+
+        let result = runner.populate_details().await;
+        assert!(result.is_ok());
+        assert_eq!(runner.repository.id, 1);
+    }
+
+    #[tokio::test]
+    async fn test_populate_details_loads_environment_only() {
+        let store = Arc::new(MockStore::new());
+        let mut tpl = Template::default();
+        tpl.id = 1;
+        tpl.project_id = 1;
+        store.as_ref().create_template(tpl).await.unwrap();
+
+        let mut env = Environment::default();
+        env.id = 1;
+        env.project_id = 1;
+        env.name = "test_env".to_string();
+        store.as_ref().create_environment(env).await.unwrap();
+
+        let task = Task {
+            id: 1,
+            created: Utc::now(),
+            template_id: 1,
+            status: TaskStatus::Waiting,
+            project_id: 1,
+            inventory_id: None,
+            repository_id: None,
+            environment_id: Some(1),
+            ..Default::default()
+        };
+
+        let pool = Arc::new(TaskPool::new(store, 5));
+        let mut runner = TaskRunner::new(
+            task,
+            pool,
+            "testuser".to_string(),
+            AccessKeyInstallerImpl::new(),
+        );
+
+        let result = runner.populate_details().await;
+        assert!(result.is_ok());
+        assert_eq!(runner.environment.id, 1);
+    }
+
+    #[tokio::test]
+    async fn test_populate_details_fails_on_missing_inventory() {
+        let store = Arc::new(MockStore::new());
+        let mut tpl = Template::default();
+        tpl.id = 1;
+        tpl.project_id = 1;
+        store.as_ref().create_template(tpl).await.unwrap();
+
+        let task = Task {
+            id: 1,
+            created: Utc::now(),
+            template_id: 1,
+            status: TaskStatus::Waiting,
+            project_id: 1,
+            inventory_id: Some(1),
+            repository_id: None,
+            environment_id: None,
+            ..Default::default()
+        };
+
+        let pool = Arc::new(TaskPool::new(store, 5));
+        let mut runner = TaskRunner::new(
+            task,
+            pool,
+            "testuser".to_string(),
+            AccessKeyInstallerImpl::new(),
+        );
+
+        let result = runner.populate_details().await;
+        assert!(result.is_err(), "Should fail when inventory is missing");
+    }
+
+    #[tokio::test]
+    async fn test_populate_details_fails_on_missing_repository() {
+        let store = Arc::new(MockStore::new());
+        let mut tpl = Template::default();
+        tpl.id = 1;
+        tpl.project_id = 1;
+        store.as_ref().create_template(tpl).await.unwrap();
+
+        let task = Task {
+            id: 1,
+            created: Utc::now(),
+            template_id: 1,
+            status: TaskStatus::Waiting,
+            project_id: 1,
+            inventory_id: None,
+            repository_id: Some(1),
+            environment_id: None,
+            ..Default::default()
+        };
+
+        let pool = Arc::new(TaskPool::new(store, 5));
+        let mut runner = TaskRunner::new(
+            task,
+            pool,
+            "testuser".to_string(),
+            AccessKeyInstallerImpl::new(),
+        );
+
+        let result = runner.populate_details().await;
+        assert!(result.is_err(), "Should fail when repository is missing");
+    }
+
+    #[tokio::test]
+    async fn test_populate_details_fails_on_missing_environment() {
+        let store = Arc::new(MockStore::new());
+        let mut tpl = Template::default();
+        tpl.id = 1;
+        tpl.project_id = 1;
+        store.as_ref().create_template(tpl).await.unwrap();
+
+        let task = Task {
+            id: 1,
+            created: Utc::now(),
+            template_id: 1,
+            status: TaskStatus::Waiting,
+            project_id: 1,
+            inventory_id: None,
+            repository_id: None,
+            environment_id: Some(1),
+            ..Default::default()
+        };
+
+        let pool = Arc::new(TaskPool::new(store, 5));
+        let mut runner = TaskRunner::new(
+            task,
+            pool,
+            "testuser".to_string(),
+            AccessKeyInstallerImpl::new(),
+        );
+
+        let result = runner.populate_details().await;
+        assert!(result.is_err(), "Should fail when environment is missing");
+    }
+
+    #[tokio::test]
+    async fn test_populate_details_template_fields_are_populated() {
+        let store = Arc::new(MockStore::new());
+        let mut tpl = Template::default();
+        tpl.id = 42;
+        tpl.project_id = 1;
+        tpl.name = "my_test_template".to_string();
+        store.as_ref().create_template(tpl).await.unwrap();
+
+        let task = Task {
+            id: 1,
+            created: Utc::now(),
+            template_id: 42,
+            status: TaskStatus::Waiting,
+            project_id: 1,
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+            ..Default::default()
+        };
+
+        let pool = Arc::new(TaskPool::new(store, 5));
+        let mut runner = TaskRunner::new(
+            task,
+            pool,
+            "testuser".to_string(),
+            AccessKeyInstallerImpl::new(),
+        );
+
+        let result = runner.populate_details().await;
+        assert!(result.is_ok());
+        assert_eq!(runner.template.id, 42);
+        assert_eq!(runner.template.name, "my_test_template");
+    }
+
+    #[tokio::test]
+    async fn test_populate_details_idempotent_when_called_twice() {
+        let store = Arc::new(MockStore::new());
+        let mut tpl = Template::default();
+        tpl.id = 1;
+        tpl.project_id = 1;
+        tpl.name = "test".to_string();
+        store.as_ref().create_template(tpl).await.unwrap();
+
+        let mut env = Environment::default();
+        env.id = 1;
+        env.project_id = 1;
+        env.name = "env".to_string();
+        store.as_ref().create_environment(env).await.unwrap();
+
+        let task = Task {
+            id: 1,
+            created: Utc::now(),
+            template_id: 1,
+            status: TaskStatus::Waiting,
+            project_id: 1,
+            inventory_id: None,
+            repository_id: None,
+            environment_id: Some(1),
+            ..Default::default()
+        };
+
+        let pool = Arc::new(TaskPool::new(store, 5));
+        let mut runner = TaskRunner::new(
+            task,
+            pool,
+            "testuser".to_string(),
+            AccessKeyInstallerImpl::new(),
+        );
+
+        let r1 = runner.populate_details().await;
+        assert!(r1.is_ok());
+        let r2 = runner.populate_details().await;
+        assert!(r2.is_ok());
+    }
 }

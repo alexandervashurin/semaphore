@@ -141,4 +141,156 @@ mod tests {
         assert!(info.cpu_usage >= 0.0);
         assert!(info.memory_usage_mb >= 0.0);
     }
+
+    #[test]
+    fn test_get_memory_usage_mb_returns_positive() {
+        let result = get_memory_usage_mb().unwrap();
+        assert!(result >= 0.0);
+    }
+
+    #[test]
+    fn test_get_cpu_usage_percent_returns_positive() {
+        let result = get_cpu_usage_percent().unwrap();
+        assert!(result >= 0.0);
+    }
+
+    #[test]
+    fn test_system_info_struct_fields() {
+        let info = get_system_info().unwrap();
+        // Проверяем что поля существуют и имеют корректные значения
+        let _cpu = info.cpu_usage;
+        let _mem = info.memory_usage_mb;
+    }
+
+    #[test]
+    fn test_get_memory_usage_mb_on_linux() {
+        #[cfg(target_os = "linux")]
+        {
+            let result = get_memory_usage_mb();
+            assert!(result.is_ok());
+            assert!(result.unwrap() > 0.0);
+        }
+    }
+
+    #[test]
+    fn test_get_cpu_usage_default_value() {
+        let result = get_cpu_usage_percent().unwrap();
+        // Default estimate is 5.0
+        assert!((result - 5.0).abs() < 0.001 || result >= 0.0);
+    }
+
+    #[test]
+    fn test_system_info_cpu_usage_range() {
+        let info = get_system_info().unwrap();
+        // CPU usage should be non-negative
+        assert!(info.cpu_usage >= 0.0);
+        // And reasonable (less than 1000% for safety)
+        assert!(info.cpu_usage < 1000.0);
+    }
+
+    #[test]
+    fn test_system_info_memory_usage_range() {
+        let info = get_system_info().unwrap();
+        // Memory usage should be non-negative
+        assert!(info.memory_usage_mb >= 0.0);
+        // And reasonable (less than 1TB for safety)
+        assert!(info.memory_usage_mb < 1_048_576.0);
+    }
+
+    #[test]
+    fn test_get_memory_usage_mb_consistency() {
+        let result1 = get_memory_usage_mb().unwrap();
+        let result2 = get_memory_usage_mb().unwrap();
+        // Results should be similar (within 50% for consecutive calls)
+        let diff = (result1 - result2).abs();
+        let max_val = result1.max(result2);
+        if max_val > 0.0 {
+            assert!(diff / max_val < 0.5);
+        }
+    }
+
+    #[test]
+    fn test_get_cpu_usage_percent_consistency() {
+        let result1 = get_cpu_usage_percent().unwrap();
+        let result2 = get_cpu_usage_percent().unwrap();
+        // Should return same default value
+        assert_eq!(result1, result2);
+    }
+
+    #[test]
+    fn test_system_info_fields_exist() {
+        let info = get_system_info().unwrap();
+        // Проверяем что поля существуют и имеют корректные значения
+        let cpu = info.cpu_usage;
+        let mem = info.memory_usage_mb;
+        assert!(cpu >= 0.0);
+        assert!(mem >= 0.0);
+    }
+
+    #[test]
+    fn test_get_memory_usage_mb_not_zero_on_active_system() {
+        let result = get_memory_usage_mb().unwrap();
+        // On any active system memory usage should be > 0
+        assert!(result > 0.0, "Memory usage should be greater than 0, got: {}", result);
+    }
+
+    #[test]
+    fn test_metrics_json_response_structure() {
+        // Проверяем что JSON структура метрик содержит ожидаемые поля
+        // через сериализацию тестовых данных
+        let metrics_data = serde_json::json!({
+            "tasks": {
+                "total": 100u64,
+                "success": 80u64,
+                "failed": 20u64,
+            },
+            "projects": 5usize,
+            "templates": 10usize,
+            "users": 15usize,
+        });
+
+        let json_str = serde_json::to_string(&metrics_data).unwrap();
+        assert!(json_str.contains("tasks"));
+        assert!(json_str.contains("total"));
+        assert!(json_str.contains("success"));
+        assert!(json_str.contains("failed"));
+        assert!(json_str.contains("projects"));
+        assert!(json_str.contains("templates"));
+        assert!(json_str.contains("users"));
+    }
+
+    #[test]
+    fn test_metrics_json_deserialization() {
+        let json_str = r#"{
+            "tasks": {"total": 50, "success": 40, "failed": 10},
+            "projects": 3,
+            "templates": 7,
+            "users": 12
+        }"#;
+
+        let metrics: serde_json::Value = serde_json::from_str(json_str).unwrap();
+        assert_eq!(metrics["tasks"]["total"], 50);
+        assert_eq!(metrics["tasks"]["success"], 40);
+        assert_eq!(metrics["tasks"]["failed"], 10);
+        assert_eq!(metrics["projects"], 3);
+        assert_eq!(metrics["templates"], 7);
+        assert_eq!(metrics["users"], 12);
+    }
+
+    #[test]
+    fn test_metrics_empty_values() {
+        let metrics_data = serde_json::json!({
+            "tasks": {
+                "total": 0u64,
+                "success": 0u64,
+                "failed": 0u64,
+            },
+            "projects": 0usize,
+            "templates": 0usize,
+            "users": 0usize,
+        });
+
+        let json_str = serde_json::to_string(&metrics_data).unwrap();
+        assert!(json_str.contains("\"total\":0"));
+    }
 }

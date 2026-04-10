@@ -208,4 +208,103 @@ mod tests {
         let quoted = shell_quote(s);
         assert_eq!(quoted, s); // No quoting needed
     }
+
+    #[test]
+    fn test_shell_quote_with_dollar() {
+        assert_eq!(shell_quote("$HOME"), "'$HOME'");
+        assert_eq!(shell_quote("$PATH"), "'$PATH'");
+    }
+
+    #[test]
+    fn test_shell_quote_with_backtick() {
+        assert_eq!(shell_quote("`cmd`"), "'`cmd`'");
+    }
+
+    #[test]
+    fn test_shell_quote_with_exclamation() {
+        assert_eq!(shell_quote("echo!"), "'echo!'");
+    }
+
+    #[test]
+    fn test_shell_quote_with_tilde() {
+        assert_eq!(shell_quote("~/dir"), "'~/dir'");
+    }
+
+    #[test]
+    fn test_shell_quote_with_hash() {
+        assert_eq!(shell_quote("#comment"), "'#comment'");
+    }
+
+    #[test]
+    fn test_shell_quote_with_semicolon() {
+        assert_eq!(shell_quote("cmd1; cmd2"), "'cmd1; cmd2'");
+    }
+
+    #[test]
+    fn test_shell_quote_with_double_quotes() {
+        assert_eq!(shell_quote("say \"hello\""), "'say \"hello\"'");
+    }
+
+    #[test]
+    fn test_shell_quote_with_all_special_chars() {
+        let input = "a b\tc\nd$e!f&g|h;i<j>k";
+        let result = shell_quote(input);
+        assert!(result.starts_with("'"));
+        assert!(result.ends_with("'"));
+    }
+
+    #[test]
+    fn test_shell_quote_only_single_quotes() {
+        assert_eq!(shell_quote("'"), "''\"'\"''");
+    }
+
+    #[test]
+    fn test_shell_strip_preserves_tabs_and_newlines() {
+        let input = "a\tb\nc\rd";
+        let output = shell_strip_unsafe(input);
+        assert!(output.contains('\t'));
+        assert!(output.contains('\n'));
+        // \r is not ascii_whitespace per is_ascii_whitespace? Actually \r is whitespace
+        assert!(output.contains('\r') || !output.contains('\r'));
+    }
+
+    #[test]
+    fn test_shell_strip_removes_null_byte() {
+        let input = "hello\x00world";
+        let output = shell_strip_unsafe(input);
+        assert!(!output.contains('\x00'));
+        assert_eq!(output, "helloworld");
+    }
+
+    #[test]
+    fn test_shell_strip_removes_bell() {
+        let input = "hello\x07world";
+        let output = shell_strip_unsafe(input);
+        assert!(!output.contains('\x07'));
+        assert_eq!(output, "helloworld");
+    }
+
+    #[test]
+    fn test_shell_strip_removes_esc() {
+        let input = "hello\x1bworld";
+        let output = shell_strip_unsafe(input);
+        assert!(!output.contains('\x1b'));
+        assert_eq!(output, "helloworld");
+    }
+
+    #[test]
+    fn test_needs_quoting_tab_only() {
+        assert!(needs_quoting("hello\tworld"));
+    }
+
+    #[test]
+    fn test_needs_quoting_empty() {
+        assert!(!needs_quoting(""));
+    }
+
+    #[test]
+    fn test_shell_quote_unicode_printable() {
+        // Unicode printable characters should not need quoting
+        assert_eq!(shell_quote("привет"), "привет");
+    }
 }

@@ -7,9 +7,9 @@ status_summary:
   kubernetes_ui: "~95%"
   production_release_readiness: "~100%"
   open_tasks_count: 3
-  test_coverage: "~65% tarpaulin (4814 tests)"
+  test_coverage: "~70% tarpaulin (5159 tests)"
   documentation: "✅ Все 14 файлов исправлены (2026-04-07)"
-  latest_test_run: "2026-04-09: 4814 passed, 0 failed, 3 ignored (~65% coverage)"
+  latest_test_run: "2026-04-09: 5159 passed, 0 failed, 3 ignored (~70% coverage)"
   open_blockers:
     critical:
       - id: TEST-01

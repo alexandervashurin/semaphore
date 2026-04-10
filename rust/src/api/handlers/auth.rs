@@ -725,4 +725,239 @@ mod tests {
         assert!(json.contains("refresh_token"));
         assert!(!json.contains("totp_required")); // skip_serializing_if
     }
+
+    #[test]
+    fn test_login_payload_empty_totp_code() {
+        let json = r#"{
+            "username": "user",
+            "password": "pass",
+            "totp_code": ""
+        }"#;
+
+        let payload: LoginPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.username, "user");
+        assert_eq!(payload.password, "pass");
+        assert_eq!(payload.totp_code, Some("".to_string()));
+    }
+
+    #[test]
+    fn test_login_payload_with_special_chars() {
+        let json = r#"{
+            "username": "user@example.com",
+            "password": "p@ssw0rd!#$%^&*()"
+        }"#;
+
+        let payload: LoginPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.username, "user@example.com");
+        assert_eq!(payload.password, "p@ssw0rd!#$%^&*()");
+    }
+
+    #[test]
+    fn test_login_response_with_totp_required() {
+        let response = LoginResponse {
+            token: "token".to_string(),
+            token_type: "Bearer".to_string(),
+            expires_in: 3600,
+            refresh_token: "refresh".to_string(),
+            refresh_expires_in: 86400,
+            totp_required: Some(true),
+        };
+
+        let json = serde_json::to_string(&response).unwrap();
+        assert!(json.contains("totp_required"));
+        assert!(json.contains("true"));
+    }
+
+    #[test]
+    fn test_login_response_with_totp_required_false() {
+        let response = LoginResponse {
+            token: "token".to_string(),
+            token_type: "Bearer".to_string(),
+            expires_in: 3600,
+            refresh_token: "refresh".to_string(),
+            refresh_expires_in: 86400,
+            totp_required: Some(false),
+        };
+
+        let json = serde_json::to_string(&response).unwrap();
+        assert!(json.contains("totp_required"));
+        assert!(json.contains("false"));
+    }
+
+    #[test]
+    fn test_login_response_expires_in_values() {
+        let response = LoginResponse {
+            token: "tok".to_string(),
+            token_type: "Bearer".to_string(),
+            expires_in: 900,
+            refresh_token: "ref".to_string(),
+            refresh_expires_in: 604800,
+            totp_required: None,
+        };
+
+        assert_eq!(response.expires_in, 900);
+        assert_eq!(response.refresh_expires_in, 604800);
+    }
+
+    #[test]
+    fn test_refresh_payload_deserialize() {
+        let json = r#"{
+            "refresh_token": "some_refresh_token_xyz"
+        }"#;
+
+        let payload: RefreshPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.refresh_token, "some_refresh_token_xyz");
+    }
+
+    #[test]
+    fn test_refresh_payload_empty_token() {
+        let json = r#"{
+            "refresh_token": ""
+        }"#;
+
+        let payload: RefreshPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.refresh_token, "");
+    }
+
+    #[test]
+    fn test_verify_session_payload_deserialize() {
+        let json = r#"{
+            "username": "admin",
+            "password": "secret",
+            "verify_code": "654321"
+        }"#;
+
+        let payload: VerifySessionPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.username, "admin");
+        assert_eq!(payload.password, "secret");
+        assert_eq!(payload.verify_code, "654321");
+    }
+
+    #[test]
+    fn test_verify_session_payload_empty_verify_code() {
+        let json = r#"{
+            "username": "user",
+            "password": "pass",
+            "verify_code": ""
+        }"#;
+
+        let payload: VerifySessionPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.verify_code, "");
+    }
+
+    #[test]
+    fn test_recovery_session_payload_deserialize() {
+        let json = r#"{
+            "username": "user123",
+            "recovery_code": "ABCDEF-123456"
+        }"#;
+
+        let payload: RecoverySessionPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.username, "user123");
+        assert_eq!(payload.recovery_code, "ABCDEF-123456");
+    }
+
+    #[test]
+    fn test_recovery_session_payload_empty_code() {
+        let json = r#"{
+            "username": "user",
+            "recovery_code": ""
+        }"#;
+
+        let payload: RecoverySessionPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.recovery_code, "");
+    }
+
+    #[test]
+    fn test_login_response_serialize_roundtrip() {
+        let original = LoginResponse {
+            token: "jwt_token_here".to_string(),
+            token_type: "Bearer".to_string(),
+            expires_in: 7200,
+            refresh_token: "refresh_jwt".to_string(),
+            refresh_expires_in: 1209600,
+            totp_required: Some(false),
+        };
+
+        let json = serde_json::to_string(&original).unwrap();
+        assert!(json.contains("jwt_token_here"));
+        assert!(json.contains("7200"));
+        assert!(json.contains("refresh_jwt"));
+        assert!(json.contains("1209600"));
+    }
+
+    #[test]
+    fn test_login_payload_debug_impl() {
+        let payload = LoginPayload {
+            username: "debug_user".to_string(),
+            password: "debug_pass".to_string(),
+            totp_code: Some("111111".to_string()),
+        };
+
+        let debug_str = format!("{:?}", payload);
+        assert!(debug_str.contains("debug_user"));
+        assert!(debug_str.contains("debug_pass"));
+    }
+
+    #[test]
+    fn test_login_response_debug_impl() {
+        let response = LoginResponse {
+            token: "tok".to_string(),
+            token_type: "Bearer".to_string(),
+            expires_in: 3600,
+            refresh_token: "ref".to_string(),
+            refresh_expires_in: 86400,
+            totp_required: None,
+        };
+
+        let debug_str = format!("{:?}", response);
+        assert!(debug_str.contains("Bearer"));
+        assert!(debug_str.contains("3600"));
+    }
+
+    #[test]
+    fn test_refresh_payload_debug_impl() {
+        let payload = RefreshPayload {
+            refresh_token: "refresh_xyz".to_string(),
+        };
+
+        let debug_str = format!("{:?}", payload);
+        assert!(debug_str.contains("refresh_xyz"));
+    }
+
+    #[test]
+    fn test_login_payload_username_variants() {
+        let test_cases = vec![
+            ("admin", "admin"),
+            ("user@example.com", "user@example.com"),
+            ("user-with-dashes", "user-with-dashes"),
+            ("user_with_underscores", "user_with_underscores"),
+            ("", ""),
+        ];
+
+        for (input, expected) in test_cases {
+            let json = format!(r#"{{"username": "{}", "password": "pass"}}"#, input);
+            let payload: LoginPayload = serde_json::from_str(&json).unwrap();
+            assert_eq!(payload.username, expected);
+        }
+    }
+
+    #[test]
+    fn test_login_response_token_type_variants() {
+        let token_types = vec!["Bearer", "bearer", "Bearer ", ""];
+
+        for tt in token_types {
+            let response = LoginResponse {
+                token: "tok".to_string(),
+                token_type: tt.to_string(),
+                expires_in: 3600,
+                refresh_token: "ref".to_string(),
+                refresh_expires_in: 86400,
+                totp_required: None,
+            };
+
+            let json = serde_json::to_string(&response).unwrap();
+            assert!(json.contains(tt));
+        }
+    }
 }

@@ -1155,4 +1155,571 @@ mod tests {
         assert_eq!(backup.repositories[0].name, "Repo1");
         assert_eq!(backup.repositories[1].name, "Repo2");
     }
+
+    #[test]
+    fn test_backup_format_deserialize_minimal() {
+        let json = r#"{"project":{"name":"Minimal"},"templates":[]}"#;
+        let backup: BackupFormat = serde_json::from_str(json).unwrap();
+        assert_eq!(backup.version, "1.0");
+        assert_eq!(backup.project.name, "Minimal");
+        assert!(backup.templates.is_empty());
+    }
+
+    #[test]
+    fn test_backup_project_clone() {
+        let project = BackupProject {
+            name: "CloneTest".to_string(),
+            alert: Some(true),
+            alert_chat: Some("chat".to_string()),
+            max_parallel_tasks: Some(10),
+        };
+        let cloned = project.clone();
+        assert_eq!(cloned.name, project.name);
+        assert_eq!(cloned.alert, project.alert);
+        assert_eq!(cloned.alert_chat, project.alert_chat);
+        assert_eq!(cloned.max_parallel_tasks, project.max_parallel_tasks);
+    }
+
+    #[test]
+    fn test_backup_template_clone() {
+        let tpl = BackupTemplate {
+            name: "Clone".to_string(),
+            playbook: "clone.yml".to_string(),
+            arguments: Some("--verbose".to_string()),
+            template_type: "build".to_string(),
+            inventory: Some("inv".to_string()),
+            repository: Some("repo".to_string()),
+            environment: Some("env".to_string()),
+            cron: Some("0 5 * * *".to_string()),
+        };
+        let cloned = tpl.clone();
+        assert_eq!(cloned.name, tpl.name);
+        assert_eq!(cloned.playbook, tpl.playbook);
+        assert_eq!(cloned.arguments, tpl.arguments);
+        assert_eq!(cloned.cron, tpl.cron);
+    }
+
+    #[test]
+    fn test_backup_repository_clone() {
+        let repo = BackupRepository {
+            name: "Repo".to_string(),
+            git_url: "https://example.com/repo.git".to_string(),
+            git_branch: "master".to_string(),
+            ssh_key: Some("my-key".to_string()),
+        };
+        let cloned = repo.clone();
+        assert_eq!(cloned.name, repo.name);
+        assert_eq!(cloned.git_url, repo.git_url);
+        assert_eq!(cloned.ssh_key, repo.ssh_key);
+    }
+
+    #[test]
+    fn test_backup_environment_clone() {
+        let env = BackupEnvironment {
+            name: "Staging".to_string(),
+            json: r#"{"KEY":"VALUE"}"#.to_string(),
+        };
+        let cloned = env.clone();
+        assert_eq!(cloned.name, env.name);
+        assert_eq!(cloned.json, env.json);
+    }
+
+    #[test]
+    fn test_backup_access_key_clone() {
+        let key = BackupAccessKey {
+            name: "Key".to_string(),
+            key_type: "ssh".to_string(),
+            owner: "user".to_string(),
+            ssh_key: Some(BackupSshKey {
+                private_key: "key".to_string(),
+                passphrase: Some("pass".to_string()),
+                login: Some("admin".to_string()),
+            }),
+            login_password: None,
+        };
+        let cloned = key.clone();
+        assert_eq!(cloned.name, key.name);
+        assert_eq!(cloned.ssh_key.as_ref().unwrap().private_key, "key");
+    }
+
+    #[test]
+    fn test_backup_schedule_clone() {
+        let sched = BackupSchedule {
+            template: "Nightly".to_string(),
+            cron_format: "0 0 * * *".to_string(),
+            active: true,
+        };
+        let cloned = sched.clone();
+        assert_eq!(cloned.template, sched.template);
+        assert_eq!(cloned.cron_format, sched.cron_format);
+        assert_eq!(cloned.active, sched.active);
+    }
+
+    #[test]
+    fn test_backup_integration_clone() {
+        let integration = BackupIntegration {
+            name: "Webhook".to_string(),
+            template_id: Some(10),
+        };
+        let cloned = integration.clone();
+        assert_eq!(cloned.name, integration.name);
+        assert_eq!(cloned.template_id, integration.template_id);
+    }
+
+    #[test]
+    fn test_backup_view_clone() {
+        let view = BackupView {
+            name: "Overview".to_string(),
+            position: 3,
+        };
+        let cloned = view.clone();
+        assert_eq!(cloned.name, view.name);
+        assert_eq!(cloned.position, view.position);
+    }
+
+    #[test]
+    fn test_backup_ssh_key_clone() {
+        let ssh_key = BackupSshKey {
+            private_key: "-----BEGIN KEY-----".to_string(),
+            passphrase: None,
+            login: Some("root".to_string()),
+        };
+        let cloned = ssh_key.clone();
+        assert_eq!(cloned.private_key, ssh_key.private_key);
+        assert_eq!(cloned.login, ssh_key.login);
+    }
+
+    #[test]
+    fn test_backup_login_password_clone() {
+        let creds = BackupLoginPassword {
+            login: "admin".to_string(),
+            password: "secret".to_string(),
+        };
+        let cloned = creds.clone();
+        assert_eq!(cloned.login, creds.login);
+        assert_eq!(cloned.password, creds.password);
+    }
+
+    #[test]
+    fn test_backup_format_with_all_entity_types() {
+        let backup = BackupFormat {
+            version: "2.0".to_string(),
+            project: BackupProject {
+                name: "Full".to_string(),
+                alert: Some(true),
+                alert_chat: Some("#alerts".to_string()),
+                max_parallel_tasks: Some(5),
+            },
+            templates: vec![BackupTemplate {
+                name: "Deploy".to_string(),
+                playbook: "deploy.yml".to_string(),
+                arguments: None,
+                template_type: "deploy".to_string(),
+                inventory: Some("prod".to_string()),
+                repository: Some("main".to_string()),
+                environment: Some("production".to_string()),
+                cron: Some("0 2 * * 1".to_string()),
+            }],
+            repositories: vec![BackupRepository {
+                name: "main".to_string(),
+                git_url: "https://github.com/org/main.git".to_string(),
+                git_branch: "main".to_string(),
+                ssh_key: Some("deploy-key".to_string()),
+            }],
+            inventories: vec![BackupInventory {
+                name: "prod".to_string(),
+                inventory_type: "static".to_string(),
+                inventory: "[servers]\n10.0.0.1".to_string(),
+                ssh_key: Some("deploy-key".to_string()),
+                become_key: Some("sudo-key".to_string()),
+            }],
+            environments: vec![BackupEnvironment {
+                name: "production".to_string(),
+                json: r#"{"ENV":"prod"}"#.to_string(),
+            }],
+            access_keys: vec![
+                BackupAccessKey {
+                    name: "deploy-key".to_string(),
+                    key_type: "ssh".to_string(),
+                    owner: "shared".to_string(),
+                    ssh_key: Some(BackupSshKey {
+                        private_key: "key".to_string(),
+                        passphrase: None,
+                        login: Some("deploy".to_string()),
+                    }),
+                    login_password: None,
+                },
+                BackupAccessKey {
+                    name: "sudo-key".to_string(),
+                    key_type: "login_password".to_string(),
+                    owner: "shared".to_string(),
+                    ssh_key: None,
+                    login_password: Some(BackupLoginPassword {
+                        login: "root".to_string(),
+                        password: "secret".to_string(),
+                    }),
+                },
+            ],
+            schedules: vec![BackupSchedule {
+                template: "Deploy".to_string(),
+                cron_format: "0 2 * * 1".to_string(),
+                active: true,
+            }],
+            integrations: vec![BackupIntegration {
+                name: "Slack".to_string(),
+                template_id: Some(1),
+            }],
+            views: vec![BackupView {
+                name: "Production View".to_string(),
+                position: 0,
+            }],
+        };
+
+        let json = serde_json::to_string(&backup).unwrap();
+        let restored: BackupFormat = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(restored.project.name, "Full");
+        assert_eq!(restored.templates.len(), 1);
+        assert_eq!(restored.repositories.len(), 1);
+        assert_eq!(restored.inventories.len(), 1);
+        assert_eq!(restored.environments.len(), 1);
+        assert_eq!(restored.access_keys.len(), 2);
+        assert_eq!(restored.schedules.len(), 1);
+        assert_eq!(restored.integrations.len(), 1);
+        assert_eq!(restored.views.len(), 1);
+    }
+
+    #[test]
+    fn test_backup_format_serde_roundtrip_with_special_chars() {
+        let backup = BackupFormat {
+            version: "1.0".to_string(),
+            project: BackupProject {
+                name: "Project with \"quotes\" & <special> chars".to_string(),
+                alert: Some(true),
+                alert_chat: Some("#channel/with-slash".to_string()),
+                max_parallel_tasks: Some(0),
+            },
+            templates: vec![],
+            repositories: vec![],
+            inventories: vec![],
+            environments: vec![],
+            access_keys: vec![],
+            schedules: vec![],
+            integrations: vec![],
+            views: vec![],
+        };
+
+        let json = serde_json::to_string(&backup).unwrap();
+        let restored: BackupFormat = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(restored.project.name, "Project with \"quotes\" & <special> chars");
+        assert_eq!(restored.project.alert_chat, Some("#channel/with-slash".to_string()));
+    }
+
+    #[test]
+    fn test_make_unique_names_preserves_first() {
+        let mut items = vec![
+            BackupTemplate { name: "Original".to_string(), playbook: String::new(), arguments: None, template_type: String::new(), inventory: None, repository: None, environment: None, cron: None },
+            BackupTemplate { name: "Original".to_string(), playbook: String::new(), arguments: None, template_type: String::new(), inventory: None, repository: None, environment: None, cron: None },
+        ];
+
+        make_unique_names(&mut items, |item| &item.name, |item, name| item.name = name);
+
+        assert_eq!(items[0].name, "Original");
+        assert_ne!(items[1].name, "Original");
+    }
+
+    #[test]
+    fn test_make_unique_names_all_different() {
+        let mut items = vec![
+            BackupTemplate { name: "A".to_string(), playbook: String::new(), arguments: None, template_type: String::new(), inventory: None, repository: None, environment: None, cron: None },
+            BackupTemplate { name: "B".to_string(), playbook: String::new(), arguments: None, template_type: String::new(), inventory: None, repository: None, environment: None, cron: None },
+            BackupTemplate { name: "C".to_string(), playbook: String::new(), arguments: None, template_type: String::new(), inventory: None, repository: None, environment: None, cron: None },
+        ];
+
+        make_unique_names(&mut items, |item| &item.name, |item, name| item.name = name);
+
+        assert_eq!(items[0].name, "A");
+        assert_eq!(items[1].name, "B");
+        assert_eq!(items[2].name, "C");
+    }
+
+    #[test]
+    fn test_get_random_name_contains_original() {
+        let name = get_random_name("MyTemplate");
+        assert!(name.starts_with("MyTemplate - "));
+    }
+
+    #[test]
+    fn test_get_random_name_empty_string() {
+        let name = get_random_name("");
+        assert!(name.starts_with(" - "));
+        assert_eq!(name.len(), 3 + 20); // " - " + 10 bytes hex = 23
+    }
+
+    #[test]
+    fn test_backup_inventory_become_key_only() {
+        let inv = BackupInventory {
+            name: "Only Become".to_string(),
+            inventory_type: "static".to_string(),
+            inventory: "localhost".to_string(),
+            ssh_key: None,
+            become_key: Some("become".to_string()),
+        };
+        assert!(inv.ssh_key.is_none());
+        assert_eq!(inv.become_key, Some("become".to_string()));
+    }
+
+    #[test]
+    fn test_backup_inventory_ssh_key_only() {
+        let inv = BackupInventory {
+            name: "Only SSH".to_string(),
+            inventory_type: "file".to_string(),
+            inventory: "/etc/ansible/hosts".to_string(),
+            ssh_key: Some("ssh".to_string()),
+            become_key: None,
+        };
+        assert_eq!(inv.ssh_key, Some("ssh".to_string()));
+        assert!(inv.become_key.is_none());
+    }
+
+    #[test]
+    fn test_backup_repository_with_ssh_key_string() {
+        let repo = BackupRepository {
+            name: "Secure Repo".to_string(),
+            git_url: "git@github.com:org/repo.git".to_string(),
+            git_branch: "develop".to_string(),
+            ssh_key: Some("my-ssh-key".to_string()),
+        };
+        assert_eq!(repo.ssh_key, Some("my-ssh-key".to_string()));
+    }
+
+    #[test]
+    fn test_backup_template_with_all_refs() {
+        let tpl = BackupTemplate {
+            name: "Full Template".to_string(),
+            playbook: "site.yml".to_string(),
+            arguments: Some("--forks=10".to_string()),
+            template_type: "deploy".to_string(),
+            inventory: Some("prod-inv".to_string()),
+            repository: Some("prod-repo".to_string()),
+            environment: Some("prod-env".to_string()),
+            cron: Some("0 3 * * *".to_string()),
+        };
+        assert_eq!(tpl.inventory, Some("prod-inv".to_string()));
+        assert_eq!(tpl.repository, Some("prod-repo".to_string()));
+        assert_eq!(tpl.environment, Some("prod-env".to_string()));
+        assert_eq!(tpl.cron, Some("0 3 * * *".to_string()));
+    }
+
+    #[test]
+    fn test_backup_template_no_refs() {
+        let tpl = BackupTemplate {
+            name: "Standalone".to_string(),
+            playbook: "standalone.yml".to_string(),
+            arguments: None,
+            template_type: "default".to_string(),
+            inventory: None,
+            repository: None,
+            environment: None,
+            cron: None,
+        };
+        assert!(tpl.inventory.is_none());
+        assert!(tpl.repository.is_none());
+        assert!(tpl.environment.is_none());
+        assert!(tpl.cron.is_none());
+    }
+
+    #[test]
+    fn test_backup_format_debug_output() {
+        let backup = BackupFormat {
+            version: "1.0".to_string(),
+            project: BackupProject {
+                name: "DebugTest".to_string(),
+                alert: None,
+                alert_chat: None,
+                max_parallel_tasks: None,
+            },
+            templates: vec![],
+            repositories: vec![],
+            inventories: vec![],
+            environments: vec![],
+            access_keys: vec![],
+            schedules: vec![],
+            integrations: vec![],
+            views: vec![],
+        };
+        let debug_str = format!("{:?}", backup);
+        assert!(debug_str.contains("BackupFormat"));
+        assert!(debug_str.contains("DebugTest"));
+    }
+
+    #[test]
+    fn test_backup_schedule_debug_output() {
+        let sched = BackupSchedule {
+            template: "Test".to_string(),
+            cron_format: "*/5 * * * *".to_string(),
+            active: false,
+        };
+        let debug_str = format!("{:?}", sched);
+        assert!(debug_str.contains("BackupSchedule"));
+        assert!(debug_str.contains("Test"));
+    }
+
+    #[test]
+    fn test_backup_integration_debug_output() {
+        let integration = BackupIntegration {
+            name: "PagerDuty".to_string(),
+            template_id: Some(7),
+        };
+        let debug_str = format!("{:?}", integration);
+        assert!(debug_str.contains("BackupIntegration"));
+        assert!(debug_str.contains("PagerDuty"));
+    }
+
+    #[test]
+    fn test_backup_view_debug_output() {
+        let view = BackupView {
+            name: "TestView".to_string(),
+            position: 42,
+        };
+        let debug_str = format!("{:?}", view);
+        assert!(debug_str.contains("BackupView"));
+        assert!(debug_str.contains("TestView"));
+    }
+
+    #[test]
+    fn test_backup_ssh_key_debug_output() {
+        let ssh_key = BackupSshKey {
+            private_key: "KEY_DATA".to_string(),
+            passphrase: Some("secret".to_string()),
+            login: Some("user".to_string()),
+        };
+        let debug_str = format!("{:?}", ssh_key);
+        assert!(debug_str.contains("BackupSshKey"));
+        assert!(debug_str.contains("KEY_DATA"));
+    }
+
+    #[test]
+    fn test_backup_login_password_debug_output() {
+        let creds = BackupLoginPassword {
+            login: "admin".to_string(),
+            password: "pass".to_string(),
+        };
+        let debug_str = format!("{:?}", creds);
+        assert!(debug_str.contains("BackupLoginPassword"));
+        assert!(debug_str.contains("admin"));
+    }
+
+    #[test]
+    fn test_backup_format_deserialize_with_keys_alias() {
+        let json = r#"{
+            "project": {"name": "Test"},
+            "keys": [
+                {"name": "Key1", "type": "none", "owner": "shared"}
+            ],
+            "templates": []
+        }"#;
+        let backup: BackupFormat = serde_json::from_str(json).unwrap();
+        assert_eq!(backup.access_keys.len(), 1);
+        assert_eq!(backup.access_keys[0].name, "Key1");
+    }
+
+    #[test]
+    fn test_backup_format_deserialize_with_meta_alias() {
+        let json = r#"{
+            "meta": {"name": "MetaProject", "alert": true},
+            "templates": [],
+            "repositories": []
+        }"#;
+        let backup: BackupFormat = serde_json::from_str(json).unwrap();
+        assert_eq!(backup.project.name, "MetaProject");
+        assert_eq!(backup.project.alert, Some(true));
+    }
+
+    #[test]
+    fn test_backup_project_max_parallel_tasks_zero() {
+        let project = BackupProject {
+            name: "Zero Parallel".to_string(),
+            alert: None,
+            alert_chat: None,
+            max_parallel_tasks: Some(0),
+        };
+        assert_eq!(project.max_parallel_tasks, Some(0));
+    }
+
+    #[test]
+    fn test_backup_project_max_parallel_tasks_negative() {
+        let project = BackupProject {
+            name: "Negative Parallel".to_string(),
+            alert: None,
+            alert_chat: None,
+            max_parallel_tasks: Some(-1),
+        };
+        assert_eq!(project.max_parallel_tasks, Some(-1));
+    }
+
+    #[test]
+    fn test_backup_environment_empty_json() {
+        let env = BackupEnvironment {
+            name: "Empty".to_string(),
+            json: String::new(),
+        };
+        assert_eq!(env.json, "");
+        let json_str = serde_json::to_string(&env).unwrap();
+        assert!(json_str.contains("\"json\":\"\""));
+    }
+
+    #[test]
+    fn test_backup_environment_complex_json() {
+        let env = BackupEnvironment {
+            name: "Complex".to_string(),
+            json: r#"{"nested":{"key":"value"},"array":[1,2,3],"bool":true}"#.to_string(),
+        };
+        let json_str = serde_json::to_string(&env).unwrap();
+        let restored: BackupEnvironment = serde_json::from_str(&json_str).unwrap();
+        assert_eq!(restored.json, env.json);
+    }
+
+    #[test]
+    fn test_backup_format_large_backup() {
+        let mut templates = Vec::new();
+        for i in 0..50 {
+            templates.push(BackupTemplate {
+                name: format!("Template-{}", i),
+                playbook: format!("playbook-{}.yml", i),
+                arguments: None,
+                template_type: "default".to_string(),
+                inventory: None,
+                repository: None,
+                environment: None,
+                cron: None,
+            });
+        }
+
+        let backup = BackupFormat {
+            version: "1.0".to_string(),
+            project: BackupProject {
+                name: "Large".to_string(),
+                alert: None,
+                alert_chat: None,
+                max_parallel_tasks: None,
+            },
+            templates,
+            repositories: vec![],
+            inventories: vec![],
+            environments: vec![],
+            access_keys: vec![],
+            schedules: vec![],
+            integrations: vec![],
+            views: vec![],
+        };
+
+        assert_eq!(backup.templates.len(), 50);
+        assert_eq!(backup.templates[49].name, "Template-49");
+
+        let json = serde_json::to_string(&backup).unwrap();
+        let restored: BackupFormat = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.templates.len(), 50);
+    }
 }

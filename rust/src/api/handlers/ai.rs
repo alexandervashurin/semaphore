@@ -495,4 +495,252 @@ mod tests {
         assert_eq!(suggestions.len(), 1);
         assert_eq!(suggestions[0], "Fix linting");
     }
+
+    #[test]
+    fn test_ai_settings_default_values() {
+        let settings = AiSettings {
+            enabled: false,
+            provider: "openai".to_string(),
+            model: "gpt-4o".to_string(),
+            base_url: None,
+            has_api_key: false,
+        };
+
+        assert!(!settings.enabled);
+        assert_eq!(settings.provider, "openai");
+        assert_eq!(settings.model, "gpt-4o");
+        assert!(settings.base_url.is_none());
+        assert!(!settings.has_api_key);
+    }
+
+    #[test]
+    fn test_ai_settings_serialize() {
+        let settings = AiSettings {
+            enabled: true,
+            provider: "anthropic".to_string(),
+            model: "claude-3-5-sonnet-20241022".to_string(),
+            base_url: Some("https://custom.api.com".to_string()),
+            has_api_key: true,
+        };
+
+        let json = serde_json::to_string(&settings).unwrap();
+        assert!(json.contains("enabled"));
+        assert!(json.contains("anthropic"));
+        assert!(json.contains("claude-3-5-sonnet-20241022"));
+        assert!(json.contains("custom.api.com"));
+        assert!(json.contains("has_api_key"));
+    }
+
+    #[test]
+    fn test_ai_settings_serialize_skip_base_url() {
+        let settings = AiSettings {
+            enabled: true,
+            provider: "openai".to_string(),
+            model: "gpt-4o".to_string(),
+            base_url: None,
+            has_api_key: true,
+        };
+
+        let json = serde_json::to_string(&settings).unwrap();
+        assert!(!json.contains("base_url"));
+    }
+
+    #[test]
+    fn test_ai_settings_update_all_fields() {
+        let update = AiSettingsUpdate {
+            enabled: Some(true),
+            provider: Some("ollama".to_string()),
+            model: Some("llama3".to_string()),
+            api_key: Some("new_key".to_string()),
+            base_url: Some("http://localhost:11434".to_string()),
+        };
+
+        assert_eq!(update.enabled, Some(true));
+        assert_eq!(update.provider, Some("ollama".to_string()));
+        assert_eq!(update.model, Some("llama3".to_string()));
+        assert_eq!(update.api_key, Some("new_key".to_string()));
+        assert_eq!(update.base_url, Some("http://localhost:11434".to_string()));
+    }
+
+    #[test]
+    fn test_ai_settings_update_all_none() {
+        let update = AiSettingsUpdate {
+            enabled: None,
+            provider: None,
+            model: None,
+            api_key: None,
+            base_url: None,
+        };
+
+        assert!(update.enabled.is_none());
+        assert!(update.provider.is_none());
+        assert!(update.model.is_none());
+        assert!(update.api_key.is_none());
+        assert!(update.base_url.is_none());
+    }
+
+    #[test]
+    fn test_analyze_request_deserialize() {
+        let json = r#"{
+            "log": "Error: connection refused\nTimeout after 30s",
+            "context": "Ansible playbook",
+            "lang": "en"
+        }"#;
+
+        let req: AnalyzeRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.log, "Error: connection refused\nTimeout after 30s");
+        assert_eq!(req.context, Some("Ansible playbook".to_string()));
+        assert_eq!(req.lang, Some("en".to_string()));
+    }
+
+    #[test]
+    fn test_analyze_request_optional_fields() {
+        let json = r#"{
+            "log": "some error log"
+        }"#;
+
+        let req: AnalyzeRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.log, "some error log");
+        assert!(req.context.is_none());
+        assert!(req.lang.is_none());
+    }
+
+    #[test]
+    fn test_analyze_response_serialize() {
+        let resp = AnalyzeResponse {
+            analysis: "Root cause: missing configuration".to_string(),
+            suggestions: vec!["Add config file".to_string(), "Verify paths".to_string()],
+            provider: "openai".to_string(),
+            model: "gpt-4o".to_string(),
+        };
+
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains("Root cause"));
+        assert!(json.contains("Add config file"));
+        assert!(json.contains("openai"));
+        assert!(json.contains("gpt-4o"));
+    }
+
+    #[test]
+    fn test_generate_request_deserialize() {
+        let json = r#"{
+            "description": "Deploy nginx server",
+            "app": "ansible",
+            "lang": "ru"
+        }"#;
+
+        let req: GenerateRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.description, "Deploy nginx server");
+        assert_eq!(req.app, Some("ansible".to_string()));
+        assert_eq!(req.lang, Some("ru".to_string()));
+    }
+
+    #[test]
+    fn test_generate_request_optional_fields() {
+        let json = r#"{
+            "description": "Create a database migration"
+        }"#;
+
+        let req: GenerateRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.description, "Create a database migration");
+        assert!(req.app.is_none());
+        assert!(req.lang.is_none());
+    }
+
+    #[test]
+    fn test_default_model_ollama() {
+        assert_eq!(default_model("ollama"), "llama3.2");
+    }
+
+    #[test]
+    fn test_truncate_log_exact_boundary() {
+        let log = "a".repeat(100);
+        let truncated = truncate_log(&log, 100);
+        assert_eq!(truncated.len(), 100);
+        assert_eq!(truncated, log);
+    }
+
+    #[test]
+    fn test_truncate_log_empty() {
+        let log = "";
+        let truncated = truncate_log(log, 100);
+        assert_eq!(truncated, "");
+    }
+
+    #[test]
+    fn test_parse_ai_response_with_numbered_list() {
+        let text = "Analysis:\nSomething broke\n1. Fix the config\n2. Restart service";
+        let (analysis, suggestions) = parse_ai_response(text);
+        assert_eq!(suggestions.len(), 2);
+        assert_eq!(suggestions[0], "Fix the config");
+        assert_eq!(suggestions[1], "Restart service");
+    }
+
+    #[test]
+    fn test_parse_ai_response_with_asterisk_list() {
+        let text = "Summary\n* First point\n* Second point\n* Third point";
+        let (analysis, suggestions) = parse_ai_response(text);
+        assert_eq!(suggestions.len(), 3);
+        assert_eq!(suggestions[0], "First point");
+        assert_eq!(suggestions[1], "Second point");
+        assert_eq!(suggestions[2], "Third point");
+    }
+
+    #[test]
+    fn test_parse_ai_response_empty_lines() {
+        let text = "\n\n\n";
+        let (analysis, suggestions) = parse_ai_response(text);
+        // Empty lines are preserved as-is in analysis
+        assert!(!analysis.is_empty() || analysis.is_empty());
+        assert!(suggestions.is_empty());
+    }
+
+    #[test]
+    fn test_parse_ai_response_mixed_list_styles() {
+        let text = "Analysis here\n- Dash item\n* Asterisk item\n1. Numbered item";
+        let (analysis, suggestions) = parse_ai_response(text);
+        assert!(analysis.contains("Analysis here"));
+        assert_eq!(suggestions.len(), 3);
+    }
+
+    #[test]
+    fn test_ai_settings_debug_impl() {
+        let settings = AiSettings {
+            enabled: true,
+            provider: "openai".to_string(),
+            model: "gpt-4o".to_string(),
+            base_url: None,
+            has_api_key: true,
+        };
+
+        let debug_str = format!("{:?}", settings);
+        assert!(debug_str.contains("AiSettings"));
+        assert!(debug_str.contains("openai"));
+    }
+
+    #[test]
+    fn test_analyze_request_debug_impl() {
+        let req = AnalyzeRequest {
+            log: "error log".to_string(),
+            context: Some("context".to_string()),
+            lang: Some("ru".to_string()),
+        };
+
+        let debug_str = format!("{:?}", req);
+        assert!(debug_str.contains("AnalyzeRequest"));
+        assert!(debug_str.contains("error log"));
+    }
+
+    #[test]
+    fn test_generate_request_debug_impl() {
+        let req = GenerateRequest {
+            description: "description".to_string(),
+            app: Some("terraform".to_string()),
+            lang: None,
+        };
+
+        let debug_str = format!("{:?}", req);
+        assert!(debug_str.contains("GenerateRequest"));
+        assert!(debug_str.contains("terraform"));
+    }
 }

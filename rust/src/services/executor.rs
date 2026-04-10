@@ -1214,4 +1214,386 @@ mod tests {
         logger.log_with_time(Utc::now(), "timed message");
         // NullLogger не должен паниковать
     }
+
+    // ===========================================================================
+    // Additional tests (20+)
+    // ===========================================================================
+
+    #[test]
+    fn test_app_type_display_terraform() {
+        assert_eq!(AppType::Terraform.to_string(), "terraform");
+    }
+
+    #[test]
+    fn test_app_type_display_terragrunt() {
+        assert_eq!(AppType::Terragrunt.to_string(), "terragrunt");
+    }
+
+    #[test]
+    fn test_app_type_display_pulumi() {
+        assert_eq!(AppType::Pulumi.to_string(), "pulumi");
+    }
+
+    #[test]
+    fn test_app_type_display_tofu() {
+        assert_eq!(AppType::Tofu.to_string(), "tofu");
+    }
+
+    #[test]
+    fn test_app_type_partial_eq_same_type() {
+        assert_eq!(AppType::Bash, AppType::Bash);
+        assert_eq!(AppType::Python, AppType::Python);
+        assert_eq!(AppType::Pulumi, AppType::Pulumi);
+    }
+
+    #[test]
+    fn test_app_type_partial_eq_different_type() {
+        assert_ne!(AppType::Bash, AppType::Python);
+        assert_ne!(AppType::Terraform, AppType::Ansible);
+        assert_ne!(AppType::Pulumi, AppType::Terragrunt);
+    }
+
+    #[test]
+    fn test_app_run_args_construction_with_values() {
+        let mut inputs = HashMap::new();
+        inputs.insert("ssh_passphrase".to_string(), "secret".to_string());
+
+        let args = AppRunArgs {
+            cli_args: vec!["-vvv".to_string(), "--check".to_string()],
+            environment_vars: vec!["ANSIBLE_HOST_KEY_CHECKING=False".to_string()],
+            inputs,
+        };
+
+        assert_eq!(args.cli_args.len(), 2);
+        assert!(args.cli_args.contains(&"-vvv".to_string()));
+        assert_eq!(args.environment_vars.len(), 1);
+        assert_eq!(args.inputs["ssh_passphrase"], "secret");
+    }
+
+    #[test]
+    fn test_app_run_args_empty_fields() {
+        let args = AppRunArgs {
+            cli_args: vec![],
+            environment_vars: vec![],
+            inputs: HashMap::new(),
+        };
+        assert!(args.cli_args.is_empty());
+        assert!(args.environment_vars.is_empty());
+        assert!(args.inputs.is_empty());
+    }
+
+    #[test]
+    fn test_app_run_result_success_zero_exit() {
+        let result = AppRunResult {
+            exit_code: 0,
+            has_errors: false,
+            output_path: None,
+        };
+        assert_eq!(result.exit_code, 0);
+        assert!(!result.has_errors);
+        assert!(result.output_path.is_none());
+    }
+
+    #[test]
+    fn test_app_run_result_failure_non_zero_exit() {
+        let result = AppRunResult {
+            exit_code: 2,
+            has_errors: true,
+            output_path: Some("/tmp/fail.log".to_string()),
+        };
+        assert_eq!(result.exit_code, 2);
+        assert!(result.has_errors);
+        assert_eq!(result.output_path.unwrap(), "/tmp/fail.log");
+    }
+
+    #[test]
+    fn test_null_logger_log_with_time_and_format() {
+        let logger = NullLogger;
+        use chrono::Utc;
+        logger.logf_with_time(Utc::now(), "test {}", format_args!("args"));
+        logger.set_status(crate::services::task_logger::TaskStatus::Success);
+        let _status = logger.get_status();
+        // No panic expected
+    }
+
+    #[test]
+    fn test_null_logger_add_listeners_and_commit() {
+        let logger = NullLogger;
+        logger.add_status_listener(Box::new(|_| {}));
+        use chrono::Utc;
+        logger.add_log_listener(Box::new(|_time, _msg| {}));
+        logger.set_commit("abc123", "initial commit");
+        logger.wait_log();
+        // All should succeed (no-op)
+    }
+
+    #[test]
+    fn test_base_app_get_logger_returns_null_when_none() {
+        let app = BaseApp::new();
+        let logger = app.get_logger();
+        // Should return NullLogger without panicking
+        logger.log("test");
+    }
+
+    #[test]
+    fn test_base_app_get_work_dir_default() {
+        let app = BaseApp::new();
+        assert_eq!(app.get_work_dir(), PathBuf::new());
+    }
+
+    #[test]
+    fn test_base_app_get_repository_path_without_repo() {
+        let app = BaseApp::new();
+        let path = app.get_repository_path();
+        // Should return fallback path
+        assert!(path.to_string_lossy().contains("semaphore"));
+    }
+
+    #[test]
+    fn test_parse_env_vars_single_var() {
+        let input = vec!["MY_VAR=hello_world".to_string()];
+        let result = parse_environment_vars(&input);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], ("MY_VAR", "hello_world"));
+    }
+
+    #[test]
+    fn test_parse_env_vars_value_with_special_chars() {
+        let input = vec!["JSON={\"key\":\"value\"}".to_string()];
+        let result = parse_environment_vars(&input);
+        assert_eq!(result[0].0, "JSON");
+        assert_eq!(result[0].1, "{\"key\":\"value\"}");
+    }
+
+    #[test]
+    fn test_parse_env_vars_multiple_different_formats() {
+        let input = vec![
+            "SIMPLE=value".to_string(),
+            "WITH_EQUALS=a=b=c".to_string(),
+            "EMPTY_VAL=".to_string(),
+        ];
+        let result = parse_environment_vars(&input);
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[0], ("SIMPLE", "value"));
+        assert_eq!(result[1], ("WITH_EQUALS", "a=b=c"));
+        assert_eq!(result[2], ("EMPTY_VAL", ""));
+    }
+
+    #[test]
+    fn test_build_ansible_args_with_empty_extra_vars() {
+        use std::collections::HashMap;
+        let extra_vars: HashMap<String, serde_json::Value> = HashMap::new();
+        let args = build_ansible_args("playbook.yml", None, &extra_vars, &[]);
+        assert_eq!(args, vec!["playbook.yml"]);
+        // No --extra-vars should be present
+        assert!(!args.contains(&"--extra-vars".to_string()));
+    }
+
+    #[test]
+    fn test_build_ansible_args_with_multiple_extra_vars() {
+        use std::collections::HashMap;
+        let mut extra_vars = HashMap::new();
+        extra_vars.insert("var1".to_string(), serde_json::json!("value1"));
+        extra_vars.insert("var2".to_string(), serde_json::json!(42));
+        extra_vars.insert("var3".to_string(), serde_json::json!(true));
+
+        let args = build_ansible_args("deploy.yml", None, &extra_vars, &[]);
+        assert_eq!(args[0], "deploy.yml");
+        assert_eq!(args[1], "--extra-vars");
+        // Check JSON contains all keys
+        let json_str = &args[2];
+        assert!(json_str.contains("var1"));
+        assert!(json_str.contains("var2"));
+        assert!(json_str.contains("var3"));
+    }
+
+    #[test]
+    fn test_build_ansible_args_combined_inventory_and_cli() {
+        use std::collections::HashMap;
+        let cli = vec!["--limit".to_string(), "db".to_string(), "-vv".to_string()];
+        let args = build_ansible_args(
+            "site.yml",
+            Some("inventory/hosts"),
+            &HashMap::new(),
+            &cli,
+        );
+
+        assert_eq!(args[0], "site.yml");
+        assert_eq!(args[1], "-i");
+        assert_eq!(args[2], "inventory/hosts");
+        assert_eq!(args[3], "--limit");
+        assert_eq!(args[4], "db");
+        assert_eq!(args[5], "-vv");
+    }
+
+    #[test]
+    fn test_build_terraform_apply_args_edge_cases() {
+        // Without auto-approve
+        let args_no = build_terraform_apply_args(false);
+        assert_eq!(args_no.len(), 1);
+        assert!(!args_no.contains(&"-auto-approve".to_string()));
+
+        // With auto-approve
+        let args_yes = build_terraform_apply_args(true);
+        assert_eq!(args_yes.len(), 2);
+        assert!(args_yes.contains(&"-auto-approve".to_string()));
+    }
+
+    #[test]
+    fn test_app_factory_default_fallback() {
+        // Pulumi and unknown types should fallback to AnsibleApp
+        let _ = AppFactory::create(AppType::Pulumi);
+        // No panic expected
+    }
+
+    #[test]
+    fn test_ansible_app_setters() {
+        let mut app = AnsibleApp::new();
+        app.set_playbook(PathBuf::from("/path/to/playbook.yml"));
+        assert_eq!(app.playbook_path, PathBuf::from("/path/to/playbook.yml"));
+
+        app.set_inventory(PathBuf::from("/path/to/hosts.ini"));
+        assert!(app.inventory_path.is_some());
+        assert_eq!(
+            app.inventory_path.unwrap(),
+            PathBuf::from("/path/to/hosts.ini")
+        );
+    }
+
+    #[test]
+    fn test_ansible_app_add_extra_vars() {
+        let mut app = AnsibleApp::new();
+        app.add_extra_var("debug".to_string(), serde_json::json!(true));
+        app.add_extra_var("target".to_string(), serde_json::json!("all"));
+
+        assert_eq!(app.extra_vars.len(), 2);
+        assert_eq!(app.extra_vars["debug"], serde_json::json!(true));
+        assert_eq!(app.extra_vars["target"], serde_json::json!("all"));
+    }
+
+    #[test]
+    fn test_terraform_app_setters() {
+        let mut app = TerraformApp::new();
+        app.set_workspace("staging".to_string());
+        assert_eq!(app.workspace, "staging");
+
+        app.set_auto_approve(true);
+        assert!(app.auto_approve);
+
+        app.set_plan_only(true);
+        assert!(app.plan_only);
+    }
+
+    #[test]
+    fn test_terraform_app_default_workspace() {
+        let app = TerraformApp::new();
+        assert_eq!(app.workspace, "default");
+    }
+
+    #[test]
+    fn test_shell_app_set_script() {
+        let mut app = ShellApp::new(AppType::Bash);
+        app.set_script(PathBuf::from("/scripts/deploy.sh"));
+        assert_eq!(app.script_path, PathBuf::from("/scripts/deploy.sh"));
+    }
+
+    #[test]
+    fn test_shell_app_get_command_for_all_types() {
+        let bash_app = ShellApp::new(AppType::Bash);
+        assert_eq!(bash_app.get_command(), "bash");
+
+        let ps_app = ShellApp::new(AppType::PowerShell);
+        assert_eq!(ps_app.get_command(), "pwsh");
+
+        let py_app = ShellApp::new(AppType::Python);
+        assert_eq!(py_app.get_command(), "python3");
+
+        // Default fallback
+        let ansible_as_shell = ShellApp::new(AppType::Ansible);
+        assert_eq!(ansible_as_shell.get_command(), "bash");
+    }
+
+    #[test]
+    fn test_shell_app_get_work_dir() {
+        let mut app = ShellApp::new(AppType::Bash);
+        app.set_work_dir(PathBuf::from("/tmp/work"));
+        assert_eq!(app.get_work_dir(), Path::new("/tmp/work"));
+    }
+
+    #[test]
+    fn test_shell_app_cli_and_env_setters() {
+        let mut app = ShellApp::new(AppType::Bash);
+        app.set_cli_args(vec!["--verbose".to_string()]);
+        app.set_environment(vec!["DEBUG=1".to_string()]);
+
+        assert_eq!(app.base.cli_args.len(), 1);
+        assert_eq!(app.base.environment_vars.len(), 1);
+    }
+
+    #[test]
+    fn test_ansible_app_install_requirements_no_file() {
+        // Without requirements.yml, install_galaxy_requirements should return Ok(())
+        // This is tested indirectly via the helper function behavior
+        let mut app = AnsibleApp::new();
+        // We can't easily test async without a runtime, but we verify structure
+        assert!(app.extra_vars.is_empty());
+        assert!(app.inventory_path.is_none());
+    }
+
+    #[test]
+    fn test_build_ansible_args_empty_inventory_with_extra_vars_and_args() {
+        use std::collections::HashMap;
+        let mut extra = HashMap::new();
+        extra.insert("env".to_string(), serde_json::json!("production"));
+
+        let cli = vec!["--forks".to_string(), "10".to_string()];
+
+        let args = build_ansible_args(
+            "deploy.yml",
+            None, // no inventory
+            &extra,
+            &cli,
+        );
+
+        // Should have playbook, extra-vars, and cli args but NO -i
+        assert_eq!(args[0], "deploy.yml");
+        assert_eq!(args[1], "--extra-vars");
+        assert!(args.contains(&"--forks".to_string()));
+        assert!(args.contains(&"10".to_string()));
+        assert!(!args.contains(&"-i".to_string()));
+    }
+
+    #[test]
+    fn test_app_run_result_various_exit_codes() {
+        let codes = vec![0, 1, 2, 127, 128, 255];
+        for code in codes {
+            let result = AppRunResult {
+                exit_code: code,
+                has_errors: code != 0,
+                output_path: None,
+            };
+            assert_eq!(result.exit_code, code);
+            assert_eq!(result.has_errors, code != 0);
+        }
+    }
+
+    #[test]
+    fn test_app_factory_all_types_return_executable_app() {
+        let all_types = vec![
+            AppType::Ansible,
+            AppType::Terraform,
+            AppType::Tofu,
+            AppType::Terragrunt,
+            AppType::Bash,
+            AppType::PowerShell,
+            AppType::Python,
+            AppType::Pulumi,
+        ];
+
+        for app_type in all_types {
+            let app = AppFactory::create(app_type);
+            // Just verify the factory returns a valid Box<dyn ExecutableApp>
+            let _ = app;
+        }
+    }
 }

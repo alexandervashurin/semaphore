@@ -273,4 +273,190 @@ mod tests {
         let value = json!(-0.0);
         assert_eq!(convert_float_to_int_if_possible(&value), Some(0));
     }
+
+    #[test]
+    fn test_convert_float_string_value() {
+        let value = json!("not a number");
+        assert_eq!(convert_float_to_int_if_possible(&value), None);
+    }
+
+    #[test]
+    fn test_convert_float_boolean_value() {
+        let value = json!(true);
+        assert_eq!(convert_float_to_int_if_possible(&value), None);
+    }
+
+    #[test]
+    fn test_convert_float_array_value() {
+        let value = json!([1, 2, 3]);
+        assert_eq!(convert_float_to_int_if_possible(&value), None);
+    }
+
+    #[test]
+    fn test_convert_float_object_value() {
+        let value = json!({"a": 1});
+        assert_eq!(convert_float_to_int_if_possible(&value), None);
+    }
+
+    #[test]
+    fn test_convert_float_very_large() {
+        let value = json!(9_007_199_254_740_992.0_f64);
+        let result = convert_float_to_int_if_possible(&value);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_struct_to_flat_map_deeply_nested() {
+        #[derive(Serialize)]
+        struct Level3 {
+            value: i32,
+        }
+        #[derive(Serialize)]
+        struct Level2 {
+            l3: Level3,
+        }
+        #[derive(Serialize)]
+        struct Level1 {
+            l2: Level2,
+        }
+
+        let obj = Level1 {
+            l2: Level2 {
+                l3: Level3 { value: 999 },
+            },
+        };
+
+        let flat = struct_to_flat_map(&obj);
+        assert_eq!(
+            flat.get("l2.l3.value"),
+            Some(&Value::Number(999.into()))
+        );
+    }
+
+    #[test]
+    fn test_struct_to_flat_map_empty_struct() {
+        #[derive(Serialize)]
+        struct Empty {}
+
+        let obj = Empty {};
+        let flat = struct_to_flat_map(&obj);
+        assert!(flat.is_empty());
+    }
+
+    #[test]
+    fn test_struct_to_flat_map_with_array_of_objects() {
+        #[derive(Serialize)]
+        struct Container {
+            items: Vec<serde_json::Value>,
+        }
+
+        let obj = Container {
+            items: vec![
+                json!({"name": "first"}),
+                json!({"name": "second"}),
+            ],
+        };
+
+        let flat = struct_to_flat_map(&obj);
+        assert_eq!(
+            flat.get("items.0.name"),
+            Some(&Value::String("first".to_string()))
+        );
+        assert_eq!(
+            flat.get("items.1.name"),
+            Some(&Value::String("second".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_struct_to_flat_map_with_nested_array() {
+        #[derive(Serialize)]
+        struct Data {
+            matrix: Vec<Vec<i32>>,
+        }
+
+        let obj = Data {
+            matrix: vec![vec![1, 2], vec![3, 4]],
+        };
+
+        let flat = struct_to_flat_map(&obj);
+        assert_eq!(flat.get("matrix.0.0"), Some(&Value::Number(1.into())));
+        assert_eq!(flat.get("matrix.0.1"), Some(&Value::Number(2.into())));
+        assert_eq!(flat.get("matrix.1.0"), Some(&Value::Number(3.into())));
+        assert_eq!(flat.get("matrix.1.1"), Some(&Value::Number(4.into())));
+    }
+
+    #[test]
+    fn test_flatten_value_empty_object() {
+        let value = json!({});
+        let mut result = Map::new();
+        flatten_value(&value, "", &mut result);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_flatten_value_empty_array() {
+        let value = json!([]);
+        let mut result = Map::new();
+        flatten_value(&value, "", &mut result);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_flatten_value_with_prefix() {
+        let value = json!({"key": "val"});
+        let mut result = Map::new();
+        flatten_value(&value, "prefix", &mut result);
+        assert_eq!(
+            result.get("prefix.key"),
+            Some(&Value::String("val".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_flatten_value_array_with_prefix() {
+        let value = json!([10, 20]);
+        let mut result = Map::new();
+        flatten_value(&value, "arr", &mut result);
+        assert_eq!(result.get("arr.0"), Some(&Value::Number(10.into())));
+        assert_eq!(result.get("arr.1"), Some(&Value::Number(20.into())));
+    }
+
+    #[test]
+    fn test_flatten_value_null_with_prefix() {
+        let value = Value::Null;
+        let mut result = Map::new();
+        flatten_value(&value, "mypath", &mut result);
+        assert_eq!(result.get("mypath"), Some(&Value::Null));
+    }
+
+    #[test]
+    fn test_struct_to_flat_map_with_bool() {
+        #[derive(Serialize)]
+        struct Flags {
+            active: bool,
+            enabled: bool,
+        }
+
+        let obj = Flags {
+            active: true,
+            enabled: false,
+        };
+
+        let flat = struct_to_flat_map(&obj);
+        assert_eq!(flat.get("active"), Some(&Value::Bool(true)));
+        assert_eq!(flat.get("enabled"), Some(&Value::Bool(false)));
+    }
+
+    #[test]
+    fn test_struct_to_flat_map_with_float() {
+        #[derive(Serialize)]
+        struct Measurement {
+            value: f64,
+        }
+
+        let obj = Measurement { value: 3.14 };
+        let flat = struct_to_flat_map(&obj);
+        assert!(flat.get("value").is_some());
+    }
 }

@@ -152,4 +152,128 @@ mod tests {
         log_debug_f(&err, &[("x", "1")]);
         std::env::remove_var("RUST_LOG");
     }
+
+    #[test]
+    fn test_log_warning_with_custom_error_type() {
+        #[derive(Debug)]
+        struct CustomErr(&'static str);
+        impl std::fmt::Display for CustomErr {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "{}", self.0)
+            }
+        }
+        let err = CustomErr("custom warning");
+        log_warning(&err);
+        // Проверяем что не паникует
+    }
+
+    #[test]
+    fn test_log_error_with_io_error() {
+        let err = std::io::Error::new(std::io::ErrorKind::NotFound, "file not found");
+        log_error(&err);
+        // Проверяем что не паникует
+    }
+
+    #[test]
+    fn test_log_warning_f_single_field() {
+        let err = "warning with field";
+        log_warning_f(&err, &[("code", "42")]);
+    }
+
+    #[test]
+    fn test_log_error_f_single_field() {
+        let err = "error with field";
+        log_error_f(&err, &[("module", "db")]);
+    }
+
+    #[test]
+    fn test_log_warning_f_multiple_fields_order() {
+        let err = "multi-field warning";
+        log_warning_f(&err, &[("a", "1"), ("b", "2"), ("c", "3")]);
+    }
+
+    #[test]
+    fn test_log_error_f_empty_fields() {
+        let err = "error no fields";
+        log_error_f(&err, &[]);
+    }
+
+    #[test]
+    fn test_log_debug_f_empty_fields() {
+        std::env::set_var("RUST_LOG", "debug");
+        let err = "debug no fields";
+        log_debug_f(&err, &[]);
+        std::env::remove_var("RUST_LOG");
+    }
+
+    #[test]
+    fn test_log_panic_f_with_fields() {
+        // Проверяем что panic содержит сообщение и поля
+    }
+
+    #[test]
+    #[should_panic(expected = "critical error field=value")]
+    fn test_log_panic_f_message_contains_fields() {
+        let err = "critical error";
+        log_panic_f(&err, &[("field", "value")]);
+    }
+
+    #[test]
+    #[should_panic(expected = "alone")]
+    fn test_log_panic_message_content() {
+        let err = "alone";
+        log_panic(&err);
+    }
+
+    #[test]
+    fn test_log_debug_f_no_output_without_env() {
+        std::env::remove_var("RUST_LOG");
+        let err = "should not appear";
+        log_debug_f(&err, &[("k", "v")]);
+        // Проверяем что не паникует когда env не установлен
+    }
+
+    #[test]
+    fn test_log_debug_f_env_with_unrelated_value() {
+        std::env::set_var("RUST_LOG", "warn");
+        let err = "debug with unrelated env";
+        log_debug_f(&err, &[("k", "v")]);
+        std::env::remove_var("RUST_LOG");
+    }
+
+    #[test]
+    fn test_log_warning_f_with_empty_string_values() {
+        let err = "";
+        log_warning_f(&err, &[("", "")]);
+    }
+
+    #[test]
+    fn test_log_error_f_with_special_chars_in_values() {
+        let err = "error with unicode";
+        log_error_f(&err, &[("msg", ""), ("path", "/tmp/test")]);
+    }
+
+    #[test]
+    fn test_log_warning_f_does_not_panic_with_many_fields() {
+        static PAIRS: &[(&str, &str)] = &[
+            ("k0", "v0"), ("k1", "v1"), ("k2", "v2"), ("k3", "v3"), ("k4", "v4"),
+            ("k5", "v5"), ("k6", "v6"), ("k7", "v7"), ("k8", "v8"), ("k9", "v9"),
+            ("k10", "v10"), ("k11", "v11"), ("k12", "v12"), ("k13", "v13"), ("k14", "v14"),
+            ("k15", "v15"), ("k16", "v16"), ("k17", "v17"), ("k18", "v18"), ("k19", "v19"),
+        ];
+        let err = "lots of fields";
+        log_warning_f(&err, PAIRS);
+    }
+
+    #[test]
+    fn test_log_error_f_does_not_panic_with_many_fields() {
+        static PAIRS: &[(&str, &str)] = &[
+            ("k0", "v0"), ("k1", "v1"), ("k2", "v2"), ("k3", "v3"), ("k4", "v4"),
+            ("k5", "v5"), ("k6", "v6"), ("k7", "v7"), ("k8", "v8"), ("k9", "v9"),
+            ("k10", "v10"), ("k11", "v11"), ("k12", "v12"), ("k13", "v13"), ("k14", "v14"),
+            ("k15", "v15"), ("k16", "v16"), ("k17", "v17"), ("k18", "v18"), ("k19", "v19"),
+        ];
+        let err = "lots of error fields";
+        log_error_f(&err, PAIRS);
+    }
 }

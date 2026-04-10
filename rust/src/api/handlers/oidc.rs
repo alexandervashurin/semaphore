@@ -505,4 +505,291 @@ mod tests {
         assert!(json.contains("false"));
         assert!(json.contains("true"));
     }
+
+    // ========================================================================
+    // Tests for oidc_first_str_claim helper
+    // ========================================================================
+
+    #[test]
+    fn test_oidc_first_str_claim_single_existing_key() {
+        let v = serde_json::json!({"email": "user@example.com"});
+        assert_eq!(
+            oidc_first_str_claim(&v, &["email"]),
+            "user@example.com"
+        );
+    }
+
+    #[test]
+    fn test_oidc_first_str_claim_empty_keys_list() {
+        let v = serde_json::json!({"email": "user@example.com"});
+        assert_eq!(oidc_first_str_claim(&v, &[]), "");
+    }
+
+    #[test]
+    fn test_oidc_first_str_claim_skips_empty_keys() {
+        let v = serde_json::json!({"email": "user@example.com"});
+        assert_eq!(
+            oidc_first_str_claim(&v, &["", "email"]),
+            "user@example.com"
+        );
+    }
+
+    #[test]
+    fn test_oidc_first_str_claim_nonexistent_key() {
+        let v = serde_json::json!({"email": "user@example.com"});
+        assert_eq!(oidc_first_str_claim(&v, &["missing"]), "");
+    }
+
+    #[test]
+    fn test_oidc_first_str_claim_non_string_value() {
+        let v = serde_json::json!({"count": 42, "email": "user@example.com"});
+        assert_eq!(oidc_first_str_claim(&v, &["count"]), "");
+    }
+
+    #[test]
+    fn test_oidc_first_str_claim_empty_string_value() {
+        let v = serde_json::json!({"email": "", "name": "John"});
+        assert_eq!(
+            oidc_first_str_claim(&v, &["email", "name"]),
+            "John"
+        );
+    }
+
+    #[test]
+    fn test_oidc_first_str_claim_all_empty_strings() {
+        let v = serde_json::json!({"a": "", "b": ""});
+        assert_eq!(oidc_first_str_claim(&v, &["a", "b"]), "");
+    }
+
+    #[test]
+    fn test_oidc_first_str_claim_null_value() {
+        let v = serde_json::json!({"email": null});
+        assert_eq!(oidc_first_str_claim(&v, &["email"]), "");
+    }
+
+    #[test]
+    fn test_oidc_first_str_claim_boolean_value() {
+        let v = serde_json::json!({"active": true});
+        assert_eq!(oidc_first_str_claim(&v, &["active"]), "");
+    }
+
+    #[test]
+    fn test_oidc_first_str_claim_array_value() {
+        let v = serde_json::json!({"roles": ["admin", "user"]});
+        assert_eq!(oidc_first_str_claim(&v, &["roles"]), "");
+    }
+
+    #[test]
+    fn test_oidc_first_str_claim_nested_object_value() {
+        let v = serde_json::json!({"info": {"email": "a@b.com"}});
+        assert_eq!(oidc_first_str_claim(&v, &["info"]), "");
+    }
+
+    #[test]
+    fn test_oidc_first_str_claim_fallback_chain() {
+        let v = serde_json::json!({
+            "preferred_username": "johnd",
+            "name": "John Doe",
+            "sub": "12345"
+        });
+        assert_eq!(
+            oidc_first_str_claim(&v, &["preferred_username", "name", "sub"]),
+            "johnd"
+        );
+        assert_eq!(
+            oidc_first_str_claim(&v, &["missing", "name", "sub"]),
+            "John Doe"
+        );
+        assert_eq!(
+            oidc_first_str_claim(&v, &["missing1", "missing2", "sub"]),
+            "12345"
+        );
+    }
+
+    #[test]
+    fn test_oidc_first_str_claim_unicode_value() {
+        let v = serde_json::json!({"name": "Иван"});
+        assert_eq!(oidc_first_str_claim(&v, &["name"]), "Иван");
+    }
+
+    // ========================================================================
+    // Tests for OidcProviderMetadata
+    // ========================================================================
+
+    #[test]
+    fn test_oidc_provider_metadata_default_fields() {
+        let metadata = OidcProviderMetadata {
+            name: String::new(),
+            color: String::new(),
+            icon: String::new(),
+            login_url: String::new(),
+        };
+        assert!(metadata.name.is_empty());
+        assert!(metadata.color.is_empty());
+        assert!(metadata.icon.is_empty());
+        assert!(metadata.login_url.is_empty());
+    }
+
+    #[test]
+    fn test_oidc_provider_metadata_deserialization() {
+        let json = r##"{"name":"Azure","color":"#0078D4","icon":"azure","login_url":"/api/auth/oidc/azure"}"##;
+        let metadata: OidcProviderMetadata = serde_json::from_str(json).unwrap();
+        assert_eq!(metadata.name, "Azure");
+        assert_eq!(metadata.color, "#0078D4");
+        assert_eq!(metadata.icon, "azure");
+        assert_eq!(metadata.login_url, "/api/auth/oidc/azure");
+    }
+
+    #[test]
+    fn test_oidc_provider_metadata_roundtrip() {
+        let original = OidcProviderMetadata {
+            name: "Keycloak".to_string(),
+            color: "#4C4C4C".to_string(),
+            icon: "keycloak".to_string(),
+            login_url: "/api/auth/oidc/keycloak".to_string(),
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let deserialized: OidcProviderMetadata = serde_json::from_str(&json).unwrap();
+        assert_eq!(original.name, deserialized.name);
+        assert_eq!(original.color, deserialized.color);
+        assert_eq!(original.icon, deserialized.icon);
+        assert_eq!(original.login_url, deserialized.login_url);
+    }
+
+    // ========================================================================
+    // Tests for LoginMetadataResponse
+    // ========================================================================
+
+    #[test]
+    fn test_login_metadata_response_with_providers() {
+        let response = LoginMetadataResponse {
+            oidc_providers: vec![
+                OidcProviderMetadata {
+                    name: "Google".to_string(),
+                    color: "#4285F4".to_string(),
+                    icon: "google".to_string(),
+                    login_url: "/api/auth/oidc/google".to_string(),
+                },
+                OidcProviderMetadata {
+                    name: "GitHub".to_string(),
+                    color: "#24292E".to_string(),
+                    icon: "github".to_string(),
+                    login_url: "/api/auth/oidc/github".to_string(),
+                },
+            ],
+            totp_enabled: true,
+            email_enabled: false,
+            login_with_password: true,
+        };
+        assert_eq!(response.oidc_providers.len(), 2);
+        assert!(response.totp_enabled);
+        assert!(!response.email_enabled);
+        assert!(response.login_with_password);
+    }
+
+    #[test]
+    fn test_login_metadata_response_all_disabled() {
+        let response = LoginMetadataResponse {
+            oidc_providers: vec![],
+            totp_enabled: false,
+            email_enabled: false,
+            login_with_password: false,
+        };
+        let json = serde_json::to_string(&response).unwrap();
+        assert!(json.contains("totp_enabled"));
+        assert!(json.contains("email_enabled"));
+        assert!(json.contains("login_with_password"));
+    }
+
+    #[test]
+    fn test_login_metadata_response_deserialization() {
+        let json = r#"{"oidc_providers":[],"totp_enabled":true,"email_enabled":true,"login_with_password":false}"#;
+        let response: LoginMetadataResponse = serde_json::from_str(json).unwrap();
+        assert!(response.totp_enabled);
+        assert!(response.email_enabled);
+        assert!(!response.login_with_password);
+    }
+
+    #[test]
+    fn test_login_metadata_response_roundtrip() {
+        let original = LoginMetadataResponse {
+            oidc_providers: vec![OidcProviderMetadata {
+                name: "Okta".to_string(),
+                color: "#007DC1".to_string(),
+                icon: "okta".to_string(),
+                login_url: "/api/auth/oidc/okta".to_string(),
+            }],
+            totp_enabled: true,
+            email_enabled: true,
+            login_with_password: true,
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let deserialized: LoginMetadataResponse = serde_json::from_str(&json).unwrap();
+        assert_eq!(original.oidc_providers.len(), deserialized.oidc_providers.len());
+        assert_eq!(original.totp_enabled, deserialized.totp_enabled);
+        assert_eq!(original.email_enabled, deserialized.email_enabled);
+        assert_eq!(
+            original.login_with_password,
+            deserialized.login_with_password
+        );
+    }
+
+    // ========================================================================
+    // Edge-case tests
+    // ========================================================================
+
+    #[test]
+    fn test_oidc_first_str_claim_special_characters_in_value() {
+        let v = serde_json::json!({"email": "user+tag@example.com"});
+        assert_eq!(
+            oidc_first_str_claim(&v, &["email"]),
+            "user+tag@example.com"
+        );
+    }
+
+    #[test]
+    fn test_oidc_first_str_claim_very_long_value() {
+        let long_value = "a".repeat(1000);
+        let v = serde_json::json!({"claim": long_value.clone()});
+        assert_eq!(oidc_first_str_claim(&v, &["claim"]), long_value);
+    }
+
+    #[test]
+    fn test_oidc_first_str_claim_whitespace_only_value() {
+        let v = serde_json::json!({"name": "   "});
+        assert_eq!(oidc_first_str_claim(&v, &["name"]), "   ");
+    }
+
+    #[test]
+    fn test_oidc_provider_metadata_empty_serialization() {
+        let metadata = OidcProviderMetadata {
+            name: String::new(),
+            color: String::new(),
+            icon: String::new(),
+            login_url: String::new(),
+        };
+        let json = serde_json::to_string(&metadata).unwrap();
+        assert!(json.contains("\"name\":\"\""));
+    }
+
+    // ========================================================================
+    // Tests for serde_json::Value edge cases in claim extraction
+    // ========================================================================
+
+    #[test]
+    fn test_oidc_first_str_claim_empty_json_object() {
+        let v = serde_json::json!({});
+        assert_eq!(oidc_first_str_claim(&v, &["any"]), "");
+    }
+
+    #[test]
+    fn test_oidc_first_str_claim_mixed_types() {
+        let v = serde_json::json!({
+            "a": null,
+            "b": 123,
+            "c": "valid",
+            "d": true
+        });
+        assert_eq!(oidc_first_str_claim(&v, &["a", "b", "c", "d"]), "valid");
+    }
 }

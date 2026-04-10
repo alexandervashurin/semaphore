@@ -1823,4 +1823,483 @@ mod key_installer_tests {
         let installation = result.unwrap();
         assert!(installation.ssh_agent.is_some());
     }
+
+    // ========================================================================
+    // Дополнительные тесты: SshAgent методы, execute_command ошибки,
+    // Drop, AccessKey конвертация, utils edge cases, SshConfig builder
+    // ========================================================================
+
+    // ── SshAgent execute_command без сессии ──
+
+    #[test]
+    fn test_ssh_agent_execute_command_without_session() {
+        let config = SshConfig::new("localhost".to_string(), "user".to_string());
+        let agent = SshAgent::new(config);
+        let result = agent.execute_command("echo hello");
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            Error::Other(msg) => assert!(msg.contains("сессия") || msg.contains("не установлена")),
+            e => panic!("Ожидалась Other ошибка, получено: {:?}", e),
+        }
+    }
+
+    #[test]
+    fn test_ssh_agent_execute_command_empty_string() {
+        let config = SshConfig::default();
+        let agent = SshAgent::new(config);
+        let result = agent.execute_command("");
+        assert!(result.is_err());
+    }
+
+    // ── SshAgent Drop trait ──
+
+    #[test]
+    fn test_ssh_agent_drop_does_not_panic() {
+        let config = SshConfig::default();
+        let agent = SshAgent::new(config);
+        drop(agent);
+    }
+
+    #[test]
+    fn test_ssh_agent_drop_after_disconnect() {
+        let mut agent = SshAgent::new(SshConfig::default());
+        let _ = agent.disconnect();
+        drop(agent);
+    }
+
+    #[test]
+    fn test_ssh_agent_drop_connected_agent() {
+        let key = SshKey::new(b"key".to_vec(), None);
+        let mut agent = SshAgent::simple("localhost".to_string(), "user".to_string(), key);
+        // connect() упадёт без реального сервера, но drop должен работать
+        let _ = agent.connect();
+        drop(agent);
+    }
+
+    // ── SshAgent clone independence ──
+
+    #[test]
+    fn test_ssh_agent_clone_session_independence() {
+        let config = SshConfig::default();
+        let agent = SshAgent::new(config.clone());
+        let cloned = agent.clone();
+        // У обоих session == None
+        assert!(agent.session().is_none());
+        assert!(cloned.session().is_none());
+    }
+
+    #[test]
+    fn test_ssh_agent_clone_config_independence() {
+        let config = SshConfig::new("host1".to_string(), "user1".to_string());
+        let agent = SshAgent::new(config);
+        let _cloned = agent.clone();
+        // Проверяем что config склонирован
+        assert_eq!(agent.config.host, "host1");
+    }
+
+    // ── SshConfig builder: edge cases ──
+
+    #[test]
+    fn test_ssh_config_port_zero() {
+        let config = SshConfig::default().with_port(0);
+        assert_eq!(config.port, 0);
+    }
+
+    #[test]
+    fn test_ssh_config_port_max() {
+        let config = SshConfig::default().with_port(65535);
+        assert_eq!(config.port, 65535);
+    }
+
+    #[test]
+    fn test_ssh_config_timeout_zero() {
+        let config = SshConfig::default().with_timeout(0);
+        assert_eq!(config.timeout_secs, 0);
+    }
+
+    #[test]
+    fn test_ssh_config_timeout_max() {
+        let config = SshConfig::default().with_timeout(u32::MAX);
+        assert_eq!(config.timeout_secs, u32::MAX);
+    }
+
+    #[test]
+    fn test_ssh_config_builder_full_chain() {
+        let key1 = SshKey::new(b"key1".to_vec(), Some("pass1".to_string()));
+        let key2 = SshKey::new(b"key2".to_vec(), None);
+        let config = SshConfig::new("myhost.example.com".to_string(), "deploy".to_string())
+            .with_port(2222)
+            .with_timeout(120)
+            .add_key(key1)
+            .add_key(key2);
+        assert_eq!(config.host, "myhost.example.com");
+        assert_eq!(config.username, "deploy");
+        assert_eq!(config.port, 2222);
+        assert_eq!(config.timeout_secs, 120);
+        assert_eq!(config.keys.len(), 2);
+    }
+
+    #[test]
+    fn test_ssh_config_empty_host() {
+        let config = SshConfig::new("".to_string(), "user".to_string());
+        assert!(config.host.is_empty());
+    }
+
+    #[test]
+    fn test_ssh_config_empty_username() {
+        let config = SshConfig::new("host".to_string(), "".to_string());
+        assert!(config.username.is_empty());
+    }
+
+    // ── SshKey edge cases ──
+
+    #[test]
+    fn test_ssh_key_with_public_key_overwrites() {
+        let key = SshKey::new(b"priv".to_vec(), None)
+            .with_public_key(b"pub1".to_vec())
+            .with_public_key(b"pub2".to_vec());
+        assert_eq!(key.public_key, Some(b"pub2".to_vec()));
+    }
+
+    #[test]
+    fn test_ssh_key_large_private_key() {
+        let large_key = vec![0u8; 10_000];
+        let key = SshKey::new(large_key.clone(), None);
+        assert_eq!(key.private_key.len(), 10_000);
+    }
+
+    #[test]
+    fn test_ssh_key_unicode_passphrase() {
+        let key = SshKey::new(b"key".to_vec(), Some("пароль_ключ".to_string()));
+        assert!(key.passphrase.is_some());
+    }
+
+    #[test]
+    fn test_ssh_key_from_string_multiline() {
+        let key_data = "line1\nline2\nline3";
+        let key = SshKey::from_string(key_data.to_string(), None);
+        assert_eq!(key.private_key, b"line1\nline2\nline3");
+    }
+
+    #[test]
+    fn test_ssh_key_from_string_special_chars() {
+        let key_data = "key with\ttab and spaces  ";
+        let key = SshKey::from_string(key_data.to_string(), None);
+        assert_eq!(key.private_key, b"key with\ttab and spaces  ");
+    }
+
+    // ── AccessKey conversion tests ──
+
+    #[test]
+    fn test_access_key_ssh_key_data_login_field() {
+        let key = AccessKey::new_ssh(1, "pk".into(), "pass".into(), "mylogin".into(), None);
+        let ssh_data = key.get_ssh_key_data().unwrap();
+        assert_eq!(ssh_data.login, "mylogin");
+    }
+
+    #[test]
+    fn test_access_key_ssh_key_data_private_key_field() {
+        let key = AccessKey::new_ssh(1, "my_private_key".into(), "".into(), "u".into(), None);
+        let ssh_data = key.get_ssh_key_data().unwrap();
+        assert_eq!(ssh_data.private_key, "my_private_key");
+    }
+
+    #[test]
+    fn test_access_key_login_password_password_field() {
+        let key = AccessKey::new_login_password(1, "u".into(), "mysecret".into(), None);
+        let lp = key.get_login_password_data().unwrap();
+        assert_eq!(lp.password, "mysecret");
+    }
+
+    #[test]
+    fn test_access_key_project_id_variants() {
+        let with_project = AccessKey::new_ssh(1, "pk".into(), "".into(), "u".into(), Some(42));
+        let without_project = AccessKey::new_ssh(2, "pk".into(), "".into(), "u".into(), None);
+        assert_eq!(with_project.project_id, Some(42));
+        assert!(without_project.project_id.is_none());
+    }
+
+    // ── AccessKeyInstallation script field ──
+
+    #[test]
+    fn test_access_key_installation_script_set() {
+        let mut installation = AccessKeyInstallation::new();
+        installation.script = Some("#!/bin/bash\necho hello".to_string());
+        assert!(installation.script.is_some());
+    }
+
+    #[test]
+    fn test_access_key_installation_script_overwrite() {
+        let mut installation = AccessKeyInstallation::new();
+        installation.script = Some("script1".to_string());
+        installation.script = Some("script2".to_string());
+        assert_eq!(installation.script, Some("script2".to_string()));
+    }
+
+    // ── AccessKeyInstallation get_git_env with ssh_agent ──
+
+    #[test]
+    fn test_access_key_installation_git_env_with_ssh_agent() {
+        let mut installation = AccessKeyInstallation::new();
+        // Создаём простой агент (без подключения)
+        let key = SshKey::new(b"key".to_vec(), None);
+        let agent = SshAgent::simple("localhost".to_string(), "user".to_string(), key);
+        installation.ssh_agent = Some(agent);
+        let env = installation.get_git_env();
+        assert!(env.iter().any(|(k, _)| k == "GIT_SSH_COMMAND"));
+        assert!(env.iter().any(|(k, _)| k == "GIT_TERMINAL_PROMPT"));
+    }
+
+    #[test]
+    fn test_access_key_installation_git_env_ssh_command_contains_strict_host_checking() {
+        let mut installation = AccessKeyInstallation::new();
+        let key = SshKey::new(b"key".to_vec(), None);
+        let agent = SshAgent::simple("localhost".to_string(), "user".to_string(), key);
+        installation.ssh_agent = Some(agent);
+        let env = installation.get_git_env();
+        let ssh_cmd = env.iter().find(|(k, _)| k == "GIT_SSH_COMMAND").map(|(_, v)| v.clone());
+        assert!(ssh_cmd.is_some());
+        let ssh_cmd = ssh_cmd.unwrap();
+        assert!(ssh_cmd.contains("StrictHostKeyChecking=no"));
+        assert!(ssh_cmd.contains("UserKnownHostsFile=/dev/null"));
+    }
+
+    // ── utils validate_key: additional edge cases ──
+
+    #[test]
+    fn test_utils_validate_key_empty() {
+        let key = SshKey::new(vec![], None);
+        let result = utils::validate_key(&key);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_utils_validate_key_begin_only() {
+        let key = SshKey::new(b"-----BEGIN RSA PRIVATE KEY-----".to_vec(), None);
+        assert!(utils::validate_key(&key).is_ok());
+    }
+
+    #[test]
+    fn test_utils_validate_key_end_only() {
+        let key = SshKey::new(b"-----END RSA PRIVATE KEY-----".to_vec(), None);
+        assert!(utils::validate_key(&key).is_err());
+    }
+
+    #[test]
+    fn test_utils_validate_key_case_sensitive_markers() {
+        // BEGIN содержит "BEGIN", но "private key" в нижнем регистре не найдёт "PRIVATE KEY"
+        let key = SshKey::new(b"-----BEGIN rsa private key-----".to_vec(), None);
+        let result = utils::validate_key(&key);
+        // validate_key ищет "PRIVATE KEY" (верхний регистр), так что это должно упасть
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_utils_validate_key_begin_and_private_key_anywhere() {
+        // validate_key ищет "BEGIN" и "PRIVATE KEY" как подстроки
+        let key = SshKey::new(b"some PRIVATE KEY BEGIN stuff".to_vec(), None);
+        assert!(utils::validate_key(&key).is_ok());
+    }
+
+    // ── utils load_key_from_file: in-memory validation ──
+
+    #[test]
+    fn test_utils_load_key_from_string_passphrase_ref() {
+        let key_data = "-----BEGIN RSA PRIVATE KEY-----\ndata\n-----END RSA PRIVATE KEY-----";
+        let passphrase = "secret_passphrase";
+        let key = utils::load_key_from_string(key_data, Some(passphrase));
+        assert_eq!(key.passphrase, Some(passphrase.to_string()));
+    }
+
+    #[test]
+    fn test_utils_load_key_from_string_empty_data() {
+        let key = utils::load_key_from_string("", None);
+        assert!(key.private_key.is_empty());
+    }
+
+    // ── KeyInstaller: additional error paths ──
+
+    #[test]
+    fn test_key_installer_git_none_key_fails() {
+        let installer = KeyInstaller::new();
+        let logger = BasicLogger::new();
+        let key = AccessKey::new_none(1, None);
+        let result = installer.install(&key, AccessKeyRole::Git, &logger);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_key_installer_ansible_vault_none_key_fails() {
+        let installer = KeyInstaller::new();
+        let logger = BasicLogger::new();
+        let key = AccessKey::new_none(1, None);
+        let result = installer.install(&key, AccessKeyRole::AnsiblePasswordVault, &logger);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_key_installer_ansible_become_none_key_fails() {
+        let installer = KeyInstaller::new();
+        let logger = BasicLogger::new();
+        let key = AccessKey::new_none(1, None);
+        let result = installer.install(&key, AccessKeyRole::AnsibleBecomeUser, &logger);
+        assert!(result.is_err());
+    }
+
+    // ── SshCommandResult additional fields ──
+
+    #[test]
+    fn test_ssh_command_result_clone() {
+        let result = SshCommandResult {
+            exit_code: 42,
+            stdout: "hello".to_string(),
+            stderr: "world".to_string(),
+        };
+        let cloned = result.clone();
+        assert_eq!(cloned.exit_code, 42);
+        assert_eq!(cloned.stdout, "hello");
+        assert_eq!(cloned.stderr, "world");
+    }
+
+    #[test]
+    fn test_ssh_command_result_empty_fields() {
+        let result = SshCommandResult {
+            exit_code: 0,
+            stdout: String::new(),
+            stderr: String::new(),
+        };
+        assert!(result.stdout.is_empty());
+        assert!(result.stderr.is_empty());
+    }
+
+    #[test]
+    fn test_ssh_command_result_negative_exit_код() {
+        let result = SshCommandResult {
+            exit_code: -1,
+            stdout: "".to_string(),
+            stderr: "".to_string(),
+        };
+        assert_eq!(result.exit_code, -1);
+    }
+
+    // ── AccessKeyRole Display и FromStr consistency ──
+
+    #[test]
+    fn test_access_key_role_from_str_lowercase_all() {
+        for role_str in &["git", "ansible_password_vault", "ansible_become_user", "ansible_user"] {
+            let result = AccessKeyRole::from_str(role_str);
+            assert!(result.is_ok(), "Failed to parse: {}", role_str);
+        }
+    }
+
+    #[test]
+    fn test_access_key_role_error_message_contains_input() {
+        let err = AccessKeyRole::from_str("unknown_role").unwrap_err();
+        assert!(err.contains("unknown_role"));
+    }
+
+    // ── AccessKey ID uniqueness ──
+
+    #[test]
+    fn test_access_key_same_id_different_types() {
+        let ssh_key = AccessKey::new_ssh(1, "pk".into(), "".into(), "u".into(), None);
+        let lp_key = AccessKey::new_login_password(1, "u".into(), "p".into(), None);
+        let none_key = AccessKey::new_none(1, None);
+        // Все имеют одинаковый ID, но разные типы
+        assert_eq!(ssh_key.id, lp_key.id);
+        assert_eq!(lp_key.id, none_key.id);
+        assert_ne!(ssh_key.get_type(), lp_key.get_type());
+        assert_ne!(lp_key.get_type(), none_key.get_type());
+    }
+
+    // ── SshConfig: host с разными форматами ──
+
+    #[test]
+    fn test_ssh_config_host_ip_address() {
+        let config = SshConfig::new("192.168.1.100".to_string(), "user".to_string());
+        assert_eq!(config.host, "192.168.1.100");
+    }
+
+    #[test]
+    fn test_ssh_config_host_ipv6_address() {
+        let config = SshConfig::new("::1".to_string(), "user".to_string());
+        assert_eq!(config.host, "::1");
+    }
+
+    #[test]
+    fn test_ssh_config_host_with_whitespace() {
+        let config = SshConfig::new("host with spaces".to_string(), "user".to_string());
+        assert_eq!(config.host, "host with spaces");
+    }
+
+    // ── SshKey: private_key as valid PEM prefix ──
+
+    #[test]
+    fn test_ssh_key_private_key_starts_with_dash_dash_dash_dash_begin() {
+        let key_data = "-----BEGIN OPENSSH PRIVATE KEY-----\nvalid\n-----END OPENSSH PRIVATE KEY-----";
+        let key = SshKey::from_string(key_data.to_string(), None);
+        let key_str = String::from_utf8_lossy(&key.private_key);
+        assert!(key_str.starts_with("-----BEGIN"));
+        assert!(key_str.contains("PRIVATE KEY"));
+    }
+
+    // ── AccessKeyInstallation: destroy после установки ssh_agent ──
+
+    #[test]
+    fn test_access_key_installation_destroy_with_ssh_agent() {
+        let mut installation = AccessKeyInstallation::new();
+        let key = SshKey::new(b"key".to_vec(), None);
+        let agent = SshAgent::simple("localhost".to_string(), "user".to_string(), key);
+        installation.ssh_agent = Some(agent);
+        // destroy() должен успешно вызвать disconnect() на агенте
+        let result = installation.destroy();
+        assert!(result.is_ok());
+    }
+
+    // ── SshAgent::session после disconnect ──
+
+    #[test]
+    fn test_ssh_agent_session_none_after_new() {
+        let config = SshConfig::default();
+        let agent = SshAgent::new(config);
+        assert!(agent.session().is_none());
+    }
+
+    #[test]
+    fn test_ssh_agent_disconnect_returns_ok_on_empty_session() {
+        let mut agent = SshAgent::new(SshConfig::default());
+        let result = agent.disconnect();
+        assert!(result.is_ok());
+        assert!(!agent.is_connected());
+    }
+
+    // ── SshConfig: new vs default ──
+
+    #[test]
+    fn test_ssh_config_new_overrides_defaults() {
+        let config = SshConfig::new("host".to_string(), "myuser".to_string());
+        assert_eq!(config.host, "host");
+        assert_eq!(config.username, "myuser");
+        assert_eq!(config.port, 22); // default
+        assert_eq!(config.timeout_secs, 30); // default
+        assert!(config.keys.is_empty()); // default
+    }
+
+    // ── utils create_temp_ssh_dir: path properties ──
+
+    #[test]
+    fn test_utils_create_temp_ssh_dir_path_contains_ssh_agent() {
+        let dir = utils::create_temp_ssh_dir().unwrap();
+        let dir_str = dir.to_string_lossy();
+        assert!(dir_str.contains("ssh_agent_"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_utils_create_temp_ssh_dir_is_absolute() {
+        // temp_dir() возвращает абсолютный путь
+        let dir = utils::create_temp_ssh_dir().unwrap();
+        assert!(dir.is_absolute());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }
