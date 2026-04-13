@@ -256,4 +256,163 @@ mod tests {
         let s = sample_schedule("   ", None);
         assert!(schedule_cron_must_parse(&s).is_some());
     }
+
+    #[test]
+    fn cron_validation_accepts_every_minute() {
+        let s = sample_schedule("* * * * * *", None);
+        assert!(schedule_cron_must_parse(&s).is_none());
+    }
+
+    #[test]
+    fn cron_validation_accepts_every_5_minutes() {
+        let s = sample_schedule("0 */5 * * * *", None);
+        assert!(schedule_cron_must_parse(&s).is_none());
+    }
+
+    #[test]
+    fn cron_validation_accepts_range_syntax() {
+        let s = sample_schedule("0 0 9-17 * * 1-5", None);
+        assert!(schedule_cron_must_parse(&s).is_none());
+    }
+
+    #[test]
+    fn cron_validation_accepts_list_syntax() {
+        let s = sample_schedule("0 0,15,30,45 * * * *", None);
+        assert!(schedule_cron_must_parse(&s).is_none());
+    }
+
+    #[test]
+    fn cron_validation_accepts_midnight() {
+        let s = sample_schedule("0 0 0 * * *", None);
+        assert!(schedule_cron_must_parse(&s).is_none());
+    }
+
+    #[test]
+    fn cron_validation_rejects_single_asterisk() {
+        // 6-field cron accepts "* * * * * *" как валидный (каждую секунду)
+        // Один "*" невалиден т.к. нужно 6 полей
+        let s = sample_schedule("*", None);
+        assert!(schedule_cron_must_parse(&s).is_some());
+    }
+
+    #[test]
+    fn cron_validation_rejects_gibberish() {
+        let s = sample_schedule("abc def ghi jkl mno", None);
+        assert!(schedule_cron_must_parse(&s).is_some());
+    }
+
+    #[test]
+    fn cron_validation_rejects_too_few_fields() {
+        let s = sample_schedule("0 0 * *", None);
+        assert!(schedule_cron_must_parse(&s).is_some());
+    }
+
+    #[test]
+    fn cron_validation_accepts_six_fields() {
+        // 6-field cron (sec min hour day month weekday) is valid
+        let s = sample_schedule("0 0 0 * * *", None);
+        assert!(schedule_cron_must_parse(&s).is_none());
+    }
+
+    #[test]
+    fn cron_validation_rejects_eight_fields() {
+        let s = sample_schedule("0 0 * * * * * *", None);
+        assert!(schedule_cron_must_parse(&s).is_some());
+    }
+
+    #[test]
+    fn cron_validation_run_at_format_with_empty_cron_returns_none() {
+        let s = sample_schedule("", Some("run_at"));
+        assert!(schedule_cron_must_parse(&s).is_none());
+    }
+
+    #[test]
+    fn cron_validation_run_at_format_with_nonempty_cron_returns_none() {
+        let s = sample_schedule("* * * * *", Some("run_at"));
+        assert!(schedule_cron_must_parse(&s).is_none());
+    }
+
+    #[test]
+    fn cron_validation_rejects_empty_string() {
+        let s = sample_schedule("", None);
+        assert!(schedule_cron_must_parse(&s).is_some());
+    }
+
+    #[test]
+    fn cron_validation_rejects_whitespace_only() {
+        let s = sample_schedule("   ", None);
+        assert!(schedule_cron_must_parse(&s).is_some());
+        let err = schedule_cron_must_parse(&s).unwrap();
+        assert!(err.contains("Cron expression cannot be empty"));
+    }
+
+    #[test]
+    fn cron_validation_error_message_contains_cron_text() {
+        let s = sample_schedule("not_valid", None);
+        let err = schedule_cron_must_parse(&s).unwrap();
+        assert!(err.contains("Invalid cron expression"));
+    }
+
+    #[test]
+    fn validate_cron_payload_struct_serialization() {
+        let payload = ValidateCronPayload {
+            cron: "0 0 * * *".to_string(),
+        };
+        let json = serde_json::to_string(&payload).unwrap();
+        assert!(json.contains("\"cron\":\"0 0 * * *\""));
+    }
+
+    #[test]
+    fn validate_cron_response_valid_has_no_error() {
+        let response = ValidateCronResponse {
+            valid: true,
+            error: None,
+        };
+        let json = serde_json::to_string(&response).unwrap();
+        assert!(json.contains("\"valid\":true"));
+        assert!(!json.contains("\"error\""));
+    }
+
+    #[test]
+    fn validate_cron_response_invalid_has_error() {
+        let response = ValidateCronResponse {
+            valid: false,
+            error: Some("invalid cron".to_string()),
+        };
+        let json = serde_json::to_string(&response).unwrap();
+        assert!(json.contains("\"valid\":false"));
+        assert!(json.contains("\"error\":\"invalid cron\""));
+    }
+
+    #[test]
+    fn validate_cron_response_deserialization() {
+        let json = r#"{"valid":true}"#;
+        let response: ValidateCronResponse = serde_json::from_str(json).unwrap();
+        assert!(response.valid);
+        assert!(response.error.is_none());
+    }
+
+    #[test]
+    fn validate_cron_response_deserialization_with_error() {
+        let json = r#"{"valid":false,"error":"bad cron"}"#;
+        let response: ValidateCronResponse = serde_json::from_str(json).unwrap();
+        assert!(!response.valid);
+        assert_eq!(response.error, Some("bad cron".to_string()));
+    }
+
+    #[test]
+    fn cron_validation_accepts_weekday_values() {
+        let s = sample_schedule("0 0 0 * * 1", None);
+        assert!(schedule_cron_must_parse(&s).is_none());
+        let s2 = sample_schedule("0 0 0 * * 5", None);
+        assert!(schedule_cron_must_parse(&s2).is_none());
+    }
+
+    #[test]
+    fn sample_schedule_helper_produces_valid_schedule() {
+        let s = sample_schedule("0 0 * * *", None);
+        assert_eq!(s.cron, "0 0 * * *");
+        assert_eq!(s.project_id, 1);
+        assert!(s.active);
+    }
 }

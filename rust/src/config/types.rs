@@ -742,4 +742,590 @@ mod tests {
         let dir = config.get_project_tmp_dir(123);
         assert_eq!(dir, "/tmp/velum/project_123");
     }
+
+    // --- Additional tests (15+) ---
+
+    #[test]
+    fn test_db_dialect_serialization_mysql() {
+        let json = serde_json::to_string(&DbDialect::MySQL).unwrap();
+        assert_eq!(json, "\"mysql\"");
+    }
+
+    #[test]
+    fn test_db_dialect_serialization_postgres() {
+        let json = serde_json::to_string(&DbDialect::Postgres).unwrap();
+        assert_eq!(json, "\"postgres\"");
+    }
+
+    #[test]
+    fn test_db_dialect_serialization_sqlite() {
+        let json = serde_json::to_string(&DbDialect::SQLite).unwrap();
+        assert_eq!(json, "\"sqlite\"");
+    }
+
+    #[test]
+    fn test_db_dialect_deserialization() {
+        let mysql: DbDialect = serde_json::from_str("\"mysql\"").unwrap();
+        assert_eq!(mysql, DbDialect::MySQL);
+
+        let pg: DbDialect = serde_json::from_str("\"postgres\"").unwrap();
+        assert_eq!(pg, DbDialect::Postgres);
+
+        let sqlite: DbDialect = serde_json::from_str("\"sqlite\"").unwrap();
+        assert_eq!(sqlite, DbDialect::SQLite);
+    }
+
+    #[test]
+    fn test_db_config_serialization_roundtrip() {
+        let config = DbConfig {
+            dialect: Some(DbDialect::Postgres),
+            hostname: "db.example.com".to_string(),
+            username: "admin".to_string(),
+            password: "secret".to_string(),
+            db_name: "mydb".to_string(),
+            options: HashMap::new(),
+            path: None,
+            connection_string: None,
+        };
+
+        let json = serde_json::to_string(&config).unwrap();
+        let deserialized: DbConfig = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.hostname, "db.example.com");
+        assert_eq!(deserialized.username, "admin");
+        assert_eq!(deserialized.db_name, "mydb");
+    }
+
+    #[test]
+    fn test_db_config_has_support_multiple_databases() {
+        let mysql_config = DbConfig {
+            dialect: Some(DbDialect::MySQL),
+            ..Default::default()
+        };
+        assert!(mysql_config.has_support_multiple_databases());
+
+        let pg_config = DbConfig {
+            dialect: Some(DbDialect::Postgres),
+            ..Default::default()
+        };
+        assert!(pg_config.has_support_multiple_databases());
+
+        let sqlite_config = DbConfig {
+            dialect: Some(DbDialect::SQLite),
+            ..Default::default()
+        };
+        assert!(!sqlite_config.has_support_multiple_databases());
+
+        let none_config = DbConfig {
+            dialect: None,
+            ..Default::default()
+        };
+        assert!(!none_config.has_support_multiple_databases());
+    }
+
+    #[test]
+    fn test_db_config_get_connection_string_mysql() {
+        let config = DbConfig {
+            dialect: Some(DbDialect::MySQL),
+            hostname: "localhost:3306".to_string(),
+            username: "root".to_string(),
+            password: "pass".to_string(),
+            db_name: "testdb".to_string(),
+            ..Default::default()
+        };
+
+        let conn = config.get_connection_string(true).unwrap();
+        assert!(conn.contains("root:pass@tcp(localhost:3306)/testdb"));
+    }
+
+    #[test]
+    fn test_db_config_get_connection_string_mysql_with_options() {
+        let mut options = HashMap::new();
+        options.insert("charset".to_string(), "utf8mb4".to_string());
+        options.insert("parseTime".to_string(), "True".to_string());
+
+        let config = DbConfig {
+            dialect: Some(DbDialect::MySQL),
+            hostname: "localhost".to_string(),
+            username: "root".to_string(),
+            password: "pass".to_string(),
+            db_name: "testdb".to_string(),
+            options,
+            ..Default::default()
+        };
+
+        let conn = config.get_connection_string(true).unwrap();
+        assert!(conn.contains("?"));
+        assert!(conn.contains("charset=utf8mb4"));
+    }
+
+    #[test]
+    fn test_db_config_get_connection_string_postgres() {
+        let config = DbConfig {
+            dialect: Some(DbDialect::Postgres),
+            hostname: "pg-host:5432".to_string(),
+            username: "postgres".to_string(),
+            password: "pgpass".to_string(),
+            db_name: "appdb".to_string(),
+            ..Default::default()
+        };
+
+        let conn = config.get_connection_string(true).unwrap();
+        assert_eq!(
+            conn,
+            "postgres://postgres:pgpass@pg-host:5432/appdb"
+        );
+    }
+
+    #[test]
+    fn test_db_config_get_connection_string_sqlite() {
+        let config = DbConfig {
+            dialect: Some(DbDialect::SQLite),
+            db_name: "data/semaphore.db".to_string(),
+            ..Default::default()
+        };
+
+        let conn = config.get_connection_string(true).unwrap();
+        assert_eq!(conn, "data/semaphore.db");
+    }
+
+    #[test]
+    fn test_db_config_get_connection_string_unknown_dialect() {
+        let config = DbConfig {
+            dialect: None,
+            ..Default::default()
+        };
+
+        let result = config.get_connection_string(true);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Unknown database dialect");
+    }
+
+    #[test]
+    fn test_db_config_is_present_empty() {
+        let config = DbConfig {
+            hostname: String::new(),
+            db_name: String::new(),
+            ..Default::default()
+        };
+        assert!(!config.is_present());
+    }
+
+    #[test]
+    fn test_db_config_getters() {
+        let config = DbConfig {
+            hostname: "host.local".to_string(),
+            username: "user1".to_string(),
+            password: "p@ss".to_string(),
+            db_name: "mydb".to_string(),
+            ..Default::default()
+        };
+
+        assert_eq!(config.get_hostname(), "host.local");
+        assert_eq!(config.get_username(), "user1");
+        assert_eq!(config.get_password(), "p@ss");
+        assert_eq!(config.get_db_name(), "mydb");
+    }
+
+    #[test]
+    fn test_db_config_with_connection_string_field() {
+        let config = DbConfig {
+            dialect: Some(DbDialect::Postgres),
+            connection_string: Some("postgres://user:pass@host/db".to_string()),
+            ..Default::default()
+        };
+
+        let json = serde_json::to_string(&config).unwrap();
+        let deserialized: DbConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(
+            deserialized.connection_string,
+            Some("postgres://user:pass@host/db".to_string())
+        );
+    }
+
+    #[test]
+    fn test_ldap_config_default() {
+        let ldap = LdapConfig::default();
+        assert!(!ldap.enable);
+        assert!(!ldap.need_tls);
+        assert_eq!(ldap.server, "");
+        assert_eq!(ldap.mappings.dn, "dn");
+    }
+
+    #[test]
+    fn test_ldap_config_serialization() {
+        let ldap = LdapConfig {
+            enable: true,
+            server: "ldap.example.com".to_string(),
+            bind_dn: "cn=admin,dc=example,dc=com".to_string(),
+            bind_password: "secret".to_string(),
+            search_dn: "ou=users,dc=example,dc=com".to_string(),
+            search_filter: "(uid=%s)".to_string(),
+            need_tls: true,
+            mappings: LdapMappings::default(),
+        };
+
+        let json = serde_json::to_string(&ldap).unwrap();
+        let deserialized: LdapConfig = serde_json::from_str(&json).unwrap();
+
+        assert!(deserialized.enable);
+        assert!(deserialized.need_tls);
+        assert_eq!(deserialized.server, "ldap.example.com");
+    }
+
+    #[test]
+    fn test_totp_config_default() {
+        let totp = TotpConfig::default();
+        assert!(!totp.enable);
+        assert!(!totp.allow_recovery);
+    }
+
+    #[test]
+    fn test_totp_config_serialization() {
+        let totp = TotpConfig {
+            enable: true,
+            allow_recovery: true,
+        };
+
+        let json = serde_json::to_string(&totp).unwrap();
+        let deserialized: TotpConfig = serde_json::from_str(&json).unwrap();
+        assert!(deserialized.enable);
+        assert!(deserialized.allow_recovery);
+    }
+
+    #[test]
+    fn test_auth_config_default() {
+        let auth = AuthConfig::default();
+        assert!(!auth.totp.enable);
+        assert!(!auth.email_enabled);
+        assert!(!auth.email_login_enabled);
+        assert!(auth.oidc_providers.is_empty());
+    }
+
+    #[test]
+    fn test_auth_config_with_oidc_providers() {
+        let auth = AuthConfig {
+            oidc_providers: vec![crate::config::config_oidc::OidcProvider {
+                display_name: "Google".to_string(),
+                client_id: "google-client".to_string(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+
+        assert_eq!(auth.oidc_providers.len(), 1);
+        assert_eq!(auth.oidc_providers[0].display_name, "Google");
+    }
+
+    #[test]
+    fn test_ha_config_default() {
+        let ha = HAConfig::default();
+        assert!(!ha.enable);
+        assert!(ha.node_id.is_empty());
+    }
+
+    #[test]
+    fn test_ha_config_redis_url_without_password() {
+        let ha = HAConfig {
+            enable: true,
+            redis: HARedisConfig {
+                host: "redis.local".to_string(),
+                port: 6380,
+                password: String::new(),
+            },
+            node_id: String::new(),
+        };
+
+        assert_eq!(ha.redis_url(), "redis://redis.local:6380/0");
+    }
+
+    #[test]
+    fn test_ha_config_redis_url_with_password() {
+        let ha = HAConfig {
+            enable: true,
+            redis: HARedisConfig {
+                host: "redis.local".to_string(),
+                port: 6379,
+                password: "redis-secret".to_string(),
+            },
+            node_id: String::new(),
+        };
+
+        assert_eq!(ha.redis_url(), "redis://:redis-secret@redis.local:6379/0");
+    }
+
+    #[test]
+    fn test_ha_config_generate_node_id() {
+        let mut ha = HAConfig::default();
+        ha.generate_node_id();
+        assert_eq!(ha.node_id.len(), 32); // 16 bytes -> 32 hex chars
+    }
+
+    #[test]
+    fn test_ha_config_get_node_id_generates_if_empty() {
+        let mut ha = HAConfig::default();
+        let node_id = ha.get_node_id();
+        assert_eq!(node_id.len(), 32);
+    }
+
+    #[test]
+    fn test_ha_config_get_node_id_preserves_existing() {
+        let mut ha = HAConfig {
+            node_id: "existing-node-id".to_string(),
+            ..Default::default()
+        };
+        let node_id = ha.get_node_id();
+        assert_eq!(node_id, "existing-node-id");
+    }
+
+    #[test]
+    fn test_ha_redis_config_default() {
+        let redis = HARedisConfig::default();
+        assert_eq!(redis.host, "");
+        assert_eq!(redis.port, 6379);
+        assert_eq!(redis.password, "");
+    }
+
+    #[test]
+    fn test_config_mailer_defaults() {
+        let config = Config::default();
+        assert_eq!(config.mailer_host, "");
+        assert_eq!(config.mailer_port, "25");
+        assert_eq!(config.mailer_from, "noreply@localhost");
+        assert!(!config.mailer_use_tls);
+        assert!(!config.mailer_secure);
+    }
+
+    #[test]
+    fn test_config_mailer_serialization() {
+        let config = Config {
+            mailer_host: "smtp.example.com".to_string(),
+            mailer_port: "587".to_string(),
+            mailer_username: Some("user".to_string()),
+            mailer_password: Some("pass".to_string()),
+            mailer_use_tls: true,
+            mailer_from: "app@example.com".to_string(),
+            ..Default::default()
+        };
+
+        let json = serde_json::to_string(&config).unwrap();
+        let deserialized: Config = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.mailer_host, "smtp.example.com");
+        assert_eq!(deserialized.mailer_port, "587");
+        assert_eq!(deserialized.mailer_username, Some("user".to_string()));
+    }
+
+    #[test]
+    fn test_alert_config_default() {
+        let alert = AlertConfig::default();
+        assert!(!alert.enabled);
+        assert!(alert.email.is_none());
+        assert!(!alert.all_projects);
+    }
+
+    #[test]
+    fn test_alert_config_serialization() {
+        let alert = AlertConfig {
+            enabled: true,
+            email: Some("admin@example.com".to_string()),
+            all_projects: true,
+        };
+
+        let json = serde_json::to_string(&alert).unwrap();
+        let deserialized: AlertConfig = serde_json::from_str(&json).unwrap();
+        assert!(deserialized.enabled);
+        assert_eq!(deserialized.email, Some("admin@example.com".to_string()));
+        assert!(deserialized.all_projects);
+    }
+
+    #[test]
+    fn test_redis_config_defaults() {
+        let redis = RedisConfig::default();
+        // Default::default() даёт пустые строки
+        assert_eq!(redis.url, "");
+        assert_eq!(redis.prefix, "");
+        assert_eq!(redis.default_ttl, 0);
+        assert!(!redis.enabled);
+    }
+
+    #[test]
+    fn test_redis_config_serde_defaults() {
+        let json = r#"{}"#;
+        let redis: RedisConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(redis.url, "redis://localhost:6379");
+        assert_eq!(redis.prefix, "semaphore:");
+        assert_eq!(redis.default_ttl, 300);
+        assert!(!redis.enabled);
+    }
+
+    #[test]
+    fn test_redis_config_custom_values() {
+        let redis = RedisConfig {
+            url: "redis://redis-cluster:6380".to_string(),
+            prefix: "myapp:".to_string(),
+            default_ttl: 600,
+            enabled: true,
+        };
+
+        assert_eq!(redis.url, "redis://redis-cluster:6380");
+        assert_eq!(redis.prefix, "myapp:");
+        assert_eq!(redis.default_ttl, 600);
+        assert!(redis.enabled);
+    }
+
+    #[test]
+    fn test_kubernetes_config_defaults() {
+        let k8s = KubernetesConfig::default();
+        // Default::default() даёт пустую строку, serde default() использует функцию
+        assert_eq!(k8s.default_namespace, "");
+        assert_eq!(k8s.request_timeout_secs, 0);
+        assert_eq!(k8s.default_list_limit, 0);
+        assert!(k8s.kubeconfig_path.is_none());
+        assert!(k8s.context.is_none());
+    }
+
+    #[test]
+    fn test_kubernetes_config_serde_defaults() {
+        // Серде использует default функции
+        let json = r#"{}"#;
+        let k8s: KubernetesConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(k8s.default_namespace, "default");
+        assert_eq!(k8s.request_timeout_secs, 30);
+        assert_eq!(k8s.default_list_limit, 200);
+    }
+
+    #[test]
+    fn test_kubernetes_config_custom_values() {
+        let k8s = KubernetesConfig {
+            kubeconfig_path: Some("/etc/k8s/config".to_string()),
+            context: Some("prod-cluster".to_string()),
+            default_namespace: "semaphore".to_string(),
+            request_timeout_secs: 60,
+            default_list_limit: 500,
+        };
+
+        assert_eq!(k8s.kubeconfig_path, Some("/etc/k8s/config".to_string()));
+        assert_eq!(k8s.default_namespace, "semaphore");
+        assert_eq!(k8s.request_timeout_secs, 60);
+        assert_eq!(k8s.default_list_limit, 500);
+    }
+
+    #[test]
+    fn test_config_unicode_values() {
+        let config = Config {
+            web_host: "хост.пример.рф".to_string(),
+            email_sender: "администратор@пример.рф".to_string(),
+            ..Default::default()
+        };
+
+        let json = serde_json::to_string(&config).unwrap();
+        let deserialized: Config = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.web_host, "хост.пример.рф");
+        assert_eq!(deserialized.email_sender, "администратор@пример.рф");
+    }
+
+    #[test]
+    fn test_config_non_admin_can_create_project() {
+        let sqlite_config = Config {
+            database: DbConfig {
+                dialect: Some(DbDialect::SQLite),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        assert!(sqlite_config.non_admin_can_create_project());
+
+        let mysql_config = Config {
+            database: DbConfig {
+                dialect: Some(DbDialect::MySQL),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        assert!(!mysql_config.non_admin_can_create_project());
+    }
+
+    #[test]
+    fn test_config_db_dialect_default() {
+        let config = Config::default();
+        assert_eq!(config.db_dialect(), DbDialect::SQLite);
+    }
+
+    #[test]
+    fn test_config_ha_enabled() {
+        let config = Config::default();
+        assert!(!config.ha_enabled());
+
+        let ha_config = Config {
+            ha: HAConfig {
+                enable: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        assert!(ha_config.ha_enabled());
+    }
+
+    #[test]
+    fn test_db_config_path_field_serialization() {
+        let config = DbConfig {
+            dialect: Some(DbDialect::SQLite),
+            path: Some("/var/lib/data.db".to_string()),
+            hostname: String::new(),
+            db_name: String::new(),
+            ..Default::default()
+        };
+
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains("/var/lib/data.db"));
+
+        let deserialized: DbConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.path, Some("/var/lib/data.db".to_string()));
+    }
+
+    #[test]
+    fn test_config_email_sender_default() {
+        let config = Config::default();
+        assert_eq!(config.email_sender, "semaphore@localhost");
+    }
+
+    #[test]
+    fn test_config_telegram_bot_token() {
+        let config = Config {
+            telegram_bot_token: Some("123456:ABC-DEF".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(config.telegram_bot_token, Some("123456:ABC-DEF".to_string()));
+    }
+
+    #[test]
+    fn test_db_config_empty_fields() {
+        let config = DbConfig {
+            hostname: String::new(),
+            username: String::new(),
+            password: String::new(),
+            db_name: String::new(),
+            ..Default::default()
+        };
+
+        assert!(!config.is_present());
+        assert_eq!(config.get_hostname(), "");
+        assert_eq!(config.get_username(), "");
+    }
+
+    #[test]
+    fn test_config_serialize_with_renamed_fields() {
+        let config = Config {
+            web_host: "my-host".to_string(),
+            tcp_address: "0.0.0.0:8080".to_string(),
+            tmp_path: "/custom/tmp".to_string(),
+            ..Default::default()
+        };
+
+        let json = serde_json::to_string(&config).unwrap();
+        // Check renamed fields appear in JSON
+        assert!(json.contains("webHost"));
+        assert!(json.contains("tcpAddress"));
+        assert!(json.contains("tmpPath"));
+    }
 }

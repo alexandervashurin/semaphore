@@ -159,4 +159,209 @@ mod tests {
         assert!(middleware.should_skip("/api/admin/users"));
         assert!(!middleware.should_skip("/api/projects"));
     }
+
+    #[test]
+    fn test_cache_key_different_methods() {
+        let middleware = CacheMiddleware::new(
+            Arc::new(RedisCache::new(crate::cache::RedisConfig::default())),
+            300,
+            vec![],
+        );
+
+        let key_get = middleware.generate_cache_key(&Method::GET, "/api/data");
+        let key_post = middleware.generate_cache_key(&Method::POST, "/api/data");
+
+        assert_ne!(key_get, key_post);
+    }
+
+    #[test]
+    fn test_cache_key_starts_with_prefix() {
+        let middleware = CacheMiddleware::new(
+            Arc::new(RedisCache::new(crate::cache::RedisConfig::default())),
+            300,
+            vec![],
+        );
+
+        let key = middleware.generate_cache_key(&Method::GET, "/api/test");
+        assert!(key.starts_with("http_cache:"));
+    }
+
+    #[test]
+    fn test_cache_key_deterministic() {
+        let middleware = CacheMiddleware::new(
+            Arc::new(RedisCache::new(crate::cache::RedisConfig::default())),
+            300,
+            vec![],
+        );
+
+        let key1 = middleware.generate_cache_key(&Method::GET, "/api/projects");
+        let key2 = middleware.generate_cache_key(&Method::GET, "/api/projects");
+        assert_eq!(key1, key2);
+    }
+
+    #[test]
+    fn test_cache_key_different_uris() {
+        let middleware = CacheMiddleware::new(
+            Arc::new(RedisCache::new(crate::cache::RedisConfig::default())),
+            300,
+            vec![],
+        );
+
+        let key1 = middleware.generate_cache_key(&Method::GET, "/api/projects/1");
+        let key2 = middleware.generate_cache_key(&Method::GET, "/api/projects/2");
+        assert_ne!(key1, key2);
+    }
+
+    #[test]
+    fn test_should_skip_empty_paths() {
+        let middleware = CacheMiddleware::new(
+            Arc::new(RedisCache::new(crate::cache::RedisConfig::default())),
+            300,
+            vec![],
+        );
+
+        assert!(!middleware.should_skip("/"));
+        assert!(!middleware.should_skip("/api"));
+    }
+
+    #[test]
+    fn test_should_skip_prefix_match() {
+        let middleware = CacheMiddleware::new(
+            Arc::new(RedisCache::new(crate::cache::RedisConfig::default())),
+            300,
+            vec!["/api/admin".to_string()],
+        );
+
+        assert!(middleware.should_skip("/api/admin"));
+        assert!(middleware.should_skip("/api/admin/"));
+        assert!(middleware.should_skip("/api/admin/settings"));
+        // "starts_with" also matches "/api/administer" since it starts with "/api/admin"
+        assert!(middleware.should_skip("/api/administer"));
+    }
+
+    #[test]
+    fn test_should_skip_multiple_patterns() {
+        let middleware = CacheMiddleware::new(
+            Arc::new(RedisCache::new(crate::cache::RedisConfig::default())),
+            300,
+            vec![
+                "/api/auth".to_string(),
+                "/api/admin".to_string(),
+                "/api/health".to_string(),
+            ],
+        );
+
+        assert!(middleware.should_skip("/api/auth/token"));
+        assert!(middleware.should_skip("/api/admin/users"));
+        assert!(middleware.should_skip("/api/health"));
+        assert!(!middleware.should_skip("/api/projects"));
+        assert!(!middleware.should_skip("/api/tasks"));
+    }
+
+    #[test]
+    fn test_cache_key_hash_length() {
+        let middleware = CacheMiddleware::new(
+            Arc::new(RedisCache::new(crate::cache::RedisConfig::default())),
+            300,
+            vec![],
+        );
+
+        let key = middleware.generate_cache_key(&Method::GET, "/api/test");
+        // "http_cache:" + 64 hex chars (SHA-256)
+        assert_eq!(key.len(), "http_cache:".len() + 64);
+    }
+
+    #[test]
+    fn test_cache_key_hex_format() {
+        let middleware = CacheMiddleware::new(
+            Arc::new(RedisCache::new(crate::cache::RedisConfig::default())),
+            300,
+            vec![],
+        );
+
+        let key = middleware.generate_cache_key(&Method::DELETE, "/api/items/1");
+        let hex_part = key.strip_prefix("http_cache:").unwrap();
+        // All characters should be hex (0-9, a-f)
+        assert!(hex_part.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn test_cache_key_case_sensitive_uri() {
+        let middleware = CacheMiddleware::new(
+            Arc::new(RedisCache::new(crate::cache::RedisConfig::default())),
+            300,
+            vec![],
+        );
+
+        let key1 = middleware.generate_cache_key(&Method::GET, "/api/Projects");
+        let key2 = middleware.generate_cache_key(&Method::GET, "/api/projects");
+        assert_ne!(key1, key2);
+    }
+
+    #[test]
+    fn test_cache_key_with_query_string_omitted() {
+        let middleware = CacheMiddleware::new(
+            Arc::new(RedisCache::new(crate::cache::RedisConfig::default())),
+            300,
+            vec![],
+        );
+
+        // The middleware uses req.uri().path() which omits query string
+        let key1 = middleware.generate_cache_key(&Method::GET, "/api/data");
+        assert!(key1.starts_with("http_cache:"));
+    }
+
+    #[test]
+    fn test_ttl_secs_stored() {
+        let middleware = CacheMiddleware::new(
+            Arc::new(RedisCache::new(crate::cache::RedisConfig::default())),
+            600,
+            vec![],
+        );
+
+        assert_eq!(middleware.ttl_secs, 600);
+    }
+
+    #[test]
+    fn test_skip_paths_stored() {
+        let paths = vec!["/api/auth".to_string(), "/api/admin".to_string()];
+        let middleware = CacheMiddleware::new(
+            Arc::new(RedisCache::new(crate::cache::RedisConfig::default())),
+            300,
+            paths.clone(),
+        );
+
+        assert_eq!(middleware.skip_paths, paths);
+    }
+
+    #[test]
+    fn test_cache_key_empty_uri() {
+        let middleware = CacheMiddleware::new(
+            Arc::new(RedisCache::new(crate::cache::RedisConfig::default())),
+            300,
+            vec![],
+        );
+
+        let key = middleware.generate_cache_key(&Method::GET, "");
+        assert!(key.starts_with("http_cache:"));
+    }
+
+    #[test]
+    fn test_cache_key_complex_uri() {
+        let middleware = CacheMiddleware::new(
+            Arc::new(RedisCache::new(crate::cache::RedisConfig::default())),
+            300,
+            vec![],
+        );
+
+        let key = middleware.generate_cache_key(
+            &Method::GET,
+            "/api/projects/123/tasks/456/details",
+        );
+        assert!(key.starts_with("http_cache:"));
+        assert_ne!(
+            key,
+            middleware.generate_cache_key(&Method::GET, "/api/projects/123/tasks")
+        );
+    }
 }

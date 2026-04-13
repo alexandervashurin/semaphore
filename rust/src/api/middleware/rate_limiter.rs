@@ -458,4 +458,172 @@ mod tests {
             "11th sensitive request should be blocked"
         );
     }
+
+    #[tokio::test]
+    async fn test_rate_limiter_different_clients() {
+        let limiter = RateLimiter::new(RateLimitConfig {
+            max_requests: 2,
+            period_secs: 60,
+            burst_size: None,
+        });
+
+        assert!(limiter.is_allowed("client_a").await);
+        assert!(limiter.is_allowed("client_a").await);
+        assert!(!limiter.is_allowed("client_a").await);
+
+        // client_b should be independent
+        assert!(limiter.is_allowed("client_b").await);
+        assert!(limiter.is_allowed("client_b").await);
+        assert!(!limiter.is_allowed("client_b").await);
+    }
+
+    #[test]
+    fn test_rate_limit_config_defaults() {
+        let config = RateLimitConfig::default();
+        assert_eq!(config.max_requests, 100);
+        assert_eq!(config.period_secs, 60);
+        assert!(config.burst_size.is_none());
+    }
+
+    #[test]
+    fn test_rate_limiter_api_config() {
+        let limiter = RateLimiter::for_api();
+        assert_eq!(limiter.config.max_requests, 100);
+        assert_eq!(limiter.config.period_secs, 60);
+        assert_eq!(limiter.config.burst_size, Some(20));
+    }
+
+    #[test]
+    fn test_rate_limiter_websocket_config() {
+        let limiter = RateLimiter::for_websocket();
+        assert_eq!(limiter.config.max_requests, 60);
+        assert_eq!(limiter.config.period_secs, 60);
+        assert_eq!(limiter.config.burst_size, Some(10));
+    }
+
+    #[test]
+    fn test_rate_limiter_websocket_connections_config() {
+        let limiter = RateLimiter::for_websocket_connections();
+        assert_eq!(limiter.config.max_requests, 10);
+        assert_eq!(limiter.config.period_secs, 300);
+        assert!(limiter.config.burst_size.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_rate_limiter_get_remaining_zero_used() {
+        let limiter = RateLimiter::new(RateLimitConfig {
+            max_requests: 50,
+            period_secs: 60,
+            burst_size: None,
+        });
+
+        assert_eq!(limiter.get_remaining("unused_key").await, 50);
+    }
+
+    #[tokio::test]
+    async fn test_rate_limiter_get_remaining_after_limit() {
+        let limiter = RateLimiter::new(RateLimitConfig {
+            max_requests: 3,
+            period_secs: 60,
+            burst_size: None,
+        });
+
+        limiter.is_allowed("full").await;
+        limiter.is_allowed("full").await;
+        limiter.is_allowed("full").await;
+
+        assert_eq!(limiter.get_remaining("full").await, 0);
+    }
+
+    #[tokio::test]
+    async fn test_rate_limiter_isolated_keys() {
+        let limiter = RateLimiter::new(RateLimitConfig {
+            max_requests: 1,
+            period_secs: 60,
+            burst_size: None,
+        });
+
+        assert!(limiter.is_allowed("key1").await);
+        assert!(!limiter.is_allowed("key1").await);
+        assert!(limiter.is_allowed("key2").await);
+    }
+
+    #[tokio::test]
+    async fn test_rate_limiter_with_defaults() {
+        let limiter = RateLimiter::with_defaults();
+        assert_eq!(limiter.config.max_requests, 100);
+        assert_eq!(limiter.config.period_secs, 60);
+    }
+
+    #[tokio::test]
+    async fn test_rate_limiter_concurrent_keys() {
+        let limiter = RateLimiter::new(RateLimitConfig {
+            max_requests: 10,
+            period_secs: 60,
+            burst_size: None,
+        });
+
+        let mut handles = vec![];
+        for i in 0..20 {
+            let limiter_clone = limiter.clone();
+            handles.push(tokio::spawn(async move {
+                limiter_clone.is_allowed(&format!("concurrent_{}", i % 4)).await
+            }));
+        }
+
+        let results: Vec<bool> = futures::future::join_all(handles)
+            .await
+            .into_iter()
+            .map(|r| r.unwrap())
+            .collect();
+
+        // 20 requests across 4 keys = 5 each, limit is 10, all should pass
+        assert!(results.iter().all(|&r| r));
+    }
+
+    #[tokio::test]
+    async fn test_rate_limiter_exhaust_then_separate_key() {
+        let limiter = RateLimiter::new(RateLimitConfig {
+            max_requests: 2,
+            period_secs: 60,
+            burst_size: None,
+        });
+
+        limiter.is_allowed("exhausted").await;
+        limiter.is_allowed("exhausted").await;
+        assert!(!limiter.is_allowed("exhausted").await);
+
+        // Different key should still have capacity
+        assert!(limiter.is_allowed("fresh_key").await);
+        assert_eq!(limiter.get_remaining("fresh_key").await, 1);
+    }
+
+    #[tokio::test]
+    async fn test_rate_limiter_remaining_decrements() {
+        let limiter = RateLimiter::new(RateLimitConfig {
+            max_requests: 10,
+            period_secs: 60,
+            burst_size: None,
+        });
+
+        assert_eq!(limiter.get_remaining("decr").await, 10);
+        limiter.is_allowed("decr").await;
+        assert_eq!(limiter.get_remaining("decr").await, 9);
+        limiter.is_allowed("decr").await;
+        assert_eq!(limiter.get_remaining("decr").await, 8);
+    }
+
+    #[tokio::test]
+    async fn test_rate_limiter_burst_config_does_not_affect_count() {
+        let limiter = RateLimiter::new(RateLimitConfig {
+            max_requests: 5,
+            period_secs: 60,
+            burst_size: Some(100),
+        });
+
+        for _ in 0..5 {
+            assert!(limiter.is_allowed("burst").await);
+        }
+        assert!(!limiter.is_allowed("burst").await);
+    }
 }

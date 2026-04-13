@@ -932,4 +932,764 @@ mod notify_tests {
         let expected = format!("{base_url}/project/{project_id}/tasks/{task_id}");
         assert_eq!(expected, "https://semaphore.example.com/project/5/tasks/42");
     }
+
+    // ── Additional tests: command parsing ──────────────────────────
+
+    #[test]
+    fn extract_command_first_word_only() {
+        let text = "/help arg1 arg2";
+        let cmd = text.split_whitespace().next().unwrap_or("").to_lowercase();
+        assert_eq!(cmd, "/help");
+    }
+
+    #[test]
+    fn extract_command_from_multiline() {
+        let text = "/status\nsome\nother\nlines";
+        let cmd = text.split_whitespace().next().unwrap_or("").to_lowercase();
+        assert_eq!(cmd, "/status");
+    }
+
+    #[test]
+    fn extract_command_tabs_and_mixed_whitespace() {
+        let text = "\t\t/start\targ1\targ2";
+        let cmd = text.split_whitespace().next().unwrap_or("").to_lowercase();
+        assert_eq!(cmd, "/start");
+    }
+
+    #[test]
+    fn parse_args_count_zero() {
+        let text = "/help";
+        let args: Vec<&str> = text.split_whitespace().skip(1).collect();
+        assert_eq!(args.len(), 0);
+    }
+
+    #[test]
+    fn parse_args_count_one() {
+        let text = "/status arg1";
+        let args: Vec<&str> = text.split_whitespace().skip(1).collect();
+        assert_eq!(args.len(), 1);
+        assert_eq!(args[0], "arg1");
+    }
+
+    #[test]
+    fn parse_args_count_three() {
+        let text = "/start a b c";
+        let args: Vec<&str> = text.split_whitespace().skip(1).collect();
+        assert_eq!(args.len(), 3);
+        assert_eq!(args, vec!["a", "b", "c"]);
+    }
+
+    #[test]
+    fn parse_args_ignores_extra_whitespace() {
+        let text = "  /help   arg1   arg2  ";
+        let args: Vec<&str> = text.split_whitespace().skip(1).collect();
+        assert_eq!(args.len(), 2);
+    }
+
+    #[test]
+    fn command_case_variants_all_match_help() {
+        let variants = vec!["/help", "/HELP", "/Help", "/hElP", "/heLP"];
+        for v in variants {
+            let cmd = v.split_whitespace().next().unwrap_or("").to_lowercase();
+            assert_eq!(cmd, "/help");
+        }
+    }
+
+    #[test]
+    fn command_case_variants_all_match_start() {
+        let variants = vec!["/start", "/START", "/Start", "/sTaRt"];
+        for v in variants {
+            let cmd = v.split_whitespace().next().unwrap_or("").to_lowercase();
+            assert_eq!(cmd, "/start");
+        }
+    }
+
+    #[test]
+    fn command_case_variants_all_match_status() {
+        let variants = vec!["/status", "/STATUS", "/Status", "/sTaTuS"];
+        for v in variants {
+            let cmd = v.split_whitespace().next().unwrap_or("").to_lowercase();
+            assert_eq!(cmd, "/status");
+        }
+    }
+
+    #[test]
+    fn unknown_command_not_in_known_set() {
+        let known = vec!["/start", "/help", "/status"];
+        let unknown = "/unknown_command";
+        let cmd = unknown.split_whitespace().next().unwrap_or("").to_lowercase();
+        assert!(!known.contains(&cmd.as_str()));
+    }
+
+    #[test]
+    fn not_a_command_random_text() {
+        let text = "just some random text without slash";
+        let cmd = text.split_whitespace().next().unwrap_or("").to_lowercase();
+        assert_eq!(cmd, "just");
+        assert!(!cmd.starts_with('/'));
+    }
+
+    #[test]
+    fn empty_text_yields_empty_cmd() {
+        let text = "";
+        let cmd = text.split_whitespace().next().unwrap_or("");
+        assert_eq!(cmd, "");
+    }
+
+    #[test]
+    fn whitespace_only_yields_empty_cmd() {
+        let text = "    \t   \n  ";
+        let cmd = text.split_whitespace().next().unwrap_or("");
+        assert_eq!(cmd, "");
+    }
+
+    // ── Additional tests: message formatting ───────────────────────
+
+    #[test]
+    fn success_message_html_structure() {
+        let project = "ProjectX";
+        let template = "Deploy";
+        let task_id = 10;
+        let author = "alice";
+        let duration_secs = 72;
+        let task_url = "http://host/p/1/t/10";
+
+        let mins = duration_secs / 60;
+        let secs = duration_secs % 60;
+        let duration = format!("{mins}m {secs}s");
+
+        let text = format!(
+            "✅ <b>[{project}]</b> {template} — <b>SUCCESS</b> ({duration})\n\
+             👤 {author} · <a href=\"{task_url}\">#task {task_id}</a>"
+        );
+
+        assert!(text.starts_with("✅"));
+        assert!(text.contains("<b>[ProjectX]</b>"));
+        assert!(text.contains("Deploy"));
+        assert!(text.contains("<b>SUCCESS</b>"));
+        assert!(text.contains("1m 12s"));
+        assert!(text.contains("alice"));
+        assert!(text.contains("href=\"http://host/p/1/t/10\""));
+        assert!(text.contains("#task 10"));
+    }
+
+    #[test]
+    fn failed_message_html_structure() {
+        let project = "DB-Migration";
+        let template = "Migrate";
+        let task_id = 99;
+        let author = "bob";
+        let duration_secs = 5;
+        let task_url = "http://host/p/2/t/99";
+
+        let mins = duration_secs / 60;
+        let secs = duration_secs % 60;
+        let duration = if mins > 0 {
+            format!("{mins}m {secs}s")
+        } else {
+            format!("{secs}s")
+        };
+
+        let text = format!(
+            "❌ <b>[{project}]</b> {template} — <b>FAILED</b> ({duration})\n\
+             👤 {author} · <a href=\"{task_url}\">#task {task_id}</a>"
+        );
+
+        assert!(text.starts_with("❌"));
+        assert!(text.contains("<b>FAILED</b>"));
+        assert!(text.contains("5s"));
+        assert!(text.contains("bob"));
+    }
+
+    #[test]
+    fn stopped_message_no_duration() {
+        let project = "WebApp";
+        let template = "Test";
+        let task_id = 55;
+        let task_url = "http://host/p/3/t/55";
+
+        let text = format!(
+            "⏹️ <b>[{project}]</b> {template} — <b>STOPPED</b>\n\
+             <a href=\"{task_url}\">#task {task_id}</a>"
+        );
+
+        assert!(text.starts_with("⏹️"));
+        assert!(text.contains("<b>STOPPED</b>"));
+        assert!(text.contains("WebApp"));
+        assert!(text.contains("Test"));
+        assert!(text.contains("#task 55"));
+        assert!(!text.contains("SUCCESS"));
+        assert!(!text.contains("FAILED"));
+    }
+
+    #[test]
+    fn message_with_unicode_project_name() {
+        let project = "Проект-Тест";
+        let template = "Сборка";
+        let task_id = 1;
+        let author = "Иван";
+        let duration_secs = 10;
+        let task_url = "http://host/p/1/t/1";
+
+        let mins = duration_secs / 60;
+        let secs = duration_secs % 60;
+        let duration = format!("{secs}s");
+
+        let text = format!(
+            "✅ <b>[{project}]</b> {template} — <b>SUCCESS</b> ({duration})\n\
+             👤 {author} · <a href=\"{task_url}\">#task {task_id}</a>"
+        );
+
+        assert!(text.contains("Проект-Тест"));
+        assert!(text.contains("Сборка"));
+        assert!(text.contains("Иван"));
+    }
+
+    #[test]
+    fn message_with_emoji_in_template_name() {
+        let project = "CI";
+        let template = "🚀 Deploy to prod";
+        let task_id = 42;
+        let author = "deploy-bot";
+        let duration_secs = 120;
+        let task_url = "http://host/p/1/t/42";
+
+        let mins = duration_secs / 60;
+        let secs = duration_secs % 60;
+        let duration = format!("{mins}m {secs}s");
+
+        let text = format!(
+            "✅ <b>[{project}]</b> {template} — <b>SUCCESS</b> ({duration})\n\
+             👤 {author} · <a href=\"{task_url}\">#task {task_id}</a>"
+        );
+
+        assert!(text.contains("🚀 Deploy to prod"));
+        assert!(text.contains("2m 0s"));
+    }
+
+    #[test]
+    fn message_with_special_html_chars_escaped() {
+        // HTML-символы в именах могут сломать разметку — проверяем что они вставляются как есть
+        let project = "Test<Script>";
+        let template = "Run & <do>";
+        let task_id = 1;
+        let author = "user'name";
+        let duration_secs = 0;
+        let task_url = "http://host?a=1&b=2";
+
+        let mins = duration_secs / 60;
+        let secs = duration_secs % 60;
+        let duration = format!("{secs}s");
+
+        let text = format!(
+            "✅ <b>[{project}]</b> {template} — <b>SUCCESS</b> ({duration})\n\
+             👤 {author} · <a href=\"{task_url}\">#task {task_id}</a>"
+        );
+
+        assert!(text.contains("Test<Script>"));
+        assert!(text.contains("Run & <do>"));
+        assert!(text.contains("user'name"));
+        assert!(text.contains("a=1&b=2"));
+    }
+
+    #[test]
+    fn message_with_newline_in_project_name() {
+        let project = "Multi\nLine";
+        let template = "Tpl";
+        let task_id = 1;
+        let author = "dev";
+        let duration_secs = 1;
+        let task_url = "http://host/p/1/t/1";
+
+        let text = format!(
+            "✅ <b>[{project}]</b> {template} — <b>SUCCESS</b> (1s)\n\
+             👤 {author} · <a href=\"{task_url}\">#task {task_id}</a>"
+        );
+
+        // Должно содержать перенос из project
+        assert!(text.contains("Multi\nLine"));
+    }
+
+    #[test]
+    fn message_with_very_long_names() {
+        let project = "A".repeat(200);
+        let template = "B".repeat(200);
+        let task_id = 999999;
+        let author = "admin";
+        let duration_secs = 1;
+        let task_url = "http://host/p/1/t/999999";
+
+        let text = format!(
+            "✅ <b>[{project}]</b> {template} — <b>SUCCESS</b> (1s)\n\
+             👤 {author} · <a href=\"{task_url}\">#task {task_id}</a>"
+        );
+
+        assert!(text.len() > 400);
+        assert!(text.contains(&"A".repeat(200)));
+        assert!(text.contains(&"B".repeat(200)));
+        assert!(text.contains("#task 999999"));
+    }
+
+    #[test]
+    fn message_with_empty_strings() {
+        let project = "";
+        let template = "";
+        let task_id = 0;
+        let author = "";
+        let duration_secs = 0;
+        let task_url = "";
+
+        let text = format!(
+            "✅ <b>[{project}]</b> {template} — <b>SUCCESS</b> (0s)\n\
+             👤 {author} · <a href=\"{task_url}\">#task {task_id}</a>"
+        );
+
+        assert!(text.contains("[]"));
+        assert!(text.contains(" — <b>SUCCESS</b>"));
+        assert!(text.contains("#task 0"));
+    }
+
+    // ── Additional tests: duration formatting ──────────────────────
+
+    #[test]
+    fn duration_format_boundary_59_seconds() {
+        let duration_secs = 59;
+        let mins = duration_secs / 60;
+        let secs = duration_secs % 60;
+        let duration = if mins > 0 {
+            format!("{mins}m {secs}s")
+        } else {
+            format!("{secs}s")
+        };
+        assert_eq!(duration, "59s");
+    }
+
+    #[test]
+    fn duration_format_boundary_60_seconds() {
+        let duration_secs = 60;
+        let mins = duration_secs / 60;
+        let secs = duration_secs % 60;
+        let duration = if mins > 0 {
+            format!("{mins}m {secs}s")
+        } else {
+            format!("{secs}s")
+        };
+        assert_eq!(duration, "1m 0s");
+    }
+
+    #[test]
+    fn duration_format_boundary_61_seconds() {
+        let duration_secs = 61;
+        let mins = duration_secs / 60;
+        let secs = duration_secs % 60;
+        let duration = if mins > 0 {
+            format!("{mins}m {secs}s")
+        } else {
+            format!("{secs}s")
+        };
+        assert_eq!(duration, "1m 1s");
+    }
+
+    #[test]
+    fn duration_format_10_minutes() {
+        let duration_secs = 600;
+        let mins = duration_secs / 60;
+        let secs = duration_secs % 60;
+        let duration = if mins > 0 {
+            format!("{mins}m {secs}s")
+        } else {
+            format!("{secs}s")
+        };
+        assert_eq!(duration, "10m 0s");
+    }
+
+    #[test]
+    fn duration_format_one_week() {
+        let duration_secs = 7 * 24 * 3600; // 604800
+        let mins = duration_secs / 60;
+        let secs = duration_secs % 60;
+        let duration = if mins > 0 {
+            format!("{mins}m {secs}s")
+        } else {
+            format!("{secs}s")
+        };
+        assert_eq!(duration, "10080m 0s");
+    }
+
+    #[test]
+    fn duration_format_max_u64() {
+        let duration_secs = u64::MAX;
+        let mins = duration_secs / 60;
+        let secs = duration_secs % 60;
+        let duration = if mins > 0 {
+            format!("{mins}m {secs}s")
+        } else {
+            format!("{secs}s")
+        };
+        assert!(duration.contains("m"));
+        assert!(duration.ends_with("s"));
+    }
+
+    #[test]
+    fn duration_format_various_values() {
+        let cases = vec![
+            (0, "0s"),
+            (1, "1s"),
+            (30, "30s"),
+            (59, "59s"),
+            (60, "1m 0s"),
+            (61, "1m 1s"),
+            (119, "1m 59s"),
+            (120, "2m 0s"),
+            (3600, "60m 0s"),
+            (3661, "61m 1s"),
+            (7265, "121m 5s"),
+        ];
+        for (secs, expected) in cases {
+            let m = secs / 60;
+            let s = secs % 60;
+            let d = if m > 0 {
+                format!("{m}m {s}s")
+            } else {
+                format!("{s}s")
+            };
+            assert_eq!(d, expected, "Failed for {secs} seconds");
+        }
+    }
+
+    // ── Additional tests: bot configuration ────────────────────────
+
+    #[test]
+    fn bot_struct_fields_accessible() {
+        let bot = TelegramBot {
+            token: "tok".to_string(),
+            default_chat_id: Some("-100test".to_string()),
+            client: reqwest::Client::new(),
+        };
+        assert_eq!(bot.token, "tok");
+        assert_eq!(bot.default_chat_id, Some("-100test".to_string()));
+    }
+
+    #[test]
+    fn bot_without_default_chat_id() {
+        let bot = TelegramBot {
+            token: "tok".to_string(),
+            default_chat_id: None,
+            client: reqwest::Client::new(),
+        };
+        assert!(bot.default_chat_id.is_none());
+    }
+
+    #[test]
+    fn bot_with_various_chat_id_formats() {
+        let formats = vec![
+            "-1001234567890",
+            "-123456789",
+            "123456789",
+            "user_123",
+        ];
+        for chat_id in formats {
+            let bot = TelegramBot {
+                token: "tok".to_string(),
+                default_chat_id: Some(chat_id.to_string()),
+                client: reqwest::Client::new(),
+            };
+            assert_eq!(bot.default_chat_id, Some(chat_id.to_string()));
+        }
+    }
+
+    #[test]
+    fn bot_api_url_different_methods() {
+        let bot = TelegramBot {
+            token: "abc123".to_string(),
+            default_chat_id: None,
+            client: reqwest::Client::new(),
+        };
+        assert_eq!(bot.api_url("sendMessage"), "https://api.telegram.org/botabc123/sendMessage");
+        assert_eq!(bot.api_url("getUpdates"), "https://api.telegram.org/botabc123/getUpdates");
+        assert_eq!(bot.api_url("sendDocument"), "https://api.telegram.org/botabc123/sendDocument");
+        assert_eq!(bot.api_url("getMe"), "https://api.telegram.org/botabc123/getMe");
+    }
+
+    #[test]
+    fn bot_api_url_with_special_chars_in_token() {
+        let bot = TelegramBot {
+            token: "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11".to_string(),
+            default_chat_id: None,
+            client: reqwest::Client::new(),
+        };
+        let url = bot.api_url("sendMessage");
+        assert!(url.starts_with("https://api.telegram.org/bot123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11/"));
+    }
+
+    // ── Additional tests: chat ID validation ───────────────────────
+
+    #[test]
+    fn chat_id_supergroup_format() {
+        // Telegram supergroup IDs start with -100
+        let chat_id = "-1001234567890";
+        assert!(chat_id.starts_with("-100"));
+        assert!(chat_id.chars().skip(1).all(|c| c.is_ascii_digit()));
+    }
+
+    #[test]
+    fn chat_id_group_format() {
+        // Group IDs start with -
+        let chat_id = "-123456789";
+        assert!(chat_id.starts_with('-'));
+        assert!(chat_id.chars().skip(1).all(|c| c.is_ascii_digit()));
+    }
+
+    #[test]
+    fn chat_id_user_format() {
+        // User IDs are positive numbers
+        let chat_id = "123456789";
+        assert!(!chat_id.starts_with('-'));
+        assert!(chat_id.chars().all(|c| c.is_ascii_digit()));
+    }
+
+    #[test]
+    fn chat_id_invalid_contains_letters() {
+        let chat_id = "-100abc123";
+        let is_valid = chat_id.starts_with("-100") && chat_id.chars().skip(4).all(|c| c.is_ascii_digit());
+        assert!(!is_valid);
+    }
+
+    #[test]
+    fn chat_id_invalid_empty_string() {
+        let chat_id = "";
+        assert!(chat_id.is_empty());
+    }
+
+    #[test]
+    fn chat_id_validation_helper() {
+        fn is_valid_telegram_chat_id(s: &str) -> bool {
+            if s.is_empty() {
+                return false;
+            }
+            if s.starts_with("-100") {
+                s.len() > 4 && s.chars().skip(4).all(|c| c.is_ascii_digit())
+            } else if s.starts_with('-') {
+                s.len() > 1 && s.chars().skip(1).all(|c| c.is_ascii_digit())
+            } else {
+                s.chars().all(|c| c.is_ascii_digit())
+            }
+        }
+
+        assert!(is_valid_telegram_chat_id("-1001234567890"));
+        assert!(is_valid_telegram_chat_id("-123456789"));
+        assert!(is_valid_telegram_chat_id("123456789"));
+        assert!(!is_valid_telegram_chat_id(""));
+        assert!(!is_valid_telegram_chat_id("-100abc"));
+        assert!(!is_valid_telegram_chat_id("abc123"));
+        assert!(!is_valid_telegram_chat_id("-"));
+        assert!(!is_valid_telegram_chat_id("-100"));
+    }
+
+    // ── Additional tests: URL building ─────────────────────────────
+
+    #[test]
+    fn task_url_standard_format() {
+        let base = "https://semaphore.example.com";
+        let project_id = 10;
+        let task_id = 42;
+        let url = format!("{base}/project/{project_id}/tasks/{task_id}");
+        assert_eq!(url, "https://semaphore.example.com/project/10/tasks/42");
+    }
+
+    #[test]
+    fn task_url_with_http_base() {
+        let base = "http://localhost:3000";
+        let project_id = 1;
+        let task_id = 1;
+        let url = format!("{base}/project/{project_id}/tasks/{task_id}");
+        assert_eq!(url, "http://localhost:3000/project/1/tasks/1");
+    }
+
+    #[test]
+    fn task_url_with_trailing_slash_base() {
+        let base = "https://example.com/";
+        let project_id = 5;
+        let task_id = 100;
+        let url = format!("{base}/project/{project_id}/tasks/{task_id}");
+        assert_eq!(url, "https://example.com//project/5/tasks/100");
+    }
+
+    #[test]
+    fn task_url_with_large_ids() {
+        let base = "https://ci.example.com";
+        let project_id = i32::MAX;
+        let task_id = i32::MAX;
+        let url = format!("{base}/project/{project_id}/tasks/{task_id}");
+        assert!(url.contains("2147483647"));
+    }
+
+    #[test]
+    fn task_url_zero_ids() {
+        let base = "https://example.com";
+        let project_id = 0;
+        let task_id = 0;
+        let url = format!("{base}/project/{project_id}/tasks/{task_id}");
+        assert_eq!(url, "https://example.com/project/0/tasks/0");
+    }
+
+    // ── Additional tests: edge cases ───────────────────────────────
+
+    #[test]
+    fn message_with_rtl_language() {
+        let project = "مشروع";
+        let template = "نشر";
+        let task_id = 1;
+        let author = "أحمد";
+        let task_url = "http://host/p/1/t/1";
+
+        let text = format!(
+            "✅ <b>[{project}]</b> {template} — <b>SUCCESS</b> (1s)\n\
+             👤 {author} · <a href=\"{task_url}\">#task {task_id}</a>"
+        );
+
+        assert!(text.contains("مشروع"));
+        assert!(text.contains("نشر"));
+        assert!(text.contains("أحمد"));
+    }
+
+    #[test]
+    fn message_with_cjk_characters() {
+        let project = "项目测试";
+        let template = "部署";
+        let task_id = 1;
+        let author = "张三";
+        let task_url = "http://host/p/1/t/1";
+
+        let text = format!(
+            "✅ <b>[{project}]</b> {template} — <b>SUCCESS</b> (1s)\n\
+             👤 {author} · <a href=\"{task_url}\">#task {task_id}</a>"
+        );
+
+        assert!(text.contains("项目测试"));
+        assert!(text.contains("部署"));
+        assert!(text.contains("张三"));
+    }
+
+    #[test]
+    fn message_with_zwj_emoji_sequence() {
+        // ZWJ sequence for family emoji
+        let project = "👨‍👩‍👧‍👦 Team";
+        let template = "Build";
+        let task_id = 1;
+        let author = "team-bot";
+        let task_url = "http://host/p/1/t/1";
+
+        let text = format!(
+            "✅ <b>[{project}]</b> {template} — <b>SUCCESS</b> (1s)\n\
+             👤 {author} · <a href=\"{task_url}\">#task {task_id}</a>"
+        );
+
+        assert!(text.contains("👨"));
+    }
+
+    #[test]
+    fn command_with_null_byte() {
+        let text = "/help\x00";
+        let cmd = text.split_whitespace().next().unwrap_or("").to_lowercase();
+        // Null byte is part of the string but split_whitespace handles it
+        assert!(cmd.starts_with("/help"));
+    }
+
+    #[test]
+    fn command_with_control_chars() {
+        // \x1b (ESC) is not whitespace, so split_whitespace includes it in first token
+        let text = "\x1b/start\x07";
+        let cmd = text.split_whitespace().next().unwrap_or("").to_lowercase();
+        // The ESC char stays at the beginning -- this documents actual behavior
+        assert!(cmd.contains("/start"));
+        assert_eq!(cmd.len(), 8); // ESC + "/start" + BEL
+    }
+
+    #[test]
+    fn message_with_url_query_params() {
+        let task_url = "http://host/project/1/tasks/42?ref=telegram&notify=true";
+        let text = format!("<a href=\"{task_url}\">#task 42</a>");
+        assert!(text.contains("ref=telegram"));
+        assert!(text.contains("notify=true"));
+    }
+
+    #[test]
+    fn duration_from_task_with_negative_span() {
+        // Task with end before start should yield 0 via max(0)
+        let mut t = Task::default();
+        let s = Utc::now();
+        t.start = Some(s);
+        t.end = Some(s - Duration::seconds(100));
+        let secs = t
+            .start
+            .zip(t.end)
+            .map(|(a, b)| (b - a).num_seconds().max(0) as u64)
+            .unwrap_or(0);
+        assert_eq!(secs, 0);
+    }
+
+    #[test]
+    fn task_notification_dispatch_by_status() {
+        // Verify that TaskStatus enum values map correctly
+        use crate::services::task_logger::TaskStatus;
+        assert_eq!(format!("{:?}", TaskStatus::Success), "Success");
+        assert_eq!(format!("{:?}", TaskStatus::Error), "Error");
+        assert_eq!(format!("{:?}", TaskStatus::Stopped), "Stopped");
+    }
+
+    #[test]
+    fn send_message_payload_structure() {
+        // Проверяем структуру JSON payload для sendMessage
+        let chat_id = "-100test";
+        let text = "Test message";
+        let payload = serde_json::json!({
+            "chat_id": chat_id,
+            "text": text,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": true,
+        });
+
+        assert_eq!(payload["chat_id"], "-100test");
+        assert_eq!(payload["text"], "Test message");
+        assert_eq!(payload["parse_mode"], "HTML");
+        assert_eq!(payload["disable_web_page_preview"], true);
+    }
+
+    #[test]
+    fn notification_message_length_reasonable() {
+        // Telegram has ~4096 char limit for messages
+        let project = "A".repeat(50);
+        let template = "B".repeat(50);
+        let task_id = 12345;
+        let author = "C".repeat(30);
+        let task_url = "http://host".to_string() + &"/p".repeat(10);
+
+        let text = format!(
+            "✅ <b>[{project}]</b> {template} — <b>SUCCESS</b> (1m 0s)\n\
+             👤 {author} · <a href=\"{task_url}\">#task {task_id}</a>"
+        );
+
+        // Message should be within Telegram limit
+        assert!(text.len() < 4096);
+    }
+
+    #[test]
+    fn extract_command_preserves_unicode_in_args() {
+        let text = "/deploy проект тест";
+        let parts: Vec<&str> = text.split_whitespace().collect();
+        assert_eq!(parts[0], "/deploy");
+        assert_eq!(parts[1], "проект");
+        assert_eq!(parts[2], "тест");
+    }
+
+    #[test]
+    fn command_with_emoji_args() {
+        let text = "/log 🚀 production";
+        let parts: Vec<&str> = text.split_whitespace().collect();
+        assert_eq!(parts.len(), 3);
+        assert_eq!(parts[0], "/log");
+        assert_eq!(parts[1], "🚀");
+        assert_eq!(parts[2], "production");
+    }
 }

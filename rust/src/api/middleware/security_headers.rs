@@ -190,4 +190,290 @@ mod tests {
         assert!(headers.contains_key("Access-Control-Allow-Methods"));
         assert!(headers.contains_key("Access-Control-Allow-Headers"));
     }
+
+    #[tokio::test]
+    async fn test_security_headers_xframe_deny() {
+        let app = Router::new()
+            .route("/test", get(|| async { "OK" }))
+            .layer(axum::middleware::from_fn(security_headers));
+
+        let response = app
+            .oneshot(Request::builder().uri("/test").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+
+        let xframe = response.headers().get("X-Frame-Options").unwrap();
+        assert_eq!(xframe, "DENY");
+    }
+
+    #[tokio::test]
+    async fn test_security_headers_nosniff() {
+        let app = Router::new()
+            .route("/test", get(|| async { "OK" }))
+            .layer(axum::middleware::from_fn(security_headers));
+
+        let response = app
+            .oneshot(Request::builder().uri("/test").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+
+        let nosniff = response.headers().get("X-Content-Type-Options").unwrap();
+        assert_eq!(nosniff, "nosniff");
+    }
+
+    #[tokio::test]
+    async fn test_security_headers_xss_protection() {
+        let app = Router::new()
+            .route("/test", get(|| async { "OK" }))
+            .layer(axum::middleware::from_fn(security_headers));
+
+        let response = app
+            .oneshot(Request::builder().uri("/test").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+
+        let xss = response.headers().get("X-XSS-Protection").unwrap();
+        assert_eq!(xss, "1; mode=block");
+    }
+
+    #[tokio::test]
+    async fn test_security_headers_hsts() {
+        let app = Router::new()
+            .route("/test", get(|| async { "OK" }))
+            .layer(axum::middleware::from_fn(security_headers));
+
+        let response = app
+            .oneshot(Request::builder().uri("/test").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+
+        let hsts = response.headers().get("Strict-Transport-Security").unwrap();
+        assert_eq!(hsts, "max-age=31536000; includeSubDomains");
+    }
+
+    #[tokio::test]
+    async fn test_security_headers_csp() {
+        let app = Router::new()
+            .route("/test", get(|| async { "OK" }))
+            .layer(axum::middleware::from_fn(security_headers));
+
+        let response = app
+            .oneshot(Request::builder().uri("/test").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+
+        let csp = response.headers().get("Content-Security-Policy").unwrap();
+        assert!(csp.to_str().unwrap().contains("default-src 'self'"));
+        assert!(csp.to_str().unwrap().contains("frame-ancestors 'none'"));
+    }
+
+    #[tokio::test]
+    async fn test_security_headers_referrer_policy() {
+        let app = Router::new()
+            .route("/test", get(|| async { "OK" }))
+            .layer(axum::middleware::from_fn(security_headers));
+
+        let response = app
+            .oneshot(Request::builder().uri("/test").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+
+        let rp = response.headers().get("Referrer-Policy").unwrap();
+        assert_eq!(rp, "strict-origin-when-cross-origin");
+    }
+
+    #[tokio::test]
+    async fn test_security_headers_permissions_policy() {
+        let app = Router::new()
+            .route("/test", get(|| async { "OK" }))
+            .layer(axum::middleware::from_fn(security_headers));
+
+        let response = app
+            .oneshot(Request::builder().uri("/test").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+
+        let pp = response.headers().get("Permissions-Policy").unwrap();
+        assert!(pp.to_str().unwrap().contains("geolocation=()"));
+        assert!(pp.to_str().unwrap().contains("microphone=()"));
+        assert!(pp.to_str().unwrap().contains("camera=()"));
+    }
+
+    #[tokio::test]
+    async fn test_security_headers_cache_control_for_api() {
+        let app = Router::new()
+            .route("/api/test", get(|| async { "OK" }))
+            .layer(axum::middleware::from_fn(security_headers));
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/test")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        let headers = response.headers();
+        assert!(headers.contains_key("Cache-Control"));
+        let cc = headers.get("Cache-Control").unwrap();
+        assert_eq!(cc, "no-store, no-cache, must-revalidate");
+        assert_eq!(headers.get("Pragma").unwrap(), "no-cache");
+        assert_eq!(headers.get("Expires").unwrap(), "0");
+    }
+
+    #[tokio::test]
+    async fn test_security_headers_no_cache_for_non_api() {
+        let app = Router::new()
+            .route("/page", get(|| async { "OK" }))
+            .layer(axum::middleware::from_fn(security_headers));
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/page")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        let headers = response.headers();
+        assert!(!headers.contains_key("Cache-Control"));
+        assert!(!headers.contains_key("Pragma"));
+        assert!(!headers.contains_key("Expires"));
+    }
+
+    #[tokio::test]
+    async fn test_strict_cors_allows_matching_origin() {
+        const ORIGINS: &[&str] = &["https://example.com"];
+        let app = Router::new()
+            .route("/test", get(|| async { "OK" }))
+            .layer(axum::middleware::from_fn(move |req, next| {
+                strict_cors_headers(ORIGINS, req, next)
+            }));
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/test")
+                    .header("Origin", "https://example.com")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        let headers = response.headers();
+        assert_eq!(
+            headers.get("Access-Control-Allow-Origin").unwrap(),
+            "https://example.com"
+        );
+        assert!(headers.contains_key("Access-Control-Allow-Methods"));
+        assert!(headers.contains_key("Access-Control-Allow-Headers"));
+        assert_eq!(headers.get("Access-Control-Max-Age").unwrap(), "86400");
+    }
+
+    #[tokio::test]
+    async fn test_strict_cors_blocks_non_matching_origin() {
+        const ORIGINS: &[&str] = &["https://example.com"];
+        let app = Router::new()
+            .route("/test", get(|| async { "OK" }))
+            .layer(axum::middleware::from_fn(move |req, next| {
+                strict_cors_headers(ORIGINS, req, next)
+            }));
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/test")
+                    .header("Origin", "https://evil.com")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        let headers = response.headers();
+        assert!(!headers.contains_key("Access-Control-Allow-Origin"));
+    }
+
+    #[tokio::test]
+    async fn test_strict_cors_no_origin_header() {
+        const ORIGINS: &[&str] = &["https://example.com"];
+        let app = Router::new()
+            .route("/test", get(|| async { "OK" }))
+            .layer(axum::middleware::from_fn(move |req, next| {
+                strict_cors_headers(ORIGINS, req, next)
+            }));
+
+        let response = app
+            .oneshot(Request::builder().uri("/test").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+
+        assert!(!response.headers().contains_key("Access-Control-Allow-Origin"));
+    }
+
+    #[tokio::test]
+    async fn test_cors_allows_all_methods() {
+        let app = Router::new()
+            .route("/test", get(|| async { "OK" }))
+            .layer(axum::middleware::from_fn(cors_headers));
+
+        let response = app
+            .oneshot(Request::builder().uri("/test").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+
+        let methods = response.headers().get("Access-Control-Allow-Methods").unwrap();
+        assert_eq!(methods, "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+    }
+
+    #[tokio::test]
+    async fn test_cors_allows_correct_headers() {
+        let app = Router::new()
+            .route("/test", get(|| async { "OK" }))
+            .layer(axum::middleware::from_fn(cors_headers));
+
+        let response = app
+            .oneshot(Request::builder().uri("/test").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+
+        let allowed = response.headers().get("Access-Control-Allow-Headers").unwrap();
+        assert_eq!(allowed, "Content-Type, Authorization, X-Requested-With");
+    }
+
+    #[tokio::test]
+    async fn test_strict_cors_additional_headers() {
+        const ORIGINS: &[&str] = &["https://allowed.com"];
+        let app = Router::new()
+            .route("/test", get(|| async { "OK" }))
+            .layer(axum::middleware::from_fn(move |req, next| {
+                strict_cors_headers(ORIGINS, req, next)
+            }));
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/test")
+                    .header("Origin", "https://allowed.com")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        let allowed = response.headers().get("Access-Control-Allow-Headers").unwrap();
+        assert!(allowed
+            .to_str()
+            .unwrap()
+            .contains("X-RateLimit-Limit"));
+        assert!(allowed
+            .to_str()
+            .unwrap()
+            .contains("X-RateLimit-Remaining"));
+    }
 }
