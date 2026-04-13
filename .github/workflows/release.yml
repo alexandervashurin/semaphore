@@ -1,0 +1,147 @@
+name: Automated Release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'rust/**'
+      - 'web/**'
+      - '.github/workflows/release.yml'
+
+permissions:
+  contents: write
+  packages: write
+  pull-requests: write
+
+env:
+  CARGO_TERM_COLOR: always
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ─── 1. Validate release readiness ───────────────────────────────────
+  validate:
+    name: Validate Release Readiness
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check if release should be created
+        id: check
+        run: |
+          # Only create release if there are significant code changes since last release
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+          if [ -z "$LAST_TAG" ]; then
+            echo "No previous tags found — release should be created"
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          COMMITS_SINCE=$(git rev-list "$LAST_TAG..HEAD" --count)
+          echo "Commits since $LAST_TAG: $COMMITS_SINCE"
+
+          if [ "$COMMITS_SINCE" -ge 5 ]; then
+            echo "Enough commits ($COMMITS_SINCE >= 5) — release should be created"
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          else
+            echo "Not enough commits ($COMMITS_SINCE < 5) — skip release"
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          fi
+
+  # ─── 2. Build & Test ────────────────────────────────────────────────
+  build:
+    name: Build & Test
+    needs: [validate]
+    if: needs.validate.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Install deps
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends libssl-dev pkg-config libsqlite3-dev
+
+      - name: Build
+        working-directory: rust
+        run: cargo build --all-features
+
+      - name: Clippy
+        working-directory: rust
+        run: cargo clippy --all-features -- -D warnings
+
+      - name: Tests
+        working-directory: rust
+        env:
+          SEMAPHORE_DB_PATH: /tmp/test.db
+          SEMAPHORE_JWT_SECRET: test-ci-secret-key-32-bytes-long!
+        run: cargo test --all-features -- --test-threads=4
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: velum-linux-amd64
+          path: rust/target/release/velum
+          retention-days: 1
+
+  # ─── 3. Create GitHub Release ───────────────────────────────────────
+  release:
+    name: Create Release
+    needs: [validate, build]
+    if: needs.validate.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Determine version
+        id: version
+        run: |
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          # Increment patch version
+          VERSION=${LAST_TAG#v}
+          MAJOR=$(echo $VERSION | cut -d. -f1)
+          MINOR=$(echo $VERSION | cut -d. -f2)
+          PATCH=$(echo $VERSION | cut -d. -f3)
+          NEW_PATCH=$((PATCH + 1))
+          NEW_VERSION="v${MAJOR}.${MINOR}.${NEW_PATCH}"
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "New version: $NEW_VERSION"
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || git rev-list --max-parents=0 HEAD)
+          CHANGELOG=$(git log "$LAST_TAG..HEAD" --pretty=format:"- %s (%h)" --no-merges)
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ steps.version.outputs.version }}" -m "Release ${{ steps.version.outputs.version }}"
+          git push origin "${{ steps.version.outputs.version }}"
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.version.outputs.version }}" \
+            --title "Velum ${{ steps.version.outputs.version }}" \
+            --generate-notes \
+            velum-linux-amd64/velum#velum-linux-amd64

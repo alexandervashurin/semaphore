@@ -14,7 +14,17 @@ status_summary:
     critical: []
     high: []
     medium: []
-    low: []
+    low:
+      - id: CI-01
+        title: "Unified CI/CD Pipeline (ci-cd.yml)"
+        sprint: S6
+        status: completed
+        completion_notes: "7 jobs: quality, security, docker-staging, docker-latest, e2e-smoke, docs, deploy-docs"
+      - id: CI-02
+        title: "Automated Release Pipeline"
+        sprint: S6
+        status: completed
+        completion_notes: "Automated release on main with changelog generation and version tagging"
 principles:
   - "Сначала закрыть блокеры релиза, потом nice-to-have"
   - "Каждая задача должна завершаться проверкой"
@@ -805,6 +815,27 @@ sprints:
       - "Все AG2-01..AG2-06 завершены"
       - "cargo check зелёный"
       - "Коммит запушен в origin/main"
+
+  - sprint_id: S6
+    title: "Спринт 6 — CI/CD Improvements"
+    objective: "Улучшить CI/CD pipeline: автоматизированный релиз, staging, документация"
+    tasks:
+      - task_id: CI-01
+        title: "Unified CI/CD Pipeline"
+        priority: high
+        estimate: medium
+        status: completed
+        completion_notes: "ci-cd.yml: 7 jobs (quality, security, docker-staging, docker-latest, e2e-smoke, docs, deploy-docs)"
+      - task_id: CI-02
+        title: "Automated Release Pipeline"
+        priority: high
+        estimate: small
+        status: completed
+        completion_notes: "release.yml: automated versioning, changelog, tag creation, GitHub Release"
+
+    sprint_done_when:
+      - "CI-01 завершён"
+      - "CI-02 завершён"
 
 optional_sprints:
   - sprint_id: S5

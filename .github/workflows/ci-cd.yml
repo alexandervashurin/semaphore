@@ -1,0 +1,256 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ─── 1. Quality Gate ─────────────────────────────────────────────────
+  quality:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Install deps
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends libssl-dev pkg-config libsqlite3-dev
+
+      - name: Format check
+        working-directory: rust
+        run: cargo fmt --all -- --check
+
+      - name: Build
+        working-directory: rust
+        run: cargo build --all-features
+
+      - name: Clippy
+        working-directory: rust
+        run: cargo clippy --all-features -- -D warnings
+
+      - name: Tests
+        working-directory: rust
+        env:
+          SEMAPHORE_DB_PATH: /tmp/test.db
+          SEMAPHORE_JWT_SECRET: test-ci-secret-key-32-bytes-long!
+        run: cargo test --all-features -- --test-threads=4
+
+  # ─── 2. Security Audit ───────────────────────────────────────────────
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo install cargo-audit --quiet
+      - name: Audit
+        working-directory: rust
+        run: cargo audit
+
+  # ─── 3. Docker Image (staging) ───────────────────────────────────────
+  docker-staging:
+    name: Docker Staging
+    needs: [quality, security]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push staging
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ─── 4. Docker Image (latest) ────────────────────────────────────────
+  docker-latest:
+    name: Docker Latest
+    needs: [quality, security]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push latest
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ─── 5. E2E Smoke Test ──────────────────────────────────────────────
+  e2e-smoke:
+    name: E2E Smoke Test
+    needs: [docker-latest]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: velum
+          POSTGRES_USER: velum
+          POSTGRES_PASSWORD: velum_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Wait for DB
+        run: |
+          for i in $(seq 1 30); do
+            if pg_isready -h localhost -p 5432 -U velum 2>/dev/null; then
+              echo "DB ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "DB timeout"
+          exit 1
+
+      - name: Run server (background)
+        env:
+          VELUM_DB_URL: postgres://velum:velum_pass@localhost:5432/velum
+          VELUM_DB_DIALECT: postgres
+          VELUM_JWT_SECRET: e2e-test-secret-key-32-bytes-long!
+          VELUM_WEB_PATH: ${{ github.workspace }}/web/public
+          VELUM_ADMIN: admin
+          VELUM_ADMIN_PASSWORD: admin123
+        run: |
+          cd rust && cargo run --release -- server --host 0.0.0.0 --port 3000 &
+          SERVER_PID=$!
+          echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:3000/healthz >/dev/null 2>&1; then
+              echo "Server ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Server timeout"
+          kill $SERVER_PID 2>/dev/null
+          exit 1
+
+      - name: Health check
+        run: |
+          curl -sf http://localhost:3000/healthz
+          curl -sf http://localhost:3000/readyz
+
+      - name: API smoke tests
+        run: |
+          # Login
+          TOKEN=$(curl -sf -X POST http://localhost:3000/api/auth/login \
+            -H 'Content-Type: application/json' \
+            -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
+
+          echo "Got token: ${TOKEN:0:10}..."
+
+          # Get projects
+          curl -sf http://localhost:3000/api/projects -H "Authorization: Bearer $TOKEN"
+
+          # Get templates
+          curl -sf http://localhost:3000/api/templates -H "Authorization: Bearer $TOKEN"
+
+          echo "All smoke tests passed"
+
+      - name: Cleanup
+        if: always()
+        run: kill $SERVER_PID 2>/dev/null || true
+
+  # ─── 6. Documentation ───────────────────────────────────────────────
+  docs:
+    name: Build Documentation
+    needs: [quality]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Generate docs
+        working-directory: rust
+        run: cargo doc --no-deps 2>&1 | tee /tmp/doc.log
+
+      - name: Upload docs artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: rust/target/doc/velum_ffi/
+
+  # ─── 7. GitHub Pages Deployment ─────────────────────────────────────
+  deploy-docs:
+    name: Deploy Docs to GitHub Pages
+    needs: [docs]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
