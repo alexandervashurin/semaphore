@@ -14,9 +14,11 @@ status_summary:
     critical: []
     high:
       - id: PROD-01
-        title: "Docker образ <50MB"
+        title: "Docker образ <50MB (FROM scratch)"
         sprint: S3
+        status: completed
         blocks: []
+        completion_notes: "Multi-stage build: builder (debian) → scratch runtime (~23MB)"
       - id: PROD-02
         title: "Cross-platform builds macOS amd64/arm64"
         sprint: S3
