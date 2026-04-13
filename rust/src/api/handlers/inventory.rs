@@ -308,4 +308,202 @@ mod tests {
         assert_eq!(payload.name, Some("Updated".to_string()));
         assert_eq!(payload.inventory_data, None);
     }
+
+    #[test]
+    fn test_inventory_create_payload_all_types() {
+        let types = [
+            ("static", InventoryType::Static),
+            ("static_yaml", InventoryType::StaticYaml),
+            ("static_json", InventoryType::StaticJson),
+            ("file", InventoryType::File),
+            ("terraform_inventory", InventoryType::TerraformInventory),
+            ("terraform_workspace", InventoryType::TerraformWorkspace),
+            ("tofu_workspace", InventoryType::TofuWorkspace),
+        ];
+        for (type_str, expected) in types {
+            let json = format!(r#"{{"name": "Test", "inventory_type": "{}"}}"#, type_str);
+            let payload: InventoryCreatePayload = serde_json::from_str(&json).unwrap();
+            assert_eq!(payload.inventory_type, expected, "Failed for type: {}", type_str);
+        }
+    }
+
+    #[test]
+    fn test_inventory_create_payload_default_port() {
+        let json = r#"{"name": "Test", "inventory": "static"}"#;
+        let payload: InventoryCreatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.ssh_port, 22);
+    }
+
+    #[test]
+    fn test_inventory_create_payload_custom_port() {
+        let json = r#"{"name": "Test", "inventory": "static", "ssh_port": 2222}"#;
+        let payload: InventoryCreatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.ssh_port, 2222);
+    }
+
+    #[test]
+    fn test_inventory_create_payload_with_keys() {
+        let json = r#"{
+            "name": "Secure Inventory",
+            "inventory": "static",
+            "ssh_key_id": 10,
+            "become_key_id": 20
+        }"#;
+        let payload: InventoryCreatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.ssh_key_id, Some(10));
+        assert_eq!(payload.become_key_id, Some(20));
+    }
+
+    #[test]
+    fn test_inventory_create_payload_empty_ssh_login() {
+        let json = r#"{"name": "Test", "inventory": "static", "ssh_login": ""}"#;
+        let payload: InventoryCreatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.ssh_login, "");
+    }
+
+    #[test]
+    fn test_inventory_create_payload_roundtrip() {
+        let original = InventoryCreatePayload {
+            name: "Roundtrip".to_string(),
+            inventory_type: InventoryType::StaticYaml,
+            inventory: "[servers]\nserver1\n".to_string(),
+            ssh_key_id: Some(5),
+            become_key_id: Some(6),
+            ssh_login: "deploy".to_string(),
+            ssh_port: 2200,
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: InventoryCreatePayload = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.name, original.name);
+        assert_eq!(restored.inventory_type, original.inventory_type);
+        assert_eq!(restored.inventory, original.inventory);
+        assert_eq!(restored.ssh_key_id, original.ssh_key_id);
+        assert_eq!(restored.ssh_port, original.ssh_port);
+    }
+
+    #[test]
+    fn test_inventory_update_payload_roundtrip() {
+        let original = InventoryUpdatePayload {
+            name: Some("Updated".to_string()),
+            inventory_type: Some(InventoryType::File),
+            inventory: Some("[hosts]\nhost1\n".to_string()),
+            ssh_key_id: Some(1),
+            become_key_id: Some(2),
+            ssh_login: Some("user".to_string()),
+            ssh_port: Some(8022),
+            inventory_data: Some("alias_data".to_string()),
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: InventoryUpdatePayload = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.name, original.name);
+        assert_eq!(restored.inventory_type, original.inventory_type);
+        assert_eq!(restored.ssh_port, original.ssh_port);
+    }
+
+    #[test]
+    fn test_inventory_update_payload_all_null() {
+        let json = r#"{
+            "name": null,
+            "inventory_type": null,
+            "inventory": null,
+            "ssh_key_id": null,
+            "become_key_id": null,
+            "ssh_login": null,
+            "ssh_port": null,
+            "inventory_data": null
+        }"#;
+        let payload: InventoryUpdatePayload = serde_json::from_str(json).unwrap();
+        assert!(payload.name.is_none());
+        assert!(payload.inventory_type.is_none());
+        assert!(payload.ssh_key_id.is_none());
+    }
+
+    #[test]
+    fn test_inventory_create_payload_unicode() {
+        let json = r#"{
+            "name": "Серверы Продакшн",
+            "inventory": "[веб-серверы]\nвеб1 ansible_host=1.2.3.4",
+            "ssh_login": "пользователь"
+        }"#;
+        let payload: InventoryCreatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.name, "Серверы Продакшн");
+        assert_eq!(payload.ssh_login, "пользователь");
+    }
+
+    #[test]
+    fn test_inventory_create_payload_debug() {
+        let payload = InventoryCreatePayload {
+            name: "Debug".to_string(),
+            inventory_type: InventoryType::Static,
+            inventory: "".to_string(),
+            ssh_key_id: None,
+            become_key_id: None,
+            ssh_login: "".to_string(),
+            ssh_port: 22,
+        };
+        let debug_str = format!("{:?}", payload);
+        assert!(debug_str.contains("InventoryCreatePayload"));
+        assert!(debug_str.contains("Debug"));
+    }
+
+    #[test]
+    fn test_inventory_update_payload_debug() {
+        let payload = InventoryUpdatePayload {
+            name: Some("Debug".to_string()),
+            inventory_type: None,
+            inventory: None,
+            ssh_key_id: None,
+            become_key_id: None,
+            ssh_login: None,
+            ssh_port: None,
+            inventory_data: None,
+        };
+        let debug_str = format!("{:?}", payload);
+        assert!(debug_str.contains("InventoryUpdatePayload"));
+    }
+
+    #[test]
+    fn test_inventory_create_payload_clone() {
+        // InventoryCreatePayload doesn't derive Clone
+        let json = r#"{"name": "Clone", "inventory": "{}", "inventory_type": "static_json"}"#;
+        let p1: InventoryCreatePayload = serde_json::from_str(json).unwrap();
+        let p2: InventoryCreatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(p1.name, p2.name);
+        assert_eq!(p1.inventory_type, p2.inventory_type);
+    }
+
+    #[test]
+    fn test_inventory_update_payload_clone() {
+        // InventoryUpdatePayload doesn't derive Clone
+        let json = r#"{"name": "Clone"}"#;
+        let p1: InventoryUpdatePayload = serde_json::from_str(json).unwrap();
+        let p2: InventoryUpdatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(p1.name, p2.name);
+    }
+
+    #[test]
+    fn test_inventory_update_payload_alias_inventory_data() {
+        let json = r#"{"inventory_data": "aliased data"}"#;
+        let payload: InventoryUpdatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.inventory_data, Some("aliased data".to_string()));
+        assert!(payload.inventory.is_none());
+    }
+
+    #[test]
+    fn test_inventory_create_payload_large_port() {
+        let json = r#"{"name": "Test", "inventory": "static", "ssh_port": 65535}"#;
+        let payload: InventoryCreatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.ssh_port, 65535);
+    }
+
+    #[test]
+    fn test_inventory_update_yaml_multiline() {
+        let json = r#"{
+            "name": "YAML Inventory",
+            "inventory": "---\nall:\n  hosts:\n    web1:\n      ansible_host: 10.0.0.1"
+        }"#;
+        let payload: InventoryUpdatePayload = serde_json::from_str(json).unwrap();
+        assert!(payload.inventory.is_some());
+        assert!(payload.inventory.as_ref().unwrap().contains("---\nall:"));
+    }
 }

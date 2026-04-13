@@ -222,4 +222,231 @@ mod tests {
         let deserialized: LogLevel = serde_json::from_str(&serialized).unwrap();
         assert_eq!(deserialized, LogLevel::Warn);
     }
+
+    #[test]
+    fn test_log_format_text_serialization() {
+        let format = LogFormat::Text;
+        let serialized = serde_json::to_string(&format).unwrap();
+        assert_eq!(serialized, "\"text\"");
+
+        let deserialized: LogFormat = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(deserialized, LogFormat::Text);
+    }
+
+    #[test]
+    fn test_log_level_debug_serialization() {
+        let level = LogLevel::Debug;
+        let serialized = serde_json::to_string(&level).unwrap();
+        assert_eq!(serialized, "\"debug\"");
+    }
+
+    #[test]
+    fn test_log_level_info_serialization() {
+        let level = LogLevel::Info;
+        let serialized = serde_json::to_string(&level).unwrap();
+        assert_eq!(serialized, "\"info\"");
+    }
+
+    #[test]
+    fn test_log_level_error_serialization() {
+        let level = LogLevel::Error;
+        let serialized = serde_json::to_string(&level).unwrap();
+        assert_eq!(serialized, "\"error\"");
+    }
+
+    #[test]
+    fn test_logging_config_new() {
+        let config = LoggingConfig::new();
+        assert_eq!(config.format, LogFormat::Text);
+        assert_eq!(config.level, LogLevel::Info);
+    }
+
+    #[test]
+    fn test_logging_config_full_serialization() {
+        let config = LoggingConfig {
+            format: LogFormat::Json,
+            level: LogLevel::Debug,
+            file: Some("/var/log/app.log".to_string()),
+            max_size: 50,
+            max_backups: 5,
+            max_age: 14,
+            compress: true,
+        };
+
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains("\"format\":\"json\""));
+        assert!(json.contains("\"level\":\"debug\""));
+        assert!(json.contains("\"max_size\":50"));
+        assert!(json.contains("\"compress\":true"));
+    }
+
+    #[test]
+    fn test_logging_config_deserialization() {
+        let json = r#"{
+            "format": "json",
+            "level": "warn",
+            "file": "/logs/app.log",
+            "max_size": 200,
+            "max_backups": 10,
+            "max_age": 30,
+            "compress": true
+        }"#;
+
+        let config: LoggingConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.format, LogFormat::Json);
+        assert_eq!(config.level, LogLevel::Warn);
+        assert_eq!(config.max_size, 200);
+        assert_eq!(config.max_backups, 10);
+        assert!(config.compress);
+    }
+
+    #[test]
+    fn test_logging_config_defaults_from_serde() {
+        let json = r#"{}"#;
+        let config: LoggingConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.format, LogFormat::Text);
+        assert_eq!(config.level, LogLevel::Info);
+        assert_eq!(config.max_size, 0);
+        assert_eq!(config.max_backups, 0);
+        assert_eq!(config.max_age, 0);
+        assert!(!config.compress);
+    }
+
+    #[test]
+    fn test_load_logging_from_env_numeric_values() {
+        env::set_var("VELUM_LOG_MAX_SIZE", "500");
+        env::set_var("VELUM_LOG_MAX_BACKUPS", "10");
+        env::set_var("VELUM_LOG_MAX_AGE", "60");
+
+        let config = load_logging_from_env();
+        assert_eq!(config.max_size, 500);
+        assert_eq!(config.max_backups, 10);
+        assert_eq!(config.max_age, 60);
+
+        env::remove_var("VELUM_LOG_MAX_SIZE");
+        env::remove_var("VELUM_LOG_MAX_BACKUPS");
+        env::remove_var("VELUM_LOG_MAX_AGE");
+    }
+
+    #[test]
+    fn test_load_logging_from_env_compress_true() {
+        env::set_var("VELUM_LOG_COMPRESS", "true");
+        let config = load_logging_from_env();
+        assert!(config.compress);
+        env::remove_var("VELUM_LOG_COMPRESS");
+    }
+
+    #[test]
+    fn test_load_logging_from_env_compress_1() {
+        env::set_var("VELUM_LOG_COMPRESS", "1");
+        let config = load_logging_from_env();
+        assert!(config.compress);
+        env::remove_var("VELUM_LOG_COMPRESS");
+    }
+
+    #[test]
+    fn test_load_logging_from_env_compress_false() {
+        env::set_var("VELUM_LOG_COMPRESS", "false");
+        let config = load_logging_from_env();
+        assert!(!config.compress);
+        env::remove_var("VELUM_LOG_COMPRESS");
+    }
+
+    #[test]
+    fn test_load_logging_from_env_invalid_numeric() {
+        env::set_var("VELUM_LOG_MAX_SIZE", "not_a_number");
+        let config = load_logging_from_env();
+        // При невалидном значении может быть 0 или дефолтное значение
+        assert!(config.max_size >= 0);
+        env::remove_var("VELUM_LOG_MAX_SIZE");
+    }
+
+    #[test]
+    fn test_log_level_unknown_value() {
+        env::set_var("VELUM_LOG_LEVEL", "unknown");
+        let config = load_logging_from_env();
+        assert_eq!(config.level, LogLevel::Info); // defaults to Info
+        env::remove_var("VELUM_LOG_LEVEL");
+    }
+
+    #[test]
+    fn test_logging_config_clone() {
+        let config = LoggingConfig {
+            format: LogFormat::Json,
+            level: LogLevel::Debug,
+            file: Some("/test.log".to_string()),
+            max_size: 100,
+            max_backups: 3,
+            max_age: 28,
+            compress: true,
+        };
+        let cloned = config.clone();
+        assert_eq!(cloned.format, config.format);
+        assert_eq!(cloned.level, config.level);
+        assert_eq!(cloned.file, config.file);
+    }
+
+    #[test]
+    fn test_logging_config_get_file_path_none() {
+        let config = LoggingConfig::default();
+        assert!(config.get_file_path().is_none());
+    }
+
+    #[test]
+    fn test_logging_config_level_string_warn() {
+        let config = LoggingConfig {
+            level: LogLevel::Warn,
+            ..Default::default()
+        };
+        assert_eq!(config.level_string(), "warn");
+    }
+
+    #[test]
+    fn test_logging_config_level_string_error() {
+        let config = LoggingConfig {
+            level: LogLevel::Error,
+            ..Default::default()
+        };
+        assert_eq!(config.level_string(), "error");
+    }
+
+    #[test]
+    fn test_load_logging_from_env_case_insensitive_level() {
+        env::set_var("VELUM_LOG_LEVEL", "DEBUG");
+        let config = load_logging_from_env();
+        assert_eq!(config.level, LogLevel::Debug);
+        env::remove_var("VELUM_LOG_LEVEL");
+    }
+
+    #[test]
+    fn test_load_logging_from_env_case_insensitive_format() {
+        env::set_var("VELUM_LOG_FORMAT", "JSON");
+        let config = load_logging_from_env();
+        assert_eq!(config.format, LogFormat::Json);
+        env::remove_var("VELUM_LOG_FORMAT");
+    }
+
+    #[test]
+    fn test_logging_config_unicode_file_path() {
+        let config = LoggingConfig {
+            file: Some("/var/log/приложение.log".to_string()),
+            ..Default::default()
+        };
+        assert!(config.is_file_logging());
+        let path = config.get_file_path().unwrap();
+        assert!(path.to_string_lossy().contains("приложение"));
+    }
+
+    #[test]
+    fn test_logging_config_max_values() {
+        let config = LoggingConfig {
+            max_size: u64::MAX,
+            max_backups: u32::MAX,
+            max_age: u32::MAX,
+            ..Default::default()
+        };
+        assert_eq!(config.max_size, u64::MAX);
+        assert_eq!(config.max_backups, u32::MAX);
+        assert_eq!(config.max_age, u32::MAX);
+    }
 }

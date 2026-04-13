@@ -210,4 +210,159 @@ mod tests {
         assert_eq!(payload.name, None);
         assert_eq!(payload.git_url, Some("https://new.url.git".to_string()));
     }
+
+    #[test]
+    fn test_repository_create_payload_roundtrip() {
+        let original = RepositoryCreatePayload {
+            name: "Roundtrip".to_string(),
+            git_url: "https://github.com/user/round.git".to_string(),
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: RepositoryCreatePayload = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.name, original.name);
+        assert_eq!(restored.git_url, original.git_url);
+    }
+
+    #[test]
+    fn test_repository_update_payload_roundtrip() {
+        let original = RepositoryUpdatePayload {
+            name: Some("Updated".to_string()),
+            git_url: Some("https://github.com/user/updated.git".to_string()),
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: RepositoryUpdatePayload = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.name, original.name);
+        assert_eq!(restored.git_url, original.git_url);
+    }
+
+    #[test]
+    fn test_repository_update_payload_all_null() {
+        let json = r#"{"name": null, "git_url": null}"#;
+        let payload: RepositoryUpdatePayload = serde_json::from_str(json).unwrap();
+        assert!(payload.name.is_none());
+        assert!(payload.git_url.is_none());
+    }
+
+    #[test]
+    fn test_repository_update_payload_empty() {
+        let json = r#"{}"#;
+        let payload: RepositoryUpdatePayload = serde_json::from_str(json).unwrap();
+        assert!(payload.name.is_none());
+        assert!(payload.git_url.is_none());
+    }
+
+    #[test]
+    fn test_repository_create_payload_gitlab_url() {
+        let json = r#"{
+            "name": "GitLab Repo",
+            "git_url": "https://gitlab.example.com/org/project.git"
+        }"#;
+        let payload: RepositoryCreatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.name, "GitLab Repo");
+        assert_eq!(payload.git_url, "https://gitlab.example.com/org/project.git");
+    }
+
+    #[test]
+    fn test_repository_create_payload_ssh_url() {
+        let json = r#"{
+            "name": "SSH Repo",
+            "git_url": "git@github.com:user/repo.git"
+        }"#;
+        let payload: RepositoryCreatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.git_url, "git@github.com:user/repo.git");
+    }
+
+    #[test]
+    fn test_repository_create_payload_empty_name() {
+        let json = r#"{"name": "", "git_url": "https://example.com/repo.git"}"#;
+        let payload: RepositoryCreatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.name, "");
+    }
+
+    #[test]
+    fn test_repository_create_payload_unicode() {
+        let json = r#"{
+            "name": "Репозиторий",
+            "git_url": "https://github.com/user/репо.git"
+        }"#;
+        let payload: RepositoryCreatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.name, "Репозиторий");
+    }
+
+    #[test]
+    fn test_repository_create_payload_debug() {
+        let payload = RepositoryCreatePayload {
+            name: "Debug Repo".to_string(),
+            git_url: "https://example.com/debug.git".to_string(),
+        };
+        let debug_str = format!("{:?}", payload);
+        assert!(debug_str.contains("RepositoryCreatePayload"));
+        assert!(debug_str.contains("Debug Repo"));
+    }
+
+    #[test]
+    fn test_repository_update_payload_debug() {
+        let payload = RepositoryUpdatePayload {
+            name: Some("Debug".to_string()),
+            git_url: None,
+        };
+        let debug_str = format!("{:?}", payload);
+        assert!(debug_str.contains("RepositoryUpdatePayload"));
+    }
+
+    #[test]
+    fn test_repository_create_payload_clone_independence() {
+        // RepositoryCreatePayload doesn't derive Clone
+        let json = r#"{"name": "Original", "git_url": "https://example.com/orig.git"}"#;
+        let p1: RepositoryCreatePayload = serde_json::from_str(json).unwrap();
+        let p2: RepositoryCreatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(p1.name, p2.name);
+    }
+
+    #[test]
+    fn test_repository_update_payload_clone_independence() {
+        // RepositoryUpdatePayload doesn't derive Clone
+        let json = r#"{"name": "Original", "git_url": "https://example.com/orig.git"}"#;
+        let p1: RepositoryUpdatePayload = serde_json::from_str(json).unwrap();
+        let p2: RepositoryUpdatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(p1.name, p2.name);
+        assert_eq!(p1.git_url, p2.git_url);
+    }
+
+    #[test]
+    fn test_repository_update_payload_single_name() {
+        let json = r#"{"name": "Only Name"}"#;
+        let payload: RepositoryUpdatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.name, Some("Only Name".to_string()));
+        assert!(payload.git_url.is_none());
+    }
+
+    #[test]
+    fn test_repository_update_payload_single_git_url() {
+        let json = r#"{"git_url": "https://only.url.git"}"#;
+        let payload: RepositoryUpdatePayload = serde_json::from_str(json).unwrap();
+        assert!(payload.name.is_none());
+        assert_eq!(payload.git_url, Some("https://only.url.git".to_string()));
+    }
+
+    #[test]
+    fn test_repository_create_payload_with_subgroup() {
+        let json = r#"{
+            "name": "Subgroup Repo",
+            "git_url": "https://gitlab.com/org/team/subgroup/project.git"
+        }"#;
+        let payload: RepositoryCreatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.git_url, "https://gitlab.com/org/team/subgroup/project.git");
+    }
+
+    #[test]
+    fn test_repository_update_payload_special_chars() {
+        let json = r#"{
+            "name": "Repo with special chars & < > \" '",
+            "git_url": "https://example.com/repo%20with%20spaces.git"
+        }"#;
+        let payload: RepositoryUpdatePayload = serde_json::from_str(json).unwrap();
+        assert!(payload.name.as_ref().unwrap().contains("special chars"));
+        assert!(payload.git_url.as_ref().unwrap().contains("%20"));
+    }
 }

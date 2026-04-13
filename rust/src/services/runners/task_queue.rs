@@ -314,12 +314,132 @@ mod tests {
 
     #[tokio::test]
     async fn test_build_queue_bad_url_falls_back_to_inmemory() {
-        // недоступный Redis → fallback (жёстный внешний лимит на случай платформенных зависаний TCP)
+        // недоступный Redis → fallback (жёсткий внешний лимит на случай платформенных зависаний TCP)
         let q = tokio::time::timeout(std::time::Duration::from_secs(15), build_task_queue(Some(
             "redis://127.0.0.1:19999",
         )))
         .await
         .expect("build_task_queue should finish (Redis connect is bounded)");
         assert_eq!(q.backend_name(), "in-memory");
+    }
+
+    // --- Additional InMemoryTaskQueue tests ---
+
+    #[tokio::test]
+    async fn test_inmemory_is_empty_initially() {
+        let q = InMemoryTaskQueue::new();
+        assert!(q.is_empty().await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_inmemory_is_empty_after_pop_all() {
+        let q = InMemoryTaskQueue::new();
+        q.push(1).await.unwrap();
+        q.push(2).await.unwrap();
+        q.pop().await.unwrap();
+        q.pop().await.unwrap();
+        assert!(q.is_empty().await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_inmemory_is_not_empty_after_push() {
+        let q = InMemoryTaskQueue::new();
+        q.push(1).await.unwrap();
+        assert!(!q.is_empty().await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_inmemory_push_multiple_then_pop_all() {
+        let q = InMemoryTaskQueue::new();
+        for i in 1..=100 {
+            q.push(i).await.unwrap();
+        }
+        assert_eq!(q.len().await.unwrap(), 100);
+        for i in 1..=100 {
+            assert_eq!(q.pop().await.unwrap(), Some(i));
+        }
+        assert_eq!(q.pop().await.unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn test_inmemory_push_negative_id() {
+        let q = InMemoryTaskQueue::new();
+        q.push(-1).await.unwrap();
+        assert_eq!(q.len().await.unwrap(), 1);
+        assert_eq!(q.pop().await.unwrap(), Some(-1));
+    }
+
+    #[tokio::test]
+    async fn test_inmemory_push_zero_id() {
+        let q = InMemoryTaskQueue::new();
+        q.push(0).await.unwrap();
+        assert_eq!(q.len().await.unwrap(), 1);
+        assert_eq!(q.pop().await.unwrap(), Some(0));
+    }
+
+    #[tokio::test]
+    async fn test_inmemory_pop_reduces_length() {
+        let q = InMemoryTaskQueue::new();
+        q.push(1).await.unwrap();
+        q.push(2).await.unwrap();
+        assert_eq!(q.len().await.unwrap(), 2);
+        q.pop().await.unwrap();
+        assert_eq!(q.len().await.unwrap(), 1);
+        q.pop().await.unwrap();
+        assert_eq!(q.len().await.unwrap(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_inmemory_contains_after_pop() {
+        let q = InMemoryTaskQueue::new();
+        q.push(1).await.unwrap();
+        q.push(2).await.unwrap();
+        q.push(3).await.unwrap();
+        assert!(q.contains(1).await.unwrap());
+        q.pop().await.unwrap();
+        assert!(!q.contains(1).await.unwrap());
+        assert!(q.contains(2).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_inmemory_push_idempotent_many_duplicates() {
+        let q = InMemoryTaskQueue::new();
+        for _ in 0..10 {
+            q.push(42).await.unwrap();
+        }
+        assert_eq!(q.len().await.unwrap(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_inmemory_fifo_with_interleaved_ops() {
+        let q = InMemoryTaskQueue::new();
+        q.push(1).await.unwrap();
+        q.push(2).await.unwrap();
+        q.pop().await.unwrap();
+        q.push(3).await.unwrap();
+        q.pop().await.unwrap();
+        assert_eq!(q.pop().await.unwrap(), Some(3));
+        assert_eq!(q.pop().await.unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn test_inmemory_contains_empty_queue() {
+        let q = InMemoryTaskQueue::new();
+        assert!(!q.contains(1).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_inmemory_push_large_ids() {
+        let q = InMemoryTaskQueue::new();
+        q.push(i32::MAX).await.unwrap();
+        assert_eq!(q.pop().await.unwrap(), Some(i32::MAX));
+    }
+
+    #[tokio::test]
+    async fn test_build_queue_no_redis_full_check() {
+        let q = build_task_queue(None).await;
+        assert_eq!(q.backend_name(), "in-memory");
+        assert!(q.is_empty().await.unwrap());
+        assert_eq!(q.len().await.unwrap(), 0);
     }
 }

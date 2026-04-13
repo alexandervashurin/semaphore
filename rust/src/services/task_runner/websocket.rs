@@ -190,4 +190,146 @@ mod tests {
         // Без слушателей — не должно паниковать
         runner.notify_log(Utc::now(), "Test message");
     }
+
+    #[tokio::test]
+    async fn test_send_websocket_update_completes() {
+        let runner = create_test_task_runner();
+        runner.send_websocket_update().await;
+    }
+
+    #[tokio::test]
+    async fn test_send_task_started_completes() {
+        let runner = create_test_task_runner();
+        runner.send_task_started().await;
+    }
+
+    #[tokio::test]
+    async fn test_send_task_completed_completes() {
+        let runner = create_test_task_runner();
+        runner.send_task_completed().await;
+    }
+
+    #[tokio::test]
+    async fn test_send_task_failed_with_empty_error() {
+        let runner = create_test_task_runner();
+        runner.send_task_failed("").await;
+    }
+
+    #[tokio::test]
+    async fn test_send_task_failed_with_long_error() {
+        let runner = create_test_task_runner();
+        let long_err = "x".repeat(1000);
+        runner.send_task_failed(&long_err).await;
+    }
+
+    #[tokio::test]
+    async fn test_notify_status_change_with_all_statuses() {
+        let runner = create_test_task_runner();
+
+        for status in [TaskStatus::Waiting, TaskStatus::Running, TaskStatus::Success, TaskStatus::Error, TaskStatus::Stopped] {
+            runner.notify_status_change(status).await;
+        }
+    }
+
+    #[tokio::test]
+    async fn test_notify_log_with_unicode() {
+        let runner = create_test_task_runner();
+        runner.notify_log(Utc::now(), "Привет мир");
+    }
+
+    #[tokio::test]
+    async fn test_broadcast_update_custom_event() {
+        let runner = create_test_task_runner();
+        let data = serde_json::json!({"custom": "data"});
+        runner.broadcast_update("custom_event", data).await;
+    }
+
+    #[tokio::test]
+    async fn test_broadcast_update_empty_data() {
+        let runner = create_test_task_runner();
+        let data = serde_json::json!({});
+        runner.broadcast_update("empty", data).await;
+    }
+
+    #[tokio::test]
+    async fn test_notify_status_change_with_listener_receives_correct() {
+        let runner = create_test_task_runner();
+        let (tx, rx) = std::sync::mpsc::channel();
+        let runner_with_listener = TaskRunner {
+            status_listeners: vec![Box::new(move |status| {
+                let _ = tx.send(status);
+            })],
+            ..runner
+        };
+        runner_with_listener.notify_status_change(TaskStatus::Running).await;
+        let received = rx.recv_timeout(std::time::Duration::from_secs(2)).unwrap();
+        assert_eq!(received, TaskStatus::Running);
+    }
+
+    #[tokio::test]
+    async fn test_notify_log_with_listener_receives_correct() {
+        let runner = create_test_task_runner();
+        let (tx, rx) = std::sync::mpsc::channel();
+        let runner_with_listener = TaskRunner {
+            log_listeners: vec![Box::new(move |time, msg| {
+                let _ = tx.send((time, msg));
+            })],
+            ..runner
+        };
+        let now = Utc::now();
+        runner_with_listener.notify_log(now, "log data");
+        let (time, msg) = rx.recv_timeout(std::time::Duration::from_secs(2)).unwrap();
+        assert_eq!(msg, "log data");
+        assert!(time <= Utc::now());
+    }
+
+    #[tokio::test]
+    async fn test_notify_log_with_empty_message() {
+        let runner = create_test_task_runner();
+        runner.notify_log(Utc::now(), "");
+    }
+
+    #[tokio::test]
+    async fn test_send_task_completed_with_end_time_set() {
+        let runner = create_test_task_runner();
+        runner.send_task_completed().await;
+    }
+
+    #[tokio::test]
+    async fn test_send_websocket_update_multiple_times() {
+        let runner = create_test_task_runner();
+        for _ in 0..5 {
+            runner.send_websocket_update().await;
+        }
+    }
+
+    #[tokio::test]
+    async fn test_notify_status_change_no_listeners_all_variants() {
+        let runner = create_test_task_runner();
+        // Without listeners, all status changes should complete without panic
+        runner.notify_status_change(TaskStatus::Waiting).await;
+        runner.notify_status_change(TaskStatus::Running).await;
+        runner.notify_status_change(TaskStatus::Success).await;
+        runner.notify_status_change(TaskStatus::Error).await;
+        runner.notify_status_change(TaskStatus::Stopped).await;
+    }
+
+    #[tokio::test]
+    async fn test_notify_log_no_listeners_multiple_calls() {
+        let runner = create_test_task_runner();
+        for i in 0..5 {
+            runner.notify_log(Utc::now(), &format!("msg {}", i));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_broadcast_update_with_complex_data() {
+        let runner = create_test_task_runner();
+        let data = serde_json::json!({
+            "status": "running",
+            "progress": 50,
+            "steps": ["step1", "step2"],
+        });
+        runner.broadcast_update("progress", data).await;
+    }
 }

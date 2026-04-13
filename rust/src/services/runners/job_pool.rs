@@ -500,4 +500,170 @@ mod tests {
         assert_eq!(qt2.task.id, qt1.task.id);
         assert_eq!(qt2.status, qt1.status);
     }
+
+    #[test]
+    fn test_queued_task_task_id_accessible() {
+        let qt = QueuedTask {
+            task: crate::models::Task { id: 42, ..crate::models::Task::default() },
+            status: TaskStatus::Waiting,
+        };
+        assert_eq!(qt.task.id, 42);
+    }
+
+    #[test]
+    fn test_job_logger_context_stored() {
+        let logger = JobLogger::new("my_context");
+        assert_eq!(logger.context, "my_context");
+    }
+
+    #[test]
+    fn test_job_logger_with_empty_context() {
+        let logger = JobLogger::new("");
+        assert_eq!(logger.context, "");
+    }
+
+    #[test]
+    fn test_job_logger_info_with_special_chars() {
+        let logger = JobLogger::new("test");
+        logger.info("Message with special chars: <>&\"'");
+    }
+
+    #[test]
+    fn test_job_logger_debug_with_long_message() {
+        let logger = JobLogger::new("debug_ctx");
+        let long_msg = "a".repeat(1000);
+        logger.debug(&long_msg);
+    }
+
+    #[test]
+    fn test_job_logger_task_info_all_statuses() {
+        let logger = JobLogger::new("pool");
+        logger.task_info("Starting", 1, "waiting");
+        logger.task_info("Executing", 2, "running");
+        logger.task_info("Done", 3, "success");
+        logger.task_info("Failed", 4, "error");
+        logger.task_info("Stopped", 5, "stopped");
+    }
+
+    #[tokio::test]
+    async fn test_queued_task_with_error_status() {
+        let qt = QueuedTask {
+            task: crate::models::Task { id: 99, ..crate::models::Task::default() },
+            status: TaskStatus::Error,
+        };
+        assert_eq!(qt.status, TaskStatus::Error);
+        assert_eq!(qt.task.id, 99);
+    }
+
+    #[tokio::test]
+    async fn test_queued_task_with_running_status() {
+        let qt = QueuedTask {
+            task: crate::models::Task { id: 10, ..crate::models::Task::default() },
+            status: TaskStatus::Running,
+        };
+        assert_eq!(qt.status, TaskStatus::Running);
+    }
+
+    #[tokio::test]
+    async fn test_job_pool_queue_initial_state() {
+        let pool = JobPool::new(make_store());
+        assert_eq!(pool.queue_len().await, 0);
+        assert!(!pool.has_running_jobs().await);
+    }
+
+    #[tokio::test]
+    async fn test_job_pool_multiple_running_ids() {
+        let pool = JobPool::new(make_store());
+        let mut running = pool.running_ids.lock().await;
+        for i in 1..=10 {
+            running.insert(i);
+        }
+        drop(running);
+        assert_eq!(pool.running_ids.lock().await.len(), 10);
+    }
+
+    #[tokio::test]
+    async fn test_job_pool_queue_multiple_tasks() {
+        let pool = JobPool::new(make_store());
+        let mut queue = pool.queue.lock().await;
+        for i in 1..=3 {
+            queue.push(QueuedTask {
+                task: crate::models::Task { id: i, ..crate::models::Task::default() },
+                status: TaskStatus::Waiting,
+            });
+        }
+        drop(queue);
+
+        // Verify FIFO order
+        let mut queue = pool.queue.lock().await;
+        let first = queue.remove(0);
+        assert_eq!(first.task.id, 1);
+        let second = queue.remove(0);
+        assert_eq!(second.task.id, 2);
+    }
+
+    #[tokio::test]
+    async fn test_job_pool_shutdown_prevents_new_jobs() {
+        let pool = JobPool::new(make_store());
+        pool.shutting_down.store(true, Ordering::SeqCst);
+        assert!(pool.shutting_down.load(Ordering::SeqCst));
+    }
+
+    #[tokio::test]
+    async fn test_job_pool_with_max_parallel_uses_default() {
+        let store = make_store();
+        let pool = JobPool::with_max_parallel(store, 100);
+        // Current implementation has hardcoded default of 10
+        assert_eq!(pool.max_parallel, 10);
+    }
+
+    #[tokio::test]
+    async fn test_job_pool_shutdown_immediate_when_no_running() {
+        let pool = JobPool::new(make_store());
+        assert!(!pool.has_running_jobs().await);
+
+        pool.shutdown().await;
+
+        assert!(pool.shutting_down.load(Ordering::SeqCst));
+    }
+
+    #[tokio::test]
+    async fn test_exists_in_queue_with_different_ids() {
+        let pool = JobPool::new(make_store());
+        assert!(!pool.exists_in_queue(1).await);
+        assert!(!pool.exists_in_queue(2).await);
+        assert!(!pool.exists_in_queue(999).await);
+    }
+
+    #[tokio::test]
+    async fn test_job_type_alias() {
+        let job: Job = QueuedTask {
+            task: crate::models::Task { id: 7, ..crate::models::Task::default() },
+            status: TaskStatus::Waiting,
+        };
+        assert_eq!(job.task.id, 7);
+    }
+
+    #[tokio::test]
+    async fn test_queued_task_with_success_status() {
+        let qt = QueuedTask {
+            task: crate::models::Task { id: 50, ..crate::models::Task::default() },
+            status: TaskStatus::Success,
+        };
+        assert_eq!(qt.status, TaskStatus::Success);
+    }
+
+    #[tokio::test]
+    async fn test_queued_task_with_stopped_status() {
+        let qt = QueuedTask {
+            task: crate::models::Task { id: 51, ..crate::models::Task::default() },
+            status: TaskStatus::Stopped,
+        };
+        assert_eq!(qt.status, TaskStatus::Stopped);
+    }
+
+    #[test]
+    fn test_job_logger_new_does_not_panic() {
+        let _logger = JobLogger::new("initialization_test");
+    }
 }

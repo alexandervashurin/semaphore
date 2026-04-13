@@ -901,4 +901,274 @@ mod tests {
         // Initially 0 running
         assert_eq!(pool.get_running_count().await, 0);
     }
+
+    #[test]
+    fn test_task_status_variants_exist() {
+        let _waiting = TaskStatus::Waiting;
+        let _running = TaskStatus::Running;
+        let _success = TaskStatus::Success;
+        let _error = TaskStatus::Error;
+        let _stopped = TaskStatus::Stopped;
+    }
+
+    #[test]
+    fn test_task_status_display() {
+        assert_eq!(TaskStatus::Waiting.to_string(), "waiting");
+        assert_eq!(TaskStatus::Running.to_string(), "running");
+        assert_eq!(TaskStatus::Success.to_string(), "success");
+        assert_eq!(TaskStatus::Error.to_string(), "error");
+        assert_eq!(TaskStatus::Stopped.to_string(), "stopped");
+    }
+
+    #[test]
+    fn test_task_log_record_clone() {
+        let record = TaskLogRecord {
+            task_id: 42,
+            output: "output data".to_string(),
+            time: Utc::now(),
+        };
+        let cloned = record.clone();
+        assert_eq!(record.task_id, cloned.task_id);
+        assert_eq!(record.output, cloned.output);
+        assert_eq!(record.time, cloned.time);
+    }
+
+    #[test]
+    fn test_running_task_clone() {
+        let task = Task {
+            id: 5,
+            project_id: 1,
+            template_id: 1,
+            status: TaskStatus::Running,
+            ..Default::default()
+        };
+        let running = RunningTask {
+            task: task.clone(),
+            project_id: 1,
+            started_at: Utc::now(),
+            runner_id: Some(10),
+        };
+        let cloned = running.clone();
+        assert_eq!(cloned.task.id, running.task.id);
+        assert_eq!(cloned.project_id, running.project_id);
+        assert_eq!(cloned.runner_id, running.runner_id);
+    }
+
+    #[test]
+    fn test_task_default_values() {
+        let task = Task::default();
+        assert_eq!(task.id, 0);
+        assert_eq!(task.template_id, 0);
+        assert_eq!(task.project_id, 0);
+        assert_eq!(task.status, TaskStatus::Waiting);
+        assert!(task.playbook.is_none());
+        assert!(task.environment.is_none());
+        assert!(task.secret.is_none());
+        assert!(task.arguments.is_none());
+        assert!(task.git_branch.is_none());
+        assert!(task.user_id.is_none());
+        assert!(task.integration_id.is_none());
+        assert!(task.schedule_id.is_none());
+        assert!(task.start.is_none());
+        assert!(task.end.is_none());
+        assert!(task.message.is_none());
+        assert!(task.commit_hash.is_none());
+        assert!(task.commit_message.is_none());
+        assert!(task.build_task_id.is_none());
+        assert!(task.version.is_none());
+        assert!(task.inventory_id.is_none());
+        assert!(task.repository_id.is_none());
+        assert!(task.environment_id.is_none());
+        assert!(task.params.is_none());
+    }
+
+    #[test]
+    fn test_task_pool_event_debug_output() {
+        let task = Task { id: 7, project_id: 1, template_id: 1, status: TaskStatus::Waiting, ..Default::default() };
+        let created = TaskPoolEvent::TaskCreated(task.clone());
+        let finished = TaskPoolEvent::TaskFinished { task_id: 7, success: true };
+        let failed = TaskPoolEvent::TaskFailed { task_id: 7, error: "boom".to_string() };
+        let requeued = TaskPoolEvent::TaskRequeued(task);
+        let empty = TaskPoolEvent::QueueEmpty;
+
+        assert!(format!("{:?}", created).contains("TaskCreated"));
+        assert!(format!("{:?}", finished).contains("TaskFinished"));
+        assert!(format!("{:?}", failed).contains("TaskFailed"));
+        assert!(format!("{:?}", requeued).contains("TaskRequeued"));
+        assert!(format!("{:?}", empty).contains("QueueEmpty"));
+    }
+
+    #[tokio::test]
+    async fn test_task_pool_state_queue_entry_or_insert() {
+        let mut state = TaskPoolState::new();
+        state.queue.entry(1).or_insert_with(Vec::new);
+        assert!(state.queue.contains_key(&1));
+        assert!(state.queue[&1].is_empty());
+
+        state.queue.entry(1).or_insert_with(Vec::new).push(Task { id: 1, project_id: 1, template_id: 1, status: TaskStatus::Waiting, ..Default::default() });
+        assert_eq!(state.queue[&1].len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_task_pool_state_running_entry_or_insert() {
+        let mut state = TaskPoolState::new();
+        state.running.entry(1).or_insert_with(Vec::new);
+        assert!(state.running.contains_key(&1));
+        assert!(state.running[&1].is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_task_pool_state_block_permits() {
+        let mut state = TaskPoolState::new();
+        let sem = Arc::new(Semaphore::new(5));
+        state.blocks.insert(1, sem.clone());
+        assert_eq!(sem.available_permits(), 5);
+
+        state.blocks.remove(&1);
+        assert!(!state.blocks.contains_key(&1));
+    }
+
+    #[tokio::test]
+    async fn test_task_pool_state_block_zero_permits() {
+        let mut state = TaskPoolState::new();
+        state.blocks.insert(1, Arc::new(Semaphore::new(0)));
+        let sem = state.blocks.get(&1).unwrap();
+        assert_eq!(sem.available_permits(), 0);
+    }
+
+    #[test]
+    fn test_running_task_started_at_is_now() {
+        let before = Utc::now();
+        let running = RunningTask {
+            task: Task { id: 1, project_id: 1, template_id: 1, status: TaskStatus::Running, ..Default::default() },
+            project_id: 1,
+            started_at: Utc::now(),
+            runner_id: None,
+        };
+        let after = Utc::now();
+        assert!(running.started_at >= before && running.started_at <= after);
+    }
+
+    #[test]
+    fn test_task_log_record_debug_format() {
+        let record = TaskLogRecord {
+            task_id: 99,
+            output: "log line".to_string(),
+            time: Utc::now(),
+        };
+        let debug_str = format!("{:?}", record);
+        assert!(debug_str.contains("99"));
+        assert!(debug_str.contains("log line"));
+    }
+
+    #[tokio::test]
+    async fn test_task_pool_get_project_tasks_empty() {
+        use crate::db::mock::MockStore;
+        let store = Arc::new(MockStore::new());
+        let pool = TaskPool::new(store, 5);
+        let tasks = pool.get_project_tasks(999).await;
+        assert!(tasks.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_task_pool_add_task_increases_queue_size() {
+        use crate::db::mock::MockStore;
+        let store = Arc::new(MockStore::new());
+        let pool = TaskPool::new(store, 5);
+
+        assert_eq!(pool.get_queue_size().await, 0);
+        let task = Task { id: 1, project_id: 1, template_id: 1, status: TaskStatus::Waiting, ..Default::default() };
+        pool.add_task(task).await.unwrap();
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        assert!(pool.get_queue_size().await >= 1);
+    }
+
+    #[test]
+    fn test_task_pool_event_task_failed_with_error_string() {
+        let event = TaskPoolEvent::TaskFailed { task_id: 55, error: "connection timeout".to_string() };
+        match event {
+            TaskPoolEvent::TaskFailed { task_id, error } => {
+                assert_eq!(task_id, 55);
+                assert_eq!(error, "connection timeout");
+            }
+            _ => panic!("Expected TaskFailed"),
+        }
+    }
+
+    #[test]
+    fn test_task_pool_event_task_finished_with_success_false() {
+        let event = TaskPoolEvent::TaskFinished { task_id: 10, success: false };
+        match event {
+            TaskPoolEvent::TaskFinished { task_id, success } => {
+                assert_eq!(task_id, 10);
+                assert!(!success);
+            }
+            _ => panic!("Expected TaskFinished"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_task_pool_remove_block_nonexistent() {
+        use crate::db::mock::MockStore;
+        let store = Arc::new(MockStore::new());
+        let pool = TaskPool::new(store, 5);
+        // Removing a block that doesn't exist should not panic
+        pool.remove_block(999).await;
+    }
+
+    #[tokio::test]
+    async fn test_task_pool_set_block_zero_permits() {
+        use crate::db::mock::MockStore;
+        let store = Arc::new(MockStore::new());
+        let pool = TaskPool::new(store, 5);
+        pool.set_block(42, 0).await;
+        let state = pool.state.read().await;
+        assert!(state.blocks.contains_key(&42));
+    }
+
+    #[tokio::test]
+    async fn test_task_pool_set_block_overwrite() {
+        use crate::db::mock::MockStore;
+        let store = Arc::new(MockStore::new());
+        let pool = TaskPool::new(store, 5);
+        pool.set_block(42, 2).await;
+        pool.set_block(42, 10).await;
+        let state = pool.state.read().await;
+        let sem = state.blocks.get(&42).unwrap();
+        assert_eq!(sem.available_permits(), 10);
+    }
+
+    #[test]
+    fn test_running_task_with_all_fields() {
+        let task = Task {
+            id: 100,
+            template_id: 5,
+            project_id: 3,
+            status: TaskStatus::Running,
+            message: Some("test message".to_string()),
+            ..Default::default()
+        };
+        let running = RunningTask {
+            task,
+            project_id: 3,
+            started_at: Utc::now(),
+            runner_id: Some(7),
+        };
+        assert_eq!(running.task.id, 100);
+        assert_eq!(running.task.message, Some("test message".to_string()));
+        assert_eq!(running.runner_id, Some(7));
+    }
+
+    #[test]
+    fn test_task_struct_has_created_field() {
+        let task = Task {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            status: TaskStatus::Waiting,
+            created: Utc::now(),
+            ..Default::default()
+        };
+        assert!(task.created <= Utc::now());
+    }
 }

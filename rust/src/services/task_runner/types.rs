@@ -305,4 +305,193 @@ mod tests {
         // runner1 тоже видит изменение
         assert!(runner1.is_killed().await);
     }
+
+    #[tokio::test]
+    async fn test_task_runner_username_stored_correctly() {
+        let task = create_test_task();
+        let pool = create_test_task_pool();
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let runner = TaskRunner::new(task, pool, "myuser".to_string(), key_installer);
+        assert_eq!(runner.username, "myuser");
+    }
+
+    #[tokio::test]
+    async fn test_task_runner_pool_reference() {
+        let task = create_test_task();
+        let pool = create_test_task_pool();
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let runner = TaskRunner::new(task, pool.clone(), "user".to_string(), key_installer);
+        // Pool is stored as Arc
+        assert!(Arc::strong_count(&pool) >= 2);
+    }
+
+    #[tokio::test]
+    async fn test_task_runner_default_values_comprehensive() {
+        let task = create_test_task();
+        let pool = create_test_task_pool();
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let runner = TaskRunner::new(task, pool, "user".to_string(), key_installer);
+
+        assert!(runner.current_stage.is_none());
+        assert!(runner.current_output.is_none());
+        assert!(runner.current_state.is_none());
+        assert!(runner.users.is_empty());
+        assert!(!runner.alert);
+        assert!(runner.alert_chat.is_none());
+        assert!(runner.job.is_none());
+        assert_eq!(runner.runner_id, 0);
+        assert!(runner.incoming_version.is_none());
+        assert!(runner.alias.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_task_runner_status_listeners_initially_empty() {
+        let task = create_test_task();
+        let pool = create_test_task_pool();
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let runner = TaskRunner::new(task, pool, "user".to_string(), key_installer);
+        assert!(runner.status_listeners.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_task_runner_log_listeners_initially_empty() {
+        let task = create_test_task();
+        let pool = create_test_task_pool();
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let runner = TaskRunner::new(task, pool, "user".to_string(), key_installer);
+        assert!(runner.log_listeners.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_task_runner_is_killed_false_initially() {
+        let task = create_test_task();
+        let pool = create_test_task_pool();
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let runner = TaskRunner::new(task, pool, "user".to_string(), key_installer);
+        assert!(!runner.is_killed().await);
+    }
+
+    #[tokio::test]
+    async fn test_task_runner_killed_flag_can_be_set() {
+        let task = create_test_task();
+        let pool = create_test_task_pool();
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let runner = TaskRunner::new(task, pool, "user".to_string(), key_installer);
+        *runner.killed.lock().await = true;
+        assert!(runner.is_killed().await);
+    }
+
+    #[tokio::test]
+    async fn test_task_runner_killed_flag_can_be_unset() {
+        let task = create_test_task();
+        let pool = create_test_task_pool();
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let runner = TaskRunner::new(task, pool, "user".to_string(), key_installer);
+        *runner.killed.lock().await = true;
+        assert!(runner.is_killed().await);
+
+        *runner.killed.lock().await = false;
+        assert!(!runner.is_killed().await);
+    }
+
+    #[tokio::test]
+    async fn test_task_runner_add_status_listener_increases_count() {
+        let task = create_test_task();
+        let pool = create_test_task_pool();
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let mut runner = TaskRunner::new(task, pool, "user".to_string(), key_installer);
+        assert_eq!(runner.status_listeners.len(), 0);
+
+        runner.add_status_listener(Box::new(|_| {}));
+        assert_eq!(runner.status_listeners.len(), 1);
+
+        runner.add_status_listener(Box::new(|_| {}));
+        assert_eq!(runner.status_listeners.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_task_runner_add_log_listener_increases_count() {
+        let task = create_test_task();
+        let pool = create_test_task_pool();
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let mut runner = TaskRunner::new(task, pool, "user".to_string(), key_installer);
+        assert_eq!(runner.log_listeners.len(), 0);
+
+        runner.add_log_listener(Box::new(|_, _| {}));
+        assert_eq!(runner.log_listeners.len(), 1);
+
+        runner.add_log_listener(Box::new(|_, _| {}));
+        assert_eq!(runner.log_listeners.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_task_runner_with_alias() {
+        let task = create_test_task();
+        let pool = create_test_task_pool();
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let runner = TaskRunner::new(task, pool, "user".to_string(), key_installer);
+        assert!(runner.alias.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_task_runner_with_incoming_version() {
+        let task = create_test_task();
+        let pool = create_test_task_pool();
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let runner = TaskRunner::new(task, pool, "user".to_string(), key_installer);
+        assert!(runner.incoming_version.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_task_runner_task_field_accessible() {
+        let task = create_test_task();
+        let pool = create_test_task_pool();
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let runner = TaskRunner::new(task.clone(), pool, "user".to_string(), key_installer);
+        assert_eq!(runner.task.id, task.id);
+        assert_eq!(runner.task.project_id, task.project_id);
+        assert_eq!(runner.task.template_id, task.template_id);
+    }
+
+    #[tokio::test]
+    async fn test_task_runner_key_installer_stored() {
+        let task = create_test_task();
+        let pool = create_test_task_pool();
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let runner = TaskRunner::new(task, pool, "user".to_string(), key_installer);
+        // key_installer is stored - just verify runner was created
+        assert_eq!(runner.task.id, 1);
+    }
+
+    #[tokio::test]
+    async fn test_task_runner_concurrent_is_killed_reads() {
+        let task = create_test_task();
+        let pool = create_test_task_pool();
+        let key_installer = AccessKeyInstallerImpl::new();
+
+        let runner = TaskRunner::new(task, pool, "user".to_string(), key_installer);
+
+        let (r1, r2, r3) = tokio::join!(
+            runner.is_killed(),
+            runner.is_killed(),
+            runner.is_killed(),
+        );
+        assert!(!r1);
+        assert!(!r2);
+        assert!(!r3);
+    }
 }

@@ -180,4 +180,164 @@ mod tests {
             .await;
         assert_eq!(runner.get_status(), TaskStatus::Waiting);
     }
+
+    #[tokio::test]
+    async fn test_is_error_fatal_case_insensitive() {
+        let runner = create_test_task_runner();
+        assert!(runner.is_error_fatal(&crate::error::Error::Other("PERMISSION DENIED".into())));
+        assert!(runner.is_error_fatal(&crate::error::Error::Other("Permission Denied".into())));
+        assert!(runner.is_error_fatal(&crate::error::Error::Other("PeRmIsSiOn DeNiEd".into())));
+    }
+
+    #[tokio::test]
+    async fn test_is_error_fatal_with_embedded_phrase() {
+        let runner = create_test_task_runner();
+        // "permission denied" embedded in a longer string
+        let err = crate::error::Error::Other("Operation failed: permission denied for user".into());
+        assert!(runner.is_error_fatal(&err));
+    }
+
+    #[tokio::test]
+    async fn test_is_error_fatal_non_fatal_variants() {
+        let runner = create_test_task_runner();
+        for phrase in [
+            "temporary network issue",
+            "file not found but recoverable",
+            "timeout - will retry",
+            "",
+        ] {
+            let err = crate::error::Error::Other(phrase.to_string());
+            assert!(!runner.is_error_fatal(&err), "{phrase}");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_wrap_error_preserves_original_message() {
+        let runner = create_test_task_runner();
+        let err = crate::error::Error::Other("original".into());
+        let wrapped = runner.wrap_error(err, "prefix");
+        let msg = wrapped.to_string();
+        assert!(msg.contains("prefix"));
+        assert!(msg.contains("original"));
+    }
+
+    #[tokio::test]
+    async fn test_wrap_error_empty_message() {
+        let runner = create_test_task_runner();
+        let err = crate::error::Error::Other("".into());
+        let wrapped = runner.wrap_error(err, "context");
+        let msg = wrapped.to_string();
+        assert!(msg.contains("context"));
+    }
+
+    #[tokio::test]
+    async fn test_prepare_error_with_ok_returns_ok() {
+        let runner = create_test_task_runner();
+        let result = runner.prepare_error(Ok(()), "no error");
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_prepare_error_with_err_returns_err() {
+        let runner = create_test_task_runner();
+        let inner = crate::error::Error::Other("inner".into());
+        let result = runner.prepare_error(Err(inner), "wrapper");
+        assert!(result.is_err());
+        let msg = result.unwrap_err().to_string();
+        assert!(msg.contains("wrapper"));
+        assert!(msg.contains("inner"));
+    }
+
+    #[tokio::test]
+    async fn test_log_error_does_not_panic_with_empty_context() {
+        let runner = create_test_task_runner();
+        runner.log_error(
+            &crate::error::Error::Other("err".into()),
+            "",
+        );
+    }
+
+    #[tokio::test]
+    async fn test_log_error_with_long_context() {
+        let runner = create_test_task_runner();
+        let long_context = "x".repeat(1000);
+        runner.log_error(
+            &crate::error::Error::Other("err".into()),
+            &long_context,
+        );
+    }
+
+    #[tokio::test]
+    async fn test_handle_error_with_connection_refused() {
+        let mut runner = create_test_task_runner();
+        runner
+            .handle_error(crate::error::Error::Other("connection refused".into()))
+            .await;
+        assert_eq!(runner.get_status(), TaskStatus::Error);
+    }
+
+    #[tokio::test]
+    async fn test_handle_error_with_no_such_file() {
+        let mut runner = create_test_task_runner();
+        runner
+            .handle_error(crate::error::Error::Other("no such file or directory".into()))
+            .await;
+        assert_eq!(runner.get_status(), TaskStatus::Error);
+    }
+
+    #[tokio::test]
+    async fn test_handle_error_with_command_not_found() {
+        let mut runner = create_test_task_runner();
+        runner
+            .handle_error(crate::error::Error::Other("command not found: ansible".into()))
+            .await;
+        assert_eq!(runner.get_status(), TaskStatus::Error);
+    }
+
+    #[tokio::test]
+    async fn test_handle_error_with_authentication_failed() {
+        let mut runner = create_test_task_runner();
+        runner
+            .handle_error(crate::error::Error::Other("authentication failed for key".into()))
+            .await;
+        assert_eq!(runner.get_status(), TaskStatus::Error);
+    }
+
+    #[tokio::test]
+    async fn test_is_error_fatal_all_phrases_listed() {
+        let runner = create_test_task_runner();
+        let fatal_phrases = [
+            "permission denied",
+            "authentication failed",
+            "connection refused",
+            "no such file",
+            "command not found",
+        ];
+        for phrase in &fatal_phrases {
+            let err = crate::error::Error::Other(phrase.to_string());
+            assert!(runner.is_error_fatal(&err), "Should be fatal: {phrase}");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_handle_error_non_fatal_does_not_change_status_from_waiting() {
+        let mut runner = create_test_task_runner();
+        assert_eq!(runner.get_status(), TaskStatus::Waiting);
+        runner
+            .handle_error(crate::error::Error::Other("minor".into()))
+            .await;
+        assert_eq!(runner.get_status(), TaskStatus::Waiting);
+    }
+
+    #[tokio::test]
+    async fn test_handle_error_fatal_changes_status_to_error() {
+        let mut runner = create_test_task_runner();
+        runner.set_status(TaskStatus::Running).await;
+        assert_eq!(runner.get_status(), TaskStatus::Running);
+
+        runner
+            .handle_error(crate::error::Error::Other("permission denied".into()))
+            .await;
+        assert_eq!(runner.get_status(), TaskStatus::Error);
+    }
 }

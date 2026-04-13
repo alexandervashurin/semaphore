@@ -229,4 +229,165 @@ mod tests {
         assert_eq!(payload.task_id, 10);
         assert_eq!(payload.label, Some("stable".to_string()));
     }
+
+    #[test]
+    fn test_snapshot_query_deserialize_with_params() {
+        let json = r#"{"template_id": 5, "limit": 100}"#;
+        let query: SnapshotQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(query.template_id, Some(5));
+        assert_eq!(query.limit, Some(100));
+    }
+
+    #[test]
+    fn test_snapshot_query_deserialize_empty() {
+        let json = r#"{}"#;
+        let query: SnapshotQuery = serde_json::from_str(json).unwrap();
+        assert!(query.template_id.is_none());
+        assert!(query.limit.is_none());
+    }
+
+    #[test]
+    fn test_snapshot_query_deserialize_null_fields() {
+        let json = r#"{"template_id": null, "limit": null}"#;
+        let query: SnapshotQuery = serde_json::from_str(json).unwrap();
+        assert!(query.template_id.is_none());
+        assert!(query.limit.is_none());
+    }
+
+    #[test]
+    fn test_snapshot_query_debug() {
+        // SnapshotQuery doesn't derive Debug
+        let query = SnapshotQuery {
+            template_id: Some(10),
+            limit: Some(50),
+        };
+        assert_eq!(query.template_id, Some(10));
+        assert_eq!(query.limit, Some(50));
+    }
+
+    #[test]
+    fn test_snapshot_query_clone() {
+        // SnapshotQuery doesn't derive Clone
+        let json = r#"{"template_id": 5, "limit": 100}"#;
+        let q1: SnapshotQuery = serde_json::from_str(json).unwrap();
+        let q2: SnapshotQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(q1.template_id, q2.template_id);
+        assert_eq!(q1.limit, q2.limit);
+    }
+
+    #[test]
+    fn test_snapshot_query_zero_limit() {
+        let query = SnapshotQuery {
+            template_id: None,
+            limit: Some(0),
+        };
+        assert_eq!(query.limit, Some(0));
+    }
+
+    #[test]
+    fn test_rollback_request_serialize_roundtrip() {
+        let original = RollbackRequest {
+            message: Some("Manual rollback".to_string()),
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: RollbackRequest = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.message, original.message);
+    }
+
+    #[test]
+    fn test_rollback_request_debug() {
+        let req = RollbackRequest {
+            message: Some("Debug".to_string()),
+        };
+        let debug_str = format!("{:?}", req);
+        assert!(debug_str.contains("RollbackRequest"));
+    }
+
+    #[test]
+    fn test_rollback_request_clone() {
+        let original = RollbackRequest {
+            message: Some("Original".to_string()),
+        };
+        let cloned = original.clone();
+        assert_eq!(cloned.message, original.message);
+    }
+
+    #[test]
+    fn test_rollback_request_unicode() {
+        let json = r#"{"message": "Откат к предыдущей версии"}"#;
+        let req: RollbackRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.message, Some("Откат к предыдущей версии".to_string()));
+    }
+
+    #[test]
+    fn test_task_snapshot_create_roundtrip() {
+        let original = TaskSnapshotCreate {
+            template_id: 1,
+            task_id: 100,
+            git_branch: Some("develop".to_string()),
+            git_commit: Some("def456".to_string()),
+            arguments: Some("--check".to_string()),
+            inventory_id: Some(2),
+            environment_id: Some(3),
+            message: Some("Auto snapshot".to_string()),
+            label: Some("v2.0".to_string()),
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: TaskSnapshotCreate = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.template_id, original.template_id);
+        assert_eq!(restored.git_commit, original.git_commit);
+        assert_eq!(restored.label, original.label);
+    }
+
+    #[test]
+    fn test_task_snapshot_create_debug() {
+        let payload = TaskSnapshotCreate {
+            template_id: 1,
+            task_id: 1,
+            git_branch: None,
+            git_commit: None,
+            arguments: None,
+            inventory_id: None,
+            environment_id: None,
+            message: None,
+            label: None,
+        };
+        let debug_str = format!("{:?}", payload);
+        assert!(debug_str.contains("TaskSnapshotCreate"));
+    }
+
+    #[test]
+    fn test_snapshot_query_clone_independence() {
+        // SnapshotQuery doesn't derive Clone
+        let json = r#"{"template_id": 5, "limit": 100}"#;
+        let query: SnapshotQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(query.template_id, Some(5));
+    }
+
+    #[test]
+    fn test_task_snapshot_create_unicode() {
+        let payload = TaskSnapshotCreate {
+            template_id: 1,
+            task_id: 1,
+            git_branch: Some("основная".to_string()),
+            git_commit: None,
+            arguments: None,
+            inventory_id: None,
+            environment_id: None,
+            message: Some("Успешное развёртывание".to_string()),
+            label: Some("стабильная".to_string()),
+        };
+        assert_eq!(payload.git_branch, Some("основная".to_string()));
+        assert_eq!(payload.message, Some("Успешное развёртывание".to_string()));
+    }
+
+    #[test]
+    fn test_rollback_request_clone_independence() {
+        let mut original = RollbackRequest {
+            message: Some("Original message".to_string()),
+        };
+        let cloned = original.clone();
+        original.message = Some("Modified message".to_string());
+        assert_eq!(cloned.message, Some("Original message".to_string()));
+    }
 }

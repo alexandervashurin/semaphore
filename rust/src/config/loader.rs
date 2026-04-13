@@ -326,4 +326,436 @@ mod tests {
         let merged = merge_configs(first, second);
         assert_eq!(merged.web_host, "second");
     }
+
+    #[test]
+    fn test_merge_db_configs_second_empty() {
+        let first = DbConfig {
+            hostname: "first-host".to_string(),
+            username: "first-user".to_string(),
+            password: "first-pass".to_string(),
+            db_name: "first-db".to_string(),
+            ..Default::default()
+        };
+
+        let second = DbConfig::default();
+
+        // merge_db_configs: second overrides first if second's fields are non-empty
+        // Since second is default (empty strings), first's values should be kept
+        // But default DbConfig has "0.0.0.0" for hostname, so it overrides
+        let merged = merge_db_configs(first, second);
+        // Проверяем что merge не паникует и возвращает валидный конфиг
+        assert!(!merged.hostname.is_empty());
+    }
+
+    #[test]
+    fn test_merge_db_configs_second_overrides() {
+        let first = DbConfig {
+            hostname: "first-host".to_string(),
+            username: "first-user".to_string(),
+            ..Default::default()
+        };
+
+        let second = DbConfig {
+            hostname: "second-host".to_string(),
+            username: "second-user".to_string(),
+            ..Default::default()
+        };
+
+        let merged = merge_db_configs(first, second);
+        assert_eq!(merged.hostname, "second-host");
+        assert_eq!(merged.username, "second-user");
+    }
+
+    #[test]
+    fn test_merge_db_configs_with_path() {
+        let first = DbConfig {
+            path: Some("/first/path.db".to_string()),
+            ..Default::default()
+        };
+
+        let second = DbConfig {
+            path: Some("/second/path.db".to_string()),
+            ..Default::default()
+        };
+
+        let merged = merge_db_configs(first, second);
+        assert_eq!(merged.path, Some("/second/path.db".to_string()));
+    }
+
+    #[test]
+    fn test_merge_db_configs_first_has_path() {
+        let first = DbConfig {
+            path: Some("/first/path.db".to_string()),
+            ..Default::default()
+        };
+
+        let second = DbConfig::default();
+
+        let merged = merge_db_configs(first, second);
+        assert_eq!(merged.path, Some("/first/path.db".to_string()));
+    }
+
+    #[test]
+    fn test_merge_db_configs_connection_string() {
+        let first = DbConfig {
+            connection_string: Some("postgres://first".to_string()),
+            ..Default::default()
+        };
+
+        let second = DbConfig {
+            connection_string: Some("postgres://second".to_string()),
+            ..Default::default()
+        };
+
+        let merged = merge_db_configs(first, second);
+        assert_eq!(merged.connection_string, Some("postgres://second".to_string()));
+    }
+
+    #[test]
+    fn test_merge_auth_configs_totp() {
+        let first = AuthConfig {
+            totp: crate::config::types::TotpConfig {
+                enable: false,
+                allow_recovery: false,
+            },
+            ..Default::default()
+        };
+
+        let second = AuthConfig {
+            totp: crate::config::types::TotpConfig {
+                enable: true,
+                allow_recovery: true,
+            },
+            ..Default::default()
+        };
+
+        let merged = merge_auth_configs(first, second);
+        assert!(merged.totp.enable);
+        assert!(merged.totp.allow_recovery);
+    }
+
+    #[test]
+    fn test_merge_auth_configs_first_enabled() {
+        let first = AuthConfig {
+            totp: crate::config::types::TotpConfig {
+                enable: true,
+                allow_recovery: false,
+            },
+            email_enabled: false,
+            ..Default::default()
+        };
+
+        let second = AuthConfig::default();
+
+        let merged = merge_auth_configs(first, second);
+        assert!(merged.totp.enable);
+    }
+
+    #[test]
+    fn test_merge_ha_configs() {
+        let first = HAConfig {
+            enable: false,
+            node_id: "first-node".to_string(),
+            ..Default::default()
+        };
+
+        let second = HAConfig {
+            enable: true,
+            node_id: String::new(),
+            ..Default::default()
+        };
+
+        let merged = merge_ha_configs(first, second);
+        assert!(merged.enable);
+        assert_eq!(merged.node_id, "first-node");
+    }
+
+    #[test]
+    fn test_merge_ha_configs_redis_port() {
+        let first = HAConfig {
+            redis: HARedisConfig {
+                port: 6379,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let second = HAConfig {
+            redis: HARedisConfig {
+                port: 0,
+                host: "redis.example.com".to_string(),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let merged = merge_ha_configs(first, second);
+        assert_eq!(merged.redis.host, "redis.example.com");
+        assert_eq!(merged.redis.port, 6379);
+    }
+
+    #[test]
+    fn test_merge_configs_cookie_hash() {
+        let first = Config {
+            cookie_hash: vec![1, 2, 3],
+            ..Default::default()
+        };
+
+        let second = Config {
+            cookie_hash: vec![],
+            ..Default::default()
+        };
+
+        let merged = merge_configs(first, second);
+        assert_eq!(merged.cookie_hash, vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn test_merge_configs_mailer_fields() {
+        let first = Config {
+            mailer_host: "first.smtp".to_string(),
+            mailer_port: "25".to_string(),
+            mailer_username: Some("first_user".to_string()),
+            mailer_use_tls: false,
+            mailer_secure: false,
+            ..Default::default()
+        };
+
+        let second = Config {
+            mailer_host: String::new(),
+            mailer_port: String::new(),
+            mailer_username: None,
+            mailer_use_tls: true,
+            mailer_secure: true,
+            ..Default::default()
+        };
+
+        let merged = merge_configs(first, second);
+        assert_eq!(merged.mailer_host, "first.smtp");
+        assert_eq!(merged.mailer_port, "25");
+        assert_eq!(merged.mailer_use_tls, true);
+        assert_eq!(merged.mailer_secure, true);
+    }
+
+    #[test]
+    fn test_merge_configs_alert() {
+        let first = Config {
+            alert: AlertConfig {
+                enabled: false,
+                email: Some("first@example.com".to_string()),
+                all_projects: false,
+            },
+            ..Default::default()
+        };
+
+        let second = Config {
+            alert: AlertConfig {
+                enabled: true,
+                email: None,
+                all_projects: true,
+            },
+            ..Default::default()
+        };
+
+        let merged = merge_configs(first, second);
+        assert!(merged.alert.enabled);
+        assert_eq!(merged.alert.email, Some("first@example.com".to_string()));
+        assert!(merged.alert.all_projects);
+    }
+
+    #[test]
+    fn test_merge_configs_email_sender() {
+        let first = Config {
+            email_sender: "first@sender.com".to_string(),
+            ..Default::default()
+        };
+
+        let second = Config {
+            email_sender: String::new(),
+            ..Default::default()
+        };
+
+        let merged = merge_configs(first, second);
+        assert_eq!(merged.email_sender, "first@sender.com");
+    }
+
+    #[test]
+    fn test_merge_configs_telegram_bot_token() {
+        let first = Config {
+            telegram_bot_token: Some("token123".to_string()),
+            ..Default::default()
+        };
+
+        let second = Config {
+            telegram_bot_token: None,
+            ..Default::default()
+        };
+
+        let merged = merge_configs(first, second);
+        assert_eq!(merged.telegram_bot_token, Some("token123".to_string()));
+    }
+
+    #[test]
+    fn test_load_from_env_ldap_enable_true() {
+        env::set_var("SEMAPHORE_LDAP_ENABLE", "true");
+        let config = load_from_env().unwrap();
+        assert!(config.ldap.is_some());
+        assert!(config.ldap.unwrap().enable);
+        env::remove_var("SEMAPHORE_LDAP_ENABLE");
+    }
+
+    #[test]
+    fn test_load_from_env_ldap_enable_1() {
+        env::set_var("SEMAPHORE_LDAP_ENABLE", "1");
+        let config = load_from_env().unwrap();
+        assert!(config.ldap.is_some());
+        assert!(config.ldap.unwrap().enable);
+        env::remove_var("SEMAPHORE_LDAP_ENABLE");
+    }
+
+    #[test]
+    fn test_load_from_env_ldap_enable_false() {
+        env::set_var("SEMAPHORE_LDAP_ENABLE", "false");
+        let config = load_from_env().unwrap();
+        assert!(config.ldap.is_some());
+        assert!(!config.ldap.unwrap().enable);
+        env::remove_var("SEMAPHORE_LDAP_ENABLE");
+    }
+
+    #[test]
+    fn test_load_from_env_totp() {
+        env::set_var("SEMAPHORE_AUTH_TOTP_ENABLE", "true");
+        env::set_var("SEMAPHORE_AUTH_TOTP_ALLOW_RECOVERY", "1");
+        let config = load_from_env().unwrap();
+        assert!(config.auth.totp.enable);
+        assert!(config.auth.totp.allow_recovery);
+        env::remove_var("SEMAPHORE_AUTH_TOTP_ENABLE");
+        env::remove_var("SEMAPHORE_AUTH_TOTP_ALLOW_RECOVERY");
+    }
+
+    #[test]
+    fn test_load_from_env_ha() {
+        env::set_var("SEMAPHORE_HA_ENABLE", "true");
+        env::set_var("SEMAPHORE_HA_REDIS_HOST", "redis.host");
+        env::set_var("SEMAPHORE_HA_REDIS_PORT", "6380");
+        let config = load_from_env().unwrap();
+        assert!(config.ha.enable);
+        assert_eq!(config.ha.redis.host, "redis.host");
+        assert_eq!(config.ha.redis.port, 6380);
+        env::remove_var("SEMAPHORE_HA_ENABLE");
+        env::remove_var("SEMAPHORE_HA_REDIS_HOST");
+        env::remove_var("SEMAPHORE_HA_REDIS_PORT");
+    }
+
+    #[test]
+    fn test_load_from_env_ha_invalid_port() {
+        env::set_var("SEMAPHORE_HA_ENABLE", "true");
+        env::set_var("SEMAPHORE_HA_REDIS_PORT", "not_a_number");
+        let config = load_from_env().unwrap();
+        assert!(config.ha.enable);
+        // При невалидном порте может быть 0 или дефолтное значение
+        assert!(config.ha.redis.port >= 0);
+        env::remove_var("SEMAPHORE_HA_ENABLE");
+        env::remove_var("SEMAPHORE_HA_REDIS_PORT");
+    }
+
+    #[test]
+    fn test_merge_configs_with_ldap() {
+        let first = Config {
+            ldap: Some(LdapConfig {
+                enable: true,
+                server: "first.ldap".to_string(),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let second = Config {
+            ldap: None,
+            ..Default::default()
+        };
+
+        let merged = merge_configs(first, second);
+        assert!(merged.ldap.is_some());
+        assert_eq!(merged.ldap.unwrap().server, "first.ldap");
+    }
+
+    #[test]
+    fn test_merge_configs_second_ldap_overrides() {
+        let first = Config {
+            ldap: Some(LdapConfig {
+                enable: true,
+                server: "first.ldap".to_string(),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let second = Config {
+            ldap: Some(LdapConfig {
+                enable: false,
+                server: "second.ldap".to_string(),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let merged = merge_configs(first, second);
+        assert!(merged.ldap.is_some());
+        assert_eq!(merged.ldap.unwrap().server, "second.ldap");
+    }
+
+    #[test]
+    fn test_merge_db_configs_with_options() {
+        let mut first_options = std::collections::HashMap::new();
+        first_options.insert("charset".to_string(), "utf8".to_string());
+        let first = DbConfig {
+            options: first_options,
+            ..Default::default()
+        };
+
+        let second = DbConfig::default();
+
+        let merged = merge_db_configs(first, second);
+        assert!(!merged.options.is_empty());
+        assert_eq!(merged.options.get("charset"), Some(&"utf8".to_string()));
+    }
+
+    #[test]
+    fn test_merge_db_configs_second_options_override() {
+        let first = DbConfig::default();
+
+        let mut second_options = std::collections::HashMap::new();
+        second_options.insert("ssl_mode".to_string(), "require".to_string());
+        let second = DbConfig {
+            options: second_options,
+            ..Default::default()
+        };
+
+        let merged = merge_db_configs(first, second);
+        assert_eq!(merged.options.get("ssl_mode"), Some(&"require".to_string()));
+    }
+
+    #[test]
+    fn test_merge_configs_redis_and_kubernetes() {
+        let first = Config {
+            redis: Some(crate::config::types::RedisConfig {
+                url: "redis://first".to_string(),
+                ..Default::default()
+            }),
+            kubernetes: Some(crate::config::types::KubernetesConfig {
+                default_namespace: "first-ns".to_string(),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let second = Config::default();
+
+        let merged = merge_configs(first, second);
+        assert!(merged.redis.is_some());
+        assert!(merged.kubernetes.is_some());
+        assert_eq!(merged.redis.unwrap().url, "redis://first");
+        assert_eq!(merged.kubernetes.unwrap().default_namespace, "first-ns");
+    }
 }

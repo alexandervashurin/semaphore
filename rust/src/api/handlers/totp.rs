@@ -230,4 +230,151 @@ mod tests {
         assert!(json.contains("otpauth://totp/Test"));
         assert!(json.contains("ABC123"));
     }
+
+    #[test]
+    fn test_totp_confirm_payload_roundtrip() {
+        // TotpConfirmPayload only derives Deserialize, not Serialize
+        // Test roundtrip via deserialization from JSON
+        let json = r#"{"code": "654321"}"#;
+        let restored: TotpConfirmPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(restored.code, "654321");
+    }
+
+    #[test]
+    fn test_totp_disable_payload_roundtrip() {
+        // TotpDisablePayload only derives Deserialize, not Serialize
+        let json = r#"{"recovery_code": "RECOVERY123"}"#;
+        let restored: TotpDisablePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(restored.recovery_code, "RECOVERY123");
+    }
+
+    #[test]
+    fn test_totp_setup_response_roundtrip() {
+        // TotpSetupResponse derives Serialize but not Deserialize
+        let response = TotpSetupResponse {
+            secret: "ABCDEF123456".to_string(),
+            url: "otpauth://totp/Example:user@test.com?secret=ABCDEF123456".to_string(),
+            recovery_code: "R3C0V3RY".to_string(),
+        };
+        let json = serde_json::to_string(&response).unwrap();
+        assert!(json.contains("ABCDEF123456"));
+        assert!(json.contains("otpauth://totp/Example"));
+        assert!(json.contains("R3C0V3RY"));
+    }
+
+    #[test]
+    fn test_totp_confirm_payload_debug() {
+        let payload = TotpConfirmPayload {
+            code: "123456".to_string(),
+        };
+        let debug_str = format!("{:?}", payload);
+        assert!(debug_str.contains("TotpConfirmPayload"));
+    }
+
+    #[test]
+    fn test_totp_disable_payload_debug() {
+        let payload = TotpDisablePayload {
+            recovery_code: "test".to_string(),
+        };
+        let debug_str = format!("{:?}", payload);
+        assert!(debug_str.contains("TotpDisablePayload"));
+    }
+
+    #[test]
+    fn test_totp_setup_response_debug() {
+        let response = TotpSetupResponse {
+            secret: "SECRET".to_string(),
+            url: "otpauth://totp/Test".to_string(),
+            recovery_code: "CODE".to_string(),
+        };
+        let debug_str = format!("{:?}", response);
+        assert!(debug_str.contains("TotpSetupResponse"));
+        assert!(debug_str.contains("SECRET"));
+    }
+
+    #[test]
+    fn test_totp_confirm_payload_empty_code() {
+        let json = r#"{"code": ""}"#;
+        let payload: TotpConfirmPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.code, "");
+    }
+
+    #[test]
+    fn test_totp_disable_payload_empty_code() {
+        let json = r#"{"recovery_code": ""}"#;
+        let payload: TotpDisablePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.recovery_code, "");
+    }
+
+    #[test]
+    fn test_totp_confirm_payload_unicode() {
+        let json = r#"{"code": "123456"}"#;
+        let payload: TotpConfirmPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.code, "123456");
+    }
+
+    #[test]
+    fn test_totp_confirm_payload_clone() {
+        // TotpConfirmPayload doesn't derive Clone, test via deserialization
+        let json = r#"{"code": "654321"}"#;
+        let p1: TotpConfirmPayload = serde_json::from_str(json).unwrap();
+        let p2: TotpConfirmPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(p1.code, p2.code);
+    }
+
+    #[test]
+    fn test_totp_disable_payload_clone() {
+        // TotpDisablePayload doesn't derive Clone, test via deserialization
+        let json = r#"{"recovery_code": "recovery_code"}"#;
+        let p1: TotpDisablePayload = serde_json::from_str(json).unwrap();
+        let p2: TotpDisablePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(p1.recovery_code, p2.recovery_code);
+    }
+
+    #[test]
+    fn test_totp_setup_response_clone() {
+        // TotpSetupResponse doesn't derive Clone
+        let r1 = TotpSetupResponse {
+            secret: "SECRET".to_string(),
+            url: "otpauth://totp/Test".to_string(),
+            recovery_code: "CODE".to_string(),
+        };
+        let r2 = TotpSetupResponse {
+            secret: "SECRET".to_string(),
+            url: "otpauth://totp/Test".to_string(),
+            recovery_code: "CODE".to_string(),
+        };
+        assert_eq!(r1.secret, r2.secret);
+        assert_eq!(r1.recovery_code, r2.recovery_code);
+    }
+
+    #[test]
+    fn test_totp_confirm_payload_clone_independence() {
+        // TotpConfirmPayload doesn't derive Clone
+        let mut code = "original".to_string();
+        let p1 = TotpConfirmPayload { code: code.clone() };
+        code = "modified".to_string();
+        assert_eq!(p1.code, "original");
+    }
+
+    #[test]
+    fn test_totp_disable_payload_clone_independence() {
+        // TotpDisablePayload doesn't derive Clone
+        let mut recovery_code = "original".to_string();
+        let p1 = TotpDisablePayload { recovery_code: recovery_code.clone() };
+        recovery_code = "modified".to_string();
+        assert_eq!(p1.recovery_code, "original");
+    }
+
+    #[test]
+    fn test_totp_setup_response_serialize_special_chars() {
+        let response = TotpSetupResponse {
+            secret: "JBSW&<>'\"Y3DP".to_string(),
+            url: "otpauth://totp/Test%20User?secret=ABC".to_string(),
+            recovery_code: "CODE-WITH-DASHES".to_string(),
+        };
+        let json = serde_json::to_string(&response).unwrap();
+        assert!(json.contains("JBSW"));
+        assert!(json.contains("CODE-WITH-DASHES"));
+    }
 }

@@ -200,4 +200,193 @@ mod tests {
         env::remove_var("SEMAPHORE_LDAP_ENABLE");
         env::remove_var("SEMAPHORE_LDAP_SERVER");
     }
+
+    #[test]
+    fn test_ldap_config_serialization() {
+        let config = LdapConfigFull {
+            enable: true,
+            server: "ldap.example.com".to_string(),
+            bind_dn: "cn=admin,dc=example,dc=com".to_string(),
+            bind_password: "secret".to_string(),
+            search_dn: "ou=users,dc=example,dc=com".to_string(),
+            search_filter: "(uid={login})".to_string(),
+            need_tls: true,
+            mappings: LdapMappings::default(),
+        };
+
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains("\"enable\":true"));
+        assert!(json.contains("\"server\":\"ldap.example.com\""));
+        assert!(json.contains("\"need_tls\":true"));
+    }
+
+    #[test]
+    fn test_ldap_config_deserialization() {
+        let json = r#"{
+            "enable": true,
+            "server": "ldap.test.com",
+            "bind_dn": "cn=bind",
+            "bind_password": "pass",
+            "search_dn": "ou=people",
+            "search_filter": "(cn={login})",
+            "need_tls": false,
+            "mappings": {"dn": "dn", "mail": "mail", "uid": "uid", "cn": "cn"}
+        }"#;
+
+        let config: LdapConfigFull = serde_json::from_str(json).unwrap();
+        assert!(config.enable);
+        assert_eq!(config.server, "ldap.test.com");
+        assert_eq!(config.search_filter, "(cn={login})");
+    }
+
+    #[test]
+    fn test_ldap_config_clone() {
+        let config = LdapConfigFull {
+            enable: true,
+            server: "ldap.clone.test".to_string(),
+            ..Default::default()
+        };
+        let cloned = config.clone();
+        assert_eq!(cloned.server, "ldap.clone.test");
+        assert!(cloned.enable);
+    }
+
+    #[test]
+    fn test_ldap_config_empty_server_url() {
+        let config = LdapConfigFull {
+            server: String::new(),
+            need_tls: false,
+            ..Default::default()
+        };
+        assert_eq!(config.ldap_url(), "ldap://");
+    }
+
+    #[test]
+    fn test_ldap_config_empty_server_url_tls() {
+        let config = LdapConfigFull {
+            server: String::new(),
+            need_tls: true,
+            ..Default::default()
+        };
+        assert_eq!(config.ldap_url(), "ldaps://");
+    }
+
+    #[test]
+    fn test_load_ldap_from_env_all_fields() {
+        env::set_var("SEMAPHORE_LDAP_ENABLE", "1");
+        env::set_var("SEMAPHORE_LDAP_SERVER", "full.ldap.server");
+        env::set_var("SEMAPHORE_LDAP_BIND_DN", "cn=bind,dc=test");
+        env::set_var("SEMAPHORE_LDAP_BIND_PASSWORD", "bindpass");
+        env::set_var("SEMAPHORE_LDAP_SEARCH_DN", "ou=search,dc=test");
+        env::set_var("SEMAPHORE_LDAP_SEARCH_FILTER", "(&(uid={login})(active=TRUE))");
+        env::set_var("SEMAPHORE_LDAP_NEEDTLS", "true");
+
+        let config = load_ldap_from_env();
+        assert!(config.enable);
+        assert_eq!(config.server, "full.ldap.server");
+        assert_eq!(config.bind_dn, "cn=bind,dc=test");
+        assert_eq!(config.bind_password, "bindpass");
+        assert_eq!(config.search_dn, "ou=search,dc=test");
+        assert_eq!(config.search_filter, "(&(uid={login})(active=TRUE))");
+        assert!(config.need_tls);
+
+        env::remove_var("SEMAPHORE_LDAP_ENABLE");
+        env::remove_var("SEMAPHORE_LDAP_SERVER");
+        env::remove_var("SEMAPHORE_LDAP_BIND_DN");
+        env::remove_var("SEMAPHORE_LDAP_BIND_PASSWORD");
+        env::remove_var("SEMAPHORE_LDAP_SEARCH_DN");
+        env::remove_var("SEMAPHORE_LDAP_SEARCH_FILTER");
+        env::remove_var("SEMAPHORE_LDAP_NEEDTLS");
+    }
+
+    #[test]
+    fn test_load_ldap_from_env_mappings() {
+        env::set_var("SEMAPHORE_LDAP_MAPPING_DN", "distinguishedName");
+        env::set_var("SEMAPHORE_LDAP_MAPPING_MAIL", "email");
+        env::set_var("SEMAPHORE_LDAP_MAPPING_UID", "sAMAccountName");
+        env::set_var("SEMAPHORE_LDAP_MAPPING_CN", "displayName");
+
+        let config = load_ldap_from_env();
+        assert_eq!(config.mappings.dn, "distinguishedName");
+        assert_eq!(config.mappings.mail, "email");
+        assert_eq!(config.mappings.uid, "sAMAccountName");
+        assert_eq!(config.mappings.cn, "displayName");
+
+        env::remove_var("SEMAPHORE_LDAP_MAPPING_DN");
+        env::remove_var("SEMAPHORE_LDAP_MAPPING_MAIL");
+        env::remove_var("SEMAPHORE_LDAP_MAPPING_UID");
+        env::remove_var("SEMAPHORE_LDAP_MAPPING_CN");
+    }
+
+    #[test]
+    fn test_ldap_config_unicode_values() {
+        let config = LdapConfigFull {
+            enable: true,
+            server: "ldap.пример.ru".to_string(),
+            bind_dn: "cn=администратор,dc=пример,dc=ru".to_string(),
+            bind_password: "пароль".to_string(),
+            search_dn: "ou=пользователи,dc=пример,dc=ru".to_string(),
+            search_filter: "(uid={логин})".to_string(),
+            ..Default::default()
+        };
+
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains("администратор"));
+        assert!(json.contains("пользователи"));
+
+        let deserialized: LdapConfigFull = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.bind_dn, "cn=администратор,dc=пример,dc=ru");
+    }
+
+    #[test]
+    fn test_ldap_config_is_enabled_true() {
+        let config = LdapConfigFull {
+            enable: true,
+            ..Default::default()
+        };
+        assert!(config.is_enabled());
+    }
+
+    #[test]
+    fn test_ldap_config_is_enabled_false() {
+        let config = LdapConfigFull {
+            enable: false,
+            ..Default::default()
+        };
+        assert!(!config.is_enabled());
+    }
+
+    #[test]
+    fn test_load_ldap_from_env_enable_false() {
+        env::set_var("SEMAPHORE_LDAP_ENABLE", "false");
+        let config = load_ldap_from_env();
+        assert!(!config.enable);
+        env::remove_var("SEMAPHORE_LDAP_ENABLE");
+    }
+
+    #[test]
+    fn test_load_ldap_from_env_enable_invalid() {
+        env::set_var("SEMAPHORE_LDAP_ENABLE", "invalid");
+        let config = load_ldap_from_env();
+        assert!(!config.enable);
+        env::remove_var("SEMAPHORE_LDAP_ENABLE");
+    }
+
+    #[test]
+    fn test_ldap_config_search_filter_special_chars() {
+        let config = LdapConfigFull {
+            search_filter: "(&(objectClass=inetOrgPerson)(uid={login})(!(userAccountControl:1.2.840.113556.1.4.803:=2)))".to_string(),
+            ..Default::default()
+        };
+        assert!(config.search_filter.contains("objectClass"));
+        assert!(config.search_filter.contains("userAccountControl"));
+    }
+
+    #[test]
+    fn test_ldap_config_serialization_defaults() {
+        let config = LdapConfigFull::default();
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains("\"enable\":false"));
+        assert!(json.contains("\"need_tls\":false"));
+    }
 }

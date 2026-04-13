@@ -190,4 +190,150 @@ mod tests {
         let status = rx.recv_timeout(std::time::Duration::from_secs(2)).unwrap();
         assert_eq!(status, TaskStatus::Error);
     }
+
+    #[tokio::test]
+    async fn test_get_status_initial_is_waiting() {
+        let runner = create_test_task_runner();
+        assert_eq!(runner.get_status(), TaskStatus::Waiting);
+    }
+
+    #[tokio::test]
+    async fn test_set_status_to_running() {
+        let mut runner = create_test_task_runner();
+        runner.set_status(TaskStatus::Running).await;
+        assert_eq!(runner.get_status(), TaskStatus::Running);
+    }
+
+    #[tokio::test]
+    async fn test_set_status_to_success() {
+        let mut runner = create_test_task_runner();
+        runner.set_status(TaskStatus::Success).await;
+        assert_eq!(runner.get_status(), TaskStatus::Success);
+    }
+
+    #[tokio::test]
+    async fn test_set_status_to_stopped() {
+        let mut runner = create_test_task_runner();
+        runner.set_status(TaskStatus::Stopped).await;
+        assert_eq!(runner.get_status(), TaskStatus::Stopped);
+    }
+
+    #[tokio::test]
+    async fn test_set_status_to_error() {
+        let mut runner = create_test_task_runner();
+        runner.set_status(TaskStatus::Error).await;
+        assert_eq!(runner.get_status(), TaskStatus::Error);
+    }
+
+    #[tokio::test]
+    async fn test_log_does_not_panic() {
+        let runner = create_test_task_runner();
+        runner.log("Simple log message");
+    }
+
+    #[tokio::test]
+    async fn test_log_empty_string() {
+        let runner = create_test_task_runner();
+        runner.log("");
+    }
+
+    #[tokio::test]
+    async fn test_log_with_newlines() {
+        let runner = create_test_task_runner();
+        runner.log("Line 1\nLine 2\nLine 3");
+    }
+
+    #[tokio::test]
+    async fn test_log_with_unicode() {
+        let runner = create_test_task_runner();
+        runner.log("Привет мир! Task executed");
+    }
+
+    #[tokio::test]
+    async fn test_save_status_completes_without_panic() {
+        let runner = create_test_task_runner();
+        runner.save_status().await;
+    }
+
+    #[tokio::test]
+    async fn test_set_status_multiple_times() {
+        let mut runner = create_test_task_runner();
+        runner.set_status(TaskStatus::Running).await;
+        assert_eq!(runner.get_status(), TaskStatus::Running);
+
+        runner.set_status(TaskStatus::Success).await;
+        assert_eq!(runner.get_status(), TaskStatus::Success);
+
+        runner.set_status(TaskStatus::Error).await;
+        assert_eq!(runner.get_status(), TaskStatus::Error);
+    }
+
+    #[tokio::test]
+    async fn test_log_listener_receives_multiple_messages() {
+        let runner = create_test_task_runner();
+        let (tx, rx) = std::sync::mpsc::channel();
+        let runner_with_listener = TaskRunner {
+            log_listeners: vec![Box::new(move |_time, msg| {
+                let _ = tx.send(msg);
+            })],
+            ..runner
+        };
+        runner_with_listener.log("msg1");
+        runner_with_listener.log("msg2");
+        runner_with_listener.log("msg3");
+
+        assert_eq!(rx.recv_timeout(std::time::Duration::from_secs(2)).unwrap(), "msg1");
+        assert_eq!(rx.recv_timeout(std::time::Duration::from_secs(2)).unwrap(), "msg2");
+        assert_eq!(rx.recv_timeout(std::time::Duration::from_secs(2)).unwrap(), "msg3");
+    }
+
+    #[tokio::test]
+    async fn test_status_listener_receives_all_status_types() {
+        let runner = create_test_task_runner();
+        let (tx, rx) = std::sync::mpsc::channel();
+        let mut runner_with_listener = TaskRunner {
+            status_listeners: vec![Box::new(move |status| {
+                let _ = tx.send(status);
+            })],
+            ..runner
+        };
+
+        runner_with_listener.set_status(TaskStatus::Running).await;
+        assert_eq!(rx.recv_timeout(std::time::Duration::from_secs(2)).unwrap(), TaskStatus::Running);
+
+        runner_with_listener.set_status(TaskStatus::Success).await;
+        assert_eq!(rx.recv_timeout(std::time::Duration::from_secs(2)).unwrap(), TaskStatus::Success);
+    }
+
+    #[tokio::test]
+    async fn test_log_with_special_json_chars() {
+        let runner = create_test_task_runner();
+        runner.log("{\"key\": \"value\", \"count\": 42}");
+    }
+
+    #[tokio::test]
+    async fn test_save_status_with_different_task_statuses() {
+        let mut runner = create_test_task_runner();
+        runner.set_status(TaskStatus::Running).await;
+        runner.save_status().await; // should not panic
+
+        runner.set_status(TaskStatus::Success).await;
+        runner.save_status().await;
+    }
+
+    #[tokio::test]
+    async fn test_log_listener_with_empty_message() {
+        let runner = create_test_task_runner();
+        let (tx, rx) = std::sync::mpsc::channel();
+        let runner_with_listener = TaskRunner {
+            log_listeners: vec![Box::new(move |time, msg| {
+                let _ = tx.send((time, msg));
+            })],
+            ..runner
+        };
+        runner_with_listener.log("");
+        let (time, msg) = rx.recv_timeout(std::time::Duration::from_secs(2)).unwrap();
+        assert_eq!(msg, "");
+        assert!(time <= Utc::now());
+    }
 }

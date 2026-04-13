@@ -243,4 +243,206 @@ mod tests {
         let cloned = req.clone();
         assert_eq!(cloned.message, req.message);
     }
+
+    #[test]
+    fn test_task_snapshot_debug_format() {
+        let snapshot = TaskSnapshot {
+            id: 1,
+            project_id: 10,
+            template_id: 5,
+            task_id: 100,
+            git_branch: Some("feature".to_string()),
+            git_commit: None,
+            arguments: None,
+            inventory_id: None,
+            environment_id: None,
+            message: None,
+            label: None,
+            created_at: "2024-01-01".to_string(),
+            template_name: "Template".to_string(),
+        };
+        let debug = format!("{:?}", snapshot);
+        assert!(debug.contains("TaskSnapshot"));
+        assert!(debug.contains("feature"));
+    }
+
+    #[test]
+    fn test_task_snapshot_create_debug_format() {
+        let create = TaskSnapshotCreate {
+            template_id: 10,
+            task_id: 50,
+            git_branch: Some("main".to_string()),
+            git_commit: Some("commit123".to_string()),
+            arguments: Some("--check".to_string()),
+            inventory_id: Some(1),
+            environment_id: Some(2),
+            message: Some("Create message".to_string()),
+            label: Some("label1".to_string()),
+        };
+        let debug = format!("{:?}", create);
+        assert!(debug.contains("TaskSnapshotCreate"));
+        assert!(debug.contains("commit123"));
+    }
+
+    #[test]
+    fn test_task_snapshot_unicode_values() {
+        let snapshot = TaskSnapshot {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            task_id: 1,
+            git_branch: Some("ветка".to_string()),
+            git_commit: Some("коммит".to_string()),
+            arguments: Some("аргументы".to_string()),
+            inventory_id: None,
+            environment_id: None,
+            message: Some("сообщение".to_string()),
+            label: Some("метка".to_string()),
+            created_at: "2024-01-01".to_string(),
+            template_name: "Шаблон".to_string(),
+        };
+        let json = serde_json::to_string(&snapshot).unwrap();
+        assert!(json.contains("ветка"));
+        assert!(json.contains("сообщение"));
+
+        let deserialized: TaskSnapshot = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.git_branch, Some("ветка".to_string()));
+    }
+
+    #[test]
+    fn test_task_snapshot_deserialization() {
+        let json = r#"{
+            "id": 42,
+            "project_id": 10,
+            "template_id": 5,
+            "task_id": 200,
+            "git_branch": "release",
+            "git_commit": "deadbeef",
+            "arguments": null,
+            "inventory_id": null,
+            "environment_id": null,
+            "message": "Release snapshot",
+            "label": "v2.0",
+            "created_at": "2024-06-15T10:00:00Z",
+            "template_name": "Release Template"
+        }"#;
+        let snapshot: TaskSnapshot = serde_json::from_str(json).unwrap();
+        assert_eq!(snapshot.id, 42);
+        assert_eq!(snapshot.task_id, 200);
+    }
+
+    #[test]
+    fn test_task_snapshot_create_deserialization() {
+        let json = r#"{
+            "template_id": 3,
+            "task_id": 30,
+            "git_branch": "staging",
+            "git_commit": "staging123",
+            "arguments": "--dry-run",
+            "inventory_id": 2,
+            "environment_id": 1,
+            "message": "Staging deploy",
+            "label": "staging-v1"
+        }"#;
+        let create: TaskSnapshotCreate = serde_json::from_str(json).unwrap();
+        assert_eq!(create.template_id, 3);
+        assert_eq!(create.git_branch, Some("staging".to_string()));
+    }
+
+    #[test]
+    fn test_task_snapshot_empty_string_fields() {
+        let snapshot = TaskSnapshot {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            task_id: 1,
+            git_branch: Some(String::new()),
+            git_commit: Some(String::new()),
+            arguments: Some(String::new()),
+            inventory_id: None,
+            environment_id: None,
+            message: Some(String::new()),
+            label: Some(String::new()),
+            created_at: String::new(),
+            template_name: String::new(),
+        };
+        let json = serde_json::to_string(&snapshot).unwrap();
+        assert!(json.contains("\"git_branch\":\"\""));
+        assert!(json.contains("\"created_at\":\"\""));
+    }
+
+    #[test]
+    fn test_task_snapshot_large_ids() {
+        let snapshot = TaskSnapshot {
+            id: i32::MAX,
+            project_id: i32::MAX,
+            template_id: i32::MAX,
+            task_id: i32::MAX,
+            git_branch: None,
+            git_commit: None,
+            arguments: None,
+            inventory_id: Some(i32::MAX),
+            environment_id: Some(i32::MAX),
+            message: None,
+            label: None,
+            created_at: "2024-01-01".to_string(),
+            template_name: "Max".to_string(),
+        };
+        assert_eq!(snapshot.id, i32::MAX);
+        assert_eq!(snapshot.project_id, i32::MAX);
+    }
+
+    #[test]
+    fn test_rollback_request_deserialization() {
+        let json = r#"{"message": "Please rollback this deployment"}"#;
+        let req: RollbackRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.message, Some("Please rollback this deployment".to_string()));
+    }
+
+    #[test]
+    fn test_task_snapshot_json_roundtrip() {
+        let original = TaskSnapshot {
+            id: 77,
+            project_id: 7,
+            template_id: 77,
+            task_id: 777,
+            git_branch: Some("roundtrip".to_string()),
+            git_commit: Some("roundtrip_commit".to_string()),
+            arguments: Some("--roundtrip".to_string()),
+            inventory_id: Some(7),
+            environment_id: Some(7),
+            message: Some("Roundtrip test".to_string()),
+            label: Some("roundtrip-label".to_string()),
+            created_at: "2024-12-01T00:00:00Z".to_string(),
+            template_name: "Roundtrip Template".to_string(),
+        };
+
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: TaskSnapshot = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(restored.id, original.id);
+        assert_eq!(restored.git_branch, original.git_branch);
+        assert_eq!(restored.label, original.label);
+    }
+
+    #[test]
+    fn test_task_snapshot_create_json_roundtrip() {
+        let original = TaskSnapshotCreate {
+            template_id: 55,
+            task_id: 555,
+            git_branch: Some("roundtrip".to_string()),
+            git_commit: Some("commit_rt".to_string()),
+            arguments: Some("--rt".to_string()),
+            inventory_id: Some(5),
+            environment_id: Some(5),
+            message: Some("Roundtrip create".to_string()),
+            label: Some("rt-label".to_string()),
+        };
+
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: TaskSnapshotCreate = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(restored.template_id, original.template_id);
+        assert_eq!(restored.git_commit, original.git_commit);
+    }
 }

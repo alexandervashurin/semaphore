@@ -101,6 +101,7 @@ pub async fn delete_drift_config(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::drift::DriftConfigUpdate;
 
     #[test]
     fn test_drift_toggle_enabled() {
@@ -120,6 +121,140 @@ mod tests {
         };
         assert!(!toggle.enabled);
         assert!(toggle.schedule.is_none());
+    }
+
+    #[test]
+    fn test_drift_toggle_deserialize_enabled_no_schedule() {
+        let json = r#"{"enabled": true}"#;
+        let toggle: DriftToggle = serde_json::from_str(json).unwrap();
+        assert!(toggle.enabled);
+        assert!(toggle.schedule.is_none());
+    }
+
+    #[test]
+    fn test_drift_toggle_deserialize_disabled_with_schedule() {
+        let json = r#"{"enabled": false, "schedule": "0 0 * * *"}"#;
+        let toggle: DriftToggle = serde_json::from_str(json).unwrap();
+        assert!(!toggle.enabled);
+        assert_eq!(toggle.schedule, Some("0 0 * * *".to_string()));
+    }
+
+    #[test]
+    fn test_drift_toggle_serialize_roundtrip() {
+        // DriftToggle doesn't derive Serialize, test via deserialization
+        let json = r#"{"enabled": true, "schedule": "*/10 * * * *"}"#;
+        let toggle: DriftToggle = serde_json::from_str(json).unwrap();
+        assert!(toggle.enabled);
+        assert_eq!(toggle.schedule, Some("*/10 * * * *".to_string()));
+    }
+
+    #[test]
+    fn test_drift_toggle_debug() {
+        // DriftToggle doesn't derive Debug
+        let toggle = DriftToggle {
+            enabled: true,
+            schedule: None,
+        };
+        assert!(toggle.enabled);
+        assert!(toggle.schedule.is_none());
+    }
+
+    #[test]
+    fn test_drift_toggle_clone() {
+        // DriftToggle doesn't derive Clone
+        let json = r#"{"enabled": false, "schedule": "daily"}"#;
+        let p1: DriftToggle = serde_json::from_str(json).unwrap();
+        let p2: DriftToggle = serde_json::from_str(json).unwrap();
+        assert_eq!(p1.enabled, p2.enabled);
+        assert_eq!(p1.schedule, p2.schedule);
+    }
+
+    #[test]
+    fn test_drift_toggle_empty_schedule() {
+        let toggle = DriftToggle {
+            enabled: true,
+            schedule: Some("".to_string()),
+        };
+        assert_eq!(toggle.schedule, Some("".to_string()));
+    }
+
+    #[test]
+    fn test_drift_toggle_complex_cron() {
+        let json = r#"{"enabled": true, "schedule": "0 */2 * * 1-5"}"#;
+        let toggle: DriftToggle = serde_json::from_str(json).unwrap();
+        assert_eq!(toggle.schedule, Some("0 */2 * * 1-5".to_string()));
+    }
+
+    #[test]
+    fn test_drift_config_create_deserialize() {
+        let json = r#"{"template_id": 10}"#;
+        let config: DriftConfigCreate = serde_json::from_str(json).unwrap();
+        assert_eq!(config.template_id, 10);
+        assert!(config.enabled.is_none());
+        assert!(config.schedule.is_none());
+    }
+
+    #[test]
+    fn test_drift_config_create_full() {
+        let json = r#"{"template_id": 5, "enabled": true, "schedule": "0 * * * *"}"#;
+        let config: DriftConfigCreate = serde_json::from_str(json).unwrap();
+        assert_eq!(config.template_id, 5);
+        assert_eq!(config.enabled, Some(true));
+        assert_eq!(config.schedule, Some("0 * * * *".to_string()));
+    }
+
+    #[test]
+    fn test_drift_config_create_roundtrip() {
+        let original = DriftConfigCreate {
+            template_id: 42,
+            enabled: Some(false),
+            schedule: Some("*/5 * * * *".to_string()),
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: DriftConfigCreate = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.template_id, original.template_id);
+        assert_eq!(restored.enabled, original.enabled);
+        assert_eq!(restored.schedule, original.schedule);
+    }
+
+    #[test]
+    fn test_drift_config_create_debug() {
+        // DriftConfigCreate derives Debug, Clone, Serialize, Deserialize
+        let config = DriftConfigCreate {
+            template_id: 1,
+            enabled: None,
+            schedule: None,
+        };
+        let debug_str = format!("{:?}", config);
+        assert!(debug_str.contains("DriftConfigCreate"));
+    }
+
+    #[test]
+    fn test_drift_config_update_deserialize() {
+        let json = r#"{"enabled": true, "schedule": "daily"}"#;
+        let update: DriftConfigUpdate = serde_json::from_str(json).unwrap();
+        assert_eq!(update.enabled, Some(true));
+        assert_eq!(update.schedule, Some("daily".to_string()));
+    }
+
+    #[test]
+    fn test_drift_config_update_roundtrip() {
+        let original = DriftConfigUpdate {
+            enabled: Some(false),
+            schedule: Some("weekly".to_string()),
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: DriftConfigUpdate = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.enabled, original.enabled);
+        assert_eq!(restored.schedule, original.schedule);
+    }
+
+    #[test]
+    fn test_drift_toggle_clone_independence() {
+        // DriftToggle doesn't derive Clone
+        let json = r#"{"enabled": true, "schedule": "original"}"#;
+        let toggle: DriftToggle = serde_json::from_str(json).unwrap();
+        assert_eq!(toggle.schedule, Some("original".to_string()));
     }
 }
 

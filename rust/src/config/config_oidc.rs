@@ -262,4 +262,203 @@ mod tests {
         let provider = OidcProvider::new();
         assert!(!provider.is_configured());
     }
+
+    #[test]
+    fn test_oidc_provider_serialization() {
+        let provider = OidcProvider {
+            display_name: "Google".to_string(),
+            client_id: "google_client_id".to_string(),
+            client_secret: "google_secret".to_string(),
+            redirect_url: "https://example.com/callback".to_string(),
+            scopes: vec!["openid".to_string(), "email".to_string()],
+            auto_discovery: "https://accounts.google.com".to_string(),
+            endpoint: OidcEndpoint::default(),
+            color: "#4285F4".to_string(),
+            icon: "google-icon.svg".to_string(),
+            email_claim: "email".to_string(),
+            username_claim: "email".to_string(),
+            name_claim: "name".to_string(),
+        };
+
+        let json = serde_json::to_string(&provider).unwrap();
+        assert!(json.contains("\"display_name\":\"Google\""));
+        assert!(json.contains("\"client_id\":\"google_client_id\""));
+        assert!(json.contains("\"color\":\"#4285F4\""));
+    }
+
+    #[test]
+    fn test_oidc_provider_deserialization() {
+        let provider = OidcProvider {
+            display_name: "GitHub".to_string(),
+            client_id: "gh_client".to_string(),
+            client_secret: "gh_secret".to_string(),
+            redirect_url: "https://example.com/gh/callback".to_string(),
+            scopes: vec!["openid".to_string(), "profile".to_string()],
+            auto_discovery: "https://github.com/.well-known".to_string(),
+            endpoint: OidcEndpoint::default(),
+            color: "#24292e".to_string(),
+            icon: "github.svg".to_string(),
+            email_claim: "email".to_string(),
+            username_claim: "login".to_string(),
+            name_claim: "name".to_string(),
+        };
+
+        assert_eq!(provider.display_name, "GitHub");
+        assert_eq!(provider.client_id, "gh_client");
+        assert_eq!(provider.scopes.len(), 2);
+        assert_eq!(provider.color, "#24292e");
+    }
+
+    #[test]
+    fn test_oidc_provider_default_claims() {
+        let provider = OidcProvider::default();
+        assert_eq!(provider.email_claim, "email");
+        assert_eq!(provider.username_claim, "preferred_username");
+        assert_eq!(provider.name_claim, "name");
+    }
+
+    #[test]
+    fn test_oidc_provider_empty_scopes_string() {
+        let provider = OidcProvider {
+            scopes: vec![],
+            ..Default::default()
+        };
+        assert_eq!(provider.scopes_string(), "");
+    }
+
+    #[test]
+    fn test_oidc_provider_single_scope_string() {
+        let provider = OidcProvider {
+            scopes: vec!["openid".to_string()],
+            ..Default::default()
+        };
+        assert_eq!(provider.scopes_string(), "openid");
+    }
+
+    #[test]
+    fn test_oidc_provider_is_configured_only_client_id() {
+        let provider = OidcProvider {
+            client_id: "test_id".to_string(),
+            ..Default::default()
+        };
+        assert!(!provider.is_configured());
+    }
+
+    #[test]
+    fn test_oidc_provider_is_configured_only_client_secret() {
+        let provider = OidcProvider {
+            client_secret: "test_secret".to_string(),
+            ..Default::default()
+        };
+        assert!(!provider.is_configured());
+    }
+
+    #[test]
+    fn test_oidc_endpoint_serialization() {
+        let endpoint = OidcEndpoint {
+            issuer_url: "https://issuer.example.com".to_string(),
+            auth_url: "https://auth.example.com".to_string(),
+            token_url: "https://token.example.com".to_string(),
+            userinfo_url: "https://userinfo.example.com".to_string(),
+            jwks_url: "https://jwks.example.com".to_string(),
+            algorithms: vec!["RS256".to_string(), "ES256".to_string()],
+        };
+
+        let json = serde_json::to_string(&endpoint).unwrap();
+        assert!(json.contains("\"issuer_url\":\"https://issuer.example.com\""));
+        assert!(json.contains("\"algorithms\":[\"RS256\",\"ES256\"]"));
+    }
+
+    #[test]
+    fn test_oidc_endpoint_deserialization() {
+        let json = r#"{
+            "issuer_url": "https://issuer.test.com",
+            "auth_url": "https://auth.test.com",
+            "token_url": "https://token.test.com",
+            "userinfo_url": "https://userinfo.test.com",
+            "jwks_url": "https://jwks.test.com",
+            "algorithms": ["RS256"]
+        }"#;
+
+        let endpoint: OidcEndpoint = serde_json::from_str(json).unwrap();
+        assert_eq!(endpoint.issuer_url, "https://issuer.test.com");
+        assert_eq!(endpoint.algorithms.len(), 1);
+    }
+
+    #[test]
+    fn test_oidc_provider_clone() {
+        let provider = OidcProvider {
+            display_name: "Clone Test".to_string(),
+            client_id: "clone_id".to_string(),
+            client_secret: "clone_secret".to_string(),
+            ..Default::default()
+        };
+        let cloned = provider.clone();
+        assert_eq!(cloned.display_name, "Clone Test");
+        assert_eq!(cloned.client_id, "clone_id");
+    }
+
+    #[test]
+    fn test_oidc_provider_unicode_display_name() {
+        let provider = OidcProvider {
+            display_name: "Провайдер".to_string(),
+            client_id: "id".to_string(),
+            client_secret: "secret".to_string(),
+            ..Default::default()
+        };
+        let json = serde_json::to_string(&provider).unwrap();
+        assert!(json.contains("Провайдер"));
+
+        let deserialized: OidcProvider = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.display_name, "Провайдер");
+    }
+
+    #[test]
+    fn test_oidc_provider_custom_claims() {
+        let provider = OidcProvider {
+            email_claim: "mail".to_string(),
+            username_claim: "sub".to_string(),
+            name_claim: "display_name".to_string(),
+            ..Default::default()
+        };
+        assert_eq!(provider.email_claim, "mail");
+        assert_eq!(provider.username_claim, "sub");
+        assert_eq!(provider.name_claim, "display_name");
+    }
+
+    #[test]
+    fn test_oidc_provider_serialization_defaults() {
+        let provider = OidcProvider::default();
+        let json = serde_json::to_string(&provider).unwrap();
+        assert!(json.contains("\"scopes\":[\"openid\",\"profile\",\"email\"]"));
+        assert!(json.contains("\"email_claim\":\"email\""));
+    }
+
+    #[test]
+    fn test_oidc_endpoint_empty_values() {
+        let endpoint = OidcEndpoint::default();
+        assert!(endpoint.issuer_url.is_empty());
+        assert!(endpoint.auth_url.is_empty());
+        assert!(endpoint.token_url.is_empty());
+        assert!(endpoint.userinfo_url.is_empty());
+        assert!(endpoint.jwks_url.is_empty());
+    }
+
+    #[test]
+    fn test_oidc_hashmap_load_from_env_empty() {
+        let providers = load_oidc_from_env();
+        assert!(providers.is_empty());
+    }
+
+    #[test]
+    fn test_oidc_endpoint_clone() {
+        let endpoint = OidcEndpoint {
+            issuer_url: "https://issuer.test".to_string(),
+            algorithms: vec!["RS256".to_string()],
+            ..Default::default()
+        };
+        let cloned = endpoint.clone();
+        assert_eq!(cloned.issuer_url, "https://issuer.test");
+        assert_eq!(cloned.algorithms.len(), 1);
+    }
 }

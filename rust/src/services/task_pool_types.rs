@@ -401,4 +401,210 @@ mod tests {
         assert_eq!(running.template.name, "Deploy Template");
         assert_eq!(running.template.playbook, "deploy.yml");
     }
+
+    #[test]
+    fn test_task_pool_has_running_tasks_map() {
+        let store = create_test_store();
+        let project = create_test_project();
+        let ws_manager = Arc::new(crate::api::websocket::WebSocketManager::new());
+        let pool = TaskPool::new(store, project, ws_manager);
+        // running_tasks should be an empty HashMap wrapped in Arc<RwLock>
+        assert!(pool.running_tasks.try_read().is_ok());
+    }
+
+    #[test]
+    fn test_task_pool_has_task_queue_vec() {
+        let store = create_test_store();
+        let project = create_test_project();
+        let ws_manager = Arc::new(crate::api::websocket::WebSocketManager::new());
+        let pool = TaskPool::new(store, project, ws_manager);
+        assert!(pool.task_queue.try_lock().is_ok());
+    }
+
+    #[test]
+    fn test_task_pool_shutdown_flag_initial_state() {
+        let store = create_test_store();
+        let project = create_test_project();
+        let ws_manager = Arc::new(crate::api::websocket::WebSocketManager::new());
+        let pool = TaskPool::new(store, project, ws_manager);
+        // shutdown should be false initially
+        assert!(!*pool.shutdown.try_lock().unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_task_pool_shutdown_sets_flag() {
+        let store = create_test_store();
+        let project = create_test_project();
+        let ws_manager = Arc::new(crate::api::websocket::WebSocketManager::new());
+        let pool = TaskPool::new(store, project, ws_manager);
+        assert!(!pool.is_shutdown().await);
+        pool.shutdown().await;
+        assert!(pool.is_shutdown().await);
+    }
+
+    #[tokio::test]
+    async fn test_task_pool_is_shutdown_concurrent_access() {
+        let store = create_test_store();
+        let project = create_test_project();
+        let ws_manager = Arc::new(crate::api::websocket::WebSocketManager::new());
+        let pool = TaskPool::new(store, project, ws_manager);
+
+        // Multiple concurrent reads should work fine
+        let (r1, r2, r3) = tokio::join!(
+            pool.is_shutdown(),
+            pool.is_shutdown(),
+            pool.is_shutdown(),
+        );
+        assert!(!r1);
+        assert!(!r2);
+        assert!(!r3);
+    }
+
+    #[test]
+    fn test_running_task_new_with_error_status() {
+        let mut task = Task::default();
+        task.id = 1;
+        task.project_id = 1;
+        task.template_id = 1;
+        task.status = TaskStatus::Error;
+
+        let logger = Arc::new(crate::services::task_logger::BasicLogger::new());
+        let template = Template::default();
+
+        let running = RunningTask::new(task, logger, template);
+        assert_eq!(running.task.status, TaskStatus::Error);
+        assert!(!running.killed);
+    }
+
+    #[test]
+    fn test_running_task_new_with_stopped_status() {
+        let mut task = Task::default();
+        task.id = 1;
+        task.project_id = 1;
+        task.template_id = 1;
+        task.status = TaskStatus::Stopped;
+
+        let logger = Arc::new(crate::services::task_logger::BasicLogger::new());
+        let template = Template::default();
+
+        let running = RunningTask::new(task, logger, template);
+        assert_eq!(running.task.status, TaskStatus::Stopped);
+    }
+
+    #[test]
+    fn test_running_task_kill_is_idempotent() {
+        let mut task = Task::default();
+        task.id = 1;
+        task.project_id = 1;
+        task.template_id = 1;
+
+        let logger = Arc::new(crate::services::task_logger::BasicLogger::new());
+        let template = Template::default();
+
+        let mut running = RunningTask::new(task, logger, template);
+        running.kill();
+        running.kill();
+        running.kill();
+        assert!(running.killed);
+        assert!(running.is_killed());
+    }
+
+    #[tokio::test]
+    async fn test_task_pool_project_max_parallel_tasks() {
+        let store = create_test_store();
+        let mut project = create_test_project();
+        project.max_parallel_tasks = 20;
+        let ws_manager = Arc::new(crate::api::websocket::WebSocketManager::new());
+        let pool = TaskPool::new(store, project, ws_manager);
+        assert_eq!(pool.project.max_parallel_tasks, 20);
+    }
+
+    #[test]
+    fn test_running_task_start_time_accuracy() {
+        let mut task = Task::default();
+        task.id = 1;
+        task.project_id = 1;
+        task.template_id = 1;
+
+        let logger = Arc::new(crate::services::task_logger::BasicLogger::new());
+        let template = Template::default();
+
+        let before = Utc::now();
+        let running = RunningTask::new(task, logger, template);
+        let after = Utc::now();
+
+        assert!(running.start_time >= before);
+        assert!(running.start_time <= after);
+    }
+
+    #[test]
+    fn test_task_pool_ws_manager_is_arc() {
+        let store = create_test_store();
+        let project = create_test_project();
+        let ws_manager = Arc::new(crate::api::websocket::WebSocketManager::new());
+        let pool = TaskPool::new(store, project, ws_manager.clone());
+        assert!(Arc::strong_count(&ws_manager) >= 2);
+    }
+
+    #[test]
+    fn test_running_task_with_full_template() {
+        let mut task = Task::default();
+        task.id = 1;
+        task.project_id = 1;
+        task.template_id = 5;
+
+        let logger = Arc::new(crate::services::task_logger::BasicLogger::new());
+        let mut template = Template::default();
+        template.id = 5;
+        template.name = "Full Template".to_string();
+        template.playbook = "full.yml".to_string();
+        template.project_id = 1;
+
+        let running = RunningTask::new(task, logger, template);
+        assert_eq!(running.template.id, 5);
+        assert_eq!(running.template.name, "Full Template");
+        assert_eq!(running.template.playbook, "full.yml");
+    }
+
+    #[test]
+    fn test_running_task_fields_accessible() {
+        let mut task = Task::default();
+        task.id = 42;
+        task.project_id = 1;
+        task.template_id = 1;
+
+        let logger = Arc::new(crate::services::task_logger::BasicLogger::new());
+        let template = Template::default();
+
+        let running = RunningTask::new(task, logger, template);
+        assert_eq!(running.task.id, 42);
+        assert!(!running.killed);
+    }
+
+    #[tokio::test]
+    async fn test_task_pool_store_reference() {
+        let store = create_test_store();
+        let project = create_test_project();
+        let ws_manager = Arc::new(crate::api::websocket::WebSocketManager::new());
+        let pool = TaskPool::new(store.clone(), project, ws_manager);
+        // pool.store should be accessible
+        assert!(Arc::strong_count(&store) >= 2);
+    }
+
+    #[tokio::test]
+    async fn test_running_task_arc_logger_shared() {
+        let mut task = Task::default();
+        task.id = 1;
+        task.project_id = 1;
+        task.template_id = 1;
+
+        let logger = Arc::new(crate::services::task_logger::BasicLogger::new());
+        let template = Template::default();
+        let count_before = Arc::strong_count(&logger);
+
+        let running = RunningTask::new(task, logger.clone(), template);
+
+        assert!(Arc::strong_count(&logger) > count_before);
+        assert!(Arc::strong_count(&running.logger) == Arc::strong_count(&logger));
+    }
 }

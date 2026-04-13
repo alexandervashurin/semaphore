@@ -210,4 +210,160 @@ mod tests {
         assert_eq!(payload.name, None);
         assert_eq!(payload.json, Some("{\"NEW_VAR\": \"value\"}".to_string()));
     }
+
+    #[test]
+    fn test_environment_create_payload_roundtrip() {
+        let original = EnvironmentCreatePayload {
+            name: "Roundtrip".to_string(),
+            json: "{\"KEY\": \"value\"}".to_string(),
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: EnvironmentCreatePayload = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.name, original.name);
+        assert_eq!(restored.json, original.json);
+    }
+
+    #[test]
+    fn test_environment_update_payload_roundtrip() {
+        let original = EnvironmentUpdatePayload {
+            name: Some("Updated".to_string()),
+            json: Some("{\"DB\": \"updated\"}".to_string()),
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: EnvironmentUpdatePayload = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.name, original.name);
+        assert_eq!(restored.json, original.json);
+    }
+
+    #[test]
+    fn test_environment_update_payload_all_null() {
+        let json = r#"{"name": null, "json": null}"#;
+        let payload: EnvironmentUpdatePayload = serde_json::from_str(json).unwrap();
+        assert!(payload.name.is_none());
+        assert!(payload.json.is_none());
+    }
+
+    #[test]
+    fn test_environment_update_payload_empty() {
+        let json = r#"{}"#;
+        let payload: EnvironmentUpdatePayload = serde_json::from_str(json).unwrap();
+        assert!(payload.name.is_none());
+        assert!(payload.json.is_none());
+    }
+
+    #[test]
+    fn test_environment_create_payload_empty_fields() {
+        let json = r#"{"name": "", "json": ""}"#;
+        let payload: EnvironmentCreatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.name, "");
+        assert_eq!(payload.json, "");
+    }
+
+    #[test]
+    fn test_environment_create_payload_complex_json() {
+        let json = r#"{
+            "name": "Complex Env",
+            "json": "{\"DB_HOST\": \"db.example.com\", \"DB_PORT\": 5432, \"FEATURE_FLAGS\": {\"dark_mode\": true}}"
+        }"#;
+        let payload: EnvironmentCreatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.name, "Complex Env");
+        assert!(payload.json.contains("DB_HOST"));
+    }
+
+    #[test]
+    fn test_environment_create_payload_unicode() {
+        let json = r#"{
+            "name": "Окружение Продакшн",
+            "json": "{\"Хост\": \"бд.example.com\"}"
+        }"#;
+        let payload: EnvironmentCreatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.name, "Окружение Продакшн");
+    }
+
+    #[test]
+    fn test_environment_create_payload_debug() {
+        let payload = EnvironmentCreatePayload {
+            name: "Debug".to_string(),
+            json: "{}".to_string(),
+        };
+        let debug_str = format!("{:?}", payload);
+        assert!(debug_str.contains("EnvironmentCreatePayload"));
+        assert!(debug_str.contains("Debug"));
+    }
+
+    #[test]
+    fn test_environment_update_payload_debug() {
+        let payload = EnvironmentUpdatePayload {
+            name: Some("Debug".to_string()),
+            json: None,
+        };
+        let debug_str = format!("{:?}", payload);
+        assert!(debug_str.contains("EnvironmentUpdatePayload"));
+    }
+
+    #[test]
+    fn test_environment_create_payload_clone_independence() {
+        // EnvironmentCreatePayload doesn't derive Clone
+        let json = r#"{"name": "Original", "json": "{}"}"#;
+        let p1: EnvironmentCreatePayload = serde_json::from_str(json).unwrap();
+        let p2: EnvironmentCreatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(p1.name, p2.name);
+    }
+
+    #[test]
+    fn test_environment_update_payload_clone_independence() {
+        // EnvironmentUpdatePayload doesn't derive Clone
+        let json = r#"{"name": "Original", "json": "{}"}"#;
+        let p1: EnvironmentUpdatePayload = serde_json::from_str(json).unwrap();
+        let p2: EnvironmentUpdatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(p1.name, p2.name);
+    }
+
+    #[test]
+    fn test_environment_update_payload_single_field_name() {
+        let json = r#"{"name": "Renamed"}"#;
+        let payload: EnvironmentUpdatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.name, Some("Renamed".to_string()));
+        assert!(payload.json.is_none());
+    }
+
+    #[test]
+    fn test_environment_update_payload_single_field_json() {
+        let json = r#"{"json": "{\"A\": 1}"}"#;
+        let payload: EnvironmentUpdatePayload = serde_json::from_str(json).unwrap();
+        assert!(payload.name.is_none());
+        assert_eq!(payload.json, Some("{\"A\": 1}".to_string()));
+    }
+
+    #[test]
+    fn test_environment_create_payload_json_with_escaped_quotes() {
+        let json = r#"{
+            "name": "Escaped",
+            "json": "{\"message\": \"Hello \\\"World\\\"\"}"
+        }"#;
+        let payload: EnvironmentCreatePayload = serde_json::from_str(json).unwrap();
+        assert!(payload.json.contains("Hello"));
+    }
+
+    #[test]
+    fn test_environment_create_with_empty_json_object() {
+        let payload = EnvironmentCreatePayload {
+            name: "Empty JSON".to_string(),
+            json: "{}".to_string(),
+        };
+        let json = serde_json::to_string(&payload).unwrap();
+        let restored: EnvironmentCreatePayload = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.json, "{}");
+    }
+
+    #[test]
+    fn test_environment_update_payload_newline_in_json() {
+        let payload = EnvironmentUpdatePayload {
+            name: None,
+            json: Some("{\"line1\": \"value1\",\n\"line2\": \"value2\"}".to_string()),
+        };
+        let json = serde_json::to_string(&payload).unwrap();
+        let restored: EnvironmentUpdatePayload = serde_json::from_str(&json).unwrap();
+        assert!(restored.json.as_ref().unwrap().contains("line1"));
+    }
 }

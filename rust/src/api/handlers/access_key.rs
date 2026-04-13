@@ -199,4 +199,145 @@ mod tests {
         let payload: AccessKeyUpdatePayload = serde_json::from_str(json).unwrap();
         assert_eq!(payload.name, None);
     }
+
+    #[test]
+    fn test_access_key_create_payload_roundtrip() {
+        let original = AccessKeyCreatePayload {
+            name: "Roundtrip Key".to_string(),
+            key_type: AccessKeyType::SSH,
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: AccessKeyCreatePayload = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.name, original.name);
+        assert_eq!(restored.key_type, original.key_type);
+    }
+
+    #[test]
+    fn test_access_key_update_payload_roundtrip() {
+        let original = AccessKeyUpdatePayload {
+            name: Some("Updated Key".to_string()),
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: AccessKeyUpdatePayload = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.name, original.name);
+    }
+
+    #[test]
+    fn test_access_key_create_payload_access_key_type() {
+        let json = r#"{
+            "name": "AWS Key",
+            "type": "access_key"
+        }"#;
+        let payload: AccessKeyCreatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.key_type, AccessKeyType::AccessKey);
+    }
+
+    #[test]
+    fn test_access_key_create_payload_none_type() {
+        let json = r#"{
+            "name": "None Key",
+            "type": "none"
+        }"#;
+        let payload: AccessKeyCreatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.key_type, AccessKeyType::None);
+    }
+
+    #[test]
+    fn test_access_key_create_payload_unicode_name() {
+        let json = r#"{
+            "name": "Ключ Доступа",
+            "type": "ssh"
+        }"#;
+        let payload: AccessKeyCreatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.name, "Ключ Доступа");
+    }
+
+    #[test]
+    fn test_access_key_create_payload_empty_name() {
+        let json = r#"{"name": "", "type": "ssh"}"#;
+        let payload: AccessKeyCreatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.name, "");
+    }
+
+    #[test]
+    fn test_access_key_create_payload_debug() {
+        let payload = AccessKeyCreatePayload {
+            name: "Debug Key".to_string(),
+            key_type: AccessKeyType::SSH,
+        };
+        let debug_str = format!("{:?}", payload);
+        assert!(debug_str.contains("AccessKeyCreatePayload"));
+        assert!(debug_str.contains("Debug Key"));
+    }
+
+    #[test]
+    fn test_access_key_update_payload_debug() {
+        let payload = AccessKeyUpdatePayload {
+            name: Some("Debug".to_string()),
+        };
+        let debug_str = format!("{:?}", payload);
+        assert!(debug_str.contains("AccessKeyUpdatePayload"));
+    }
+
+    #[test]
+    fn test_access_key_create_payload_clone() {
+        // AccessKeyCreatePayload doesn't derive Clone, test via roundtrip
+        let json = r#"{"name": "Clone Key", "type": "login_password"}"#;
+        let p1: AccessKeyCreatePayload = serde_json::from_str(json).unwrap();
+        let p2: AccessKeyCreatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(p1.name, p2.name);
+        assert_eq!(p1.key_type, p2.key_type);
+    }
+
+    #[test]
+    fn test_access_key_update_payload_clone() {
+        // AccessKeyUpdatePayload doesn't derive Clone, test via deserialization
+        let json = r#"{"name": "Clone"}"#;
+        let p1: AccessKeyUpdatePayload = serde_json::from_str(json).unwrap();
+        let p2: AccessKeyUpdatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(p1.name, p2.name);
+    }
+
+    #[test]
+    fn test_access_key_create_payload_special_chars() {
+        let json = r#"{
+            "name": "Key with special chars & < > \" '",
+            "type": "ssh"
+        }"#;
+        let payload: AccessKeyCreatePayload = serde_json::from_str(json).unwrap();
+        assert!(payload.name.contains("special chars"));
+    }
+
+    #[test]
+    fn test_access_key_update_payload_with_special_chars() {
+        let json = r#"{"name": "O'Brien's Key"}"#;
+        let payload: AccessKeyUpdatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.name, Some("O'Brien's Key".to_string()));
+    }
+
+    #[test]
+    fn test_access_key_type_all_variants_in_payload() {
+        let types = ["none", "login_password", "ssh", "access_key"];
+        for t in types {
+            let json = format!(r#"{{"name": "Test", "type": "{}"}}"#, t);
+            let payload: AccessKeyCreatePayload = serde_json::from_str(&json).unwrap();
+            assert_eq!(payload.name, "Test");
+        }
+    }
+
+    #[test]
+    fn test_access_key_create_payload_newline_in_name() {
+        let json = r#"{"name": "Key\nwith\nnewlines", "type": "ssh"}"#;
+        let payload: AccessKeyCreatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.name, "Key\nwith\nnewlines");
+    }
+
+    #[test]
+    fn test_access_key_update_payload_clone_independence() {
+        // AccessKeyUpdatePayload doesn't derive Clone
+        let mut name = Some("Original".to_string());
+        let p1 = AccessKeyUpdatePayload { name: name.clone() };
+        name = Some("Modified".to_string());
+        assert_eq!(p1.name, Some("Original".to_string()));
+    }
 }

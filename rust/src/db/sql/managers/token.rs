@@ -173,4 +173,155 @@ mod tests {
         assert_ne!(token1.user_id, token2.user_id);
         assert_ne!(token1.name, token2.name);
     }
+
+    #[test]
+    fn test_api_token_serialization_with_long_name() {
+        let token = APIToken {
+            id: 1,
+            user_id: 1,
+            name: "A very long token name that describes the purpose of this token for CI/CD pipeline deployment".to_string(),
+            token: "token_value".to_string(),
+            created: Utc::now(),
+            expired: false,
+        };
+        let json = serde_json::to_string(&token).unwrap();
+        let deserialized: APIToken = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.name.len(), 93);
+    }
+
+    #[test]
+    fn test_api_token_serialization_unicode_name() {
+        let token = APIToken {
+            id: 1,
+            user_id: 1,
+            name: "Токен для деплоя".to_string(),
+            token: "значение".to_string(),
+            created: Utc::now(),
+            expired: false,
+        };
+        let json = serde_json::to_string(&token).unwrap();
+        assert!(json.contains("Токен"));
+
+        let deserialized: APIToken = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.name, "Токен для деплоя");
+    }
+
+    #[test]
+    fn test_api_token_minimal_values() {
+        let token = APIToken {
+            id: 0,
+            user_id: 0,
+            name: String::new(),
+            token: String::new(),
+            created: Utc::now(),
+            expired: false,
+        };
+        assert_eq!(token.id, 0);
+        assert_eq!(token.user_id, 0);
+        assert!(token.name.is_empty());
+        assert!(token.token.is_empty());
+    }
+
+    #[test]
+    fn test_api_token_max_values() {
+        let token = APIToken {
+            id: i32::MAX,
+            user_id: i32::MAX,
+            name: "max".to_string(),
+            token: "max_token".to_string(),
+            created: Utc::now(),
+            expired: true,
+        };
+        assert_eq!(token.id, i32::MAX);
+        assert_eq!(token.user_id, i32::MAX);
+    }
+
+    #[test]
+    fn test_api_token_debug_format() {
+        let token = APIToken {
+            id: 1,
+            user_id: 42,
+            name: "Debug Test".to_string(),
+            token: "debug_val".to_string(),
+            created: Utc::now(),
+            expired: false,
+        };
+        let debug_str = format!("{:?}", token);
+        assert!(debug_str.contains("Debug Test"));
+        assert!(debug_str.contains("APIToken"));
+    }
+
+    #[test]
+    fn test_api_token_partial_eq() {
+        let token1 = APIToken {
+            id: 1, user_id: 1, name: "Same".to_string(),
+            token: "same".to_string(), created: Utc::now(), expired: false,
+        };
+        let token2 = token1.clone();
+        // APIToken may not implement PartialEq, so test field-by-field
+        assert_eq!(token1.id, token2.id);
+        assert_eq!(token1.user_id, token2.user_id);
+        assert_eq!(token1.name, token2.name);
+    }
+
+    #[test]
+    fn test_api_token_deserialize_invalid_json() {
+        let result = serde_json::from_str::<APIToken>("not valid json");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_api_token_deserialize_missing_fields() {
+        let json = r#"{"id":1}"#;
+        let result = serde_json::from_str::<APIToken>(json);
+        // Should fail due to missing required fields
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_api_token_created_at_past() {
+        let past_time = Utc::now() - chrono::Duration::hours(24);
+        let token = APIToken {
+            id: 1,
+            user_id: 1,
+            name: "Past Token".to_string(),
+            token: "past".to_string(),
+            created: past_time,
+            expired: false,
+        };
+        let json = serde_json::to_string(&token).unwrap();
+        assert!(json.contains("created"));
+    }
+
+    #[test]
+    fn test_api_token_multiple_tokens_same_user() {
+        let now = Utc::now();
+        let token1 = APIToken { id: 1, user_id: 10, name: "First".to_string(), token: "t1".to_string(), created: now, expired: false };
+        let token2 = APIToken { id: 2, user_id: 10, name: "Second".to_string(), token: "t2".to_string(), created: now, expired: false };
+
+        assert_eq!(token1.user_id, token2.user_id);
+        assert_ne!(token1.id, token2.id);
+        assert_ne!(token1.name, token2.name);
+    }
+
+    #[test]
+    fn test_api_token_json_roundtrip() {
+        let original = APIToken {
+            id: 99,
+            user_id: 999,
+            name: "Roundtrip".to_string(),
+            token: "roundtrip_value".to_string(),
+            created: Utc::now(),
+            expired: false,
+        };
+
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: APIToken = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(restored.id, original.id);
+        assert_eq!(restored.user_id, original.user_id);
+        assert_eq!(restored.name, original.name);
+        assert_eq!(restored.token, original.token);
+        assert_eq!(restored.expired, original.expired);
+    }
 }

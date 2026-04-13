@@ -499,4 +499,277 @@ mod tests {
         assert_eq!(payload.build_task_id, Some(10));
         assert_eq!(payload.inventory_id, Some(3));
     }
+
+    #[test]
+    fn test_task_create_payload_serialize_skip_none() {
+        let payload = TaskCreatePayload {
+            template_id: 1,
+            playbook: None,
+            environment: None,
+            arguments: None,
+            git_branch: None,
+            user_id: None,
+            build_task_id: None,
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+        };
+        let json = serde_json::to_string(&payload).unwrap();
+        assert!(!json.contains("playbook"));
+        assert!(!json.contains("environment"));
+        assert!(!json.contains("arguments"));
+        assert!(json.contains("\"template_id\":1"));
+    }
+
+    #[test]
+    fn test_task_create_payload_serialize_with_values() {
+        let payload = TaskCreatePayload {
+            template_id: 5,
+            playbook: Some("deploy.yml".to_string()),
+            environment: None,
+            arguments: Some("-e env=prod".to_string()),
+            git_branch: Some("develop".to_string()),
+            user_id: Some(3),
+            build_task_id: None,
+            inventory_id: Some(2),
+            repository_id: Some(1),
+            environment_id: Some(4),
+        };
+        let json = serde_json::to_string(&payload).unwrap();
+        assert!(json.contains("\"template_id\":5"));
+        assert!(json.contains("\"playbook\":\"deploy.yml\""));
+        assert!(json.contains("\"git_branch\":\"develop\""));
+        assert!(json.contains("\"inventory_id\":2"));
+        assert!(json.contains("\"repository_id\":1"));
+        assert!(json.contains("\"environment_id\":4"));
+        assert!(!json.contains("\"environment\":"));
+    }
+
+    #[test]
+    fn test_task_create_payload_roundtrip() {
+        let original = TaskCreatePayload {
+            template_id: 42,
+            playbook: Some("rollback.yml".to_string()),
+            environment: Some("staging".to_string()),
+            arguments: None,
+            git_branch: Some("release/v2".to_string()),
+            user_id: Some(7),
+            build_task_id: Some(99),
+            inventory_id: None,
+            repository_id: Some(3),
+            environment_id: Some(5),
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: TaskCreatePayload = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.template_id, original.template_id);
+        assert_eq!(restored.playbook, original.playbook);
+        assert_eq!(restored.environment, original.environment);
+        assert_eq!(restored.git_branch, original.git_branch);
+        assert_eq!(restored.user_id, original.user_id);
+        assert_eq!(restored.build_task_id, original.build_task_id);
+        assert_eq!(restored.repository_id, original.repository_id);
+        assert_eq!(restored.environment_id, original.environment_id);
+    }
+
+    #[test]
+    fn test_task_create_payload_empty_string_fields() {
+        let json = r#"{
+            "template_id": 1,
+            "playbook": "",
+            "environment": "",
+            "arguments": "",
+            "git_branch": ""
+        }"#;
+        let payload: TaskCreatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.playbook, Some("".to_string()));
+        assert_eq!(payload.environment, Some("".to_string()));
+        assert_eq!(payload.arguments, Some("".to_string()));
+        assert_eq!(payload.git_branch, Some("".to_string()));
+    }
+
+    #[test]
+    fn test_task_create_payload_unicode_values() {
+        let json = r#"{
+            "template_id": 1,
+            "playbook": "развертывание.yml",
+            "environment": "Продакшн",
+            "arguments": "--comment 'Обновление'"
+        }"#;
+        let payload: TaskCreatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.playbook, Some("развертывание.yml".to_string()));
+        assert_eq!(payload.environment, Some("Продакшн".to_string()));
+        assert_eq!(payload.arguments, Some("--comment 'Обновление'".to_string()));
+    }
+
+    #[test]
+    fn test_task_create_payload_special_chars() {
+        let json = r#"{
+            "template_id": 1,
+            "playbook": "path/to/deploy.yml",
+            "arguments": "-e \"key=value with spaces\"",
+            "git_branch": "feature/fix-bug#123"
+        }"#;
+        let payload: TaskCreatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.playbook, Some("path/to/deploy.yml".to_string()));
+        assert_eq!(payload.arguments, Some("-e \"key=value with spaces\"".to_string()));
+        assert_eq!(payload.git_branch, Some("feature/fix-bug#123".to_string()));
+    }
+
+    #[test]
+    fn test_task_create_payload_debug() {
+        let payload = TaskCreatePayload {
+            template_id: 1,
+            playbook: Some("test.yml".to_string()),
+            environment: None,
+            arguments: None,
+            git_branch: None,
+            user_id: None,
+            build_task_id: None,
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+        };
+        let debug_str = format!("{:?}", payload);
+        assert!(debug_str.contains("TaskCreatePayload"));
+        assert!(debug_str.contains("test.yml"));
+    }
+
+    #[test]
+    fn test_task_create_payload_clone_independence() {
+        // TaskCreatePayload doesn't derive Clone
+        let json = r#"{"template_id": 1, "playbook": "original.yml"}"#;
+        let p1: TaskCreatePayload = serde_json::from_str(json).unwrap();
+        let p2: TaskCreatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(p1.playbook, p2.playbook);
+    }
+
+    #[test]
+    fn test_task_create_payload_negative_ids() {
+        let payload = TaskCreatePayload {
+            template_id: -1,
+            playbook: None,
+            environment: None,
+            arguments: None,
+            git_branch: None,
+            user_id: Some(-5),
+            build_task_id: Some(-10),
+            inventory_id: Some(-3),
+            repository_id: None,
+            environment_id: None,
+        };
+        let json = serde_json::to_string(&payload).unwrap();
+        let restored: TaskCreatePayload = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.template_id, -1);
+        assert_eq!(restored.user_id, Some(-5));
+    }
+
+    #[test]
+    fn test_task_create_payload_deserialize_all_optionals_null() {
+        let json = r#"{
+            "template_id": 1,
+            "playbook": null,
+            "environment": null,
+            "arguments": null,
+            "git_branch": null,
+            "user_id": null,
+            "build_task_id": null,
+            "inventory_id": null,
+            "repository_id": null,
+            "environment_id": null
+        }"#;
+        let payload: TaskCreatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.template_id, 1);
+        assert!(payload.playbook.is_none());
+        assert!(payload.environment.is_none());
+        assert!(payload.arguments.is_none());
+    }
+
+    #[test]
+    fn test_task_create_payload_large_template_id() {
+        let json = r#"{"template_id": 2147483647}"#;
+        let payload: TaskCreatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.template_id, 2147483647);
+    }
+
+    #[test]
+    fn test_task_create_payload_newline_in_playbook() {
+        let payload = TaskCreatePayload {
+            template_id: 1,
+            playbook: Some("line1\nline2".to_string()),
+            environment: None,
+            arguments: None,
+            git_branch: None,
+            user_id: None,
+            build_task_id: None,
+            inventory_id: None,
+            repository_id: None,
+            environment_id: None,
+        };
+        let json = serde_json::to_string(&payload).unwrap();
+        let restored: TaskCreatePayload = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.playbook, Some("line1\nline2".to_string()));
+    }
+
+    #[test]
+    fn test_task_create_payload_all_fields_set() {
+        let json = r#"{
+            "template_id": 10,
+            "playbook": "full.yml",
+            "environment": "env1",
+            "arguments": "--arg1",
+            "git_branch": "branch1",
+            "user_id": 1,
+            "build_task_id": 2,
+            "inventory_id": 3,
+            "repository_id": 4,
+            "environment_id": 5
+        }"#;
+        let payload: TaskCreatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.template_id, 10);
+        assert_eq!(payload.playbook, Some("full.yml".to_string()));
+        assert_eq!(payload.environment, Some("env1".to_string()));
+        assert_eq!(payload.arguments, Some("--arg1".to_string()));
+        assert_eq!(payload.git_branch, Some("branch1".to_string()));
+        assert_eq!(payload.user_id, Some(1));
+        assert_eq!(payload.build_task_id, Some(2));
+        assert_eq!(payload.inventory_id, Some(3));
+        assert_eq!(payload.repository_id, Some(4));
+        assert_eq!(payload.environment_id, Some(5));
+    }
+
+    #[test]
+    fn test_task_create_payload_tab_and_special_whitespace() {
+        let json = r#"{
+            "template_id": 1,
+            "arguments": "\t--verbose\t--debug"
+        }"#;
+        let payload: TaskCreatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.arguments, Some("\t--verbose\t--debug".to_string()));
+    }
+
+    #[test]
+    fn test_task_create_payload_serialize_all_fields_present() {
+        let payload = TaskCreatePayload {
+            template_id: 1,
+            playbook: Some("p.yml".to_string()),
+            environment: Some("e".to_string()),
+            arguments: Some("a".to_string()),
+            git_branch: Some("g".to_string()),
+            user_id: Some(1),
+            build_task_id: Some(2),
+            inventory_id: Some(3),
+            repository_id: Some(4),
+            environment_id: Some(5),
+        };
+        let json = serde_json::to_string(&payload).unwrap();
+        assert!(json.contains("playbook"));
+        assert!(json.contains("environment"));
+        assert!(json.contains("arguments"));
+        assert!(json.contains("git_branch"));
+        assert!(json.contains("user_id"));
+        assert!(json.contains("build_task_id"));
+        assert!(json.contains("inventory_id"));
+        assert!(json.contains("repository_id"));
+        assert!(json.contains("environment_id"));
+    }
 }

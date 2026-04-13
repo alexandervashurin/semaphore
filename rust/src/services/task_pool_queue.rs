@@ -355,4 +355,180 @@ mod tests {
         assert_eq!(queue[1].project_id, 20);
         assert_eq!(queue[2].project_id, 10);
     }
+
+    #[tokio::test]
+    async fn test_remove_task_from_empty_queue() {
+        let pool = create_test_pool().await;
+        let removed = pool.remove_task(1).await;
+        assert!(!removed);
+    }
+
+    #[tokio::test]
+    async fn test_remove_task_from_single_element_queue() {
+        let pool = create_test_pool().await;
+        pool.add_task(create_test_task(1)).await.unwrap();
+        assert_eq!(pool.queue_size().await, 1);
+
+        let removed = pool.remove_task(1).await;
+        assert!(removed);
+        assert_eq!(pool.queue_size().await, 0);
+    }
+
+    #[tokio::test]
+    async fn test_remove_task_last_element() {
+        let pool = create_test_pool().await;
+        pool.add_task(create_test_task(1)).await.unwrap();
+        pool.add_task(create_test_task(2)).await.unwrap();
+
+        let removed = pool.remove_task(2).await;
+        assert!(removed);
+        assert_eq!(pool.queue_size().await, 1);
+
+        let queue = pool.get_queue().await;
+        assert_eq!(queue[0].id, 1);
+    }
+
+    #[tokio::test]
+    async fn test_get_next_task_preserves_fifo_for_remaining() {
+        let pool = create_test_pool().await;
+        pool.add_task(create_test_task(1)).await.unwrap();
+        pool.add_task(create_test_task(2)).await.unwrap();
+        pool.add_task(create_test_task(3)).await.unwrap();
+
+        // Remove middle element
+        pool.remove_task(2).await;
+
+        // FIFO should still work for remaining
+        let first = pool.get_next_task().await.unwrap();
+        assert_eq!(first.id, 1);
+        let second = pool.get_next_task().await.unwrap();
+        assert_eq!(second.id, 3);
+        assert!(pool.get_next_task().await.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_add_task_with_all_statuses() {
+        let pool = create_test_pool().await;
+
+        let mut task1 = create_test_task(1);
+        task1.status = TaskStatus::Waiting;
+        let mut task2 = create_test_task(2);
+        task2.status = TaskStatus::Running;
+        let mut task3 = create_test_task(3);
+        task3.status = TaskStatus::Success;
+        let mut task4 = create_test_task(4);
+        task4.status = TaskStatus::Error;
+        let mut task5 = create_test_task(5);
+        task5.status = TaskStatus::Stopped;
+
+        pool.add_task(task1).await.unwrap();
+        pool.add_task(task2).await.unwrap();
+        pool.add_task(task3).await.unwrap();
+        pool.add_task(task4).await.unwrap();
+        pool.add_task(task5).await.unwrap();
+
+        assert_eq!(pool.queue_size().await, 5);
+    }
+
+    #[tokio::test]
+    async fn test_queue_size_after_mixed_add_remove() {
+        let pool = create_test_pool().await;
+        pool.add_task(create_test_task(1)).await.unwrap();
+        pool.add_task(create_test_task(2)).await.unwrap();
+        pool.add_task(create_test_task(3)).await.unwrap();
+        pool.add_task(create_test_task(4)).await.unwrap();
+
+        pool.remove_task(2).await;
+        pool.remove_task(4).await;
+
+        assert_eq!(pool.queue_size().await, 2);
+    }
+
+    #[tokio::test]
+    async fn test_get_queue_returns_independent_copy() {
+        let pool = create_test_pool().await;
+        pool.add_task(create_test_task(1)).await.unwrap();
+        pool.add_task(create_test_task(2)).await.unwrap();
+
+        let copy1 = pool.get_queue().await;
+        assert_eq!(copy1.len(), 2);
+
+        // Getting another copy should also return 2
+        let copy2 = pool.get_queue().await;
+        assert_eq!(copy2.len(), 2);
+
+        // Both copies should have same content
+        assert_eq!(copy1[0].id, copy2[0].id);
+        assert_eq!(copy1[1].id, copy2[1].id);
+    }
+
+    #[tokio::test]
+    async fn test_add_task_with_message_field() {
+        let pool = create_test_pool().await;
+        let mut task = create_test_task(1);
+        task.message = Some("Deploy to production".to_string());
+        pool.add_task(task).await.unwrap();
+
+        let queue = pool.get_queue().await;
+        assert_eq!(queue[0].message, Some("Deploy to production".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_add_many_tasks_and_verify_order() {
+        let pool = create_test_pool().await;
+        for i in 1..=10 {
+            pool.add_task(create_test_task(i)).await.unwrap();
+        }
+
+        let queue = pool.get_queue().await;
+        assert_eq!(queue.len(), 10);
+        for (i, task) in queue.iter().enumerate() {
+            assert_eq!(task.id, (i + 1) as i32);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_remove_duplicate_id_removes_first() {
+        let pool = create_test_pool().await;
+        // Add two tasks with same ID (unlikely in practice but tests edge case)
+        let mut task1 = create_test_task(1);
+        let mut task2 = create_test_task(1);
+        task2.project_id = 99;
+        pool.add_task(task1).await.unwrap();
+        pool.add_task(task2).await.unwrap();
+
+        let removed = pool.remove_task(1).await;
+        assert!(removed);
+        assert_eq!(pool.queue_size().await, 1);
+    }
+
+    #[tokio::test]
+    async fn test_clear_queue_removes_all() {
+        let pool = create_test_pool().await;
+        for i in 1..=5 {
+            pool.add_task(create_test_task(i)).await.unwrap();
+        }
+        assert_eq!(pool.queue_size().await, 5);
+
+        pool.clear_queue().await;
+        assert_eq!(pool.queue_size().await, 0);
+        assert!(pool.get_queue().await.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_remove_then_add_same_id() {
+        let pool = create_test_pool().await;
+        pool.add_task(create_test_task(1)).await.unwrap();
+        pool.remove_task(1).await;
+        assert_eq!(pool.queue_size().await, 0);
+
+        pool.add_task(create_test_task(1)).await.unwrap();
+        assert_eq!(pool.queue_size().await, 1);
+    }
+
+    #[tokio::test]
+    async fn test_task_default_status_is_waiting() {
+        let task = create_test_task(1);
+        assert_eq!(task.status, TaskStatus::Waiting);
+    }
 }

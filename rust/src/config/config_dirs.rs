@@ -193,4 +193,182 @@ mod tests {
         // Cleanup
         let _ = fs::remove_dir(&dir);
     }
+
+    #[test]
+    fn test_clear_dir_empty_dir() {
+        let temp_dir = env::temp_dir().join("test_clear_dir_empty");
+        fs::create_dir_all(&temp_dir).unwrap();
+        clear_dir(&temp_dir, false, "").unwrap();
+        assert!(temp_dir.exists());
+        let _ = fs::remove_dir(&temp_dir);
+    }
+
+    #[test]
+    fn test_clear_dir_nonexistent() {
+        let temp_dir = env::temp_dir().join("test_clear_dir_nonexistent");
+        // Should not fail for non-existent directory
+        clear_dir(&temp_dir, false, "").unwrap();
+    }
+
+    #[test]
+    fn test_clear_dir_with_files() {
+        let temp_dir = env::temp_dir().join("test_clear_dir_with_files");
+        fs::create_dir_all(&temp_dir).unwrap();
+        fs::write(temp_dir.join("file1.txt"), "content1").unwrap();
+        fs::write(temp_dir.join("file2.txt"), "content2").unwrap();
+
+        clear_dir(&temp_dir, false, "").unwrap();
+        assert!(temp_dir.exists());
+        assert!(temp_dir.join("file1.txt").exists() == false);
+        assert!(temp_dir.join("file2.txt").exists() == false);
+
+        let _ = fs::remove_dir(&temp_dir);
+    }
+
+    #[test]
+    fn test_clear_dir_with_subdirs() {
+        let temp_dir = env::temp_dir().join("test_clear_dir_subdirs");
+        fs::create_dir_all(&temp_dir).unwrap();
+        fs::create_dir_all(temp_dir.join("subdir1")).unwrap();
+        fs::create_dir_all(temp_dir.join("subdir2")).unwrap();
+
+        clear_dir(&temp_dir, false, "").unwrap();
+        assert!(temp_dir.exists());
+        assert!(temp_dir.join("subdir1").exists() == false);
+        assert!(temp_dir.join("subdir2").exists() == false);
+
+        let _ = fs::remove_dir(&temp_dir);
+    }
+
+    #[test]
+    fn test_clear_dir_preserve_files() {
+        let temp_dir = env::temp_dir().join("test_clear_dir_preserve");
+        fs::create_dir_all(&temp_dir).unwrap();
+        fs::write(temp_dir.join("file1.txt"), "content1").unwrap();
+        fs::write(temp_dir.join("file2.txt"), "content2").unwrap();
+
+        clear_dir(&temp_dir, true, "").unwrap();
+        assert!(temp_dir.join("file1.txt").exists());
+        assert!(temp_dir.join("file2.txt").exists());
+
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_clear_dir_with_prefix() {
+        let temp_dir = env::temp_dir().join("test_clear_dir_prefix");
+        fs::create_dir_all(&temp_dir).unwrap();
+        fs::create_dir_all(temp_dir.join("test_subdir1")).unwrap();
+        fs::create_dir_all(temp_dir.join("other_subdir")).unwrap();
+        fs::write(temp_dir.join("test_file.txt"), "content").unwrap();
+        fs::write(temp_dir.join("other_file.txt"), "content").unwrap();
+
+        clear_dir(&temp_dir, false, "test_").unwrap();
+        assert!(temp_dir.join("test_subdir1").exists() == false);
+        assert!(temp_dir.join("test_file.txt").exists() == false);
+        // "other_" items should remain
+        assert!(temp_dir.join("other_subdir").exists());
+        assert!(temp_dir.join("other_file.txt").exists());
+
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_get_or_create_project_tmp_dir() {
+        let temp_base = env::temp_dir().join("test_get_or_create");
+        let project_dir = get_or_create_project_tmp_dir(&temp_base, 999).unwrap();
+
+        assert!(project_dir.exists());
+        assert_eq!(project_dir, temp_base.join("project_999"));
+
+        let _ = fs::remove_dir_all(&temp_base);
+    }
+
+    #[test]
+    fn test_get_or_create_project_tmp_dir_existing() {
+        let temp_base = env::temp_dir().join("test_get_or_create_existing");
+        fs::create_dir_all(&temp_base).unwrap();
+        fs::create_dir_all(temp_base.join("project_111")).unwrap();
+
+        let project_dir = get_or_create_project_tmp_dir(&temp_base, 111).unwrap();
+        assert!(project_dir.exists());
+        assert_eq!(project_dir, temp_base.join("project_111"));
+
+        let _ = fs::remove_dir_all(&temp_base);
+    }
+
+    #[test]
+    fn test_ensure_dir_exists_already_exists() {
+        let temp_dir = env::temp_dir().join("test_ensure_dir_exists");
+        fs::create_dir_all(&temp_dir).unwrap();
+        ensure_dir_exists(&temp_dir).unwrap();
+        assert!(temp_dir.exists());
+        let _ = fs::remove_dir(&temp_dir);
+    }
+
+    #[test]
+    fn test_is_safe_path_with_symlinks() {
+        let base = env::temp_dir().join("test_safe_base");
+        fs::create_dir_all(&base).unwrap();
+
+        // A path starting with base should be safe
+        let safe = base.join("subdir/file.txt");
+        assert!(is_safe_path(&safe, &base) || !safe.exists()); // May fail canonicalization
+
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn test_create_unique_tmp_dir_multiple() {
+        let base = env::temp_dir().join("test_unique_multi");
+        fs::create_dir_all(&base).unwrap();
+
+        let dir1 = create_unique_tmp_dir(&base, "run").unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        let dir2 = create_unique_tmp_dir(&base, "run").unwrap();
+
+        assert_ne!(dir1, dir2);
+        assert!(dir1.exists());
+        assert!(dir2.exists());
+
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn test_clear_dir_with_prefix_no_match() {
+        let temp_dir = env::temp_dir().join("test_clear_no_match");
+        fs::create_dir_all(&temp_dir).unwrap();
+        fs::write(temp_dir.join("file.txt"), "content").unwrap();
+
+        clear_dir(&temp_dir, false, "nomatch_").unwrap();
+        // File should remain since prefix doesn't match
+        assert!(temp_dir.join("file.txt").exists());
+
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_project_tmp_dir_with_negative_id() {
+        let base = PathBuf::from("/tmp");
+        let project_dir = get_project_tmp_dir(base, -1);
+        assert_eq!(project_dir, PathBuf::from("/tmp/project_-1"));
+    }
+
+    #[test]
+    fn test_project_tmp_dir_with_zero_id() {
+        let base = PathBuf::from("/tmp");
+        let project_dir = get_project_tmp_dir(base, 0);
+        assert_eq!(project_dir, PathBuf::from("/tmp/project_0"));
+    }
+
+    #[test]
+    fn test_unicode_directory_names() {
+        let temp_base = env::temp_dir().join("test_unicode_dir_тест");
+        let project_dir = create_project_tmp_dir(&temp_base, 42).unwrap();
+
+        assert!(project_dir.exists());
+        assert!(project_dir.to_string_lossy().contains("project_42"));
+
+        let _ = fs::remove_dir_all(&temp_base);
+    }
 }

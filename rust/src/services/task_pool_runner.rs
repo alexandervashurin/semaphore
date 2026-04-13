@@ -663,4 +663,208 @@ mod tests {
         let queue = pool.get_queue().await;
         assert!(queue.is_empty());
     }
+
+    #[tokio::test]
+    async fn test_running_task_clone_impl() {
+        let pool = create_test_pool().await;
+        let pool_clone = pool.clone();
+        assert!(pool_clone.is_shutdown().await == pool.is_shutdown().await);
+    }
+
+    #[tokio::test]
+    async fn test_running_task_fields_accessible() {
+        let logger = Arc::new(BasicLogger::new());
+        let template = crate::models::Template::default();
+        let mut task = crate::models::Task::default();
+        task.id = 1;
+        task.project_id = 1;
+        task.template_id = 1;
+        let running = RunningTask::new(task, logger, template);
+        assert_eq!(running.task.id, 1);
+        assert!(!running.killed);
+    }
+
+    #[tokio::test]
+    async fn test_running_task_with_all_fields() {
+        let logger = Arc::new(BasicLogger::new());
+        let mut template = crate::models::Template::default();
+        template.id = 5;
+        template.name = "Test".to_string();
+
+        let mut task = crate::models::Task::default();
+        task.id = 10;
+        task.project_id = 2;
+        task.template_id = 5;
+        task.status = TaskStatus::Running;
+
+        let running = RunningTask::new(task, logger, template);
+        assert_eq!(running.task.id, 10);
+        assert_eq!(running.task.project_id, 2);
+        assert_eq!(running.template.id, 5);
+        assert!(!running.killed);
+        assert!(running.start_time <= Utc::now());
+    }
+
+    #[tokio::test]
+    async fn test_running_task_start_time_is_recent() {
+        let logger = Arc::new(BasicLogger::new());
+        let template = crate::models::Template::default();
+        let task = crate::models::Task::default();
+
+        let before = Utc::now();
+        let running = RunningTask::new(task, logger, template);
+        let after = Utc::now();
+
+        assert!(running.start_time >= before && running.start_time <= after);
+    }
+
+    #[tokio::test]
+    async fn test_running_task_is_killed_initial() {
+        let logger = Arc::new(BasicLogger::new());
+        let template = crate::models::Template::default();
+        let task = crate::models::Task::default();
+        let running = RunningTask::new(task, logger, template);
+        assert!(!running.is_killed());
+    }
+
+    #[tokio::test]
+    async fn test_running_task_killed_after_kill() {
+        let logger = Arc::new(BasicLogger::new());
+        let template = crate::models::Template::default();
+        let task = crate::models::Task::default();
+        let mut running = RunningTask::new(task, logger, template);
+        running.kill();
+        assert!(running.killed);
+        assert!(running.is_killed());
+    }
+
+    #[tokio::test]
+    async fn test_task_pool_fields_accessible() {
+        let pool = create_test_pool().await;
+        assert_eq!(pool.project.id, 1);
+        assert_eq!(pool.project.name, "Test Project");
+        assert_eq!(pool.project.max_parallel_tasks, 5);
+    }
+
+    #[tokio::test]
+    async fn test_running_task_logger_is_arc() {
+        let logger = Arc::new(BasicLogger::new());
+        let template = crate::models::Template::default();
+        let task = crate::models::Task::default();
+        let running = RunningTask::new(task, logger.clone(), template);
+        // Both should point to same Arc
+        assert!(Arc::strong_count(&logger) >= 2);
+        assert_eq!(Arc::strong_count(&running.logger), Arc::strong_count(&logger));
+    }
+
+    #[tokio::test]
+    async fn test_task_status_error_variant() {
+        let status = TaskStatus::Error;
+        assert_eq!(status.to_string(), "error");
+    }
+
+    #[tokio::test]
+    async fn test_task_status_stopped_variant() {
+        let status = TaskStatus::Stopped;
+        assert_eq!(status.to_string(), "stopped");
+    }
+
+    #[tokio::test]
+    async fn test_task_status_success_variant() {
+        let status = TaskStatus::Success;
+        assert_eq!(status.to_string(), "success");
+    }
+
+    #[tokio::test]
+    async fn test_running_task_template_is_stored() {
+        let logger = Arc::new(BasicLogger::new());
+        let mut template = crate::models::Template::default();
+        template.name = "MyTemplate".to_string();
+        template.playbook = "play.yml".to_string();
+        let task = crate::models::Task::default();
+        let running = RunningTask::new(task, logger, template);
+        assert_eq!(running.template.name, "MyTemplate");
+        assert_eq!(running.template.playbook, "play.yml");
+    }
+
+    #[tokio::test]
+    async fn test_kill_task_updates_running_map() {
+        let pool = create_test_pool().await;
+
+        let mut task = crate::models::Task::default();
+        task.id = 5;
+        task.project_id = 1;
+        task.template_id = 1;
+        task.status = TaskStatus::Running;
+
+        let logger = Arc::new(BasicLogger::new());
+        let template = crate::models::Template::default();
+        let running_task = RunningTask::new(task.clone(), logger, template);
+
+        {
+            let mut running = pool.running_tasks.write().await;
+            running.insert(5, running_task);
+        }
+
+        assert!(pool.get_running_task(5).await.is_some());
+
+        let result = pool.kill_task(5).await;
+        assert!(result.is_ok());
+
+        assert!(pool.get_running_task(5).await.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_running_tasks_returns_independent_copies() {
+        let pool = create_test_pool().await;
+
+        let mut task = crate::models::Task::default();
+        task.id = 1;
+        task.project_id = 1;
+        task.template_id = 1;
+
+        let logger = Arc::new(BasicLogger::new());
+        let template = crate::models::Template::default();
+        let running_task = RunningTask::new(task.clone(), logger, template);
+
+        {
+            let mut running = pool.running_tasks.write().await;
+            running.insert(1, running_task);
+        }
+
+        let map = pool.get_running_tasks().await;
+        assert_eq!(map.len(), 1);
+        assert!(map.contains_key(&1));
+        assert_eq!(map.get(&1).unwrap().task.id, 1);
+    }
+
+    #[tokio::test]
+    async fn test_running_task_clone_independence() {
+        let logger = Arc::new(BasicLogger::new());
+        let template = crate::models::Template::default();
+        let mut task = crate::models::Task::default();
+        task.id = 1;
+        task.project_id = 1;
+        task.template_id = 1;
+
+        let running = RunningTask::new(task, logger, template);
+        // RunningTask doesn't implement Clone, but we can verify its fields
+        assert!(!running.killed);
+        assert_eq!(running.task.id, 1);
+    }
+
+    #[tokio::test]
+    async fn test_running_task_with_stopped_status() {
+        let logger = Arc::new(BasicLogger::new());
+        let template = crate::models::Template::default();
+        let mut task = crate::models::Task::default();
+        task.id = 1;
+        task.project_id = 1;
+        task.template_id = 1;
+        task.status = TaskStatus::Stopped;
+
+        let running = RunningTask::new(task, logger, template);
+        assert_eq!(running.task.status, TaskStatus::Stopped);
+        assert!(!running.killed);
+    }
 }

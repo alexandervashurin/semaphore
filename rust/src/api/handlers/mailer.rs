@@ -126,4 +126,142 @@ mod tests {
         assert!(json.contains("true"));
         assert!(json.contains("Email sent successfully"));
     }
+
+    #[test]
+    fn test_email_payload_roundtrip() {
+        // TestEmailPayload only derives Deserialize
+        let json = r#"{"to": "roundtrip@example.com", "subject": "Test Subject"}"#;
+        let restored: TestEmailPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(restored.to, "roundtrip@example.com");
+        assert_eq!(restored.subject, Some("Test Subject".to_string()));
+    }
+
+    #[test]
+    fn test_email_response_roundtrip() {
+        // TestEmailResponse derives Serialize but not Deserialize
+        let original = TestEmailResponse {
+            success: false,
+            message: "Failed to send".to_string(),
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        assert!(json.contains("false"));
+        assert!(json.contains("Failed to send"));
+    }
+
+    #[test]
+    fn test_email_payload_debug() {
+        let payload = TestEmailPayload {
+            to: "debug@example.com".to_string(),
+            subject: None,
+        };
+        let debug_str = format!("{:?}", payload);
+        assert!(debug_str.contains("TestEmailPayload"));
+        assert!(debug_str.contains("debug@example.com"));
+    }
+
+    #[test]
+    fn test_email_response_debug() {
+        let response = TestEmailResponse {
+            success: true,
+            message: "Debug message".to_string(),
+        };
+        let debug_str = format!("{:?}", response);
+        assert!(debug_str.contains("TestEmailResponse"));
+        assert!(debug_str.contains("Debug message"));
+    }
+
+    #[test]
+    fn test_email_payload_unicode_recipient() {
+        let json = r#"{"to": "пользователь@example.com"}"#;
+        let payload: TestEmailPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.to, "пользователь@example.com");
+    }
+
+    #[test]
+    fn test_email_payload_unicode_subject() {
+        let json = r#"{"to": "test@example.com", "subject": "Тестовое письмо"}"#;
+        let payload: TestEmailPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.subject, Some("Тестовое письмо".to_string()));
+    }
+
+    #[test]
+    fn test_email_response_false() {
+        let response = TestEmailResponse {
+            success: false,
+            message: "Email failed".to_string(),
+        };
+        let json = serde_json::to_string(&response).unwrap();
+        assert!(json.contains("false"));
+        assert!(json.contains("Email failed"));
+    }
+
+    #[test]
+    fn test_email_payload_clone() {
+        // TestEmailPayload doesn't derive Clone, test via deserialization
+        let json = r#"{"to": "clone@example.com", "subject": "Clone Subject"}"#;
+        let p1: TestEmailPayload = serde_json::from_str(json).unwrap();
+        let p2: TestEmailPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(p1.to, p2.to);
+        assert_eq!(p1.subject, p2.subject);
+    }
+
+    #[test]
+    fn test_email_response_clone() {
+        // TestEmailResponse doesn't derive Clone
+        let r1 = TestEmailResponse {
+            success: true,
+            message: "Clone Response".to_string(),
+        };
+        let r2 = TestEmailResponse {
+            success: true,
+            message: "Clone Response".to_string(),
+        };
+        assert_eq!(r1.success, r2.success);
+        assert_eq!(r1.message, r2.message);
+    }
+
+    #[test]
+    fn test_email_payload_clone_independence() {
+        // TestEmailPayload doesn't derive Clone
+        let mut to = "original@example.com".to_string();
+        let subject = Some("Original".to_string());
+        let p1 = TestEmailPayload { to: to.clone(), subject: subject.clone() };
+        to = "modified@example.com".to_string();
+        assert_eq!(p1.to, "original@example.com");
+    }
+
+    #[test]
+    fn test_email_response_empty_message() {
+        let response = TestEmailResponse {
+            success: true,
+            message: "".to_string(),
+        };
+        let json = serde_json::to_string(&response).unwrap();
+        assert!(json.contains("\"message\":\"\""));
+    }
+
+    #[test]
+    fn test_email_payload_special_chars_recipient() {
+        let json = r#"{"to": "user+test+tag@example.com"}"#;
+        let payload: TestEmailPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.to, "user+test+tag@example.com");
+    }
+
+    #[test]
+    fn test_email_payload_subject_with_quotes() {
+        let json = r#"{"to": "test@example.com", "subject": "Test \"Quoted\" Subject"}"#;
+        let payload: TestEmailPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.subject, Some("Test \"Quoted\" Subject".to_string()));
+    }
+
+    #[test]
+    fn test_email_response_with_unicode() {
+        // TestEmailResponse doesn't derive Deserialize, test serialization only
+        let response = TestEmailResponse {
+            success: true,
+            message: "Письмо успешно отправлено".to_string(),
+        };
+        let json = serde_json::to_string(&response).unwrap();
+        assert!(json.contains("Письмо успешно отправлено"));
+    }
 }

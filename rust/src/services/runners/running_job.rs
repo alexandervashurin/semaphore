@@ -225,4 +225,196 @@ mod tests {
         assert!(records[0].message.contains("echo"));
         assert!(records[0].message.contains("hello"));
     }
+
+    #[test]
+    fn test_running_job_initial_status_is_waiting() {
+        let job = RunningJob::new(make_test_job());
+        assert_eq!(job.get_status(), TaskStatus::Waiting);
+    }
+
+    #[test]
+    fn test_running_job_log_records_accumulate() {
+        let job = RunningJob::new(make_test_job());
+        job.log("first");
+        job.log("second");
+        job.log("third");
+        let records = job.log_records.lock().unwrap();
+        assert_eq!(records.len(), 3);
+        assert_eq!(records[0].message, "first");
+        assert_eq!(records[1].message, "second");
+        assert_eq!(records[2].message, "third");
+    }
+
+    #[test]
+    fn test_running_job_log_empty_string() {
+        let job = RunningJob::new(make_test_job());
+        job.log("");
+        let records = job.log_records.lock().unwrap();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].message, "");
+    }
+
+    #[test]
+    fn test_running_job_status_transitions() {
+        let job = RunningJob::new(make_test_job());
+        assert_eq!(job.get_status(), TaskStatus::Waiting);
+        job.set_status(TaskStatus::Running);
+        assert_eq!(job.get_status(), TaskStatus::Running);
+        job.set_status(TaskStatus::Success);
+        assert_eq!(job.get_status(), TaskStatus::Success);
+    }
+
+    #[test]
+    fn test_running_job_set_status_same_value_no_listener_call() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let job = RunningJob::new(make_test_job());
+        let counter = Arc::new(AtomicUsize::new(0));
+        let counter_clone = counter.clone();
+        job.add_status_listener(Box::new(move |_| {
+            counter_clone.fetch_add(1, Ordering::SeqCst);
+        }));
+        // Initial status is Waiting, setting Waiting again should not call listener
+        job.set_status(TaskStatus::Waiting);
+        assert_eq!(counter.load(Ordering::SeqCst), 0);
+    }
+
+    #[test]
+    fn test_running_job_set_status_different_calls_listener() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let job = RunningJob::new(make_test_job());
+        let counter = Arc::new(AtomicUsize::new(0));
+        let counter_clone = counter.clone();
+        job.add_status_listener(Box::new(move |_| {
+            counter_clone.fetch_add(1, Ordering::SeqCst);
+        }));
+        job.set_status(TaskStatus::Running);
+        assert_eq!(counter.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn test_running_job_multiple_status_listeners() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let job = RunningJob::new(make_test_job());
+        let c1 = Arc::new(AtomicUsize::new(0));
+        let c2 = Arc::new(AtomicUsize::new(0));
+        let c3 = Arc::new(AtomicUsize::new(0));
+        job.add_status_listener(Box::new({ let c = c1.clone(); move |_| { c.fetch_add(1, Ordering::SeqCst); } }));
+        job.add_status_listener(Box::new({ let c = c2.clone(); move |_| { c.fetch_add(1, Ordering::SeqCst); } }));
+        job.add_status_listener(Box::new({ let c = c3.clone(); move |_| { c.fetch_add(1, Ordering::SeqCst); } }));
+        job.set_status(TaskStatus::Running);
+        assert_eq!(c1.load(Ordering::SeqCst), 1);
+        assert_eq!(c2.load(Ordering::SeqCst), 1);
+        assert_eq!(c3.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn test_running_job_log_with_special_characters() {
+        let job = RunningJob::new(make_test_job());
+        job.log("Line 1\nLine 2\tTab");
+        job.log("Special: <>&\"'");
+        job.log("Unicode: привет мир");
+        let records = job.log_records.lock().unwrap();
+        assert_eq!(records.len(), 3);
+        assert!(records[0].message.contains('\n'));
+        assert!(records[2].message.contains("привет"));
+    }
+
+    #[test]
+    fn test_running_job_commit_info_none_initially() {
+        let job = RunningJob::new(make_test_job());
+        assert!(job.commit.is_none());
+    }
+
+    #[test]
+    fn test_running_job_set_commit_info() {
+        let mut job = RunningJob::new(make_test_job());
+        job.set_commit("deadbeef".to_string(), "Initial commit".to_string());
+        let commit = job.commit.as_ref().unwrap();
+        assert_eq!(commit.hash, "deadbeef");
+        assert_eq!(commit.message, "Initial commit");
+    }
+
+    #[test]
+    fn test_running_job_log_cmd_with_no_args() {
+        let job = RunningJob::new(make_test_job());
+        let cmd = Command::new("ls");
+        job.log_cmd(&cmd);
+        let records = job.log_records.lock().unwrap();
+        assert!(records[0].message.contains("ls"));
+    }
+
+    #[test]
+    fn test_running_job_log_cmd_with_multiple_args() {
+        let job = RunningJob::new(make_test_job());
+        let mut cmd = Command::new("grep");
+        cmd.arg("-r").arg("pattern").arg("/path");
+        job.log_cmd(&cmd);
+        let records = job.log_records.lock().unwrap();
+        assert!(records[0].message.contains("grep"));
+        assert!(records[0].message.contains("-r"));
+        assert!(records[0].message.contains("pattern"));
+    }
+
+    #[test]
+    fn test_running_job_log_records_shared_via_arc() {
+        let job = RunningJob::new(make_test_job());
+        let records_clone = job.log_records.clone();
+        job.log("via original");
+        {
+            let records = records_clone.lock().unwrap();
+            assert_eq!(records.len(), 1);
+            assert_eq!(records[0].message, "via original");
+        }
+    }
+
+    #[test]
+    fn test_running_job_status_listener_receives_correct_status() {
+        let job = RunningJob::new(make_test_job());
+        let received = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let received_clone = received.clone();
+        job.add_status_listener(Box::new(move |status| {
+            received_clone.lock().unwrap().push(status);
+        }));
+        job.set_status(TaskStatus::Running);
+        job.set_status(TaskStatus::Success);
+        let statuses = received.lock().unwrap();
+        assert_eq!(statuses.len(), 2);
+        assert_eq!(statuses[0], TaskStatus::Running);
+        assert_eq!(statuses[1], TaskStatus::Success);
+    }
+
+    #[test]
+    fn test_running_job_wait_log_does_not_panic() {
+        let job = RunningJob::new(make_test_job());
+        // Just verify it completes
+        futures::executor::block_on(job.wait_log());
+    }
+
+    #[test]
+    fn test_running_job_log_listener_receives_time_and_message() {
+        let job = RunningJob::new(make_test_job());
+        let received = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let received_clone = received.clone();
+        job.add_log_listener(Box::new(move |time, msg| {
+            received_clone.lock().unwrap().push((time, msg));
+        }));
+        job.log("test log");
+        let records = received.lock().unwrap();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].1, "test log");
+    }
+
+    #[test]
+    fn test_running_job_set_status_error() {
+        let job = RunningJob::new(make_test_job());
+        job.set_status(TaskStatus::Error);
+        assert_eq!(job.get_status(), TaskStatus::Error);
+    }
+
+    #[test]
+    fn test_running_job_set_status_stopped() {
+        let job = RunningJob::new(make_test_job());
+        job.set_status(TaskStatus::Stopped);
+        assert_eq!(job.get_status(), TaskStatus::Stopped);
+    }
 }

@@ -227,4 +227,208 @@ mod tests {
         // Пустое значение должно заполниться
         assert_eq!(config.tmp_path, "/tmp/velum");
     }
+
+    #[test]
+    fn test_default_ldap_dn() {
+        assert_eq!(default_ldap_dn(), "dn");
+    }
+
+    #[test]
+    fn test_default_ldap_mail() {
+        assert_eq!(default_ldap_mail(), "mail");
+    }
+
+    #[test]
+    fn test_default_ldap_uid() {
+        assert_eq!(default_ldap_uid(), "uid");
+    }
+
+    #[test]
+    fn test_default_ldap_cn() {
+        assert_eq!(default_ldap_cn(), "cn");
+    }
+
+    #[test]
+    fn test_load_defaults_with_empty_config() {
+        let mut config = Config::default();
+        load_defaults(&mut config);
+
+        assert_eq!(config.database.hostname, "0.0.0.0");
+        assert_eq!(config.database.db_name, "velum");
+    }
+
+    #[test]
+    fn test_load_defaults_preserves_existing_db_host() {
+        let mut config = Config {
+            database: DbConfig {
+                hostname: "custom-host.example.com".to_string(),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        load_defaults(&mut config);
+
+        assert_eq!(config.database.hostname, "custom-host.example.com");
+    }
+
+    #[test]
+    fn test_load_defaults_with_ldap_mappings() {
+        use crate::config::types::LdapConfig;
+
+        let mut config = Config {
+            ldap: Some(LdapConfig {
+                mappings: LdapMappings::default(),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        load_defaults(&mut config);
+
+        let ldap = config.ldap.as_ref().unwrap();
+        assert_eq!(ldap.mappings.dn, "dn");
+        assert_eq!(ldap.mappings.mail, "mail");
+        assert_eq!(ldap.mappings.uid, "uid");
+        assert_eq!(ldap.mappings.cn, "cn");
+    }
+
+    #[test]
+    fn test_load_defaults_preserves_existing_ldap_mappings() {
+        use crate::config::types::LdapConfig;
+        use crate::config::types::LdapMappings;
+
+        let mut config = Config {
+            ldap: Some(LdapConfig {
+                mappings: LdapMappings {
+                    dn: "distinguishedName".to_string(),
+                    mail: "email".to_string(),
+                    uid: "sAMAccountName".to_string(),
+                    cn: "displayName".to_string(),
+                },
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        load_defaults(&mut config);
+
+        let ldap = config.ldap.as_ref().unwrap();
+        assert_eq!(ldap.mappings.dn, "distinguishedName");
+        assert_eq!(ldap.mappings.mail, "email");
+        assert_eq!(ldap.mappings.uid, "sAMAccountName");
+        assert_eq!(ldap.mappings.cn, "displayName");
+    }
+
+    #[test]
+    fn test_load_defaults_without_ldap() {
+        let mut config = Config {
+            ldap: None,
+            ..Default::default()
+        };
+
+        load_defaults(&mut config);
+
+        // Should not panic even without LDAP
+        assert_eq!(config.database.hostname, "0.0.0.0");
+        assert_eq!(config.database.db_name, "velum");
+    }
+
+    #[test]
+    fn test_create_default_config_mailer() {
+        let config = create_default_config();
+        assert_eq!(config.mailer_port, "25");
+        assert_eq!(config.mailer_from, "noreply@localhost");
+        assert_eq!(config.email_sender, "velum@localhost");
+    }
+
+    #[test]
+    fn test_create_default_config_ha_disabled() {
+        let config = create_default_config();
+        assert!(!config.ha.enable);
+        assert!(config.ha.node_id.is_empty());
+    }
+
+    #[test]
+    fn test_create_default_config_auth_disabled() {
+        let config = create_default_config();
+        assert!(!config.auth.totp.enable);
+        assert!(!config.auth.totp.allow_recovery);
+        assert!(!config.auth.email_enabled);
+        assert!(!config.auth.email_login_enabled);
+    }
+
+    #[test]
+    fn test_create_default_config_alerts() {
+        let config = create_default_config();
+        assert!(!config.alert.enabled);
+        assert!(config.alert.email.is_none());
+        assert!(!config.alert.all_projects);
+    }
+
+    #[test]
+    fn test_create_default_config_empty_secrets() {
+        let config = create_default_config();
+        assert!(config.cookie_hash.is_empty());
+        assert!(config.cookie_encryption.is_empty());
+    }
+
+    #[test]
+    fn test_create_default_config_optional_fields() {
+        let config = create_default_config();
+        assert!(config.telegram_bot_token.is_none());
+        assert!(config.redis.is_none());
+        assert!(config.kubernetes.is_none());
+    }
+
+    #[test]
+    fn test_apply_defaults_partial_config() {
+        let mut config = Config {
+            database: DbConfig {
+                hostname: "my-host".to_string(),
+                db_name: String::new(),
+                ..Default::default()
+            },
+            tmp_path: String::new(),
+            ..Default::default()
+        };
+
+        apply_defaults(&mut config);
+
+        // hostname should be preserved
+        assert_eq!(config.database.hostname, "my-host");
+        // db_name should be filled (empty)
+        assert_eq!(config.database.db_name, "velum");
+        // tmp_path should be filled
+        assert_eq!(config.tmp_path, "/tmp/velum");
+    }
+
+    #[test]
+    fn test_apply_defaults_without_ldap() {
+        let mut config = Config {
+            ldap: None,
+            tmp_path: String::new(),
+            ..Default::default()
+        };
+
+        apply_defaults(&mut config);
+
+        // Should not panic
+        assert_eq!(config.tmp_path, "/tmp/velum");
+    }
+
+    #[test]
+    fn test_load_defaults_db_name_empty() {
+        let mut config = Config {
+            database: DbConfig {
+                db_name: String::new(),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        load_defaults(&mut config);
+
+        assert_eq!(config.database.db_name, "velum");
+    }
 }

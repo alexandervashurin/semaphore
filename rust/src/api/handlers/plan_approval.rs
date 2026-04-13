@@ -228,6 +228,7 @@ pub async fn reject_plan(
 mod tests {
     use crate::api::create_app;
     use crate::db::mock::MockStore;
+    use crate::models::PlanReviewPayload;
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
     use serde_json::json;
@@ -304,5 +305,127 @@ mod tests {
             .await
             .unwrap();
         assert!(resp.status() == StatusCode::UNAUTHORIZED || resp.status() == StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn test_plan_review_payload_deserialize_with_comment() {
+        let json = r#"{"comment": "Looks good to me"}"#;
+        let payload: PlanReviewPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.comment, Some("Looks good to me".to_string()));
+    }
+
+    #[test]
+    fn test_plan_review_payload_deserialize_null_comment() {
+        let json = r#"{"comment": null}"#;
+        let payload: PlanReviewPayload = serde_json::from_str(json).unwrap();
+        assert!(payload.comment.is_none());
+    }
+
+    #[test]
+    fn test_plan_review_payload_deserialize_empty_comment() {
+        let json = r#"{"comment": ""}"#;
+        let payload: PlanReviewPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.comment, Some("".to_string()));
+    }
+
+    #[test]
+    fn test_plan_review_payload_deserialize_empty_object() {
+        let json = r#"{}"#;
+        let payload: PlanReviewPayload = serde_json::from_str(json).unwrap();
+        assert!(payload.comment.is_none());
+    }
+
+    #[test]
+    fn test_plan_review_payload_roundtrip() {
+        let original = PlanReviewPayload {
+            comment: Some("Roundtrip comment".to_string()),
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: PlanReviewPayload = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.comment, original.comment);
+    }
+
+    #[test]
+    fn test_plan_review_payload_debug() {
+        let payload = PlanReviewPayload {
+            comment: Some("Debug comment".to_string()),
+        };
+        let debug_str = format!("{:?}", payload);
+        assert!(debug_str.contains("PlanReviewPayload"));
+        assert!(debug_str.contains("Debug comment"));
+    }
+
+    #[test]
+    fn test_plan_review_payload_clone() {
+        let original = PlanReviewPayload {
+            comment: Some("Clone comment".to_string()),
+        };
+        let cloned = original.clone();
+        assert_eq!(cloned.comment, original.comment);
+    }
+
+    #[test]
+    fn test_plan_review_payload_clone_independence() {
+        let mut original = PlanReviewPayload {
+            comment: Some("Original".to_string()),
+        };
+        let cloned = original.clone();
+        original.comment = Some("Modified".to_string());
+        assert_eq!(cloned.comment, Some("Original".to_string()));
+    }
+
+    #[test]
+    fn test_plan_review_payload_unicode_comment() {
+        let json = r#"{"comment": "Комментарий к утверждению"}"#;
+        let payload: PlanReviewPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.comment, Some("Комментарий к утверждению".to_string()));
+    }
+
+    #[test]
+    fn test_plan_review_payload_multiline_comment() {
+        let json = r#"{"comment": "Line 1\nLine 2\nLine 3"}"#;
+        let payload: PlanReviewPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.comment, Some("Line 1\nLine 2\nLine 3".to_string()));
+    }
+
+    #[test]
+    fn test_plan_review_payload_special_chars() {
+        let json = r#"{"comment": "Approved with conditions: <critical> && 'urgent'"}"#;
+        let payload: PlanReviewPayload = serde_json::from_str(json).unwrap();
+        assert!(payload.comment.as_ref().unwrap().contains("<critical>"));
+    }
+
+    #[test]
+    fn test_plan_review_payload_null_object() {
+        let json = r#"{"comment": null}"#;
+        let payload: PlanReviewPayload = serde_json::from_str(json).unwrap();
+        assert!(payload.comment.is_none());
+    }
+
+    #[test]
+    fn test_plan_review_payload_none_comment_serialize() {
+        let payload = PlanReviewPayload { comment: None };
+        let json = serde_json::to_string(&payload).unwrap();
+        assert!(json.contains("\"comment\":null"));
+    }
+
+    #[test]
+    fn test_plan_review_payload_empty_string_serialize() {
+        let payload = PlanReviewPayload {
+            comment: Some("".to_string()),
+        };
+        let json = serde_json::to_string(&payload).unwrap();
+        assert!(json.contains("\"comment\":\"\""));
+    }
+
+    #[test]
+    fn test_plan_review_payload_very_long_comment() {
+        let long_comment = "a".repeat(10000);
+        let payload = PlanReviewPayload {
+            comment: Some(long_comment.clone()),
+        };
+        let json = serde_json::to_string(&payload).unwrap();
+        let restored: PlanReviewPayload = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.comment, Some(long_comment));
     }
 }

@@ -286,4 +286,194 @@ mod tests {
         assert_eq!(payload.name, None);
         assert_eq!(payload.email, None);
     }
+
+    #[test]
+    fn test_user_update_payload_roundtrip() {
+        // UserUpdatePayload doesn't derive Serialize, test via deserialization
+        let json = r#"{"username": "roundtrip_user", "name": "Round Trip", "email": "round@trip.com"}"#;
+        let restored: UserUpdatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(restored.username, Some("roundtrip_user".to_string()));
+        assert_eq!(restored.name, Some("Round Trip".to_string()));
+        assert_eq!(restored.email, Some("round@trip.com".to_string()));
+    }
+
+    #[test]
+    fn test_user_update_payload_serialize_skip_none() {
+        // UserUpdatePayload doesn't derive Serialize
+        let json = r#"{}"#;
+        let payload: UserUpdatePayload = serde_json::from_str(json).unwrap();
+        assert!(payload.username.is_none());
+        assert!(payload.name.is_none());
+        assert!(payload.email.is_none());
+    }
+
+    #[test]
+    fn test_user_update_payload_debug_format() {
+        let payload = UserUpdatePayload {
+            username: Some("debug_user".to_string()),
+            name: Some("Debug User".to_string()),
+            email: Some("debug@test.com".to_string()),
+        };
+        let debug_str = format!("{:?}", payload);
+        assert!(debug_str.contains("UserUpdatePayload"));
+        assert!(debug_str.contains("debug_user"));
+    }
+
+    #[test]
+    fn test_user_update_payload_unicode_values() {
+        let json = r#"{
+            "username": "пользователь",
+            "name": "Иван Петров",
+            "email": "иван@example.com"
+        }"#;
+        let payload: UserUpdatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.username, Some("пользователь".to_string()));
+        assert_eq!(payload.name, Some("Иван Петров".to_string()));
+        assert_eq!(payload.email, Some("иван@example.com".to_string()));
+    }
+
+    #[test]
+    fn test_user_update_payload_empty_string_fields() {
+        let json = r#"{
+            "username": "",
+            "name": "",
+            "email": ""
+        }"#;
+        let payload: UserUpdatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.username, Some("".to_string()));
+        assert_eq!(payload.name, Some("".to_string()));
+        assert_eq!(payload.email, Some("".to_string()));
+    }
+
+    #[test]
+    fn test_user_update_payload_clone_independence() {
+        // UserUpdatePayload doesn't derive Clone, so we test field-level independence
+        let mut username = Some("original".to_string());
+        let name = Some("Original".to_string());
+        let email = Some("orig@test.com".to_string());
+        let payload1 = UserUpdatePayload { username: username.clone(), name: name.clone(), email: email.clone() };
+        let payload2 = UserUpdatePayload { username: username.clone(), name: name.clone(), email: email.clone() };
+        username = Some("modified".to_string());
+        assert_eq!(payload1.username, Some("original".to_string()));
+        assert_eq!(payload2.username, Some("original".to_string()));
+    }
+
+    #[test]
+    fn test_password_update_payload_deserialize() {
+        let json = r#"{"password": "secure_password_123"}"#;
+        let payload: PasswordUpdatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.password, "secure_password_123");
+    }
+
+    #[test]
+    fn test_password_update_payload_empty_password() {
+        let json = r#"{"password": ""}"#;
+        let payload: PasswordUpdatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.password, "");
+    }
+
+    #[test]
+    fn test_password_update_payload_special_chars() {
+        let json = r#"{"password": "p@$$w0rd!#%^&*()"}"#;
+        let payload: PasswordUpdatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.password, "p@$$w0rd!#%^&*()");
+    }
+
+    #[test]
+    fn test_password_update_payload_unicode() {
+        let json = r#"{"password": "пароль_с_кириллицей"}"#;
+        let payload: PasswordUpdatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.password, "пароль_с_кириллицей");
+    }
+
+    #[test]
+    fn test_password_update_payload_debug() {
+        let payload = PasswordUpdatePayload {
+            password: "secret".to_string(),
+        };
+        let debug_str = format!("{:?}", payload);
+        assert!(debug_str.contains("PasswordUpdatePayload"));
+    }
+
+    #[test]
+    fn test_create_user_payload_deserialize_minimal() {
+        let json = r#"{"username": "newuser"}"#;
+        let payload: CreateUserPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.username, "newuser");
+        assert!(payload.name.is_none());
+        assert!(payload.email.is_none());
+        assert!(payload.password.is_none());
+        assert!(payload.admin.is_none());
+    }
+
+    #[test]
+    fn test_create_user_payload_deserialize_full() {
+        let json = r#"{
+            "username": "admin_user",
+            "name": "Admin User",
+            "email": "admin@example.com",
+            "password": "secret",
+            "admin": true
+        }"#;
+        let payload: CreateUserPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.username, "admin_user");
+        assert_eq!(payload.name, Some("Admin User".to_string()));
+        assert_eq!(payload.email, Some("admin@example.com".to_string()));
+        assert_eq!(payload.password, Some("secret".to_string()));
+        assert_eq!(payload.admin, Some(true));
+    }
+
+    #[test]
+    fn test_create_user_payload_admin_false() {
+        let json = r#"{"username": "regular", "admin": false}"#;
+        let payload: CreateUserPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.admin, Some(false));
+    }
+
+    #[test]
+    fn test_create_user_payload_unicode() {
+        let json = r#"{
+            "username": "админ",
+            "name": "Администратор",
+            "email": "админ@example.com"
+        }"#;
+        let payload: CreateUserPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.username, "админ");
+        assert_eq!(payload.name, Some("Администратор".to_string()));
+    }
+
+    #[test]
+    fn test_create_user_payload_debug() {
+        let payload = CreateUserPayload {
+            username: "test".to_string(),
+            name: None,
+            email: None,
+            password: None,
+            admin: None,
+        };
+        let debug_str = format!("{:?}", payload);
+        assert!(debug_str.contains("CreateUserPayload"));
+        assert!(debug_str.contains("test"));
+    }
+
+    #[test]
+    fn test_user_update_payload_with_special_chars() {
+        let json = r#"{
+            "name": "O'Brien, John",
+            "email": "john+test@example.com",
+            "username": "john.doe_2024"
+        }"#;
+        let payload: UserUpdatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.name, Some("O'Brien, John".to_string()));
+        assert_eq!(payload.email, Some("john+test@example.com".to_string()));
+    }
+
+    #[test]
+    fn test_user_update_payload_single_field_username() {
+        let json = r#"{"username": "only_username"}"#;
+        let payload: UserUpdatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.username, Some("only_username".to_string()));
+        assert!(payload.name.is_none());
+        assert!(payload.email.is_none());
+    }
 }

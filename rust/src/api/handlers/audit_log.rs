@@ -447,4 +447,338 @@ mod tests {
         assert_eq!(params.project_id, Some(1));
         assert_eq!(params.format, Some("csv".to_string()));
     }
+
+    #[test]
+    fn test_audit_log_query_params_deserialize_full() {
+        let json = r#"{
+            "project_id": 10,
+            "user_id": 5,
+            "username": "admin",
+            "action": "login",
+            "object_type": "user",
+            "object_id": 1,
+            "level": "warning",
+            "search": "test",
+            "limit": 100,
+            "offset": 50,
+            "sort": "id",
+            "order": "asc"
+        }"#;
+        let params: AuditLogQueryParams = serde_json::from_str(json).unwrap();
+        assert_eq!(params.project_id, Some(10));
+        assert_eq!(params.user_id, Some(5));
+        assert_eq!(params.username, Some("admin".to_string()));
+        assert_eq!(params.limit, Some(100));
+        assert_eq!(params.offset, Some(50));
+        assert_eq!(params.sort, Some("id".to_string()));
+        assert_eq!(params.order, Some("asc".to_string()));
+    }
+
+    #[test]
+    fn test_audit_log_query_params_deserialize_empty() {
+        let json = r#"{}"#;
+        let params: AuditLogQueryParams = serde_json::from_str(json).unwrap();
+        assert!(params.project_id.is_none());
+        assert!(params.user_id.is_none());
+        assert!(params.username.is_none());
+        assert!(params.action.is_none());
+        assert!(params.limit.is_none());
+    }
+
+    #[test]
+    fn test_audit_log_query_params_debug() {
+        let params = AuditLogQueryParams {
+            project_id: Some(1),
+            user_id: None,
+            username: None,
+            action: None,
+            object_type: None,
+            object_id: None,
+            level: None,
+            search: None,
+            date_from: None,
+            date_to: None,
+            limit: None,
+            offset: None,
+            sort: None,
+            order: None,
+        };
+        let debug_str = format!("{:?}", params);
+        assert!(debug_str.contains("AuditLogQueryParams"));
+    }
+
+    #[test]
+    fn test_export_params_deserialize_full() {
+        let json = r#"{
+            "format": "json",
+            "project_id": 5,
+            "user_id": 3,
+            "action": "login",
+            "limit": 500
+        }"#;
+        let params: ExportParams = serde_json::from_str(json).unwrap();
+        assert_eq!(params.format, Some("json".to_string()));
+        assert_eq!(params.project_id, Some(5));
+        assert_eq!(params.user_id, Some(3));
+        assert_eq!(params.limit, Some(500));
+    }
+
+    #[test]
+    fn test_export_params_deserialize_empty() {
+        let json = r#"{}"#;
+        let params: ExportParams = serde_json::from_str(json).unwrap();
+        assert!(params.format.is_none());
+        assert!(params.project_id.is_none());
+        assert!(params.limit.is_none());
+    }
+
+    #[test]
+    fn test_export_params_debug() {
+        let params = ExportParams {
+            format: Some("csv".to_string()),
+            from: None,
+            to: None,
+            project_id: Some(1),
+            user_id: None,
+            action: None,
+            limit: None,
+        };
+        let debug_str = format!("{:?}", params);
+        assert!(debug_str.contains("ExportParams"));
+    }
+
+    #[test]
+    fn test_expiry_params_deserialize() {
+        let json = r#"{"before": "2024-01-01T00:00:00Z"}"#;
+        let params: ExpiryParams = serde_json::from_str(json).unwrap();
+        assert!(params.before.timestamp() > 0);
+    }
+
+    #[test]
+    fn test_expiry_params_debug() {
+        let params = ExpiryParams {
+            before: chrono::Utc::now(),
+        };
+        let debug_str = format!("{:?}", params);
+        assert!(debug_str.contains("ExpiryParams"));
+    }
+
+    #[test]
+    fn test_csv_escape_with_comma_and_quote() {
+        assert_eq!(csv_escape("he said \"hi\""), "\"he said \"\"hi\"\"\"");
+    }
+
+    #[test]
+    fn test_csv_escape_all_special_chars() {
+        let input = "a,b\n\"c\"";
+        let escaped = csv_escape(input);
+        assert!(escaped.starts_with('"'));
+        assert!(escaped.ends_with('"'));
+    }
+
+    #[test]
+    fn test_csv_escape_single_char() {
+        assert_eq!(csv_escape("x"), "x");
+    }
+
+    #[test]
+    fn test_csv_escape_only_comma() {
+        assert_eq!(csv_escape(","), "\",\"");
+    }
+
+    #[test]
+    fn test_csv_escape_only_quote() {
+        assert_eq!(csv_escape("\""), "\"\"\"\"");
+    }
+
+    #[test]
+    fn test_csv_escape_unicode() {
+        assert_eq!(csv_escape("привет, мир"), "\"привет, мир\"");
+    }
+
+    #[test]
+    fn test_csv_escape_tab() {
+        assert_eq!(csv_escape("col1\tcol2"), "col1\tcol2");
+    }
+
+    #[test]
+    fn test_audit_log_action_to_string_all_variants() {
+        let actions = [
+            ("login", AuditAction::Login),
+            ("logout", AuditAction::Logout),
+            ("login_failed", AuditAction::LoginFailed),
+            ("password_changed", AuditAction::PasswordChanged),
+            ("user_created", AuditAction::UserCreated),
+            ("task_completed", AuditAction::TaskCompleted),
+            ("template_run", AuditAction::TemplateRun),
+            ("config_changed", AuditAction::ConfigChanged),
+        ];
+        for (expected, variant) in actions {
+            assert_eq!(format!("{}", variant), expected);
+        }
+    }
+
+    #[test]
+    fn test_audit_object_type_to_string_all_variants() {
+        let types = [
+            ("user", AuditObjectType::User),
+            ("project", AuditObjectType::Project),
+            ("task", AuditObjectType::Task),
+            ("template", AuditObjectType::Template),
+            ("inventory", AuditObjectType::Inventory),
+            ("repository", AuditObjectType::Repository),
+            ("environment", AuditObjectType::Environment),
+            ("access_key", AuditObjectType::AccessKey),
+            ("system", AuditObjectType::System),
+        ];
+        for (expected, variant) in types {
+            assert_eq!(format!("{}", variant), expected);
+        }
+    }
+
+    #[test]
+    fn test_audit_level_to_string_all_variants() {
+        let levels = [
+            ("info", AuditLevel::Info),
+            ("warning", AuditLevel::Warning),
+            ("error", AuditLevel::Error),
+            ("critical", AuditLevel::Critical),
+        ];
+        for (expected, variant) in levels {
+            assert_eq!(format!("{}", variant), expected);
+        }
+    }
+
+    #[test]
+    fn test_audit_action_display_all_variants() {
+        assert_eq!(format!("{}", AuditAction::Login), "login");
+        assert_eq!(format!("{}", AuditAction::Logout), "logout");
+        assert_eq!(format!("{}", AuditAction::TaskFailed), "task_failed");
+        assert_eq!(format!("{}", AuditAction::Other), "other");
+    }
+
+    #[test]
+    fn test_audit_object_type_display_all_variants() {
+        assert_eq!(format!("{}", AuditObjectType::User), "user");
+        assert_eq!(format!("{}", AuditObjectType::System), "system");
+        assert_eq!(format!("{}", AuditObjectType::Other), "other");
+    }
+
+    #[test]
+    fn test_audit_level_display_all_variants() {
+        assert_eq!(format!("{}", AuditLevel::Info), "info");
+        assert_eq!(format!("{}", AuditLevel::Critical), "critical");
+    }
+
+    #[test]
+    fn test_audit_action_serialization() {
+        let json = serde_json::to_string(&AuditAction::Login).unwrap();
+        assert_eq!(json, "\"login\"");
+    }
+
+    #[test]
+    fn test_audit_object_type_serialization() {
+        let json = serde_json::to_string(&AuditObjectType::Project).unwrap();
+        assert_eq!(json, "\"project\"");
+    }
+
+    #[test]
+    fn test_audit_level_serialization() {
+        let json = serde_json::to_string(&AuditLevel::Error).unwrap();
+        assert_eq!(json, "\"error\"");
+    }
+
+    #[test]
+    fn test_audit_action_deserialization() {
+        let action: AuditAction = serde_json::from_str("\"task_completed\"").unwrap();
+        assert_eq!(action, AuditAction::TaskCompleted);
+    }
+
+    #[test]
+    fn test_audit_object_type_deserialization() {
+        let obj: AuditObjectType = serde_json::from_str("\"environment\"").unwrap();
+        assert_eq!(obj, AuditObjectType::Environment);
+    }
+
+    #[test]
+    fn test_audit_level_deserialization() {
+        let level: AuditLevel = serde_json::from_str("\"warning\"").unwrap();
+        assert_eq!(level, AuditLevel::Warning);
+    }
+
+    #[test]
+    fn test_audit_log_filter_defaults_from_query_params() {
+        let params = AuditLogQueryParams {
+            project_id: None,
+            user_id: None,
+            username: None,
+            action: None,
+            object_type: None,
+            object_id: None,
+            level: None,
+            search: None,
+            date_from: None,
+            date_to: None,
+            limit: None,
+            offset: None,
+            sort: None,
+            order: None,
+        };
+        let filter = AuditLogFilter {
+            project_id: params.project_id,
+            user_id: params.user_id,
+            username: params.username,
+            action: params.action.map(|a| match a.as_str() {
+                "login" => AuditAction::Login,
+                _ => AuditAction::Other,
+            }),
+            object_type: params.object_type.map(|o| match o.as_str() {
+                "user" => AuditObjectType::User,
+                _ => AuditObjectType::Other,
+            }),
+            object_id: params.object_id,
+            level: params.level.map(|l| match l.as_str() {
+                "info" => AuditLevel::Info,
+                _ => AuditLevel::Info,
+            }),
+            search: params.search,
+            date_from: params.date_from,
+            date_to: params.date_to,
+            limit: params.limit.unwrap_or(50),
+            offset: params.offset.unwrap_or(0),
+            sort: params.sort.unwrap_or_else(|| "created".to_string()),
+            order: params.order.unwrap_or_else(|| "desc".to_string()),
+        };
+        assert_eq!(filter.limit, 50);
+        assert_eq!(filter.offset, 0);
+        assert_eq!(filter.sort, "created");
+        assert_eq!(filter.order, "desc");
+    }
+
+    #[test]
+    fn test_export_params_default_format() {
+        let params = ExportParams {
+            format: None,
+            from: None,
+            to: None,
+            project_id: None,
+            user_id: None,
+            action: None,
+            limit: None,
+        };
+        let fmt = params.format.as_deref().unwrap_or("json");
+        assert_eq!(fmt, "json");
+
+        let params2 = ExportParams {
+            format: Some("csv".to_string()),
+            from: None,
+            to: None,
+            project_id: None,
+            user_id: None,
+            action: None,
+            limit: None,
+        };
+        let fmt2 = params2.format.as_deref().unwrap_or("json");
+        assert_eq!(fmt2, "csv");
+    }
 }

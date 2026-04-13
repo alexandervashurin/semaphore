@@ -231,4 +231,293 @@ mod tests {
         assert_eq!(estimate.id, 5);
         assert_eq!(estimate.currency, "USD");
     }
+
+    #[test]
+    fn test_cost_estimate_debug_format() {
+        let estimate = CostEstimate {
+            id: 1,
+            project_id: 10,
+            task_id: 100,
+            template_id: 5,
+            currency: "GBP".to_string(),
+            monthly_cost: Some(300.0),
+            monthly_cost_diff: Some(50.0),
+            resource_count: 15,
+            resources_added: 5,
+            resources_changed: 3,
+            resources_deleted: 2,
+            breakdown_json: Some(r#"{"aws": 200}"#.to_string()),
+            infracost_version: Some("v1.0.0".to_string()),
+            created_at: "2024-02-01".to_string(),
+            template_name: "AWS Deploy".to_string(),
+        };
+        let debug = format!("{:?}", estimate);
+        assert!(debug.contains("CostEstimate"));
+        assert!(debug.contains("GBP"));
+    }
+
+    #[test]
+    fn test_cost_estimate_unicode_currency() {
+        // While unusual, test that unicode works in currency field
+        let estimate = CostEstimate {
+            id: 1,
+            project_id: 1,
+            task_id: 1,
+            template_id: 1,
+            currency: "доллар".to_string(),
+            monthly_cost: Some(100.0),
+            monthly_cost_diff: None,
+            resource_count: 0,
+            resources_added: 0,
+            resources_changed: 0,
+            resources_deleted: 0,
+            breakdown_json: None,
+            infracost_version: None,
+            created_at: "2024-01-01".to_string(),
+            template_name: "Тест".to_string(),
+        };
+        let json = serde_json::to_string(&estimate).unwrap();
+        assert!(json.contains("доллар"));
+
+        let deserialized: CostEstimate = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.currency, "доллар");
+    }
+
+    #[test]
+    fn test_cost_estimate_create_all_fields() {
+        let create = CostEstimateCreate {
+            project_id: 100,
+            task_id: 1000,
+            template_id: 50,
+            currency: Some("EUR".to_string()),
+            monthly_cost: Some(500.0),
+            monthly_cost_diff: Some(100.0),
+            resource_count: Some(25),
+            resources_added: Some(10),
+            resources_changed: Some(5),
+            resources_deleted: Some(3),
+            breakdown_json: Some(r#"{"azure_vm": 300}"#.to_string()),
+            infracost_version: Some("v0.11.0".to_string()),
+        };
+        let json = serde_json::to_string(&create).unwrap();
+        assert!(json.contains("\"project_id\":100"));
+        assert!(json.contains("\"monthly_cost\":500.0"));
+        assert!(json.contains("\"resources_added\":10"));
+    }
+
+    #[test]
+    fn test_cost_estimate_negative_values() {
+        let estimate = CostEstimate {
+            id: 1,
+            project_id: 1,
+            task_id: 1,
+            template_id: 1,
+            currency: "USD".to_string(),
+            monthly_cost: Some(-50.0),
+            monthly_cost_diff: Some(-25.0),
+            resource_count: 0,
+            resources_added: 0,
+            resources_changed: 0,
+            resources_deleted: 5,
+            breakdown_json: None,
+            infracost_version: None,
+            created_at: "2024-01-01".to_string(),
+            template_name: "Negative Test".to_string(),
+        };
+        let json = serde_json::to_string(&estimate).unwrap();
+        assert!(json.contains("-50.0"));
+        assert!(json.contains("-25.0"));
+    }
+
+    #[test]
+    fn test_cost_summary_deserialization() {
+        let json = r#"{
+            "template_id": 10,
+            "template_name": "Production Deploy",
+            "latest_monthly_cost": 750.25,
+            "runs_with_cost": 42,
+            "last_run_at": "2024-03-15T14:30:00Z"
+        }"#;
+        let summary: CostSummary = serde_json::from_str(json).unwrap();
+        assert_eq!(summary.template_id, 10);
+        assert_eq!(summary.template_name, "Production Deploy");
+        assert_eq!(summary.latest_monthly_cost, Some(750.25));
+        assert_eq!(summary.runs_with_cost, 42);
+    }
+
+    #[test]
+    fn test_cost_summary_null_cost() {
+        let json = r#"{
+            "template_id": 1,
+            "template_name": "No Cost Template",
+            "latest_monthly_cost": null,
+            "runs_with_cost": 0,
+            "last_run_at": ""
+        }"#;
+        let summary: CostSummary = serde_json::from_str(json).unwrap();
+        assert_eq!(summary.latest_monthly_cost, None);
+        assert_eq!(summary.runs_with_cost, 0);
+    }
+
+    #[test]
+    fn test_cost_estimate_create_deserialization() {
+        let json = r#"{
+            "project_id": 5,
+            "task_id": 50,
+            "template_id": 2,
+            "currency": "JPY",
+            "monthly_cost": 10000.0,
+            "monthly_cost_diff": 2000.0,
+            "resource_count": 10,
+            "resources_added": 4,
+            "resources_changed": 2,
+            "resources_deleted": 1,
+            "breakdown_json": "{\"gcp\": 5000}",
+            "infracost_version": "v0.12.0"
+        }"#;
+        let create: CostEstimateCreate = serde_json::from_str(json).unwrap();
+        assert_eq!(create.project_id, 5);
+        assert_eq!(create.currency, Some("JPY".to_string()));
+        assert_eq!(create.resource_count, Some(10));
+    }
+
+    #[test]
+    fn test_cost_estimate_create_minimal() {
+        let create = CostEstimateCreate {
+            project_id: 1,
+            task_id: 1,
+            template_id: 1,
+            currency: None,
+            monthly_cost: None,
+            monthly_cost_diff: None,
+            resource_count: None,
+            resources_added: None,
+            resources_changed: None,
+            resources_deleted: None,
+            breakdown_json: None,
+            infracost_version: None,
+        };
+        let json = serde_json::to_string(&create).unwrap();
+        assert!(json.contains("\"project_id\":1"));
+        assert!(json.contains("\"currency\":null"));
+    }
+
+    #[test]
+    fn test_cost_estimate_json_roundtrip() {
+        let original = CostEstimate {
+            id: 88,
+            project_id: 8,
+            task_id: 888,
+            template_id: 88,
+            currency: "CHF".to_string(),
+            monthly_cost: Some(999.99),
+            monthly_cost_diff: Some(99.99),
+            resource_count: 88,
+            resources_added: 8,
+            resources_changed: 8,
+            resources_deleted: 8,
+            breakdown_json: Some(r#"{"gcp": 500}"#.to_string()),
+            infracost_version: Some("v0.15.0".to_string()),
+            created_at: "2024-08-08T08:08:08Z".to_string(),
+            template_name: "Roundtrip Test".to_string(),
+        };
+
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: CostEstimate = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(restored.id, original.id);
+        assert_eq!(restored.currency, original.currency);
+        assert_eq!(restored.monthly_cost, original.monthly_cost);
+    }
+
+    #[test]
+    fn test_cost_estimate_create_json_roundtrip() {
+        let original = CostEstimateCreate {
+            project_id: 33,
+            task_id: 333,
+            template_id: 33,
+            currency: Some("CAD".to_string()),
+            monthly_cost: Some(333.33),
+            monthly_cost_diff: Some(33.33),
+            resource_count: Some(33),
+            resources_added: Some(3),
+            resources_changed: Some(3),
+            resources_deleted: Some(3),
+            breakdown_json: Some(r#"{"aws": 100}"#.to_string()),
+            infracost_version: Some("v0.13.0".to_string()),
+        };
+
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: CostEstimateCreate = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(restored.project_id, original.project_id);
+        assert_eq!(restored.currency, original.currency);
+    }
+
+    #[test]
+    fn test_cost_summary_json_roundtrip() {
+        let original = CostSummary {
+            template_id: 22,
+            template_name: "Summary Roundtrip".to_string(),
+            latest_monthly_cost: Some(222.22),
+            runs_with_cost: 22,
+            last_run_at: "2024-02-22T22:22:22Z".to_string(),
+        };
+
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: CostSummary = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(restored.template_id, original.template_id);
+        assert_eq!(restored.template_name, original.template_name);
+        assert_eq!(restored.runs_with_cost, original.runs_with_cost);
+    }
+
+    #[test]
+    fn test_cost_estimate_zero_values() {
+        let estimate = CostEstimate {
+            id: 0,
+            project_id: 0,
+            task_id: 0,
+            template_id: 0,
+            currency: String::new(),
+            monthly_cost: Some(0.0),
+            monthly_cost_diff: Some(0.0),
+            resource_count: 0,
+            resources_added: 0,
+            resources_changed: 0,
+            resources_deleted: 0,
+            breakdown_json: Some("{}".to_string()),
+            infracost_version: Some(String::new()),
+            created_at: String::new(),
+            template_name: String::new(),
+        };
+        assert_eq!(estimate.monthly_cost, Some(0.0));
+        assert!(estimate.currency.is_empty());
+    }
+
+    #[test]
+    fn test_cost_estimate_large_breakdown_json() {
+        let large_json = r#"{"aws_instances": [{"type": "t3.large", "count": 10, "cost": 500}], "azure_vms": [{"type": "Standard_B2s", "count": 5, "cost": 200}], "gcp_instances": [{"type": "n1-standard-1", "count": 3, "cost": 150}]}"#;
+        let estimate = CostEstimate {
+            id: 1,
+            project_id: 1,
+            task_id: 1,
+            template_id: 1,
+            currency: "USD".to_string(),
+            monthly_cost: Some(850.0),
+            monthly_cost_diff: Some(100.0),
+            resource_count: 18,
+            resources_added: 18,
+            resources_changed: 0,
+            resources_deleted: 0,
+            breakdown_json: Some(large_json.to_string()),
+            infracost_version: Some("v0.20.0".to_string()),
+            created_at: "2024-01-01".to_string(),
+            template_name: "Multi-Cloud".to_string(),
+        };
+
+        let json = serde_json::to_string(&estimate).unwrap();
+        let restored: CostEstimate = serde_json::from_str(&json).unwrap();
+        assert!(restored.breakdown_json.unwrap().contains("aws_instances"));
+    }
 }
