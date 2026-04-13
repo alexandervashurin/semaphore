@@ -11,11 +11,7 @@ status_summary:
   documentation: "✅ Все 14 файлов исправлены (2026-04-07)"
   latest_test_run: "2026-04-09: 6551 passed, 0 failed, 3 ignored (~85% coverage)"
   open_blockers:
-    critical:
-      - id: TEST-01
-        title: "Покрытие тестами 80%+ (сейчас ~16.5% tarpaulin / ~78% оценка, 1283 тестов)"
-        sprint: S2
-        blocks: [RB-01]
+    critical: []
     high:
       - id: PROD-01
         title: "Docker образ <50MB"
@@ -1147,8 +1143,8 @@ task_index:
     title: "Увеличить покрытие тестами до 80%+"
     priority: critical
     estimate: large
-    status: in_progress
-    progress_notes: "2026-04-06: +67 тестов (815→882); 2026-04-09: +1708 тестов (1965→3673, ~24%→~45% tarpaulin)"
+    status: completed
+    progress_notes: "2026-04-06: +67 тестов (815→882); 2026-04-09: +4586 тестов (1965→6551, ~24%→~85% tarpaulin) ✅ DONE"
   - sprint_id: S2
     sprint_title: "Спринт 2 — Verification & Test Coverage (4-6 недель)"
     task_id: D-01
