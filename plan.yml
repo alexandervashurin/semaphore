@@ -895,7 +895,7 @@ optional_sprints:
         title: "Remote Runners"
         priority: medium
         estimate: large
-        status: todo
+        status: completed
         subtasks:
           - "Протокол регистрации раннеров"
           - "Heartbeat механизм"
@@ -904,12 +904,13 @@ optional_sprints:
         done_when:
           - "Remote runners подключаются"
           - "Задачи выполняются на раннерах"
+        completion_notes: "remote_runners.rs: RemoteRunnersManager, RunnerCapabilities, heartbeat/task queue; runners.rs: /api/internal/runners register/heartbeat/get_task/submit_log; RunnerManager trait in store"
 
       - task_id: VAULT-01
         title: "HashiCorp Vault integration"
         priority: medium
         estimate: medium
-        status: todo
+        status: completed
         subtasks:
           - "Vault secret storage backend"
           - "Dynamic secrets"
@@ -917,11 +918,17 @@ optional_sprints:
         done_when:
           - "Secrets хранятся в Vault"
           - "Dynamic secrets работают"
+        completion_notes: "SecretStorageType::Vault; secret_storages CRUD API with sync/refs; template_vault integration"
 
     sprint_done_when:
       - "K-05 завершён (опционально)"
       - "EXT-01 завершён (опционально)"
       - "TF-01 завершён (опционально)"
+      - "RUNNER-01 завершён"
+      - "VAULT-01 завершён"
+      - "OBS-01 завершён"
+      - "DOC-01 завершён"
+      - "GRAPHQL-01 завершён"
 
 recommended_execution_order:
   - "S0 -> S1 -> S2 -> S3 -> S4"
