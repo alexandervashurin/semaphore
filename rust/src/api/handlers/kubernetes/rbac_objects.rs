@@ -768,4 +768,274 @@ mod tests {
         assert_eq!(view.audit, None);
         assert_eq!(view.warn, None);
     }
+
+    #[test]
+    fn test_service_account_summary() {
+        let summary = ServiceAccountSummary {
+            name: "my-sa".to_string(),
+            namespace: "kube-system".to_string(),
+        };
+        assert_eq!(summary.name, "my-sa");
+        assert_eq!(summary.namespace, "kube-system");
+    }
+
+    #[test]
+    fn test_secret_ref_summary_with_type() {
+        let secret = SecretRefSummary {
+            name: "my-secret".to_string(),
+            secret_type: Some("kubernetes.io/tls".to_string()),
+        };
+        assert_eq!(secret.name, "my-secret");
+        assert!(secret.secret_type.is_some());
+    }
+
+    #[test]
+    fn test_secret_ref_summary_no_type() {
+        let secret = SecretRefSummary {
+            name: "generic-secret".to_string(),
+            secret_type: None,
+        };
+        assert_eq!(secret.name, "generic-secret");
+        assert!(secret.secret_type.is_none());
+    }
+
+    #[test]
+    fn test_role_like_summary_wide_rules() {
+        let summary = RoleLikeSummary {
+            name: "admin-role".to_string(),
+            namespace: Some("default".to_string()),
+            rules_count: 5,
+            wide_rules: true,
+            warning: Some("Wildcard detected".to_string()),
+            is_system: false,
+        };
+        assert!(summary.wide_rules);
+        assert!(summary.warning.is_some());
+        assert!(!summary.is_system);
+    }
+
+    #[test]
+    fn test_role_like_summary_namespace_none() {
+        let summary = RoleLikeSummary {
+            name: "cluster-reader".to_string(),
+            namespace: None,
+            rules_count: 2,
+            wide_rules: false,
+            warning: None,
+            is_system: false,
+        };
+        assert!(summary.namespace.is_none());
+        assert_eq!(summary.rules_count, 2);
+    }
+
+    #[test]
+    fn test_binding_summary_with_subjects() {
+        let summary = BindingSummary {
+            name: "my-binding".to_string(),
+            namespace: Some("production".to_string()),
+            role_kind: Some("ClusterRole".to_string()),
+            role_name: Some("cluster-admin".to_string()),
+            subjects_count: 3,
+        };
+        assert_eq!(summary.subjects_count, 3);
+        assert_eq!(summary.role_name, Some("cluster-admin".to_string()));
+    }
+
+    #[test]
+    fn test_binding_summary_no_subjects() {
+        let summary = BindingSummary {
+            name: "empty-binding".to_string(),
+            namespace: None,
+            role_kind: None,
+            role_name: None,
+            subjects_count: 0,
+        };
+        assert_eq!(summary.subjects_count, 0);
+        assert!(summary.role_kind.is_none());
+    }
+
+    #[test]
+    fn test_pod_security_admission_view_partial() {
+        let mut labels = BTreeMap::new();
+        labels.insert("pod-security.kubernetes.io/enforce".to_string(), "baseline".to_string());
+
+        let view = labels_psa_view(&labels);
+        assert_eq!(view.enforce, Some("baseline".to_string()));
+        assert_eq!(view.audit, None);
+        assert_eq!(view.warn, None);
+    }
+
+    #[test]
+    fn test_pod_security_admission_patch_all_none() {
+        let patch = PodSecurityAdmissionPatch {
+            enforce: None,
+            audit: None,
+            warn: None,
+        };
+        assert!(patch.enforce.is_none());
+        assert!(patch.audit.is_none());
+        assert!(patch.warn.is_none());
+    }
+
+    #[test]
+    fn test_pod_security_admission_patch_empty_string_removes() {
+        let patch = PodSecurityAdmissionPatch {
+            enforce: Some("".to_string()),
+            audit: Some("baseline".to_string()),
+            warn: None,
+        };
+        assert_eq!(patch.enforce, Some("".to_string()));
+        assert_eq!(patch.audit, Some("baseline".to_string()));
+    }
+
+    #[test]
+    fn test_rules_review_request_with_namespace() {
+        let req = RulesReviewRequest {
+            namespace: Some("kube-system".to_string()),
+        };
+        assert_eq!(req.namespace, Some("kube-system".to_string()));
+    }
+
+    #[test]
+    fn test_rules_review_request_no_namespace() {
+        let req = RulesReviewRequest {
+            namespace: None,
+        };
+        assert!(req.namespace.is_none());
+    }
+
+    #[test]
+    fn test_policy_rule_is_wide_api_groups_star() {
+        let rule = PolicyRule {
+            verbs: vec!["get".to_string()],
+            resources: Some(vec!["pods".to_string()]),
+            api_groups: Some(vec!["*".to_string()]),
+            non_resource_urls: None,
+            resource_names: None,
+        };
+        assert!(policy_rule_is_wide(&rule));
+    }
+
+    #[test]
+    fn test_policy_rule_is_wide_multiple_verbs_no_star() {
+        let rule = PolicyRule {
+            verbs: vec!["get".to_string(), "list".to_string(), "watch".to_string()],
+            resources: Some(vec!["pods".to_string(), "services".to_string()]),
+            api_groups: Some(vec!["".to_string()]),
+            non_resource_urls: None,
+            resource_names: None,
+        };
+        assert!(!policy_rule_is_wide(&rule));
+    }
+
+    #[test]
+    fn test_role_wide_rules_empty() {
+        let rules: Vec<PolicyRule> = vec![];
+        let (is_wide, warn) = role_wide_rules(&rules);
+        assert!(!is_wide);
+        assert!(warn.is_none());
+    }
+
+    #[test]
+    fn test_role_wide_rules_single_non_wide() {
+        let rules = vec![
+            PolicyRule {
+                verbs: vec!["get".to_string()],
+                resources: Some(vec!["configmaps".to_string()]),
+                api_groups: Some(vec!["".to_string()]),
+                non_resource_urls: None,
+                resource_names: None,
+            },
+        ];
+        let (is_wide, warn) = role_wide_rules(&rules);
+        assert!(!is_wide);
+        assert!(warn.is_none());
+    }
+
+    #[test]
+    fn test_is_system_cluster_name_empty_string() {
+        assert!(!is_system_cluster_name(""));
+    }
+
+    #[test]
+    fn test_is_system_cluster_name_case_sensitive() {
+        assert!(!is_system_cluster_name("System:admin"));
+        assert!(!is_system_cluster_name("ADMIN"));
+    }
+
+    #[test]
+    fn test_summarize_role_basic() {
+        let rules = vec![
+            PolicyRule {
+                verbs: vec!["get".to_string()],
+                resources: Some(vec!["pods".to_string()]),
+                api_groups: Some(vec!["".to_string()]),
+                non_resource_urls: None,
+                resource_names: None,
+            },
+        ];
+        let summary = summarize_role("test-role", "default", &rules);
+        assert_eq!(summary.name, "test-role");
+        assert_eq!(summary.namespace, Some("default".to_string()));
+        assert_eq!(summary.rules_count, 1);
+        assert!(!summary.wide_rules);
+        assert!(!summary.is_system);
+    }
+
+    #[test]
+    fn test_summarize_cluster_role_system_name() {
+        let rules = vec![
+            PolicyRule {
+                verbs: vec!["get".to_string()],
+                resources: Some(vec!["nodes".to_string()]),
+                api_groups: Some(vec!["".to_string()]),
+                non_resource_urls: None,
+                resource_names: None,
+            },
+        ];
+        let summary = summarize_cluster_role("system:kubelet", &rules);
+        assert!(summary.is_system);
+        assert!(summary.warning.is_some());
+        assert!(summary.warning.as_ref().unwrap().contains("Системная"));
+    }
+
+    #[test]
+    fn test_summarize_cluster_role_non_system() {
+        let rules = vec![
+            PolicyRule {
+                verbs: vec!["*".to_string()],
+                resources: Some(vec!["*".to_string()]),
+                api_groups: Some(vec!["*".to_string()]),
+                non_resource_urls: None,
+                resource_names: None,
+            },
+        ];
+        let summary = summarize_cluster_role("my-custom-role", &rules);
+        assert!(!summary.is_system);
+        assert!(summary.wide_rules);
+        assert_eq!(summary.rules_count, 1);
+    }
+
+    #[test]
+    fn test_namespace_query_default_none() {
+        let query = NamespaceQuery {
+            namespace: None,
+        };
+        assert!(query.namespace.is_none());
+    }
+
+    #[test]
+    fn test_namespace_query_with_value() {
+        let query = NamespaceQuery {
+            namespace: Some("monitoring".to_string()),
+        };
+        assert_eq!(query.namespace, Some("monitoring".to_string()));
+    }
+
+    #[test]
+    fn test_psa_constants_match_labels() {
+        assert_eq!(PSA_ENFORCE, "pod-security.kubernetes.io/enforce");
+        assert_eq!(PSA_AUDIT, "pod-security.kubernetes.io/audit");
+        assert_eq!(PSA_WARN, "pod-security.kubernetes.io/warn");
+    }
 }

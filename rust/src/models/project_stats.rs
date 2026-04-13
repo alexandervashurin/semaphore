@@ -184,4 +184,27 @@ mod tests {
         // 10 / (10+0+0) * 100 = 100%
         assert!((stats.success_rate() - 100.0).abs() < 0.01);
     }
+
+    #[test]
+    fn test_project_stats_clone_independence() {
+        let mut stats = ProjectStats {
+            task_count: 100, success_count: 80, fail_count: 15, stopped_count: 5,
+            active_user_count: 10, template_count: 5, inventory_count: 3, repository_count: 2,
+        };
+        let cloned = stats.clone();
+        stats.success_count = 0;
+        assert_eq!(cloned.success_count, 80);
+    }
+
+    #[test]
+    fn test_project_stats_roundtrip() {
+        let original = ProjectStats {
+            task_count: 999, success_count: 888, fail_count: 99, stopped_count: 12,
+            active_user_count: 42, template_count: 15, inventory_count: 8, repository_count: 3,
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: ProjectStats = serde_json::from_str(&json).unwrap();
+        assert_eq!(original.task_count, restored.task_count);
+        assert_eq!(original.success_rate(), restored.success_rate());
+    }
 }

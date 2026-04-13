@@ -143,4 +143,55 @@ mod tests {
         assert_eq!(original.recovery_hash, restored.recovery_hash);
         assert_eq!(original.recovery_codes, restored.recovery_codes);
     }
+
+    #[test]
+    fn test_totp_verification_clone_independence() {
+        let mut totp = TotpVerification {
+            secret: "original".to_string(),
+            recovery_hash: "hash".to_string(),
+            recovery_codes: Some(vec!["code1".to_string()]),
+        };
+        let cloned = totp.clone();
+        totp.secret = "modified".to_string();
+        assert_eq!(cloned.secret, "original");
+    }
+
+    #[test]
+    fn test_totp_verification_debug_all_fields() {
+        let totp = TotpVerification {
+            secret: "JBSWY3DPEHPK3PXP".to_string(),
+            recovery_hash: "hash123".to_string(),
+            recovery_codes: Some(vec!["code1".to_string()]),
+        };
+        let debug_str = format!("{:?}", totp);
+        assert!(debug_str.contains("JBSWY3DPEHPK3PXP"));
+        assert!(debug_str.contains("hash123"));
+        assert!(debug_str.contains("TotpVerification"));
+    }
+
+    #[test]
+    fn test_totp_verification_unicode_secret() {
+        let totp = TotpVerification {
+            secret: "секретный_ключ".to_string(),
+            recovery_hash: "хеш".to_string(),
+            recovery_codes: None,
+        };
+        let json = serde_json::to_string(&totp).unwrap();
+        let restored: TotpVerification = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.secret, "секретный_ключ");
+    }
+
+    #[test]
+    fn test_totp_verification_many_codes() {
+        let codes: Vec<String> = (0..10).map(|i| format!("code_{:04}", i)).collect();
+        let totp = TotpVerification {
+            secret: "many_codes".to_string(),
+            recovery_hash: "hash".to_string(),
+            recovery_codes: Some(codes.clone()),
+        };
+        let json = serde_json::to_string(&totp).unwrap();
+        let restored: TotpVerification = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.recovery_codes.as_ref().unwrap().len(), 10);
+        assert_eq!(restored.recovery_codes.as_ref().unwrap()[0], "code_0000");
+    }
 }

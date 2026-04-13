@@ -191,4 +191,42 @@ mod tests {
         let result = "invalid_status".parse::<PlanStatus>().unwrap();
         assert_eq!(result, PlanStatus::Pending);
     }
+
+    #[test]
+    fn test_terraform_plan_unicode() {
+        let plan = TerraformPlan {
+            id: 1, task_id: 100, project_id: 10,
+            plan_output: "План: 1 добавить".to_string(), plan_json: None,
+            resources_added: 1, resources_changed: 0, resources_removed: 0,
+            status: "pending".to_string(), created_at: Utc::now(),
+            reviewed_at: None, reviewed_by: None, review_comment: None,
+        };
+        let json = serde_json::to_string(&plan).unwrap();
+        let restored: TerraformPlan = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.plan_output, "План: 1 добавить");
+    }
+
+    #[test]
+    fn test_terraform_plan_clone_independence() {
+        let mut plan = TerraformPlan {
+            id: 1, task_id: 1, project_id: 1,
+            plan_output: "Original".to_string(), plan_json: None,
+            resources_added: 0, resources_changed: 0, resources_removed: 0,
+            status: "pending".to_string(), created_at: Utc::now(),
+            reviewed_at: None, reviewed_by: None, review_comment: None,
+        };
+        let cloned = plan.clone();
+        plan.plan_output = "Modified".to_string();
+        assert_eq!(cloned.plan_output, "Original");
+    }
+
+    #[test]
+    fn test_plan_review_payload_roundtrip() {
+        let original = PlanReviewPayload {
+            comment: Some("This looks good, approve!".to_string()),
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: PlanReviewPayload = serde_json::from_str(&json).unwrap();
+        assert_eq!(original.comment, restored.comment);
+    }
 }

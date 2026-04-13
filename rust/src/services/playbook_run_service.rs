@@ -316,4 +316,216 @@ mod tests {
         // Это может быть Ok или Err в зависимости от validate реализации
         let _ = request.validate();
     }
+
+    #[test]
+    fn test_playbook_run_request_with_skip_tags() {
+        let request = PlaybookRunRequest::new()
+            .with_tags(vec!["deploy".to_string()])
+            .with_extra_vars(json!({}));
+
+        assert!(request.tags.is_some());
+        assert_eq!(request.tags.as_ref().unwrap().len(), 1);
+        assert!(request.skip_tags.is_none());
+    }
+
+    #[test]
+    fn test_playbook_run_result_creation() {
+        let result = PlaybookRunResult {
+            task_id: 42,
+            template_id: 7,
+            status: "waiting".to_string(),
+            message: "Task created".to_string(),
+        };
+
+        assert_eq!(result.task_id, 42);
+        assert_eq!(result.template_id, 7);
+        assert_eq!(result.status, "waiting");
+        assert_eq!(result.message, "Task created");
+    }
+
+    #[test]
+    fn test_playbook_run_result_clone() {
+        let result = PlaybookRunResult {
+            task_id: 1,
+            template_id: 1,
+            status: "running".to_string(),
+            message: "test".to_string(),
+        };
+        let cloned = result.clone();
+        assert_eq!(cloned.task_id, result.task_id);
+        assert_eq!(cloned.status, result.status);
+    }
+
+    #[test]
+    fn test_playbook_run_status_cancelled_display() {
+        assert_eq!(format!("{}", PlaybookRunStatus::Cancelled), "cancelled");
+    }
+
+    #[test]
+    fn test_playbook_run_status_equality() {
+        assert_eq!(PlaybookRunStatus::Waiting, PlaybookRunStatus::Waiting);
+        assert_ne!(PlaybookRunStatus::Success, PlaybookRunStatus::Failed);
+        assert_ne!(PlaybookRunStatus::Running, PlaybookRunStatus::Waiting);
+    }
+
+    #[test]
+    fn test_playbook_run_status_serialize_all() {
+        let statuses = [
+            PlaybookRunStatus::Waiting,
+            PlaybookRunStatus::Running,
+            PlaybookRunStatus::Success,
+            PlaybookRunStatus::Failed,
+            PlaybookRunStatus::Cancelled,
+        ];
+        for status in &statuses {
+            let json_str = serde_json::to_string(status).unwrap();
+            assert!(json_str.starts_with('"'));
+            assert!(json_str.ends_with('"'));
+        }
+    }
+
+    #[test]
+    fn test_playbook_run_request_validate_with_array_extra_vars() {
+        let request = PlaybookRunRequest::new().with_extra_vars(json!(["item1", "item2"]));
+        assert!(request.validate().is_err());
+    }
+
+    #[test]
+    fn test_playbook_run_request_validate_with_string_extra_vars() {
+        let request = PlaybookRunRequest::new().with_extra_vars(json!("not_an_object"));
+        assert!(request.validate().is_err());
+    }
+
+    #[test]
+    fn test_playbook_run_request_validate_with_integer_extra_vars() {
+        let request = PlaybookRunRequest::new().with_extra_vars(json!(42));
+        assert!(request.validate().is_err());
+    }
+
+    #[test]
+    fn test_playbook_run_request_builder_chaining() {
+        let request = PlaybookRunRequest::new()
+            .with_inventory(10)
+            .with_environment(20)
+            .with_limit("hosts".to_string())
+            .with_tags(vec!["tag1".to_string(), "tag2".to_string()])
+            .with_extra_vars(json!({"key": "val"}));
+
+        assert_eq!(request.inventory_id, Some(10));
+        assert_eq!(request.environment_id, Some(20));
+        assert_eq!(request.limit, Some("hosts".to_string()));
+        assert_eq!(request.tags, Some(vec!["tag1".to_string(), "tag2".to_string()]));
+        assert!(request.extra_vars.is_some());
+    }
+
+    #[test]
+    fn test_playbook_run_request_default_all_none() {
+        let request = PlaybookRunRequest::default();
+        assert!(request.inventory_id.is_none());
+        assert!(request.environment_id.is_none());
+        assert!(request.extra_vars.is_none());
+        assert!(request.limit.is_none());
+        assert!(request.tags.is_none());
+        assert!(request.skip_tags.is_none());
+        assert!(request.user_id.is_none());
+    }
+
+    #[test]
+    fn test_playbook_run_request_debug_format() {
+        let request = PlaybookRunRequest::new().with_inventory(5);
+        let debug_str = format!("{:?}", request);
+        assert!(debug_str.contains("PlaybookRunRequest"));
+        assert!(debug_str.contains("Some(5)"));
+    }
+
+    #[test]
+    fn test_playbook_run_result_debug_format() {
+        let result = PlaybookRunResult {
+            task_id: 99,
+            template_id: 1,
+            status: "success".to_string(),
+            message: "done".to_string(),
+        };
+        let debug_str = format!("{:?}", result);
+        assert!(debug_str.contains("PlaybookRunResult"));
+        assert!(debug_str.contains("99"));
+    }
+
+    #[test]
+    fn test_playbook_run_create_with_all_fields() {
+        let run_create = PlaybookRunCreate {
+            project_id: 10,
+            playbook_id: 20,
+            task_id: Some(300),
+            template_id: Some(5),
+            inventory_id: Some(1),
+            environment_id: Some(2),
+            extra_vars: Some("{}".to_string()),
+            limit_hosts: Some("web".to_string()),
+            tags: Some("deploy,config".to_string()),
+            skip_tags: Some("test".to_string()),
+            user_id: Some(42),
+        };
+
+        assert_eq!(run_create.project_id, 10);
+        assert_eq!(run_create.playbook_id, 20);
+        assert_eq!(run_create.task_id, Some(300));
+        assert_eq!(run_create.inventory_id, Some(1));
+        assert_eq!(run_create.environment_id, Some(2));
+        assert_eq!(run_create.user_id, Some(42));
+        assert_eq!(run_create.limit_hosts, Some("web".to_string()));
+        assert_eq!(run_create.tags, Some("deploy,config".to_string()));
+        assert_eq!(run_create.skip_tags, Some("test".to_string()));
+    }
+
+    #[test]
+    fn test_playbook_run_create_clone() {
+        let create = PlaybookRunCreate {
+            project_id: 1,
+            playbook_id: 1,
+            task_id: None,
+            template_id: None,
+            inventory_id: None,
+            environment_id: None,
+            extra_vars: None,
+            limit_hosts: None,
+            tags: None,
+            skip_tags: None,
+            user_id: None,
+        };
+        let cloned = create.clone();
+        assert_eq!(cloned.project_id, create.project_id);
+        assert_eq!(cloned.playbook_id, create.playbook_id);
+        assert_eq!(cloned.task_id, None);
+    }
+
+    #[test]
+    fn test_playbook_run_request_with_only_environment() {
+        let request = PlaybookRunRequest::new().with_environment(99);
+        assert_eq!(request.environment_id, Some(99));
+        assert!(request.inventory_id.is_none());
+    }
+
+    #[test]
+    fn test_playbook_run_request_with_only_limit() {
+        let request = PlaybookRunRequest::new().with_limit("localhost".to_string());
+        assert_eq!(request.limit, Some("localhost".to_string()));
+        assert!(request.inventory_id.is_none());
+        assert!(request.tags.is_none());
+    }
+
+    #[test]
+    fn test_playbook_run_request_validate_empty_object_extra_vars() {
+        let request = PlaybookRunRequest::new().with_extra_vars(json!({}));
+        assert!(request.validate().is_ok());
+    }
+
+    #[test]
+    fn test_playbook_run_request_validate_nested_object_extra_vars() {
+        let request = PlaybookRunRequest::new().with_extra_vars(json!({
+            "app": {"name": "test", "version": "1.0"},
+            "env": "prod"
+        }));
+        assert!(request.validate().is_ok());
+    }
 }

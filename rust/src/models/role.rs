@@ -267,4 +267,42 @@ mod tests {
         assert_eq!(cloned.slug, role.slug);
         assert_eq!(cloned.permissions, role.permissions);
     }
+
+    #[test]
+    fn test_role_bitmask_roundtrip() {
+        for bitmask in [0, 1, 0b1111_1111, 0b1010_1010, 0b0101_0101] {
+            let perms = RolePermissions::from_bitmask(bitmask);
+            assert_eq!(perms.to_bitmask(), bitmask);
+        }
+    }
+
+    #[test]
+    fn test_role_permissions_individual_bits() {
+        let perms = RolePermissions {
+            run_tasks: false, update_resources: true, manage_project: false,
+            manage_users: true, manage_roles: false, view_audit_log: true,
+            manage_integrations: false, manage_secret_storages: true,
+        };
+        let bitmask = perms.to_bitmask();
+        assert_eq!(bitmask, 0b1010_1010);
+        let restored = RolePermissions::from_bitmask(bitmask);
+        assert!(restored.update_resources);
+        assert!(restored.manage_users);
+        assert!(restored.view_audit_log);
+        assert!(restored.manage_secret_storages);
+        assert!(!restored.run_tasks);
+    }
+
+    #[test]
+    fn test_role_special_chars() {
+        let role = Role {
+            id: 1, project_id: 1, slug: "special&role".to_string(),
+            name: "Special & <Role>".to_string(),
+            description: Some("Role with \"quotes\"".to_string()),
+            permissions: Some(0),
+        };
+        let json = serde_json::to_string(&role).unwrap();
+        let restored: Role = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.name, "Special & <Role>");
+    }
 }

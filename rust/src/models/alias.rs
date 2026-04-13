@@ -155,4 +155,46 @@ mod tests {
             assert!(json.contains(&format!("\"owner_type\":\"{}\"", ot)));
         }
     }
+
+    #[test]
+    fn test_alias_unicode_alias() {
+        let alias = Alias::new(1, "алиас".to_string(), 1, "шаблон".to_string());
+        let json = serde_json::to_string(&alias).unwrap();
+        let restored: Alias = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.alias, "алиас");
+        assert_eq!(restored.owner_type, "шаблон");
+    }
+
+    #[test]
+    fn test_alias_clone_independence() {
+        let mut alias = Alias::new(1, "original".to_string(), 1, "template".to_string());
+        let cloned = alias.clone();
+        alias.alias = "modified".to_string();
+        assert_eq!(cloned.alias, "original");
+    }
+
+    #[test]
+    fn test_alias_roundtrip() {
+        let original = Alias {
+            id: 77, project_id: 33, alias: "roundtrip".to_string(),
+            owner_id: 11, owner_type: "workflow".to_string(), created: Utc::now(),
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: Alias = serde_json::from_str(&json).unwrap();
+        assert_eq!(original.id, restored.id);
+        assert_eq!(original.alias, restored.alias);
+        assert_eq!(original.owner_id, restored.owner_id);
+    }
+
+    #[test]
+    fn test_alias_debug_contains_all_fields() {
+        let alias = Alias {
+            id: 42, project_id: 10, alias: "debug-alias".to_string(),
+            owner_id: 5, owner_type: "template".to_string(), created: Utc::now(),
+        };
+        let debug_str = format!("{:?}", alias);
+        assert!(debug_str.contains("42"));
+        assert!(debug_str.contains("debug-alias"));
+        assert!(debug_str.contains("Alias"));
+    }
 }

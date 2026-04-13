@@ -159,4 +159,56 @@ mod tests {
         assert!(debug_str.contains("Debug Project"));
         assert!(debug_str.contains("Project"));
     }
+
+    #[test]
+    fn test_project_unicode_name() {
+        let project = Project::new("Проект тестирование".to_string());
+        let json = serde_json::to_string(&project).unwrap();
+        let restored: Project = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.name, "Проект тестирование");
+    }
+
+    #[test]
+    fn test_project_clone_independence() {
+        let mut project = Project::new("Original".to_string());
+        let cloned = project.clone();
+        project.name = "Modified".to_string();
+        assert_eq!(cloned.name, "Original");
+    }
+
+    #[test]
+    fn test_project_serialization_with_all_fields() {
+        let mut project = Project::new("Full Project".to_string());
+        project.id = 100;
+        project.alert = true;
+        project.alert_chat = Some("chat123".to_string());
+        project.max_parallel_tasks = 10;
+        project.r#type = "custom".to_string();
+        project.default_secret_storage_id = Some(5);
+
+        let json = serde_json::to_string(&project).unwrap();
+        assert!(json.contains("\"id\":100"));
+        assert!(json.contains("\"type\":\"custom\""));
+        assert!(json.contains("\"default_secret_storage_id\":5"));
+    }
+
+    #[test]
+    fn test_project_type_variations() {
+        for type_name in &["default", "ansible", "terraform", "custom"] {
+            let mut project = Project::new("Test".to_string());
+            project.r#type = type_name.to_string();
+            let json = serde_json::to_string(&project).unwrap();
+            assert!(json.contains(type_name));
+        }
+    }
+
+    #[test]
+    fn test_project_roundtrip() {
+        let original = Project::new("Roundtrip Project".to_string());
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: Project = serde_json::from_str(&json).unwrap();
+        assert_eq!(original.name, restored.name);
+        assert_eq!(original.alert, restored.alert);
+        assert_eq!(original.r#type, restored.r#type);
+    }
 }

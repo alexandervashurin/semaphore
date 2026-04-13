@@ -666,4 +666,293 @@ mod tests {
         assert!(!TaskStatus::Starting.is_notifiable());
         assert!(!TaskStatus::Stopped.is_notifiable());
     }
+
+    #[test]
+    fn test_task_status_from_str_case_insensitive() {
+        assert_eq!(TaskStatus::from_str("WAITING").unwrap(), TaskStatus::Waiting);
+        assert_eq!(TaskStatus::from_str("Running").unwrap(), TaskStatus::Running);
+        assert_eq!(TaskStatus::from_str("SUCCESS").unwrap(), TaskStatus::Success);
+        assert_eq!(TaskStatus::from_str("Error").unwrap(), TaskStatus::Error);
+    }
+
+    #[test]
+    fn test_task_status_from_str_invalid() {
+        assert!(TaskStatus::from_str("unknown").is_err());
+        assert!(TaskStatus::from_str("").is_err());
+        assert!(TaskStatus::from_str("run").is_err());
+        assert!(TaskStatus::from_str("123").is_err());
+    }
+
+    #[test]
+    fn test_task_status_from_str_error_message() {
+        let result = TaskStatus::from_str("invalid_status");
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.contains("invalid_status"));
+    }
+
+    #[test]
+    fn test_task_status_format_contains_status_name() {
+        let statuses = [
+            TaskStatus::Waiting,
+            TaskStatus::Starting,
+            TaskStatus::Running,
+            TaskStatus::Success,
+            TaskStatus::Error,
+            TaskStatus::Stopped,
+            TaskStatus::NotExecuted,
+        ];
+        for status in &statuses {
+            let formatted = status.format();
+            let status_name = status.to_string().to_uppercase();
+            assert!(formatted.contains(&status_name), "Format {:?} should contain {}", status, status_name);
+        }
+    }
+
+    #[test]
+    fn test_basic_logger_default() {
+        let logger = BasicLogger::default();
+        assert_eq!(logger.get_status(), TaskStatus::Waiting);
+    }
+
+    #[test]
+    fn test_basic_logger_status_transitions() {
+        let logger = BasicLogger::new();
+
+        logger.set_status(TaskStatus::Starting);
+        assert_eq!(logger.get_status(), TaskStatus::Starting);
+
+        logger.set_status(TaskStatus::Running);
+        assert_eq!(logger.get_status(), TaskStatus::Running);
+
+        logger.set_status(TaskStatus::Success);
+        assert_eq!(logger.get_status(), TaskStatus::Success);
+    }
+
+    #[test]
+    fn test_basic_logger_multiple_status_listeners() {
+        let logger = BasicLogger::new();
+        let count1 = Arc::new(RwLock::new(0));
+        let count2 = Arc::new(RwLock::new(0));
+
+        let c1 = count1.clone();
+        let c2 = count2.clone();
+
+        logger.add_status_listener(Box::new(move |_status| {
+            *c1.write().unwrap() += 1;
+        }));
+        logger.add_status_listener(Box::new(move |_status| {
+            *c2.write().unwrap() += 1;
+        }));
+
+        logger.set_status(TaskStatus::Running);
+
+        assert_eq!(*count1.read().unwrap(), 1);
+        assert_eq!(*count2.read().unwrap(), 1);
+    }
+
+    #[test]
+    fn test_basic_logger_status_listener_called_on_each_change() {
+        let logger = BasicLogger::new();
+        let count = Arc::new(RwLock::new(0));
+        let c = count.clone();
+
+        logger.add_status_listener(Box::new(move |_status| {
+            *c.write().unwrap() += 1;
+        }));
+
+        logger.set_status(TaskStatus::Starting);
+        logger.set_status(TaskStatus::Running);
+        logger.set_status(TaskStatus::Stopping);
+        logger.set_status(TaskStatus::Stopped);
+
+        assert_eq!(*count.read().unwrap(), 4);
+    }
+
+    #[test]
+    fn test_basic_logger_log_listener_triggered() {
+        let logger = BasicLogger::new();
+        let received = Arc::new(RwLock::new(Vec::new()));
+        let r = received.clone();
+
+        logger.add_log_listener(Box::new(move |_time, msg| {
+            r.write().unwrap().push(msg);
+        }));
+
+        logger.log("message1");
+        logger.log("message2");
+        logger.log("message3");
+
+        let msgs = received.read().unwrap();
+        assert_eq!(msgs.len(), 3);
+    }
+
+    #[test]
+    fn test_basic_logger_set_commit() {
+        let logger = BasicLogger::new();
+        logger.set_commit("abc123", "Initial commit");
+        // No public getter, but ensure no panic
+    }
+
+    #[test]
+    fn test_basic_logger_wait_log_no_panic() {
+        let logger = BasicLogger::new();
+        logger.wait_log();
+    }
+
+    #[test]
+    fn test_task_status_hash_trait() {
+        use std::collections::HashSet;
+        let mut set = HashSet::new();
+        set.insert(TaskStatus::Waiting);
+        set.insert(TaskStatus::Running);
+        set.insert(TaskStatus::Success);
+        set.insert(TaskStatus::Waiting); // duplicate
+
+        assert_eq!(set.len(), 3);
+        assert!(set.contains(&TaskStatus::Waiting));
+        assert!(set.contains(&TaskStatus::Running));
+        assert!(set.contains(&TaskStatus::Success));
+    }
+
+    #[test]
+    fn test_task_status_debug_format() {
+        let status = TaskStatus::Running;
+        let debug = format!("{:?}", status);
+        assert_eq!(debug, "Running");
+    }
+
+    #[test]
+    fn test_unfinished_task_statuses_count() {
+        let statuses = unfinished_task_statuses();
+        assert_eq!(statuses.len(), 7);
+    }
+
+    #[test]
+    fn test_task_status_not_execed_is_not_active() {
+        assert!(!TaskStatus::NotExecuted.is_active());
+    }
+
+    #[test]
+    fn test_task_status_all_is_active_or_finished() {
+        let all_statuses = [
+            TaskStatus::Waiting,
+            TaskStatus::Starting,
+            TaskStatus::WaitingConfirmation,
+            TaskStatus::Confirmed,
+            TaskStatus::Rejected,
+            TaskStatus::Running,
+            TaskStatus::Stopping,
+            TaskStatus::Stopped,
+            TaskStatus::Success,
+            TaskStatus::Error,
+            TaskStatus::NotExecuted,
+        ];
+
+        for status in &all_statuses {
+            let is_active = status.is_active();
+            let is_finished = status.is_finished();
+            // Статус не может быть одновременно активным и завершённым
+            assert!(!(is_active && is_finished), "{:?} cannot be both active and finished", status);
+        }
+    }
+
+    #[test]
+    fn test_task_status_rejected_is_active_not_finished() {
+        assert!(TaskStatus::Rejected.is_active());
+        assert!(!TaskStatus::Rejected.is_finished());
+    }
+
+    #[test]
+    fn test_task_status_confirmed_is_active_not_finished() {
+        assert!(TaskStatus::Confirmed.is_active());
+        assert!(!TaskStatus::Confirmed.is_finished());
+    }
+
+    #[test]
+    fn test_task_status_stopping_is_active() {
+        assert!(TaskStatus::Stopping.is_active());
+        assert!(!TaskStatus::Stopping.is_finished());
+    }
+
+    #[test]
+    fn test_task_status_format_waiting_confirmation() {
+        let formatted = TaskStatus::WaitingConfirmation.format();
+        assert!(formatted.contains("⚠️"));
+        assert!(formatted.contains("WAITING_CONFIRMATION"));
+    }
+
+    #[test]
+    fn test_task_logger_arc_type() {
+        let logger: TaskLoggerArc = create_logger();
+        logger.set_status(TaskStatus::Starting);
+        assert_eq!(logger.get_status(), TaskStatus::Starting);
+    }
+
+    #[test]
+    fn test_basic_logger_logf_with_format_args() {
+        let logger = BasicLogger::new();
+        // Ensure logf with format_args! doesn't panic
+        logger.logf("Test {}", format_args!("formatted"));
+    }
+
+    #[test]
+    fn test_basic_logger_log_with_time_calls_listeners() {
+        let logger = BasicLogger::new();
+        let called = Arc::new(RwLock::new(false));
+        let c = called.clone();
+
+        logger.add_log_listener(Box::new(move |_time, _msg| {
+            *c.write().unwrap() = true;
+        }));
+
+        let now = Utc::now();
+        logger.log_with_time(now, "test message");
+
+        assert!(*called.read().unwrap());
+    }
+
+    #[test]
+    fn test_basic_logger_logf_with_time() {
+        let logger = BasicLogger::new();
+        let now = Utc::now();
+        logger.logf_with_time(now, "Test {}", format_args!("time format"));
+    }
+
+    #[test]
+    fn test_basic_logger_log_cmd() {
+        let logger = BasicLogger::new();
+        let mut cmd = Command::new("ls");
+        cmd.arg("-la").arg("/tmp");
+        logger.log_cmd(&cmd);
+    }
+
+    #[test]
+    fn test_task_status_serialize_deserialize_roundtrip() {
+        let statuses = [
+            TaskStatus::Waiting,
+            TaskStatus::Starting,
+            TaskStatus::WaitingConfirmation,
+            TaskStatus::Confirmed,
+            TaskStatus::Rejected,
+            TaskStatus::Running,
+            TaskStatus::Stopping,
+            TaskStatus::Stopped,
+            TaskStatus::Success,
+            TaskStatus::Error,
+            TaskStatus::NotExecuted,
+        ];
+
+        for status in &statuses {
+            let json = serde_json::to_string(status).unwrap();
+            let deserialized: TaskStatus = serde_json::from_str(&json).unwrap();
+            assert_eq!(*status, deserialized);
+        }
+    }
+
+    #[test]
+    fn test_task_status_from_str_with_whitespace() {
+        // from_str uses to_lowercase(), so leading/trailing whitespace still fails
+        assert!(TaskStatus::from_str(" running ").is_err());
+    }
 }

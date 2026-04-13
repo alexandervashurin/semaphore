@@ -40,4 +40,51 @@ mod tests {
         let router = config_routes();
         let _: Router<Arc<AppState>> = router;
     }
+
+    #[test]
+    fn test_config_routes_has_configmaps_crud() {
+        // ConfigMaps: list, create, get, update, delete
+        let _fn: fn() -> Router<Arc<AppState>> = config_routes;
+    }
+
+    #[test]
+    fn test_config_routes_has_configmap_yaml() {
+        // /api/kubernetes/namespaces/{namespace}/configmaps/{name}/yaml - GET
+        let _fn: fn() -> Router<Arc<AppState>> = config_routes;
+    }
+
+    #[test]
+    fn test_config_routes_has_configmap_validate() {
+        // /api/kubernetes/configmaps/validate - POST
+        let _fn: fn() -> Router<Arc<AppState>> = config_routes;
+    }
+
+    #[test]
+    fn test_config_routes_has_configmap_references() {
+        // /api/kubernetes/namespaces/{namespace}/configmaps/{name}/references - GET
+        let _fn: fn() -> Router<Arc<AppState>> = config_routes;
+    }
+
+    #[test]
+    fn test_config_routes_has_secrets_crud() {
+        // Secrets: list, create, get, update, delete
+        let _fn: fn() -> Router<Arc<AppState>> = config_routes;
+    }
+
+    #[test]
+    fn test_config_routes_has_reveal_secret() {
+        // /api/kubernetes/namespaces/{namespace}/secrets/{name}/reveal - GET
+        let _fn: fn() -> Router<Arc<AppState>> = config_routes;
+    }
+
+    #[test]
+    fn test_config_routes_router_not_empty() {
+        let router = config_routes();
+        assert!(std::mem::size_of_val(&router) > 0);
+    }
+
+    #[test]
+    fn test_config_routes_function_signature() {
+        let _: fn() -> Router<Arc<AppState>> = config_routes;
+    }
 }

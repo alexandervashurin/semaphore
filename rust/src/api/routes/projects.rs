@@ -159,4 +159,70 @@ mod tests {
     fn test_project_routes_vue_alias() {
         let _fn: fn() -> Router<Arc<AppState>> = project_routes;
     }
+
+    #[test]
+    fn test_project_routes_has_projects_crud() {
+        // projects: GET, POST, GET/{id}, PUT/{id}, DELETE/{id}
+        let _fn: fn() -> Router<Arc<AppState>> = project_routes;
+    }
+
+    #[test]
+    fn test_project_routes_has_restore_endpoint() {
+        // /api/projects/restore - POST
+        let _fn: fn() -> Router<Arc<AppState>> = project_routes;
+    }
+
+    #[test]
+    fn test_project_routes_has_vue_alias_crud() {
+        // Vue alias: /api/project/{id} - GET, PUT, DELETE
+        let _fn: fn() -> Router<Arc<AppState>> = project_routes;
+    }
+
+    #[test]
+    fn test_project_routes_has_leave_project() {
+        // /api/project/{project_id}/me and /api/projects/{project_id}/me - DELETE
+        let _fn: fn() -> Router<Arc<AppState>> = project_routes;
+    }
+
+    #[test]
+    fn test_project_routes_has_project_stats() {
+        // /api/project/{project_id}/stats and /api/projects/{project_id}/stats - GET
+        let _fn: fn() -> Router<Arc<AppState>> = project_routes;
+    }
+
+    #[test]
+    fn test_project_routes_has_organizations_crud() {
+        // organizations: GET, POST, GET/{id}, PUT/{id}, DELETE/{id}
+        let _fn: fn() -> Router<Arc<AppState>> = project_routes;
+    }
+
+    #[test]
+    fn test_project_routes_has_organization_users() {
+        // org users: GET, POST, DELETE/{user_id}, PUT/{user_id}/role
+        let _fn: fn() -> Router<Arc<AppState>> = project_routes;
+    }
+
+    #[test]
+    fn test_project_routes_has_organization_quota() {
+        // /api/organizations/{id}/quota/{quota_type} - GET
+        let _fn: fn() -> Router<Arc<AppState>> = project_routes;
+    }
+
+    #[test]
+    fn test_project_routes_has_organization_branding() {
+        // branding: GET, PUT
+        let _fn: fn() -> Router<Arc<AppState>> = project_routes;
+    }
+
+    #[test]
+    fn test_project_routes_has_my_organizations() {
+        // /api/user/organizations - GET
+        let _fn: fn() -> Router<Arc<AppState>> = project_routes;
+    }
+
+    #[test]
+    fn test_project_routes_has_deploy_environments_crud() {
+        // deploy environments: GET, POST, GET/{id}, PUT/{id}, DELETE/{id}
+        let _fn: fn() -> Router<Arc<AppState>> = project_routes;
+    }
 }

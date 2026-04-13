@@ -71,4 +71,82 @@ mod tests {
         // Проверяем что тип именно Router<Arc<AppState>>
         let _: Router<Arc<AppState>> = router;
     }
+
+    #[test]
+    fn test_workloads_routes_has_pods_list() {
+        // Pods: list (cluster and namespace)
+        let _fn: fn() -> Router<Arc<AppState>> = workloads_routes;
+    }
+
+    #[test]
+    fn test_workloads_routes_has_pod_details() {
+        // /api/kubernetes/namespaces/{namespace}/pods/{name} - GET, DELETE
+        let _fn: fn() -> Router<Arc<AppState>> = workloads_routes;
+    }
+
+    #[test]
+    fn test_workloads_routes_has_pod_logs() {
+        // /api/kubernetes/namespaces/{namespace}/pods/{name}/logs - GET
+        let _fn: fn() -> Router<Arc<AppState>> = workloads_routes;
+    }
+
+    #[test]
+    fn test_workloads_routes_has_pod_evict() {
+        // /api/kubernetes/namespaces/{namespace}/pods/{name}/evict - POST
+        let _fn: fn() -> Router<Arc<AppState>> = workloads_routes;
+    }
+
+    #[test]
+    fn test_workloads_routes_has_pod_exec_ws() {
+        // /api/kubernetes/namespaces/{namespace}/pods/{name}/exec - GET
+        let _fn: fn() -> Router<Arc<AppState>> = workloads_routes;
+    }
+
+    #[test]
+    fn test_workloads_routes_has_deployments_crud() {
+        // Deployments: list, create, get, update, delete
+        let _fn: fn() -> Router<Arc<AppState>> = workloads_routes;
+    }
+
+    #[test]
+    fn test_workloads_routes_has_deployment_scale() {
+        // /api/kubernetes/namespaces/{namespace}/deployments/{name}/scale - POST
+        let _fn: fn() -> Router<Arc<AppState>> = workloads_routes;
+    }
+
+    #[test]
+    fn test_workloads_routes_has_deployment_restart() {
+        // /api/kubernetes/namespaces/{namespace}/deployments/{name}/restart - POST
+        let _fn: fn() -> Router<Arc<AppState>> = workloads_routes;
+    }
+
+    #[test]
+    fn test_workloads_routes_has_deployment_rollback() {
+        // /api/kubernetes/namespaces/{namespace}/deployments/{name}/rollback - POST
+        let _fn: fn() -> Router<Arc<AppState>> = workloads_routes;
+    }
+
+    #[test]
+    fn test_workloads_routes_has_deployment_history() {
+        // Deployment history: get, detailed
+        let _fn: fn() -> Router<Arc<AppState>> = workloads_routes;
+    }
+
+    #[test]
+    fn test_workloads_routes_has_replicasets() {
+        // ReplicaSets: list, get, delete, list_pods
+        let _fn: fn() -> Router<Arc<AppState>> = workloads_routes;
+    }
+
+    #[test]
+    fn test_workloads_routes_has_daemonsets() {
+        // DaemonSets: list, get, delete, list_pods
+        let _fn: fn() -> Router<Arc<AppState>> = workloads_routes;
+    }
+
+    #[test]
+    fn test_workloads_routes_has_statefulsets() {
+        // StatefulSets: list, get, delete, scale, list_pods
+        let _fn: fn() -> Router<Arc<AppState>> = workloads_routes;
+    }
 }

@@ -146,4 +146,35 @@ mod tests {
         assert!(json.contains("\"version\":9999999"));
         assert!(json.contains("\"name\":\"full_migration\""));
     }
+
+    #[test]
+    fn test_migration_unicode_name() {
+        let migration = Migration::new(1, "создание_таблицы".to_string());
+        let json = serde_json::to_string(&migration).unwrap();
+        let restored: Migration = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.name, "создание_таблицы");
+    }
+
+    #[test]
+    fn test_migration_clone_independence() {
+        let mut migration = Migration::new(1, "original".to_string());
+        let cloned = migration.clone();
+        migration.name = "modified".to_string();
+        assert_eq!(cloned.name, "original");
+    }
+
+    #[test]
+    fn test_migration_roundtrip() {
+        let original = Migration {
+            id: 50,
+            version: 20260410000000,
+            name: "roundtrip_migration".to_string(),
+            applied: Utc::now(),
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: Migration = serde_json::from_str(&json).unwrap();
+        assert_eq!(original.id, restored.id);
+        assert_eq!(original.version, restored.version);
+        assert_eq!(original.name, restored.name);
+    }
 }

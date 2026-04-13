@@ -369,4 +369,12 @@ mod tests {
         let inv = Inventory::new(1, "tofu-workspace".to_string(), InventoryType::TofuWorkspace);
         assert_eq!(inv.inventory_type, InventoryType::TofuWorkspace);
     }
+
+    #[test]
+    fn test_inventory_clone_independence() {
+        let mut inv = Inventory::new(1, "original".to_string(), InventoryType::Static);
+        let cloned = inv.clone();
+        inv.name = "modified".to_string();
+        assert_eq!(cloned.name, "original");
+    }
 }

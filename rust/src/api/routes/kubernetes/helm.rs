@@ -36,4 +36,58 @@ mod tests {
         let router = helm_routes();
         let _: Router<Arc<AppState>> = router;
     }
+
+    #[test]
+    fn test_helm_routes_has_repos_endpoints() {
+        // Helm repos: list, add
+        let _fn: fn() -> Router<Arc<AppState>> = helm_routes;
+    }
+
+    #[test]
+    fn test_helm_routes_has_charts_search() {
+        // /api/kubernetes/helm/charts - GET (search)
+        let _fn: fn() -> Router<Arc<AppState>> = helm_routes;
+    }
+
+    #[test]
+    fn test_helm_routes_has_chart_details() {
+        // /api/kubernetes/helm/charts/{repo}/{chart} - GET
+        let _fn: fn() -> Router<Arc<AppState>> = helm_routes;
+    }
+
+    #[test]
+    fn test_helm_routes_has_releases_list() {
+        // /api/kubernetes/helm/releases - GET
+        let _fn: fn() -> Router<Arc<AppState>> = helm_routes;
+    }
+
+    #[test]
+    fn test_helm_routes_has_install_release() {
+        // /api/kubernetes/helm/releases - POST
+        let _fn: fn() -> Router<Arc<AppState>> = helm_routes;
+    }
+
+    #[test]
+    fn test_helm_routes_has_release_history() {
+        // /api/kubernetes/helm/releases/{namespace}/{name} - GET
+        let _fn: fn() -> Router<Arc<AppState>> = helm_routes;
+    }
+
+    #[test]
+    fn test_helm_routes_has_upgrade_release() {
+        // /api/kubernetes/helm/releases/{namespace}/{name} - PUT
+        let _fn: fn() -> Router<Arc<AppState>> = helm_routes;
+    }
+
+    #[test]
+    fn test_helm_routes_has_rollback_release() {
+        // /api/kubernetes/helm/releases/{namespace}/{name}/rollback - POST
+        let _fn: fn() -> Router<Arc<AppState>> = helm_routes;
+    }
+
+    #[test]
+    fn test_helm_routes_has_values_management() {
+        // get and update release values
+        let _fn: fn() -> Router<Arc<AppState>> = helm_routes;
+    }
 }

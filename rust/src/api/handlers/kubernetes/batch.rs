@@ -453,4 +453,262 @@ mod tests {
         assert_eq!(summary.name, "test-pdb");
         assert_eq!(summary.min_available, Some("1".to_string()));
     }
+
+    // ─────────────────────────────────────────────
+    // DTO struct tests - JobSummary
+    // ─────────────────────────────────────────────
+
+    #[test]
+    fn test_job_summary_all_none() {
+        let summary = JobSummary {
+            name: "minimal-job".to_string(),
+            namespace: "default".to_string(),
+            active: 0,
+            succeeded: 0,
+            failed: 0,
+            completions: None,
+            parallelism: None,
+        };
+        assert_eq!(summary.active, 0);
+        assert!(summary.completions.is_none());
+        assert!(summary.parallelism.is_none());
+    }
+
+    #[test]
+    fn test_job_summary_with_completions() {
+        let summary = JobSummary {
+            name: "batch-job".to_string(),
+            namespace: "processing".to_string(),
+            active: 5,
+            succeeded: 10,
+            failed: 2,
+            completions: Some(15),
+            parallelism: Some(5),
+        };
+        assert_eq!(summary.name, "batch-job");
+        assert_eq!(summary.succeeded, 10);
+        assert_eq!(summary.failed, 2);
+        assert_eq!(summary.completions, Some(15));
+        assert_eq!(summary.parallelism, Some(5));
+    }
+
+    #[test]
+    fn test_job_summary_large_values() {
+        let summary = JobSummary {
+            name: "massive-job".to_string(),
+            namespace: "default".to_string(),
+            active: i32::MAX,
+            succeeded: i32::MAX,
+            failed: i32::MAX,
+            completions: Some(i32::MAX),
+            parallelism: Some(i32::MAX),
+        };
+        assert_eq!(summary.active, i32::MAX);
+    }
+
+    // ─────────────────────────────────────────────
+    // DTO struct tests - CronJobSummary
+    // ─────────────────────────────────────────────
+
+    #[test]
+    fn test_cron_job_summary_suspended() {
+        let summary = CronJobSummary {
+            name: "suspended-cron".to_string(),
+            namespace: "default".to_string(),
+            schedule: "0 2 * * *".to_string(),
+            suspend: true,
+            active: 0,
+            last_schedule_time: None,
+        };
+        assert!(summary.suspend);
+        assert_eq!(summary.active, 0);
+    }
+
+    #[test]
+    fn test_cron_job_summary_active_jobs() {
+        let summary = CronJobSummary {
+            name: "busy-cron".to_string(),
+            namespace: "cron".to_string(),
+            schedule: "*/1 * * * *".to_string(),
+            suspend: false,
+            active: 3,
+            last_schedule_time: Some("2024-01-01T00:00:00Z".to_string()),
+        };
+        assert_eq!(summary.active, 3);
+        assert!(!summary.suspend);
+        assert!(summary.last_schedule_time.is_some());
+    }
+
+    #[test]
+    fn test_cron_job_summary_complex_schedule() {
+        let summary = CronJobSummary {
+            name: "complex-cron".to_string(),
+            namespace: "default".to_string(),
+            schedule: "30 2 1,15 * 1-5".to_string(),
+            suspend: false,
+            active: 0,
+            last_schedule_time: None,
+        };
+        assert_eq!(summary.schedule, "30 2 1,15 * 1-5");
+    }
+
+    // ─────────────────────────────────────────────
+    // DTO struct tests - PriorityClassSummary
+    // ─────────────────────────────────────────────
+
+    #[test]
+    fn test_priority_class_summary_global_default() {
+        let summary = PriorityClassSummary {
+            name: "default".to_string(),
+            value: 0,
+            global_default: true,
+            description: None,
+        };
+        assert!(summary.global_default);
+        assert_eq!(summary.value, 0);
+        assert!(summary.description.is_none());
+    }
+
+    #[test]
+    fn test_priority_class_summary_negative_value() {
+        let summary = PriorityClassSummary {
+            name: "low-priority".to_string(),
+            value: -100,
+            global_default: false,
+            description: Some("Low priority class".to_string()),
+        };
+        assert_eq!(summary.value, -100);
+        assert!(!summary.global_default);
+    }
+
+    #[test]
+    fn test_priority_class_summary_max_value() {
+        let summary = PriorityClassSummary {
+            name: "critical".to_string(),
+            value: i32::MAX,
+            global_default: false,
+            description: Some("Critical priority".to_string()),
+        };
+        assert_eq!(summary.value, i32::MAX);
+    }
+
+    // ─────────────────────────────────────────────
+    // DTO struct tests - PdbSummary
+    // ─────────────────────────────────────────────
+
+    #[test]
+    fn test_pdb_summary_max_unavailable() {
+        let summary = PdbSummary {
+            name: "web-pdb".to_string(),
+            namespace: "production".to_string(),
+            min_available: None,
+            max_unavailable: Some("25%".to_string()),
+        };
+        assert_eq!(summary.max_unavailable, Some("25%".to_string()));
+        assert!(summary.min_available.is_none());
+    }
+
+    #[test]
+    fn test_pdb_summary_both_none() {
+        let summary = PdbSummary {
+            name: "empty-pdb".to_string(),
+            namespace: "default".to_string(),
+            min_available: None,
+            max_unavailable: None,
+        };
+        assert!(summary.min_available.is_none());
+        assert!(summary.max_unavailable.is_none());
+    }
+
+    // ─────────────────────────────────────────────
+    // Query params tests
+    // ─────────────────────────────────────────────
+
+    #[test]
+    fn test_batch_list_query_all_none() {
+        let query = BatchListQuery {
+            namespace: None,
+            limit: None,
+        };
+        assert!(query.namespace.is_none());
+        assert!(query.limit.is_none());
+    }
+
+    #[test]
+    fn test_batch_list_query_with_values() {
+        let query = BatchListQuery {
+            namespace: Some("batch".to_string()),
+            limit: Some(100),
+        };
+        assert_eq!(query.namespace, Some("batch".to_string()));
+        assert_eq!(query.limit, Some(100));
+    }
+
+    #[test]
+    fn test_batch_list_query_limit_zero() {
+        let query = BatchListQuery {
+            namespace: Some("default".to_string()),
+            limit: Some(0),
+        };
+        assert_eq!(query.limit, Some(0));
+    }
+
+    // ─────────────────────────────────────────────
+    // Edge cases and boundary tests
+    // ─────────────────────────────────────────────
+
+    #[test]
+    fn test_job_summary_name_namespace_defaults() {
+        // Verify that job_summary handles "unknown" and "default" fallbacks
+        // by constructing a JobSummary directly with those values
+        let summary = JobSummary {
+            name: "unknown".to_string(),
+            namespace: "default".to_string(),
+            active: 0,
+            succeeded: 0,
+            failed: 0,
+            completions: None,
+            parallelism: None,
+        };
+        assert_eq!(summary.name, "unknown");
+        assert_eq!(summary.namespace, "default");
+    }
+
+    #[test]
+    fn test_cron_job_summary_name_namespace_defaults() {
+        let summary = CronJobSummary {
+            name: "unknown".to_string(),
+            namespace: "default".to_string(),
+            schedule: String::new(),
+            suspend: false,
+            active: 0,
+            last_schedule_time: None,
+        };
+        assert_eq!(summary.name, "unknown");
+        assert!(summary.schedule.is_empty());
+    }
+
+    #[test]
+    fn test_priority_class_summary_empty_description() {
+        let summary = PriorityClassSummary {
+            name: String::new(),
+            value: 0,
+            global_default: false,
+            description: Some(String::new()),
+        };
+        assert!(summary.name.is_empty());
+        assert_eq!(summary.description, Some(String::new()));
+    }
+
+    #[test]
+    fn test_pdb_summary_empty_strings() {
+        let summary = PdbSummary {
+            name: String::new(),
+            namespace: String::new(),
+            min_available: Some(String::new()),
+            max_unavailable: Some(String::new()),
+        };
+        assert!(summary.name.is_empty());
+        assert_eq!(summary.min_available, Some(String::new()));
+    }
 }

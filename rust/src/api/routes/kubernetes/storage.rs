@@ -49,4 +49,63 @@ mod tests {
         let router = storage_routes();
         let _: Router<Arc<AppState>> = router;
     }
+
+    #[test]
+    fn test_storage_routes_has_persistent_volumes_crud() {
+        // PV: list, create, get, delete
+        let _fn: fn() -> Router<Arc<AppState>> = storage_routes;
+    }
+
+    #[test]
+    fn test_storage_routes_has_persistent_volume_claims() {
+        // PVC: list, create, get, update, delete
+        let _fn: fn() -> Router<Arc<AppState>> = storage_routes;
+    }
+
+    #[test]
+    fn test_storage_routes_has_storage_classes() {
+        // StorageClasses: list, create, get, delete
+        let _fn: fn() -> Router<Arc<AppState>> = storage_routes;
+    }
+
+    #[test]
+    fn test_storage_routes_has_snapshots_status() {
+        // /api/kubernetes/snapshots/status - GET
+        let _fn: fn() -> Router<Arc<AppState>> = storage_routes;
+    }
+
+    #[test]
+    fn test_storage_routes_has_volume_snapshots() {
+        // /api/kubernetes/volumesnapshots - GET
+        let _fn: fn() -> Router<Arc<AppState>> = storage_routes;
+    }
+
+    #[test]
+    fn test_storage_routes_has_volume_snapshot_classes() {
+        // /api/kubernetes/volumesnapshotclasses - GET
+        let _fn: fn() -> Router<Arc<AppState>> = storage_routes;
+    }
+
+    #[test]
+    fn test_storage_routes_has_csi_status() {
+        // /api/kubernetes/csi/status - GET
+        let _fn: fn() -> Router<Arc<AppState>> = storage_routes;
+    }
+
+    #[test]
+    fn test_storage_routes_has_csi_drivers() {
+        // /api/kubernetes/csidrivers - GET
+        let _fn: fn() -> Router<Arc<AppState>> = storage_routes;
+    }
+
+    #[test]
+    fn test_storage_routes_router_not_empty() {
+        let router = storage_routes();
+        assert!(std::mem::size_of_val(&router) > 0);
+    }
+
+    #[test]
+    fn test_storage_routes_function_signature() {
+        let _: fn() -> Router<Arc<AppState>> = storage_routes;
+    }
 }

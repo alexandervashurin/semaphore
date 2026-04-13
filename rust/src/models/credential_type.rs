@@ -258,4 +258,28 @@ mod tests {
             assert!(json.contains(&format!("\"injector_type\":\"{}\"", t)));
         }
     }
+
+    #[test]
+    fn test_credential_field_clone_independence() {
+        let mut field = CredentialField {
+            id: "field".to_string(), label: "Label".to_string(),
+            field_type: "string".to_string(), required: true,
+            default_value: None, help_text: None,
+        };
+        let cloned = field.clone();
+        field.label = "Modified".to_string();
+        assert_eq!(cloned.label, "Label");
+    }
+
+    #[test]
+    fn test_credential_instance_unicode_name() {
+        let instance = CredentialInstance {
+            id: 1, project_id: 1, credential_type_id: 1, name: "Учетные данные".to_string(),
+            values: "{}".to_string(), description: None,
+            created: chrono::Utc::now(),
+        };
+        let json = serde_json::to_string(&instance).unwrap();
+        let restored: CredentialInstance = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.name, "Учетные данные");
+    }
 }

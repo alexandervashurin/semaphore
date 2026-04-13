@@ -553,4 +553,262 @@ mod tests {
         };
         assert_eq!(list.repositories.len(), 1);
     }
+
+    #[test]
+    fn test_helm_repository_with_username() {
+        let repo = HelmRepository {
+            name: "private-repo".to_string(),
+            url: "https://private.example.com/charts".to_string(),
+            username: Some("admin".to_string()),
+        };
+        assert_eq!(repo.username, Some("admin".to_string()));
+    }
+
+    #[test]
+    fn test_create_helm_repository_request_no_auth() {
+        let req = CreateHelmRepositoryRequest {
+            name: "public-repo".to_string(),
+            url: "https://public.example.com".to_string(),
+            username: None,
+            password: None,
+        };
+        assert!(req.username.is_none());
+        assert!(req.password.is_none());
+    }
+
+    #[test]
+    fn test_helm_chart_list() {
+        let list = HelmChartList {
+            charts: vec![
+                HelmChart {
+                    name: "redis".to_string(),
+                    version: "17.0.0".to_string(),
+                    app_version: Some("7.0".to_string()),
+                    description: Some("Redis chart".to_string()),
+                    home: None,
+                    sources: vec![],
+                    keywords: vec![],
+                },
+            ],
+        };
+        assert_eq!(list.charts.len(), 1);
+        assert_eq!(list.charts[0].name, "redis");
+    }
+
+    #[test]
+    fn test_search_charts_query_with_repo() {
+        let query = SearchChartsQuery {
+            repo: Some("bitnami".to_string()),
+            query: Some("nginx".to_string()),
+            limit: Some(10),
+        };
+        assert_eq!(query.repo, Some("bitnami".to_string()));
+        assert_eq!(query.query, Some("nginx".to_string()));
+        assert_eq!(query.limit, Some(10));
+    }
+
+    #[test]
+    fn test_search_charts_query_all_none() {
+        let query = SearchChartsQuery {
+            repo: None,
+            query: None,
+            limit: None,
+        };
+        assert!(query.repo.is_none());
+        assert!(query.query.is_none());
+        assert!(query.limit.is_none());
+    }
+
+    #[test]
+    fn test_helm_release_list() {
+        let list = HelmReleaseList {
+            releases: vec![
+                HelmRelease {
+                    name: "my-nginx".to_string(),
+                    namespace: "default".to_string(),
+                    chart: "nginx".to_string(),
+                    chart_version: "15.0.0".to_string(),
+                    app_version: Some("1.24.0".to_string()),
+                    status: "deployed".to_string(),
+                    revision: 1,
+                    deployed_at: Some("2024-01-01T00:00:00Z".to_string()),
+                    values: None,
+                },
+            ],
+        };
+        assert_eq!(list.releases.len(), 1);
+        assert_eq!(list.releases[0].status, "deployed");
+    }
+
+    #[test]
+    fn test_list_releases_query_all_namespaces() {
+        let query = ListReleasesQuery {
+            namespace: None,
+            all_namespaces: Some(true),
+        };
+        assert!(query.namespace.is_none());
+        assert_eq!(query.all_namespaces, Some(true));
+    }
+
+    #[test]
+    fn test_list_releases_query_with_namespace() {
+        let query = ListReleasesQuery {
+            namespace: Some("production".to_string()),
+            all_namespaces: Some(false),
+        };
+        assert_eq!(query.namespace, Some("production".to_string()));
+        assert_eq!(query.all_namespaces, Some(false));
+    }
+
+    #[test]
+    fn test_install_helm_request_minimal() {
+        let req = InstallHelmRequest {
+            name: "my-release".to_string(),
+            namespace: "default".to_string(),
+            chart: "nginx".to_string(),
+            version: None,
+            repo: None,
+            values: None,
+            create_namespace: None,
+        };
+        assert_eq!(req.name, "my-release");
+        assert!(req.version.is_none());
+        assert!(req.create_namespace.is_none());
+    }
+
+    #[test]
+    fn test_install_helm_request_full() {
+        let values = serde_json::json!({"replicaCount": 3});
+        let req = InstallHelmRequest {
+            name: "prod-release".to_string(),
+            namespace: "production".to_string(),
+            chart: "my-app".to_string(),
+            version: Some("2.0.0".to_string()),
+            repo: Some("my-repo".to_string()),
+            values: Some(values),
+            create_namespace: Some(true),
+        };
+        assert_eq!(req.version, Some("2.0.0".to_string()));
+        assert!(req.create_namespace == Some(true));
+        assert!(req.values.is_some());
+    }
+
+    #[test]
+    fn test_upgrade_helm_request_minimal() {
+        let req = UpgradeHelmRequest {
+            chart: "my-chart".to_string(),
+            version: None,
+            repo: None,
+            values: None,
+        };
+        assert_eq!(req.chart, "my-chart");
+        assert!(req.version.is_none());
+    }
+
+    #[test]
+    fn test_upgrade_helm_request_with_values() {
+        let values = serde_json::json!({"image": {"tag": "v2"}});
+        let req = UpgradeHelmRequest {
+            chart: "app".to_string(),
+            version: Some("1.5.0".to_string()),
+            repo: Some("stable".to_string()),
+            values: Some(values),
+        };
+        assert_eq!(req.version, Some("1.5.0".to_string()));
+        assert!(req.values.is_some());
+    }
+
+    #[test]
+    fn test_rollback_query_with_revision() {
+        let query = RollbackQuery {
+            revision: Some(5),
+        };
+        assert_eq!(query.revision, Some(5));
+    }
+
+    #[test]
+    fn test_rollback_query_no_revision() {
+        let query = RollbackQuery {
+            revision: None,
+        };
+        assert!(query.revision.is_none());
+    }
+
+    #[test]
+    fn test_helm_chart_with_keywords() {
+        let chart = HelmChart {
+            name: "prometheus".to_string(),
+            version: "22.0.0".to_string(),
+            app_version: Some("2.45.0".to_string()),
+            description: Some("Prometheus monitoring chart".to_string()),
+            home: Some("https://prometheus.io".to_string()),
+            sources: vec!["https://github.com/prometheus-community/helm-charts".to_string()],
+            keywords: vec!["monitoring".to_string(), "prometheus".to_string()],
+        };
+        assert_eq!(chart.keywords.len(), 2);
+        assert!(chart.keywords.contains(&"monitoring".to_string()));
+    }
+
+    #[test]
+    fn test_helm_chart_empty_fields() {
+        let chart = HelmChart {
+            name: "".to_string(),
+            version: "".to_string(),
+            app_version: None,
+            description: None,
+            home: None,
+            sources: vec![],
+            keywords: vec![],
+        };
+        assert!(chart.name.is_empty());
+        assert!(chart.version.is_empty());
+        assert!(chart.sources.is_empty());
+    }
+
+    #[test]
+    fn test_helm_repository_list_multiple() {
+        let list = HelmRepositoryList {
+            repositories: vec![
+                HelmRepository { name: "stable".to_string(), url: "https://stable".to_string(), username: None },
+                HelmRepository { name: "bitnami".to_string(), url: "https://bitnami".to_string(), username: None },
+                HelmRepository { name: "private".to_string(), url: "https://private".to_string(), username: Some("user".to_string()) },
+            ],
+        };
+        assert_eq!(list.repositories.len(), 3);
+        assert!(list.repositories[2].username.is_some());
+    }
+
+    #[test]
+    fn test_helm_release_superseded_status() {
+        let release = HelmRelease {
+            name: "old-release".to_string(),
+            namespace: "default".to_string(),
+            chart: "app".to_string(),
+            chart_version: "1.0.0".to_string(),
+            app_version: Some("1.0.0".to_string()),
+            status: "superseded".to_string(),
+            revision: 1,
+            deployed_at: Some("2024-01-01T00:00:00Z".to_string()),
+            values: None,
+        };
+        assert_eq!(release.status, "superseded");
+        assert_eq!(release.revision, 1);
+    }
+
+    #[test]
+    fn test_helm_release_failed_status() {
+        let release = HelmRelease {
+            name: "failed-release".to_string(),
+            namespace: "default".to_string(),
+            chart: "app".to_string(),
+            chart_version: "2.0.0".to_string(),
+            app_version: None,
+            status: "failed".to_string(),
+            revision: 3,
+            deployed_at: None,
+            values: Some(serde_json::json!({})),
+        };
+        assert_eq!(release.status, "failed");
+        assert_eq!(release.revision, 3);
+    }
 }

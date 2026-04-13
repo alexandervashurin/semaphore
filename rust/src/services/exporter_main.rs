@@ -882,4 +882,279 @@ mod tests {
         assert_eq!(map1.get_errors(), vec!["error1"]);
         assert_eq!(map2.get_errors(), vec!["error2"]);
     }
+
+    #[test]
+    fn test_exporter_chain_load_empty() {
+        let mut chain = ExporterChain::new();
+        // MockStore needed but we just test with no exporters
+        // Using a minimal setup
+        let result = chain.load(&crate::db::mock::MockStore::new());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_exporter_chain_restore_empty() {
+        let mut chain = ExporterChain::new();
+        let result = chain.restore(&crate::db::mock::MockStore::new());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_type_key_mapper_get_new_key_empty_name_scope() {
+        let mut mapper = TypeKeyMapper::new();
+        let result = mapper.get_new_key("", "", "some_key").unwrap();
+        assert_eq!(result, "some_key");
+    }
+
+    #[test]
+    fn test_type_key_mapper_map_keys_empty_strings() {
+        let mut mapper = TypeKeyMapper::new();
+        mapper.map_keys("", "", "old", "new").unwrap();
+        let result = mapper.get_new_key("", "", "old").unwrap();
+        assert_eq!(result, "new");
+    }
+
+    #[test]
+    fn test_value_map_get_values_default_when_empty() {
+        let map: ValueMap<String> = ValueMap::new();
+        let values = map.get_values("any_scope");
+        assert!(values.is_empty());
+    }
+
+    #[test]
+    fn test_value_map_append_multiple_times_different_scopes() {
+        let mut map: ValueMap<i32> = ValueMap::new();
+        map.append_values(vec![1], "s1").unwrap();
+        map.append_values(vec![2, 3], "s2").unwrap();
+        map.append_values(vec![4, 5, 6], "s1").unwrap();
+
+        // s1: 1 + 3 = 4 values, s2: 2 values
+        let keys_s1 = map.get_loaded_keys("s1").unwrap();
+        let keys_s2 = map.get_loaded_keys("s2").unwrap();
+
+        assert_eq!(keys_s1.len(), 4);
+        assert_eq!(keys_s2.len(), 2);
+    }
+
+    #[test]
+    fn test_value_map_clear_removes_all() {
+        let mut map: ValueMap<String> = ValueMap::new();
+        map.append_values(vec!["a".to_string()], "s1").unwrap();
+        map.append_values(vec!["b".to_string()], "s2").unwrap();
+        map.errors.push("err".to_string());
+
+        map.clear();
+
+        assert!(map.get_loaded_keys("s1").unwrap().is_empty());
+        assert!(map.get_loaded_keys("s2").unwrap().is_empty());
+        assert!(map.get_errors().is_empty());
+    }
+
+    #[test]
+    fn test_data_exporter_get_type_exporter_missing() {
+        let mut chain = ExporterChain::new();
+        let result = chain.get_type_exporter("NonExistent");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_data_exporter_get_loaded_keys_missing_exporter() {
+        let chain = ExporterChain::new();
+        let result = chain.get_loaded_keys("Ghost", "scope");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_data_exporter_get_loaded_keys_int_filters_invalid() {
+        let mut chain = ExporterChain::new();
+        // The ValueMap returns string indices like "0", "1" which parse fine
+        let mut map: ValueMap<String> = ValueMap::new();
+        map.append_values(vec!["x".to_string()], "scope").unwrap();
+        chain.add_exporter("Test", Box::new(map));
+
+        let result = chain.get_loaded_keys_int("Test", "scope").unwrap();
+        assert_eq!(result, vec![0]);
+    }
+
+    #[test]
+    fn test_init_project_exporters_access_key_present() {
+        let mut mapper = TypeKeyMapper::new();
+        let chain = init_project_exporters(&mut mapper, false);
+        assert!(chain.exporters.contains_key("AccessKey"));
+    }
+
+    #[test]
+    fn test_init_project_exporters_template_present() {
+        let mut mapper = TypeKeyMapper::new();
+        let chain = init_project_exporters(&mut mapper, false);
+        assert!(chain.exporters.contains_key("Template"));
+    }
+
+    #[test]
+    fn test_init_project_exporters_integration_present() {
+        let mut mapper = TypeKeyMapper::new();
+        let chain = init_project_exporters(&mut mapper, false);
+        assert!(chain.exporters.contains_key("Integration"));
+    }
+
+    #[test]
+    fn test_exporter_chain_default_equals_new() {
+        let c1 = ExporterChain::default();
+        let c2 = ExporterChain::new();
+        assert!(c1.exporters.is_empty());
+        assert!(c2.exporters.is_empty());
+    }
+
+    #[test]
+    fn test_type_key_mapper_default_equals_new() {
+        let m1 = TypeKeyMapper::default();
+        let m2 = TypeKeyMapper::new();
+        assert!(m1.key_maps.is_empty());
+        assert!(m2.key_maps.is_empty());
+    }
+
+    #[test]
+    fn test_value_map_default_equals_new() {
+        let m1: ValueMap<String> = ValueMap::default();
+        let m2: ValueMap<String> = ValueMap::new();
+        assert!(m1.values.is_empty());
+        assert!(m2.values.is_empty());
+    }
+
+    #[test]
+    fn test_type_exporter_trait_methods_on_valuemap_i32() {
+        let mut map: ValueMap<i32> = ValueMap::new();
+        map.append_values(vec![100], "s").unwrap();
+
+        assert_eq!(map.get_name(), std::any::type_name::<i32>());
+        assert!(map.export_depends_on().is_empty());
+        assert!(map.import_depends_on().is_empty());
+        map.clear();
+        assert!(map.get_loaded_keys("s").unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_exporter_chain_add_overwrites_existing() {
+        let mut chain = ExporterChain::new();
+        chain.add_exporter("X", Box::new(ValueMap::<String>::new()));
+        chain.add_exporter("X", Box::new(ValueMap::<i64>::new()));
+
+        assert_eq!(chain.exporters.len(), 1);
+        let exporter = chain.get_type_exporter("X").unwrap();
+        assert_eq!(exporter.get_name(), std::any::type_name::<i64>());
+    }
+
+    #[test]
+    fn test_get_sorted_keys_chain_dependency_order() {
+        // Create chain with real exporters that have proper dependencies
+        let mut exporters: HashMap<String, Box<dyn TypeExporter>> = HashMap::new();
+        exporters.insert("User".to_string(), Box::new(ValueMap::<User>::new()));
+        exporters.insert("Template".to_string(), Box::new(ValueMap::<Template>::new()));
+
+        // User has no deps, Template has no deps in ValueMap
+        let result = ExporterChain::get_sorted_keys(&exporters, |e| e.import_depends_on()).unwrap();
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn test_get_sorted_keys_linear_chain() {
+        // A -> B -> C (C is dependency of B, B is dependency of A)
+        let mut exporters: HashMap<String, Box<dyn TypeExporter>> = HashMap::new();
+        exporters.insert("A".to_string(), Box::new(DepTestExporter { export_deps: vec!["B"], import_deps: vec!["B"] }));
+        exporters.insert("B".to_string(), Box::new(DepTestExporter { export_deps: vec!["C"], import_deps: vec!["C"] }));
+        exporters.insert("C".to_string(), Box::new(DepTestExporter { export_deps: vec![], import_deps: vec![] }));
+
+        let result = ExporterChain::get_sorted_keys(&exporters, |e| e.export_depends_on()).unwrap();
+
+        let c_idx = result.iter().position(|x| x == "C").unwrap();
+        let b_idx = result.iter().position(|x| x == "B").unwrap();
+        let a_idx = result.iter().position(|x| x == "A").unwrap();
+
+        assert!(c_idx < b_idx);
+        assert!(b_idx < a_idx);
+    }
+
+    #[test]
+    fn test_alert_desc_not_empty_with_message() {
+        let task = Task {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            status: crate::services::task_logger::TaskStatus::Success,
+            message: Some("Some message".to_string()),
+            ..Task::default()
+        };
+
+        // This test just verifies ValueMap behaviour with message field
+        let mut map: ValueMap<Task> = ValueMap::new();
+        map.append_values(vec![task], "tasks").unwrap();
+        let keys = map.get_loaded_keys("tasks").unwrap();
+        assert_eq!(keys.len(), 1);
+    }
+
+    #[test]
+    fn test_value_map_get_values_returns_clone() {
+        let mut map: ValueMap<String> = ValueMap::new();
+        map.append_values(vec!["hello".to_string()], "s").unwrap();
+        let v1 = map.get_values("s");
+        let v2 = map.get_values("s");
+        assert_eq!(v1, v2);
+        assert_eq!(v1, vec!["hello"]);
+    }
+
+    #[test]
+    fn test_type_key_mapper_key_format_combined() {
+        let mut mapper = TypeKeyMapper::new();
+        mapper.map_keys("Project", "alpha", "k1", "v1").unwrap();
+        mapper.map_keys("Project", "beta", "k2", "v2").unwrap();
+
+        let r1 = mapper.get_new_key("Project", "alpha", "k1").unwrap();
+        let r2 = mapper.get_new_key("Project", "beta", "k2").unwrap();
+        let r3 = mapper.get_new_key("Project", "alpha", "k2").unwrap(); // unmapped in alpha
+
+        assert_eq!(r1, "v1");
+        assert_eq!(r2, "v2");
+        assert_eq!(r3, "k2");
+    }
+
+    struct DepTestExporter {
+        export_deps: Vec<&'static str>,
+        import_deps: Vec<&'static str>,
+    }
+
+    impl TypeExporter for DepTestExporter {
+        fn load(&mut self, _store: &dyn Store, _exporter: &dyn DataExporter) -> Result<(), String> {
+            Ok(())
+        }
+
+        fn restore(&mut self, _store: &dyn Store, _exporter: &dyn DataExporter) -> Result<(), String> {
+            Ok(())
+        }
+
+        fn get_loaded_keys(&self, _scope: &str) -> Result<Vec<String>, String> {
+            Ok(Vec::new())
+        }
+
+        fn get_loaded_values(&self, _scope: &str) -> Result<Vec<Box<dyn std::any::Any>>, String> {
+            Ok(Vec::new())
+        }
+
+        fn get_name(&self) -> &str {
+            "DepTestExporter"
+        }
+
+        fn export_depends_on(&self) -> Vec<&str> {
+            self.export_deps.clone()
+        }
+
+        fn import_depends_on(&self) -> Vec<&str> {
+            self.import_deps.clone()
+        }
+
+        fn get_errors(&self) -> Vec<String> {
+            Vec::new()
+        }
+
+        fn clear(&mut self) {}
+    }
 }

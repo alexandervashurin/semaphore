@@ -254,4 +254,16 @@ mod tests {
         assert_eq!(invite.user_name, "N");
         assert_eq!(invite.user_email, "e@t.com");
     }
+
+    #[test]
+    fn test_project_invite_clone_independence() {
+        let mut invite = ProjectInvite {
+            id: 1, project_id: 10, user_id: 5, role: "manager".to_string(),
+            created: Utc::now(), updated: Utc::now(), token: "original".to_string(),
+            inviter_user_id: 1,
+        };
+        let cloned = invite.clone();
+        invite.token = "modified".to_string();
+        assert_eq!(cloned.token, "original");
+    }
 }

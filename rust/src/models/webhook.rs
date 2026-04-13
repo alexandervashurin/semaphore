@@ -271,4 +271,17 @@ mod tests {
         let debug_str = format!("{:?}", wt);
         assert!(debug_str.contains("Generic"));
     }
+
+    #[test]
+    fn test_webhook_unicode_name() {
+        let webhook = Webhook {
+            id: 1, project_id: Some(1), name: "Вебхук".to_string(),
+            r#type: WebhookType::Generic, url: "https://example.com".to_string(),
+            secret: None, headers: None, active: true, events: serde_json::json!([]),
+            retry_count: 3, timeout_secs: 30, created: Utc::now(), updated: Utc::now(),
+        };
+        let json = serde_json::to_string(&webhook).unwrap();
+        let restored: Webhook = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.name, "Вебхук");
+    }
 }

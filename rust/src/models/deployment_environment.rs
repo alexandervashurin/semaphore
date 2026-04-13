@@ -293,4 +293,93 @@ mod tests {
         // version might still be serialized as null depending on config
         assert!(json.contains("\"status\":\"running\""));
     }
+
+    #[test]
+    fn test_environment_tier_all_variants() {
+        let tiers = vec![
+            EnvironmentTier::Production,
+            EnvironmentTier::Staging,
+            EnvironmentTier::Development,
+            EnvironmentTier::Review,
+            EnvironmentTier::Other,
+        ];
+        for tier in tiers {
+            let s = tier.to_string();
+            assert!(!s.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_deploy_environment_status_all_variants() {
+        for status in &[
+            DeployEnvironmentStatus::Active,
+            DeployEnvironmentStatus::Stopped,
+            DeployEnvironmentStatus::Unknown,
+        ] {
+            let status_str = format!("{:?}", status);
+            let env = DeploymentEnvironment {
+                id: 1, project_id: 1, name: "Test".to_string(), url: None,
+                tier: "other".to_string(), status: status_str.clone(),
+                template_id: None, last_task_id: None, last_deploy_version: None,
+                last_deployed_by: None, created: Utc::now(), updated: Utc::now(),
+            };
+            let json = serde_json::to_string(&env).unwrap();
+            assert!(json.contains(&format!("\"status\":\"{}\"", status_str)));
+        }
+    }
+
+    #[test]
+    fn test_deployment_environment_unicode_name() {
+        let env = DeploymentEnvironment {
+            id: 1, project_id: 1, name: "Продакшн".to_string(),
+            url: Some("https://example.com".to_string()),
+            tier: "production".to_string(), status: "active".to_string(),
+            template_id: None, last_task_id: None, last_deploy_version: None,
+            last_deployed_by: None, created: Utc::now(), updated: Utc::now(),
+        };
+        let json = serde_json::to_string(&env).unwrap();
+        let restored: DeploymentEnvironment = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.name, "Продакшн");
+    }
+
+    #[test]
+    fn test_deployment_environment_clone_independence() {
+        let mut env = DeploymentEnvironment {
+            id: 1, project_id: 1, name: "Original".to_string(), url: None,
+            tier: "staging".to_string(), status: "active".to_string(),
+            template_id: None, last_task_id: None, last_deploy_version: None,
+            last_deployed_by: None, created: Utc::now(), updated: Utc::now(),
+        };
+        let cloned = env.clone();
+        env.name = "Modified".to_string();
+        assert_eq!(cloned.name, "Original");
+    }
+
+    #[test]
+    fn test_deployment_record_full_roundtrip() {
+        let original = DeploymentRecord {
+            id: 42, deploy_environment_id: 10, task_id: 100, project_id: 5,
+            version: Some("v3.0.0".to_string()), deployed_by: Some(7),
+            status: "success".to_string(), created: Utc::now(),
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: DeploymentRecord = serde_json::from_str(&json).unwrap();
+        assert_eq!(original.id, restored.id);
+        assert_eq!(original.version, restored.version);
+        assert_eq!(original.deployed_by, restored.deployed_by);
+    }
+
+    #[test]
+    fn test_deployment_environment_all_nulls() {
+        let env = DeploymentEnvironment {
+            id: 0, project_id: 0, name: "NullEnv".to_string(), url: None,
+            tier: "other".to_string(), status: "unknown".to_string(),
+            template_id: None, last_task_id: None, last_deploy_version: None,
+            last_deployed_by: None, created: Utc::now(), updated: Utc::now(),
+        };
+        let json = serde_json::to_string(&env).unwrap();
+        assert!(!json.contains("\"url\":"));
+        assert!(!json.contains("\"template_id\":"));
+        assert!(json.contains("\"name\":\"NullEnv\""));
+    }
 }

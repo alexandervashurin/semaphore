@@ -905,4 +905,95 @@ mod tests {
         let jobs = pool.get_jobs().await;
         assert_eq!(jobs.len(), 0);
     }
+
+    #[test]
+    fn test_normalize_cron_month_range() {
+        assert_eq!(SchedulePool::normalize_cron_expression("0 0 1 1-6 *"), "0 0 0 1 1-6 *");
+    }
+
+    #[test]
+    fn test_normalize_cron_list_of_values() {
+        assert_eq!(SchedulePool::normalize_cron_expression("15 3,6,9,12,18,21 * * *"), "0 15 3,6,9,12,18,21 * * *");
+    }
+
+    #[test]
+    fn test_normalize_cron_every_15_minutes() {
+        assert_eq!(SchedulePool::normalize_cron_expression("*/15 * * * *"), "0 */15 * * * *");
+    }
+
+    #[test]
+    fn test_normalize_cron_quarterly() {
+        assert_eq!(SchedulePool::normalize_cron_expression("0 0 1 1,4,7,10 *"), "0 0 0 1 1,4,7,10 *");
+    }
+
+    #[test]
+    fn test_calculate_next_run_midnight_daily() {
+        let result = SchedulePool::calculate_next_run("0 0 * * *");
+        assert!(result.is_ok());
+        let next = result.unwrap();
+        assert!(next > Utc::now());
+    }
+
+    #[test]
+    fn test_calculate_next_run_weekends_only() {
+        // Saturday at midnight
+        let result = SchedulePool::calculate_next_run("0 0 * * 6");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_calculate_next_run_first_of_year() {
+        let result = SchedulePool::calculate_next_run("0 0 1 1 *");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_calculate_next_run_every_hour_with_minutes() {
+        let result = SchedulePool::calculate_next_run("30 * * * *");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_cron_rejects_completely_invalid() {
+        let result = SchedulePool::validate_cron_for_storage("zzz yyy xxx");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_cron_accepts_semi_colon_separated_list() {
+        // Cron with list values
+        let result = SchedulePool::validate_cron_for_storage("0 9,17 * * *");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_scheduled_job_with_none_next_run() {
+        let job = ScheduledJob {
+            schedule_id: 5,
+            template_id: 10,
+            project_id: 15,
+            cron: "invalid".to_string(),
+            name: "Broken Job".to_string(),
+            active: true,
+            next_run: None,
+        };
+        assert!(job.next_run.is_none());
+        assert!(job.active);
+    }
+
+    #[test]
+    fn test_normalize_cron_no_whitespace_change() {
+        let input = "  0  0  *  *  *  ";
+        let normalized = SchedulePool::normalize_cron_expression(input);
+        // normalize_cron_expression trims and prepends "0 " for 5-field cron
+        assert_eq!(normalized, "0 0  0  *  *  *");
+    }
+
+    #[test]
+    fn test_calculate_next_run_every_3_hours() {
+        let result = SchedulePool::calculate_next_run("0 */3 * * *");
+        assert!(result.is_ok());
+        let next = result.unwrap();
+        assert!(next > Utc::now());
+    }
 }

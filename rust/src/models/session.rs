@@ -204,4 +204,73 @@ mod tests {
         let cloned = method.clone();
         assert_eq!(cloned, method);
     }
+
+    #[test]
+    fn test_session_unicode_ip_and_user_agent() {
+        let session = Session {
+            id: 1, user_id: 1, created: Utc::now(), last_active: Utc::now(),
+            ip: "0:0:0:0:0:0:0:1".to_string(),
+            user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)".to_string(),
+            expired: false, verification_method: SessionVerificationMethod::None, verified: false,
+        };
+        let json = serde_json::to_string(&session).unwrap();
+        let restored: Session = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.ip, "0:0:0:0:0:0:0:1");
+    }
+
+    #[test]
+    fn test_session_clone_independence() {
+        let mut session = Session {
+            id: 1, user_id: 1, created: Utc::now(), last_active: Utc::now(),
+            ip: "127.0.0.1".to_string(), user_agent: "Test".to_string(),
+            expired: false, verification_method: SessionVerificationMethod::None, verified: false,
+        };
+        let cloned = session.clone();
+        session.ip = "192.168.1.1".to_string();
+        assert_eq!(cloned.ip, "127.0.0.1");
+    }
+
+    #[test]
+    fn test_session_debug_contains_fields() {
+        let session = Session {
+            id: 42, user_id: 10, created: Utc::now(), last_active: Utc::now(),
+            ip: "10.0.0.1".to_string(), user_agent: "DebugAgent".to_string(),
+            expired: true, verification_method: SessionVerificationMethod::Totp, verified: true,
+        };
+        let debug_str = format!("{:?}", session);
+        assert!(debug_str.contains("42"));
+        assert!(debug_str.contains("DebugAgent"));
+        assert!(debug_str.contains("Session"));
+    }
+
+    #[test]
+    fn test_session_all_verification_methods() {
+        for method in [
+            SessionVerificationMethod::None,
+            SessionVerificationMethod::Totp,
+            SessionVerificationMethod::EmailOtp,
+        ] {
+            let session = Session {
+                id: 1, user_id: 1, created: Utc::now(), last_active: Utc::now(),
+                ip: "127.0.0.1".to_string(), user_agent: "Test".to_string(),
+                expired: false, verification_method: method.clone(), verified: true,
+            };
+            let json = serde_json::to_string(&session).unwrap();
+            assert!(json.contains("\"verification_method\":"));
+        }
+    }
+
+    #[test]
+    fn test_session_roundtrip() {
+        let original = Session {
+            id: 42, user_id: 10, created: Utc::now(), last_active: Utc::now(),
+            ip: "192.168.1.100".to_string(), user_agent: "TestAgent/2.0".to_string(),
+            expired: false, verification_method: SessionVerificationMethod::Totp, verified: true,
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: Session = serde_json::from_str(&json).unwrap();
+        assert_eq!(original.id, restored.id);
+        assert_eq!(original.ip, restored.ip);
+        assert_eq!(original.verification_method, restored.verification_method);
+    }
 }

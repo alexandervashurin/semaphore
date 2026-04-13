@@ -159,4 +159,54 @@ mod tests {
         assert_eq!(a.project_id, b.project_id);
         assert_eq!(a.role, b.role);
     }
+
+    #[test]
+    fn test_ldap_group_mapping_unicode_dn() {
+        let mapping = LdapGroupMapping {
+            id: 1, ldap_group_dn: "CN=Группа,OU=Пользователи,DC=example,DC=com".to_string(),
+            project_id: 1, role: "manager".to_string(),
+            created_at: "2024-01-01".to_string(), project_name: "Тест".to_string(),
+        };
+        let json = serde_json::to_string(&mapping).unwrap();
+        let restored: LdapGroupMapping = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.ldap_group_dn, "CN=Группа,OU=Пользователи,DC=example,DC=com");
+    }
+
+    #[test]
+    fn test_ldap_group_mapping_clone_independence() {
+        let mut mapping = LdapGroupMapping {
+            id: 1, ldap_group_dn: "CN=original".to_string(), project_id: 1,
+            role: "owner".to_string(), created_at: "2024-01-01".to_string(),
+            project_name: "Test".to_string(),
+        };
+        let cloned = mapping.clone();
+        mapping.ldap_group_dn = "CN=modified".to_string();
+        assert_eq!(cloned.ldap_group_dn, "CN=original");
+    }
+
+    #[test]
+    fn test_ldap_group_mapping_create_roundtrip() {
+        let original = LdapGroupMappingCreate {
+            ldap_group_dn: "CN=roundtrip,DC=test,DC=com".to_string(),
+            project_id: 42, role: "task_runner".to_string(),
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: LdapGroupMappingCreate = serde_json::from_str(&json).unwrap();
+        assert_eq!(original.ldap_group_dn, restored.ldap_group_dn);
+        assert_eq!(original.project_id, restored.project_id);
+        assert_eq!(original.role, restored.role);
+    }
+
+    #[test]
+    fn test_ldap_group_mapping_debug_contains_fields() {
+        let mapping = LdapGroupMapping {
+            id: 99, ldap_group_dn: "CN=debug".to_string(), project_id: 50,
+            role: "owner".to_string(), created_at: "2024-01-01".to_string(),
+            project_name: "Debug Project".to_string(),
+        };
+        let debug_str = format!("{:?}", mapping);
+        assert!(debug_str.contains("99"));
+        assert!(debug_str.contains("Debug Project"));
+        assert!(debug_str.contains("LdapGroupMapping"));
+    }
 }

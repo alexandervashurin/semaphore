@@ -167,4 +167,70 @@ mod tests {
         let other: ExportEntityType = serde_json::from_str("\"other\"").unwrap();
         assert_eq!(other, ExportEntityType::Other);
     }
+
+    #[test]
+    fn test_export_entity_type_invalid_deserialization() {
+        let result: Result<ExportEntityType, _> = serde_json::from_str("\"invalid_type\"");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_export_entity_type_count_variants() {
+        // Ensure we have exactly 11 variants
+        let variants = vec![
+            ExportEntityType::Project,
+            ExportEntityType::Template,
+            ExportEntityType::Task,
+            ExportEntityType::User,
+            ExportEntityType::Inventory,
+            ExportEntityType::Repository,
+            ExportEntityType::Environment,
+            ExportEntityType::AccessKey,
+            ExportEntityType::Integration,
+            ExportEntityType::Schedule,
+            ExportEntityType::Other,
+        ];
+        assert_eq!(variants.len(), 11);
+    }
+
+    #[test]
+    fn test_export_entity_type_as_str_matches_serialization() {
+        for t in vec![
+            ExportEntityType::Project, ExportEntityType::Template, ExportEntityType::Task,
+            ExportEntityType::User, ExportEntityType::Inventory, ExportEntityType::Repository,
+            ExportEntityType::Environment, ExportEntityType::AccessKey,
+            ExportEntityType::Integration, ExportEntityType::Schedule, ExportEntityType::Other,
+        ] {
+            let as_str = t.as_str();
+            let serialized = serde_json::to_string(&t).unwrap();
+            assert!(serialized.contains(as_str));
+        }
+    }
+
+    #[test]
+    fn test_export_entity_type_debug_format() {
+        for (variant, name) in vec![
+            (ExportEntityType::Project, "Project"),
+            (ExportEntityType::Template, "Template"),
+            (ExportEntityType::Task, "Task"),
+            (ExportEntityType::Other, "Other"),
+        ] {
+            let debug_str = format!("{:?}", variant);
+            assert!(debug_str.contains(name));
+        }
+    }
+
+    #[test]
+    fn test_export_entity_type_all_roundtrip() {
+        for t in vec![
+            ExportEntityType::Project, ExportEntityType::Template, ExportEntityType::Task,
+            ExportEntityType::User, ExportEntityType::Inventory, ExportEntityType::Repository,
+            ExportEntityType::Environment, ExportEntityType::AccessKey,
+            ExportEntityType::Integration, ExportEntityType::Schedule, ExportEntityType::Other,
+        ] {
+            let json = serde_json::to_string(&t).unwrap();
+            let restored: ExportEntityType = serde_json::from_str(&json).unwrap();
+            assert_eq!(t, restored);
+        }
+    }
 }

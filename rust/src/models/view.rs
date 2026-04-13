@@ -147,4 +147,36 @@ mod tests {
         let restored: View = serde_json::from_str(&json).unwrap();
         assert_eq!(restored.title, "View & <special> \"chars\"");
     }
+
+    #[test]
+    fn test_view_unicode_title() {
+        let view = View {
+            id: 1, project_id: 1, title: "Представление".to_string(), position: 0,
+        };
+        let json = serde_json::to_string(&view).unwrap();
+        let restored: View = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.title, "Представление");
+    }
+
+    #[test]
+    fn test_view_clone_independence() {
+        let mut view = View {
+            id: 1, project_id: 1, title: "Original".to_string(), position: 0,
+        };
+        let cloned = view.clone();
+        view.title = "Modified".to_string();
+        assert_eq!(cloned.title, "Original");
+    }
+
+    #[test]
+    fn test_view_roundtrip() {
+        let original = View {
+            id: 50, project_id: 25, title: "Roundtrip View".to_string(), position: 10,
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: View = serde_json::from_str(&json).unwrap();
+        assert_eq!(original.id, restored.id);
+        assert_eq!(original.title, restored.title);
+        assert_eq!(original.position, restored.position);
+    }
 }

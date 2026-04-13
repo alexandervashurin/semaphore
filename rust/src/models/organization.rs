@@ -303,4 +303,70 @@ mod tests {
         assert!(json.contains("\"name\":\"Minimal Org\""));
         assert!(json.contains("\"slug\":null"));
     }
+
+    #[test]
+    fn test_organization_unicode_name_and_description() {
+        let org = Organization {
+            id: 1,
+            name: "Организация".to_string(),
+            slug: "org".to_string(),
+            description: Some("Тестовая организация".to_string()),
+            settings: None,
+            quota_max_projects: None,
+            quota_max_users: None,
+            quota_max_tasks_per_month: None,
+            active: true,
+            created: Utc::now(),
+            updated: None,
+        };
+        let json = serde_json::to_string(&org).unwrap();
+        let restored: Organization = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.name, "Организация");
+        assert_eq!(restored.description, Some("Тестовая организация".to_string()));
+    }
+
+    #[test]
+    fn test_organization_clone_independence() {
+        let mut org = Organization::default();
+        org.name = "Original".to_string();
+        let cloned = org.clone();
+        org.name = "Modified".to_string();
+        assert_eq!(cloned.name, "Original");
+    }
+
+    #[test]
+    fn test_organization_settings_json() {
+        let mut org = Organization::default();
+        org.settings = Some(serde_json::json!({"theme": "dark", "lang": "ru"}));
+        let json = serde_json::to_string(&org).unwrap();
+        assert!(json.contains("\"theme\":\"dark\""));
+    }
+
+    #[test]
+    fn test_organization_user_roles() {
+        for role in &["owner", "admin", "member"] {
+            let user = OrganizationUser {
+                id: 1, org_id: 1, user_id: 1, role: role.to_string(),
+                created: Utc::now(),
+            };
+            let json = serde_json::to_string(&user).unwrap();
+            assert!(json.contains(role));
+        }
+    }
+
+    #[test]
+    fn test_organization_update_all_fields() {
+        let update = OrganizationUpdate {
+            name: Some("New Name".to_string()),
+            description: Some("New Desc".to_string()),
+            settings: Some(serde_json::json!({})),
+            quota_max_projects: Some(100),
+            quota_max_users: Some(200),
+            quota_max_tasks_per_month: Some(5000),
+            active: Some(true),
+        };
+        let json = serde_json::to_string(&update).unwrap();
+        assert!(json.contains("\"name\":\"New Name\""));
+        assert!(json.contains("\"quota_max_projects\":100"));
+    }
 }

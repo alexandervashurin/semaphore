@@ -124,4 +124,38 @@ mod tests {
         let restored: TestBackupEntity = serde_json::from_str(&json).unwrap();
         assert_eq!(restored.get_name(), "Тестовая сущность 🚀");
     }
+
+    #[test]
+    fn test_backup_entity_clone_independence() {
+        let mut entity = TestBackupEntity::new("Original");
+        let cloned = entity.clone();
+        entity.name = "Modified".to_string();
+        assert_eq!(cloned.get_name(), "Original");
+    }
+
+    #[test]
+    fn test_backup_entity_newline_in_name() {
+        let entity = TestBackupEntity::new("Line1\nLine2\tTab");
+        let json = serde_json::to_string(&entity).unwrap();
+        let restored: TestBackupEntity = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.get_name(), "Line1\nLine2\tTab");
+    }
+
+    #[test]
+    fn test_backup_entity_debug_format() {
+        let entity = TestBackupEntity {
+            name: "DebugTest".to_string(),
+            entity_type: "debug_type".to_string(),
+        };
+        let debug_str = format!("{:?}", entity);
+        assert!(debug_str.contains("DebugTest"));
+        assert!(debug_str.contains("TestBackupEntity"));
+    }
+
+    #[test]
+    fn test_backup_entity_type_field_serialization() {
+        let entity = TestBackupEntity::new("Test");
+        let json = serde_json::to_string(&entity).unwrap();
+        assert!(json.contains("\"entity_type\":\"test\""));
+    }
 }

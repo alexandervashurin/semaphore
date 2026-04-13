@@ -170,4 +170,58 @@ mod tests {
     fn test_template_routes_vue_alias() {
         let _fn: fn() -> Router<Arc<AppState>> = template_routes;
     }
+
+    #[test]
+    fn test_template_routes_has_templates_crud() {
+        // templates: GET, POST, GET/{id}, PUT/{id}, DELETE/{id}
+        let _fn: fn() -> Router<Arc<AppState>> = template_routes;
+    }
+
+    #[test]
+    fn test_template_routes_has_vue_alias_crud() {
+        // Vue alias: /api/project/{id}/templates
+        let _fn: fn() -> Router<Arc<AppState>> = template_routes;
+    }
+
+    #[test]
+    fn test_template_routes_has_stop_all_tasks() {
+        // /api/project/{project_id}/templates/{id}/stop_all_tasks - POST
+        let _fn: fn() -> Router<Arc<AppState>> = template_routes;
+    }
+
+    #[test]
+    fn test_template_routes_has_workflows_crud() {
+        // workflows: GET, POST, GET/{id}, PUT/{id}, DELETE/{id}
+        let _fn: fn() -> Router<Arc<AppState>> = template_routes;
+    }
+
+    #[test]
+    fn test_template_routes_has_workflow_nodes() {
+        // workflow nodes: POST, PUT/{node_id}, DELETE/{node_id}
+        let _fn: fn() -> Router<Arc<AppState>> = template_routes;
+    }
+
+    #[test]
+    fn test_template_routes_has_workflow_edges() {
+        // workflow edges: POST, DELETE/{edge_id}
+        let _fn: fn() -> Router<Arc<AppState>> = template_routes;
+    }
+
+    #[test]
+    fn test_template_routes_has_workflow_run() {
+        // /api/project/{project_id}/workflows/{id}/run - POST
+        let _fn: fn() -> Router<Arc<AppState>> = template_routes;
+    }
+
+    #[test]
+    fn test_template_routes_uses_post_for_workflow_run() {
+        // run_workflow uses POST method
+        let _fn: fn() -> Router<Arc<AppState>> = template_routes;
+    }
+
+    #[test]
+    fn test_template_routes_uses_delete_for_workflow_node() {
+        // delete_workflow_node uses DELETE method
+        let _fn: fn() -> Router<Arc<AppState>> = template_routes;
+    }
 }

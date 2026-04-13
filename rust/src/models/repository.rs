@@ -322,4 +322,17 @@ mod tests {
         assert_eq!(repo1.name, repo2.name);
         assert_eq!(repo1.git_url, repo2.git_url);
     }
+
+    #[test]
+    fn test_repository_unicode_name_and_url() {
+        let repo = Repository {
+            id: 1, project_id: 1, name: "Репозиторий".to_string(),
+            git_url: "https://github.com/user/repo.git".to_string(),
+            git_type: RepositoryType::Git, git_branch: Some("main".to_string()),
+            key_id: None, git_path: None, created: None,
+        };
+        let json = serde_json::to_string(&repo).unwrap();
+        let restored: Repository = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.name, "Репозиторий");
+    }
 }

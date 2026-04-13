@@ -227,4 +227,18 @@ mod tests {
         let debug_str = format!("{:?}", params);
         assert!(debug_str.contains("AnsibleTaskParams"));
     }
+
+    #[test]
+    fn test_ansible_task_params_serialization_roundtrip() {
+        let original = AnsibleTaskParams {
+            debug: true, debug_level: 3, dry_run: true, diff: true,
+            limit: vec!["web".to_string()], tags: vec!["deploy".to_string()],
+            skip_tags: vec!["cleanup".to_string()],
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: AnsibleTaskParams = serde_json::from_str(&json).unwrap();
+        assert_eq!(original.debug, restored.debug);
+        assert_eq!(original.limit, restored.limit);
+        assert_eq!(original.tags, restored.tags);
+    }
 }

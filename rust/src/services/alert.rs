@@ -846,4 +846,193 @@ mod tests {
         let alert = service.create_alert();
         assert_eq!(alert.task.id, "42");
     }
+
+    #[test]
+    fn test_hmac_signature_empty_body() {
+        let sig = AlertService::compute_hmac_signature("secret", b"");
+        assert!(sig.starts_with("sha256="));
+        assert_eq!(sig.len(), 71); // "sha256=" + 64 hex chars
+    }
+
+    #[test]
+    fn test_hmac_signature_empty_secret() {
+        let sig = AlertService::compute_hmac_signature("", b"body");
+        assert!(sig.starts_with("sha256="));
+        assert_eq!(sig.len(), 71);
+    }
+
+    #[test]
+    fn test_hmac_signature_empty_secret_and_body() {
+        let sig = AlertService::compute_hmac_signature("", b"");
+        assert!(sig.starts_with("sha256="));
+        assert_eq!(sig.len(), 71);
+    }
+
+    #[test]
+    fn test_webhook_signature_different_timestamps() {
+        let body = b"test";
+        let s1 = AlertService::compute_webhook_request_signature("sec", "1000", body);
+        let s2 = AlertService::compute_webhook_request_signature("sec", "2000", body);
+        assert_ne!(s1, s2);
+    }
+
+    #[test]
+    fn test_webhook_signature_different_secrets_same_timestamp() {
+        let body = b"test";
+        let s1 = AlertService::compute_webhook_request_signature("sec1", "1000", body);
+        let s2 = AlertService::compute_webhook_request_signature("sec2", "1000", body);
+        assert_ne!(s1, s2);
+    }
+
+    #[test]
+    fn test_webhook_signature_different_bodies_same_timestamp() {
+        let s1 = AlertService::compute_webhook_request_signature("sec", "1000", b"body1");
+        let s2 = AlertService::compute_webhook_request_signature("sec", "1000", b"body2");
+        assert_ne!(s1, s2);
+    }
+
+    #[test]
+    fn test_alert_task_serialization_roundtrip() {
+        let task = create_test_task();
+        let service = AlertService::new(task, "Template".to_string(), "user".to_string());
+        let alert = service.create_alert();
+
+        let json = serde_json::to_string(&alert).unwrap();
+        let deserialized: Alert = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.name, alert.name);
+        assert_eq!(deserialized.author, alert.author);
+        assert_eq!(deserialized.task.id, alert.task.id);
+        assert_eq!(deserialized.task.url, alert.task.url);
+    }
+
+    #[test]
+    fn test_alert_color_success_all_channels() {
+        let task = create_test_task();
+        let service = AlertService::new(task, "T".to_string(), "u".to_string());
+
+        assert_eq!(service.alert_color("telegram"), "✅");
+        assert_eq!(service.alert_color("slack"), "good");
+        assert_eq!(service.alert_color("teams"), "8BC34A");
+        assert_eq!(service.alert_color("anything"), "green");
+    }
+
+    #[test]
+    fn test_alert_color_error_all_channels() {
+        let mut task = create_test_task();
+        task.status = TaskStatus::Error;
+        let service = AlertService::new(task, "T".to_string(), "u".to_string());
+
+        assert_eq!(service.alert_color("telegram"), "❌");
+        assert_eq!(service.alert_color("slack"), "danger");
+        assert_eq!(service.alert_color("teams"), "F44336");
+        assert_eq!(service.alert_color("other"), "red");
+    }
+
+    #[test]
+    fn test_alert_color_stopped_all_channels() {
+        let mut task = create_test_task();
+        task.status = TaskStatus::Stopped;
+        let service = AlertService::new(task, "T".to_string(), "u".to_string());
+
+        assert_eq!(service.alert_color("telegram"), "⏹️");
+        assert_eq!(service.alert_color("slack"), "warning");
+        assert_eq!(service.alert_color("teams"), "FFC107");
+        assert_eq!(service.alert_color("fallback"), "yellow");
+    }
+
+    #[test]
+    fn test_alert_service_with_empty_template_name() {
+        let task = create_test_task();
+        let service = AlertService::new(task, "".to_string(), "user".to_string());
+        assert_eq!(service.template_name, "");
+        let alert = service.create_alert();
+        assert_eq!(alert.name, "");
+    }
+
+    #[test]
+    fn test_alert_service_with_empty_username() {
+        let task = create_test_task();
+        let service = AlertService::new(task, "Tpl".to_string(), "".to_string());
+        let (author, _) = service.alert_infos();
+        assert_eq!(author, "");
+    }
+
+    #[test]
+    fn test_alert_task_url_contains_host() {
+        let task = create_test_task();
+        let service = AlertService::new(task, "Tpl".to_string(), "user".to_string());
+        let link = service.task_link();
+        // Contains the project path
+        assert!(link.contains("/project/1/tasks/1"));
+    }
+
+    #[test]
+    fn test_alert_clone_preserves_all_fields() {
+        let alert = Alert {
+            name: "Name".to_string(),
+            author: "Author".to_string(),
+            color: "Color".to_string(),
+            task: AlertTask {
+                id: "100".to_string(),
+                url: "http://test.com".to_string(),
+                result: "ok".to_string(),
+                desc: "description".to_string(),
+                version: "2.0".to_string(),
+            },
+            chat: AlertChat { id: "chat123".to_string() },
+        };
+        let cloned = alert.clone();
+        assert_eq!(cloned.name, "Name");
+        assert_eq!(cloned.author, "Author");
+        assert_eq!(cloned.color, "Color");
+        assert_eq!(cloned.task.id, "100");
+        assert_eq!(cloned.task.version, "2.0");
+        assert_eq!(cloned.chat.id, "chat123");
+    }
+
+    #[test]
+    fn test_hmac_webhook_body_json_payload() {
+        let body = br#"{"event":"task_result","task":{"id":"1"}}"#;
+        let sig = AlertService::compute_hmac_signature("mysecret", body);
+        assert!(sig.starts_with("sha256="));
+        // Verify it's deterministic
+        let sig2 = AlertService::compute_hmac_signature("mysecret", body);
+        assert_eq!(sig, sig2);
+    }
+
+    #[test]
+    fn test_alert_task_result_is_stringified_status() {
+        for status in [TaskStatus::Success, TaskStatus::Error, TaskStatus::Stopped, TaskStatus::Waiting, TaskStatus::Running, TaskStatus::Starting] {
+            let mut task = create_test_task();
+            task.status = status;
+            let service = AlertService::new(task, "T".to_string(), "u".to_string());
+            let alert = service.create_alert();
+            assert!(!alert.task.result.is_empty(), "Result should not be empty for {:?}", status);
+        }
+    }
+
+    #[test]
+    fn test_dingtalk_sign_encoding_chars() {
+        // Verify that base64 chars +, /, = are properly URL-encoded
+        use base64::Engine as _;
+        use hmac::{Hmac, Mac};
+        use sha2::Sha256;
+        type HmacSha256 = Hmac<Sha256>;
+
+        let secret = "test_secret_with_special_chars";
+        let timestamp = "1704067200000";
+        let string_to_sign = format!("{}\n{}", timestamp, secret);
+        let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).unwrap();
+        mac.update(string_to_sign.as_bytes());
+        let sign_bytes = mac.finalize().into_bytes();
+        let sign = base64::engine::general_purpose::STANDARD.encode(sign_bytes);
+
+        // Check that encoding produces characters that need escaping
+        let encoded = sign.replace('+', "%2B").replace('/', "%2F").replace('=', "%3D");
+        // Should not contain unescaped unsafe chars
+        assert!(!encoded.contains('+'));
+        assert!(!encoded.contains('/'));
+        assert!(!encoded.contains('='));
+    }
 }

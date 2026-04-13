@@ -747,4 +747,244 @@ mod tests {
         };
         assert_eq!(query.namespace, Some("kube-system".to_string()));
     }
+
+    // ─────────────────────────────────────────────
+    // DTO struct edge cases
+    // ─────────────────────────────────────────────
+
+    #[test]
+    fn test_hpa_summary_minimal() {
+        let summary = HpaSummary {
+            name: String::new(),
+            namespace: String::new(),
+            min_replicas: None,
+            max_replicas: 0,
+            target_ref: String::new(),
+            current_replicas: None,
+            desired_replicas: None,
+            metrics_hint: None,
+        };
+        assert!(summary.name.is_empty());
+        assert!(summary.min_replicas.is_none());
+        assert_eq!(summary.max_replicas, 0);
+    }
+
+    #[test]
+    fn test_hpa_summary_full() {
+        let summary = HpaSummary {
+            name: "cpu-hpa".to_string(),
+            namespace: "production".to_string(),
+            min_replicas: Some(3),
+            max_replicas: 20,
+            target_ref: "Deployment/api".to_string(),
+            current_replicas: Some(5),
+            desired_replicas: Some(7),
+            metrics_hint: Some("CPU utilization 85%".to_string()),
+        };
+        assert_eq!(summary.name, "cpu-hpa");
+        assert_eq!(summary.min_replicas, Some(3));
+        assert_eq!(summary.metrics_hint, Some("CPU utilization 85%".to_string()));
+    }
+
+    #[test]
+    fn test_resource_quota_summary_empty() {
+        let summary = ResourceQuotaSummary {
+            name: String::new(),
+            namespace: String::new(),
+            hard: None,
+            used: None,
+        };
+        assert!(summary.hard.is_none());
+        assert!(summary.used.is_none());
+    }
+
+    #[test]
+    fn test_resource_quota_summary_with_values() {
+        let summary = ResourceQuotaSummary {
+            name: "compute-quota".to_string(),
+            namespace: "dev".to_string(),
+            hard: Some(serde_json::json!({
+                "requests.cpu": "10",
+                "requests.memory": "16Gi",
+                "limits.cpu": "20"
+            })),
+            used: Some(serde_json::json!({
+                "requests.cpu": "5",
+                "requests.memory": "8Gi",
+                "limits.cpu": "12"
+            })),
+        };
+        assert_eq!(summary.name, "compute-quota");
+        assert!(summary.hard.is_some());
+        assert!(summary.used.is_some());
+    }
+
+    #[test]
+    fn test_limit_range_summary_zero() {
+        let summary = LimitRangeSummary {
+            name: "empty-limits".to_string(),
+            namespace: "test".to_string(),
+            limits_count: 0,
+        };
+        assert_eq!(summary.limits_count, 0);
+    }
+
+    #[test]
+    fn test_crd_summary_empty_strings() {
+        let summary = CrdSummary {
+            name: String::new(),
+            group: String::new(),
+            kind: String::new(),
+            plural: String::new(),
+            scope: String::new(),
+            versions: vec![],
+        };
+        assert!(summary.name.is_empty());
+        assert!(summary.versions.is_empty());
+    }
+
+    #[test]
+    fn test_crd_summary_multiple_versions() {
+        let summary = CrdSummary {
+            name: "certificates.cert-manager.io".to_string(),
+            group: "cert-manager.io".to_string(),
+            kind: "Certificate".to_string(),
+            plural: "certificates".to_string(),
+            scope: "Namespaced".to_string(),
+            versions: vec!["v1".to_string(), "v1alpha2".to_string(), "v1alpha3".to_string()],
+        };
+        assert_eq!(summary.versions.len(), 3);
+        assert_eq!(summary.versions[0], "v1");
+    }
+
+    #[test]
+    fn test_vpa_api_status_not_installed() {
+        let status = VpaApiStatus {
+            installed: false,
+        };
+        assert!(!status.installed);
+    }
+
+    // ─────────────────────────────────────────────
+    // Query params tests
+    // ─────────────────────────────────────────────
+
+    #[test]
+    fn test_ns_query_none() {
+        let query = NsQuery {
+            namespace: None,
+        };
+        assert!(query.namespace.is_none());
+    }
+
+    #[test]
+    fn test_custom_object_query_all_fields() {
+        let query = CustomObjectQuery {
+            group: "monitoring.coreos.com".to_string(),
+            version: "v1".to_string(),
+            plural: "servicemonitors".to_string(),
+            kind: "ServiceMonitor".to_string(),
+            namespace: Some("monitoring".to_string()),
+        };
+        assert_eq!(query.group, "monitoring.coreos.com");
+        assert_eq!(query.version, "v1");
+        assert_eq!(query.plural, "servicemonitors");
+        assert_eq!(query.kind, "ServiceMonitor");
+        assert_eq!(query.namespace, Some("monitoring".to_string()));
+    }
+
+    #[test]
+    fn test_custom_object_query_no_namespace() {
+        let query = CustomObjectQuery {
+            group: "apiextensions.k8s.io".to_string(),
+            version: "v1".to_string(),
+            plural: "customresourcedefinitions".to_string(),
+            kind: "CustomResourceDefinition".to_string(),
+            namespace: None,
+        };
+        assert!(query.namespace.is_none());
+    }
+
+    // ─────────────────────────────────────────────
+    // Helper function tests
+    // ─────────────────────────────────────────────
+
+    #[test]
+    fn test_gvk_function() {
+        let gvk_result = gvk("apps", "v1", "Deployment");
+        assert_eq!(gvk_result.group, "apps");
+        assert_eq!(gvk_result.version, "v1");
+        assert_eq!(gvk_result.kind, "Deployment");
+    }
+
+    #[test]
+    fn test_gvk_function_empty_group() {
+        let gvk_result = gvk("", "v1", "Pod");
+        assert_eq!(gvk_result.group, "");
+        assert_eq!(gvk_result.version, "v1");
+        assert_eq!(gvk_result.kind, "Pod");
+    }
+
+    #[test]
+    fn test_ar_function() {
+        let ar_result = ar("apps", "v1", "Deployment", "deployments");
+        assert_eq!(ar_result.group, "apps");
+        assert_eq!(ar_result.api_version, "apps/v1");
+    }
+
+    #[test]
+    fn test_ar_function_core_api() {
+        let ar_result = ar("", "v1", "Pod", "pods");
+        assert_eq!(ar_result.group, "");
+        assert_eq!(ar_result.api_version, "v1");
+        assert_eq!(ar_result.kind, "Pod");
+        assert_eq!(ar_result.plural, "pods");
+    }
+
+    // ─────────────────────────────────────────────
+    // CustomObjectPayload tests
+    // ─────────────────────────────────────────────
+
+    #[test]
+    fn test_custom_object_payload() {
+        let payload = CustomObjectPayload {
+            group: "stable.example.com".to_string(),
+            version: "v1".to_string(),
+            kind: "Crontab".to_string(),
+        };
+        assert_eq!(payload.group, "stable.example.com");
+        assert_eq!(payload.kind, "Crontab");
+    }
+
+    // ─────────────────────────────────────────────
+    // Edge cases and boundary tests
+    // ─────────────────────────────────────────────
+
+    #[test]
+    fn test_hpa_summary_max_replicas_zero() {
+        let summary = HpaSummary {
+            name: "broken-hpa".to_string(),
+            namespace: "default".to_string(),
+            min_replicas: None,
+            max_replicas: 0,
+            target_ref: "—".to_string(),
+            current_replicas: None,
+            desired_replicas: None,
+            metrics_hint: None,
+        };
+        assert_eq!(summary.max_replicas, 0);
+    }
+
+    #[test]
+    fn test_crd_summary_cluster_scope() {
+        let summary = CrdSummary {
+            name: "clusterissuers.cert-manager.io".to_string(),
+            group: "cert-manager.io".to_string(),
+            kind: "ClusterIssuer".to_string(),
+            plural: "clusterissuers".to_string(),
+            scope: "Cluster".to_string(),
+            versions: vec!["v1".to_string()],
+        };
+        assert_eq!(summary.scope, "Cluster");
+    }
 }

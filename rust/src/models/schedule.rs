@@ -262,4 +262,60 @@ mod tests {
         assert!(json.contains("\"delete_after_run\":true"));
         assert!(json.contains("\"run_at\":\"2024-06-01T12:00:00Z\""));
     }
+
+    #[test]
+    fn test_schedule_unicode_name() {
+        let schedule = Schedule {
+            id: 1, template_id: 1, project_id: 1,
+            cron: "0 * * * *".to_string(), cron_format: None,
+            name: "Расписание".to_string(), active: true,
+            last_commit_hash: None, repository_id: None,
+            created: None, run_at: None, delete_after_run: false,
+        };
+        let json = serde_json::to_string(&schedule).unwrap();
+        let restored: Schedule = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.name, "Расписание");
+    }
+
+    #[test]
+    fn test_schedule_clone_independence() {
+        let mut schedule = Schedule {
+            id: 1, template_id: 1, project_id: 1,
+            cron: "0 * * * *".to_string(), cron_format: None,
+            name: "Original".to_string(), active: true,
+            last_commit_hash: None, repository_id: None,
+            created: None, run_at: None, delete_after_run: false,
+        };
+        let cloned = schedule.clone();
+        schedule.name = "Modified".to_string();
+        assert_eq!(cloned.name, "Original");
+    }
+
+    #[test]
+    fn test_schedule_roundtrip() {
+        let original = Schedule {
+            id: 77, template_id: 33, project_id: 11,
+            cron: "*/15 * * * *".to_string(), cron_format: Some("standard".to_string()),
+            name: "Roundtrip".to_string(), active: true,
+            last_commit_hash: Some("abc123".to_string()), repository_id: Some(5),
+            created: Some("2024-01-01".to_string()), run_at: None, delete_after_run: false,
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: Schedule = serde_json::from_str(&json).unwrap();
+        assert_eq!(original.id, restored.id);
+        assert_eq!(original.cron, restored.cron);
+        assert_eq!(original.name, restored.name);
+    }
+
+    #[test]
+    fn test_schedule_with_tpl_default() {
+        let schedule = Schedule {
+            id: 0, template_id: 0, project_id: 0, cron: String::new(),
+            cron_format: None, name: String::new(), active: false,
+            last_commit_hash: None, repository_id: None, created: None,
+            run_at: None, delete_after_run: false,
+        };
+        let with_tpl = ScheduleWithTpl { schedule, tpl_playbook: None };
+        assert!(with_tpl.tpl_playbook.is_none());
+    }
 }

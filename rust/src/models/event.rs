@@ -228,4 +228,28 @@ mod tests {
         assert!(json.contains("\"project_id\":100"));
         assert!(json.contains("\"object_id\":200"));
     }
+
+    #[test]
+    fn test_event_unicode_description() {
+        let event = Event {
+            id: 1, project_id: None, user_id: None, object_id: None,
+            object_type: "task".to_string(), description: "Задача создана".to_string(),
+            created: Utc::now(),
+        };
+        let json = serde_json::to_string(&event).unwrap();
+        let restored: Event = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.description, "Задача создана");
+    }
+
+    #[test]
+    fn test_event_clone_independence() {
+        let mut event = Event {
+            id: 1, project_id: None, user_id: None, object_id: None,
+            object_type: "task".to_string(), description: "Original".to_string(),
+            created: Utc::now(),
+        };
+        let cloned = event.clone();
+        event.description = "Modified".to_string();
+        assert_eq!(cloned.description, "Original");
+    }
 }

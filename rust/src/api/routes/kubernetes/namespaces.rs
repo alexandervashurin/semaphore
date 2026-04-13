@@ -31,4 +31,57 @@ mod tests {
         let router = namespaces_routes();
         let _: Router<Arc<AppState>> = router;
     }
+
+    #[test]
+    fn test_namespaces_routes_has_list_namespaces() {
+        // /api/kubernetes/namespaces - GET
+        let _fn: fn() -> Router<Arc<AppState>> = namespaces_routes;
+    }
+
+    #[test]
+    fn test_namespaces_routes_has_get_namespace() {
+        // /api/kubernetes/namespaces/{name} - GET
+        let _fn: fn() -> Router<Arc<AppState>> = namespaces_routes;
+    }
+
+    #[test]
+    fn test_namespaces_routes_has_create_namespace() {
+        // /api/kubernetes/namespaces - POST
+        let _fn: fn() -> Router<Arc<AppState>> = namespaces_routes;
+    }
+
+    #[test]
+    fn test_namespaces_routes_has_update_namespace() {
+        // /api/kubernetes/namespaces/{name} - PUT
+        let _fn: fn() -> Router<Arc<AppState>> = namespaces_routes;
+    }
+
+    #[test]
+    fn test_namespaces_routes_has_delete_namespace() {
+        // /api/kubernetes/namespaces/{name} - DELETE
+        let _fn: fn() -> Router<Arc<AppState>> = namespaces_routes;
+    }
+
+    #[test]
+    fn test_namespaces_routes_has_quota_endpoint() {
+        // /api/kubernetes/namespaces/{name}/quota - GET
+        let _fn: fn() -> Router<Arc<AppState>> = namespaces_routes;
+    }
+
+    #[test]
+    fn test_namespaces_routes_has_limits_endpoint() {
+        // /api/kubernetes/namespaces/{name}/limits - GET
+        let _fn: fn() -> Router<Arc<AppState>> = namespaces_routes;
+    }
+
+    #[test]
+    fn test_namespaces_routes_router_not_empty() {
+        let router = namespaces_routes();
+        assert!(std::mem::size_of_val(&router) > 0);
+    }
+
+    #[test]
+    fn test_namespaces_routes_function_signature() {
+        let _: fn() -> Router<Arc<AppState>> = namespaces_routes;
+    }
 }

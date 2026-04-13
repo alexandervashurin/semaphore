@@ -215,4 +215,75 @@ mod tests {
             assert!(json.contains(&format!("\"playbook_type\":\"{}\"", pt)));
         }
     }
+
+    #[test]
+    fn test_playbook_unicode_content() {
+        let playbook = Playbook {
+            id: 1, project_id: 1, name: "rus.yml".to_string(),
+            content: "---\n# Русское описание\n- hosts: all".to_string(),
+            description: Some("Описание на русском".to_string()),
+            playbook_type: "ansible".to_string(), repository_id: None,
+            created: Utc::now(), updated: Utc::now(),
+        };
+        let json = serde_json::to_string(&playbook).unwrap();
+        let restored: Playbook = serde_json::from_str(&json).unwrap();
+        assert!(restored.content.contains("Русское"));
+    }
+
+    #[test]
+    fn test_playbook_clone_independence() {
+        let mut playbook = Playbook {
+            id: 1, project_id: 1, name: "original.yml".to_string(),
+            content: "---".to_string(), description: None,
+            playbook_type: "ansible".to_string(), repository_id: None,
+            created: Utc::now(), updated: Utc::now(),
+        };
+        let cloned = playbook.clone();
+        playbook.name = "modified.yml".to_string();
+        assert_eq!(cloned.name, "original.yml");
+    }
+
+    #[test]
+    fn test_playbook_content_roundtrip() {
+        let original = Playbook {
+            id: 42, project_id: 10, name: "roundtrip.yml".to_string(),
+            content: "---\nhosts: all\ntasks: []".to_string(),
+            description: Some("Roundtrip test".to_string()),
+            playbook_type: "ansible".to_string(), repository_id: Some(5),
+            created: Utc::now(), updated: Utc::now(),
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: Playbook = serde_json::from_str(&json).unwrap();
+        assert_eq!(original.content, restored.content);
+        assert_eq!(original.id, restored.id);
+    }
+
+    #[test]
+    fn test_playbook_create_roundtrip() {
+        let original = PlaybookCreate {
+            name: "create_roundtrip.yml".to_string(),
+            content: "---\ncontent".to_string(),
+            description: Some("Create roundtrip".to_string()),
+            playbook_type: "terraform".to_string(),
+            repository_id: Some(3),
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: PlaybookCreate = serde_json::from_str(&json).unwrap();
+        assert_eq!(original.name, restored.name);
+        assert_eq!(original.playbook_type, restored.playbook_type);
+    }
+
+    #[test]
+    fn test_playbook_special_chars_in_content() {
+        let playbook = Playbook {
+            id: 1, project_id: 1, name: "special.yml".to_string(),
+            content: "---\n# Special: <tag> & \"quotes\"".to_string(),
+            description: None, playbook_type: "ansible".to_string(),
+            repository_id: None, created: Utc::now(), updated: Utc::now(),
+        };
+        let json = serde_json::to_string(&playbook).unwrap();
+        let restored: Playbook = serde_json::from_str(&json).unwrap();
+        assert!(restored.content.contains("<tag>"));
+        assert!(restored.content.contains("&"));
+    }
 }

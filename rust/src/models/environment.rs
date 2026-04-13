@@ -284,4 +284,27 @@ mod tests {
         assert!(parsed.is_object());
         assert_eq!(parsed.as_object().unwrap().len(), 0);
     }
+
+    #[test]
+    fn test_environment_unicode_name() {
+        let env = Environment::new(1, "Окружение".to_string(), "{}".to_string());
+        let json = serde_json::to_string(&env).unwrap();
+        let restored: Environment = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.name, "Окружение");
+    }
+
+    #[test]
+    fn test_environment_clone_independence() {
+        let mut env = Environment::new(1, "original".to_string(), "{}".to_string());
+        let cloned = env.clone();
+        env.name = "modified".to_string();
+        assert_eq!(cloned.name, "original");
+    }
+
+    #[test]
+    fn test_environment_secret_type_clone() {
+        let t = EnvironmentSecretType::Var;
+        let cloned = t.clone();
+        assert_eq!(cloned, t);
+    }
 }

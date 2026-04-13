@@ -224,4 +224,19 @@ mod tests {
         assert!(json.contains("\"key\":\"config\""));
         assert!(json.contains("\"value_type\":\"json\""));
     }
+
+    #[test]
+    fn test_task_structured_output_roundtrip() {
+        let original = TaskStructuredOutput {
+            id: 10, task_id: 20, project_id: 5,
+            key: "output_key".to_string(),
+            value: Value::String("output_value".to_string()),
+            value_type: "string".to_string(), created: Utc::now(),
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: TaskStructuredOutput = serde_json::from_str(&json).unwrap();
+        assert_eq!(original.id, restored.id);
+        assert_eq!(original.key, restored.key);
+        assert_eq!(original.value, restored.value);
+    }
 }

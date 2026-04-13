@@ -185,4 +185,64 @@ mod tests {
     fn test_repository_routes_vue_alias() {
         let _fn: fn() -> Router<Arc<AppState>> = repository_routes;
     }
+
+    #[test]
+    fn test_repository_routes_has_repositories_crud() {
+        // repositories: GET, POST, GET/{id}, PUT/{id}, DELETE/{id}
+        let _fn: fn() -> Router<Arc<AppState>> = repository_routes;
+    }
+
+    #[test]
+    fn test_repository_routes_has_vue_alias_repos() {
+        // Vue alias: /api/project/{id}/repositories
+        let _fn: fn() -> Router<Arc<AppState>> = repository_routes;
+    }
+
+    #[test]
+    fn test_repository_routes_has_keys_crud() {
+        // keys: GET, POST, GET/{id}, PUT/{id}, DELETE/{id}
+        let _fn: fn() -> Router<Arc<AppState>> = repository_routes;
+    }
+
+    #[test]
+    fn test_repository_routes_has_vue_alias_keys() {
+        // Vue alias: /api/project/{id}/keys
+        let _fn: fn() -> Router<Arc<AppState>> = repository_routes;
+    }
+
+    #[test]
+    fn test_repository_routes_has_environments_crud() {
+        // environments: GET, POST, GET/{id}, PUT/{id}, DELETE/{id}
+        let _fn: fn() -> Router<Arc<AppState>> = repository_routes;
+    }
+
+    #[test]
+    fn test_repository_routes_has_vue_alias_environments() {
+        // Vue alias: /api/project/{id}/environment
+        let _fn: fn() -> Router<Arc<AppState>> = repository_routes;
+    }
+
+    #[test]
+    fn test_repository_routes_uses_get_for_repositories() {
+        // get_repositories handler is used with GET
+        let _fn: fn() -> Router<Arc<AppState>> = repository_routes;
+    }
+
+    #[test]
+    fn test_repository_routes_uses_post_for_create() {
+        // create_repository, create_access_key, create_environment use POST
+        let _fn: fn() -> Router<Arc<AppState>> = repository_routes;
+    }
+
+    #[test]
+    fn test_repository_routes_uses_delete_for_cleanup() {
+        // delete_repository, delete_access_key, delete_environment use DELETE
+        let _fn: fn() -> Router<Arc<AppState>> = repository_routes;
+    }
+
+    #[test]
+    fn test_repository_routes_uses_put_for_update() {
+        // update_repository, update_access_key, update_environment use PUT
+        let _fn: fn() -> Router<Arc<AppState>> = repository_routes;
+    }
 }

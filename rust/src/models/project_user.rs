@@ -159,4 +159,72 @@ mod tests {
         assert_eq!(original.role, restored.role);
         assert_eq!(original.username, restored.username);
     }
+
+    #[test]
+    fn test_project_user_unicode_values() {
+        let pu = ProjectUser {
+            id: 1, project_id: 1, user_id: 1, role: ProjectUserRole::Owner,
+            created: Utc::now(),
+            username: "пользователь".to_string(),
+            name: "Иван Иванов".to_string(),
+        };
+        let json = serde_json::to_string(&pu).unwrap();
+        let restored: ProjectUser = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.username, "пользователь");
+        assert_eq!(restored.name, "Иван Иванов");
+    }
+
+    #[test]
+    fn test_project_user_validate_role_variants() {
+        for role in [
+            ProjectUserRole::Owner,
+            ProjectUserRole::Manager,
+            ProjectUserRole::TaskRunner,
+        ] {
+            let pu = ProjectUser::new(1, 1, role.clone());
+            assert_eq!(pu.role, role);
+        }
+    }
+
+    #[test]
+    fn test_project_user_clone_independence() {
+        let mut pu = ProjectUser::new(1, 1, ProjectUserRole::Owner);
+        let cloned = pu.clone();
+        pu.username = "modified".to_string();
+        assert_eq!(cloned.username, "");
+    }
+
+    #[test]
+    fn test_project_user_deserialization_missing_username() {
+        let json = r#"{"id":1,"project_id":1,"user_id":1,"role":"owner","created":"2024-01-01T00:00:00Z","name":"Test","username":"testuser"}"#;
+        let pu: ProjectUser = serde_json::from_str(json).unwrap();
+        assert_eq!(pu.name, "Test");
+        assert_eq!(pu.username, "testuser");
+    }
+
+    #[test]
+    fn test_project_user_all_role_serialization() {
+        for role in [
+            ProjectUserRole::Owner,
+            ProjectUserRole::Manager,
+            ProjectUserRole::TaskRunner,
+        ] {
+            let pu = ProjectUser::new(1, 1, role.clone());
+            let json = serde_json::to_string(&pu).unwrap();
+            let restored: ProjectUser = serde_json::from_str(&json).unwrap();
+            assert_eq!(restored.role, role);
+        }
+    }
+
+    #[test]
+    fn test_project_user_debug_contains_all_fields() {
+        let pu = ProjectUser {
+            id: 42, project_id: 10, user_id: 20, role: ProjectUserRole::Manager,
+            created: Utc::now(), username: "debuguser".to_string(), name: "Debug User".to_string(),
+        };
+        let debug_str = format!("{:?}", pu);
+        assert!(debug_str.contains("42"));
+        assert!(debug_str.contains("debuguser"));
+        assert!(debug_str.contains("Debug User"));
+    }
 }

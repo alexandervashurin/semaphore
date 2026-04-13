@@ -149,4 +149,65 @@ mod tests {
         assert_eq!(original.name, restored.name);
         assert_eq!(original.vault_key_id, restored.vault_key_id);
     }
+
+    #[test]
+    fn test_template_vault_unicode_name() {
+        let vault = TemplateVault {
+            id: 1, template_id: 1, project_id: 1, vault_id: 1, vault_key_id: 1,
+            name: "Хранилище секретов".to_string(),
+        };
+        let json = serde_json::to_string(&vault).unwrap();
+        let restored: TemplateVault = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.name, "Хранилище секретов");
+    }
+
+    #[test]
+    fn test_template_vault_clone_independence() {
+        let mut vault = TemplateVault {
+            id: 1, template_id: 1, project_id: 1, vault_id: 1, vault_key_id: 1,
+            name: "Original".to_string(),
+        };
+        let cloned = vault.clone();
+        vault.name = "Modified".to_string();
+        assert_eq!(cloned.name, "Original");
+    }
+
+    #[test]
+    fn test_template_vault_large_ids() {
+        let vault = TemplateVault {
+            id: i32::MAX,
+            template_id: i32::MAX,
+            project_id: i32::MAX,
+            vault_id: i32::MAX,
+            vault_key_id: i32::MAX,
+            name: "Max IDs".to_string(),
+        };
+        let json = serde_json::to_string(&vault).unwrap();
+        let restored: TemplateVault = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.id, i32::MAX);
+        assert_eq!(restored.template_id, i32::MAX);
+    }
+
+    #[test]
+    fn test_template_vault_newline_in_name() {
+        let vault = TemplateVault {
+            id: 1, template_id: 1, project_id: 1, vault_id: 1, vault_key_id: 1,
+            name: "Line1\nLine2".to_string(),
+        };
+        let json = serde_json::to_string(&vault).unwrap();
+        let restored: TemplateVault = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.name, "Line1\nLine2");
+    }
+
+    #[test]
+    fn test_template_vault_debug_format() {
+        let vault = TemplateVault {
+            id: 99, template_id: 100, project_id: 200, vault_id: 300, vault_key_id: 400,
+            name: "DebugTest".to_string(),
+        };
+        let debug_str = format!("{:?}", vault);
+        assert!(debug_str.contains("99"));
+        assert!(debug_str.contains("DebugTest"));
+        assert!(debug_str.contains("TemplateVault"));
+    }
 }

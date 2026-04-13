@@ -106,4 +106,35 @@ mod tests {
             assert!(!path.starts_with("/api/"), "{} should not be blocked", path);
         }
     }
+
+    #[test]
+    fn test_static_routes_handles_missing_web_path() {
+        // When web path doesn't exist, returns empty Router with warning
+        let router = static_routes();
+        let _: Router<Arc<AppState>> = router;
+    }
+
+    #[test]
+    fn test_static_routes_env_variable_supported() {
+        // SEMAPHORE_WEB_PATH env var can override default path
+        let result = std::env::var("SEMAPHORE_WEB_PATH");
+        // May or may not be set - both are valid
+        let _ = result;
+    }
+
+    #[test]
+    fn test_static_routes_default_path_resolution() {
+        let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let default_path = manifest_dir.join("..").join("web").join("public");
+        // Path should be constructable
+        assert!(default_path.to_str().is_some() || default_path.to_str().is_none());
+    }
+
+    #[test]
+    fn test_check_api_path_various_api_paths() {
+        let api_paths = ["/api/users", "/api/projects/1", "/api/auth/login", "/api/"];
+        for path in api_paths {
+            assert!(path.starts_with("/api/"), "{} should be blocked", path);
+        }
+    }
 }

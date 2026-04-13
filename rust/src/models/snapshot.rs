@@ -243,4 +243,19 @@ mod tests {
         let req: RollbackRequest = serde_json::from_str(json).unwrap();
         assert_eq!(req.message, Some("Please rollback".to_string()));
     }
+
+    #[test]
+    fn test_task_snapshot_unicode_message() {
+        let snapshot = TaskSnapshot {
+            id: 1, project_id: 1, template_id: 1, task_id: 1,
+            git_branch: Some("main".to_string()), git_commit: Some("abc123".to_string()),
+            arguments: None, inventory_id: None, environment_id: None,
+            message: Some("Успешный запуск".to_string()),
+            label: Some("v1.0".to_string()), created_at: "2024-01-01".to_string(),
+            template_name: "Шаблон".to_string(),
+        };
+        let json = serde_json::to_string(&snapshot).unwrap();
+        let restored: TaskSnapshot = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.message, Some("Успешный запуск".to_string()));
+    }
 }

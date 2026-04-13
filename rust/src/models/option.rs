@@ -129,4 +129,51 @@ mod tests {
         assert!(json.contains("key:with:colons"));
         assert!(json.contains("value with spaces & special"));
     }
+
+    #[test]
+    fn test_option_item_unicode() {
+        let opt = OptionItem::new(1, "ключ".to_string(), "значение".to_string());
+        let json = serde_json::to_string(&opt).unwrap();
+        let restored: OptionItem = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.key, "ключ");
+        assert_eq!(restored.value, "значение");
+    }
+
+    #[test]
+    fn test_option_item_clone_independence() {
+        let mut opt = OptionItem::new(1, "key".to_string(), "value".to_string());
+        let cloned = opt.clone();
+        opt.value = "modified".to_string();
+        assert_eq!(cloned.value, "value");
+    }
+
+    #[test]
+    fn test_option_item_roundtrip() {
+        let original = OptionItem {
+            id: 100,
+            project_id: 200,
+            key: "roundtrip_key".to_string(),
+            value: "roundtrip_value".to_string(),
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: OptionItem = serde_json::from_str(&json).unwrap();
+        assert_eq!(original.id, restored.id);
+        assert_eq!(original.key, restored.key);
+        assert_eq!(original.value, restored.value);
+    }
+
+    #[test]
+    fn test_option_item_debug_all_fields() {
+        let opt = OptionItem::new(42, "debug_key".to_string(), "debug_value".to_string());
+        let debug_str = format!("{:?}", opt);
+        assert!(debug_str.contains("42"));
+        assert!(debug_str.contains("debug_key"));
+        assert!(debug_str.contains("debug_value"));
+    }
+
+    #[test]
+    fn test_option_item_with_negative_project_id() {
+        let opt = OptionItem::new(-1, "negative".to_string(), "value".to_string());
+        assert_eq!(opt.project_id, -1);
+    }
 }

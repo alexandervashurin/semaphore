@@ -228,4 +228,59 @@ mod tests {
         assert!(json.contains("\"source_storage_type\":\"vault\""));
         assert!(json.contains("\"secret\":\"token123\""));
     }
+
+    #[test]
+    fn test_secret_storage_type_all_variants_display() {
+        assert_eq!(SecretStorageType::Local.to_string(), "local");
+        assert_eq!(SecretStorageType::Vault.to_string(), "vault");
+        assert_eq!(SecretStorageType::Dvls.to_string(), "dvls");
+    }
+
+    #[test]
+    fn test_secret_storage_type_invalid_fallback() {
+        let result = "invalid_type".parse::<SecretStorageType>();
+        assert_eq!(result.unwrap(), SecretStorageType::Local);
+    }
+
+    #[test]
+    fn test_secret_storage_unicode_name() {
+        let storage = SecretStorage::new(
+            1,
+            "Хранилище".to_string(),
+            SecretStorageType::Local,
+            "{}".to_string(),
+        );
+        let json = serde_json::to_string(&storage).unwrap();
+        let restored: SecretStorage = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.name, "Хранилище");
+    }
+
+    #[test]
+    fn test_secret_storage_clone_independence() {
+        let mut storage = SecretStorage::new(1, "Original".to_string(), SecretStorageType::Local, "{}".to_string());
+        let cloned = storage.clone();
+        storage.name = "Modified".to_string();
+        assert_eq!(cloned.name, "Original");
+    }
+
+    #[test]
+    fn test_secret_storage_read_only_true() {
+        let mut storage = SecretStorage::new(1, "RO Vault".to_string(), SecretStorageType::Vault, "{}".to_string());
+        storage.read_only = true;
+        let json = serde_json::to_string(&storage).unwrap();
+        assert!(json.contains("\"read_only\":true"));
+    }
+
+    #[test]
+    fn test_secret_storage_params_special_chars() {
+        let storage = SecretStorage::new(
+            1,
+            "Test".to_string(),
+            SecretStorageType::Local,
+            r#"{"key":"value with <special> & \"chars\""}"#.to_string(),
+        );
+        let json = serde_json::to_string(&storage).unwrap();
+        let restored: SecretStorage = serde_json::from_str(&json).unwrap();
+        assert!(restored.params.contains("<special>"));
+    }
 }

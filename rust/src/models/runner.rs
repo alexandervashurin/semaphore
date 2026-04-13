@@ -261,4 +261,30 @@ mod tests {
             assert!(json.contains(&format!("\"tag\":\"{}\"", tag)));
         }
     }
+
+    #[test]
+    fn test_runner_unicode_name() {
+        let runner = Runner {
+            id: 1, project_id: None, token: "t".to_string(),
+            name: "Раннер".to_string(), active: true, last_active: None,
+            webhook: None, max_parallel_tasks: None, tag: None,
+            cleaning_requested: None, touched: None, created: None,
+        };
+        let json = serde_json::to_string(&runner).unwrap();
+        let restored: Runner = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.name, "Раннер");
+    }
+
+    #[test]
+    fn test_runner_clone_independence() {
+        let mut runner = Runner {
+            id: 1, project_id: None, token: "original".to_string(),
+            name: "Test".to_string(), active: true, last_active: None,
+            webhook: None, max_parallel_tasks: None, tag: None,
+            cleaning_requested: None, touched: None, created: None,
+        };
+        let cloned = runner.clone();
+        runner.token = "modified".to_string();
+        assert_eq!(cloned.token, "original");
+    }
 }

@@ -702,4 +702,151 @@ mod tests {
         };
         assert!(!container_references_configmap(&container, "any-config"));
     }
+
+    #[test]
+    fn test_container_references_configmap_env_key_ref() {
+        use k8s_openapi::api::core::v1::{EnvVar, EnvVarSource, ConfigMapKeySelector};
+        let container = Container {
+            name: "app".to_string(),
+            env: Some(vec![EnvVar {
+                name: "MY_VAR".to_string(),
+                value: None,
+                value_from: Some(EnvVarSource {
+                    config_map_key_ref: Some(ConfigMapKeySelector {
+                        name: "my-config".to_string(),
+                        key: "config-key".to_string(),
+                        optional: None,
+                    }),
+                    ..Default::default()
+                }),
+            }]),
+            env_from: None,
+            ..Default::default()
+        };
+        assert!(container_references_configmap(&container, "my-config"));
+        assert!(!container_references_configmap(&container, "other-config"));
+    }
+
+    #[test]
+    fn test_pod_spec_references_configmap_no_volumes_no_containers() {
+        let spec = PodSpec {
+            volumes: None,
+            containers: vec![],
+            init_containers: None,
+            ..Default::default()
+        };
+        let fields = pod_spec_references_configmap(&spec, "any-config");
+        assert!(fields.is_empty());
+    }
+
+    #[test]
+    fn test_pod_spec_references_configmap_with_volume() {
+        use k8s_openapi::api::core::v1::{Volume, ConfigMapVolumeSource};
+        let spec = PodSpec {
+            volumes: Some(vec![Volume {
+                name: "config-volume".to_string(),
+                config_map: Some(ConfigMapVolumeSource {
+                    name: "my-config".to_string(),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }]),
+            containers: vec![],
+            init_containers: None,
+            ..Default::default()
+        };
+        let fields = pod_spec_references_configmap(&spec, "my-config");
+        assert_eq!(fields.len(), 1);
+        assert!(fields[0].contains("volumes"));
+    }
+
+    #[test]
+    fn test_pod_spec_references_configmap_with_init_container() {
+        use k8s_openapi::api::core::v1::{EnvFromSource, ConfigMapEnvSource};
+        let spec = PodSpec {
+            volumes: None,
+            containers: vec![],
+            init_containers: Some(vec![Container {
+                name: "init-container".to_string(),
+                env_from: Some(vec![EnvFromSource {
+                    config_map_ref: Some(ConfigMapEnvSource {
+                        name: "init-config".to_string(),
+                        optional: None,
+                    }),
+                    ..Default::default()
+                }]),
+                ..Default::default()
+            }]),
+            ..Default::default()
+        };
+        let fields = pod_spec_references_configmap(&spec, "init-config");
+        assert_eq!(fields.len(), 1);
+        assert!(fields[0].contains("initContainers"));
+    }
+
+    #[test]
+    fn test_to_summary_with_binary_data() {
+        use k8s_openapi::ByteString;
+        let mut binary_data = BTreeMap::new();
+        binary_data.insert("data.bin".to_string(), ByteString(vec![1, 2, 3, 4, 5]));
+        let cm = ConfigMap {
+            metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+                name: Some("binary-cm".to_string()),
+                namespace: Some("test".to_string()),
+                ..Default::default()
+            },
+            data: None,
+            binary_data: Some(binary_data),
+            ..Default::default()
+        };
+        let summary = to_summary(&cm);
+        assert_eq!(summary.name, "binary-cm");
+        assert_eq!(summary.binary_data_keys, 1);
+        assert_eq!(summary.binary_total_bytes, 5);
+    }
+
+    #[test]
+    fn test_to_summary_empty_configmap() {
+        let cm = ConfigMap {
+            metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+                name: None,
+                namespace: None,
+                ..Default::default()
+            },
+            data: None,
+            binary_data: None,
+            ..Default::default()
+        };
+        let summary = to_summary(&cm);
+        assert_eq!(summary.name, "unknown");
+        assert_eq!(summary.namespace, "default");
+        assert_eq!(summary.data_keys, 0);
+    }
+
+    #[test]
+    fn test_configmap_summary_large_values() {
+        let summary = ConfigMapSummary {
+            name: "large-cm".to_string(),
+            namespace: "production".to_string(),
+            data_keys: 100,
+            binary_data_keys: 50,
+            binary_total_bytes: 1_048_576,
+        };
+        assert_eq!(summary.data_keys, 100);
+        assert_eq!(summary.binary_total_bytes, 1_048_576);
+    }
+
+    #[test]
+    fn test_configmap_reference_all_kinds() {
+        let kinds = vec!["Pod", "Deployment", "StatefulSet", "DaemonSet", "Job", "CronJob"];
+        for kind in kinds {
+            let ref_item = ConfigMapReference {
+                kind: kind.to_string(),
+                name: "resource".to_string(),
+                namespace: "default".to_string(),
+                field: "spec.field".to_string(),
+            };
+            assert_eq!(ref_item.kind, kind);
+        }
+    }
 }

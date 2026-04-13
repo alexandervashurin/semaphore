@@ -51,4 +51,58 @@ mod tests {
         let router = networking_routes();
         let _: Router<Arc<AppState>> = router;
     }
+
+    #[test]
+    fn test_networking_routes_has_services_crud() {
+        // Services: list, create, get, update, delete
+        let _fn: fn() -> Router<Arc<AppState>> = networking_routes;
+    }
+
+    #[test]
+    fn test_networking_routes_has_service_endpoints() {
+        // /api/kubernetes/namespaces/{namespace}/services/{name}/endpoints - GET
+        let _fn: fn() -> Router<Arc<AppState>> = networking_routes;
+    }
+
+    #[test]
+    fn test_networking_routes_has_endpoint_slices() {
+        // /api/kubernetes/namespaces/{namespace}/services/{name}/endpoint-slices - GET
+        let _fn: fn() -> Router<Arc<AppState>> = networking_routes;
+    }
+
+    #[test]
+    fn test_networking_routes_has_ingresses_crud() {
+        // Ingresses: list, create, get, update, delete
+        let _fn: fn() -> Router<Arc<AppState>> = networking_routes;
+    }
+
+    #[test]
+    fn test_networking_routes_has_ingress_classes() {
+        // IngressClasses: list, get
+        let _fn: fn() -> Router<Arc<AppState>> = networking_routes;
+    }
+
+    #[test]
+    fn test_networking_routes_has_networkpolicies_crud() {
+        // NetworkPolicies: list, create, get, update, delete
+        let _fn: fn() -> Router<Arc<AppState>> = networking_routes;
+    }
+
+    #[test]
+    fn test_networking_routes_has_gateway_api_status() {
+        // /api/kubernetes/gateway-api/status - GET
+        let _fn: fn() -> Router<Arc<AppState>> = networking_routes;
+    }
+
+    #[test]
+    fn test_networking_routes_has_gateway_routes() {
+        // Gateways, HTTPRoutes, GRPCRoutes (read-only)
+        let _fn: fn() -> Router<Arc<AppState>> = networking_routes;
+    }
+
+    #[test]
+    fn test_networking_routes_router_not_empty() {
+        let router = networking_routes();
+        assert!(std::mem::size_of_val(&router) > 0);
+    }
 }

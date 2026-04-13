@@ -151,4 +151,50 @@ mod tests {
         let restored: APIToken = serde_json::from_str(&json).unwrap();
         assert_eq!(restored.name, "Token & <special> \"quotes\"");
     }
+
+    #[test]
+    fn test_api_token_unicode_name() {
+        let token = APIToken {
+            id: 1, user_id: 1, name: "Токен".to_string(),
+            token: "unicode_token".to_string(), created: Utc::now(), expired: false,
+        };
+        let json = serde_json::to_string(&token).unwrap();
+        let restored: APIToken = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.name, "Токен");
+    }
+
+    #[test]
+    fn test_api_token_clone_independence() {
+        let mut token = APIToken {
+            id: 1, user_id: 1, name: "Original".to_string(),
+            token: "secret".to_string(), created: Utc::now(), expired: false,
+        };
+        let cloned = token.clone();
+        token.name = "Modified".to_string();
+        assert_eq!(cloned.name, "Original");
+    }
+
+    #[test]
+    fn test_api_token_debug_all_fields() {
+        let token = APIToken {
+            id: 99, user_id: 50, name: "Debug Token".to_string(),
+            token: "debug_secret".to_string(), created: Utc::now(), expired: true,
+        };
+        let debug_str = format!("{:?}", token);
+        assert!(debug_str.contains("99"));
+        assert!(debug_str.contains("Debug Token"));
+        assert!(debug_str.contains("APIToken"));
+    }
+
+    #[test]
+    fn test_api_token_expired_true_and_false() {
+        for expired in [true, false] {
+            let token = APIToken {
+                id: 1, user_id: 1, name: "Test".to_string(),
+                token: "token".to_string(), created: Utc::now(), expired,
+            };
+            let json = serde_json::to_string(&token).unwrap();
+            assert!(json.contains(&format!("\"expired\":{}", expired)));
+        }
+    }
 }

@@ -721,4 +721,352 @@ mod tests {
         let age = age_from_ts(make_ts(86399).as_ref());
         assert_eq!(age, "23h");
     }
+
+    // ─────────────────────────────────────────────
+    // DTO struct tests
+    // ─────────────────────────────────────────────
+
+    #[test]
+    fn test_pod_summary_default_values() {
+        let summary = PodSummary {
+            name: "test-pod".to_string(),
+            namespace: "default".to_string(),
+            uid: "uid-123".to_string(),
+            phase: "Running".to_string(),
+            node_name: None,
+            pod_ip: None,
+            containers: vec![],
+            labels: BTreeMap::new(),
+            age: "5m".to_string(),
+            ready: "0/0".to_string(),
+            restarts: 0,
+        };
+        assert_eq!(summary.name, "test-pod");
+        assert!(summary.node_name.is_none());
+        assert!(summary.pod_ip.is_none());
+        assert!(summary.containers.is_empty());
+        assert_eq!(summary.ready, "0/0");
+    }
+
+    #[test]
+    fn test_pod_summary_with_containers() {
+        let containers = vec![
+            ContainerSummary {
+                name: "app".to_string(),
+                image: "nginx:latest".to_string(),
+                ready: true,
+                state: "Running".to_string(),
+                restarts: 0,
+            },
+            ContainerSummary {
+                name: "sidecar".to_string(),
+                image: "busybox:1.0".to_string(),
+                ready: false,
+                state: "Waiting".to_string(),
+                restarts: 3,
+            },
+        ];
+        let summary = PodSummary {
+            name: "multi-container".to_string(),
+            namespace: "prod".to_string(),
+            uid: "uid-456".to_string(),
+            phase: "Running".to_string(),
+            node_name: Some("node-1".to_string()),
+            pod_ip: Some("10.0.0.5".to_string()),
+            containers: containers.clone(),
+            labels: BTreeMap::from([("app".to_string(), "web".to_string())]),
+            age: "1h".to_string(),
+            ready: "1/2".to_string(),
+            restarts: 3,
+        };
+        assert_eq!(summary.containers.len(), 2);
+        assert_eq!(summary.containers[0].name, "app");
+        assert_eq!(summary.containers[1].restarts, 3);
+        assert_eq!(summary.labels.get("app"), Some(&"web".to_string()));
+    }
+
+    #[test]
+    fn test_container_summary_edge_cases() {
+        let container = ContainerSummary {
+            name: String::new(),
+            image: String::new(),
+            ready: false,
+            state: "Unknown".to_string(),
+            restarts: i32::MAX,
+        };
+        assert!(container.name.is_empty());
+        assert!(container.image.is_empty());
+        assert_eq!(container.restarts, i32::MAX);
+    }
+
+    #[test]
+    fn test_deployment_summary_default_values() {
+        let summary = DeploymentSummary {
+            name: "test-deploy".to_string(),
+            namespace: "default".to_string(),
+            uid: "uid-789".to_string(),
+            replicas: 3,
+            ready_replicas: 2,
+            available_replicas: 2,
+            updated_replicas: 3,
+            labels: BTreeMap::new(),
+            age: "2d".to_string(),
+            conditions: vec![],
+        };
+        assert_eq!(summary.replicas, 3);
+        assert_eq!(summary.ready_replicas, 2);
+        assert!(summary.conditions.is_empty());
+    }
+
+    #[test]
+    fn test_deployment_condition_serialization() {
+        let condition = DeploymentCondition {
+            type_: "Available".to_string(),
+            status: "True".to_string(),
+            message: Some("Deployment has minimum availability.".to_string()),
+        };
+        assert_eq!(condition.type_, "Available");
+        assert_eq!(condition.status, "True");
+        assert!(condition.message.is_some());
+    }
+
+    #[test]
+    fn test_deployment_condition_no_message() {
+        let condition = DeploymentCondition {
+            type_: "Progressing".to_string(),
+            status: "False".to_string(),
+            message: None,
+        };
+        assert!(condition.message.is_none());
+    }
+
+    #[test]
+    fn test_daemonset_summary() {
+        let summary = DaemonSetSummary {
+            name: "fluentd".to_string(),
+            namespace: "kube-system".to_string(),
+            uid: "uid-ds".to_string(),
+            desired: 5,
+            current: 5,
+            ready: 4,
+            updated: 5,
+            available: 4,
+            labels: BTreeMap::from([("app".to_string(), "fluentd".to_string())]),
+            age: "30d".to_string(),
+        };
+        assert_eq!(summary.desired, 5);
+        assert_eq!(summary.ready, 4);
+        assert_eq!(summary.available, 4);
+    }
+
+    #[test]
+    fn test_statefulset_summary() {
+        let summary = StatefulSetSummary {
+            name: "postgres".to_string(),
+            namespace: "db".to_string(),
+            uid: "uid-ss".to_string(),
+            replicas: 3,
+            ready_replicas: 3,
+            current_replicas: 2,
+            service_name: "postgres-headless".to_string(),
+            labels: BTreeMap::from([("app".to_string(), "postgres".to_string())]),
+            age: "60d".to_string(),
+        };
+        assert_eq!(summary.replicas, 3);
+        assert_eq!(summary.service_name, "postgres-headless");
+    }
+
+    #[test]
+    fn test_replicaset_summary_with_owner() {
+        let summary = ReplicaSetSummary {
+            name: "web-abc123".to_string(),
+            namespace: "default".to_string(),
+            uid: "uid-rs".to_string(),
+            desired: 3,
+            ready: 3,
+            available: 3,
+            owner: Some("Deployment/web".to_string()),
+            labels: BTreeMap::from([("pod-template-hash".to_string(), "abc123".to_string())]),
+            age: "1d".to_string(),
+        };
+        assert_eq!(summary.owner, Some("Deployment/web".to_string()));
+        assert_eq!(summary.desired, 3);
+    }
+
+    #[test]
+    fn test_replicaset_summary_no_owner() {
+        let summary = ReplicaSetSummary {
+            name: "orphan-rs".to_string(),
+            namespace: "default".to_string(),
+            uid: "uid-ors".to_string(),
+            desired: 1,
+            ready: 0,
+            available: 0,
+            owner: None,
+            labels: BTreeMap::new(),
+            age: "10m".to_string(),
+        };
+        assert!(summary.owner.is_none());
+    }
+
+    // ─────────────────────────────────────────────
+    // Query params tests
+    // ─────────────────────────────────────────────
+
+    #[test]
+    fn test_workload_list_query_all_none() {
+        let query = WorkloadListQuery {
+            namespace: None,
+            label_selector: None,
+            limit: None,
+        };
+        assert!(query.namespace.is_none());
+        assert!(query.label_selector.is_none());
+        assert!(query.limit.is_none());
+    }
+
+    #[test]
+    fn test_workload_list_query_with_values() {
+        let query = WorkloadListQuery {
+            namespace: Some("kube-system".to_string()),
+            label_selector: Some("app=nginx".to_string()),
+            limit: Some(50),
+        };
+        assert_eq!(query.namespace, Some("kube-system".to_string()));
+        assert_eq!(query.label_selector, Some("app=nginx".to_string()));
+        assert_eq!(query.limit, Some(50));
+    }
+
+    #[test]
+    fn test_pod_logs_query() {
+        let query = PodLogsQuery {
+            container: Some("app".to_string()),
+            tail_lines: Some(100),
+            previous: Some(true),
+        };
+        assert_eq!(query.container, Some("app".to_string()));
+        assert_eq!(query.tail_lines, Some(100));
+        assert_eq!(query.previous, Some(true));
+    }
+
+    #[test]
+    fn test_pod_logs_query_defaults() {
+        let query = PodLogsQuery {
+            container: None,
+            tail_lines: None,
+            previous: None,
+        };
+        assert!(query.container.is_none());
+        assert!(query.tail_lines.is_none());
+        assert!(query.previous.is_none());
+    }
+
+    #[test]
+    fn test_event_list_query() {
+        let query = EventListQuery {
+            namespace: Some("default".to_string()),
+            kind: Some("Pod".to_string()),
+            type_: Some("Warning".to_string()),
+            limit: Some(200),
+        };
+        assert_eq!(query.namespace, Some("default".to_string()));
+        assert_eq!(query.kind, Some("Pod".to_string()));
+        assert_eq!(query.type_, Some("Warning".to_string()));
+        assert_eq!(query.limit, Some(200));
+    }
+
+    // ─────────────────────────────────────────────
+    // EventSummary tests
+    // ─────────────────────────────────────────────
+
+    #[test]
+    fn test_event_summary() {
+        let event = EventSummary {
+            name: "event-1".to_string(),
+            namespace: "default".to_string(),
+            reason: "FailedScheduling".to_string(),
+            message: "No nodes available".to_string(),
+            type_: "Warning".to_string(),
+            count: 5,
+            involved_kind: "Pod".to_string(),
+            involved_name: "test-pod".to_string(),
+            age: "2m".to_string(),
+            last_timestamp: "2024-01-01T00:00:00Z".to_string(),
+            source: "default-scheduler".to_string(),
+        };
+        assert_eq!(event.reason, "FailedScheduling");
+        assert_eq!(event.type_, "Warning");
+        assert_eq!(event.count, 5);
+    }
+
+    #[test]
+    fn test_event_summary_defaults() {
+        let event = EventSummary {
+            name: String::new(),
+            namespace: String::new(),
+            reason: String::new(),
+            message: String::new(),
+            type_: "Normal".to_string(),
+            count: 1,
+            involved_kind: String::new(),
+            involved_name: String::new(),
+            age: "0s".to_string(),
+            last_timestamp: String::new(),
+            source: String::new(),
+        };
+        assert!(event.name.is_empty());
+        assert_eq!(event.count, 1);
+        assert!(event.source.is_empty());
+    }
+
+    // ─────────────────────────────────────────────
+    // ScaleBody tests
+    // ─────────────────────────────────────────────
+
+    #[test]
+    fn test_scale_body_zero_replicas() {
+        let body = ScaleBody { replicas: 0 };
+        assert_eq!(body.replicas, 0);
+    }
+
+    #[test]
+    fn test_scale_body_large_replicas() {
+        let body = ScaleBody { replicas: 1000 };
+        assert_eq!(body.replicas, 1000);
+    }
+
+    #[test]
+    fn test_scale_body_negative_replicas() {
+        let body = ScaleBody { replicas: -1 };
+        assert_eq!(body.replicas, -1);
+    }
+
+    // ─────────────────────────────────────────────
+    // Edge cases for helper functions
+    // ─────────────────────────────────────────────
+
+    #[test]
+    fn test_age_from_ts_exactly_one_minute() {
+        let age = age_from_ts(make_ts(60).as_ref());
+        assert_eq!(age, "1m");
+    }
+
+    #[test]
+    fn test_age_from_ts_exactly_one_hour() {
+        let age = age_from_ts(make_ts(3600).as_ref());
+        assert_eq!(age, "1h");
+    }
+
+    #[test]
+    fn test_age_from_ts_exactly_one_day() {
+        let age = age_from_ts(make_ts(86400).as_ref());
+        assert_eq!(age, "1d");
+    }
+
+    #[test]
+    fn test_age_from_ts_large_value() {
+        // 365 days
+        let age = age_from_ts(make_ts(31536000).as_ref());
+        assert_eq!(age, "365d");
+    }
 }

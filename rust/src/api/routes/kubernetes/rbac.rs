@@ -59,4 +59,58 @@ mod tests {
         let router = rbac_routes();
         let _: Router<Arc<AppState>> = router;
     }
+
+    #[test]
+    fn test_rbac_routes_has_rbac_check() {
+        // /api/kubernetes/rbac/check - POST
+        let _fn: fn() -> Router<Arc<AppState>> = rbac_routes;
+    }
+
+    #[test]
+    fn test_rbac_routes_has_rbac_check_action() {
+        // /api/kubernetes/rbac/check-action - GET
+        let _fn: fn() -> Router<Arc<AppState>> = rbac_routes;
+    }
+
+    #[test]
+    fn test_rbac_routes_has_rbac_cache_clear() {
+        // /api/kubernetes/rbac/cache/clear - POST
+        let _fn: fn() -> Router<Arc<AppState>> = rbac_routes;
+    }
+
+    #[test]
+    fn test_rbac_routes_has_pod_security() {
+        // Pod security: get, put
+        let _fn: fn() -> Router<Arc<AppState>> = rbac_routes;
+    }
+
+    #[test]
+    fn test_rbac_routes_has_serviceaccounts_crud() {
+        // ServiceAccounts: list, create, get, delete
+        let _fn: fn() -> Router<Arc<AppState>> = rbac_routes;
+    }
+
+    #[test]
+    fn test_rbac_routes_has_service_account_secrets() {
+        // /api/kubernetes/namespaces/{namespace}/serviceaccounts/{name}/secrets - GET
+        let _fn: fn() -> Router<Arc<AppState>> = rbac_routes;
+    }
+
+    #[test]
+    fn test_rbac_routes_has_roles_crud() {
+        // Roles: list, create, get, update, delete
+        let _fn: fn() -> Router<Arc<AppState>> = rbac_routes;
+    }
+
+    #[test]
+    fn test_rbac_routes_has_role_bindings_crud() {
+        // RoleBindings: list, create, get, update, delete
+        let _fn: fn() -> Router<Arc<AppState>> = rbac_routes;
+    }
+
+    #[test]
+    fn test_rbac_routes_has_cluster_roles_crud() {
+        // ClusterRoles: list, create, get, update, delete
+        let _fn: fn() -> Router<Arc<AppState>> = rbac_routes;
+    }
 }

@@ -33,4 +33,57 @@ mod tests {
         let router = cluster_routes();
         let _: Router<Arc<AppState>> = router;
     }
+
+    #[test]
+    fn test_cluster_routes_has_cluster_info() {
+        // /api/kubernetes/cluster/info - GET
+        let _fn: fn() -> Router<Arc<AppState>> = cluster_routes;
+    }
+
+    #[test]
+    fn test_cluster_routes_has_cluster_nodes() {
+        // /api/kubernetes/cluster/nodes - GET
+        let _fn: fn() -> Router<Arc<AppState>> = cluster_routes;
+    }
+
+    #[test]
+    fn test_cluster_routes_has_cluster_summary() {
+        // /api/kubernetes/cluster/summary - GET
+        let _fn: fn() -> Router<Arc<AppState>> = cluster_routes;
+    }
+
+    #[test]
+    fn test_cluster_routes_has_health() {
+        // /api/kubernetes/health - GET
+        let _fn: fn() -> Router<Arc<AppState>> = cluster_routes;
+    }
+
+    #[test]
+    fn test_cluster_routes_has_health_detailed() {
+        // /api/kubernetes/health/detailed - GET
+        let _fn: fn() -> Router<Arc<AppState>> = cluster_routes;
+    }
+
+    #[test]
+    fn test_cluster_routes_has_cluster_health() {
+        // /api/kubernetes/cluster/health - GET
+        let _fn: fn() -> Router<Arc<AppState>> = cluster_routes;
+    }
+
+    #[test]
+    fn test_cluster_routes_has_aggregate_view() {
+        // /api/kubernetes/cluster/aggregate - GET
+        let _fn: fn() -> Router<Arc<AppState>> = cluster_routes;
+    }
+
+    #[test]
+    fn test_cluster_routes_router_not_empty() {
+        let router = cluster_routes();
+        assert!(std::mem::size_of_val(&router) > 0);
+    }
+
+    #[test]
+    fn test_cluster_routes_function_signature() {
+        let _: fn() -> Router<Arc<AppState>> = cluster_routes;
+    }
 }

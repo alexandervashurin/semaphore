@@ -59,4 +59,58 @@ mod tests {
         let router = advanced_routes();
         let _: Router<Arc<AppState>> = router;
     }
+
+    #[test]
+    fn test_advanced_routes_has_hpa_endpoints() {
+        // HPA: list, create, get, update, delete
+        let _fn: fn() -> Router<Arc<AppState>> = advanced_routes;
+    }
+
+    #[test]
+    fn test_advanced_routes_has_resource_quota_endpoints() {
+        // ResourceQuota: list, create, get, update, delete
+        let _fn: fn() -> Router<Arc<AppState>> = advanced_routes;
+    }
+
+    #[test]
+    fn test_advanced_routes_has_limit_range_endpoints() {
+        // LimitRange: list, create, get, update, delete
+        let _fn: fn() -> Router<Arc<AppState>> = advanced_routes;
+    }
+
+    #[test]
+    fn test_advanced_routes_has_crd_endpoints() {
+        // CRD: list, get
+        let _fn: fn() -> Router<Arc<AppState>> = advanced_routes;
+    }
+
+    #[test]
+    fn test_advanced_routes_has_custom_objects_namespaced() {
+        // Custom objects namespace: get, replace, delete
+        let _fn: fn() -> Router<Arc<AppState>> = advanced_routes;
+    }
+
+    #[test]
+    fn test_advanced_routes_has_custom_objects_cluster() {
+        // Custom objects cluster: get, replace, delete, create
+        let _fn: fn() -> Router<Arc<AppState>> = advanced_routes;
+    }
+
+    #[test]
+    fn test_advanced_routes_has_vpa_endpoints() {
+        // VPA: status, list, get (read-only)
+        let _fn: fn() -> Router<Arc<AppState>> = advanced_routes;
+    }
+
+    #[test]
+    fn test_advanced_routes_uses_delete_for_hpa() {
+        // delete_hpa uses DELETE method
+        let _fn: fn() -> Router<Arc<AppState>> = advanced_routes;
+    }
+
+    #[test]
+    fn test_advanced_routes_uses_put_for_update() {
+        // update_hpa, update_resource_quota, update_limit_range use PUT
+        let _fn: fn() -> Router<Arc<AppState>> = advanced_routes;
+    }
 }

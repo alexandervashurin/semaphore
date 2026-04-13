@@ -237,4 +237,16 @@ mod tests {
         let json = serde_json::to_string(&update).unwrap();
         assert!(json.contains("\"enabled\":null"));
     }
+
+    #[test]
+    fn test_drift_result_unicode_summary() {
+        let result = DriftResult {
+            id: 1, drift_config_id: 1, project_id: 1, template_id: 1,
+            status: "drifted".to_string(), summary: Some("Обнаружен дрифт".to_string()),
+            task_id: Some(100), checked_at: Utc::now(),
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        let restored: DriftResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.summary, Some("Обнаружен дрифт".to_string()));
+    }
 }

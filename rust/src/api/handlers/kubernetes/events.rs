@@ -678,4 +678,319 @@ mod tests {
         let selector = BTreeMap::from([("app".to_string(), "web".to_string())]);
         assert!(matches_selector(&labels, &selector));
     }
+
+    // ─────────────────────────────────────────────
+    // DTO struct tests - KubernetesEvent
+    // ─────────────────────────────────────────────
+
+    #[test]
+    fn test_kubernetes_event() {
+        let event = KubernetesEvent {
+            name: "event-1".to_string(),
+            namespace: "default".to_string(),
+            type_: "Warning".to_string(),
+            reason: "FailedScheduling".to_string(),
+            message: "0/3 nodes are available".to_string(),
+            count: 5,
+            first_seen: Some("2024-01-01T00:00:00Z".to_string()),
+            last_seen: Some("2024-01-01T00:05:00Z".to_string()),
+            involved_object: InvolvedObjectSummary {
+                kind: "Pod".to_string(),
+                name: "test-pod".to_string(),
+                api_version: Some("v1".to_string()),
+                uid: Some("uid-123".to_string()),
+            },
+        };
+        assert_eq!(event.reason, "FailedScheduling");
+        assert_eq!(event.count, 5);
+        assert_eq!(event.involved_object.kind, "Pod");
+    }
+
+    #[test]
+    fn test_kubernetes_event_empty_fields() {
+        let event = KubernetesEvent {
+            name: String::new(),
+            namespace: String::new(),
+            type_: String::new(),
+            reason: String::new(),
+            message: String::new(),
+            count: 0,
+            first_seen: None,
+            last_seen: None,
+            involved_object: InvolvedObjectSummary {
+                kind: String::new(),
+                name: String::new(),
+                api_version: None,
+                uid: None,
+            },
+        };
+        assert!(event.name.is_empty());
+        assert!(event.first_seen.is_none());
+        assert!(event.involved_object.api_version.is_none());
+    }
+
+    #[test]
+    fn test_involved_object_summary() {
+        let obj = InvolvedObjectSummary {
+            kind: "Deployment".to_string(),
+            name: "web-app".to_string(),
+            api_version: Some("apps/v1".to_string()),
+            uid: Some("uid-456".to_string()),
+        };
+        assert_eq!(obj.kind, "Deployment");
+        assert_eq!(obj.api_version, Some("apps/v1".to_string()));
+    }
+
+    // ─────────────────────────────────────────────
+    // DTO struct tests - Metrics
+    // ─────────────────────────────────────────────
+
+    #[test]
+    fn test_pod_metrics() {
+        let metrics = PodMetrics {
+            name: "web-pod".to_string(),
+            namespace: "default".to_string(),
+            containers: vec![
+                ContainerMetrics {
+                    name: "app".to_string(),
+                    usage: ResourceUsage {
+                        cpu: "100m".to_string(),
+                        memory: "128Mi".to_string(),
+                    },
+                },
+            ],
+            timestamp: "2024-01-01T00:00:00Z".to_string(),
+            window: "1m".to_string(),
+        };
+        assert_eq!(metrics.name, "web-pod");
+        assert_eq!(metrics.containers.len(), 1);
+        assert_eq!(metrics.containers[0].usage.cpu, "100m");
+    }
+
+    #[test]
+    fn test_pod_metrics_empty_containers() {
+        let metrics = PodMetrics {
+            name: "empty-pod".to_string(),
+            namespace: "default".to_string(),
+            containers: vec![],
+            timestamp: String::new(),
+            window: String::new(),
+        };
+        assert!(metrics.containers.is_empty());
+        assert!(metrics.timestamp.is_empty());
+    }
+
+    #[test]
+    fn test_container_metrics() {
+        let container = ContainerMetrics {
+            name: "sidecar".to_string(),
+            usage: ResourceUsage {
+                cpu: "50m".to_string(),
+                memory: "64Mi".to_string(),
+            },
+        };
+        assert_eq!(container.name, "sidecar");
+        assert_eq!(container.usage.memory, "64Mi");
+    }
+
+    #[test]
+    fn test_resource_usage() {
+        let usage = ResourceUsage {
+            cpu: "2000m".to_string(),
+            memory: "2Gi".to_string(),
+        };
+        assert_eq!(usage.cpu, "2000m");
+        assert_eq!(usage.memory, "2Gi");
+    }
+
+    #[test]
+    fn test_node_metrics() {
+        let metrics = NodeMetrics {
+            name: "node-1".to_string(),
+            usage: ResourceUsage {
+                cpu: "500m".to_string(),
+                memory: "4Gi".to_string(),
+            },
+            timestamp: "2024-01-01T00:00:00Z".to_string(),
+            window: "1m".to_string(),
+        };
+        assert_eq!(metrics.name, "node-1");
+        assert_eq!(metrics.usage.cpu, "500m");
+    }
+
+    // ─────────────────────────────────────────────
+    // DTO struct tests - Topology
+    // ─────────────────────────────────────────────
+
+    #[test]
+    fn test_topology_data() {
+        let data = TopologyData {
+            namespace: "default".to_string(),
+            nodes: vec![TopologyNode {
+                id: "deployment/web".to_string(),
+                kind: "Deployment".to_string(),
+                name: "web".to_string(),
+                namespace: "default".to_string(),
+                status: "ready".to_string(),
+                replicas: Some(TopologyReplicas {
+                    desired: 3,
+                    ready: 3,
+                }),
+                labels: Some(BTreeMap::from([("app".to_string(), "web".to_string())])),
+            }],
+            edges: vec![],
+        };
+        assert_eq!(data.namespace, "default");
+        assert_eq!(data.nodes.len(), 1);
+        assert_eq!(data.nodes[0].kind, "Deployment");
+    }
+
+    #[test]
+    fn test_topology_node() {
+        let node = TopologyNode {
+            id: "pod/web-abc123".to_string(),
+            kind: "Pod".to_string(),
+            name: "web-abc123".to_string(),
+            namespace: "prod".to_string(),
+            status: "Running".to_string(),
+            replicas: None,
+            labels: None,
+        };
+        assert_eq!(node.id, "pod/web-abc123");
+        assert!(node.replicas.is_none());
+        assert!(node.labels.is_none());
+    }
+
+    #[test]
+    fn test_topology_replicas() {
+        let replicas = TopologyReplicas {
+            desired: 5,
+            ready: 3,
+        };
+        assert_eq!(replicas.desired, 5);
+        assert_eq!(replicas.ready, 3);
+    }
+
+    #[test]
+    fn test_topology_edge() {
+        let edge = TopologyEdge {
+            source: "deployment/web".to_string(),
+            target: "replicaset/web-abc123".to_string(),
+            kind: "manages".to_string(),
+        };
+        assert_eq!(edge.source, "deployment/web");
+        assert_eq!(edge.kind, "manages");
+    }
+
+    // ─────────────────────────────────────────────
+    // Query params tests
+    // ─────────────────────────────────────────────
+
+    #[test]
+    fn test_events_query_all_fields() {
+        let query = EventsQuery {
+            namespace: Some("kube-system".to_string()),
+            limit: Some(50),
+            field_selector: Some("involvedObject.kind=Pod".to_string()),
+        };
+        assert_eq!(query.namespace, Some("kube-system".to_string()));
+        assert_eq!(query.limit, Some(50));
+        assert_eq!(query.field_selector, Some("involvedObject.kind=Pod".to_string()));
+    }
+
+    #[test]
+    fn test_events_query_all_none() {
+        let query = EventsQuery {
+            namespace: None,
+            limit: None,
+            field_selector: None,
+        };
+        assert!(query.namespace.is_none());
+        assert!(query.limit.is_none());
+        assert!(query.field_selector.is_none());
+    }
+
+    #[test]
+    fn test_topology_query() {
+        let query = TopologyQuery {
+            namespace: Some("production".to_string()),
+        };
+        assert_eq!(query.namespace, Some("production".to_string()));
+    }
+
+    #[test]
+    fn test_topology_query_none() {
+        let query = TopologyQuery {
+            namespace: None,
+        };
+        assert!(query.namespace.is_none());
+    }
+
+    // ─────────────────────────────────────────────
+    // Edge cases for helper functions
+    // ─────────────────────────────────────────────
+
+    #[test]
+    fn test_matches_selector_multiple_labels_all_match() {
+        let labels = Some(BTreeMap::from([
+            ("app".to_string(), "web".to_string()),
+            ("env".to_string(), "prod".to_string()),
+            ("tier".to_string(), "frontend".to_string()),
+        ]));
+        let selector = BTreeMap::from([
+            ("app".to_string(), "web".to_string()),
+            ("env".to_string(), "prod".to_string()),
+        ]);
+        assert!(matches_selector(&labels, &selector));
+    }
+
+    #[test]
+    fn test_matches_selector_multiple_labels_partial_match() {
+        let labels = Some(BTreeMap::from([
+            ("app".to_string(), "web".to_string()),
+            ("env".to_string(), "staging".to_string()),
+        ]));
+        let selector = BTreeMap::from([
+            ("app".to_string(), "web".to_string()),
+            ("env".to_string(), "prod".to_string()),
+        ]);
+        assert!(!matches_selector(&labels, &selector));
+    }
+
+    #[test]
+    fn test_parse_cpu_zero_milli() {
+        assert_eq!(parse_cpu("0m"), Some(0));
+    }
+
+    #[test]
+    fn test_parse_memory_zero_ki() {
+        assert_eq!(parse_memory("0Ki"), Some(0));
+    }
+
+    #[test]
+    fn test_format_cpu_zero() {
+        assert_eq!(format_cpu(0), "0");
+    }
+
+    #[test]
+    fn test_format_memory_zero() {
+        assert_eq!(format_memory(0), "0");
+    }
+
+    #[test]
+    fn test_format_memory_exact_gib() {
+        assert_eq!(format_memory(1024 * 1024 * 1024), "1.0Gi");
+    }
+
+    #[test]
+    fn test_format_memory_half_gib() {
+        assert_eq!(format_memory(512 * 1024 * 1024), "512Mi");
+    }
+
+    #[test]
+    fn test_format_memory_fractional_gib() {
+        // 1.5 GiB = 1.5 * 1024 * 1024 * 1024
+        let mem = (1.5 * 1024.0 * 1024.0 * 1024.0) as u64;
+        assert_eq!(format_memory(mem), "1.5Gi");
+    }
 }
