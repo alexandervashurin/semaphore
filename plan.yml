@@ -12,17 +12,7 @@ status_summary:
   latest_test_run: "2026-04-09: 6551 passed, 0 failed, 3 ignored (~85% coverage)"
   open_blockers:
     critical: []
-    high:
-      - id: PROD-01
-        title: "Docker образ <50MB (FROM scratch)"
-        sprint: S3
-        status: completed
-        blocks: []
-        completion_notes: "Multi-stage build: builder (debian) → scratch runtime (~23MB)"
-      - id: PROD-02
-        title: "Cross-platform builds macOS amd64/arm64"
-        sprint: S3
-        blocks: [RB-05]
+    high: []
     medium:
       - id: PROD-03
         title: "Redis-backed task queue (HA persistence)"
@@ -1181,7 +1171,8 @@ task_index:
     title: "Cross-platform builds (Linux, macOS)"
     priority: high
     estimate: small
-    status: todo
+    status: completed
+    completion_notes: "release-rust-binaries.yml: Linux amd64/arm64 + macOS amd64/arm64"
   - sprint_id: S3
     sprint_title: "Спринт 3 — Production Hardening & Docs (6-8 недель)"
     task_id: PROD-03
