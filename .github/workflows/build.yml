@@ -1,0 +1,408 @@
+name: Build Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # ─── 1. Check & Lint ────────────────────────────────────────────────
+  check:
+    name: Check & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache cargo registry
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: ${{ runner.os }}-check-${{ hashFiles('rust/Cargo.lock') }}
+
+      - name: Install system deps
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends libssl-dev pkg-config libsqlite3-dev
+
+      - name: Check formatting
+        working-directory: rust
+        run: cargo fmt --all -- --check
+
+      - name: Cargo check
+        working-directory: rust
+        run: cargo check --all-features
+
+      - name: Clippy (deny warnings)
+        working-directory: rust
+        run: cargo clippy --all-features -- -D warnings
+
+  # ─── 2. Test ─────────────────────────────────────────────────────────
+  test:
+    name: Test (${{ matrix.os }})
+    needs: [check]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-13]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: ${{ runner.os }}-test-${{ hashFiles('rust/Cargo.lock') }}
+
+      - name: Install system deps (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends libssl-dev pkg-config libsqlite3-dev
+
+      - name: Install system deps (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install openssl pkg-config sqlite
+        env:
+          PKG_CONFIG_PATH: /opt/homebrew/opt/openssl@3/lib/pkgconfig:/usr/local/opt/openssl@3/lib/pkgconfig
+
+      - name: Build
+        working-directory: rust
+        run: cargo build --release
+
+      - name: Run tests
+        working-directory: rust
+        env:
+          SEMAPHORE_DB_PATH: /tmp/test.db
+          SEMAPHORE_JWT_SECRET: test-ci-secret-key-32-bytes-long!
+        run: cargo test --release -- --test-threads=4
+
+      - name: Upload binary artifact
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: velum-linux-amd64
+          path: rust/target/release/velum
+          retention-days: 7
+
+      - name: Upload binary artifact (Linux ARM64)
+        if: matrix.os == 'ubuntu-24.04-arm'
+        uses: actions/upload-artifact@v4
+        with:
+          name: velum-linux-arm64
+          path: rust/target/release/velum
+          retention-days: 7
+
+      - name: Upload binary artifact (macOS ARM64)
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: velum-darwin-arm64
+          path: rust/target/release/velum
+          retention-days: 7
+
+      - name: Upload binary artifact (macOS AMD64)
+        if: matrix.os == 'macos-13'
+        uses: actions/upload-artifact@v4
+        with:
+          name: velum-darwin-amd64
+          path: rust/target/release/velum
+          retention-days: 7
+
+  # ─── 3. Security Audit ──────────────────────────────────────────────
+  security:
+    name: Security Audit
+    needs: [check]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo install cargo-audit --quiet
+      - name: Audit
+        working-directory: rust
+        run: cargo audit
+
+  # ─── 4. Coverage ────────────────────────────────────────────────────
+  coverage:
+    name: Coverage
+    needs: [test]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install deps
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends libssl-dev pkg-config libsqlite3-dev
+
+      - name: Install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin --locked
+
+      - name: Run coverage
+        working-directory: rust
+        env:
+          SEMAPHORE_DB_PATH: /tmp/test.db
+          SEMAPHORE_JWT_SECRET: test-ci-secret-key-32-bytes-long!
+        run: |
+          cargo tarpaulin \
+            --workspace \
+            --all-features \
+            --timeout 300 \
+            --out Xml \
+            --output-dir ../coverage
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-coverage-cobertura
+          path: coverage/cobertura.xml
+          retention-days: 7
+
+  # ─── 5. Docker Build ────────────────────────────────────────────────
+  docker:
+    name: Docker Build
+    needs: [test]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    permissions:
+      packages: write
+      contents: read
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_NAME: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=staging,enable=${{ github.ref == 'refs/heads/develop' }}
+
+      - name: Build & push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ─── 6. E2E Smoke Test ─────────────────────────────────────────────
+  e2e:
+    name: E2E Smoke Test
+    needs: [docker]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: velum
+          POSTGRES_USER: velum
+          POSTGRES_PASSWORD: velum_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install deps
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends libssl-dev pkg-config libsqlite3-dev jq
+
+      - name: Wait for DB
+        run: |
+          for i in $(seq 1 30); do
+            if pg_isready -h localhost -p 5432 -U velum 2>/dev/null; then
+              echo "DB ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "DB timeout"
+          exit 1
+
+      - name: Build & start server
+        env:
+          VELUM_DB_URL: postgres://velum:velum_pass@localhost:5432/velum
+          VELUM_DB_DIALECT: postgres
+          VELUM_JWT_SECRET: e2e-test-secret-key-32-bytes-long!
+          VELUM_WEB_PATH: ${{ github.workspace }}/web/public
+          VELUM_ADMIN: admin
+          VELUM_ADMIN_PASSWORD: admin123
+        run: |
+          cd rust && cargo build --release
+          ./target/release/velum server --host 0.0.0.0 --port 3000 &
+          SERVER_PID=$!
+          echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:3000/healthz >/dev/null 2>&1; then
+              echo "Server ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Server timeout"
+          kill $SERVER_PID 2>/dev/null
+          exit 1
+
+      - name: Health checks
+        run: |
+          curl -sf http://localhost:3000/healthz
+          curl -sf http://localhost:3000/readyz
+          echo "Health endpoints OK"
+
+      - name: API smoke tests
+        run: |
+          TOKEN=$(curl -sf -X POST http://localhost:3000/api/auth/login \
+            -H 'Content-Type: application/json' \
+            -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
+          echo "Auth OK"
+
+          curl -sf http://localhost:3000/api/projects -H "Authorization: Bearer $TOKEN" > /dev/null
+          echo "Projects API OK"
+
+          curl -sf http://localhost:3000/api/templates -H "Authorization: Bearer $TOKEN" > /dev/null
+          echo "Templates API OK"
+
+          echo "All smoke tests passed ✅"
+
+      - name: Cleanup
+        if: always()
+        run: kill $SERVER_PID 2>/dev/null || true
+
+  # ─── 7. Documentation ───────────────────────────────────────────────
+  docs:
+    name: Build Documentation
+    needs: [check]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Generate docs
+        working-directory: rust
+        run: cargo doc --no-deps 2>&1
+
+      - name: Upload docs artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: rust/target/doc/velum_ffi/
+
+  # ─── 8. Deploy Docs ─────────────────────────────────────────────────
+  deploy-docs:
+    name: Deploy Docs
+    needs: [docs]
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  # ─── 9. Collect binaries for release ────────────────────────────────
+  collect-binaries:
+    name: Collect Binaries
+    needs: [test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download Linux AMD64
+        uses: actions/download-artifact@v4
+        with:
+          name: velum-linux-amd64
+          path: release/velum-linux-amd64
+
+      - name: Download Linux ARM64
+        uses: actions/download-artifact@v4
+        with:
+          name: velum-linux-arm64
+          path: release/velum-linux-arm64
+
+      - name: Download Darwin AMD64
+        uses: actions/download-artifact@v4
+        with:
+          name: velum-darwin-amd64
+          path: release/velum-darwin-amd64
+
+      - name: Download Darwin ARM64
+        uses: actions/download-artifact@v4
+        with:
+          name: velum-darwin-arm64
+          path: release/velum-darwin-arm64
+
+      - name: Rename binaries
+        run: |
+          for dir in release/*/; do
+            cd "$dir"
+            mv velum "$(basename $(dirname $PWD))"
+            cd ../..
+          done
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-binaries
+          path: release/
+          retention-days: 30
