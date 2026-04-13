@@ -1,0 +1,127 @@
+{
+    "Ansible Playbook": {
+        "prefix": "velum-playbook",
+        "body": [
+            "---",
+            "- name: ${1:Playbook name}",
+            "  hosts: ${2:all}",
+            "  become: ${3:yes}",
+            "  vars:",
+            "    ${4:key}: ${5:value}",
+            "  tasks:",
+            "    - name: ${6:Task name}",
+            "      ansible.builtin.${7:command}:",
+            "        cmd: ${8:echo hello}",
+            "      register: ${9:result}",
+            ""
+        ],
+        "description": "Velum Ansible Playbook template"
+    },
+    "Ansible Task": {
+        "prefix": "velum-task",
+        "body": [
+            "- name: ${1:Task name}",
+            "  ansible.builtin.${2:command}:",
+            "    ${3:arg}: ${4:value}",
+            "  register: ${5:result}",
+            "  when: ${6:result is defined}",
+            "  notify: ${7:handler}",
+            ""
+        ],
+        "description": "Single Ansible task for Velum"
+    },
+    "Ansible Role Include": {
+        "prefix": "velum-role",
+        "body": [
+            "- name: Include ${1:role_name}",
+            "  ansible.builtin.include_role:",
+            "    name: ${1:role_name}",
+            "    vars:",
+            "      ${2:key}: ${3:value}",
+            ""
+        ],
+        "description": "Include Ansible role in Velum task"
+    },
+    "Ansible Handler": {
+        "prefix": "velum-handler",
+        "body": [
+            "handlers:",
+            "  - name: ${1:handler_name}",
+            "    ansible.builtin.${2:service}:",
+            "      name: ${3:service_name}",
+            "      state: ${4:restarted}",
+            ""
+        ],
+        "description": "Ansible handlers for Velum"
+    },
+    "Terraform Provider": {
+        "prefix": "velum-tf-provider",
+        "body": [
+            "terraform {",
+            "  required_version = \">= 1.0\"",
+            "  required_providers {",
+            "    ${1:aws} = {",
+            "      source  = \"hashicorp/${1:aws}\"",
+            "      version = \"~> ${2:5.0}\"",
+            "    }",
+            "  }",
+            "}",
+            "",
+            "provider \"${1:aws}\" {",
+            "  region = var.${3:region}",
+            "}",
+            ""
+        ],
+        "description": "Terraform provider block for Velum"
+    },
+    "Terraform Resource": {
+        "prefix": "velum-tf-resource",
+        "body": [
+            "resource \"${1:aws_instance}\" \"${2:name}\" {",
+            "  ${3:ami}           = var.${4:ami_id}",
+            "  ${5:instance_type} = var.${6:instance_type}",
+            "",
+            "  tags = {",
+            "    Name = \"${7:instance-name}\"",
+            "    Environment = var.environment",
+            "  }",
+            "}",
+            ""
+        ],
+        "description": "Terraform resource block for Velum"
+    },
+    "Terraform Variable": {
+        "prefix": "velum-tf-variable",
+        "body": [
+            "variable \"${1:name}\" {",
+            "  description = \"${2:Description}\"",
+            "  type        = ${3:string}",
+            "  default     = ${4:\"default\"}",
+            "",
+            "  validation {",
+            "    condition     = length(var.${1:name}) > 0",
+            "    error_message = \"${1:name} cannot be empty.\"",
+            "  }",
+            "}",
+            ""
+        ],
+        "description": "Terraform variable declaration for Velum"
+    },
+    "Velum Task Parameters": {
+        "prefix": "velum-params",
+        "body": [
+            "# Velum task parameters",
+            "# ---",
+            "# Arguments passed via --args or API:",
+            "#",
+            "#   {",
+            "#     \"${1:param_name}\": \"${2:value}\",",
+            "#     \"${3:another_param}\": ${4:42}",
+            "#   }",
+            "#",
+            "# Access in playbook: \"{{ ${1:param_name} }}\"",
+            ""
+        ],
+        "description": "Velum task parameters documentation"
+    }
+}

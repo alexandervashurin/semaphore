@@ -1347,21 +1347,22 @@ task_index:
     title: "Mobile K8s UI + WCAG 2.1 AA"
     priority: low
     estimate: large
-    status: todo
+    status: completed
+    completion_notes: "Responsive CSS: 960px/768px/480px breakpoints; WCAG 2.1 AA: skip-link, focus-visible, prefers-contrast, prefers-reduced-motion, touch-target 44px, sr-only, form labels, keyboard shortcuts hints"
   - sprint_id: S5
     sprint_title: "Спринт 5 — Post-release polish (опционально)"
     task_id: OBS-01
     title: "Сквозной correlation ID"
     priority: low
     estimate: medium
-    status: todo
+    status: completed
   - sprint_id: S5
     sprint_title: "Спринт 5 — Post-release polish (опционально)"
     task_id: DOC-01
     title: "cargo doc + публикация документации"
     priority: low
     estimate: small
-    status: todo
+    status: completed
   - sprint_id: S5
     sprint_title: "Спринт 5 — Post-release polish (опционально)"
     task_id: EXT-01
@@ -1382,21 +1383,24 @@ task_index:
     title: "GraphQL API expanded"
     priority: low
     estimate: medium
-    status: todo
+    status: completed
+    completion_notes: "GraphQL: runners, K8s namespaces/nodes queries; subscriptions for task output/status; all core types defined"
   - sprint_id: S5
     sprint_title: "Спринт 5 — Post-release polish (опционально)"
     task_id: RUNNER-01
     title: "Remote Runners"
     priority: medium
     estimate: large
-    status: todo
+    status: completed
+    completion_notes: "remote_runners.rs: RemoteRunnersManager, heartbeat, task queue; API: register/heartbeat/get_task/submit_log"
   - sprint_id: S5
     sprint_title: "Спринт 5 — Post-release polish (опционально)"
     task_id: VAULT-01
     title: "HashiCorp Vault integration"
     priority: medium
     estimate: medium
-    status: todo
+    status: completed
+    completion_notes: "SecretStorageType::Vault; secret_storages CRUD API; template_vault integration"
 
 # ============================================================================
 # МАШИНОЧИТАЕМАЯ ИНФОРМАЦИЯ О ПРОЕКТЕ

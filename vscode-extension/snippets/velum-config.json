@@ -1,0 +1,30 @@
+{
+    "Velum Configuration": {
+        "prefix": "velum-config",
+        "body": [
+            "{",
+            "  \"server_url\": \"http://localhost:3000\",",
+            "  \"project_id\": ${1:1},",
+            "  \"template_id\": ${2:1},",
+            "  \"arguments\": {",
+            "    \"${3:key}\": \"${4:value}\"",
+            "  },",
+            "  \"debug\": false",
+            "}"
+        ],
+        "description": "Velum task configuration file"
+    },
+    "Velum Task Run": {
+        "prefix": "velum-run",
+        "body": [
+            "{",
+            "  \"template_id\": ${1:1},",
+            "  \"project_id\": ${2:1},",
+            "  \"arguments\": \"{}\",",
+            "  \"debug\": ${3:false},",
+            "  \"dry_run\": ${4:false}",
+            "}"
+        ],
+        "description": "Velum run task configuration"
+    }
+}

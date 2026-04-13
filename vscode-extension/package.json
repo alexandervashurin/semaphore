@@ -1,0 +1,101 @@
+{
+  "name": "velum",
+  "displayName": "Velum — DevOps Automation",
+  "description": "Task templates IntelliSense, playbook snippets, and Velum API integration",
+  "version": "0.1.0",
+  "publisher": "velum-dev",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other",
+    "Snippets",
+    "Programming Languages"
+  ],
+  "keywords": [
+    "velum",
+    "ansible",
+    "terraform",
+    "devops",
+    "automation",
+    "playbook"
+  ],
+  "activationEvents": [
+    "onLanguage:yaml",
+    "onLanguage:ansible",
+    "onCommand:velum.login",
+    "onCommand:velum.listProjects",
+    "onCommand:velum.listTemplates"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "snippets": [
+      {
+        "language": "yaml",
+        "path": "./snippets/playbooks.json"
+      },
+      {
+        "language": "json",
+        "path": "./snippets/velum-config.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "velum.login",
+        "title": "Velum: Login to Velum Server",
+        "icon": "$(sign-in)"
+      },
+      {
+        "command": "velum.listProjects",
+        "title": "Velum: List Projects",
+        "icon": "$(folder)"
+      },
+      {
+        "command": "velum.listTemplates",
+        "title": "Velum: List Templates",
+        "icon": "$(file-code)"
+      },
+      {
+        "command": "velum.runTask",
+        "title": "Velum: Run Task from Template",
+        "icon": "$(play)"
+      },
+      {
+        "command": "velum.viewTaskLogs",
+        "title": "Velum: View Task Logs",
+        "icon": "$(output)"
+      }
+    ],
+    "configuration": {
+      "title": "Velum",
+      "properties": {
+        "velum.serverUrl": {
+          "type": "string",
+          "default": "http://localhost:3000",
+          "description": "Velum server URL"
+        },
+        "velum.apiToken": {
+          "type": "string",
+          "default": "",
+          "description": "Velum API token"
+        },
+        "velum.projectId": {
+          "type": "number",
+          "default": null,
+          "description": "Default project ID for template completion"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0"
+  }
+}
