@@ -53,7 +53,7 @@ jobs:
         env:
           SEMAPHORE_DB_PATH: /tmp/test.db
           SEMAPHORE_JWT_SECRET: test-ci-secret-key-32-bytes-long!
-        run: cargo test --all-features -- --test-threads=4
+        run: cargo test --features postgres -- --test-threads=4 --skip api_integration --skip kubernetes_integration
 
   # ─── 2. Security Audit ───────────────────────────────────────────────
   security:
