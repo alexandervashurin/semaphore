@@ -28,7 +28,7 @@ fn get_test_db_url() -> String {
 async fn test_app() -> axum::Router {
     let url = get_test_db_url();
     let store = SqlStore::new(&url).await.expect("SqlStore::new");
-    create_app(std::sync::Arc::new(store))
+    create_app(std::sync::Arc::new(store)).await
 }
 
 async fn post_json(app: axum::Router, uri: &str, body: Value) -> (StatusCode, Value) {
@@ -113,22 +113,23 @@ async fn create_test_project(app: &mut axum::Router, _token: &str) -> i32 {
 
 #[tokio::test]
 async fn test_troubleshooting_api_structure() {
-    let mut app = test_app().await;
+    let app = test_app().await;
 
     // Test without auth - endpoint exists
     let (status, _) = get_json(
         app.clone(),
         "/api/kubernetes/troubleshoot?namespace=default&kind=Pod&name=test"
     ).await;
-    
+
     // Should return some status (401/403/404 are OK - endpoint exists)
     assert!(status != StatusCode::NOT_FOUND || status == StatusCode::UNAUTHORIZED);
 }
 
 #[tokio::test]
 async fn test_troubleshooting_api_with_auth() {
-    let mut app = test_app().await;
-    let token = create_test_user(&mut app).await;
+    let app = test_app().await;
+    let mut app_clone = app.clone();
+    let token = create_test_user(&mut app_clone).await;
     
     if token.is_empty() {
         // Skip if can't create user (no DB)
@@ -156,7 +157,7 @@ async fn test_troubleshooting_api_with_auth() {
 
 #[tokio::test]
 async fn test_runbook_list_endpoint() {
-    let mut app = test_app().await;
+    let app = test_app().await;
 
     // Test without auth
     let (status, _) = get_json(
@@ -171,21 +172,22 @@ async fn test_runbook_list_endpoint() {
 
 #[tokio::test]
 async fn test_runbook_execute_no_template() {
-    let mut app = test_app().await;
-    let token = create_test_user(&mut app).await;
+    let app = test_app().await;
+    let mut app_clone = app.clone();
+    let token = create_test_user(&mut app_clone).await;
 
     if token.is_empty() {
         return;
     }
     
-    let project_id = create_test_project(&mut app, &token).await;
+    let project_id = create_test_project(&mut app_clone, &token).await;
     if project_id == 0 {
         return;
     }
 
     let uri = format!("/api/kubernetes/project/{}/runbooks/execute", project_id);
     let (status, _body) = post_json_auth(
-        app.clone(),
+        app,
         &uri,
         json!({
             "template_id": 99999,
@@ -209,28 +211,28 @@ async fn test_runbook_execute_no_template() {
 
 #[tokio::test]
 async fn test_prometheus_health_endpoint() {
-    let mut app = test_app().await;
+    let app = test_app().await;
 
     // Without PROMETHEUS_URL env var - should return unavailable
     let (status, body) = get_json(
         app.clone(),
         "/api/kubernetes/prometheus/health"
     ).await;
-    
+
     assert_eq!(status, StatusCode::OK);
     assert!(body["status"].as_str().is_some());
 }
 
 #[tokio::test]
 async fn test_prometheus_metrics_missing_params() {
-    let mut app = test_app().await;
+    let app = test_app().await;
 
     // Missing required parameters
     let (status, _) = get_json(
         app.clone(),
         "/api/kubernetes/prometheus/metrics"
     ).await;
-    
+
     // Should return error for missing params
     assert!(status == StatusCode::BAD_REQUEST || status == StatusCode::UNAUTHORIZED);
 }
@@ -239,22 +241,23 @@ async fn test_prometheus_metrics_missing_params() {
 
 #[tokio::test]
 async fn test_inventory_sync_preview_endpoint() {
-    let mut app = test_app().await;
+    let app = test_app().await;
 
     // Without auth
     let (status, _) = get_json(
         app.clone(),
         "/api/kubernetes/inventory/sync/preview?project_id=1&sync_type=nodes"
     ).await;
-    
+
     // Endpoint should exist
     assert!(status != StatusCode::NOT_FOUND);
 }
 
 #[tokio::test]
 async fn test_inventory_sync_execute_endpoint() {
-    let mut app = test_app().await;
-    let token = create_test_user(&mut app).await;
+    let app = test_app().await;
+    let mut app_clone = app.clone();
+    let token = create_test_user(&mut app_clone).await;
 
     if token.is_empty() {
         return;
@@ -262,7 +265,7 @@ async fn test_inventory_sync_execute_endpoint() {
 
     // Try to execute sync without Kubernetes cluster
     let (status, _body) = post_json(
-        app.clone(),
+        app,
         "/api/kubernetes/inventory/sync",
         json!({
             "project_id": 1,
@@ -281,8 +284,9 @@ async fn test_inventory_sync_execute_endpoint() {
 
 #[tokio::test]
 async fn test_kubernetes_api_endpoints_exist() {
-    let mut app = test_app().await;
-    let token = create_test_user(&mut app).await;
+    let app = test_app().await;
+    let mut app_clone = app.clone();
+    let token = create_test_user(&mut app_clone).await;
 
     let auth_header = if !token.is_empty() {
         format!("Bearer {}", token)

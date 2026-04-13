@@ -419,7 +419,7 @@ impl TaskManager for MockStore {
         let tasks: Vec<Task> = self.tasks.read().unwrap().values().cloned().collect();
         Ok(tasks
             .into_iter()
-            .filter(|t| template_id.map_or(true, |tid| t.template_id == tid))
+            .filter(|t| template_id.is_none_or(|tid| t.template_id == tid))
             .map(|t| TaskWithTpl {
                 task: t,
                 tpl_playbook: None,
@@ -1012,8 +1012,8 @@ impl OrganizationManager for MockStore {
         Ok(())
     }
     async fn get_organization_users(&self, org_id: i32) -> Result<Vec<OrganizationUser>> {
-        Ok(self.organization_users.read().unwrap().values().cloned()
-            .filter(|u| u.org_id == org_id).collect())
+        Ok(self.organization_users.read().unwrap().values()
+            .filter(|&u| u.org_id == org_id).cloned().collect())
     }
     async fn add_user_to_organization(&self, payload: OrganizationUserCreate) -> Result<OrganizationUser> {
         use chrono::Utc;
@@ -1045,8 +1045,8 @@ impl OrganizationManager for MockStore {
     async fn get_user_organizations(&self, user_id: i32) -> Result<Vec<Organization>> {
         let org_ids: Vec<i32> = self.organization_users.read().unwrap().values()
             .filter(|u| u.user_id == user_id).map(|u| u.org_id).collect();
-        Ok(self.organizations.read().unwrap().values().cloned()
-            .filter(|o| org_ids.contains(&o.id)).collect())
+        Ok(self.organizations.read().unwrap().values()
+            .filter(|&o| org_ids.contains(&o.id)).cloned().collect())
     }
     async fn check_organization_quota(&self, org_id: i32, quota_type: &str) -> Result<bool> {
         let opt_org = self.organizations.read().unwrap().get(&org_id).cloned();
@@ -1264,8 +1264,8 @@ impl PlaybookRunManager for MockStore {
             }
             true
         }).collect();
-        let limit = filter.limit.unwrap_or(100) as usize;
-        let offset = filter.offset.unwrap_or(0) as usize;
+        let limit = filter.limit.unwrap_or(100);
+        let offset = filter.offset.unwrap_or(0);
         Ok(filtered.into_iter().skip(offset).take(limit).collect())
     }
 
@@ -1280,8 +1280,8 @@ impl PlaybookRunManager for MockStore {
     }
 
     async fn get_playbook_run_by_task_id(&self, task_id: i32) -> Result<Option<PlaybookRun>> {
-        Ok(self.playbook_runs.read().unwrap().values().cloned()
-            .find(|r| r.task_id == Some(task_id)))
+        Ok(self.playbook_runs.read().unwrap().values()
+            .find(|&r| r.task_id == Some(task_id)).cloned())
     }
 
     async fn create_playbook_run(&self, run_create: PlaybookRunCreate) -> Result<PlaybookRun> {
@@ -1355,8 +1355,9 @@ impl PlaybookRunManager for MockStore {
     }
 
     async fn get_playbook_run_stats(&self, playbook_id: i32) -> Result<PlaybookRunStats> {
-        let runs: Vec<PlaybookRun> = self.playbook_runs.read().unwrap().values().cloned()
-            .filter(|r| r.playbook_id == playbook_id)
+        let runs: Vec<PlaybookRun> = self.playbook_runs.read().unwrap().values()
+            .filter(|&r| r.playbook_id == playbook_id)
+            .cloned()
             .collect();
         let total = runs.len() as i64;
         let success = runs.iter().filter(|r| matches!(r.status, PlaybookRunStatus::Success)).count() as i64;

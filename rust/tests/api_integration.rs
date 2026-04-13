@@ -44,7 +44,7 @@ async fn test_app() -> (axum::Router, tempfile::NamedTempFile) {
     let url = sqlite_url_from_path(temp.path());
 
     let store = SqlStore::new(&url).await.expect("SqlStore::new");
-    let app = create_app(std::sync::Arc::new(store));
+    let app = create_app(std::sync::Arc::new(store)).await;
 
     (app, temp)
 }
@@ -209,7 +209,7 @@ async fn seeded_app() -> (axum::Router, tempfile::NamedTempFile) {
     }
 
     let store = SqlStore::new(&url).await.expect("SqlStore::new for app");
-    let app = create_app(std::sync::Arc::new(store));
+    let app = create_app(std::sync::Arc::new(store)).await;
 
     (app, temp)
 }
@@ -1420,7 +1420,7 @@ async fn test_project_team_management() {
         teammate_id = teammate.id as i64;
     }
     let store2 = SqlStore::new(&url).await.expect("app store");
-    let app = velum_ffi::api::create_app(std::sync::Arc::new(store2));
+    let app = velum_ffi::api::create_app(std::sync::Arc::new(store2)).await;
     let token = register_and_login(&app).await;
 
     // Create project

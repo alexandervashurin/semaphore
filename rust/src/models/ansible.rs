@@ -15,7 +15,7 @@ pub struct AnsiblePlaybook {
 }
 
 /// Ansible Galaxy Requirements
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AnsibleGalaxyRequirements {
     /// Роли
     #[serde(default)]
@@ -24,15 +24,6 @@ pub struct AnsibleGalaxyRequirements {
     /// Коллекции
     #[serde(default)]
     pub collections: Vec<GalaxyRequirement>,
-}
-
-impl Default for AnsibleGalaxyRequirements {
-    fn default() -> Self {
-        Self {
-            roles: Vec::new(),
-            collections: Vec::new(),
-        }
-    }
 }
 
 /// Galaxy Requirement

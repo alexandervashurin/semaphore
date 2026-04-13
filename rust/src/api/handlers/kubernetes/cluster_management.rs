@@ -534,8 +534,8 @@ mod tests {
 
     #[test]
     fn test_derive_encryption_key_short_value_padded() {
-        let config = crate::config::Config::default();
         std::env::set_var("SEMAPHORE_KUBECONFIG_KEY", "short");
+        let config = crate::config::Config::default();
         let key = derive_encryption_key(&config);
         assert_eq!(key.len(), 32);
         assert_eq!(&key[..5], b"short");
