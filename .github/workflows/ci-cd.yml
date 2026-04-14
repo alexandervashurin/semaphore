@@ -154,6 +154,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+      - name: Установка зависимостей
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends \
+            postgresql-client jq libssl-dev pkg-config libsqlite3-dev
       - name: Ожидание БД
         run: |
           for i in $(seq 1 30); do
@@ -222,10 +227,12 @@ jobs:
       - name: Генерация
         working-directory: rust
         run: cargo doc --no-deps 2>&1 | tee /tmp/doc.log
-      - name: Сохранение
-        uses: actions/upload-pages-artifact@v3
+      - name: Сохранение артефакта
+        uses: actions/upload-artifact@v4
         with:
-          path: rust/target/doc/velum_ffi/
+          name: documentation
+          path: rust/target/doc/
+          retention-days: 1
 
   # 7. Деплой на GitHub Pages
   deploy-docs:
@@ -240,6 +247,19 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - name: Загрузка артефакта
+        uses: actions/download-artifact@v4
+        with:
+          name: documentation
+          path: public
+      - name: Добавление index.html
+        run: |
+          if [ ! -f public/index.html ]; then
+            echo '<meta http-equiv="refresh" content="0;url=velum_ffi/">' \
+              > public/index.html
+          fi
       - name: Публикация
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          upload_url: https://pages.github.com
