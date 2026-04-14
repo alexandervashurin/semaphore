@@ -41,7 +41,7 @@ jobs:
       - name: Установка системных зависимостей
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y --no-install-recommends
+          sudo apt-get install -y --no-install-recommends \
             libssl-dev pkg-config libsqlite3-dev
 
       - name: Проверка форматирования
@@ -85,7 +85,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y --no-install-recommends
+          sudo apt-get install -y --no-install-recommends \
             libssl-dev pkg-config libsqlite3-dev
 
       - name: Системные зависимости (macOS)
@@ -175,7 +175,7 @@ jobs:
       - name: Системные зависимости
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y --no-install-recommends
+          sudo apt-get install -y --no-install-recommends \
             libssl-dev pkg-config libsqlite3-dev
       - name: Установка cargo-tarpaulin
         run: cargo install cargo-tarpaulin --locked
@@ -279,12 +279,14 @@ jobs:
       - name: Системные зависимости
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y --no-install-recommends
+          sudo apt-get install -y --no-install-recommends \
             libssl-dev pkg-config libsqlite3-dev jq
       - name: Ожидание готовности БД
         run: |
           for i in $(seq 1 30); do
-            if pg_isready -h localhost -p 5432 -U velum 2>/dev/null; then
+            if PGPASSWORD=velum_pass \
+              psql -h localhost -p 5432 -U velum -d velum \
+              -c 'SELECT 1' >/dev/null 2>&1; then
               echo "DB ready"
               exit 0
             fi
@@ -355,10 +357,20 @@ jobs:
       - name: Генерация документации
         working-directory: rust
         run: cargo doc --no-deps 2>&1 | tee /tmp/doc.log
+      - name: Подготовка к загрузке
+        run: |
+          mkdir -p public
+          cp -r rust/target/doc/* public/
+          if [ ! -f public/index.html ]; then
+            echo '<meta http-equiv="refresh" content="0;url=velum_ffi/">' \
+              > public/index.html
+          fi
       - name: Сохранение артефакта
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          path: rust/target/doc/velum_ffi/
+          name: github-pages
+          path: public/
+          retention-days: 1
 
   # 8. Деплой документации на GitHub Pages
   deploy-docs:
