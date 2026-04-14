@@ -1,5 +1,7 @@
+# .github/workflows/build.yml
 name: Build Pipeline
 
+# Триггеры запуска пайплайна
 on:
   push:
     branches: [main, develop]
@@ -12,20 +14,21 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  # ─── 1. Check & Lint ────────────────────────────────────────────────
+  # 1. Проверка кода, форматирование и линтинг
   check:
     name: Check & Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout репозитория
+        uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
+      - name: Установка Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
 
-      - name: Cache cargo registry
-        uses: actions/cache@v5
+      - name: Кэш зависимостей Cargo
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -33,24 +36,24 @@ jobs:
             rust/target
           key: ${{ runner.os }}-check-${{ hashFiles('rust/Cargo.lock') }}
 
-      - name: Install system deps
+      - name: Установка системных зависимостей
         run: |
           sudo apt-get update -q
           sudo apt-get install -y --no-install-recommends libssl-dev pkg-config libsqlite3-dev
 
-      - name: Check formatting
+      - name: Проверка форматирования
         working-directory: rust
         run: cargo fmt --all -- --check
 
-      - name: Cargo check
+      - name: Компиляция (check)
         working-directory: rust
         run: cargo check --all-features
 
-      - name: Clippy (deny warnings)
+      - name: Clippy (запрет предупреждений)
         working-directory: rust
         run: cargo clippy --all-features -- -D warnings
 
-  # ─── 2. Test ─────────────────────────────────────────────────────────
+  # 2. Тесты на нескольких ОС и архитектурах
   test:
     name: Test (${{ matrix.os }})
     needs: [check]
@@ -60,13 +63,14 @@ jobs:
         os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-13]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout репозитория
+        uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
+      - name: Установка Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache cargo registry
-        uses: actions/cache@v5
+      - name: Кэш зависимостей Cargo
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -74,31 +78,31 @@ jobs:
             rust/target
           key: ${{ runner.os }}-test-${{ hashFiles('rust/Cargo.lock') }}
 
-      - name: Install system deps (Linux)
+      - name: Системные зависимости (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update -q
           sudo apt-get install -y --no-install-recommends libssl-dev pkg-config libsqlite3-dev
 
-      - name: Install system deps (macOS)
+      - name: Системные зависимости (macOS)
         if: runner.os == 'macOS'
-        run: |
-          brew install openssl pkg-config sqlite
+        run: brew install openssl pkg-config sqlite
         env:
           PKG_CONFIG_PATH: /opt/homebrew/opt/openssl@3/lib/pkgconfig:/usr/local/opt/openssl@3/lib/pkgconfig
 
-      - name: Build
+      - name: Сборка релизной версии
         working-directory: rust
         run: cargo build --release
 
-      - name: Run tests
+      - name: Запуск тестов
         working-directory: rust
         env:
           SEMAPHORE_DB_PATH: /tmp/test.db
           SEMAPHORE_JWT_SECRET: test-ci-secret-key-32-bytes-long!
         run: cargo test --release --features postgres -- --test-threads=4 --skip api_integration --skip kubernetes_integration
 
-      - name: Upload binary artifact
+      # Загрузка артефактов для разных платформ
+      - name: Upload Linux AMD64
         if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
@@ -106,7 +110,7 @@ jobs:
           path: rust/target/release/velum
           retention-days: 7
 
-      - name: Upload binary artifact (Linux ARM64)
+      - name: Upload Linux ARM64
         if: matrix.os == 'ubuntu-24.04-arm'
         uses: actions/upload-artifact@v4
         with:
@@ -114,7 +118,7 @@ jobs:
           path: rust/target/release/velum
           retention-days: 7
 
-      - name: Upload binary artifact (macOS ARM64)
+      - name: Upload macOS ARM64
         if: matrix.os == 'macos-latest'
         uses: actions/upload-artifact@v4
         with:
@@ -122,7 +126,7 @@ jobs:
           path: rust/target/release/velum
           retention-days: 7
 
-      - name: Upload binary artifact (macOS AMD64)
+      - name: Upload macOS AMD64
         if: matrix.os == 'macos-13'
         uses: actions/upload-artifact@v4
         with:
@@ -130,38 +134,40 @@ jobs:
           path: rust/target/release/velum
           retention-days: 7
 
-  # ─── 3. Security Audit ──────────────────────────────────────────────
+  # 3. Аудит безопасности зависимостей
   security:
     name: Security Audit
     needs: [check]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo install cargo-audit --quiet
-      - name: Audit
+      - name: Checkout репозитория
+        uses: actions/checkout@v4
+      - name: Установка Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Установка cargo-audit
+        run: cargo install cargo-audit --quiet
+      - name: Запуск аудита
         working-directory: rust
         run: cargo audit
 
-  # ─── 4. Coverage ────────────────────────────────────────────────────
+  # 4. Сборка отчёта покрытия (только main)
   coverage:
     name: Coverage
     needs: [test]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
-      - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
-
-      - name: Install deps
+      - name: Checkout репозитория
+        uses: actions/checkout@v4
+      - name: Установка Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Системные зависимости
         run: |
           sudo apt-get update -q
           sudo apt-get install -y --no-install-recommends libssl-dev pkg-config libsqlite3-dev
-
-      - name: Install cargo-tarpaulin
+      - name: Установка cargo-tarpaulin
         run: cargo install cargo-tarpaulin --locked
-
-      - name: Run coverage
+      - name: Запуск покрытия
         working-directory: rust
         env:
           SEMAPHORE_DB_PATH: /tmp/test.db
@@ -174,15 +180,14 @@ jobs:
             --out Xml \
             --output-dir ../coverage \
             --exclude-files tests/*
-
-      - name: Upload coverage report
+      - name: Сохранение отчёта
         uses: actions/upload-artifact@v4
         with:
           name: rust-coverage-cobertura
           path: coverage/cobertura.xml
           retention-days: 7
 
-  # ─── 5. Docker Build ────────────────────────────────────────────────
+  # 5. Сборка Docker-образа (main / develop)
   docker:
     name: Docker Build
     needs: [test]
@@ -195,22 +200,19 @@ jobs:
       REGISTRY: ghcr.io
       IMAGE_NAME: ${{ github.repository }}
     steps:
-      - uses: actions/checkout@v6
-
-      - name: Set up QEMU
+      - name: Checkout репозитория
+        uses: actions/checkout@v4
+      - name: Настройка QEMU
         uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
+      - name: Настройка Docker Buildx
         uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GHCR
+      - name: Авторизация в GHCR
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
+      - name: Метаданные образа
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -220,9 +222,8 @@ jobs:
             type=sha
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=raw,value=staging,enable=${{ github.ref == 'refs/heads/develop' }}
-
-      - name: Build & push Docker image
-        uses: docker/build-push-action@v6
+      - name: Сборка и публикация
+        uses: docker/build-push-action@v5
         with:
           context: .
           file: Dockerfile
@@ -233,7 +234,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # ─── 6. E2E Smoke Test ─────────────────────────────────────────────
+  # 6. E2E Smoke-тесты (только main)
   e2e:
     name: E2E Smoke Test
     needs: [docker]
@@ -254,17 +255,15 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v6
-
-      - name: Install Rust
+      - name: Checkout репозитория
+        uses: actions/checkout@v4
+      - name: Установка Rust
         uses: dtolnay/rust-toolchain@stable
-
-      - name: Install deps
+      - name: Системные зависимости
         run: |
           sudo apt-get update -q
           sudo apt-get install -y --no-install-recommends libssl-dev pkg-config libsqlite3-dev jq
-
-      - name: Wait for DB
+      - name: Ожидание готовности БД
         run: |
           for i in $(seq 1 30); do
             if pg_isready -h localhost -p 5432 -U velum 2>/dev/null; then
@@ -275,8 +274,7 @@ jobs:
           done
           echo "DB timeout"
           exit 1
-
-      - name: Build & start server
+      - name: Сборка и запуск сервера
         env:
           VELUM_DB_URL: postgres://velum:velum_pass@localhost:5432/velum
           VELUM_DB_DIALECT: postgres
@@ -288,7 +286,7 @@ jobs:
           cd rust && cargo build --release
           ./target/release/velum server --host 0.0.0.0 --port 3000 &
           SERVER_PID=$!
-          echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+          echo "SERVER_PID=$SERVER_PID" >> "$GITHUB_ENV"
           for i in $(seq 1 60); do
             if curl -sf http://localhost:3000/healthz >/dev/null 2>&1; then
               echo "Server ready"
@@ -297,54 +295,48 @@ jobs:
             sleep 2
           done
           echo "Server timeout"
-          kill $SERVER_PID 2>/dev/null
+          kill "$SERVER_PID" 2>/dev/null || true
           exit 1
-
-      - name: Health checks
+      - name: Проверка health-эндпоинтов
         run: |
           curl -sf http://localhost:3000/healthz
           curl -sf http://localhost:3000/readyz
           echo "Health endpoints OK"
-
-      - name: API smoke tests
+      - name: API smoke-тесты
         run: |
           TOKEN=$(curl -sf -X POST http://localhost:3000/api/auth/login \
             -H 'Content-Type: application/json' \
-            -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
+            -d '{ "username": "admin", "password": "admin123" }' | jq -r '.token')
           echo "Auth OK"
-
-          curl -sf http://localhost:3000/api/projects -H "Authorization: Bearer $TOKEN" > /dev/null
+          curl -sf http://localhost:3000/api/projects -H "Authorization: Bearer $TOKEN" >/dev/null
           echo "Projects API OK"
-
-          curl -sf http://localhost:3000/api/templates -H "Authorization: Bearer $TOKEN" > /dev/null
+          curl -sf http://localhost:3000/api/templates -H "Authorization: Bearer $TOKEN" >/dev/null
           echo "Templates API OK"
-
           echo "All smoke tests passed ✅"
-
-      - name: Cleanup
+      - name: Очистка процессов
         if: always()
-        run: kill $SERVER_PID 2>/dev/null || true
+        run: kill "$SERVER_PID" 2>/dev/null || true
 
-  # ─── 7. Documentation ───────────────────────────────────────────────
+  # 7. Генерация документации
   docs:
     name: Build Documentation
     needs: [check]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
-      - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
-
-      - name: Generate docs
+      - name: Checkout репозитория
+        uses: actions/checkout@v4
+      - name: Установка Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Генерация документации
         working-directory: rust
-        run: cargo doc --no-deps 2>&1
-
-      - name: Upload docs artifact
+        run: cargo doc --no-deps 2>&1 | tee /tmp/doc.log
+      - name: Сохранение артефакта
         uses: actions/upload-pages-artifact@v3
         with:
           path: rust/target/doc/velum_ffi/
 
-  # ─── 8. Deploy Docs ─────────────────────────────────────────────────
+  # 8. Деплой документации на GitHub Pages
   deploy-docs:
     name: Deploy Docs
     needs: [docs]
@@ -356,52 +348,46 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Deploy to GitHub Pages
+      - name: Публикация
         id: deployment
         uses: actions/deploy-pages@v4
 
-  # ─── 9. Collect binaries for release ────────────────────────────────
+  # 9. Сборка релизных бинарников (агрегация)
   collect-binaries:
     name: Collect Binaries
     needs: [test]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-
+      - name: Checkout репозитория
+        uses: actions/checkout@v4
       - name: Download Linux AMD64
         uses: actions/download-artifact@v4
         with:
           name: velum-linux-amd64
-          path: release/velum-linux-amd64
-
+          path: release/linux-amd64
       - name: Download Linux ARM64
         uses: actions/download-artifact@v4
         with:
           name: velum-linux-arm64
-          path: release/velum-linux-arm64
-
+          path: release/linux-arm64
       - name: Download Darwin AMD64
         uses: actions/download-artifact@v4
         with:
           name: velum-darwin-amd64
-          path: release/velum-darwin-amd64
-
+          path: release/darwin-amd64
       - name: Download Darwin ARM64
         uses: actions/download-artifact@v4
         with:
           name: velum-darwin-arm64
-          path: release/velum-darwin-arm64
-
-      - name: Rename binaries
+          path: release/darwin-arm64
+      - name: Переименование бинарников
         run: |
           for dir in release/*/; do
-            cd "$dir"
-            mv velum "$(basename $(dirname $PWD))"
-            cd ../..
+            platform=$(basename "$dir")
+            mv "$dir/velum" "$dir/velum-$platform"
           done
-
-      - name: Upload release assets
+      - name: Архивация релиза
         uses: actions/upload-artifact@v4
         with:
           name: release-binaries

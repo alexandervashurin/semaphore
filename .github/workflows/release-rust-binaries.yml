@@ -1,3 +1,4 @@
+# .github/workflows/release-rust-binaries.yml
 name: Release Rust Binaries
 
 on:
@@ -15,6 +16,7 @@ permissions:
   contents: write
 
 jobs:
+  # Сборка Linux бинарников
   build-linux:
     name: Build Linux binaries
     strategy:
@@ -27,38 +29,30 @@ jobs:
             runner: ubuntu-24.04-arm
             asset_name: velum-linux-arm64
     runs-on: ${{ matrix.runner }}
-
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v6
-
-      - name: Install Rust toolchain
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Установка Rust
         uses: dtolnay/rust-toolchain@stable
-
-      - name: Install system dependencies
+      - name: Системные зависимости
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y --no-install-recommends \
-            libssl-dev \
-            pkg-config \
-            libsqlite3-dev
-
-      - name: Build release binary
+          sudo apt-get install -y --no-install-recommends libssl-dev pkg-config libsqlite3-dev
+      - name: Сборка релизного бинарника
         working-directory: rust
         run: cargo build --release
-
-      - name: Prepare asset
+      - name: Подготовка артефакта
         run: |
           cp "rust/target/release/velum" "${{ matrix.asset_name }}"
           chmod +x "${{ matrix.asset_name }}"
-
-      - name: Upload build artifact
+      - name: Загрузка артефакта
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
           path: ${{ matrix.asset_name }}
           retention-days: 7
 
+  # Сборка macOS бинарников
   build-macos:
     name: Build macOS binaries
     strategy:
@@ -71,46 +65,38 @@ jobs:
             runner: macos-latest
             asset_name: velum-darwin-arm64
     runs-on: ${{ matrix.runner }}
-
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v6
-
-      - name: Install Rust toolchain
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Установка Rust
         uses: dtolnay/rust-toolchain@stable
-
-      - name: Install system dependencies
-        run: |
-          brew install openssl pkg-config sqlite
-
-      - name: Build release binary
-        working-directory: rust
+      - name: Системные зависимости
+        run: brew install openssl pkg-config sqlite
         env:
-          # Homebrew prefix differs: /opt/homebrew (arm64) vs /usr/local (amd64)
           PKG_CONFIG_PATH: /opt/homebrew/opt/openssl@3/lib/pkgconfig:/usr/local/opt/openssl@3/lib/pkgconfig
+      - name: Сборка релизного бинарника
+        working-directory: rust
         run: cargo build --release
-
-      - name: Prepare asset
+      - name: Подготовка артефакта
         run: |
           cp "rust/target/release/velum" "${{ matrix.asset_name }}"
           chmod +x "${{ matrix.asset_name }}"
-
-      - name: Upload build artifact
+      - name: Загрузка артефакта
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
           path: ${{ matrix.asset_name }}
           retention-days: 7
 
+  # Публикация релиза в GitHub
   publish-release:
     name: Publish GitHub Release
     needs: [build-linux, build-macos]
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v6
-
-      - name: Resolve release tag
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Определение тега релиза
         id: tag
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -118,21 +104,18 @@ jobs:
           else
             echo "value=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Download release artifacts
-        uses: actions/download-artifact@v8
+      - name: Загрузка артефактов
+        uses: actions/download-artifact@v4
         with:
           path: dist
-
-      - name: Flatten artifacts
+      - name: Подготовка файлов релиза
         run: |
           mkdir -p release-assets
           cp dist/velum-linux-amd64/velum-linux-amd64   release-assets/
           cp dist/velum-linux-arm64/velum-linux-arm64   release-assets/
           cp dist/velum-darwin-amd64/velum-darwin-amd64 release-assets/
           cp dist/velum-darwin-arm64/velum-darwin-arm64 release-assets/
-
-      - name: Create GitHub Release
+      - name: Создание релиза
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

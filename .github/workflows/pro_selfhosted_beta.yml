@@ -1,6 +1,7 @@
+# .github/workflows/pro_selfhosted_beta.yml
 name: Pro Self-Hosted Release
 
-'on':
+on:
   push:
     tags:
       - v*-beta*
@@ -10,53 +11,40 @@ permissions:
   contents: write
 
 jobs:
+  # Пререлизная сборка (Go + Node + Task)
   prerelease:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v6
-
-      - name: Setup golang
-        uses: actions/setup-go@v6
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
         with:
-          go-version: '^1.24.6'
-
-      - name: Setup nodejs
-        uses: actions/setup-node@v6
+          go-version: "^1.23"
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: '24'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
           cache-dependency-path: web/package-lock.json
-
-      - name: Install go-task
-        run: |
-          go install github.com/go-task/task/v3/cmd/task@latest
-
-      - name: Install rpm
-        run: |
-          sudo apt update && sudo apt-get install rpm
-
-      - name: Add PRO implementation
+      - name: Установка go-task
+        run: go install github.com/go-task/task/v3/cmd/task@latest
+      - name: Установка rpm
+        run: sudo apt update && sudo apt-get install -y rpm
+      - name: Добавление PRO-модуля
         run: |
           git clone https://${{ secrets.GH_TOKEN }}@github.com/velum/velumpro-module.git pro_impl
           go work init . ./pro_impl
-
-      - name: Install deps
-        run: |
-          task deps APP_BUILD_TYPE=pro_selfhosted
-
-      - name: Import gnupg
+      - name: Установка зависимостей
+        run: task deps APP_BUILD_TYPE=pro_selfhosted
+      - name: Импорт GPG ключа
         run: |
           echo "${{ secrets.GPG_KEY }}" | tr " " "\n" | base64 -d | gpg --import --batch
           gpg --sign -u "${{ vars.GPG_KEY_ID }}" --pinentry-mode loopback --yes --batch --passphrase "${{ secrets.GPG_PASS }}" --output unlock.sig --detach-sign README.md
           rm -f unlock.sig
-
-      - name: Reset repo
-        run: |
-          git reset --hard
-
-      - name: Run release
+      - name: Сброс состояния репозитория
+        run: git reset --hard
+      - name: Запуск релиза
         run: |
           APP_BUILD_TYPE=pro_selfhosted \
           GITHUB_TOKEN=${{ github.token }} \
@@ -64,23 +52,20 @@ jobs:
           PROJECT_NAME=semaphore \
             task release:prod
 
+  # Сборка и публикация Docker-образов
   deploy-beta:
     runs-on: ubuntu-latest
     if: github.repository_owner == 'semaphoreui'
-
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v6
-
-      - name: Setup qemu
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Настройка QEMU
         id: qemu
         uses: docker/setup-qemu-action@v3
-
-      - name: Setup buildx
+      - name: Настройка Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Hub login
+        uses: docker/setup-buildx-action@v3
+      - name: Авторизация в ECR
         uses: docker/login-action@v3
         if: github.event_name != 'pull_request'
         with:
@@ -89,16 +74,14 @@ jobs:
           password: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         env:
           AWS_REGION: us-east-1
-
-      - name: Docker Hub login
+      - name: Авторизация в Docker Hub
         uses: docker/login-action@v3
         if: github.event_name != 'pull_request'
         with:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASS }}
 
-
-
+      # --- Server ---
       - name: Server meta
         id: server
         uses: docker/metadata-action@v5
@@ -111,11 +94,10 @@ jobs:
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
             maintainer=Velum <support@semaphoreui.com>
-          tags: |
-            type=raw,value=${{ github.ref_name }}
+          tags: type=raw,value=${{ github.ref_name }}
 
       - name: Server build
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@v5
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -123,7 +105,7 @@ jobs:
             GH_TOKEN=${{ secrets.GH_TOKEN }}
             APP_BUILD_TYPE=pro_selfhosted
           file: deployment/docker/server/Dockerfile
-          platforms: linux/amd64,linux/arm64 # ,linux/arm/v6
+          platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.server.outputs.labels }}
           tags: ${{ steps.server.outputs.tags }}
@@ -131,8 +113,8 @@ jobs:
           cache-to: type=gha,mode=max
           provenance: false
 
-      - name: Server build with Ansible 2.16.5
-        uses: docker/build-push-action@v7
+      - name: Server build (Ansible 2.16.5)
+        uses: docker/build-push-action@v5
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -141,7 +123,7 @@ jobs:
             GH_TOKEN=${{ secrets.GH_TOKEN }}
             APP_BUILD_TYPE=pro_selfhosted
           file: deployment/docker/server/Dockerfile
-          platforms: linux/amd64,linux/arm64 # ,linux/arm/v6
+          platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.server.outputs.labels }}
           tags: |
@@ -152,8 +134,8 @@ jobs:
           cache-to: type=gha,mode=max
           provenance: false
 
-      - name: Server build with PowerShell 7.5.0
-        uses: docker/build-push-action@v7
+      - name: Server build (PowerShell 7.5.0)
+        uses: docker/build-push-action@v5
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -175,8 +157,7 @@ jobs:
           cache-to: type=gha,mode=max
           provenance: false
 
-
-
+      # --- Runner ---
       - name: Runner meta
         id: runner
         uses: docker/metadata-action@v5
@@ -189,18 +170,17 @@ jobs:
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
             maintainer=Velum <support@semaphoreui.com>
-          tags: |
-            type=raw,value=${{ github.ref_name }}
+          tags: type=raw,value=${{ github.ref_name }}
 
       - name: Runner build
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@v5
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
           build-args: |
             GH_TOKEN=${{ secrets.GH_TOKEN }}
           file: deployment/docker/runner/Dockerfile
-          platforms: linux/amd64,linux/arm64 #,linux/arm/v6
+          platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.runner.outputs.labels }}
           tags: ${{ steps.runner.outputs.tags }}
@@ -208,8 +188,8 @@ jobs:
           cache-to: type=gha,mode=max
           provenance: false
 
-      - name: Runner build with Ansible 2.16.5
-        uses: docker/build-push-action@v7
+      - name: Runner build (Ansible 2.16.5)
+        uses: docker/build-push-action@v5
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -217,7 +197,7 @@ jobs:
             ANSIBLE_VERSION=9.4.0
             GH_TOKEN=${{ secrets.GH_TOKEN }}
           file: deployment/docker/runner/Dockerfile
-          platforms: linux/amd64,linux/arm64 #,linux/arm/v6
+          platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.runner.outputs.labels }}
           tags: |
@@ -228,8 +208,8 @@ jobs:
           cache-to: type=gha,mode=max
           provenance: false
 
-      - name: Runner build with PowerShell 7.5.0
-        uses: docker/build-push-action@v7
+      - name: Runner build (PowerShell 7.5.0)
+        uses: docker/build-push-action@v5
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .

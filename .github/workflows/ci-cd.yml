@@ -1,13 +1,11 @@
+# .github/workflows/ci-cd.yml
 name: CI/CD Pipeline
 
 on:
   push:
-    branches:
-      - main
-      - develop
+    branches: [main, develop]
   pull_request:
-    branches:
-      - main
+    branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
@@ -21,76 +19,73 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # ─── 1. Quality Gate ─────────────────────────────────────────────────
+  # 1. Качество кода
   quality:
     name: Quality Gate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Установка Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
-
-      - name: Install deps
+      - name: Системные зависимости
         run: |
           sudo apt-get update -q
           sudo apt-get install -y --no-install-recommends libssl-dev pkg-config libsqlite3-dev
-
-      - name: Format check
+      - name: Проверка форматирования
         working-directory: rust
         run: cargo fmt --all -- --check
-
-      - name: Build
+      - name: Сборка
         working-directory: rust
         run: cargo build --all-features
-
       - name: Clippy
         working-directory: rust
         run: cargo clippy --all-features -- -D warnings
-
-      - name: Tests
+      - name: Тесты
         working-directory: rust
         env:
           SEMAPHORE_DB_PATH: /tmp/test.db
           SEMAPHORE_JWT_SECRET: test-ci-secret-key-32-bytes-long!
         run: cargo test --features postgres -- --test-threads=4 --skip api_integration --skip kubernetes_integration
 
-  # ─── 2. Security Audit ───────────────────────────────────────────────
+  # 2. Аудит безопасности
   security:
     name: Security Audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo install cargo-audit --quiet
-      - name: Audit
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Установка Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Установка cargo-audit
+        run: cargo install cargo-audit --quiet
+      - name: Аудит
         working-directory: rust
         run: cargo audit
 
-  # ─── 3. Docker Image (staging) ───────────────────────────────────────
+  # 3. Docker Staging
   docker-staging:
     name: Docker Staging
     needs: [quality, security]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     steps:
-      - uses: actions/checkout@v6
-
-      - name: Set up QEMU
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Настройка QEMU
         uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
+      - name: Настройка Buildx
         uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GHCR
+      - name: Авторизация в GHCR
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build & push staging
-        uses: docker/build-push-action@v6
+      - name: Сборка и публикация
+        uses: docker/build-push-action@v5
         with:
           context: .
           file: Dockerfile
@@ -101,30 +96,27 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # ─── 4. Docker Image (latest) ────────────────────────────────────────
+  # 4. Docker Latest
   docker-latest:
     name: Docker Latest
     needs: [quality, security]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
-      - uses: actions/checkout@v6
-
-      - name: Set up QEMU
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Настройка QEMU
         uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
+      - name: Настройка Buildx
         uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GHCR
+      - name: Авторизация в GHCR
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build & push latest
-        uses: docker/build-push-action@v6
+      - name: Сборка и публикация
+        uses: docker/build-push-action@v5
         with:
           context: .
           file: Dockerfile
@@ -135,7 +127,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # ─── 5. E2E Smoke Test ──────────────────────────────────────────────
+  # 5. E2E Smoke Test
   e2e-smoke:
     name: E2E Smoke Test
     needs: [docker-latest]
@@ -156,9 +148,9 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v6
-
-      - name: Wait for DB
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Ожидание БД
         run: |
           for i in $(seq 1 30); do
             if pg_isready -h localhost -p 5432 -U velum 2>/dev/null; then
@@ -169,8 +161,7 @@ jobs:
           done
           echo "DB timeout"
           exit 1
-
-      - name: Run server (background)
+      - name: Запуск сервера
         env:
           VELUM_DB_URL: postgres://velum:velum_pass@localhost:5432/velum
           VELUM_DB_DIALECT: postgres
@@ -181,7 +172,7 @@ jobs:
         run: |
           cd rust && cargo run --release -- server --host 0.0.0.0 --port 3000 &
           SERVER_PID=$!
-          echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+          echo "SERVER_PID=$SERVER_PID" >> "$GITHUB_ENV"
           for i in $(seq 1 60); do
             if curl -sf http://localhost:3000/healthz >/dev/null 2>&1; then
               echo "Server ready"
@@ -190,55 +181,45 @@ jobs:
             sleep 2
           done
           echo "Server timeout"
-          kill $SERVER_PID 2>/dev/null
+          kill "$SERVER_PID" 2>/dev/null || true
           exit 1
-
       - name: Health check
         run: |
           curl -sf http://localhost:3000/healthz
           curl -sf http://localhost:3000/readyz
-
       - name: API smoke tests
         run: |
-          # Login
           TOKEN=$(curl -sf -X POST http://localhost:3000/api/auth/login \
             -H 'Content-Type: application/json' \
-            -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
-
+            -d '{ "username": "admin", "password": "admin123" }' | jq -r '.token')
           echo "Got token: ${TOKEN:0:10}..."
-
-          # Get projects
           curl -sf http://localhost:3000/api/projects -H "Authorization: Bearer $TOKEN"
-
-          # Get templates
           curl -sf http://localhost:3000/api/templates -H "Authorization: Bearer $TOKEN"
-
           echo "All smoke tests passed"
-
-      - name: Cleanup
+      - name: Очистка
         if: always()
-        run: kill $SERVER_PID 2>/dev/null || true
+        run: kill "$SERVER_PID" 2>/dev/null || true
 
-  # ─── 6. Documentation ───────────────────────────────────────────────
+  # 6. Документация
   docs:
     name: Build Documentation
     needs: [quality]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
-      - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
-
-      - name: Generate docs
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Установка Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Генерация
         working-directory: rust
         run: cargo doc --no-deps 2>&1 | tee /tmp/doc.log
-
-      - name: Upload docs artifact
+      - name: Сохранение
         uses: actions/upload-pages-artifact@v3
         with:
           path: rust/target/doc/velum_ffi/
 
-  # ─── 7. GitHub Pages Deployment ─────────────────────────────────────
+  # 7. Деплой на GitHub Pages
   deploy-docs:
     name: Deploy Docs to GitHub Pages
     needs: [docs]
@@ -251,6 +232,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Deploy to GitHub Pages
+      - name: Публикация
         id: deployment
         uses: actions/deploy-pages@v4
