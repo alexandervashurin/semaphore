@@ -1,6 +1,6 @@
 //! Logging initialization.
 
-use crate::config::{load_logging_from_env, LogFormat};
+use crate::config::{LogFormat, load_logging_from_env};
 use tracing_subscriber::{self, EnvFilter};
 
 /// Initializes application logging.
