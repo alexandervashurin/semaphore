@@ -227,11 +227,19 @@ jobs:
       - name: Генерация
         working-directory: rust
         run: cargo doc --no-deps 2>&1 | tee /tmp/doc.log
+      - name: Подготовка к загрузке
+        run: |
+          mkdir -p public
+          cp -r rust/target/doc/* public/
+          if [ ! -f public/index.html ]; then
+            echo '<meta http-equiv="refresh" content="0;url=velum_ffi/">' \
+              > public/index.html
+          fi
       - name: Сохранение артефакта
         uses: actions/upload-artifact@v4
         with:
-          name: documentation
-          path: rust/target/doc/
+          name: github-pages
+          path: public/
           retention-days: 1
 
   # 7. Деплой на GitHub Pages
@@ -247,19 +255,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Загрузка артефакта
-        uses: actions/download-artifact@v4
-        with:
-          name: documentation
-          path: public
-      - name: Добавление index.html
-        run: |
-          if [ ! -f public/index.html ]; then
-            echo '<meta http-equiv="refresh" content="0;url=velum_ffi/">' \
-              > public/index.html
-          fi
       - name: Публикация
         id: deployment
         uses: actions/deploy-pages@v4
-        with:
-          upload_url: https://pages.github.com
