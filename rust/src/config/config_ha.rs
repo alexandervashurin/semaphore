@@ -80,7 +80,7 @@ impl HAConfigFull {
     /// Генерирует случайный Node ID
     pub fn generate_node_id(&mut self) {
         use rand::RngCore;
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let mut bytes = [0u8; 16];
         rng.fill_bytes(&mut bytes);
         self.node_id = bytes

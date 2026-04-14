@@ -46,8 +46,8 @@ async-graphql = { version = "7.0", features = ["chrono", "uuid"] }
 async-graphql-axum = "7.0"
 utoipa = "5"
 
-# Telegram Bot
-teloxide = { version = "0.13", features = ["macros"] }
+# Telegram Bot (прямой HTTP через reqwest — без teloxide runtime)
+# teloxide удалена — unmaintained (proc-macro-error, rustls-pemfile)
 
 # Prometheus метрики (обновлено для устранения RUSTSEC-2024-0437 - protobuf уязвимость)
 prometheus = "0.14"
@@ -82,7 +82,8 @@ validator = { version = "0.20", features = ["derive"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 bcrypt = "0.17"
 dotenvy = "0.15"
-rand = "0.8"  # Для rsa crate
+rand = "0.9"
+rand_core = "0.6"
 dashmap = "6"
 
 # Email (mailer)
@@ -250,8 +251,21 @@ debug = true
 # sqlx использует RSA только для SCRAM-SHA-256 handshake при подключении к PostgreSQL
 # (серверная аутентификация, не наш код). Исправление — на стороне sqlx/PostgreSQL драйвера.
 # Ref: RUSTSEC-2023-0071
+#
+# Транзитивные unmaintained/unsound зависимости (2026-04-14):
+# - RUSTSEC-2025-0012 (backoff 0.4.0 unmaintained) — kube-runtime → kube
+# - RUSTSEC-2024-0384 (instant 0.1.13 unmaintained) — backoff → kube-runtime → kube
+# - RUSTSEC-2025-0134 (rustls-pemfile 2.2.0 unmaintained) — kube-client + rustls-native-certs
+# - RUSTSEC-2026-0097 (rand 0.8.5 unsound) — sqlx, oauth2, kube-client, wasmtime, backoff
+#   Прямая зависимость rand обновлена до 0.9; транзитивные — на стороне upstream крейтов.
+#   Проблема unsound проявляется только при custom logger + rand::rng(), не наш случай.
+# Обновление kube 0.98 → 3.x, sqlx → rand 0.9 — масштабные breaking changes (TODO)
 [package.metadata.cargo-audit.ignore]
 RUSTSEC-2023-0071 = "rsa pulled by sqlx-postgres for SCRAM auth only, not our RSA usage"
+RUSTSEC-2025-0012 = "backoff 0.4.0 unmaintained — transitively via kube-runtime, upstream fix needed"
+RUSTSEC-2024-0384 = "instant 0.1.13 unmaintained — transitively via backoff → kube-runtime, upstream fix needed"
+RUSTSEC-2025-0134 = "rustls-pemfile 2.2.0 unmaintained — transitively via kube-client + rustls-native-certs, upstream fix needed"
+RUSTSEC-2026-0097 = "rand 0.8.5 unsound — transitively via sqlx/oauth2/kube-client/wasmtime/backoff; direct rand updated to 0.9"
 
 # Флаги для разных баз данных
 [features]

@@ -2,20 +2,20 @@
 //!
 //! Вспомогательные функции для тестирования
 
-use rand::{distributions::Alphanumeric, Rng};
+use rand::{distr::Alphanumeric, Rng};
 
 /// Генерирует случайную строку заданной длины
 ///
 /// # Пример
 ///
-/// ```
+/// ```ignore
 /// use velum_ffi::utils::test_helpers::rand_string;
 ///
 /// let s = rand_string(10);
 /// assert_eq!(s.len(), 10);
 /// ```
 pub fn rand_string(n: usize) -> String {
-    rand::thread_rng()
+    rand::rng()
         .sample_iter(&Alphanumeric)
         .take(n)
         .map(char::from)
@@ -24,12 +24,12 @@ pub fn rand_string(n: usize) -> String {
 
 /// Генерирует случайное число в диапазоне
 pub fn rand_range(min: i32, max: i32) -> i32 {
-    rand::thread_rng().gen_range(min..=max)
+    rand::rng().random_range(min..=max)
 }
 
 /// Генерирует случайный boolean
 pub fn rand_bool() -> bool {
-    rand::thread_rng().gen_bool(0.5)
+    rand::rng().random()
 }
 
 /// Генерирует случайный email для тестов

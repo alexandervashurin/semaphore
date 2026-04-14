@@ -69,7 +69,7 @@ pub fn generate_recovery_code() -> (String, String) {
     use rand::RngCore;
 
     // Генерируем случайный код
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let mut bytes = [0u8; 16];
     rng.fill_bytes(&mut bytes);
 

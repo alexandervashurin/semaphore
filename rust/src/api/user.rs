@@ -55,7 +55,7 @@ pub async fn create_api_token(
 > {
     // Генерируем случайный токен
     let mut token_bytes = vec![0u8; 32];
-    rand::thread_rng().fill_bytes(&mut token_bytes);
+    rand::rng().fill_bytes(&mut token_bytes);
     let token_str = base64::engine::general_purpose::STANDARD.encode(&token_bytes);
 
     let token = state
@@ -146,7 +146,7 @@ impl UserController {
     ) -> Result<(StatusCode, Json<APIToken>)> {
         // Генерируем случайный токен
         let mut token_bytes = vec![0u8; 32];
-        rand::thread_rng().fill_bytes(&mut token_bytes);
+        rand::rng().fill_bytes(&mut token_bytes);
         let token_str = base64::engine::general_purpose::STANDARD.encode(&token_bytes);
 
         let token = state

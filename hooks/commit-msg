@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# .git/hooks/commit-msg
+# 🎯 Цель: Стандартизация сообщений коммитов (Conventional Commits)
+# 🛑 Пропуск: SKIP_COMMIT_MSG=1
+
+if [ "${SKIP_COMMIT_MSG:-0}" = "1" ]; then exit 0; fi
+
+COMMIT_MSG_FILE=$1
+COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+
+# Пропускаем merge-коммиты
+if echo "$COMMIT_MSG" | grep -qE "^Merge "; then exit 0; fi
+
+# Регулярка для Conventional Commits
+# feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert[(scope)]: description
+PATTERN="^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9\-\/]+\))?!?: .+"
+
+if ! echo "$COMMIT_MSG" | grep -qE "$PATTERN"; then
+  echo "❌ Сообщение коммита не соответствует стандарту Conventional Commits."
+  echo "📖 Примеры:"
+  echo "   feat(api): add user authentication endpoint"
+  echo "   fix(db): resolve connection pool leak"
+  echo "   chore: update dependencies"
+  echo ""
+  echo "🛑 Коммит отменён. Исправь сообщение или используй SKIP_COMMIT_MSG=1"
+  exit 1
+fi
+
+echo "✅ commit-msg: сообщение валидно."
+exit 0

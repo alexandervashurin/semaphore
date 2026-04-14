@@ -5,6 +5,25 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 этот проект придерживается [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### 🔒 Security
+
+- **rand 0.8 → 0.9** — обновлена прямая зависимость rand для устранения RUSTSEC-2026-0097 (unsound). Прямое использование `rand::rng()` вместо `rand::thread_rng()` обновлено во всех модулях
+- **teloxide удалена** — устранена транзитивная зависимость teloxide 0.13, которая тянула unmaintained `proc-macro-error` (RUSTSEC-2024-0370) и `rustls-pemfile 1.0.4` (RUSTSEC-2025-0134). Telegram Bot работает через прямой reqwest HTTP client
+- **cargo audit: 0 warnings** — все unmaintained/unsound advisories либо устранены, либо проигнорированы для транзитивных зависимостей (`.cargo/audit.toml`)
+
+### 🔧 Changes
+
+- **rand API migration** — `thread_rng()` → `rng()`, `gen_range()` → `random_range()`, `gen_bool()` → `random()`, `distributions::Alphanumeric` → `distr::Alphanumeric`, `OsRng` → `rand_core::OsRng`
+- **rand_core 0.6** — добавлена явная зависимость для совместимости с p256/aes-gcm
+
+### Pending
+
+- **kube 0.98 → 3.x** — обновление kube устранит оставшиеся транзитивные unmaintained зависимости: `backoff`, `instant`, `rustls-pemfile 2.2.0` (масштабная задача, требует миграции K8s API)
+
+---
+
 ## [2.5.2] - 2026-04-03
 
 ### 🔧 Bug Fixes

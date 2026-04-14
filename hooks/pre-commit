@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# .git/hooks/pre-commit
+# 🎯 Цель: Автоматическая проверка качества кода перед коммитом
+# 🛑 Пропуск: SKIP_PRE_COMMIT=1 git commit -m "..."
+
+set -euo pipefail
+
+# Экстренный пропуск
+if [ "${SKIP_PRE_COMMIT:-0}" = "1" ]; then
+  echo "⚠️  Хук pre-commit пропущен (SKIP_PRE_COMMIT=1)"
+  exit 0
+fi
+
+echo "🔍 Запуск pre-commit проверок..."
+
+# Получаем только staged-файлы (добавленные/изменённые/переименованные)
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM || true)
+[ -z "$STAGED_FILES" ] && echo "✅ Нет staged-файлов. Пропуск." && exit 0
+
+EXIT_CODE=0
+
+# 🦀 RUST: Проверка форматирования и линтинг
+if echo "$STAGED_FILES" | grep -qE '\.(rs)$|^Cargo\.(toml|lock)$'; then
+  echo "🦀 Rust: проверка форматирования и clippy..."
+  if command -v cargo &>/dev/null; then
+    cargo fmt --all -- --check || { echo "❌ cargo fmt failed. Run 'cargo fmt --all'"; EXIT_CODE=1; }
+    # clippy запускаем только если есть Cargo.toml в корне
+    [ -f "Cargo.toml" ] && cargo clippy --all-features -- -D warnings || true
+  else
+    echo "⚠️  cargo не найден. Пропуск Rust-проверок."
+  fi
+fi
+
+# 🐍 PYTHON: Ruff (линтер + форматтер)
+if echo "$STAGED_FILES" | grep -qE '\.(py)$|^requirements.*\.txt$|^pyproject\.toml$'; then
+  echo "🐍 Python: ruff check & format..."
+  if command -v ruff &>/dev/null; then
+    ruff check . || EXIT_CODE=1
+    ruff format --check . || { echo "❌ ruff format failed. Run 'ruff format .'"; EXIT_CODE=1; }
+  else
+    echo "⚠️  ruff не найден. Пропуск Python-проверок."
+  fi
+fi
+
+# ☕ CLOJURE: cljfmt (если установлен как CLI или lein plugin)
+if echo "$STAGED_FILES" | grep -qE '\.(clj|cljs|cljc|edn)$|^project\.clj$|^deps\.edn$'; then
+  echo "☕ Clojure: проверка формата..."
+  if command -v cljfmt &>/dev/null; then
+    cljfmt check || { echo "❌ cljfmt failed. Run 'cljfmt fix'"; EXIT_CODE=1; }
+  elif command -v lein &>/dev/null && grep -q cljfmt project.clj 2>/dev/null; then
+    lein cljfmt check || { echo "❌ lein cljfmt failed"; EXIT_CODE=1; }
+  else
+    echo "⚠️  cljfmt не найден. Пропуск Clojure-проверок."
+  fi
+fi
+
+# 🐚 BASH: shellcheck
+if echo "$STAGED_FILES" | grep -qE '\.(sh|bash)$'; then
+  echo "🐚 Bash: shellcheck..."
+  if command -v shellcheck &>/dev/null; then
+    # Фильтруем только .sh файлы из staged
+    BASH_FILES=$(echo "$STAGED_FILES" | grep -E '\.(sh|bash)$' || true)
+    [ -n "$BASH_FILES" ] && shellcheck $BASH_FILES || EXIT_CODE=1
+  else
+    echo "⚠️  shellcheck не найден. Пропуск Bash-проверок."
+  fi
+fi
+
+# 🧹 YAML/JSON: базовая проверка синтаксиса (опционально)
+if echo "$STAGED_FILES" | grep -qE '\.(yml|yaml)$'; then
+  echo "📄 YAML: проверка синтаксиса..."
+  if command -v yamllint &>/dev/null; then
+    YAML_FILES=$(echo "$STAGED_FILES" | grep -E '\.(yml|yaml)$' || true)
+    [ -n "$YAML_FILES" ] && yamllint -d relaxed $YAML_FILES || EXIT_CODE=1
+  fi
+fi
+
+if [ $EXIT_CODE -ne 0 ]; then
+  echo "❌ pre-commit: обнаружены ошибки. Исправь их и повтори коммит."
+  echo "💡 Экстренный пропуск: SKIP_PRE_COMMIT=1 git commit ..."
+  exit 1
+fi
+
+echo "✅ pre-commit: все проверки пройдены успешно."
+exit 0

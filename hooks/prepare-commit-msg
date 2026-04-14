@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# .git/hooks/prepare-commit-msg
+# 🎯 Цель: Авто-префикс коммита именем ветки или тикетом (Jira/GitHub)
+# 🛑 Пропуск: Не требуется (умный пропуск merge/amend)
+
+COMMIT_MSG_FILE=$1
+COMMIT_SOURCE=$2 # merge, commit, template, message
+
+# Не трогаем merge, amend и коммиты с явным сообщением (-m)
+[ "$COMMIT_SOURCE" = "merge" ] && exit 0
+[ "$COMMIT_SOURCE" = "commit" ] && exit 0
+[ -n "$3" ] && exit 0 # $3 = SHA при amend
+
+BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || echo "")
+[ -z "$BRANCH" ] && exit 0
+
+# Игнорируем основные ветки
+if echo "$BRANCH" | grep -qE "^(main|master|develop|staging)$"; then
+  exit 0
+fi
+
+# Извлекаем тикет вида PROJ-123 или используем имя ветки
+TICKET=$(echo "$BRANCH" | grep -oE "[A-Z]+-[0-9]+" || echo "$BRANCH")
+
+CURRENT_MSG=$(cat "$COMMIT_MSG_FILE")
+
+# Не дублируем префикс, если он уже есть
+if ! echo "$CURRENT_MSG" | grep -q "\[$TICKET\]"; then
+  echo "[$TICKET] $CURRENT_MSG" > "$COMMIT_MSG_FILE"
+  echo "🏷️  Добавлен префикс: [$TICKET]"
+fi
+
+exit 0

@@ -66,7 +66,7 @@ pub fn aes256_decrypt(encoded: &str, key: &[u8; 32]) -> Result<Vec<u8>, Encrypti
 pub fn generate_private_key<W: Write>(
     private_key_file: &mut W,
 ) -> Result<KeyPair, EncryptionError> {
-    let signing_key = SigningKey::random(&mut rand::rngs::OsRng);
+    let signing_key = SigningKey::random(&mut rand_core::OsRng);
     let private_pem = signing_key
         .to_pkcs8_pem(LineEnding::LF)
         .map_err(|e| EncryptionError::Encoding(e.to_string()))?;

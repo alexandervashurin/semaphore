@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# .git/hooks/pre-push
+# 🎯 Цель: Защита основных веток + лёгкая проверка перед пушем
+# 🛑 Пропуск: SKIP_PRE_PUSH=1
+
+if [ "${SKIP_PRE_PUSH:-0}" = "1" ]; then exit 0; fi
+
+REMOTE=$1
+PROTECTED="main develop master"
+CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || echo "detached")
+
+# 🛡️ Блокировка force-push в защищённые ветки
+if echo "$PROTECTED" | grep -qw "$CURRENT_BRANCH"; then
+  # git pre-push не передаёт флаг force напрямую, проверяем через GIT_PUSH_OPTION или reflog
+  if [ "${GIT_PUSH_OPTION:-}" = "force" ] || git rev-parse --verify @{u} &>/dev/null; then
+    # Дополнительная проверка: если локальная ветка diverged и пуш идёт с --force
+    echo "⚠️  Внимание: пуш в защищённую ветку '$CURRENT_BRANCH'"
+    echo "💡 Рекомендуется использовать Pull/Merge Request"
+  fi
+fi
+
+echo "🚀 Запуск pre-push проверок..."
+
+# ⚡ Быстрая проверка компиляции (не запускает тесты, чтобы не тормозить)
+if [ -f "Cargo.toml" ]; then
+  echo "🦀 Rust: проверка компиляции..."
+  cargo check --all-features --quiet || { echo "❌ cargo check failed"; exit 1; }
+fi
+
+if [ -f "requirements.txt" ] || [ -f "pyproject.toml" ]; then
+  echo "🐍 Python: синтаксическая проверка..."
+  python3 -m py_compile $(find . -name "*.py" -not -path "./.venv/*" -not -path "./venv/*" | head -20) 2>/dev/null || true
+fi
+
+echo "✅ pre-push: проверки пройдены. Отправляю код..."
+exit 0

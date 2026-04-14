@@ -302,7 +302,7 @@ impl HAConfig {
     /// Генерирует случайный Node ID
     pub fn generate_node_id(&mut self) {
         use rand::RngCore;
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let mut bytes = [0u8; 16];
         rng.fill_bytes(&mut bytes);
         self.node_id = bytes
@@ -655,7 +655,7 @@ impl Config {
     pub fn generate_secrets(&mut self) {
         use rand::RngCore;
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         self.cookie_hash = vec![0u8; 32];
         rng.fill_bytes(&mut self.cookie_hash);
@@ -677,7 +677,7 @@ impl Config {
     /// Инициализирует ID узла HA
     pub fn init_ha_node_id(&mut self) {
         use rand::RngCore;
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let mut bytes = [0u8; 16];
         rng.fill_bytes(&mut bytes);
         self.ha.node_id = bytes

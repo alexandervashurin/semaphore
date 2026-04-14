@@ -425,7 +425,7 @@ pub fn get_schedule_by_template(template_id: i32, schedules: &[Schedule]) -> Opt
 
 /// Генерирует случайное имя
 pub fn get_random_name(name: &str) -> String {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let mut random_bytes = [0u8; 10];
     rng.fill_bytes(&mut random_bytes);
     format!("{} - {}", name, hex::encode(random_bytes))

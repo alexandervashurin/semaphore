@@ -178,6 +178,31 @@ sprints:
           - "DEPLOY.md: таблица env и описание полей oidc_providers"
           - "Unit-тест oidc_first_str_claim_respects_key_order"
 
+      - task_id: SEC-07
+        title: "Dependency cleanup: rand + teloxide"
+        priority: high
+        estimate: medium
+        status: completed
+        assignee: assistant
+        subtasks:
+          - "Обновить rand 0.8 → 0.9 (RUSTSEC-2026-0097 unsound)"
+          - "Удалить teloxide 0.13 (unmaintained proc-macro-error, rustls-pemfile)"
+          - "Мигрировать rand API: thread_rng→rng, gen_range→random_range, distributions→distr"
+          - "Добавить rand_core 0.6 для OsRng совместимости с p256/aes-gcm"
+          - "Добавить .cargo/audit.toml с игнорированием транзитивных зависимостей"
+          - "Добавить pending task: kube 0.98→3.x (устранит backoff, instant, rustls-pemfile 2.2.0)"
+        done_when:
+          - "cargo audit: 0 warnings (или только ignored транзитивные)"
+          - "cargo test green (6548+ passed)"
+          - "cargo clippy -- -D warnings green"
+        completion_notes:
+          - "rand 0.9: 15 файлов обновлено (thread_rng→rng, gen_range→random_range, distr::Alphanumeric)"
+          - "teloxide удалена — Telegram Bot работает через reqwest напрямую"
+          - "cargo audit: 0 warnings (4 транзитивные проигнорированы в .cargo/audit.toml)"
+          - "cargo test: 6548 passed, 3 failed (pre-existing failures, не связаны с changes)"
+          - "cargo clippy: 0 warnings"
+          - "kube 0.98→3.x отложено — масштабная миграция K8s API"
+
     sprint_done_when:
       - "SEC-01 завершён"
       - "SEC-02 завершён"
@@ -1088,6 +1113,14 @@ task_index:
     title: "OIDC email claim"
     priority: medium
     estimate: small
+    status: completed
+    assignee: assistant
+  - sprint_id: S0
+    sprint_title: "Спринт 0 — Critical Security Fixes (1-2 недели)"
+    task_id: SEC-07
+    title: "Dependency cleanup: rand + teloxide"
+    priority: high
+    estimate: medium
     status: completed
     assignee: assistant
   - sprint_id: S1

@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# .git/hooks/post-merge
+# 🎯 Цель: Авто-установка зависимостей после слияния веток
+# 🛑 Пропуск: SKIP_POST_MERGE=1
+
+if [ "${SKIP_POST_MERGE:-0}" = "1" ]; then exit 0; fi
+
+# $1 = squash flag (игнорируем)
+CHANGED_FILES=$(git diff-tree -r --name-only --no-commit-id ORIG_HEAD HEAD 2>/dev/null || true)
+[ -z "$CHANGED_FILES" ] && exit 0
+
+echo "🔄 post-merge: анализ изменений зависимостей..."
+
+# 🦀 Rust
+if echo "$CHANGED_FILES" | grep -qE "Cargo\.(toml|lock)"; then
+  echo "📦 Rust: обновление зависимостей (cargo fetch)..."
+  cargo fetch --quiet
+fi
+
+# 🐍 Python
+if echo "$CHANGED_FILES" | grep -qE "requirements.*\.txt|pyproject\.toml|Pipfile\.lock"; then
+  echo "📦 Python: обновление зависимостей..."
+  if [ -d ".venv" ]; then
+    source .venv/bin/activate
+    pip install -q -r requirements.txt 2>/dev/null || pip install -q -e . 2>/dev/null || true
+  else
+    echo "⚠️  .venv не найден. Пропуск."
+  fi
+fi
+
+# ☕ Clojure
+if echo "$CHANGED_FILES" | grep -qE "project\.clj|deps\.edn"; then
+  echo "📦 Clojure: загрузка зависимостей..."
+  command -v lein &>/dev/null && lein deps || command -v clj &>/dev/null && clj -P || true
+fi
+
+# 🌐 Node.js (если используется фронт или инструменты сборки)
+if echo "$CHANGED_FILES" | grep -qE "package\.(json|lock\.json)"; then
+  echo "📦 Node.js: npm install..."
+  command -v npm &>/dev/null && npm ci --quiet || true
+fi
+
+echo "✅ post-merge: зависимости актуальны."
+exit 0

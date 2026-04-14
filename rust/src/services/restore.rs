@@ -92,7 +92,7 @@ pub fn verify_duplicate<T: RestoreEntry>(name: &str, items: &[T]) -> Result<()> 
 
 /// Генерирует случайный slug
 pub fn generate_random_slug() -> String {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let mut random_bytes = [0u8; 16];
     rng.fill_bytes(&mut random_bytes);
     hex::encode(random_bytes)
