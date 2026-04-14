@@ -1,86 +1,81 @@
 name: Community Beta
-
-'on':
+on:
   push:
     tags:
-      - v*-beta*
+      - "v*-beta*"
 
 permissions:
   contents: write
 
 jobs:
   prerelease:
+    name: Подготовка пререлиза
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v6
+      - name: Checkout репозитория
+        uses: actions/checkout@v4
 
-      - name: Setup golang
-        uses: actions/setup-go@v6
+      - name: Установка Go
+        uses: actions/setup-go@v5
         with:
-          go-version: '^1.24.6'
+          go-version: "^1.23"
 
-      - name: Setup nodejs
-        uses: actions/setup-node@v6
+      - name: Установка Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: '24'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
           cache-dependency-path: web/package-lock.json
 
-      - name: Install go-task
-        run: |
-          go install github.com/go-task/task/v3/cmd/task@latest
+      - name: Установка go-task
+        run: go install github.com/go-task/task/v3/cmd/task@latest
 
-      - name: Install rpm
-        run: |
-          sudo apt update && sudo apt-get install rpm
+      - name: Установка rpm
+        run: sudo apt update && sudo apt-get install -y rpm
 
-      - name: Install deps
-        run: |
-          task deps
+      - name: Установка зависимостей
+        run: task deps
 
-      - name: Import gnupg
+      - name: Импорт GPG ключа
         run: |
           echo "${{ secrets.GPG_KEY }}" | tr " " "\n" | base64 -d | gpg --import --batch
           gpg --sign -u "${{ vars.GPG_KEY_ID }}" --pinentry-mode loopback --yes --batch --passphrase "${{ secrets.GPG_PASS }}" --output unlock.sig --detach-sign README.md
           rm -f unlock.sig
 
-      - name: Reset repo
-        run: |
-          git reset --hard
+      - name: Сброс состояния репозитория
+        run: git reset --hard
 
-      - name: Run release
+      - name: Запуск релиза
         run: |
           GITHUB_TOKEN=${{ github.token }} \
           PROJECT_NAME=semaphore_community \
           GPG_KEY_ID="${{ vars.GPG_KEY_ID }}" \
-          task release:prod
+            task release:prod
 
   deploy-beta:
+    name: Публикация Community-образов
     runs-on: ubuntu-latest
     if: github.repository_owner == 'semaphoreui'
-
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v6
+      - name: Checkout репозитория
+        uses: actions/checkout@v4
 
-      - name: Setup qemu
+      - name: Настройка QEMU
         id: qemu
         uses: docker/setup-qemu-action@v3
 
-      - name: Setup buildx
+      - name: Настройка Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@v3
 
-      - name: Hub login
+      - name: Авторизация в Docker Hub
         uses: docker/login-action@v3
         if: github.event_name != 'pull_request'
         with:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASS }}
 
-      - name: Server meta
+      - name: Метаданные Server
         id: server
         uses: docker/metadata-action@v5
         with:
@@ -95,8 +90,8 @@ jobs:
           flavor: |
             latest=false
 
-      - name: Server build
-        uses: docker/build-push-action@v7
+      - name: Сборка Server
+        uses: docker/build-push-action@v5
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -106,7 +101,7 @@ jobs:
           labels: ${{ steps.server.outputs.labels }}
           tags: ${{ steps.server.outputs.tags }}
 
-      - name: Runner meta
+      - name: Метаданные Runner (отключено)
         if: false
         id: runner
         uses: docker/metadata-action@v5
@@ -122,9 +117,9 @@ jobs:
           flavor: |
             latest=false
 
-      - name: Runner build
+      - name: Сборка Runner (отключено)
         if: false
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@v5
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
