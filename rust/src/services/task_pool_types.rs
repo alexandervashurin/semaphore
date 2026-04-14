@@ -105,8 +105,8 @@ impl RunningTask {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::mock::MockStore;
     use crate::db::Store;
+    use crate::db::mock::MockStore;
     use crate::services::task_logger::TaskStatus;
 
     fn create_test_project() -> Project {

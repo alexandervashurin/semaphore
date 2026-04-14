@@ -1,8 +1,8 @@
 //! Kubernetes NetworkPolicy API handlers
 
 use axum::{
-    extract::{Path, Query, State},
     Json,
+    extract::{Path, Query, State},
 };
 use k8s_openapi::api::networking::v1::NetworkPolicy;
 use kube::api::{Api, DeleteParams, ListParams, PostParams};

@@ -3,14 +3,14 @@
 //! Helm charts, releases, repositories management
 
 use axum::{
+    Json,
     extract::{Path, Query, State},
     http::StatusCode,
-    Json,
 };
 use k8s_openapi::api::core::v1::{ConfigMap, Secret};
 use kube::{
-    api::{Api, DeleteParams, ListParams, PostParams},
     Client,
+    api::{Api, DeleteParams, ListParams, PostParams},
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

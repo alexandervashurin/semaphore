@@ -4,9 +4,9 @@ use super::protocol::{McpRequest, McpResponse};
 use super::tools;
 use crate::api::extractors::AuthUser;
 use crate::api::state::AppState;
-use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
+use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 
 const MCP_VERSION: &str = "2024-11-05";
@@ -177,11 +177,13 @@ mod tests {
     fn test_server_version_from_cargo() {
         assert!(!SERVER_VERSION.is_empty());
         // CARGO_PKG_VERSION should be a valid semver string
-        assert!(SERVER_VERSION
-            .chars()
-            .next()
-            .map(|c| c.is_ascii_digit())
-            .unwrap_or(false));
+        assert!(
+            SERVER_VERSION
+                .chars()
+                .next()
+                .map(|c| c.is_ascii_digit())
+                .unwrap_or(false)
+        );
     }
 
     // ── McpSettings ──────────────────────────────────────────────────────

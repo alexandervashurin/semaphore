@@ -5,9 +5,9 @@ use crate::api::state::AppState;
 use crate::db::store::PlaybookRunManager;
 use crate::models::playbook_run_history::{PlaybookRun, PlaybookRunFilter, PlaybookRunStats};
 use axum::{
+    Json,
     extract::{Path, Query, State},
     http::StatusCode,
-    Json,
 };
 use serde::Deserialize;
 use std::sync::Arc;

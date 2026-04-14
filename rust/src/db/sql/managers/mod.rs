@@ -114,8 +114,8 @@ pub use webhook::*;
 // Store trait implementation
 // ============================================================================
 
-use crate::db::sql::SqlStore;
 use crate::db::Store;
+use crate::db::sql::SqlStore;
 use async_trait::async_trait;
 
 #[async_trait]

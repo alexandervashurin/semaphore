@@ -82,7 +82,7 @@ impl LocalAuthService {
     /// Генерирует JWT access + refresh токены для пользователя
     pub fn generate_token(&self, user: &User) -> Result<TokenInfo> {
         use chrono::Utc;
-        use jsonwebtoken::{encode, EncodingKey, Header};
+        use jsonwebtoken::{EncodingKey, Header, encode};
 
         let secret = std::env::var("SEMAPHORE_JWT_SECRET")
             .unwrap_or_else(|_| "dev-secret-key-change-in-production".to_string());
@@ -127,7 +127,7 @@ impl LocalAuthService {
 
     /// Проверяет refresh token и возвращает user_id
     pub fn verify_refresh_token(&self, token: &str) -> Result<i32> {
-        use jsonwebtoken::{decode, DecodingKey, Validation};
+        use jsonwebtoken::{DecodingKey, Validation, decode};
 
         let secret = std::env::var("SEMAPHORE_JWT_SECRET")
             .unwrap_or_else(|_| "dev-secret-key-change-in-production".to_string());
@@ -148,7 +148,7 @@ impl LocalAuthService {
 
     /// Проверяет JWT токен и возвращает claims
     pub fn verify_token(&self, token: &str) -> Result<Claims> {
-        use jsonwebtoken::{decode, DecodingKey, Validation};
+        use jsonwebtoken::{DecodingKey, Validation, decode};
 
         // Получаем секретный ключ из окружения или используем дефолтный
         let secret = std::env::var("SEMAPHORE_JWT_SECRET")

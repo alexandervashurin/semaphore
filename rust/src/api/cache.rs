@@ -7,9 +7,9 @@ use crate::api::middleware::ErrorResponse;
 use crate::api::state::AppState;
 use crate::error::{Error, Result};
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
-    Json,
 };
 use std::sync::Arc;
 

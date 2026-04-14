@@ -4,8 +4,8 @@
 
 use crate::cli::CliResult;
 use crate::config::Config;
-use crate::db::store::UserManager;
 use crate::db::SqlStore;
+use crate::db::store::UserManager;
 use crate::models::User;
 use chrono::Utc;
 use clap::{Args, Subcommand};

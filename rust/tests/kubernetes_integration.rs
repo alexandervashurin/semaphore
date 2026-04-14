@@ -11,9 +11,9 @@
 //! - Inventory Sync
 
 use axum::body::Body;
-use axum::http::{header, Request, StatusCode};
+use axum::http::{Request, StatusCode, header};
 use http_body_util::BodyExt;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tower::ServiceExt;
 use velum_ffi::{api::create_app, db::SqlStore};
 

@@ -360,10 +360,11 @@ mod tests {
         };
 
         encryption.serialize_secret(&mut key).unwrap();
-        assert!(key
-            .secret
-            .as_ref()
-            .is_some_and(|secret| secret.contains("\"login\":\"user\"")));
+        assert!(
+            key.secret
+                .as_ref()
+                .is_some_and(|secret| secret.contains("\"login\":\"user\""))
+        );
     }
 
     #[test]
@@ -441,10 +442,11 @@ mod tests {
         };
 
         encryption.serialize_secret(&mut key).unwrap();
-        assert!(key
-            .secret
-            .as_ref()
-            .is_some_and(|s| s.contains("\"private_key\"")));
+        assert!(
+            key.secret
+                .as_ref()
+                .is_some_and(|s| s.contains("\"private_key\""))
+        );
     }
 
     #[test]

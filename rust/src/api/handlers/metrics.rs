@@ -3,10 +3,10 @@
 use crate::api::state::AppState;
 use crate::services::metrics::MetricsManager;
 use axum::{
-    extract::State,
-    http::{header::CONTENT_TYPE, HeaderValue, StatusCode},
-    response::Response,
     Json,
+    extract::State,
+    http::{HeaderValue, StatusCode, header::CONTENT_TYPE},
+    response::Response,
 };
 use prometheus::{Encoder, TextEncoder};
 use std::sync::Arc;

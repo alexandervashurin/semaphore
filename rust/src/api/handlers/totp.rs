@@ -7,7 +7,7 @@ use crate::api::state::AppState;
 use crate::db::store::UserManager;
 use crate::error::Error;
 use crate::models::user::UserTotp;
-use axum::{extract::State, http::StatusCode, Json};
+use axum::{Json, extract::State, http::StatusCode};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

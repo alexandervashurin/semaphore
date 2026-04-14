@@ -3,16 +3,16 @@
 //! Управление Deployment: list, get, create, update, delete, scale, restart, rollback
 
 use axum::{
-    extract::{Path, Query, State},
     Json,
+    extract::{Path, Query, State},
 };
 use chrono::Utc;
 use k8s_openapi::api::apps::v1::Deployment;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 use k8s_openapi::jiff::Timestamp;
 use kube::{
-    api::{Api, DeleteParams, ListParams, Patch, PatchParams, PostParams},
     Client,
+    api::{Api, DeleteParams, ListParams, Patch, PatchParams, PostParams},
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -498,7 +498,11 @@ pub async fn get_deployment_history(
             vec![RevisionInfo {
                 revision: rev,
                 change_cause: None,
-                created_at: deployment.metadata.creation_timestamp.as_ref().map(|t| t.0.to_string()),
+                created_at: deployment
+                    .metadata
+                    .creation_timestamp
+                    .as_ref()
+                    .map(|t| t.0.to_string()),
             }]
         })
         .unwrap_or_default();
@@ -636,7 +640,11 @@ pub async fn get_deployment_history_detailed(
                     .as_ref()
                     .and_then(|s| s.available_replicas)
                     .unwrap_or(0),
-                created_at: rs.metadata.creation_timestamp.as_ref().map(|t| t.0.to_string()),
+                created_at: rs
+                    .metadata
+                    .creation_timestamp
+                    .as_ref()
+                    .map(|t| t.0.to_string()),
                 image: rs
                     .spec
                     .as_ref()
@@ -791,7 +799,11 @@ fn deployment_detail(deployment: &Deployment) -> DeploymentDetail {
         template_labels,
         containers,
         conditions,
-        created_at: deployment.metadata.creation_timestamp.as_ref().map(|t| t.0.to_string()),
+        created_at: deployment
+            .metadata
+            .creation_timestamp
+            .as_ref()
+            .map(|t| t.0.to_string()),
     }
 }
 

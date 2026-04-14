@@ -5,12 +5,12 @@
 
 use chrono::Utc;
 use lettre::{
-    message::{header::ContentType, Mailbox, Message},
+    Address, AsyncSmtpTransport, AsyncTransport, Tokio1Executor,
+    message::{Mailbox, Message, header::ContentType},
     transport::smtp::{
         authentication::Credentials,
         client::{Tls, TlsParameters},
     },
-    Address, AsyncSmtpTransport, AsyncTransport, Tokio1Executor,
 };
 use std::error::Error;
 use thiserror::Error;

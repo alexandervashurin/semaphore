@@ -183,12 +183,13 @@ mod tests {
         let dir = create_unique_tmp_dir(&base, "test").unwrap();
 
         assert!(dir.exists());
-        assert!(dir
-            .file_name()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .starts_with("test_"));
+        assert!(
+            dir.file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .starts_with("test_")
+        );
 
         // Cleanup
         let _ = fs::remove_dir(&dir);

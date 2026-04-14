@@ -1,8 +1,8 @@
 //! HPA, ResourceQuota, LimitRange, CRD, динамические Custom Resources, VPA (feature-detect).
 
 use axum::{
-    extract::{Path, Query, State},
     Json,
+    extract::{Path, Query, State},
 };
 use k8s_openapi::api::autoscaling::v2::HorizontalPodAutoscaler;
 use k8s_openapi::api::core::v1::{LimitRange, ResourceQuota};

@@ -3,9 +3,9 @@
 //! Аналог api/user.go из Go версии
 
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
-    Json,
 };
 use base64::Engine;
 use chrono::Utc;

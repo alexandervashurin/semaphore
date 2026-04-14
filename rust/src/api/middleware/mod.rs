@@ -13,14 +13,14 @@ pub mod security_headers;
 pub mod trace_id;
 
 pub use cache::CacheMiddleware;
-pub use correlation_id::{correlation_id_middleware, CorrelationId};
+pub use correlation_id::{CorrelationId, correlation_id_middleware};
 pub use rate_limiter::*;
 pub use security_headers::*;
-pub use trace_id::{trace_id_middleware, TraceId};
+pub use trace_id::{TraceId, trace_id_middleware};
 
 // Ре-экспорт ErrorResponse для обратной совместимости
 use crate::error::Error as CrateError;
-use axum::{http::StatusCode, response::IntoResponse, Json};
+use axum::{Json, http::StatusCode, response::IntoResponse};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]

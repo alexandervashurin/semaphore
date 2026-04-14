@@ -3,8 +3,8 @@
 //! Интеграция с Prometheus API для получения метрик CPU, Memory, Network
 
 use axum::{
-    extract::{Path, Query, State},
     Json,
+    extract::{Path, Query, State},
 };
 use chrono::{DateTime, Utc};
 use reqwest::Client;

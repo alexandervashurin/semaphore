@@ -14,9 +14,9 @@ use crate::models::{Environment, Inventory, Repository, Task, TaskOutput, TaskWi
 use crate::services::local_job::LocalJob;
 use crate::services::task_logger::{BasicLogger, LogListener, TaskLogger, TaskStatus};
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
-    Json,
 };
 use chrono::Utc;
 use serde::{Deserialize, Serialize};

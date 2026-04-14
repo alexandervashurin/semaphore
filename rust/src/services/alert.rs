@@ -120,7 +120,7 @@ impl AlertService {
 
     /// Отправляет email уведомление
     pub async fn send_email_alert(&self, users: Vec<User>) -> Result<()> {
-        use crate::utils::mailer::{send_email, Email};
+        use crate::utils::mailer::{Email, send_email};
 
         if !crate::config::email_alert_enabled() {
             return Ok(());

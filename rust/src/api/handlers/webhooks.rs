@@ -11,10 +11,10 @@ use crate::models::webhook::{
     CreateWebhook, TestWebhook, UpdateWebhook, Webhook, WebhookLog, WebhookType,
 };
 use axum::{
+    Json,
     extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
-    Json,
 };
 use chrono::{DateTime, Utc};
 use serde::Deserialize;

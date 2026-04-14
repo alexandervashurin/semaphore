@@ -1,7 +1,8 @@
+---
 # .github/workflows/docs.yml
 name: Publish Documentation
 
-on:
+on:  # yamllint disable-line rule:truthy
   push:
     branches: [main]
     paths: ['rust/**', 'docs/**']
@@ -22,7 +23,6 @@ jobs:
   build-docs:
     name: Сборка документации
     runs-on: ubuntu-latest
-    
     steps:
       - name: Checkout репозитория
         uses: actions/checkout@v4  # ✅ Исправлено с @v6 на @v4
@@ -52,6 +52,7 @@ jobs:
           cargo doc --no-deps --document-private-items
 
       - name: Добавление редиректа
+        # yamllint disable rule:line-length
         run: |
           mkdir -p rust/target/doc
           cat > rust/target/doc/index.html << 'EOF'
@@ -66,6 +67,7 @@ jobs:
             </body>
           </html>
           EOF
+        # yamllint enable rule:line-length
 
       - name: Сохранение артефакта для GitHub Pages
         uses: actions/upload-pages-artifact@v3

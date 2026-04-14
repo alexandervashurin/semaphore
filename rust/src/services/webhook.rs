@@ -11,11 +11,11 @@
 use crate::error::{Error, Result};
 use chrono::{DateTime, Utc};
 use reqwest::{
-    header::{HeaderMap, CONTENT_TYPE},
     Client,
+    header::{CONTENT_TYPE, HeaderMap},
 };
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tracing::{error, info, warn};
 
 /// Тип webhook
@@ -721,10 +721,12 @@ mod tests {
         assert_eq!(event.event_type, "project.created");
         assert_eq!(event.metadata.project_id, Some(5));
         assert_eq!(event.metadata.user_id, Some(20));
-        assert!(event.data["project_name"]
-            .as_str()
-            .unwrap()
-            .contains("My Project"));
+        assert!(
+            event.data["project_name"]
+                .as_str()
+                .unwrap()
+                .contains("My Project")
+        );
     }
 
     #[test]

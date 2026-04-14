@@ -7,9 +7,9 @@ use crate::models::notification::{
     NotificationPolicy, NotificationPolicyCreate, NotificationPolicyUpdate,
 };
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
-    Json,
 };
 use std::sync::Arc;
 

@@ -6,9 +6,9 @@
 //! - Заголовков запросов
 
 use axum::{
-    extract::FromRequestParts,
-    http::{request::Parts, StatusCode},
     Json,
+    extract::FromRequestParts,
+    http::{StatusCode, request::Parts},
 };
 use std::sync::Arc;
 

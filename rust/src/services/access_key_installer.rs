@@ -12,8 +12,8 @@ use std::path::{Path, PathBuf};
 use tracing::{debug, info, warn};
 
 use crate::error::{Error, Result};
-use crate::models::access_key::AccessKeyType;
 use crate::models::AccessKey;
+use crate::models::access_key::AccessKeyType;
 
 /// Роль ключа доступа
 #[derive(Debug, Clone, Copy)]
@@ -302,11 +302,13 @@ mod tests {
     fn test_access_key_installer_default() {
         let installer = AccessKeyInstaller::default();
 
-        assert!(installer
-            .temp_dir
-            .display()
-            .to_string()
-            .contains("semaphore"));
+        assert!(
+            installer
+                .temp_dir
+                .display()
+                .to_string()
+                .contains("semaphore")
+        );
     }
 
     #[test]
@@ -496,10 +498,12 @@ mod tests {
         assert!(content.contains("-----END RSA PRIVATE KEY-----"));
 
         // Проверяем путь содержит ID ключа
-        assert!(installation
-            .private_key_path
-            .to_string_lossy()
-            .contains("key_10"));
+        assert!(
+            installation
+                .private_key_path
+                .to_string_lossy()
+                .contains("key_10")
+        );
 
         // Уборка
         installation.destroy().unwrap();

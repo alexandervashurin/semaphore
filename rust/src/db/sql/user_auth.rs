@@ -5,7 +5,7 @@
 use crate::db::sql::types::SqlDb;
 use crate::error::{Error, Result};
 use crate::models::*;
-use bcrypt::{hash, verify, DEFAULT_COST};
+use bcrypt::{DEFAULT_COST, hash, verify};
 
 impl SqlDb {
     fn pg_pool_user_auth(&self) -> Result<&sqlx::PgPool> {

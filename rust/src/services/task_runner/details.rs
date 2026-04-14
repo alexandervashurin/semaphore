@@ -67,8 +67,8 @@ impl TaskRunner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::store::*;
     use crate::db::MockStore;
+    use crate::db::store::*;
     use crate::db_lib::AccessKeyInstallerImpl;
     use crate::models::{Environment, Inventory, Project, Repository, Task, Template};
     use crate::services::task_logger::TaskStatus;

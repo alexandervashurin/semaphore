@@ -3,15 +3,15 @@
 //! Events, Metrics, Topology visualization
 
 use axum::{
-    extract::{Path, Query, State},
     Json,
+    extract::{Path, Query, State},
 };
 use k8s_openapi::api::apps::v1::{Deployment, ReplicaSet};
 use k8s_openapi::api::core::v1::Event;
 use k8s_openapi::api::core::v1::{Pod, Service};
 use kube::{
-    api::{Api, ListParams},
     Client,
+    api::{Api, ListParams},
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

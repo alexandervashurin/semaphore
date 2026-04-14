@@ -48,7 +48,7 @@ impl SqlDb {
     pub async fn create_event(&self, mut event: Event) -> Result<Event> {
         let id: i32 = sqlx::query_scalar(
             "INSERT INTO event (project_id, user_id, object_id, object_type, description, created) \
-             VALUES ($1, $2, $3, $4, $5, $6) RETURNING id"
+             VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
         )
         .bind(event.project_id)
         .bind(event.user_id)

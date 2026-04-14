@@ -1,8 +1,8 @@
 //! Kubernetes Gateway API handlers (optional, read-only)
 
 use axum::{
-    extract::{Query, State},
     Json,
+    extract::{Query, State},
 };
 use kube::{
     api::{Api, DynamicObject, ListParams},

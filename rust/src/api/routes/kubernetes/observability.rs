@@ -2,7 +2,7 @@
 
 use crate::api::handlers;
 use crate::api::state::AppState;
-use axum::{routing::get, Router};
+use axum::{Router, routing::get};
 use std::sync::Arc;
 
 /// Маршруты для observability-ресурсов

@@ -6,8 +6,9 @@ use crate::api::handlers::kubernetes::client::KubeClient;
 use crate::api::state::AppState;
 use crate::error::{Error, Result};
 use axum::{
+    Json,
     extract::{Path, Query, State},
-    http, Json,
+    http,
 };
 use k8s_openapi::api::apps::v1::Deployment;
 use k8s_openapi::api::core::v1::{Pod, Service};

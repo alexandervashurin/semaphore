@@ -2427,10 +2427,12 @@ mod tests {
     #[tokio::test]
     async fn test_migration_manager_apply_migration() {
         let store = MockStore::new();
-        assert!(store
-            .apply_migration(1, "test_migration".to_string())
-            .await
-            .is_ok());
+        assert!(
+            store
+                .apply_migration(1, "test_migration".to_string())
+                .await
+                .is_ok()
+        );
     }
 
     #[tokio::test]
@@ -3145,19 +3147,23 @@ mod tests {
     #[tokio::test]
     async fn test_plan_approval_approve_ok() {
         let store = MockStore::new();
-        assert!(store
-            .approve_plan(1, 2, Some("ok".to_string()))
-            .await
-            .is_ok());
+        assert!(
+            store
+                .approve_plan(1, 2, Some("ok".to_string()))
+                .await
+                .is_ok()
+        );
     }
 
     #[tokio::test]
     async fn test_plan_approval_reject_ok() {
         let store = MockStore::new();
-        assert!(store
-            .reject_plan(1, 2, Some("no".to_string()))
-            .await
-            .is_ok());
+        assert!(
+            store
+                .reject_plan(1, 2, Some("no".to_string()))
+                .await
+                .is_ok()
+        );
     }
 
     // ============================================================

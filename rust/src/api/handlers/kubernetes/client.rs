@@ -6,10 +6,10 @@
 use crate::error::{Error, Result};
 use k8s_openapi::api::core::v1::Namespace;
 use kube::{
+    Config, Resource,
     api::{Api, ListParams, ResourceExt},
     client::Client,
     config::{KubeConfigOptions, Kubeconfig},
-    Config, Resource,
 };
 use std::sync::Arc;
 use tracing::{debug, error, info, warn};

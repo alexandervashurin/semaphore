@@ -7,7 +7,7 @@ use cron::Schedule as CronSchedule;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tokio::time::{sleep, Duration};
+use tokio::time::{Duration, sleep};
 use tracing::{error, info};
 
 use crate::db::store::Store;

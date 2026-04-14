@@ -9,9 +9,9 @@ use crate::db::store::{RetrieveQueryParams, UserManager};
 use crate::error::Error;
 use crate::models::User;
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
-    Json,
 };
 use chrono;
 use serde::Deserialize;

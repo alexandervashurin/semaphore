@@ -10,8 +10,8 @@
 
 use lazy_static::lazy_static;
 use prometheus::{
-    register_counter, register_gauge, register_histogram, Counter, Encoder, Gauge, Histogram,
-    Registry, TextEncoder,
+    Counter, Encoder, Gauge, Histogram, Registry, TextEncoder, register_counter, register_gauge,
+    register_histogram,
 };
 use std::collections::HashMap;
 use std::sync::Arc;

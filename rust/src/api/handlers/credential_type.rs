@@ -7,9 +7,9 @@ use crate::models::credential_type::{
     CredentialInstanceCreate, CredentialTypeCreate, CredentialTypeUpdate,
 };
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
-    Json,
 };
 use std::sync::Arc;
 

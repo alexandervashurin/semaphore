@@ -6,8 +6,8 @@ use crate::api::handlers::kubernetes::client::KubeClient;
 use crate::api::state::AppState;
 use crate::error::{Error, Result};
 use axum::{
-    extract::{Path, Query, State},
     Json,
+    extract::{Path, Query, State},
 };
 use chrono::Utc;
 use k8s_openapi::api::apps::v1::{DaemonSet, Deployment, ReplicaSet, StatefulSet};

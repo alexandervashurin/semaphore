@@ -3,8 +3,8 @@
 //! Управление DaemonSet: list, get, delete
 
 use axum::{
-    extract::{Path, Query, State},
     Json,
+    extract::{Path, Query, State},
 };
 use k8s_openapi::api::apps::v1::DaemonSet;
 use k8s_openapi::jiff::Timestamp;
@@ -306,7 +306,11 @@ fn daemonset_detail(ds: &DaemonSet) -> DaemonSetDetail {
         template_labels,
         containers,
         conditions,
-        created_at: ds.metadata.creation_timestamp.as_ref().map(|t| t.0.to_string()),
+        created_at: ds
+            .metadata
+            .creation_timestamp
+            .as_ref()
+            .map(|t| t.0.to_string()),
     }
 }
 

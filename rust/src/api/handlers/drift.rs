@@ -5,13 +5,13 @@ use crate::api::state::AppState;
 use crate::db::store::DriftManager;
 use crate::models::drift::{DriftConfigCreate, DriftConfigWithStatus};
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
     response::IntoResponse,
-    Json,
 };
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 
 pub async fn list_drift_configs(
@@ -270,7 +270,7 @@ pub async fn trigger_drift_check(
     let config = match store.get_drift_config(id, project_id).await {
         Ok(c) => c,
         Err(e) => {
-            return (StatusCode::NOT_FOUND, Json(json!({"error": e.to_string()}))).into_response()
+            return (StatusCode::NOT_FOUND, Json(json!({"error": e.to_string()}))).into_response();
         }
     };
 

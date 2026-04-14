@@ -218,8 +218,8 @@ pub async fn execute_task(store: Arc<dyn Store + Send + Sync>, mut task: Task) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::store::{PlanApprovalManager, TaskManager};
     use crate::db::MockStore;
+    use crate::db::store::{PlanApprovalManager, TaskManager};
     use crate::models::{Task, Template, TerraformPlan};
     use std::sync::Arc;
 
@@ -536,11 +536,7 @@ pub fn calculate_task_duration(task: &Task) -> u64 {
         .zip(task.start)
         .map(|(end, start)| {
             let secs = (end - start).num_seconds();
-            if secs < 0 {
-                0
-            } else {
-                secs as u64
-            }
+            if secs < 0 { 0 } else { secs as u64 }
         })
         .unwrap_or(0)
 }

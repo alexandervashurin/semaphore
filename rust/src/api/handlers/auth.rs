@@ -10,10 +10,10 @@ use crate::db::store::{RunnerManager, TaskManager};
 use crate::error::Error;
 use crate::models::ProjectUser;
 use axum::{
-    extract::State,
-    http::{header, StatusCode},
-    response::{AppendHeaders, IntoResponse, Response},
     Json,
+    extract::State,
+    http::{StatusCode, header},
+    response::{AppendHeaders, IntoResponse, Response},
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -144,7 +144,7 @@ pub async fn login(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<LoginPayload>,
 ) -> impl IntoResponse {
-    use crate::api::auth_local::{verify_password, LocalAuthService};
+    use crate::api::auth_local::{LocalAuthService, verify_password};
     use crate::services::totp::verify_totp_code;
 
     tracing::info!("Login attempt for user: {}", payload.username);
@@ -294,7 +294,7 @@ pub async fn login(
                     StatusCode::UNAUTHORIZED,
                     Json(ErrorResponse::new("Требуется TOTP код").with_code("TOTP_REQUIRED")),
                 )
-                    .into_response()
+                    .into_response();
             }
         };
 
@@ -319,7 +319,7 @@ pub async fn login(
                         .with_code("TOKEN_GENERATION_ERROR"),
                 ),
             )
-                .into_response()
+                .into_response();
         }
     };
 
@@ -390,7 +390,7 @@ pub async fn verify_session(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<VerifySessionPayload>,
 ) -> Result<Json<LoginResponse>, (StatusCode, Json<ErrorResponse>)> {
-    use crate::api::auth_local::{verify_password, LocalAuthService};
+    use crate::api::auth_local::{LocalAuthService, verify_password};
     use crate::services::totp::verify_totp_code;
 
     // Находим пользователя по токену сессии
@@ -550,7 +550,7 @@ pub async fn refresh_token(
                         .with_code("INVALID_REFRESH_TOKEN"),
                 ),
             )
-                .into_response()
+                .into_response();
         }
     };
 
@@ -562,7 +562,7 @@ pub async fn refresh_token(
                 StatusCode::UNAUTHORIZED,
                 Json(ErrorResponse::new("Пользователь не найден").with_code("USER_NOT_FOUND")),
             )
-                .into_response()
+                .into_response();
         }
     };
 
@@ -577,7 +577,7 @@ pub async fn refresh_token(
                         .with_code("TOKEN_GENERATION_ERROR"),
                 ),
             )
-                .into_response()
+                .into_response();
         }
     };
 

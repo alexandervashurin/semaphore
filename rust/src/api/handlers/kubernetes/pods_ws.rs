@@ -189,7 +189,7 @@ pub async fn pod_exec_ws(
     State(state): State<Arc<AppState>>,
     Path((namespace, pod_name)): Path<(String, String)>,
 ) -> Response {
-    use tokio::time::{timeout, Duration};
+    use tokio::time::{Duration, timeout};
 
     ws.on_upgrade(move |socket| async move {
         let mut socket = socket;
@@ -260,7 +260,7 @@ where
     S1: futures_util::Stream<Item = std::result::Result<Message, axum::Error>> + Unpin,
     S2: futures_util::Sink<Message> + Unpin,
 {
-    use tokio::time::{interval, Duration};
+    use tokio::time::{Duration, interval};
 
     let mut heartbeat = interval(Duration::from_secs(30));
 

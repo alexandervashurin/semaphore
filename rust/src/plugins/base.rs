@@ -1113,10 +1113,12 @@ mod tests {
         // Отключаем плагин
         let result = manager.disable_plugin("plugin_to_disable");
         assert!(result.is_ok());
-        assert!(manager
-            .config
-            .disabled_plugins
-            .contains(&"plugin_to_disable".to_string()));
+        assert!(
+            manager
+                .config
+                .disabled_plugins
+                .contains(&"plugin_to_disable".to_string())
+        );
     }
 
     #[test]

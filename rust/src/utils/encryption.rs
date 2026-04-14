@@ -7,7 +7,7 @@
 
 use aes_gcm::aead::{Aead, AeadCore, KeyInit, OsRng as AesOsRng};
 use aes_gcm::{Aes256Gcm, Key, Nonce};
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use p256::ecdsa::SigningKey;
 use p256::pkcs8::{EncodePrivateKey, EncodePublicKey, LineEnding};
 use std::io::Write;

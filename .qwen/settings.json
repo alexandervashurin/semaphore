@@ -93,7 +93,14 @@
       "Bash(new_line *)",
       "Bash(new_line)",
       "Bash(rustc *)",
-      "Bash(true)"
+      "Bash(true)",
+      "Bash(/home/a.vashurin@pso.local/programms/github_my/semaphore/rust/target/release/velum *)",
+      "Bash(yamllint *)",
+      "Bash(printf *)",
+      "Bash(xxd)",
+      "Bash(pip install *)",
+      "Bash(pip3 install *)",
+      "Bash(~/.local/bin/yamllint *)"
     ]
   },
   "$version": 3

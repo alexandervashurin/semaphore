@@ -48,7 +48,9 @@ impl RunnerCommand {
     pub fn run(&self) -> CliResult<()> {
         let token = self.token.as_deref().unwrap_or("").to_string();
         if token.is_empty() {
-            eprintln!("Error: --token is required. Generate a runner token in Velum UI → Settings → Runners.");
+            eprintln!(
+                "Error: --token is required. Generate a runner token in Velum UI → Settings → Runners."
+            );
             std::process::exit(1);
         }
 

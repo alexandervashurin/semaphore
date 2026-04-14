@@ -6,12 +6,12 @@ use crate::api::middleware::ErrorResponse;
 use crate::api::state::AppState;
 use crate::db::store::{AccessKeyManager, ProjectStore};
 use crate::error::Error;
-use crate::models::access_key::AccessKeyType;
 use crate::models::AccessKey;
+use crate::models::access_key::AccessKeyType;
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
-    Json,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

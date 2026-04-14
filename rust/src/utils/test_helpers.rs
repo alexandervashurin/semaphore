@@ -2,7 +2,7 @@
 //!
 //! Вспомогательные функции для тестирования
 
-use rand::{distr::Alphanumeric, Rng};
+use rand::{Rng, distr::Alphanumeric};
 
 /// Генерирует случайную строку заданной длины
 ///

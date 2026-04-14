@@ -11,8 +11,8 @@ use crate::api::state::AppState;
 use crate::api::websocket::websocket_handler;
 use crate::api::{apps, cache, events, graphql, mcp, options, runners, system_info, user};
 use axum::{
-    routing::{delete, get, post, put},
     Router,
+    routing::{delete, get, post, put},
 };
 use std::sync::Arc;
 use tower_http::services::{ServeDir, ServeFile};

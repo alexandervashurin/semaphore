@@ -5,7 +5,7 @@
 use chrono::{DateTime, Utc};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tokio::time::{sleep, Duration};
+use tokio::time::{Duration, sleep};
 use tracing::{error, info, instrument, warn};
 
 use crate::db::store::Store;
@@ -254,8 +254,8 @@ impl AutoBackupService {
 
 /// Gzip сжатие
 fn gzip_encode(data: &[u8]) -> Result<Vec<u8>> {
-    use flate2::write::GzEncoder;
     use flate2::Compression;
+    use flate2::write::GzEncoder;
     use std::io::Write;
 
     let mut encoder = GzEncoder::new(Vec::new(), Compression::default());

@@ -1,6 +1,8 @@
+---
 # .github/workflows/ci-cd.yml
 name: CI/CD Pipeline
 
+# yamllint disable-line rule:truthy
 on:
   push:
     branches: [main, develop]
@@ -33,7 +35,8 @@ jobs:
       - name: Системные зависимости
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y --no-install-recommends libssl-dev pkg-config libsqlite3-dev
+          sudo apt-get install -y --no-install-recommends \
+            libssl-dev pkg-config libsqlite3-dev
       - name: Проверка форматирования
         working-directory: rust
         run: cargo fmt --all -- --check
@@ -48,6 +51,7 @@ jobs:
         env:
           SEMAPHORE_DB_PATH: /tmp/test.db
           SEMAPHORE_JWT_SECRET: test-ci-secret-key-32-bytes-long!
+        # yamllint disable-line rule:line-length
         run: cargo test --features postgres -- --test-threads=4 --skip api_integration --skip kubernetes_integration
 
   # 2. Аудит безопасности
@@ -191,10 +195,14 @@ jobs:
         run: |
           TOKEN=$(curl -sf -X POST http://localhost:3000/api/auth/login \
             -H 'Content-Type: application/json' \
-            -d '{ "username": "admin", "password": "admin123" }' | jq -r '.token')
+            -d '{"username":"admin","password":"admin123"}' \
+            | jq -r '.token')
           echo "Got token: ${TOKEN:0:10}..."
-          curl -sf http://localhost:3000/api/projects -H "Authorization: Bearer $TOKEN"
-          curl -sf http://localhost:3000/api/templates -H "Authorization: Bearer $TOKEN"
+          AUTH="Authorization: Bearer $TOKEN"
+          curl -sf http://localhost:3000/api/projects \
+            -H "$AUTH"
+          curl -sf http://localhost:3000/api/templates \
+            -H "$AUTH"
           echo "All smoke tests passed"
       - name: Очистка
         if: always()

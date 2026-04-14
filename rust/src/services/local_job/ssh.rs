@@ -205,8 +205,8 @@ mod tests {
 
     #[test]
     fn test_model_access_key_to_db_login_password_type() {
-        use crate::models::access_key::AccessKeyType;
         use crate::models::AccessKeyOwner;
+        use crate::models::access_key::AccessKeyType;
         let ak = crate::models::AccessKey {
             id: 2,
             project_id: Some(1),
@@ -243,8 +243,8 @@ mod tests {
 
     #[test]
     fn test_model_access_key_to_db_none_type() {
-        use crate::models::access_key::AccessKeyType;
         use crate::models::AccessKeyOwner;
+        use crate::models::access_key::AccessKeyType;
         let ak = crate::models::AccessKey {
             id: 3,
             project_id: Some(1),
@@ -320,8 +320,8 @@ mod tests {
 
     #[test]
     fn test_model_access_key_to_db_login_password_preserves_credentials() {
-        use crate::models::access_key::AccessKeyType;
         use crate::models::AccessKeyOwner;
+        use crate::models::access_key::AccessKeyType;
         let ak = crate::models::AccessKey {
             id: 7,
             project_id: Some(1),
@@ -351,8 +351,8 @@ mod tests {
 
     #[test]
     fn test_model_access_key_to_db_access_key_type() {
-        use crate::models::access_key::AccessKeyType;
         use crate::models::AccessKeyOwner;
+        use crate::models::access_key::AccessKeyType;
         let ak = crate::models::AccessKey {
             id: 8,
             project_id: Some(1),
@@ -464,8 +464,8 @@ mod tests {
 
     #[test]
     fn test_model_access_key_to_db_ssh_key_with_all_fields() {
-        use crate::models::access_key::AccessKeyType;
         use crate::models::AccessKeyOwner;
+        use crate::models::access_key::AccessKeyType;
         let ak = crate::models::AccessKey {
             id: 100,
             project_id: Some(5),
@@ -568,8 +568,8 @@ mod tests {
 
     #[test]
     fn test_model_access_key_to_db_login_password_with_special_chars() {
-        use crate::models::access_key::AccessKeyType;
         use crate::models::AccessKeyOwner;
+        use crate::models::access_key::AccessKeyType;
         let ak = crate::models::AccessKey {
             id: 1,
             project_id: Some(1),
@@ -684,8 +684,8 @@ mod tests {
 
     #[test]
     fn test_model_access_key_to_db_login_password_empty_credentials() {
-        use crate::models::access_key::AccessKeyType;
         use crate::models::AccessKeyOwner;
+        use crate::models::access_key::AccessKeyType;
         let ak = crate::models::AccessKey {
             id: 1,
             project_id: Some(1),

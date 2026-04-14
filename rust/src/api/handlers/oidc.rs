@@ -3,10 +3,10 @@
 //! Обработчики для OIDC аутентификации
 
 use axum::{
-    extract::{Path, Query, State},
-    http::{header, StatusCode},
-    response::{AppendHeaders, Redirect},
     Json,
+    extract::{Path, Query, State},
+    http::{StatusCode, header},
+    response::{AppendHeaders, Redirect},
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -375,7 +375,7 @@ pub async fn oidc_callback(
             return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(ErrorResponse::new(e.to_string())),
-            ))
+            ));
         }
     };
 

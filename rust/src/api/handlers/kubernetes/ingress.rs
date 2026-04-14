@@ -1,8 +1,8 @@
 //! Kubernetes Ingress API handlers
 
 use axum::{
-    extract::{Path, Query, State},
     Json,
+    extract::{Path, Query, State},
 };
 use k8s_openapi::api::networking::v1::{Ingress, IngressClass};
 use kube::api::{Api, DeleteParams, ListParams, PostParams};

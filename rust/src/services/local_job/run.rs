@@ -3,7 +3,7 @@
 //! Аналог services/tasks/local_job_run.go из Go версии
 
 use crate::db_lib::local_app::{LocalApp, LocalAppInstallingArgs, LocalAppRunningArgs};
-use crate::db_lib::{create_app, AnsibleApp, TerraformApp};
+use crate::db_lib::{AnsibleApp, TerraformApp, create_app};
 use crate::error::Result;
 use crate::models::template::TemplateApp;
 use crate::services::local_job::LocalJob;

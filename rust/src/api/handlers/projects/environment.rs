@@ -8,9 +8,9 @@ use crate::db::store::{EnvironmentManager, RetrieveQueryParams};
 use crate::error::{Error, Result};
 use crate::models::Environment;
 use axum::{
+    Json,
     extract::{Path, Query, State},
     http::StatusCode,
-    Json,
 };
 use std::sync::Arc;
 

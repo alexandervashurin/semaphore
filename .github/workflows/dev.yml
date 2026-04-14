@@ -1,6 +1,7 @@
+---
 # .github/workflows/dev.yml
 name: Dev Pipeline
-on:
+on:  # yamllint disable-line rule:truthy
   push:
     branches: [develop, "2-*-stable"]
   pull_request:
@@ -18,7 +19,8 @@ jobs:
       - name: Установка Go
         uses: actions/setup-go@v6
         with:
-          go-version: '^1.23' # Стабильная ветка. Замени на '^1.24', если используется nightly
+          go-version: '^1.23'  # Стабильная ветка.
+          # Замени на '^1.24', если используется nightly
 
       - name: Установка Node.js
         uses: actions/setup-node@v5
@@ -257,7 +259,7 @@ jobs:
         uses: actions/checkout@v5
       - name: Установка Go
         uses: actions/setup-go@v6
-        with: { go-version: '^1.23' }
+        with: {go-version: '^1.23'}
       - name: Установка Node.js
         uses: actions/setup-node@v5
         with:
@@ -268,7 +270,7 @@ jobs:
         run: go install github.com/go-task/task/v3/cmd/task@latest
       - name: Загрузка артефакта
         uses: actions/download-artifact@v5
-        with: { name: semaphore }
+        with: {name: semaphore}
       - name: Подготовка stdin для setup
         run: |
           cat <<EOF > config.stdin
@@ -323,7 +325,7 @@ jobs:
         uses: actions/checkout@v5
       - name: Установка Go
         uses: actions/setup-go@v6
-        with: { go-version: '^1.23' }
+        with: {go-version: '^1.23'}
       - name: Установка Node.js
         uses: actions/setup-node@v5
         with:
@@ -334,7 +336,7 @@ jobs:
         run: go install github.com/go-task/task/v3/cmd/task@latest
       - name: Загрузка артефакта
         uses: actions/download-artifact@v5
-        with: { name: semaphore }
+        with: {name: semaphore}
       - name: Подготовка stdin для setup
         run: |
           cat <<EOF > config.stdin
@@ -392,7 +394,7 @@ jobs:
         uses: actions/checkout@v5
       - name: Установка Go
         uses: actions/setup-go@v6
-        with: { go-version: '^1.23' }
+        with: {go-version: '^1.23'}
       - name: Установка Node.js
         uses: actions/setup-node@v5
         with:
@@ -403,7 +405,7 @@ jobs:
         run: go install github.com/go-task/task/v3/cmd/task@latest
       - name: Загрузка артефакта
         uses: actions/download-artifact@v5
-        with: { name: semaphore }
+        with: {name: semaphore}
       - name: Подготовка stdin для setup
         run: |
           cat <<EOF > config.stdin
@@ -460,7 +462,7 @@ jobs:
         uses: actions/checkout@v5
       - name: Установка Go
         uses: actions/setup-go@v6
-        with: { go-version: '^1.23' }
+        with: {go-version: '^1.23'}
       - name: Установка Node.js
         uses: actions/setup-node@v5
         with:
@@ -471,7 +473,7 @@ jobs:
         run: go install github.com/go-task/task/v3/cmd/task@latest
       - name: Загрузка артефакта
         uses: actions/download-artifact@v5
-        with: { name: semaphore }
+        with: {name: semaphore}
       - name: Подготовка stdin для setup
         run: |
           cat <<EOF > config.stdin
@@ -514,7 +516,7 @@ jobs:
         uses: actions/checkout@v5
       - name: Установка Go
         uses: actions/setup-go@v6
-        with: { go-version: '^1.23' }
+        with: {go-version: '^1.23'}
       - name: Установка Node.js
         uses: actions/setup-node@v5
         with:
@@ -525,7 +527,7 @@ jobs:
         run: go install github.com/go-task/task/v3/cmd/task@latest
       - name: Загрузка артефакта
         uses: actions/download-artifact@v5
-        with: { name: semaphore }
+        with: {name: semaphore}
       - name: Подготовка stdin для setup
         run: |
           cat <<EOF > config.stdin
@@ -558,7 +560,11 @@ jobs:
   # 12. Деплой Server (develop)
   deploy-server:
     name: Деплой Server (Develop)
-    needs: [integrate-boltdb, integrate-mysql, integrate-mariadb, integrate-postgres]
+    needs:
+      - integrate-boltdb
+      - integrate-mysql
+      - integrate-mariadb
+      - integrate-postgres
     runs-on: ubuntu-latest
     if: github.repository_owner == 'semaphoreui'
     steps:
@@ -603,7 +609,11 @@ jobs:
   # 13. Деплой Runner (develop)
   deploy-runner:
     name: Деплой Runner (Develop)
-    needs: [integrate-boltdb, integrate-mysql, integrate-mariadb, integrate-postgres]
+    needs:
+      - integrate-boltdb
+      - integrate-mysql
+      - integrate-mariadb
+      - integrate-postgres
     runs-on: ubuntu-latest
     if: github.repository_owner == 'semaphoreui'
     steps:

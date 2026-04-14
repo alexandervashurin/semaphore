@@ -9,9 +9,9 @@ use crate::db::store::EventManager;
 use crate::error::{Error, Result};
 use crate::models::Event;
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
-    Json,
 };
 use std::sync::Arc;
 

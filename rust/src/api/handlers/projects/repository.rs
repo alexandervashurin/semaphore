@@ -8,9 +8,9 @@ use crate::db::store::{RepositoryManager, RetrieveQueryParams};
 use crate::error::{Error, Result};
 use crate::models::Repository;
 use axum::{
+    Json,
     extract::{Path, Query, State},
     http::StatusCode,
-    Json,
 };
 use std::sync::Arc;
 

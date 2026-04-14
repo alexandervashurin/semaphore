@@ -6,8 +6,8 @@
 use crate::api::state::AppState;
 use crate::error::{Error, Result};
 use axum::{
-    extract::{Path, Query, State},
     Json,
+    extract::{Path, Query, State},
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -767,11 +767,13 @@ mod tests {
         };
         assert_eq!(payload.release_name, "my-nginx");
         assert!(payload.dry_run.unwrap_or(false));
-        assert!(payload
-            .values
-            .as_ref()
-            .unwrap()
-            .contains_key("replicaCount"));
+        assert!(
+            payload
+                .values
+                .as_ref()
+                .unwrap()
+                .contains_key("replicaCount")
+        );
     }
 
     #[test]

@@ -5,7 +5,7 @@
 use crate::cache::RedisCache;
 use axum::{
     body::Body,
-    http::{header, Method, Request, Response, StatusCode},
+    http::{Method, Request, Response, StatusCode, header},
     middleware::Next,
 };
 use sha2::{Digest, Sha256};

@@ -1,8 +1,8 @@
 //! Kubernetes Secret API handlers
 
 use axum::{
-    extract::{Path, Query, State},
     Json,
+    extract::{Path, Query, State},
 };
 use base64::Engine;
 use k8s_openapi::api::core::v1::Secret;

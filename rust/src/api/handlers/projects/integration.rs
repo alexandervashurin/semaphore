@@ -11,9 +11,9 @@ use crate::db::store::{
 use crate::error::{Error, Result};
 use crate::models::{Integration, IntegrationExtractValue, IntegrationMatcher};
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
-    Json,
 };
 use std::sync::Arc;
 

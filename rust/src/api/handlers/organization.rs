@@ -1,10 +1,10 @@
 //! Organization handlers — Multi-Tenancy API
 
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
     response::IntoResponse,
-    Json,
 };
 use serde_json::json;
 use std::sync::Arc;
@@ -74,7 +74,7 @@ pub async fn get_organization(
                     StatusCode::FORBIDDEN,
                     Json(json!({"error": "Access denied"})),
                 )
-                    .into_response()
+                    .into_response();
             }
         }
     }
@@ -145,7 +145,7 @@ pub async fn get_organization_users(
                     StatusCode::FORBIDDEN,
                     Json(json!({"error": "Access denied"})),
                 )
-                    .into_response()
+                    .into_response();
             }
         }
     }
@@ -228,7 +228,7 @@ pub async fn update_organization_user_role(
                 StatusCode::BAD_REQUEST,
                 Json(json!({"error": "role is required"})),
             )
-                .into_response()
+                .into_response();
         }
     };
     match state
@@ -327,7 +327,7 @@ pub async fn check_organization_quota(
                     StatusCode::FORBIDDEN,
                     Json(json!({"error": "Access denied"})),
                 )
-                    .into_response()
+                    .into_response();
             }
         }
     }

@@ -10,9 +10,9 @@ use crate::db::store::{
 use crate::models::analytics::*;
 use crate::services::task_logger::TaskStatus;
 use axum::{
+    Json,
     extract::{Path, Query, State},
     http::StatusCode,
-    Json,
 };
 use chrono::{Duration, Utc};
 use serde::Deserialize;
@@ -76,11 +76,7 @@ pub async fn get_project_analytics(
         .filter_map(|t| match (t.task.start, t.task.end) {
             (Some(s), Some(e)) => {
                 let d = (e - s).num_seconds();
-                if d >= 0 {
-                    Some(d as f64)
-                } else {
-                    None
-                }
+                if d >= 0 { Some(d as f64) } else { None }
             }
             _ => None,
         })

@@ -8,9 +8,9 @@ use crate::db::store::SecretStorageManager;
 use crate::error::{Error, Result};
 use crate::models::SecretStorage;
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
-    Json,
 };
 use chrono;
 use std::sync::Arc;

@@ -1,6 +1,6 @@
 //! Kubernetes CSI resources (optional, read-only)
 
-use axum::{extract::State, Json};
+use axum::{Json, extract::State};
 use k8s_openapi::api::storage::v1::{CSIDriver, CSINode, VolumeAttachment};
 use kube::api::{Api, ListParams};
 use serde::Serialize;

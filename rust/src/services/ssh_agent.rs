@@ -282,7 +282,7 @@ impl SshAgent {
 
     /// Клонирует Git репозиторий через SSH
     pub fn clone_repository(&self, repo_url: &str, target_path: &Path) -> Result<()> {
-        use git2::{build::RepoBuilder, FetchOptions, RemoteCallbacks};
+        use git2::{FetchOptions, RemoteCallbacks, build::RepoBuilder};
 
         // Создаём callback для аутентификации
         let mut callbacks = RemoteCallbacks::new();
@@ -1821,9 +1821,10 @@ mod key_installer_tests {
     fn test_access_key_installation_git_env_idempotent() {
         let installation = AccessKeyInstallation::new();
         let env = installation.get_git_env();
-        assert!(env
-            .iter()
-            .any(|(k, v)| k == "GIT_TERMINAL_PROMPT" && v == "0"));
+        assert!(
+            env.iter()
+                .any(|(k, v)| k == "GIT_TERMINAL_PROMPT" && v == "0")
+        );
     }
 
     #[test]

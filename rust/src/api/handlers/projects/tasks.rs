@@ -9,9 +9,9 @@ use crate::error::{Error, Result};
 use crate::models::{Task, TaskOutput, TaskWithTpl};
 use crate::services::task_logger::TaskStatus;
 use axum::{
+    Json,
     extract::{Path, Query, State},
     http::StatusCode,
-    Json,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

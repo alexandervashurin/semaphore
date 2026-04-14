@@ -52,7 +52,7 @@ pub mod users;
 pub mod websocket;
 pub mod websocket_pubsub;
 
-use axum::{middleware as axum_middleware, Router};
+use axum::{Router, middleware as axum_middleware};
 use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;

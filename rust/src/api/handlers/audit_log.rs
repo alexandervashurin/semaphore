@@ -11,10 +11,10 @@ use crate::models::audit_log::{
     AuditAction, AuditLevel, AuditLog, AuditLogFilter, AuditLogResult, AuditObjectType,
 };
 use axum::{
-    extract::{Path, Query, State},
-    http::{header, StatusCode},
-    response::{IntoResponse, Response},
     Json,
+    extract::{Path, Query, State},
+    http::{StatusCode, header},
+    response::{IntoResponse, Response},
 };
 use serde::Deserialize;
 use std::sync::Arc;
@@ -315,7 +315,9 @@ pub async fn export_audit_logs(
     let fmt = params.format.as_deref().unwrap_or("json");
     match fmt {
         "csv" => {
-            let mut csv = String::from("id,timestamp,user_id,username,action,object_type,object_id,object_name,ip_address,description\n");
+            let mut csv = String::from(
+                "id,timestamp,user_id,username,action,object_type,object_id,object_name,ip_address,description\n",
+            );
             for log in &result.records {
                 csv.push_str(&format!(
                     "{},{},{},{},{},{},{},{},{},{}\n",

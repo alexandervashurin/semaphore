@@ -8,7 +8,7 @@ use k8s_openapi::api::apps::v1::{DaemonSet, Deployment, ReplicaSet, StatefulSet}
 use k8s_openapi::api::core::v1::{ConfigMap, Event, Namespace, Pod, Secret, Service};
 use k8s_openapi::api::networking::v1::Ingress;
 use kube::api::{Api, DeleteParams, ListParams, LogParams, Patch, PatchParams, PostParams};
-use kube::{config::KubeConfigOptions, Client, Config};
+use kube::{Client, Config, config::KubeConfigOptions};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -1149,7 +1149,9 @@ fn statefulset_to_info(s: StatefulSet) -> StatefulSetInfo {
 
     let spec = s.spec.as_ref();
     let replicas_desired = spec.and_then(|sp| sp.replicas).unwrap_or(1);
-    let service_name = spec.and_then(|sp| sp.service_name.clone()).unwrap_or_default();
+    let service_name = spec
+        .and_then(|sp| sp.service_name.clone())
+        .unwrap_or_default();
     let images: Vec<String> = spec
         .map(|sp| {
             sp.template

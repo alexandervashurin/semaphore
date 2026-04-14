@@ -1,7 +1,8 @@
+---
 # .github/workflows/pro_selfhosted_beta.yml
 name: Pro Self-Hosted Release
 
-on:
+on:  # yamllint disable-line rule:truthy
   push:
     tags:
       - v*-beta*
@@ -28,20 +29,26 @@ jobs:
           cache: "npm"
           cache-dependency-path: web/package-lock.json
       - name: Установка go-task
-        run: go install github.com/go-task/task/v3/cmd/task@latest
+        run: >-
+          go install
+          github.com/go-task/task/v3/cmd/task@latest
       - name: Установка rpm
         run: sudo apt update && sudo apt-get install -y rpm
+      # yamllint disable rule:line-length
       - name: Добавление PRO-модуля
         run: |
           git clone https://${{ secrets.GH_TOKEN }}@github.com/velum/velumpro-module.git pro_impl
           go work init . ./pro_impl
+      # yamllint enable rule:line-length
       - name: Установка зависимостей
         run: task deps APP_BUILD_TYPE=pro_selfhosted
+      # yamllint disable rule:line-length
       - name: Импорт GPG ключа
         run: |
           echo "${{ secrets.GPG_KEY }}" | tr " " "\n" | base64 -d | gpg --import --batch
           gpg --sign -u "${{ vars.GPG_KEY_ID }}" --pinentry-mode loopback --yes --batch --passphrase "${{ secrets.GPG_PASS }}" --output unlock.sig --detach-sign README.md
           rm -f unlock.sig
+      # yamllint enable rule:line-length
       - name: Сброс состояния репозитория
         run: git reset --hard
       - name: Запуск релиза
@@ -126,10 +133,12 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.server.outputs.labels }}
+          # yamllint disable rule:line-length
           tags: |
             public.ecr.aws/semaphore/pro/server:${{ github.ref_name }}-ansible2.16.5
             public.ecr.aws/semaphore/server:${{ github.ref_name }}-ansible2.16.5
             velum/velum:${{ github.ref_name }}-ansible2.16.5
+          # yamllint enable rule:line-length
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false
@@ -149,10 +158,12 @@ jobs:
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.server.outputs.labels }}
+          # yamllint disable rule:line-length
           tags: |
             public.ecr.aws/semaphore/pro/server:${{ github.ref_name }}-powershell7.5.0
             public.ecr.aws/semaphore/server:${{ github.ref_name }}-powershell7.5.0
             velum/velum:${{ github.ref_name }}-powershell7.5.0
+          # yamllint enable rule:line-length
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false
@@ -200,10 +211,12 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.runner.outputs.labels }}
+          # yamllint disable rule:line-length
           tags: |
             public.ecr.aws/semaphore/pro/runner:${{ github.ref_name }}-ansible2.16.5
             public.ecr.aws/semaphore/runner:${{ github.ref_name }}-ansible2.16.5
             semaphoreui/runner:${{ github.ref_name }}-ansible2.16.5
+          # yamllint enable rule:line-length
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false
@@ -222,10 +235,12 @@ jobs:
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.runner.outputs.labels }}
+          # yamllint disable rule:line-length
           tags: |
             public.ecr.aws/semaphore/pro/runner:${{ github.ref_name }}-powershell7.5.0
             public.ecr.aws/semaphore/runner:${{ github.ref_name }}-powershell7.5.0
             semaphoreui/runner:${{ github.ref_name }}-powershell7.5.0
+          # yamllint enable rule:line-length
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false

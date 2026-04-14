@@ -6,7 +6,7 @@
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{mpsc, RwLock, Semaphore};
+use tokio::sync::{RwLock, Semaphore, mpsc};
 use tracing::{debug, error, info, warn};
 
 use crate::api::websocket::WebSocketManager;

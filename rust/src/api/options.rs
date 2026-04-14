@@ -8,7 +8,7 @@ use crate::api::state::AppState;
 use crate::db::store::OptionsManager;
 use crate::error::{Error, Result};
 use crate::models::OptionItem;
-use axum::{extract::State, http::StatusCode, Json};
+use axum::{Json, extract::State, http::StatusCode};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 

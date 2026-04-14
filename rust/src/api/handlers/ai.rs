@@ -9,9 +9,9 @@
 
 use crate::api::extractors::AuthUser;
 use crate::api::state::AppState;
-use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
+use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 
 // ── Settings ──────────────────────────────────────────────────────────────────

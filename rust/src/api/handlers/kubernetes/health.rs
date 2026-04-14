@@ -4,7 +4,7 @@
 
 use crate::api::state::AppState;
 use crate::error::Result;
-use axum::{extract::State, Json};
+use axum::{Json, extract::State};
 use kube::api::ListParams;
 use std::sync::Arc;
 
@@ -260,10 +260,12 @@ mod tests {
             "message": "3 nodes accessible"
         });
         assert_eq!(checks["checks"]["nodes"]["status"], "healthy");
-        assert!(checks["checks"]["nodes"]["message"]
-            .as_str()
-            .unwrap()
-            .contains("3 nodes"));
+        assert!(
+            checks["checks"]["nodes"]["message"]
+                .as_str()
+                .unwrap()
+                .contains("3 nodes")
+        );
     }
 
     #[test]

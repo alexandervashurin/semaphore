@@ -91,8 +91,8 @@ mod tests {
     }
 
     async fn create_test_pool() -> TaskPool {
-        use crate::db::mock::MockStore;
         use crate::db::Store;
+        use crate::db::mock::MockStore;
         use crate::models::Project;
 
         let store: Arc<dyn Store + Send + Sync> = Arc::new(MockStore::new());

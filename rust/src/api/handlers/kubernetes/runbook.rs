@@ -4,8 +4,8 @@
 //! для диагностики и восстановления
 
 use axum::{
-    extract::{Path, Query, State},
     Json,
+    extract::{Path, Query, State},
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -399,11 +399,7 @@ fn build_runbook_arguments(payload: &RunbookRequest, playbook: &str) -> Option<S
         }
     }
 
-    if args.is_empty() {
-        None
-    } else {
-        Some(args)
-    }
+    if args.is_empty() { None } else { Some(args) }
 }
 
 /// Получить статус выполнения Runbook задачи

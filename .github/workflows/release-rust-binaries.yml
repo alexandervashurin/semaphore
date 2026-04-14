@@ -1,6 +1,8 @@
+---
 # .github/workflows/release-rust-binaries.yml
 name: Release Rust Binaries
 
+# yamllint disable-line rule:truthy
 on:
   push:
     tags:
@@ -37,13 +39,15 @@ jobs:
       - name: Системные зависимости
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y --no-install-recommends libssl-dev pkg-config libsqlite3-dev
+          sudo apt-get install -y --no-install-recommends
+            libssl-dev pkg-config libsqlite3-dev
       - name: Сборка релизного бинарника
         working-directory: rust
         run: cargo build --release
       - name: Подготовка артефакта
         run: |
-          cp "rust/target/release/velum" "${{ matrix.asset_name }}"
+          cp "rust/target/release/velum"
+            "${{ matrix.asset_name }}"
           chmod +x "${{ matrix.asset_name }}"
       - name: Загрузка артефакта
         uses: actions/upload-artifact@v5
@@ -71,15 +75,19 @@ jobs:
       - name: Установка Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Системные зависимости
-        run: brew install openssl pkg-config sqlite
+        run: >
+          brew install openssl pkg-config sqlite
         env:
-          PKG_CONFIG_PATH: /opt/homebrew/opt/openssl@3/lib/pkgconfig:/usr/local/opt/openssl@3/lib/pkgconfig
+          PKG_CONFIG_PATH: >-
+            /opt/homebrew/opt/openssl@3/lib/pkgconfig:
+            /usr/local/opt/openssl@3/lib/pkgconfig
       - name: Сборка релизного бинарника
         working-directory: rust
         run: cargo build --release
       - name: Подготовка артефакта
         run: |
-          cp "rust/target/release/velum" "${{ matrix.asset_name }}"
+          cp "rust/target/release/velum"
+            "${{ matrix.asset_name }}"
           chmod +x "${{ matrix.asset_name }}"
       - name: Загрузка артефакта
         uses: actions/upload-artifact@v5
@@ -100,9 +108,11 @@ jobs:
         id: tag
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "value=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+            echo "value=${{ github.event.inputs.tag }}"
+              >> "$GITHUB_OUTPUT"
           else
-            echo "value=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+            echo "value=${GITHUB_REF_NAME}"
+              >> "$GITHUB_OUTPUT"
           fi
       - name: Загрузка артефактов
         uses: actions/download-artifact@v5
@@ -111,18 +121,22 @@ jobs:
       - name: Подготовка файлов релиза
         run: |
           mkdir -p release-assets
-          cp dist/velum-linux-amd64/velum-linux-amd64   release-assets/
-          cp dist/velum-linux-arm64/velum-linux-arm64   release-assets/
-          cp dist/velum-darwin-amd64/velum-darwin-amd64 release-assets/
-          cp dist/velum-darwin-arm64/velum-darwin-arm64 release-assets/
+          cp dist/velum-linux-amd64/velum-linux-amd64
+            release-assets/
+          cp dist/velum-linux-arm64/velum-linux-arm64
+            release-assets/
+          cp dist/velum-darwin-amd64/velum-darwin-amd64
+            release-assets/
+          cp dist/velum-darwin-arm64/velum-darwin-arm64
+            release-assets/
       - name: Создание релиза
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ steps.tag.outputs.value }}" \
-            --title "Velum ${{ steps.tag.outputs.value }}" \
-            --notes-file docs/releases/RELEASE_v1.0.0.md \
-            release-assets/velum-linux-amd64 \
-            release-assets/velum-linux-arm64 \
-            release-assets/velum-darwin-amd64 \
+          gh release create "${{ steps.tag.outputs.value }}"
+            --title "Velum ${{ steps.tag.outputs.value }}"
+            --notes-file docs/releases/RELEASE_v1.0.0.md
+            release-assets/velum-linux-amd64
+            release-assets/velum-linux-arm64
+            release-assets/velum-darwin-amd64
             release-assets/velum-darwin-arm64

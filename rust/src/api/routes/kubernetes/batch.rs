@@ -3,8 +3,8 @@
 use crate::api::handlers;
 use crate::api::state::AppState;
 use axum::{
-    routing::{delete, get, post, put},
     Router,
+    routing::{delete, get, post, put},
 };
 use std::sync::Arc;
 

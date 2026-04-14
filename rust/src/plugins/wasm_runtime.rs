@@ -6,7 +6,7 @@
 use crate::error::{Error, Result};
 use crate::plugins::base::{HookEvent, HookResult, PluginContext};
 use crate::plugins::wasm_loader::{LoadedWasmModule, WasmPluginLoader, WasmPluginMetadata};
-use serde_json::{json, Value as JsonValue};
+use serde_json::{Value as JsonValue, json};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, trace, warn};

@@ -5,8 +5,8 @@
 use crate::api::state::AppState;
 use crate::error::{Error, Result};
 use axum::{
-    extract::{Query, State},
     Json,
+    extract::{Query, State},
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -435,7 +435,8 @@ fn parse_kubectl_apply_output(stdout: &[u8]) -> Vec<AppliedResource> {
 
         return items
             .iter()
-            .map(|item| AppliedResource {
+            .map(|item| {
+                AppliedResource {
                 kind: item["kind"].as_str().unwrap_or("Unknown").to_string(),
                 name: item["metadata"]["name"].as_str().unwrap_or("").to_string(),
                 namespace: item["metadata"]["namespace"].as_str().map(String::from),
@@ -445,6 +446,7 @@ fn parse_kubectl_apply_output(stdout: &[u8]) -> Vec<AppliedResource> {
                     .map(|_| "configured")
                     .unwrap_or("created")
                     .to_string(),
+            }
             })
             .collect();
     }
@@ -549,10 +551,12 @@ mod tests {
         };
         let json = serde_json::to_value(&result).unwrap();
         assert_eq!(json["warnings"].as_array().unwrap().len(), 1);
-        assert!(json["warnings"][0]
-            .as_str()
-            .unwrap()
-            .starts_with("Warning:"));
+        assert!(
+            json["warnings"][0]
+                .as_str()
+                .unwrap()
+                .starts_with("Warning:")
+        );
     }
 
     // ── DiffQuery / DiffResult ──

@@ -3,8 +3,8 @@
 //! Агрегация событий, метрик, логов и audit записей для диагностики проблем
 
 use axum::{
-    extract::{Path, Query, State},
     Json,
+    extract::{Path, Query, State},
 };
 use chrono::{DateTime, Duration, Utc};
 use k8s_openapi::api::core::v1::Event;

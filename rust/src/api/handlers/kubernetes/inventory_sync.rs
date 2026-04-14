@@ -4,13 +4,13 @@
 //! для запуска playbook на кластере
 
 use axum::{
-    extract::{Path, Query, State},
     Json,
+    extract::{Path, Query, State},
 };
 use k8s_openapi::api::core::v1::{Node, Pod};
 use kube::{
-    api::{Api, ListParams},
     Client,
+    api::{Api, ListParams},
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

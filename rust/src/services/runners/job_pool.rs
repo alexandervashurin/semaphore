@@ -3,10 +3,10 @@
 //! Пул задач для раннеров
 
 use std::collections::HashSet;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::Mutex;
-use tokio::time::{interval, sleep, timeout, Duration};
+use tokio::time::{Duration, interval, sleep, timeout};
 
 use crate::db::store::Store;
 use crate::error::Result;

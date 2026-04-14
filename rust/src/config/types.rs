@@ -596,7 +596,7 @@ impl Config {
     /// Приоритет: переменные окружения > YAML конфиг.
     pub fn ldap_config(&self) -> crate::config::LdapConfigFull {
         use crate::config::types::LdapMappings;
-        use crate::config::{config_ldap::load_ldap_from_env, LdapConfigFull};
+        use crate::config::{LdapConfigFull, config_ldap::load_ldap_from_env};
 
         // Начинаем со значений из YAML конфига
         let mut result = if let Some(ref lc) = self.ldap {

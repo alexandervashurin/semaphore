@@ -9,9 +9,9 @@ use crate::services::playbook_run_service::PlaybookRunService;
 use crate::services::playbook_sync_service::PlaybookSyncService;
 use crate::validators::PlaybookValidator;
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
-    Json,
 };
 use std::sync::Arc;
 

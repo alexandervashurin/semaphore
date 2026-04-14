@@ -8,9 +8,9 @@ use crate::models::organization::{
     Organization, OrganizationCreate, OrganizationUpdate, OrganizationUser, OrganizationUserCreate,
 };
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
-    Json,
 };
 use chrono;
 use std::sync::Arc;

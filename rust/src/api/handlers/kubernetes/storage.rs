@@ -1,8 +1,8 @@
 //! Kubernetes Storage API handlers
 
 use axum::{
-    extract::{Path, Query, State},
     Json,
+    extract::{Path, Query, State},
 };
 use k8s_openapi::api::core::v1::{PersistentVolume, PersistentVolumeClaim};
 use k8s_openapi::api::storage::v1::StorageClass;

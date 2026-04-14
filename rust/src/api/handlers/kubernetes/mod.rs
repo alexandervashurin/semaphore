@@ -83,4 +83,4 @@ pub use troubleshooting::*;
 pub use types::*;
 // workloads_k8s excluded — use specific modules (deployments, pods, etc.) instead
 // Only export the new WS handlers; pod CRUD is already in workloads_k8s
-pub use pods::{pod_exec, pod_portforward, PodExecQuery, PodPortForwardQuery};
+pub use pods::{PodExecQuery, PodPortForwardQuery, pod_exec, pod_portforward};

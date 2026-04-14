@@ -25,14 +25,14 @@ use crate::api::state::AppState;
 use crate::db::store::TerraformStateManager;
 use crate::models::{LockInfo, TerraformState, TerraformStateLock};
 use axum::{
+    Json,
     body::Bytes,
     extract::{Path, Request, State},
     http::StatusCode,
     response::IntoResponse,
-    Json,
 };
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 
 // ─── Query params ────────────────────────────────────────────────────────────
@@ -64,7 +64,7 @@ pub async fn state_dispatch(
                 StatusCode::BAD_REQUEST,
                 Json(json!({"error": "failed to read request body"})),
             )
-                .into_response()
+                .into_response();
         }
     };
 
@@ -228,7 +228,7 @@ async fn handle_lock(
                 StatusCode::BAD_REQUEST,
                 Json(json!({"error": "invalid lock JSON body"})),
             )
-                .into_response()
+                .into_response();
         }
     };
 

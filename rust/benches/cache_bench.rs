@@ -2,10 +2,10 @@
 //!
 //! Запуск: cargo bench --bench cache_bench
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
 
 // Импортируем из библиотеки
-use velum_ffi::cache::{cache_key, CacheStats, RedisCache, RedisConfig};
+use velum_ffi::cache::{CacheStats, RedisCache, RedisConfig, cache_key};
 
 /// Бенчмарк формирования ключей кэша
 fn bench_cache_key(c: &mut Criterion) {

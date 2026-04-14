@@ -8,9 +8,9 @@ use crate::db::store::RepositoryManager;
 use crate::error::Error;
 use crate::models::Repository;
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
-    Json,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

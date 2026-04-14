@@ -7,8 +7,8 @@
 
 use axum::{
     extract::{
-        ws::{WebSocket, WebSocketUpgrade},
         State,
+        ws::{WebSocket, WebSocketUpgrade},
     },
     response::IntoResponse,
 };
@@ -17,7 +17,7 @@ use futures::{SinkExt, StreamExt};
 use redis::AsyncCommands;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{broadcast, RwLock};
+use tokio::sync::{RwLock, broadcast};
 use tracing::{error, info, warn};
 
 use crate::api::state::AppState;

@@ -9,13 +9,13 @@
 use crate::api::extractors::AuthUser;
 use crate::api::state::AppState;
 use axum::{
+    Json,
     extract::{
-        ws::{Message, WebSocket, WebSocketUpgrade},
         Path, Query, State,
+        ws::{Message, WebSocket, WebSocketUpgrade},
     },
     http::StatusCode,
     response::IntoResponse,
-    Json,
 };
 use futures::{SinkExt, StreamExt};
 use k8s_openapi::api::core::v1::Pod;
@@ -55,7 +55,7 @@ pub async fn pod_exec(
                 StatusCode::SERVICE_UNAVAILABLE,
                 Json(json!({"error": e.to_string()})),
             )
-                .into_response()
+                .into_response();
         }
     };
 
@@ -175,7 +175,7 @@ pub async fn pod_portforward(
     Query(q): Query<PodPortForwardQuery>,
     ws: WebSocketUpgrade,
 ) -> impl IntoResponse {
-    use tokio::time::{timeout, Duration};
+    use tokio::time::{Duration, timeout};
 
     let kube_client = match state.kubernetes_client() {
         Ok(c) => c,
@@ -184,7 +184,7 @@ pub async fn pod_portforward(
                 StatusCode::SERVICE_UNAVAILABLE,
                 Json(json!({"error": e.to_string()})),
             )
-                .into_response()
+                .into_response();
         }
     };
 
@@ -284,7 +284,7 @@ where
 }
 
 // Re-export pod CRUD functions from workloads_k8s
-pub use super::workloads_k8s::{delete_pod, evict_pod, get_pod, list_pods, pod_logs, PodLogsQuery};
+pub use super::workloads_k8s::{PodLogsQuery, delete_pod, evict_pod, get_pod, list_pods, pod_logs};
 
 #[cfg(test)]
 mod tests {

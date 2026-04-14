@@ -1,5 +1,6 @@
+---
 name: Rust CI
-on:
+on:  # yamllint disable-line rule:truthy
   push:
     branches: [main, develop, "feat/*", "fix/*"]
     paths: ["rust/", ".github/workflows/rust.yml"]
@@ -63,7 +64,10 @@ jobs:
         env:
           SEMAPHORE_DB_PATH: /tmp/test_semaphore.db
           SEMAPHORE_JWT_SECRET: test-ci-secret-key-32-bytes-long!
-        run: cargo test --features postgres -- --test-threads=4 --skip api_integration --skip kubernetes_integration
+        run: >
+          cargo test --features postgres --
+          --test-threads=4 --skip api_integration
+          --skip kubernetes_integration
 
   security-audit:
     name: Security Audit

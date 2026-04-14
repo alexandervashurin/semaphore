@@ -2,7 +2,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::{database::Database, decode::Decode, encode::Encode, FromRow, Type};
+use sqlx::{FromRow, Type, database::Database, decode::Decode, encode::Encode};
 
 /// Метод верификации сессии
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

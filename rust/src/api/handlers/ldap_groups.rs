@@ -5,10 +5,10 @@ use crate::api::state::AppState;
 use crate::db::store::LdapGroupMappingManager;
 use crate::models::ldap_group::LdapGroupMappingCreate;
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
     response::IntoResponse,
-    Json,
 };
 use serde_json::json;
 use std::sync::Arc;

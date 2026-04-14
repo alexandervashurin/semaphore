@@ -1,11 +1,11 @@
 //! MCP tool implementations — calls the Velum store directly (no HTTP round-trips).
 
-use super::protocol::{prop_bool, prop_int, prop_int_opt, prop_str, prop_str_opt, ToolContent};
+use super::protocol::{ToolContent, prop_bool, prop_int, prop_int_opt, prop_str, prop_str_opt};
 use crate::api::state::AppState;
 use crate::models::repository::RepositoryType;
 use crate::models::{Environment, Project, Repository, Schedule, Task};
 use crate::services::task_logger::TaskStatus;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 
 // ── Result type ──────────────────────────────────────────────────────────────
@@ -41,75 +41,118 @@ impl ToolResult {
 pub fn all_definitions() -> Vec<Value> {
     vec![
         // ── Projects ─────────────────────────────────────────────────────────
-        tool("list_projects", "List all projects visible to the current user.", json!({
-            "type":"object","properties":{},"required":[]
-        })),
-        tool("get_project", "Get details of a specific project.", json!({
-            "type":"object","properties":{"project_id":prop_int("Project ID")},"required":["project_id"]
-        })),
-        tool("create_project", "Create a new project.", json!({
-            "type":"object",
-            "properties":{
-                "name":prop_str("Project name"),
-                "alert":prop_bool("Enable email alerts for this project")
-            },
-            "required":["name"]
-        })),
-        tool("delete_project", "Delete a project and all its resources.", json!({
-            "type":"object","properties":{"project_id":prop_int("Project ID")},"required":["project_id"]
-        })),
-
+        tool(
+            "list_projects",
+            "List all projects visible to the current user.",
+            json!({
+                "type":"object","properties":{},"required":[]
+            }),
+        ),
+        tool(
+            "get_project",
+            "Get details of a specific project.",
+            json!({
+                "type":"object","properties":{"project_id":prop_int("Project ID")},"required":["project_id"]
+            }),
+        ),
+        tool(
+            "create_project",
+            "Create a new project.",
+            json!({
+                "type":"object",
+                "properties":{
+                    "name":prop_str("Project name"),
+                    "alert":prop_bool("Enable email alerts for this project")
+                },
+                "required":["name"]
+            }),
+        ),
+        tool(
+            "delete_project",
+            "Delete a project and all its resources.",
+            json!({
+                "type":"object","properties":{"project_id":prop_int("Project ID")},"required":["project_id"]
+            }),
+        ),
         // ── Templates ────────────────────────────────────────────────────────
-        tool("list_templates", "List all task templates for a project.", json!({
-            "type":"object","properties":{"project_id":prop_int("Project ID")},"required":["project_id"]
-        })),
-        tool("get_template", "Get details of a specific template.", json!({
-            "type":"object",
-            "properties":{
-                "project_id":prop_int("Project ID"),
-                "template_id":prop_int("Template ID")
-            },"required":["project_id","template_id"]
-        })),
-        tool("run_template", "Run a template (creates and queues a task).", json!({
-            "type":"object",
-            "properties":{
-                "project_id":prop_int("Project ID"),
-                "template_id":prop_int("Template ID"),
-                "message":prop_str_opt("Optional run message")
-            },"required":["project_id","template_id"]
-        })),
-
+        tool(
+            "list_templates",
+            "List all task templates for a project.",
+            json!({
+                "type":"object","properties":{"project_id":prop_int("Project ID")},"required":["project_id"]
+            }),
+        ),
+        tool(
+            "get_template",
+            "Get details of a specific template.",
+            json!({
+                "type":"object",
+                "properties":{
+                    "project_id":prop_int("Project ID"),
+                    "template_id":prop_int("Template ID")
+                },"required":["project_id","template_id"]
+            }),
+        ),
+        tool(
+            "run_template",
+            "Run a template (creates and queues a task).",
+            json!({
+                "type":"object",
+                "properties":{
+                    "project_id":prop_int("Project ID"),
+                    "template_id":prop_int("Template ID"),
+                    "message":prop_str_opt("Optional run message")
+                },"required":["project_id","template_id"]
+            }),
+        ),
         // ── Tasks ────────────────────────────────────────────────────────────
-        tool("list_tasks", "List tasks for a project, optionally filtered by template.", json!({
-            "type":"object",
-            "properties":{
-                "project_id":prop_int("Project ID"),
-                "template_id":prop_int_opt("Filter by template (optional)"),
-                "limit":prop_int_opt("Max results (default 50)")
-            },"required":["project_id"]
-        })),
-        tool("get_task", "Get details and status of a specific task.", json!({
-            "type":"object",
-            "properties":{
-                "project_id":prop_int("Project ID"),
-                "task_id":prop_int("Task ID")
-            },"required":["project_id","task_id"]
-        })),
-        tool("get_task_output", "Get console output lines of a task.", json!({
-            "type":"object",
-            "properties":{
-                "task_id":prop_int("Task ID"),
-                "last_n":prop_int_opt("Return only the last N lines (default: all)")
-            },"required":["task_id"]
-        })),
-        tool("stop_task", "Stop/cancel a running task.", json!({
-            "type":"object",
-            "properties":{
-                "project_id":prop_int("Project ID"),
-                "task_id":prop_int("Task ID to stop")
-            },"required":["project_id","task_id"]
-        })),
-        tool("analyze_task_failure",
+        tool(
+            "list_tasks",
+            "List tasks for a project, optionally filtered by template.",
+            json!({
+                "type":"object",
+                "properties":{
+                    "project_id":prop_int("Project ID"),
+                    "template_id":prop_int_opt("Filter by template (optional)"),
+                    "limit":prop_int_opt("Max results (default 50)")
+                },"required":["project_id"]
+            }),
+        ),
+        tool(
+            "get_task",
+            "Get details and status of a specific task.",
+            json!({
+                "type":"object",
+                "properties":{
+                    "project_id":prop_int("Project ID"),
+                    "task_id":prop_int("Task ID")
+                },"required":["project_id","task_id"]
+            }),
+        ),
+        tool(
+            "get_task_output",
+            "Get console output lines of a task.",
+            json!({
+                "type":"object",
+                "properties":{
+                    "task_id":prop_int("Task ID"),
+                    "last_n":prop_int_opt("Return only the last N lines (default: all)")
+                },"required":["task_id"]
+            }),
+        ),
+        tool(
+            "stop_task",
+            "Stop/cancel a running task.",
+            json!({
+                "type":"object",
+                "properties":{
+                    "project_id":prop_int("Project ID"),
+                    "task_id":prop_int("Task ID to stop")
+                },"required":["project_id","task_id"]
+            }),
+        ),
+        tool(
+            "analyze_task_failure",
             "Retrieve output from a failed task and structure it for AI diagnosis. \
              Returns metadata + console output so you can identify root cause and suggest fixes.",
             json!({
@@ -121,108 +164,162 @@ pub fn all_definitions() -> Vec<Value> {
                 },"required":["project_id","task_id"]
             }),
         ),
-
         // ── Schedules ────────────────────────────────────────────────────────
-        tool("list_schedules", "List all cron schedules for a project.", json!({
-            "type":"object","properties":{"project_id":prop_int("Project ID")},"required":["project_id"]
-        })),
-        tool("create_schedule", "Create a cron schedule. Example: '0 3 * * *' = daily 3AM.", json!({
-            "type":"object",
-            "properties":{
-                "project_id":prop_int("Project ID"),
-                "template_id":prop_int("Template to run"),
-                "cron":prop_str("Cron expression"),
-                "name":prop_str_opt("Schedule name")
-            },"required":["project_id","template_id","cron"]
-        })),
-        tool("toggle_schedule", "Enable or disable a schedule.", json!({
-            "type":"object",
-            "properties":{
-                "project_id":prop_int("Project ID"),
-                "schedule_id":prop_int("Schedule ID"),
-                "active":prop_bool("true to enable, false to disable")
-            },"required":["project_id","schedule_id","active"]
-        })),
-        tool("delete_schedule", "Delete a cron schedule.", json!({
-            "type":"object",
-            "properties":{
-                "project_id":prop_int("Project ID"),
-                "schedule_id":prop_int("Schedule ID")
-            },"required":["project_id","schedule_id"]
-        })),
-
+        tool(
+            "list_schedules",
+            "List all cron schedules for a project.",
+            json!({
+                "type":"object","properties":{"project_id":prop_int("Project ID")},"required":["project_id"]
+            }),
+        ),
+        tool(
+            "create_schedule",
+            "Create a cron schedule. Example: '0 3 * * *' = daily 3AM.",
+            json!({
+                "type":"object",
+                "properties":{
+                    "project_id":prop_int("Project ID"),
+                    "template_id":prop_int("Template to run"),
+                    "cron":prop_str("Cron expression"),
+                    "name":prop_str_opt("Schedule name")
+                },"required":["project_id","template_id","cron"]
+            }),
+        ),
+        tool(
+            "toggle_schedule",
+            "Enable or disable a schedule.",
+            json!({
+                "type":"object",
+                "properties":{
+                    "project_id":prop_int("Project ID"),
+                    "schedule_id":prop_int("Schedule ID"),
+                    "active":prop_bool("true to enable, false to disable")
+                },"required":["project_id","schedule_id","active"]
+            }),
+        ),
+        tool(
+            "delete_schedule",
+            "Delete a cron schedule.",
+            json!({
+                "type":"object",
+                "properties":{
+                    "project_id":prop_int("Project ID"),
+                    "schedule_id":prop_int("Schedule ID")
+                },"required":["project_id","schedule_id"]
+            }),
+        ),
         // ── Repositories ─────────────────────────────────────────────────────
-        tool("list_repositories", "List all Git repositories for a project.", json!({
-            "type":"object","properties":{"project_id":prop_int("Project ID")},"required":["project_id"]
-        })),
-        tool("create_repository", "Add a Git repository to a project.", json!({
-            "type":"object",
-            "properties":{
-                "project_id":prop_int("Project ID"),
-                "name":prop_str("Repository name"),
-                "git_url":prop_str("Git clone URL"),
-                "git_branch":prop_str_opt("Branch (default: main)")
-            },"required":["project_id","name","git_url"]
-        })),
-        tool("delete_repository", "Delete a repository from a project.", json!({
-            "type":"object",
-            "properties":{
-                "project_id":prop_int("Project ID"),
-                "repository_id":prop_int("Repository ID")
-            },"required":["project_id","repository_id"]
-        })),
-
+        tool(
+            "list_repositories",
+            "List all Git repositories for a project.",
+            json!({
+                "type":"object","properties":{"project_id":prop_int("Project ID")},"required":["project_id"]
+            }),
+        ),
+        tool(
+            "create_repository",
+            "Add a Git repository to a project.",
+            json!({
+                "type":"object",
+                "properties":{
+                    "project_id":prop_int("Project ID"),
+                    "name":prop_str("Repository name"),
+                    "git_url":prop_str("Git clone URL"),
+                    "git_branch":prop_str_opt("Branch (default: main)")
+                },"required":["project_id","name","git_url"]
+            }),
+        ),
+        tool(
+            "delete_repository",
+            "Delete a repository from a project.",
+            json!({
+                "type":"object",
+                "properties":{
+                    "project_id":prop_int("Project ID"),
+                    "repository_id":prop_int("Repository ID")
+                },"required":["project_id","repository_id"]
+            }),
+        ),
         // ── Environments ─────────────────────────────────────────────────────
-        tool("list_environments", "List all environment configs for a project.", json!({
-            "type":"object","properties":{"project_id":prop_int("Project ID")},"required":["project_id"]
-        })),
-        tool("create_environment", "Create a new environment with extra-vars JSON.", json!({
-            "type":"object",
-            "properties":{
-                "project_id":prop_int("Project ID"),
-                "name":prop_str("Environment name"),
-                "json":prop_str_opt("Extra-vars as JSON string, e.g. '{\"KEY\":\"VAL\"}'")
-            },"required":["project_id","name"]
-        })),
-        tool("delete_environment", "Delete an environment.", json!({
-            "type":"object",
-            "properties":{
-                "project_id":prop_int("Project ID"),
-                "environment_id":prop_int("Environment ID")
-            },"required":["project_id","environment_id"]
-        })),
-
+        tool(
+            "list_environments",
+            "List all environment configs for a project.",
+            json!({
+                "type":"object","properties":{"project_id":prop_int("Project ID")},"required":["project_id"]
+            }),
+        ),
+        tool(
+            "create_environment",
+            "Create a new environment with extra-vars JSON.",
+            json!({
+                "type":"object",
+                "properties":{
+                    "project_id":prop_int("Project ID"),
+                    "name":prop_str("Environment name"),
+                    "json":prop_str_opt("Extra-vars as JSON string, e.g. '{\"KEY\":\"VAL\"}'")
+                },"required":["project_id","name"]
+            }),
+        ),
+        tool(
+            "delete_environment",
+            "Delete an environment.",
+            json!({
+                "type":"object",
+                "properties":{
+                    "project_id":prop_int("Project ID"),
+                    "environment_id":prop_int("Environment ID")
+                },"required":["project_id","environment_id"]
+            }),
+        ),
         // ── Inventory ────────────────────────────────────────────────────────
-        tool("list_inventory", "List all inventory files for a project.", json!({
-            "type":"object","properties":{"project_id":prop_int("Project ID")},"required":["project_id"]
-        })),
-        tool("get_inventory", "Get details of a specific inventory.", json!({
-            "type":"object",
-            "properties":{
-                "project_id":prop_int("Project ID"),
-                "inventory_id":prop_int("Inventory ID")
-            },"required":["project_id","inventory_id"]
-        })),
-
+        tool(
+            "list_inventory",
+            "List all inventory files for a project.",
+            json!({
+                "type":"object","properties":{"project_id":prop_int("Project ID")},"required":["project_id"]
+            }),
+        ),
+        tool(
+            "get_inventory",
+            "Get details of a specific inventory.",
+            json!({
+                "type":"object",
+                "properties":{
+                    "project_id":prop_int("Project ID"),
+                    "inventory_id":prop_int("Inventory ID")
+                },"required":["project_id","inventory_id"]
+            }),
+        ),
         // ── Access Keys ──────────────────────────────────────────────────────
-        tool("list_access_keys", "List all access keys for a project (names and types only — no secrets).", json!({
-            "type":"object","properties":{"project_id":prop_int("Project ID")},"required":["project_id"]
-        })),
-
+        tool(
+            "list_access_keys",
+            "List all access keys for a project (names and types only — no secrets).",
+            json!({
+                "type":"object","properties":{"project_id":prop_int("Project ID")},"required":["project_id"]
+            }),
+        ),
         // ── Runners ──────────────────────────────────────────────────────────
-        tool("list_runners", "List all registered runner agents with status.", json!({
-            "type":"object","properties":{},"required":[]
-        })),
-        tool("toggle_runner", "Enable or disable a runner.", json!({
-            "type":"object",
-            "properties":{
-                "runner_id":prop_int("Runner ID"),
-                "active":prop_bool("true to enable, false to disable")
-            },"required":["runner_id","active"]
-        })),
-
+        tool(
+            "list_runners",
+            "List all registered runner agents with status.",
+            json!({
+                "type":"object","properties":{},"required":[]
+            }),
+        ),
+        tool(
+            "toggle_runner",
+            "Enable or disable a runner.",
+            json!({
+                "type":"object",
+                "properties":{
+                    "runner_id":prop_int("Runner ID"),
+                    "active":prop_bool("true to enable, false to disable")
+                },"required":["runner_id","active"]
+            }),
+        ),
         // ── Analytics ────────────────────────────────────────────────────────
-        tool("get_project_health",
+        tool(
+            "get_project_health",
             "Get health summary (healthy/degraded/critical) for a project based on recent task history.",
             json!({
                 "type":"object",
@@ -232,17 +329,24 @@ pub fn all_definitions() -> Vec<Value> {
                 },"required":["project_id"]
             }),
         ),
-        tool("get_system_info", "Get Velum system information: version, runner count, task stats.", json!({
-            "type":"object","properties":{},"required":[]
-        })),
-
+        tool(
+            "get_system_info",
+            "Get Velum system information: version, runner count, task stats.",
+            json!({
+                "type":"object","properties":{},"required":[]
+            }),
+        ),
         // ── MCP Settings ─────────────────────────────────────────────────────
-        tool("get_mcp_settings", "Get current MCP server settings and connection information.", json!({
-            "type":"object","properties":{},"required":[]
-        })),
-
+        tool(
+            "get_mcp_settings",
+            "Get current MCP server settings and connection information.",
+            json!({
+                "type":"object","properties":{},"required":[]
+            }),
+        ),
         // ── AI Template Creator (FI-VEL-1) ───────────────────────────────────
-        tool("ai_create_template",
+        tool(
+            "ai_create_template",
             "Create a Velum task template from a natural language description. \
              Analyzes the description and suggests template type (ansible/terraform/bash), \
              playbook path, survey vars, extra_vars, vault keys, and inventory structure. \
@@ -255,19 +359,19 @@ pub fn all_definitions() -> Vec<Value> {
                     "dry_run": { "type": "boolean", "description": "Preview without saving (default: false)" }
                 },
                 "required": ["project_id", "description"]
-            })
+            }),
         ),
-
         // ── Deployment Environments (FI-GL-1) ────────────────────────────────
-        tool("list_deploy_environments",
+        tool(
+            "list_deploy_environments",
             "List deployment environments (production/staging/dev/review) with last deploy info.",
             json!({
                 "type":"object","properties":{"project_id":prop_int("Project ID")},"required":["project_id"]
-            })
+            }),
         ),
-
         // ── Structured Outputs (FI-PUL-1) ────────────────────────────────────
-        tool("get_template_last_outputs",
+        tool(
+            "get_template_last_outputs",
             "Get structured outputs (key-value map) from the last successful run of a template. \
              Use outputs of one template as extra_vars input for another (Stack References pattern).",
             json!({
@@ -277,7 +381,7 @@ pub fn all_definitions() -> Vec<Value> {
                     "template_id":prop_int("Template ID")
                 },
                 "required":["project_id","template_id"]
-            })
+            }),
         ),
     ]
 }

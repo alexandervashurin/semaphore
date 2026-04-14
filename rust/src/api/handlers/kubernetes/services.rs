@@ -6,8 +6,8 @@ use crate::api::handlers::kubernetes::client::KubeClient;
 use crate::api::state::AppState;
 use crate::error::{Error, Result};
 use axum::{
-    extract::{Path, Query, State},
     Json,
+    extract::{Path, Query, State},
 };
 use k8s_openapi::api::core::v1::{Service, ServicePort, ServiceSpec};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;

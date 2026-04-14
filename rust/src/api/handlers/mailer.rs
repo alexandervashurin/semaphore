@@ -5,8 +5,8 @@
 use crate::api::middleware::ErrorResponse;
 use crate::api::state::AppState;
 use crate::error::Error;
-use crate::utils::mailer::{send_email, Email, SmtpConfig};
-use axum::{extract::State, http::StatusCode, Json};
+use crate::utils::mailer::{Email, SmtpConfig, send_email};
+use axum::{Json, extract::State, http::StatusCode};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 

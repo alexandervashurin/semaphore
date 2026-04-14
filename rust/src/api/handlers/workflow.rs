@@ -8,9 +8,9 @@ use crate::models::workflow::{
     WorkflowUpdate,
 };
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
-    Json,
 };
 use std::sync::Arc;
 

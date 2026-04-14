@@ -358,7 +358,9 @@ impl Cli {
 #[allow(unused_variables)]
 fn cmd_runner(args: RunnerArgs, config: Config) -> anyhow::Result<()> {
     tracing::info!("Запуск раннера Velum...");
-    tracing::warn!("Запуск раннера через CLI пока не поддерживается. Используйте 'semaphore server' вместо этого.");
+    tracing::warn!(
+        "Запуск раннера через CLI пока не поддерживается. Используйте 'semaphore server' вместо этого."
+    );
     Ok(())
 }
 
@@ -501,7 +503,9 @@ fn cmd_setup(_args: SetupArgs, _config: Config) -> anyhow::Result<()> {
     println!();
     println!("Затем выполните:");
     println!("  semaphore migrate --upgrade");
-    println!("  semaphore user add --username admin --name Admin --email admin@example.com --password admin123 --admin");
+    println!(
+        "  semaphore user add --username admin --name Admin --email admin@example.com --password admin123 --admin"
+    );
     println!();
 
     Ok(())

@@ -4,10 +4,10 @@
 
 use crate::api::state::AppState;
 use axum::{
+    Router,
     http::StatusCode,
     middleware::{self, Next},
     response::{IntoResponse, Response},
-    Router,
 };
 use std::sync::Arc;
 use tower_http::services::ServeDir;

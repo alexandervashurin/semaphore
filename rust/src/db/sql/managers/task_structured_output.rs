@@ -93,7 +93,7 @@ impl StructuredOutputManager for SqlStore {
         // Находим последнюю успешную задачу шаблона
         let last_task_id: Option<i32> = sqlx::query_scalar(
             "SELECT id FROM task WHERE template_id = $1 AND project_id = $2 AND status = 'success' \
-             ORDER BY created DESC LIMIT 1"
+             ORDER BY created DESC LIMIT 1",
         )
         .bind(template_id)
         .bind(project_id)

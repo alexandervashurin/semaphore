@@ -5,10 +5,10 @@ use crate::api::state::AppState;
 use crate::db::store::{CostEstimateManager, TaskManager};
 use crate::models::cost_estimate::CostEstimateCreate;
 use axum::{
+    Json,
     extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
-    Json,
 };
 use serde::Deserialize;
 use serde_json::json;
@@ -103,7 +103,7 @@ pub async fn create_task_cost(
     let task = match store.get_task(task_id, project_id).await {
         Ok(t) => t,
         Err(e) => {
-            return (StatusCode::NOT_FOUND, Json(json!({"error": e.to_string()}))).into_response()
+            return (StatusCode::NOT_FOUND, Json(json!({"error": e.to_string()}))).into_response();
         }
     };
 

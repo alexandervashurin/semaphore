@@ -3,8 +3,8 @@
 //! Управление StatefulSet: list, get, delete, scale
 
 use axum::{
-    extract::{Path, Query, State},
     Json,
+    extract::{Path, Query, State},
 };
 use k8s_openapi::api::apps::v1::StatefulSet;
 use k8s_openapi::jiff::Timestamp;
@@ -360,7 +360,9 @@ fn statefulset_detail(sf: &StatefulSet) -> StatefulSetDetail {
         })
         .unwrap_or_default();
 
-    let service_name = spec.and_then(|s| s.service_name.clone()).unwrap_or_default();
+    let service_name = spec
+        .and_then(|s| s.service_name.clone())
+        .unwrap_or_default();
 
     let update_strategy = spec
         .and_then(|s| s.update_strategy.as_ref())
@@ -401,7 +403,11 @@ fn statefulset_detail(sf: &StatefulSet) -> StatefulSetDetail {
         service_name,
         update_strategy,
         conditions,
-        created_at: sf.metadata.creation_timestamp.as_ref().map(|t| t.0.to_string()),
+        created_at: sf
+            .metadata
+            .creation_timestamp
+            .as_ref()
+            .map(|t| t.0.to_string()),
     }
 }
 

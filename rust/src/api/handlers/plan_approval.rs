@@ -7,10 +7,10 @@ use crate::models::PlanReviewPayload;
 use crate::models::ProjectUserRole;
 use crate::services::task_logger::TaskStatus;
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
     response::IntoResponse,
-    Json,
 };
 use serde_json::json;
 use std::sync::Arc;
@@ -86,7 +86,7 @@ pub async fn approve_plan(
                             StatusCode::FORBIDDEN,
                             Json(json!({"error": "Manager or Owner role required"})),
                         )
-                            .into_response()
+                            .into_response();
                     }
                 }
             }
@@ -95,7 +95,7 @@ pub async fn approve_plan(
                     StatusCode::INTERNAL_SERVER_ERROR,
                     Json(json!({"error": e.to_string()})),
                 )
-                    .into_response()
+                    .into_response();
             }
         }
     }
@@ -109,7 +109,7 @@ pub async fn approve_plan(
                     StatusCode::NOT_FOUND,
                     Json(json!({"error": "Plan not found"})),
                 )
-                    .into_response()
+                    .into_response();
             }
         },
         Err(e) => {
@@ -117,7 +117,7 @@ pub async fn approve_plan(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(json!({"error": e.to_string()})),
             )
-                .into_response()
+                .into_response();
         }
     };
 
@@ -180,7 +180,7 @@ pub async fn reject_plan(
                             StatusCode::FORBIDDEN,
                             Json(json!({"error": "Manager or Owner role required"})),
                         )
-                            .into_response()
+                            .into_response();
                     }
                 }
             }
@@ -189,7 +189,7 @@ pub async fn reject_plan(
                     StatusCode::INTERNAL_SERVER_ERROR,
                     Json(json!({"error": e.to_string()})),
                 )
-                    .into_response()
+                    .into_response();
             }
         }
     }

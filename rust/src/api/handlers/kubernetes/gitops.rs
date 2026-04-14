@@ -1,8 +1,8 @@
 //! GitOps draft integration (read-only): detect ArgoCD/Flux and list core objects.
 
 use axum::{
-    extract::{Query, State},
     Json,
+    extract::{Query, State},
 };
 use kube::{
     api::{Api, DynamicObject, ListParams},

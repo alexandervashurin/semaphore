@@ -4,9 +4,9 @@
 //! История деплоев, статусы, URL живого окружения.
 
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
-    Json,
 };
 use serde_json::json;
 use std::sync::Arc;

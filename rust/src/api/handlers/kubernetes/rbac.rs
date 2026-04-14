@@ -3,8 +3,8 @@
 //! SelfSubjectAccessReview с кэшированием (5 минут) для производительности
 
 use axum::{
-    extract::{Path, Query, State},
     Json,
+    extract::{Path, Query, State},
 };
 use k8s_openapi::api::authorization::v1::{
     ResourceAttributes, SelfSubjectAccessReview, SelfSubjectAccessReviewSpec,

@@ -28,8 +28,8 @@ pub use cmd_git_client::{
     CmdGitClient, DbRepository, GitClient, GitRepository, GitRepositoryDirType,
 };
 pub use git_client_factory::{
-    create_cmd_git_client, create_default_git_client, create_git_client, create_go_git_client,
-    GitClientType,
+    GitClientType, create_cmd_git_client, create_default_git_client, create_git_client,
+    create_go_git_client,
 };
 pub use go_git_client::GoGitClient;
 pub use local_app::{AccessKeyInstaller, LocalApp, LocalAppInstallingArgs, LocalAppRunningArgs};

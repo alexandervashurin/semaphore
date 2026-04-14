@@ -6,13 +6,13 @@ use crate::api::middleware::ErrorResponse;
 use crate::api::state::AppState;
 use crate::db::store::{ProjectStore, TaskManager, TemplateManager};
 use crate::error::Error;
-use crate::models::template::{TemplateApp, TemplateType};
 use crate::models::Template;
+use crate::models::template::{TemplateApp, TemplateType};
 use crate::services::task_logger::TaskStatus;
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
-    Json,
 };
 use chrono::Utc;
 use serde::{Deserialize, Serialize};

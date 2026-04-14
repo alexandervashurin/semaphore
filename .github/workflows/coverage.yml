@@ -1,5 +1,6 @@
+---
 name: Rust Coverage
-on:
+on:  # yamllint disable-line rule:truthy
   push:
     branches: [main, develop]
     paths: ["rust/", ".github/workflows/coverage.yml"]

@@ -1,5 +1,7 @@
+---
 # .github/workflows/community_release.yml
 name: Community Release
+# yamllint disable-line rule:truthy
 on:
   push:
     tags:
@@ -21,12 +23,12 @@ jobs:
       - name: Установка Go
         uses: actions/setup-go@v6
         with:
-          go-version: '^1.23' # Стабильная ветка
+          go-version: '^1.23'  # Стабильная ветка
 
       - name: Установка Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: '20' # LTS-версия
+          node-version: '20'  # LTS-версия
           cache: 'npm'
           cache-dependency-path: web/package-lock.json
 
@@ -41,8 +43,12 @@ jobs:
 
       - name: Импорт GPG ключа
         run: |
-          echo "${{ secrets.GPG_KEY }}" | tr ' ' '\n' | base64 -d | gpg --import --batch
-          gpg --sign -u "${{ vars.GPG_KEY_ID }}" --pinentry-mode loopback --yes --batch --passphrase "${{ secrets.GPG_PASS }}" --output unlock.sig --detach-sign README.md
+          echo "${{ secrets.GPG_KEY }}" | tr ' ' '\n' | base64 -d | \
+            gpg --import --batch
+          gpg --sign -u "${{ vars.GPG_KEY_ID }}" \
+            --pinentry-mode loopback --yes --batch \
+            --passphrase "${{ secrets.GPG_PASS }}" \
+            --output unlock.sig --detach-sign README.md
           rm -f unlock.sig
 
       - name: Сброс состояния репозитория
@@ -112,7 +118,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.server.outputs.labels }}
-          tags: velum/velum-community:${{ github.ref_name }}-ansible2.16.5
+          tags: >-
+            velum/velum-community:${{ github.ref_name }}-ansible2.16.5
 
       - name: Сборка Server (PowerShell 7.5.0)
         uses: docker/build-push-action@v6
@@ -127,7 +134,8 @@ jobs:
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.server.outputs.labels }}
-          tags: velum/velum-community:${{ github.ref_name }}-powershell7.5.0
+          tags: >-
+            velum/velum-community:${{ github.ref_name }}-powershell7.5.0
 
       - name: Метаданные Runner
         id: runner
@@ -162,7 +170,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.runner.outputs.labels }}
-          tags: semaphoreui/runner-community:${{ github.ref_name }}-ansible2.16.5
+          tags: >-
+            semaphoreui/runner-community:${{ github.ref_name }}-ansible2.16.5
 
       - name: Сборка Runner (PowerShell 7.5.0)
         uses: docker/build-push-action@v6
@@ -177,4 +186,5 @@ jobs:
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.runner.outputs.labels }}
-          tags: semaphoreui/runner-community:${{ github.ref_name }}-powershell7.5.0
+          tags: >-
+            semaphoreui/runner-community:${{ github.ref_name }}-powershell7.5.0

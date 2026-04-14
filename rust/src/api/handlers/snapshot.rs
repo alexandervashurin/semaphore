@@ -5,10 +5,10 @@ use crate::api::state::AppState;
 use crate::db::store::{SnapshotManager, TaskManager};
 use crate::models::snapshot::{RollbackRequest, TaskSnapshotCreate};
 use axum::{
+    Json,
     extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
-    Json,
 };
 use serde::Deserialize;
 use serde_json::json;
@@ -88,7 +88,7 @@ pub async fn rollback_snapshot(
     let snap = match store.get_snapshot(id, project_id).await {
         Ok(s) => s,
         Err(e) => {
-            return (StatusCode::NOT_FOUND, Json(json!({"error": e.to_string()}))).into_response()
+            return (StatusCode::NOT_FOUND, Json(json!({"error": e.to_string()}))).into_response();
         }
     };
 
@@ -157,7 +157,7 @@ pub async fn snapshot_from_task(
     let task = match store.get_task(task_id, project_id).await {
         Ok(t) => t,
         Err(e) => {
-            return (StatusCode::NOT_FOUND, Json(json!({"error": e.to_string()}))).into_response()
+            return (StatusCode::NOT_FOUND, Json(json!({"error": e.to_string()}))).into_response();
         }
     };
 

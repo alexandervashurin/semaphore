@@ -2,8 +2,8 @@
 
 use axum::http::StatusCode;
 use axum::{
-    response::{IntoResponse, Response},
     Json,
+    response::{IntoResponse, Response},
 };
 use thiserror::Error;
 

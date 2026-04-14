@@ -3,9 +3,9 @@
 //! Управление несколькими Kubernetes кластерами
 
 use axum::{
+    Json,
     extract::{Path, Query, State},
     http::StatusCode,
-    Json,
 };
 use kube::Client;
 use serde::{Deserialize, Serialize};
@@ -550,10 +550,12 @@ mod tests {
     #[test]
     fn test_derive_encryption_key_from_env() {
         let config = crate::config::Config::default();
-        unsafe { std::env::set_var(
-            "SEMAPHORE_KUBECONFIG_KEY",
-            "my-secret-key-12345678901234567890",
-        ) };
+        unsafe {
+            std::env::set_var(
+                "SEMAPHORE_KUBECONFIG_KEY",
+                "my-secret-key-12345678901234567890",
+            )
+        };
         let key = derive_encryption_key(&config);
         assert_eq!(key.len(), 32);
         assert_eq!(&key[..6], b"my-sec");

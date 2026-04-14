@@ -241,8 +241,8 @@ impl TemplateManager for SqlStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::template::{TemplateApp, TemplateType};
     use crate::models::Template;
+    use crate::models::template::{TemplateApp, TemplateType};
     use chrono::Utc;
 
     #[test]

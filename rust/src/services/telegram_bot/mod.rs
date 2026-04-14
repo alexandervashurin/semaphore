@@ -1438,8 +1438,11 @@ mod notify_tests {
             client: reqwest::Client::new(),
         };
         let url = bot.api_url("sendMessage");
-        assert!(url
-            .starts_with("https://api.telegram.org/bot123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11/"));
+        assert!(
+            url.starts_with(
+                "https://api.telegram.org/bot123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11/"
+            )
+        );
     }
 
     // ── Additional tests: chat ID validation ───────────────────────

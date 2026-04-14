@@ -82,7 +82,14 @@
 //! - GitHub: <https://github.com/tnl-o/velum>
 //! - Документация: <https://github.com/tnl-o/velum/tree/main/docs>
 
-#![allow(unused_imports, unused_variables, dead_code, unused_mut, clippy::collapsible_if, unsafe_op_in_unsafe_fn)]
+#![allow(
+    unused_imports,
+    unused_variables,
+    dead_code,
+    unused_mut,
+    clippy::collapsible_if,
+    unsafe_op_in_unsafe_fn
+)]
 
 pub mod api;
 pub mod cache;

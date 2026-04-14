@@ -5,7 +5,7 @@
 use crate::api::middleware::ErrorResponse;
 use crate::api::state::AppState;
 use crate::error::{Error, Result};
-use axum::{extract::State, http::StatusCode, Json};
+use axum::{Json, extract::State, http::StatusCode};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 

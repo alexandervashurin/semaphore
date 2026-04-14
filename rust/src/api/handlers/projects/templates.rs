@@ -8,9 +8,9 @@ use crate::db::store::{RetrieveQueryParams, TaskManager, TemplateManager};
 use crate::error::{Error, Result};
 use crate::models::{Template, TemplateFilter, TemplateWithPerms};
 use axum::{
+    Json,
     extract::{Path, Query, State},
     http::StatusCode,
-    Json,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

@@ -15,13 +15,13 @@ pub mod types;
 
 use std::sync::Arc;
 
-use async_graphql::http::{GraphiQLSource, ALL_WEBSOCKET_PROTOCOLS};
+use async_graphql::http::{ALL_WEBSOCKET_PROTOCOLS, GraphiQLSource};
 use async_graphql_axum::{GraphQLProtocol, GraphQLRequest, GraphQLResponse, GraphQLWebSocket};
 use axum::{
+    Router,
     extract::{State, WebSocketUpgrade},
     response::{Html, IntoResponse},
     routing::get,
-    Router,
 };
 
 use crate::api::state::AppState;

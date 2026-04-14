@@ -147,10 +147,10 @@ pub async fn strict_cors_headers(
 mod tests {
     use super::*;
     use axum::{
+        Router,
         body::Body,
         http::{Request, StatusCode},
         routing::get,
-        Router,
     };
     use tower::ServiceExt;
 
@@ -411,9 +411,11 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(!response
-            .headers()
-            .contains_key("Access-Control-Allow-Origin"));
+        assert!(
+            !response
+                .headers()
+                .contains_key("Access-Control-Allow-Origin")
+        );
     }
 
     #[tokio::test]

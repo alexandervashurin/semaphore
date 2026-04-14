@@ -5,12 +5,12 @@
 //!
 //! Запуск: `cargo bench --bench db_bench`
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use std::hint::black_box;
 use tokio::runtime::Runtime;
 
-use velum_ffi::db::store::*;
 use velum_ffi::db::MockStore;
+use velum_ffi::db::store::*;
 use velum_ffi::models::*;
 
 /// Бенчмарк CRUD операций с шаблонами

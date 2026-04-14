@@ -8,9 +8,9 @@ use crate::db::store::ScheduleManager;
 use crate::error::{Error, Result};
 use crate::models::Schedule;
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
-    Json,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

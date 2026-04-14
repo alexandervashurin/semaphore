@@ -8,9 +8,9 @@ use crate::db::store::ProjectRoleManager;
 use crate::error::Error;
 use crate::models::Role;
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
-    Json,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

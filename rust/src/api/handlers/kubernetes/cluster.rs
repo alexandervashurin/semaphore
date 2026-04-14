@@ -5,7 +5,7 @@
 use crate::api::handlers::kubernetes::client::KubernetesClusterService;
 use crate::api::state::AppState;
 use crate::error::{Error, Result};
-use axum::{extract::State, Json};
+use axum::{Json, extract::State};
 use k8s_openapi::api::core::v1::Node;
 use kube::api::{Api, ListParams};
 use std::sync::Arc;

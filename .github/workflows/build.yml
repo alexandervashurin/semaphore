@@ -1,7 +1,9 @@
+---
 # .github/workflows/build.yml
 name: Build Pipeline
 
 # Триггеры запуска пайплайна
+# yamllint disable-line rule:truthy
 on:
   push:
     branches: [main, develop]
@@ -39,7 +41,8 @@ jobs:
       - name: Установка системных зависимостей
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y --no-install-recommends libssl-dev pkg-config libsqlite3-dev
+          sudo apt-get install -y --no-install-recommends
+            libssl-dev pkg-config libsqlite3-dev
 
       - name: Проверка форматирования
         working-directory: rust
@@ -82,12 +85,14 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y --no-install-recommends libssl-dev pkg-config libsqlite3-dev
+          sudo apt-get install -y --no-install-recommends
+            libssl-dev pkg-config libsqlite3-dev
 
       - name: Системные зависимости (macOS)
         if: runner.os == 'macOS'
         run: brew install openssl pkg-config sqlite
         env:
+          # yamllint disable-line rule:line-length
           PKG_CONFIG_PATH: /opt/homebrew/opt/openssl@3/lib/pkgconfig:/usr/local/opt/openssl@3/lib/pkgconfig
 
       - name: Сборка релизной версии
@@ -98,8 +103,13 @@ jobs:
         working-directory: rust
         env:
           SEMAPHORE_DB_PATH: /tmp/test.db
+          # yamllint disable-line rule:line-length
           SEMAPHORE_JWT_SECRET: test-ci-secret-key-32-bytes-long!
-        run: cargo test --release --features postgres -- --test-threads=4 --skip api_integration --skip kubernetes_integration
+        run: >-
+          cargo test --release --features postgres --
+          --test-threads=4
+          --skip api_integration
+          --skip kubernetes_integration
 
       # Загрузка артефактов для разных платформ
       - name: Upload Linux AMD64
@@ -155,6 +165,7 @@ jobs:
     name: Coverage
     needs: [test]
     runs-on: ubuntu-latest
+    # yamllint disable-line rule:line-length
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout репозитория
@@ -164,13 +175,15 @@ jobs:
       - name: Системные зависимости
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y --no-install-recommends libssl-dev pkg-config libsqlite3-dev
+          sudo apt-get install -y --no-install-recommends
+            libssl-dev pkg-config libsqlite3-dev
       - name: Установка cargo-tarpaulin
         run: cargo install cargo-tarpaulin --locked
       - name: Запуск покрытия
         working-directory: rust
         env:
           SEMAPHORE_DB_PATH: /tmp/test.db
+          # yamllint disable-line rule:line-length
           SEMAPHORE_JWT_SECRET: test-ci-secret-key-32-bytes-long!
         run: |
           cargo tarpaulin \
@@ -192,6 +205,7 @@ jobs:
     name: Docker Build
     needs: [test]
     runs-on: ubuntu-latest
+    # yamllint disable-line rule:line-length
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
     permissions:
       packages: write
@@ -217,11 +231,13 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          # yamllint disable rule:line-length
           tags: |
             type=ref,event=branch
             type=sha
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=raw,value=staging,enable=${{ github.ref == 'refs/heads/develop' }}
+          # yamllint enable rule:line-length
       - name: Сборка и публикация
         uses: docker/build-push-action@v6
         with:
@@ -239,6 +255,7 @@ jobs:
     name: E2E Smoke Test
     needs: [docker]
     runs-on: ubuntu-latest
+    # yamllint disable-line rule:line-length
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     services:
       postgres:
@@ -262,7 +279,8 @@ jobs:
       - name: Системные зависимости
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y --no-install-recommends libssl-dev pkg-config libsqlite3-dev jq
+          sudo apt-get install -y --no-install-recommends
+            libssl-dev pkg-config libsqlite3-dev jq
       - name: Ожидание готовности БД
         run: |
           for i in $(seq 1 30); do
@@ -279,6 +297,7 @@ jobs:
           VELUM_DB_URL: postgres://velum:velum_pass@localhost:5432/velum
           VELUM_DB_DIALECT: postgres
           VELUM_JWT_SECRET: e2e-test-secret-key-32-bytes-long!
+          # yamllint disable-line rule:line-length
           VELUM_WEB_PATH: ${{ github.workspace }}/web/public
           VELUM_ADMIN: admin
           VELUM_ADMIN_PASSWORD: admin123
@@ -306,11 +325,15 @@ jobs:
         run: |
           TOKEN=$(curl -sf -X POST http://localhost:3000/api/auth/login \
             -H 'Content-Type: application/json' \
-            -d '{ "username": "admin", "password": "admin123" }' | jq -r '.token')
+            -d '{ "username": "admin", "password": "admin123" }' \
+            | jq -r '.token')
           echo "Auth OK"
-          curl -sf http://localhost:3000/api/projects -H "Authorization: Bearer $TOKEN" >/dev/null
+          # yamllint disable-line rule:line-length
+          curl -sf http://localhost:3000/api/projects \
+            -H "Authorization: Bearer $TOKEN" >/dev/null
           echo "Projects API OK"
-          curl -sf http://localhost:3000/api/templates -H "Authorization: Bearer $TOKEN" >/dev/null
+          curl -sf http://localhost:3000/api/templates \
+            -H "Authorization: Bearer $TOKEN" >/dev/null
           echo "Templates API OK"
           echo "All smoke tests passed ✅"
       - name: Очистка процессов
@@ -322,6 +345,7 @@ jobs:
     name: Build Documentation
     needs: [check]
     runs-on: ubuntu-latest
+    # yamllint disable-line rule:line-length
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout репозитория
@@ -356,6 +380,7 @@ jobs:
   collect-binaries:
     name: Collect Binaries
     needs: [test]
+    # yamllint disable-line rule:line-length
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:

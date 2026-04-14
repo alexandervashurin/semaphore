@@ -1,8 +1,11 @@
+---
 name: Pro Self-Hosted Release
-on:
+on:  # yamllint disable-line rule:truthy
   push:
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+"
+
+# yamllint disable rule:line-length
 
 permissions:
   contents: write
@@ -18,7 +21,7 @@ jobs:
       - name: Установка Go
         uses: actions/setup-go@v6
         with:
-          go-version: "^1.23" # Стабильная LTS-версия. Верни 1.24.6, если используется nightly
+          go-version: "^1.23"  # Стабильная LTS-версия. Верни 1.24.6, если используется nightly
 
       - name: Установка Node.js
         uses: actions/setup-node@v5
@@ -35,7 +38,8 @@ jobs:
 
       - name: Подключение PRO-модуля
         run: |
-          git clone https://${{ secrets.GH_TOKEN }}@github.com/velum/velumpro-module.git pro_impl
+          git clone https://${{ secrets.GH_TOKEN }}@github.com/velum/velumpro-module.git \
+            pro_impl
           go work init . ./pro_impl
 
       - name: Установка зависимостей
@@ -44,7 +48,9 @@ jobs:
       - name: Импорт GPG ключа
         run: |
           echo "${{ secrets.GPG_KEY }}" | tr " " "\n" | base64 -d | gpg --import --batch
-          gpg --sign -u "${{ vars.GPG_KEY_ID }}" --pinentry-mode loopback --yes --batch --passphrase "${{ secrets.GPG_PASS }}" --output unlock.sig --detach-sign README.md
+          gpg --sign -u "${{ vars.GPG_KEY_ID }}" --pinentry-mode loopback \
+            --yes --batch --passphrase "${{ secrets.GPG_PASS }}" \
+            --output unlock.sig --detach-sign README.md
           rm -f unlock.sig
 
       - name: Сброс состояния репозитория

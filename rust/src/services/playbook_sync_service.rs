@@ -7,7 +7,7 @@ use crate::db::store::{AccessKeyManager, PlaybookManager, RepositoryManager};
 use crate::error::{Error, Result};
 use crate::models::playbook::{Playbook, PlaybookUpdate};
 use crate::services::ssh_auth_service::SshAuthService;
-use git2::{build::RepoBuilder, Cred, FetchOptions, RemoteCallbacks, Repository};
+use git2::{Cred, FetchOptions, RemoteCallbacks, Repository, build::RepoBuilder};
 use std::path::{Path, PathBuf};
 use tempfile::TempDir;
 use tracing::{info, warn};

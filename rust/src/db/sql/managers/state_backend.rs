@@ -543,8 +543,7 @@ mod tests {
 
     #[test]
     fn test_list_workspaces_query() {
-        let query =
-            "SELECT DISTINCT workspace FROM terraform_state WHERE project_id = $1 ORDER BY workspace";
+        let query = "SELECT DISTINCT workspace FROM terraform_state WHERE project_id = $1 ORDER BY workspace";
         assert!(query.contains("DISTINCT"));
         assert!(query.contains("workspace"));
         assert!(query.contains("ORDER BY"));

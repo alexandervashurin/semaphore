@@ -3,6 +3,7 @@
 //! Агрегирует все специализированные трейты для работы с данными
 
 use crate::error::Result;
+use crate::models::Hook;
 use crate::models::audit_log::{
     AuditAction, AuditLevel, AuditLog, AuditLogResult, AuditObjectType,
 };
@@ -25,7 +26,6 @@ use crate::models::workflow::{
     Workflow, WorkflowCreate, WorkflowEdge, WorkflowEdgeCreate, WorkflowNode, WorkflowNodeCreate,
     WorkflowNodeUpdate, WorkflowRun, WorkflowUpdate,
 };
-use crate::models::Hook;
 use crate::models::*;
 use crate::services::task_logger::TaskStatus;
 use async_trait::async_trait;
@@ -614,7 +614,7 @@ pub trait WorkflowManager: Send + Sync {
 pub trait NotificationPolicyManager: Send + Sync {
     async fn get_notification_policies(&self, project_id: i32) -> Result<Vec<NotificationPolicy>>;
     async fn get_notification_policy(&self, id: i32, project_id: i32)
-        -> Result<NotificationPolicy>;
+    -> Result<NotificationPolicy>;
     async fn create_notification_policy(
         &self,
         project_id: i32,
@@ -641,7 +641,7 @@ pub trait CredentialTypeManager: Send + Sync {
     async fn get_credential_types(&self) -> Result<Vec<CredentialType>>;
     async fn get_credential_type(&self, id: i32) -> Result<CredentialType>;
     async fn create_credential_type(&self, payload: CredentialTypeCreate)
-        -> Result<CredentialType>;
+    -> Result<CredentialType>;
     async fn update_credential_type(
         &self,
         id: i32,
@@ -650,7 +650,7 @@ pub trait CredentialTypeManager: Send + Sync {
     async fn delete_credential_type(&self, id: i32) -> Result<()>;
     async fn get_credential_instances(&self, project_id: i32) -> Result<Vec<CredentialInstance>>;
     async fn get_credential_instance(&self, id: i32, project_id: i32)
-        -> Result<CredentialInstance>;
+    -> Result<CredentialInstance>;
     async fn create_credential_instance(
         &self,
         project_id: i32,
@@ -723,7 +723,7 @@ pub trait DriftManager: Send + Sync {
     ) -> Result<()>;
     async fn delete_drift_config(&self, id: i32, project_id: i32) -> Result<()>;
     async fn get_drift_results(&self, drift_config_id: i32, limit: i64)
-        -> Result<Vec<DriftResult>>;
+    -> Result<Vec<DriftResult>>;
     async fn create_drift_result(
         &self,
         project_id: i32,

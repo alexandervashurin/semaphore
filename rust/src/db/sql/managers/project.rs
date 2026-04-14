@@ -11,7 +11,10 @@ use sqlx::Row;
 impl ProjectStore for SqlStore {
     async fn get_projects(&self, user_id: Option<i32>) -> Result<Vec<Project>> {
         let (query, bind_user_id) = if let Some(uid) = user_id {
-            ("SELECT p.* FROM project p JOIN project_user pu ON p.id = pu.project_id WHERE pu.user_id = $1", Some(uid))
+            (
+                "SELECT p.* FROM project p JOIN project_user pu ON p.id = pu.project_id WHERE pu.user_id = $1",
+                Some(uid),
+            )
         } else {
             ("SELECT * FROM project", None)
         };

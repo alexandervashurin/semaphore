@@ -3,8 +3,8 @@
 //! Управление ReplicaSet: list, get, delete
 
 use axum::{
-    extract::{Path, Query, State},
     Json,
+    extract::{Path, Query, State},
 };
 use k8s_openapi::api::apps::v1::ReplicaSet;
 use k8s_openapi::jiff::Timestamp;
@@ -335,7 +335,11 @@ fn replicaset_detail(rs: &ReplicaSet) -> ReplicaSetDetail {
         containers,
         owner_references,
         conditions,
-        created_at: rs.metadata.creation_timestamp.as_ref().map(|t| t.0.to_string()),
+        created_at: rs
+            .metadata
+            .creation_timestamp
+            .as_ref()
+            .map(|t| t.0.to_string()),
     }
 }
 

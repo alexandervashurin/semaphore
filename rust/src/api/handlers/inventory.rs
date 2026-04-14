@@ -7,12 +7,12 @@ use crate::api::state::AppState;
 use crate::db::store::InventoryManager;
 use crate::db::store::RepositoryManager;
 use crate::error::Error;
-use crate::models::inventory::InventoryType;
 use crate::models::Inventory;
+use crate::models::inventory::InventoryType;
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
-    Json,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

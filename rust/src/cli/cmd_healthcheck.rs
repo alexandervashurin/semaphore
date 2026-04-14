@@ -3,7 +3,7 @@
 //! Используется в scratch-образе, где нет curl или wget для Docker healthcheck.
 
 use crate::cli::CliResult;
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use clap::Args;
 use std::time::Duration;
 

@@ -5,9 +5,9 @@
 //! Парсятся из stdout по маркеру: VELUM_OUTPUT: {"key":"value"}
 
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
-    Json,
 };
 use serde_json::json;
 use std::sync::Arc;

@@ -6,10 +6,10 @@ use crate::api::state::AppState;
 use crate::db::store::AuditLogManager;
 use crate::models::audit_log::{AuditAction, AuditLevel, AuditLogFilter, AuditObjectType};
 use axum::{
+    Json,
     extract::{Query, State},
     http::header,
     response::IntoResponse,
-    Json,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -51,7 +51,9 @@ impl KubernetesAuditLogger {
         changes: Option<&str>,
     ) {
         let description = if let Some(changes_desc) = changes {
-            format!("Обновлен ресурс {resource_kind}/{resource_name} в namespace {namespace}: {changes_desc}")
+            format!(
+                "Обновлен ресурс {resource_kind}/{resource_name} в namespace {namespace}: {changes_desc}"
+            )
         } else {
             format!("Обновлен ресурс {resource_kind}/{resource_name} в namespace {namespace}")
         };
@@ -130,7 +132,9 @@ impl KubernetesAuditLogger {
             "HelmRelease",
             release_name,
             namespace,
-            format!("Обновлен Helm release {release_name} до chart {chart_name} в namespace {namespace}"),
+            format!(
+                "Обновлен Helm release {release_name} до chart {chart_name} в namespace {namespace}"
+            ),
         )
         .await;
     }
@@ -430,7 +434,9 @@ pub async fn export_kubernetes_audit(
         .unwrap_or_else(|| "json".to_string())
         .to_lowercase();
     if format == "csv" {
-        let mut csv = String::from("id,created,username,cluster,namespace,resource,resource_name,verb,action,level,description\n");
+        let mut csv = String::from(
+            "id,created,username,cluster,namespace,resource,resource_name,verb,action,level,description\n",
+        );
         for r in rows {
             let line = format!(
                 "{},{},{},{},{},{},{},{},{},{},\"{}\"\n",

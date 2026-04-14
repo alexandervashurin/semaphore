@@ -2,8 +2,8 @@
 //! SelfSubjectRulesReview, Pod Security Admission labels.
 
 use axum::{
-    extract::{Path, Query, State},
     Json,
+    extract::{Path, Query, State},
 };
 use k8s_openapi::api::authorization::v1::{SelfSubjectRulesReview, SelfSubjectRulesReviewSpec};
 use k8s_openapi::api::core::v1::{Namespace, Secret, ServiceAccount};

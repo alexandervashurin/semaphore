@@ -5,7 +5,7 @@
 use crate::api::handlers;
 use crate::api::handlers::totp;
 use crate::api::state::AppState;
-use axum::{routing::get, routing::post, Router};
+use axum::{Router, routing::get, routing::post};
 use std::sync::Arc;
 
 /// Создаёт маршруты аутентификации
