@@ -103,8 +103,14 @@ mod tests {
     #[test]
     fn test_project_stats_clone() {
         let stats = ProjectStats {
-            task_count: 100, success_count: 80, fail_count: 15, stopped_count: 5,
-            active_user_count: 10, template_count: 5, inventory_count: 3, repository_count: 2,
+            task_count: 100,
+            success_count: 80,
+            fail_count: 15,
+            stopped_count: 5,
+            active_user_count: 10,
+            template_count: 5,
+            inventory_count: 3,
+            repository_count: 2,
         };
         let cloned = stats.clone();
         assert_eq!(cloned.task_count, stats.task_count);
@@ -130,8 +136,14 @@ mod tests {
     #[test]
     fn test_project_stats_all_zeros() {
         let stats = ProjectStats {
-            task_count: 0, success_count: 0, fail_count: 0, stopped_count: 0,
-            active_user_count: 0, template_count: 0, inventory_count: 0, repository_count: 0,
+            task_count: 0,
+            success_count: 0,
+            fail_count: 0,
+            stopped_count: 0,
+            active_user_count: 0,
+            template_count: 0,
+            inventory_count: 0,
+            repository_count: 0,
         };
         assert_eq!(stats.success_rate(), 0.0);
         let json = serde_json::to_string(&stats).unwrap();
@@ -141,8 +153,14 @@ mod tests {
     #[test]
     fn test_project_stats_large_values() {
         let stats = ProjectStats {
-            task_count: 1_000_000, success_count: 900_000, fail_count: 80_000, stopped_count: 20_000,
-            active_user_count: 500, template_count: 100, inventory_count: 50, repository_count: 25,
+            task_count: 1_000_000,
+            success_count: 900_000,
+            fail_count: 80_000,
+            stopped_count: 20_000,
+            active_user_count: 500,
+            template_count: 100,
+            inventory_count: 50,
+            repository_count: 25,
         };
         let rate = stats.success_rate();
         assert!((rate - 90.0).abs() < 0.01);
@@ -151,8 +169,14 @@ mod tests {
     #[test]
     fn test_project_stats_partial_success() {
         let stats = ProjectStats {
-            task_count: 10, success_count: 3, fail_count: 3, stopped_count: 4,
-            active_user_count: 1, template_count: 1, inventory_count: 1, repository_count: 1,
+            task_count: 10,
+            success_count: 3,
+            fail_count: 3,
+            stopped_count: 4,
+            active_user_count: 1,
+            template_count: 1,
+            inventory_count: 1,
+            repository_count: 1,
         };
         // 3 / (3+3+4) * 100 = 30%
         assert!((stats.success_rate() - 30.0).abs() < 0.01);
@@ -168,8 +192,14 @@ mod tests {
     #[test]
     fn test_project_stats_only_stopped() {
         let stats = ProjectStats {
-            task_count: 5, success_count: 0, fail_count: 0, stopped_count: 5,
-            active_user_count: 1, template_count: 1, inventory_count: 1, repository_count: 1,
+            task_count: 5,
+            success_count: 0,
+            fail_count: 0,
+            stopped_count: 5,
+            active_user_count: 1,
+            template_count: 1,
+            inventory_count: 1,
+            repository_count: 1,
         };
         // 0 / (0+0+5) * 100 = 0%
         assert_eq!(stats.success_rate(), 0.0);
@@ -178,8 +208,14 @@ mod tests {
     #[test]
     fn test_project_stats_only_success() {
         let stats = ProjectStats {
-            task_count: 10, success_count: 10, fail_count: 0, stopped_count: 0,
-            active_user_count: 2, template_count: 1, inventory_count: 1, repository_count: 1,
+            task_count: 10,
+            success_count: 10,
+            fail_count: 0,
+            stopped_count: 0,
+            active_user_count: 2,
+            template_count: 1,
+            inventory_count: 1,
+            repository_count: 1,
         };
         // 10 / (10+0+0) * 100 = 100%
         assert!((stats.success_rate() - 100.0).abs() < 0.01);
@@ -188,8 +224,14 @@ mod tests {
     #[test]
     fn test_project_stats_clone_independence() {
         let mut stats = ProjectStats {
-            task_count: 100, success_count: 80, fail_count: 15, stopped_count: 5,
-            active_user_count: 10, template_count: 5, inventory_count: 3, repository_count: 2,
+            task_count: 100,
+            success_count: 80,
+            fail_count: 15,
+            stopped_count: 5,
+            active_user_count: 10,
+            template_count: 5,
+            inventory_count: 3,
+            repository_count: 2,
         };
         let cloned = stats.clone();
         stats.success_count = 0;
@@ -199,8 +241,14 @@ mod tests {
     #[test]
     fn test_project_stats_roundtrip() {
         let original = ProjectStats {
-            task_count: 999, success_count: 888, fail_count: 99, stopped_count: 12,
-            active_user_count: 42, template_count: 15, inventory_count: 8, repository_count: 3,
+            task_count: 999,
+            success_count: 888,
+            fail_count: 99,
+            stopped_count: 12,
+            active_user_count: 42,
+            template_count: 15,
+            inventory_count: 8,
+            repository_count: 3,
         };
         let json = serde_json::to_string(&original).unwrap();
         let restored: ProjectStats = serde_json::from_str(&json).unwrap();

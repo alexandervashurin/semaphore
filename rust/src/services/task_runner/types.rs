@@ -203,12 +203,7 @@ mod tests {
         let pool = create_test_task_pool();
         let key_installer = AccessKeyInstallerImpl::new();
 
-        let runner = TaskRunner::new(
-            task,
-            pool,
-            "admin".to_string(),
-            key_installer,
-        );
+        let runner = TaskRunner::new(task, pool, "admin".to_string(), key_installer);
 
         assert_eq!(runner.username, "admin");
     }
@@ -485,11 +480,8 @@ mod tests {
 
         let runner = TaskRunner::new(task, pool, "user".to_string(), key_installer);
 
-        let (r1, r2, r3) = tokio::join!(
-            runner.is_killed(),
-            runner.is_killed(),
-            runner.is_killed(),
-        );
+        let (r1, r2, r3) =
+            tokio::join!(runner.is_killed(), runner.is_killed(), runner.is_killed(),);
         assert!(!r1);
         assert!(!r2);
         assert!(!r3);

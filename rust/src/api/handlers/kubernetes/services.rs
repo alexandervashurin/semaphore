@@ -361,8 +361,8 @@ pub async fn get_service_endpoint_slices(
     State(state): State<Arc<AppState>>,
     Path((namespace, name)): Path<(String, String)>,
 ) -> Result<Json<ServiceBackendsResponse>> {
-    use k8s_openapi::api::discovery::v1::EndpointSlice;
     use k8s_openapi::api::core::v1::Endpoints;
+    use k8s_openapi::api::discovery::v1::EndpointSlice;
 
     let client = state.kubernetes_client()?;
     let slices_api: Api<EndpointSlice> = client.api(Some(&namespace));
@@ -395,9 +395,8 @@ pub async fn get_service_endpoint_slices(
         .map_err(|e| Error::Kubernetes(e.to_string()))?;
     let mut fallback_items = Vec::new();
     if let Some(ep) = legacy {
-        fallback_items.push(
-            serde_json::to_value(ep).map_err(|e| Error::Kubernetes(e.to_string()))?,
-        );
+        fallback_items
+            .push(serde_json::to_value(ep).map_err(|e| Error::Kubernetes(e.to_string()))?);
     }
     Ok(Json(ServiceBackendsResponse {
         source: "endpoints".to_string(),

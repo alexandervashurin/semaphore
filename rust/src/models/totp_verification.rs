@@ -43,7 +43,8 @@ mod tests {
 
     #[test]
     fn test_totp_verification_deserialization() {
-        let json = r#"{"secret":"ABC123","recovery_hash":"hash456","recovery_codes":["rc1","rc2"]}"#;
+        let json =
+            r#"{"secret":"ABC123","recovery_hash":"hash456","recovery_codes":["rc1","rc2"]}"#;
         let totp: TotpVerification = serde_json::from_str(json).unwrap();
         assert_eq!(totp.secret, "ABC123");
         assert_eq!(totp.recovery_codes.as_ref().unwrap().len(), 2);
@@ -94,7 +95,13 @@ mod tests {
 
     #[test]
     fn test_totp_verification_multiple_codes() {
-        let codes = vec!["code1".to_string(), "code2".to_string(), "code3".to_string(), "code4".to_string(), "code5".to_string()];
+        let codes = vec![
+            "code1".to_string(),
+            "code2".to_string(),
+            "code3".to_string(),
+            "code4".to_string(),
+            "code5".to_string(),
+        ];
         let totp = TotpVerification {
             secret: "multi".to_string(),
             recovery_hash: "hash_multi".to_string(),

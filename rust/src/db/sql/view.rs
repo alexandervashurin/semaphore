@@ -181,9 +181,24 @@ mod tests {
     #[test]
     fn test_view_position_ordering() {
         let views = vec![
-            View { id: 3, project_id: 1, title: "Third".to_string(), position: 2 },
-            View { id: 1, project_id: 1, title: "First".to_string(), position: 0 },
-            View { id: 2, project_id: 1, title: "Second".to_string(), position: 1 },
+            View {
+                id: 3,
+                project_id: 1,
+                title: "Third".to_string(),
+                position: 2,
+            },
+            View {
+                id: 1,
+                project_id: 1,
+                title: "First".to_string(),
+                position: 0,
+            },
+            View {
+                id: 2,
+                project_id: 1,
+                title: "Second".to_string(),
+                position: 1,
+            },
         ];
         let mut sorted = views.clone();
         sorted.sort_by_key(|v| v.position);

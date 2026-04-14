@@ -1,9 +1,10 @@
 //! Kubernetes API handlers
 
 pub mod advanced;
+pub mod apply;
 pub mod audit;
-pub mod batch;
 pub mod backup_restore;
+pub mod batch;
 pub mod client;
 pub mod cluster;
 pub mod cluster_management;
@@ -17,10 +18,12 @@ pub mod gateway_api;
 pub mod gitops;
 pub mod health;
 pub mod helm;
+pub mod helm_handler;
 pub mod ingress;
 pub mod inventory_sync;
 pub mod namespaces;
 pub mod networkpolicies;
+pub mod observability;
 pub mod pods;
 pub mod pods_ws;
 pub mod prometheus;
@@ -37,14 +40,12 @@ pub mod storage_snapshots;
 pub mod troubleshooting;
 pub mod types;
 pub mod workloads_k8s;
-pub mod observability;
-pub mod helm_handler;
-pub mod apply;
 
 pub use advanced::*;
+pub use apply::*;
 pub use audit::*;
-pub use batch::*;
 pub use backup_restore::*;
+pub use batch::*;
 pub use client::*;
 pub use cluster::*;
 #[allow(ambiguous_glob_reexports)]
@@ -80,7 +81,6 @@ pub use storage_csi::*;
 pub use storage_snapshots::*;
 pub use troubleshooting::*;
 pub use types::*;
-pub use apply::*;
 // workloads_k8s excluded — use specific modules (deployments, pods, etc.) instead
 // Only export the new WS handlers; pod CRUD is already in workloads_k8s
 pub use pods::{pod_exec, pod_portforward, PodExecQuery, PodPortForwardQuery};

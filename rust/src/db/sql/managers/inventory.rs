@@ -143,11 +143,26 @@ mod tests {
 
     #[test]
     fn test_inventory_type_from_str() {
-        assert_eq!("static".parse::<InventoryType>().unwrap(), InventoryType::Static);
-        assert_eq!("static_yaml".parse::<InventoryType>().unwrap(), InventoryType::StaticYaml);
-        assert_eq!("static_json".parse::<InventoryType>().unwrap(), InventoryType::StaticJson);
-        assert_eq!("file".parse::<InventoryType>().unwrap(), InventoryType::File);
-        assert_eq!("invalid".parse::<InventoryType>().unwrap(), InventoryType::Static);
+        assert_eq!(
+            "static".parse::<InventoryType>().unwrap(),
+            InventoryType::Static
+        );
+        assert_eq!(
+            "static_yaml".parse::<InventoryType>().unwrap(),
+            InventoryType::StaticYaml
+        );
+        assert_eq!(
+            "static_json".parse::<InventoryType>().unwrap(),
+            InventoryType::StaticJson
+        );
+        assert_eq!(
+            "file".parse::<InventoryType>().unwrap(),
+            InventoryType::File
+        );
+        assert_eq!(
+            "invalid".parse::<InventoryType>().unwrap(),
+            InventoryType::Static
+        );
     }
 
     #[test]

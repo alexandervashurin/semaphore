@@ -200,7 +200,10 @@ pub async fn scale_statefulset(
         .map_err(|e| Error::Kubernetes(format!("Failed to scale statefulset: {}", e)))?;
 
     Ok(Json(StatefulSetOperationResponse {
-        message: format!("StatefulSet {} scaled to {} replicas", name, payload.replicas),
+        message: format!(
+            "StatefulSet {} scaled to {} replicas",
+            name, payload.replicas
+        ),
         name,
         namespace,
         replicas: Some(payload.replicas),
@@ -332,10 +335,7 @@ fn statefulset_detail(sf: &StatefulSet) -> StatefulSetDetail {
             templates
                 .iter()
                 .map(|t| {
-                    let storage_class = t
-                        .spec
-                        .as_ref()
-                        .and_then(|s| s.storage_class_name.clone());
+                    let storage_class = t.spec.as_ref().and_then(|s| s.storage_class_name.clone());
 
                     let storage_size = t
                         .spec
@@ -361,9 +361,7 @@ fn statefulset_detail(sf: &StatefulSet) -> StatefulSetDetail {
         })
         .unwrap_or_default();
 
-    let service_name = spec
-        .map(|s| s.service_name.clone())
-        .unwrap_or_default();
+    let service_name = spec.map(|s| s.service_name.clone()).unwrap_or_default();
 
     let update_strategy = spec
         .and_then(|s| s.update_strategy.as_ref())
@@ -374,7 +372,8 @@ fn statefulset_detail(sf: &StatefulSet) -> StatefulSetDetail {
     let conditions = status
         .and_then(|s| s.conditions.clone())
         .map(|conds| {
-            conds.iter()
+            conds
+                .iter()
                 .map(|c| StatefulSetCondition {
                     condition_type: c.type_.clone(),
                     status: c.status.clone(),

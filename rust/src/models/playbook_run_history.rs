@@ -413,15 +413,30 @@ mod tests {
     #[test]
     fn test_playbook_run_unicode_output() {
         let run = PlaybookRun {
-            id: 1, project_id: 1, playbook_id: 1, task_id: None, template_id: None,
-            status: PlaybookRunStatus::Success, inventory_id: None, environment_id: None,
-            extra_vars: None, limit_hosts: None, tags: None, skip_tags: None,
-            start_time: Some(Utc::now()), end_time: Some(Utc::now()),
-            duration_seconds: Some(60), hosts_total: Some(1), hosts_changed: Some(0),
-            hosts_unreachable: Some(0), hosts_failed: Some(0),
+            id: 1,
+            project_id: 1,
+            playbook_id: 1,
+            task_id: None,
+            template_id: None,
+            status: PlaybookRunStatus::Success,
+            inventory_id: None,
+            environment_id: None,
+            extra_vars: None,
+            limit_hosts: None,
+            tags: None,
+            skip_tags: None,
+            start_time: Some(Utc::now()),
+            end_time: Some(Utc::now()),
+            duration_seconds: Some(60),
+            hosts_total: Some(1),
+            hosts_changed: Some(0),
+            hosts_unreachable: Some(0),
+            hosts_failed: Some(0),
             output: Some("Вывод с русским текстом".to_string()),
-            error_message: None, user_id: None,
-            created: Utc::now(), updated: Utc::now(),
+            error_message: None,
+            user_id: None,
+            created: Utc::now(),
+            updated: Utc::now(),
         };
         let json = serde_json::to_string(&run).unwrap();
         let restored: PlaybookRun = serde_json::from_str(&json).unwrap();
@@ -431,13 +446,30 @@ mod tests {
     #[test]
     fn test_playbook_run_clone_independence() {
         let mut run = PlaybookRun {
-            id: 1, project_id: 1, playbook_id: 1, task_id: None, template_id: None,
-            status: PlaybookRunStatus::Running, inventory_id: None, environment_id: None,
-            extra_vars: None, limit_hosts: None, tags: None, skip_tags: None,
-            start_time: None, end_time: None, duration_seconds: None,
-            hosts_total: None, hosts_changed: None, hosts_unreachable: None, hosts_failed: None,
-            output: None, error_message: None, user_id: None,
-            created: Utc::now(), updated: Utc::now(),
+            id: 1,
+            project_id: 1,
+            playbook_id: 1,
+            task_id: None,
+            template_id: None,
+            status: PlaybookRunStatus::Running,
+            inventory_id: None,
+            environment_id: None,
+            extra_vars: None,
+            limit_hosts: None,
+            tags: None,
+            skip_tags: None,
+            start_time: None,
+            end_time: None,
+            duration_seconds: None,
+            hosts_total: None,
+            hosts_changed: None,
+            hosts_unreachable: None,
+            hosts_failed: None,
+            output: None,
+            error_message: None,
+            user_id: None,
+            created: Utc::now(),
+            updated: Utc::now(),
         };
         let cloned = run.clone();
         run.status = PlaybookRunStatus::Failed;
@@ -447,8 +479,11 @@ mod tests {
     #[test]
     fn test_playbook_run_stats_roundtrip() {
         let original = PlaybookRunStats {
-            total_runs: 500, success_runs: 450, failed_runs: 30,
-            avg_duration_seconds: Some(120.5), last_run: Some(Utc::now()),
+            total_runs: 500,
+            success_runs: 450,
+            failed_runs: 30,
+            avg_duration_seconds: Some(120.5),
+            last_run: Some(Utc::now()),
         };
         let json = serde_json::to_string(&original).unwrap();
         let restored: PlaybookRunStats = serde_json::from_str(&json).unwrap();

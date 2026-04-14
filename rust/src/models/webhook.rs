@@ -93,11 +93,26 @@ mod tests {
 
     #[test]
     fn test_webhook_type_serialization() {
-        assert_eq!(serde_json::to_string(&WebhookType::Generic).unwrap(), "\"generic\"");
-        assert_eq!(serde_json::to_string(&WebhookType::Slack).unwrap(), "\"slack\"");
-        assert_eq!(serde_json::to_string(&WebhookType::Teams).unwrap(), "\"teams\"");
-        assert_eq!(serde_json::to_string(&WebhookType::Discord).unwrap(), "\"discord\"");
-        assert_eq!(serde_json::to_string(&WebhookType::Telegram).unwrap(), "\"telegram\"");
+        assert_eq!(
+            serde_json::to_string(&WebhookType::Generic).unwrap(),
+            "\"generic\""
+        );
+        assert_eq!(
+            serde_json::to_string(&WebhookType::Slack).unwrap(),
+            "\"slack\""
+        );
+        assert_eq!(
+            serde_json::to_string(&WebhookType::Teams).unwrap(),
+            "\"teams\""
+        );
+        assert_eq!(
+            serde_json::to_string(&WebhookType::Discord).unwrap(),
+            "\"discord\""
+        );
+        assert_eq!(
+            serde_json::to_string(&WebhookType::Telegram).unwrap(),
+            "\"telegram\""
+        );
     }
 
     #[test]
@@ -198,8 +213,14 @@ mod tests {
 
     #[test]
     fn test_webhook_type_all_serialization() {
-        let types = [WebhookType::Generic, WebhookType::Slack, WebhookType::Teams,
-                     WebhookType::Discord, WebhookType::Telegram, WebhookType::Custom];
+        let types = [
+            WebhookType::Generic,
+            WebhookType::Slack,
+            WebhookType::Teams,
+            WebhookType::Discord,
+            WebhookType::Telegram,
+            WebhookType::Custom,
+        ];
         for t in &types {
             let json = serde_json::to_string(t).unwrap();
             assert!(json.starts_with('"') && json.ends_with('"'));
@@ -209,10 +230,16 @@ mod tests {
     #[test]
     fn test_create_webhook_clone() {
         let create = CreateWebhook {
-            project_id: Some(1), name: "Clone Webhook".to_string(),
-            r#type: WebhookType::Generic, url: "https://example.com".to_string(),
-            secret: None, headers: None, active: true, events: vec![],
-            retry_count: 3, timeout_secs: 30,
+            project_id: Some(1),
+            name: "Clone Webhook".to_string(),
+            r#type: WebhookType::Generic,
+            url: "https://example.com".to_string(),
+            secret: None,
+            headers: None,
+            active: true,
+            events: vec![],
+            retry_count: 3,
+            timeout_secs: 30,
         };
         let cloned = create.clone();
         assert_eq!(cloned.name, create.name);
@@ -222,9 +249,15 @@ mod tests {
     #[test]
     fn test_update_webhook_clone() {
         let update = UpdateWebhook {
-            name: Some("Clone Update".to_string()), r#type: None, url: None,
-            secret: None, headers: None, active: Some(true), events: None,
-            retry_count: None, timeout_secs: None,
+            name: Some("Clone Update".to_string()),
+            r#type: None,
+            url: None,
+            secret: None,
+            headers: None,
+            active: Some(true),
+            events: None,
+            retry_count: None,
+            timeout_secs: None,
         };
         let cloned = update.clone();
         assert_eq!(cloned.name, update.name);
@@ -234,9 +267,16 @@ mod tests {
     #[test]
     fn test_webhook_log_clone() {
         let log = WebhookLog {
-            id: 1, webhook_id: 10, event_type: "task_failed".to_string(),
-            status_code: Some(500), success: false, error: Some("Error".to_string()),
-            attempts: 3, payload: None, response: None, created: Utc::now(),
+            id: 1,
+            webhook_id: 10,
+            event_type: "task_failed".to_string(),
+            status_code: Some(500),
+            success: false,
+            error: Some("Error".to_string()),
+            attempts: 3,
+            payload: None,
+            response: None,
+            created: Utc::now(),
         };
         let cloned = log.clone();
         assert_eq!(cloned.event_type, log.event_type);
@@ -275,10 +315,19 @@ mod tests {
     #[test]
     fn test_webhook_unicode_name() {
         let webhook = Webhook {
-            id: 1, project_id: Some(1), name: "Вебхук".to_string(),
-            r#type: WebhookType::Generic, url: "https://example.com".to_string(),
-            secret: None, headers: None, active: true, events: serde_json::json!([]),
-            retry_count: 3, timeout_secs: 30, created: Utc::now(), updated: Utc::now(),
+            id: 1,
+            project_id: Some(1),
+            name: "Вебхук".to_string(),
+            r#type: WebhookType::Generic,
+            url: "https://example.com".to_string(),
+            secret: None,
+            headers: None,
+            active: true,
+            events: serde_json::json!([]),
+            retry_count: 3,
+            timeout_secs: 30,
+            created: Utc::now(),
+            updated: Utc::now(),
         };
         let json = serde_json::to_string(&webhook).unwrap();
         let restored: Webhook = serde_json::from_str(&json).unwrap();

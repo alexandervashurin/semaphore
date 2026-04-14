@@ -55,8 +55,18 @@ pub async fn get_gitops_status(State(state): State<Arc<AppState>>) -> Result<Jso
 
     let argo_app = ar("argoproj.io", "v1alpha1", "Application", "applications");
     let argo_proj = ar("argoproj.io", "v1alpha1", "AppProject", "appprojects");
-    let flux_ks = ar("kustomize.toolkit.fluxcd.io", "v1", "Kustomization", "kustomizations");
-    let flux_hr = ar("helm.toolkit.fluxcd.io", "v2", "HelmRelease", "helmreleases");
+    let flux_ks = ar(
+        "kustomize.toolkit.fluxcd.io",
+        "v1",
+        "Kustomization",
+        "kustomizations",
+    );
+    let flux_hr = ar(
+        "helm.toolkit.fluxcd.io",
+        "v2",
+        "HelmRelease",
+        "helmreleases",
+    );
 
     let argo_app_ok = is_api_available(raw.clone(), &argo_app).await;
     let argo_proj_ok = is_api_available(raw.clone(), &argo_proj).await;
@@ -102,7 +112,9 @@ pub async fn list_argocd_applications(
         .list(&lp)
         .await
         .map_err(|e| Error::Kubernetes(format!("ArgoCD Application API not available: {e}")))?;
-    Ok(Json(items.items.iter().map(|x| serde_json::json!(x)).collect()))
+    Ok(Json(
+        items.items.iter().map(|x| serde_json::json!(x)).collect(),
+    ))
 }
 
 pub async fn list_flux_kustomizations(
@@ -125,7 +137,9 @@ pub async fn list_flux_kustomizations(
         .list(&lp)
         .await
         .map_err(|e| Error::Kubernetes(format!("Flux Kustomization API not available: {e}")))?;
-    Ok(Json(items.items.iter().map(|x| serde_json::json!(x)).collect()))
+    Ok(Json(
+        items.items.iter().map(|x| serde_json::json!(x)).collect(),
+    ))
 }
 
 pub async fn list_flux_helm_releases(
@@ -148,7 +162,9 @@ pub async fn list_flux_helm_releases(
         .list(&lp)
         .await
         .map_err(|e| Error::Kubernetes(format!("Flux HelmRelease API not available: {e}")))?;
-    Ok(Json(items.items.iter().map(|x| serde_json::json!(x)).collect()))
+    Ok(Json(
+        items.items.iter().map(|x| serde_json::json!(x)).collect(),
+    ))
 }
 
 #[cfg(test)]
@@ -262,7 +278,12 @@ mod tests {
 
     #[test]
     fn test_api_resource_flux_kustomization() {
-        let ar = ar("kustomize.toolkit.fluxcd.io", "v1", "Kustomization", "kustomizations");
+        let ar = ar(
+            "kustomize.toolkit.fluxcd.io",
+            "v1",
+            "Kustomization",
+            "kustomizations",
+        );
         assert_eq!(ar.group, "kustomize.toolkit.fluxcd.io");
         assert_eq!(ar.version, "v1");
         assert_eq!(ar.kind, "Kustomization");
@@ -270,7 +291,12 @@ mod tests {
 
     #[test]
     fn test_api_resource_flux_helmrelease() {
-        let ar = ar("helm.toolkit.fluxcd.io", "v2", "HelmRelease", "helmreleases");
+        let ar = ar(
+            "helm.toolkit.fluxcd.io",
+            "v2",
+            "HelmRelease",
+            "helmreleases",
+        );
         assert_eq!(ar.group, "helm.toolkit.fluxcd.io");
         assert_eq!(ar.version, "v2");
         assert_eq!(ar.kind, "HelmRelease");

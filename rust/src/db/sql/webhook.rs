@@ -324,7 +324,10 @@ mod tests {
         assert_eq!(db.webhook_type_to_string(&WebhookType::Slack), "slack");
         assert_eq!(db.webhook_type_to_string(&WebhookType::Teams), "teams");
         assert_eq!(db.webhook_type_to_string(&WebhookType::Discord), "discord");
-        assert_eq!(db.webhook_type_to_string(&WebhookType::Telegram), "telegram");
+        assert_eq!(
+            db.webhook_type_to_string(&WebhookType::Telegram),
+            "telegram"
+        );
         assert_eq!(db.webhook_type_to_string(&WebhookType::Custom), "custom");
     }
 

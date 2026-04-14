@@ -6,17 +6,17 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
-use chrono::{DateTime, Utc, Duration};
+use chrono::{DateTime, Duration, Utc};
 use k8s_openapi::api::core::v1::Event;
-use kube::{api::{Api, ListParams, ResourceExt}};
+use kube::api::{Api, ListParams, ResourceExt};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+use super::client::KubeClient;
+use super::prometheus::MetricValue;
 use crate::api::state::AppState;
 use crate::db::store::AuditLogManager;
 use crate::error::{Error, Result};
-use super::client::KubeClient;
-use super::prometheus::MetricValue;
 
 // ============================================================================
 // Troubleshooting Dashboard Types
@@ -27,19 +27,19 @@ use super::prometheus::MetricValue;
 pub struct TroubleshootingReport {
     /// Объект для диагностики
     pub target: ResourceTarget,
-    
+
     /// Временная шкала событий
     pub timeline: Vec<TimelineEvent>,
-    
+
     /// Последние audit записи
     pub audit_records: Vec<AuditRecord>,
-    
+
     /// Метрики объекта (если доступны)
     pub metrics: Option<ResourceMetrics>,
-    
+
     /// Рекомендации по диагностике
     pub recommendations: Vec<Recommendation>,
-    
+
     /// Статус здоровья
     pub health_status: HealthStatus,
 }
@@ -175,24 +175,24 @@ pub async fn get_troubleshooting_report(
 
     // Собираем timeline событий
     let timeline = build_timeline(&state, &query, lookback).await?;
-    
+
     // Получаем audit записи
     let audit_records = if include_audit {
         get_audit_records(&state, &query, lookback).await?
     } else {
         Vec::new()
     };
-    
+
     // Получаем метрики
     let metrics = if include_metrics {
         get_resource_metrics(&state, &query).await.ok()
     } else {
         None
     };
-    
+
     // Генерируем рекомендации
     let recommendations = generate_recommendations(&timeline, &metrics, &query);
-    
+
     // Определяем статус здоровья
     let health_status = calculate_health_status(&timeline, &metrics);
 
@@ -225,7 +225,7 @@ async fn build_timeline(
 
     // Получаем Kubernetes Events для объекта
     let k8s_events = get_kubernetes_events(&kube_client, query, lookback_hours).await?;
-    
+
     for event in k8s_events {
         let severity = match event.type_.as_str() {
             "Warning" => Severity::Warning,
@@ -273,11 +273,15 @@ async fn get_kubernetes_events(
         ..Default::default()
     };
 
-    let event_list = api.list(&lp).await
+    let event_list = api
+        .list(&lp)
+        .await
         .map_err(|e| Error::Kubernetes(format!("Failed to list events: {}", e)))?;
 
-    let events = event_list.items.iter().map(|e| {
-        SimpleEvent {
+    let events = event_list
+        .items
+        .iter()
+        .map(|e| SimpleEvent {
             name: e.metadata.name.clone().unwrap_or_default(),
             namespace: e.metadata.namespace.clone().unwrap_or_default(),
             type_: e.type_.clone().unwrap_or_default(),
@@ -286,8 +290,8 @@ async fn get_kubernetes_events(
             count: e.count.unwrap_or(1),
             first_seen: e.first_timestamp.as_ref().map(|t| t.0.to_rfc3339()),
             last_seen: e.last_timestamp.as_ref().map(|t| t.0.to_rfc3339()),
-        }
-    }).collect();
+        })
+        .collect();
 
     Ok(events)
 }
@@ -313,13 +317,13 @@ async fn get_audit_records(
 ) -> Result<Vec<AuditRecord>> {
     // Вычисляем дату начала периода
     let date_from = Utc::now() - Duration::hours(lookback_hours);
-    
+
     // Фильтр по project_id если есть
     // Для Kubernetes ресурсов пока ищем по всем проектам
     // В будущем можно связывать Kubernetes кластеры с проектами Velum
-    
+
     use crate::models::audit_log::AuditLogFilter;
-    
+
     let filter = AuditLogFilter {
         project_id: None, // Все проекты
         user_id: None,
@@ -336,24 +340,30 @@ async fn get_audit_records(
         sort: "created".to_string(),
         order: "desc".to_string(),
     };
-    
+
     match state.store.search_audit_logs(&filter).await {
         Ok(result) => {
-            let records = result.records.iter().map(|r| {
-                AuditRecord {
-                    id: r.id,
-                    timestamp: r.created,
-                    user_id: r.user_id,
-                    username: r.username.clone(),
-                    action: r.action.to_string(),
-                    resource_kind: r.object_type.to_string(),
-                    resource_name: r.object_name.clone().unwrap_or_else(|| r.object_id.map(|id| id.to_string()).unwrap_or_default()),
-                    namespace: String::new(), // Audit log не хранит namespace
-                    description: r.description.clone(),
-                    level: r.level.to_string(),
-                }
-            }).collect();
-            
+            let records = result
+                .records
+                .iter()
+                .map(|r| {
+                    AuditRecord {
+                        id: r.id,
+                        timestamp: r.created,
+                        user_id: r.user_id,
+                        username: r.username.clone(),
+                        action: r.action.to_string(),
+                        resource_kind: r.object_type.to_string(),
+                        resource_name: r.object_name.clone().unwrap_or_else(|| {
+                            r.object_id.map(|id| id.to_string()).unwrap_or_default()
+                        }),
+                        namespace: String::new(), // Audit log не хранит namespace
+                        description: r.description.clone(),
+                        level: r.level.to_string(),
+                    }
+                })
+                .collect();
+
             Ok(records)
         }
         Err(e) => {
@@ -370,9 +380,8 @@ async fn get_resource_metrics(
     query: &TroubleshootQuery,
 ) -> Result<ResourceMetrics> {
     // Пробуем получить метрики из Prometheus
-    let prometheus_url = std::env::var("PROMETHEUS_URL")
-        .unwrap_or_else(|_| String::new());
-    
+    let prometheus_url = std::env::var("PROMETHEUS_URL").unwrap_or_else(|_| String::new());
+
     if prometheus_url.is_empty() {
         // Prometheus не настроен, возвращаем заглушку
         return Ok(ResourceMetrics {
@@ -385,30 +394,32 @@ async fn get_resource_metrics(
             restart_count: None,
         });
     }
-    
+
     // Получаем метрики из Prometheus
     let client = super::prometheus::PrometheusClient::new(prometheus_url);
-    
+
     if query.kind == "Pod" {
         let (cpu_result, memory_result) = tokio::join!(
             client.get_pod_cpu(&query.namespace, &query.name),
             client.get_pod_memory(&query.namespace, &query.name)
         );
-        
-        let cpu_usage = cpu_result.ok()
+
+        let cpu_usage = cpu_result
+            .ok()
             .and_then(|metrics| metrics.into_iter().next())
             .and_then(|m| match m.value {
                 MetricValue::Single(v) => Some(format!("{:.2} cores", v)),
                 _ => None,
             });
-        
-        let memory_usage = memory_result.ok()
+
+        let memory_usage = memory_result
+            .ok()
             .and_then(|metrics| metrics.into_iter().next())
             .and_then(|m| match m.value {
                 MetricValue::Single(v) => Some(format!("{:.2} MiB", v / 1024.0 / 1024.0)),
                 _ => None,
             });
-        
+
         Ok(ResourceMetrics {
             cpu_usage,
             memory_usage,
@@ -528,17 +539,18 @@ mod tests {
 
     #[test]
     fn test_calculate_health_status_critical() {
-        let timeline = vec![
-            TimelineEvent {
-                event_type: TimelineEventType::KubernetesEvent,
-                source: EventSource::Kubernetes,
-                severity: Severity::Critical,
-                summary: "Pod failed".to_string(),
-                timestamp: chrono::Utc::now(),
-                details: None,
-            },
-        ];
-        assert_eq!(calculate_health_status(&timeline, &None), HealthStatus::Critical);
+        let timeline = vec![TimelineEvent {
+            event_type: TimelineEventType::KubernetesEvent,
+            source: EventSource::Kubernetes,
+            severity: Severity::Critical,
+            summary: "Pod failed".to_string(),
+            timestamp: chrono::Utc::now(),
+            details: None,
+        }];
+        assert_eq!(
+            calculate_health_status(&timeline, &None),
+            HealthStatus::Critical
+        );
     }
 
     #[test]
@@ -569,43 +581,51 @@ mod tests {
                 details: None,
             },
         ];
-        assert_eq!(calculate_health_status(&timeline, &None), HealthStatus::Degraded);
+        assert_eq!(
+            calculate_health_status(&timeline, &None),
+            HealthStatus::Degraded
+        );
     }
 
     #[test]
     fn test_calculate_health_status_healthy() {
-        let timeline = vec![
-            TimelineEvent {
-                event_type: TimelineEventType::KubernetesEvent,
-                source: EventSource::Kubernetes,
-                severity: Severity::Normal,
-                summary: "Normal event".to_string(),
-                timestamp: chrono::Utc::now(),
-                details: None,
-            },
-        ];
-        assert_eq!(calculate_health_status(&timeline, &None), HealthStatus::Healthy);
+        let timeline = vec![TimelineEvent {
+            event_type: TimelineEventType::KubernetesEvent,
+            source: EventSource::Kubernetes,
+            severity: Severity::Normal,
+            summary: "Normal event".to_string(),
+            timestamp: chrono::Utc::now(),
+            details: None,
+        }];
+        assert_eq!(
+            calculate_health_status(&timeline, &None),
+            HealthStatus::Healthy
+        );
     }
 
     #[test]
     fn test_calculate_health_status_unknown_empty() {
         let timeline: Vec<TimelineEvent> = vec![];
-        assert_eq!(calculate_health_status(&timeline, &None), HealthStatus::Unknown);
+        assert_eq!(
+            calculate_health_status(&timeline, &None),
+            HealthStatus::Unknown
+        );
     }
 
     #[test]
     fn test_calculate_health_status_single_warning() {
-        let timeline = vec![
-            TimelineEvent {
-                event_type: TimelineEventType::KubernetesEvent,
-                source: EventSource::Kubernetes,
-                severity: Severity::Warning,
-                summary: "Single warning".to_string(),
-                timestamp: chrono::Utc::now(),
-                details: None,
-            },
-        ];
-        assert_eq!(calculate_health_status(&timeline, &None), HealthStatus::Healthy);
+        let timeline = vec![TimelineEvent {
+            event_type: TimelineEventType::KubernetesEvent,
+            source: EventSource::Kubernetes,
+            severity: Severity::Warning,
+            summary: "Single warning".to_string(),
+            timestamp: chrono::Utc::now(),
+            details: None,
+        }];
+        assert_eq!(
+            calculate_health_status(&timeline, &None),
+            HealthStatus::Healthy
+        );
     }
 
     #[test]
@@ -744,9 +764,18 @@ mod tests {
 
     #[test]
     fn test_severity_enum_serialization() {
-        assert_eq!(serde_json::to_string(&Severity::Critical).unwrap(), "\"critical\"");
-        assert_eq!(serde_json::to_string(&Severity::Warning).unwrap(), "\"warning\"");
-        assert_eq!(serde_json::to_string(&Severity::Normal).unwrap(), "\"normal\"");
+        assert_eq!(
+            serde_json::to_string(&Severity::Critical).unwrap(),
+            "\"critical\""
+        );
+        assert_eq!(
+            serde_json::to_string(&Severity::Warning).unwrap(),
+            "\"warning\""
+        );
+        assert_eq!(
+            serde_json::to_string(&Severity::Normal).unwrap(),
+            "\"normal\""
+        );
         assert_eq!(serde_json::to_string(&Severity::Info).unwrap(), "\"info\"");
     }
 

@@ -225,7 +225,10 @@ mod tests {
         // TestEmailPayload doesn't derive Clone
         let mut to = "original@example.com".to_string();
         let subject = Some("Original".to_string());
-        let p1 = TestEmailPayload { to: to.clone(), subject: subject.clone() };
+        let p1 = TestEmailPayload {
+            to: to.clone(),
+            subject: subject.clone(),
+        };
         to = "modified@example.com".to_string();
         assert_eq!(p1.to, "original@example.com");
     }

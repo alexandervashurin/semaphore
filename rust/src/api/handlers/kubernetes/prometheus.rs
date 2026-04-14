@@ -23,10 +23,10 @@ use crate::error::{Error, Result};
 pub struct PrometheusMetric {
     /// Название метрики
     pub metric: String,
-    
+
     /// Значение
     pub value: MetricValue,
-    
+
     /// Labels метрики
     #[serde(default)]
     pub labels: std::collections::HashMap<String, String>,
@@ -47,11 +47,11 @@ pub enum MetricValue {
 pub struct PrometheusQuery {
     /// Query expression (PromQL)
     pub query: String,
-    
+
     /// Время (RFC3339 или unix timestamp)
     #[serde(default)]
     pub time: Option<String>,
-    
+
     /// Timeout для запроса
     #[serde(default)]
     pub timeout: Option<u32>,
@@ -62,16 +62,16 @@ pub struct PrometheusQuery {
 pub struct PrometheusRangeQuery {
     /// Query expression (PromQL)
     pub query: String,
-    
+
     /// Начало периода (RFC3339 или unix timestamp)
     pub start: String,
-    
+
     /// Конец периода
     pub end: String,
-    
+
     /// Шаг (duration string: 1m, 1h, 1d)
     pub step: String,
-    
+
     /// Timeout
     #[serde(default)]
     pub timeout: Option<u32>,
@@ -89,7 +89,7 @@ pub struct PrometheusResponse {
 pub struct PrometheusData {
     #[serde(default)]
     pub result_type: String,
-    
+
     #[serde(default)]
     pub result: Vec<PrometheusResult>,
 }
@@ -125,8 +125,9 @@ impl PrometheusClient {
     /// Instant query — текущее значение
     pub async fn query(&self, query: &str) -> Result<Vec<PrometheusMetric>> {
         let url = format!("{}/api/v1/query", self.base_url);
-        
-        let response = self.client
+
+        let response = self
+            .client
             .get(&url)
             .query(&[("query", query)])
             .send()
@@ -157,7 +158,7 @@ impl PrometheusClient {
                 r.value.map(|(ts, val)| {
                     let value = val.parse::<f64>().unwrap_or(0.0);
                     let metric_name = r.metric.get("__name__").cloned().unwrap_or_default();
-                    
+
                     PrometheusMetric {
                         metric: metric_name,
                         value: MetricValue::Single(value),
@@ -179,8 +180,9 @@ impl PrometheusClient {
         step: &str,
     ) -> Result<Vec<PrometheusMetric>> {
         let url = format!("{}/api/v1/query_range", self.base_url);
-        
-        let response = self.client
+
+        let response = self
+            .client
             .get(&url)
             .query(&[
                 ("query", query),
@@ -214,7 +216,7 @@ impl PrometheusClient {
             .into_iter()
             .map(|r| {
                 let metric_name = r.metric.get("__name__").cloned().unwrap_or_default();
-                
+
                 let time_series: Vec<(DateTime<Utc>, f64)> = r
                     .values
                     .into_iter()
@@ -246,7 +248,11 @@ impl PrometheusClient {
     }
 
     /// Получить метрики Memory для Pod
-    pub async fn get_pod_memory(&self, namespace: &str, pod: &str) -> Result<Vec<PrometheusMetric>> {
+    pub async fn get_pod_memory(
+        &self,
+        namespace: &str,
+        pod: &str,
+    ) -> Result<Vec<PrometheusMetric>> {
         let query = format!(
             "container_memory_usage_bytes{{namespace=\"{}\", pod=\"{}\"}}",
             namespace, pod
@@ -255,7 +261,11 @@ impl PrometheusClient {
     }
 
     /// Получить метрики Network для Pod
-    pub async fn get_pod_network(&self, namespace: &str, pod: &str) -> Result<Vec<PrometheusMetric>> {
+    pub async fn get_pod_network(
+        &self,
+        namespace: &str,
+        pod: &str,
+    ) -> Result<Vec<PrometheusMetric>> {
         let query_rx = format!(
             "rate(container_network_receive_bytes_total{{namespace=\"{}\", pod=\"{}\"}}[5m])",
             namespace, pod
@@ -264,12 +274,9 @@ impl PrometheusClient {
             "rate(container_network_transmit_bytes_total{{namespace=\"{}\", pod=\"{}\"}}[5m])",
             namespace, pod
         );
-        
-        let (rx, tx) = tokio::join!(
-            self.query(&query_rx),
-            self.query(&query_tx)
-        );
-        
+
+        let (rx, tx) = tokio::join!(self.query(&query_rx), self.query(&query_tx));
+
         let mut metrics = rx?;
         metrics.extend(tx?);
         Ok(metrics)
@@ -296,20 +303,20 @@ pub async fn get_prometheus_metrics(
     Query(query): Query<MetricsQuery>,
 ) -> Result<Json<PrometheusMetricsResponse>> {
     // Получаем Prometheus URL из конфига
-    let prometheus_url = std::env::var("PROMETHEUS_URL")
-        .unwrap_or_else(|_| "http://prometheus:9090".to_string());
-    
+    let prometheus_url =
+        std::env::var("PROMETHEUS_URL").unwrap_or_else(|_| "http://prometheus:9090".to_string());
+
     let client = PrometheusClient::new(prometheus_url);
-    
+
     let metric_type = query.metric_type.as_deref().unwrap_or("all");
     let range = query.range.as_deref().unwrap_or("1h");
-    
+
     // Вычисляем временной диапазон
     let now = Utc::now();
     let start = calculate_range_start(range);
-    
+
     let mut metrics = Vec::new();
-    
+
     // Получаем метрики в зависимости от типа ресурса
     if query.kind == "Pod" {
         if metric_type == "all" || metric_type == "cpu" {
@@ -317,13 +324,13 @@ pub async fn get_prometheus_metrics(
                 metrics.extend(cpu);
             }
         }
-        
+
         if metric_type == "all" || metric_type == "memory" {
             if let Ok(mem) = client.get_pod_memory(&query.namespace, &query.name).await {
                 metrics.extend(mem);
             }
         }
-        
+
         if metric_type == "all" || metric_type == "network" {
             if let Ok(net) = client.get_pod_network(&query.namespace, &query.name).await {
                 metrics.extend(net);
@@ -365,7 +372,7 @@ pub async fn get_prometheus_metrics(
             }
         }
     }
-    
+
     Ok(Json(PrometheusMetricsResponse {
         resource: ResourceRef {
             kind: query.kind,
@@ -412,12 +419,16 @@ fn calculate_range_start(range: &str) -> i64 {
 pub async fn check_prometheus_health(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<PrometheusHealthResponse>> {
-    let prometheus_url = std::env::var("PROMETHEUS_URL")
-        .unwrap_or_else(|_| "http://prometheus:9090".to_string());
-    
+    let prometheus_url =
+        std::env::var("PROMETHEUS_URL").unwrap_or_else(|_| "http://prometheus:9090".to_string());
+
     let client = reqwest::Client::new();
 
-    match client.get(format!("{}/api/v1/status/config", prometheus_url)).send().await {
+    match client
+        .get(format!("{}/api/v1/status/config", prometheus_url))
+        .send()
+        .await
+    {
         Ok(response) => {
             if response.status().is_success() {
                 Ok(Json(PrometheusHealthResponse {

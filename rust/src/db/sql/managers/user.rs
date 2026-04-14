@@ -269,8 +269,8 @@ impl UserManager for SqlStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{ProjectUser, User, UserTotp};
     use crate::models::user::ProjectUserRole;
+    use crate::models::{ProjectUser, User, UserTotp};
 
     #[test]
     fn test_user_structure() {

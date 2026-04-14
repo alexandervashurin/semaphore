@@ -149,8 +149,11 @@ impl TaskQueue for RedisTaskQueue {
         let mut conn = self.conn.lock().await;
 
         // LPOS возвращает None если элемента нет — тогда добавляем
-        let pos: redis::RedisResult<Option<i64>> =
-            redis::cmd("LPOS").arg(QUEUE_KEY).arg(task_id).query_async(&mut *conn).await;
+        let pos: redis::RedisResult<Option<i64>> = redis::cmd("LPOS")
+            .arg(QUEUE_KEY)
+            .arg(task_id)
+            .query_async(&mut *conn)
+            .await;
 
         let already_exists = matches!(pos, Ok(Some(_)));
         if already_exists {
@@ -197,8 +200,11 @@ impl TaskQueue for RedisTaskQueue {
 
     async fn contains(&self, task_id: i32) -> Result<bool> {
         let mut conn = self.conn.lock().await;
-        let result: redis::RedisResult<Option<i64>> =
-            redis::cmd("LPOS").arg(QUEUE_KEY).arg(task_id).query_async(&mut *conn).await;
+        let result: redis::RedisResult<Option<i64>> = redis::cmd("LPOS")
+            .arg(QUEUE_KEY)
+            .arg(task_id)
+            .query_async(&mut *conn)
+            .await;
         Ok(matches!(result, Ok(Some(_))))
     }
 
@@ -315,9 +321,10 @@ mod tests {
     #[tokio::test]
     async fn test_build_queue_bad_url_falls_back_to_inmemory() {
         // недоступный Redis → fallback (жёсткий внешний лимит на случай платформенных зависаний TCP)
-        let q = tokio::time::timeout(std::time::Duration::from_secs(15), build_task_queue(Some(
-            "redis://127.0.0.1:19999",
-        )))
+        let q = tokio::time::timeout(
+            std::time::Duration::from_secs(15),
+            build_task_queue(Some("redis://127.0.0.1:19999")),
+        )
         .await
         .expect("build_task_queue should finish (Redis connect is bounded)");
         assert_eq!(q.backend_name(), "in-memory");

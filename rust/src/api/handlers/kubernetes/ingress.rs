@@ -340,9 +340,7 @@ mod tests {
 
     #[test]
     fn test_list_ingress_class_query() {
-        let query = ListIngressClassQuery {
-            limit: Some(10),
-        };
+        let query = ListIngressClassQuery { limit: Some(10) };
         assert_eq!(query.limit, Some(10));
     }
 
@@ -394,10 +392,7 @@ mod tests {
     #[test]
     fn test_ingress_tls_view_multiple_hosts() {
         let tls = IngressTlsView {
-            hosts: vec![
-                "example.com".to_string(),
-                "www.example.com".to_string(),
-            ],
+            hosts: vec!["example.com".to_string(), "www.example.com".to_string()],
             secret_name: Some("example-tls".to_string()),
         };
         assert_eq!(tls.hosts.len(), 2);

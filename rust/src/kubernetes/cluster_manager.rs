@@ -9,12 +9,12 @@
 //!   VELUM_K8S_IN_CLUSTER   — "true" для in-cluster режима (Service Account)
 //!   VELUM_K8S_CLUSTER_NAME — отображаемое имя кластера (по умолчанию: "default")
 
+use crate::error::{Error, Result};
+use crate::kubernetes::service::{ConnectionMode, KubernetesClusterService};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use std::collections::HashMap;
-use crate::kubernetes::service::{KubernetesClusterService, ConnectionMode};
-use crate::error::{Error, Result};
 
 /// Метаданные подключения к кластеру
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -47,8 +47,8 @@ impl KubernetesClusterManager {
         let in_cluster = std::env::var("VELUM_K8S_IN_CLUSTER")
             .map(|v| v == "true" || v == "1")
             .unwrap_or(false);
-        let cluster_name = std::env::var("VELUM_K8S_CLUSTER_NAME")
-            .unwrap_or_else(|_| "default".to_string());
+        let cluster_name =
+            std::env::var("VELUM_K8S_CLUSTER_NAME").unwrap_or_else(|_| "default".to_string());
 
         // Если ни один из параметров не задан — проверим автоматически
         let mode = if in_cluster {
@@ -89,7 +89,10 @@ impl KubernetesClusterManager {
             context,
         }];
 
-        tracing::info!("Kubernetes cluster manager initialized ({} cluster(s))", connections.len());
+        tracing::info!(
+            "Kubernetes cluster manager initialized ({} cluster(s))",
+            connections.len()
+        );
 
         Some(Arc::new(Self {
             services: RwLock::new(services),

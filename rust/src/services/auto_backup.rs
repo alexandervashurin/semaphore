@@ -604,10 +604,24 @@ mod tests {
     #[test]
     fn test_auto_backup_config_all_values_varied() {
         let configs: Vec<AutoBackupConfig> = vec![
-            AutoBackupConfig { enabled: true, interval_hours: 1, ..AutoBackupConfig::default() },
-            AutoBackupConfig { enabled: false, interval_hours: 168, ..AutoBackupConfig::default() },
-            AutoBackupConfig { compress: false, ..AutoBackupConfig::default() },
-            AutoBackupConfig { max_backups: 100, ..AutoBackupConfig::default() },
+            AutoBackupConfig {
+                enabled: true,
+                interval_hours: 1,
+                ..AutoBackupConfig::default()
+            },
+            AutoBackupConfig {
+                enabled: false,
+                interval_hours: 168,
+                ..AutoBackupConfig::default()
+            },
+            AutoBackupConfig {
+                compress: false,
+                ..AutoBackupConfig::default()
+            },
+            AutoBackupConfig {
+                max_backups: 100,
+                ..AutoBackupConfig::default()
+            },
         ];
         assert_eq!(configs[0].interval_hours, 1);
         assert_eq!(configs[1].interval_hours, 168);

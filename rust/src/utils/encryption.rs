@@ -49,7 +49,9 @@ pub fn aes256_decrypt(encoded: &str, key: &[u8; 32]) -> Result<Vec<u8>, Encrypti
         .decode(encoded)
         .map_err(|e| EncryptionError::Encoding(e.to_string()))?;
     if data.len() < 12 {
-        return Err(EncryptionError::Encoding("Ciphertext too short".to_string()));
+        return Err(EncryptionError::Encoding(
+            "Ciphertext too short".to_string(),
+        ));
     }
     let (nonce_bytes, ciphertext) = data.split_at(12);
     let nonce = Nonce::from_slice(nonce_bytes);
@@ -73,7 +75,9 @@ pub fn generate_private_key<W: Write>(
         .verifying_key()
         .to_public_key_pem(LineEnding::LF)
         .map_err(|e| EncryptionError::Encoding(e.to_string()))?;
-    Ok(KeyPair { public_key: public_pem })
+    Ok(KeyPair {
+        public_key: public_pem,
+    })
 }
 
 #[cfg(test)]

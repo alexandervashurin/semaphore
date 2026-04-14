@@ -178,7 +178,10 @@ mod tests {
     #[test]
     fn test_postgres_returning_clause() {
         let query = "INSERT INTO inventory (...) VALUES (...) RETURNING id";
-        assert!(query.contains("RETURNING id"), "Postgres uses RETURNING clause");
+        assert!(
+            query.contains("RETURNING id"),
+            "Postgres uses RETURNING clause"
+        );
     }
 
     #[test]
@@ -200,9 +203,19 @@ mod tests {
     #[test]
     fn test_inventory_bind_order_matches_query() {
         let columns = [
-            "project_id", "name", "inventory_type", "inventory_data",
-            "key_id", "secret_storage_id", "ssh_login", "ssh_port",
-            "extra_vars", "ssh_key_id", "become_key_id", "vaults", "created",
+            "project_id",
+            "name",
+            "inventory_type",
+            "inventory_data",
+            "key_id",
+            "secret_storage_id",
+            "ssh_login",
+            "ssh_port",
+            "extra_vars",
+            "ssh_key_id",
+            "become_key_id",
+            "vaults",
+            "created",
         ];
         assert_eq!(columns.len(), 13);
         assert_eq!(columns[0], "project_id");

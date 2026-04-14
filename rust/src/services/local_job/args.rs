@@ -221,16 +221,21 @@ mod tests {
             json: r#"{"DB_HOST": "localhost"}"#.to_string(),
             secret_storage_id: None,
             secret_storage_key_prefix: None,
-            secrets: Some(r#"[{"name": "DB_PASSWORD", "secret": "secret123", "secret_type": "var"}]"#.to_string()),
+            secrets: Some(
+                r#"[{"name": "DB_PASSWORD", "secret": "secret123", "secret_type": "var"}]"#
+                    .to_string(),
+            ),
             created: None,
         };
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             environment,
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -275,11 +280,13 @@ mod tests {
         };
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             environment,
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -324,11 +331,13 @@ mod tests {
         };
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             environment,
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -337,8 +346,11 @@ mod tests {
         // Все стадии должны содержать "-destroy" кроме init
         for (stage, args) in &args_map {
             if stage != "init" {
-                assert!(args.contains(&"-destroy".to_string()),
-                    "Stage '{}' should contain -destroy", stage);
+                assert!(
+                    args.contains(&"-destroy".to_string()),
+                    "Stage '{}' should contain -destroy",
+                    stage
+                );
             }
         }
     }
@@ -352,9 +364,16 @@ mod tests {
         // Проверяем что var=value попал в аргументы стадий (кроме init)
         for (stage, args) in &args_map {
             if stage != "init" {
-                assert!(args.contains(&"-var".to_string()), "Stage '{}' should contain -var", stage);
-                assert!(args.iter().any(|a| a.starts_with("var1=")),
-                    "Stage '{}' should contain var1=", stage);
+                assert!(
+                    args.contains(&"-var".to_string()),
+                    "Stage '{}' should contain -var",
+                    stage
+                );
+                assert!(
+                    args.iter().any(|a| a.starts_with("var1=")),
+                    "Stage '{}' should contain var1=",
+                    stage
+                );
             }
         }
     }
@@ -386,20 +405,25 @@ mod tests {
             json: "{}".to_string(),
             secret_storage_id: None,
             secret_storage_key_prefix: None,
-            secrets: Some(r#"[
+            secrets: Some(
+                r#"[
                 {"name": "API_KEY", "secret": "key123", "secret_type": "var"},
                 {"name": "DB_PASS", "secret": "pass456", "secret_type": "var"},
                 {"name": "ENV_ONLY", "secret": "env_val", "secret_type": "env"}
-            ]"#.to_string()),
+            ]"#
+                .to_string(),
+            ),
             created: None,
         };
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             environment,
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -451,11 +475,13 @@ mod tests {
         };
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             environment,
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -496,11 +522,13 @@ mod tests {
         };
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             environment,
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -551,11 +579,13 @@ mod tests {
         };
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             environment,
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -597,23 +627,31 @@ mod tests {
         };
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             environment,
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
 
         let args_map = job.get_terraform_args("testuser", None).unwrap();
-        let apply_args = args_map.get("apply").cloned()
+        let apply_args = args_map
+            .get("apply")
+            .cloned()
             .or_else(|| args_map.values().next().cloned())
             .unwrap_or_default();
 
         // Каждая переменная должна иметь -var и value
         let var_count = apply_args.iter().filter(|a| *a == "-var").count();
-        assert!(var_count >= 3, "Expected at least 3 -var flags, got {}", var_count);
+        assert!(
+            var_count >= 3,
+            "Expected at least 3 -var flags, got {}",
+            var_count
+        );
     }
 
     #[test]
@@ -651,16 +689,21 @@ mod tests {
             json: r#"{"region": "us-east-1"}"#.to_string(),
             secret_storage_id: None,
             secret_storage_key_prefix: None,
-            secrets: Some(r#"[{"name": "TF_VAR_secret", "secret": "hidden", "secret_type": "var"}]"#.to_string()),
+            secrets: Some(
+                r#"[{"name": "TF_VAR_secret", "secret": "hidden", "secret_type": "var"}]"#
+                    .to_string(),
+            ),
             created: None,
         };
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             environment,
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -668,16 +711,23 @@ mod tests {
         let args_map = job.get_terraform_args("testuser", None).unwrap();
         // default стадия содержит vars и secrets (combined args)
         let default_args = args_map.get("default").unwrap();
-        assert!(default_args.iter().any(|a| a.starts_with("region=")),
-            "default should contain region var");
-        assert!(default_args.iter().any(|a| a.starts_with("TF_VAR_secret=")),
-            "default should contain secret var");
+        assert!(
+            default_args.iter().any(|a| a.starts_with("region=")),
+            "default should contain region var"
+        );
+        assert!(
+            default_args.iter().any(|a| a.starts_with("TF_VAR_secret=")),
+            "default should contain secret var"
+        );
 
         // Все стадии содержат объединённые args
         for (stage, args) in &args_map {
             if stage != "init" {
-                assert!(args.iter().any(|a| a.starts_with("region=")),
-                    "Stage '{}' should contain region var", stage);
+                assert!(
+                    args.iter().any(|a| a.starts_with("region=")),
+                    "Stage '{}' should contain region var",
+                    stage
+                );
             }
         }
     }
@@ -715,11 +765,13 @@ mod tests {
         };
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             environment,
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -728,8 +780,11 @@ mod tests {
         // playbook первый
         assert_eq!(args[0], "build.sh");
         // extra vars должны быть в args (значения в формате KEY=Value)
-        assert!(args.iter().any(|a| a.contains("BUILD_TYPE")),
-            "Expected BUILD_TYPE in args, got: {:?}", args);
+        assert!(
+            args.iter().any(|a| a.contains("BUILD_TYPE")),
+            "Expected BUILD_TYPE in args, got: {:?}",
+            args
+        );
     }
 
     #[test]
@@ -764,11 +819,13 @@ mod tests {
         };
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             environment,
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -809,11 +866,13 @@ mod tests {
         };
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             environment,
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -821,8 +880,11 @@ mod tests {
         let args_map = job.get_terraform_args("user", None).unwrap();
         for (stage, args) in &args_map {
             if stage != "init" {
-                assert!(!args.contains(&"-destroy".to_string()),
-                    "Stage '{}' should NOT contain -destroy when destroy=false", stage);
+                assert!(
+                    !args.contains(&"-destroy".to_string()),
+                    "Stage '{}' should NOT contain -destroy when destroy=false",
+                    stage
+                );
             }
         }
     }
@@ -860,16 +922,20 @@ mod tests {
             json: "{}".to_string(),
             secret_storage_id: None,
             secret_storage_key_prefix: None,
-            secrets: Some(r#"[{"name": "ENV_SECRET", "secret": "val", "secret_type": "env"}]"#.to_string()),
+            secrets: Some(
+                r#"[{"name": "ENV_SECRET", "secret": "val", "secret_type": "env"}]"#.to_string(),
+            ),
             created: None,
         };
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             environment,
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -920,11 +986,13 @@ mod tests {
         };
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             environment,
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -964,11 +1032,13 @@ mod tests {
         };
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             environment,
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -1011,16 +1081,20 @@ mod tests {
             json: "{}".to_string(),
             secret_storage_id: None,
             secret_storage_key_prefix: None,
-            secrets: Some(r#"[{"name": "SECRET", "secret": "val", "secret_type": "var"}]"#.to_string()),
+            secrets: Some(
+                r#"[{"name": "SECRET", "secret": "val", "secret_type": "var"}]"#.to_string(),
+            ),
             created: None,
         };
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             environment,
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -1028,7 +1102,10 @@ mod tests {
         let args = job.get_shell_args("user", None).unwrap();
         let secret_idx = args.iter().position(|a| a == "SECRET=val").unwrap();
         let task_arg_idx = args.iter().position(|a| a == "--task-arg").unwrap();
-        assert!(secret_idx < task_arg_idx, "Secrets should come before task args");
+        assert!(
+            secret_idx < task_arg_idx,
+            "Secrets should come before task args"
+        );
     }
 
     #[test]
@@ -1057,19 +1134,24 @@ mod tests {
             json: "{}".to_string(),
             secret_storage_id: None,
             secret_storage_key_prefix: None,
-            secrets: Some(r#"[
+            secrets: Some(
+                r#"[
                 {"name": "VAR_SECRET", "secret": "v1", "secret_type": "var"},
                 {"name": "ENV_SECRET", "secret": "e1", "secret_type": "env"}
-            ]"#.to_string()),
+            ]"#
+                .to_string(),
+            ),
             created: None,
         };
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             environment,
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -1105,16 +1187,21 @@ mod tests {
             json: r#"{"region": "us-west-2"}"#.to_string(),
             secret_storage_id: None,
             secret_storage_key_prefix: None,
-            secrets: Some(r#"[{"name": "TF_VAR_token", "secret": "hidden", "secret_type": "var"}]"#.to_string()),
+            secrets: Some(
+                r#"[{"name": "TF_VAR_token", "secret": "hidden", "secret_type": "var"}]"#
+                    .to_string(),
+            ),
             created: None,
         };
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             environment,
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );

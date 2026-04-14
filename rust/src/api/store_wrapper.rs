@@ -2085,7 +2085,9 @@ mod tests {
             Err(crate::error::Error::NotFound("Project not found".into()))
         }
         async fn create_project(&self, _project: Project) -> Result<Project> {
-            Err(crate::error::Error::Validation("Cannot create project".into()))
+            Err(crate::error::Error::Validation(
+                "Cannot create project".into(),
+            ))
         }
         async fn update_project(&self, _project: Project) -> Result<()> {
             Ok(())
@@ -2110,7 +2112,9 @@ mod tests {
             Err(crate::error::Error::NotFound("Template not found".into()))
         }
         async fn create_template(&self, _template: Template) -> Result<Template> {
-            Err(crate::error::Error::Validation("Cannot create template".into()))
+            Err(crate::error::Error::Validation(
+                "Cannot create template".into(),
+            ))
         }
         async fn update_template(&self, _template: Template) -> Result<()> {
             Ok(())
@@ -2136,7 +2140,9 @@ mod tests {
             Err(crate::error::Error::NotFound("Inventory not found".into()))
         }
         async fn create_inventory(&self, _inventory: Inventory) -> Result<Inventory> {
-            Err(crate::error::Error::Validation("Cannot create inventory".into()))
+            Err(crate::error::Error::Validation(
+                "Cannot create inventory".into(),
+            ))
         }
         async fn update_inventory(&self, _inventory: Inventory) -> Result<()> {
             Ok(())
@@ -2151,11 +2157,17 @@ mod tests {
         async fn get_repositories(&self, _project_id: i32) -> Result<Vec<Repository>> {
             Ok(vec![])
         }
-        async fn get_repository(&self, _project_id: i32, _repository_id: i32) -> Result<Repository> {
+        async fn get_repository(
+            &self,
+            _project_id: i32,
+            _repository_id: i32,
+        ) -> Result<Repository> {
             Err(crate::error::Error::NotFound("Repository not found".into()))
         }
         async fn create_repository(&self, _repository: Repository) -> Result<Repository> {
-            Err(crate::error::Error::Validation("Cannot create repository".into()))
+            Err(crate::error::Error::Validation(
+                "Cannot create repository".into(),
+            ))
         }
         async fn update_repository(&self, _repository: Repository) -> Result<()> {
             Ok(())
@@ -2170,11 +2182,19 @@ mod tests {
         async fn get_environments(&self, _project_id: i32) -> Result<Vec<Environment>> {
             Ok(vec![])
         }
-        async fn get_environment(&self, _project_id: i32, _environment_id: i32) -> Result<Environment> {
-            Err(crate::error::Error::NotFound("Environment not found".into()))
+        async fn get_environment(
+            &self,
+            _project_id: i32,
+            _environment_id: i32,
+        ) -> Result<Environment> {
+            Err(crate::error::Error::NotFound(
+                "Environment not found".into(),
+            ))
         }
         async fn create_environment(&self, _environment: Environment) -> Result<Environment> {
-            Err(crate::error::Error::Validation("Cannot create environment".into()))
+            Err(crate::error::Error::Validation(
+                "Cannot create environment".into(),
+            ))
         }
         async fn update_environment(&self, _environment: Environment) -> Result<()> {
             Ok(())
@@ -2193,7 +2213,9 @@ mod tests {
             Err(crate::error::Error::NotFound("AccessKey not found".into()))
         }
         async fn create_access_key(&self, _access_key: AccessKey) -> Result<AccessKey> {
-            Err(crate::error::Error::Validation("Cannot create access key".into()))
+            Err(crate::error::Error::Validation(
+                "Cannot create access key".into(),
+            ))
         }
         async fn update_access_key(&self, _access_key: AccessKey) -> Result<()> {
             Ok(())
@@ -2205,7 +2227,11 @@ mod tests {
 
     #[async_trait]
     impl TaskManager for MockStore {
-        async fn get_tasks(&self, _project_id: i32, _template_id: Option<i32>) -> Result<Vec<TaskWithTpl>> {
+        async fn get_tasks(
+            &self,
+            _project_id: i32,
+            _template_id: Option<i32>,
+        ) -> Result<Vec<TaskWithTpl>> {
             Ok(vec![])
         }
         async fn get_task(&self, _project_id: i32, _task_id: i32) -> Result<Task> {
@@ -2224,12 +2250,23 @@ mod tests {
             Ok(vec![])
         }
         async fn create_task_output(&self, _output: TaskOutput) -> Result<TaskOutput> {
-            Err(crate::error::Error::Validation("Cannot create output".into()))
+            Err(crate::error::Error::Validation(
+                "Cannot create output".into(),
+            ))
         }
-        async fn update_task_status(&self, _project_id: i32, _task_id: i32, _status: TaskStatus) -> Result<()> {
+        async fn update_task_status(
+            &self,
+            _project_id: i32,
+            _task_id: i32,
+            _status: TaskStatus,
+        ) -> Result<()> {
             Ok(())
         }
-        async fn get_global_tasks(&self, _status_filter: Option<Vec<String>>, _limit: Option<i32>) -> Result<Vec<TaskWithTpl>> {
+        async fn get_global_tasks(
+            &self,
+            _status_filter: Option<Vec<String>>,
+            _limit: Option<i32>,
+        ) -> Result<Vec<TaskWithTpl>> {
             Ok(vec![])
         }
         async fn get_running_tasks_count(&self) -> Result<usize> {
@@ -2252,7 +2289,9 @@ mod tests {
             Err(crate::error::Error::NotFound("Schedule not found".into()))
         }
         async fn create_schedule(&self, _schedule: Schedule) -> Result<Schedule> {
-            Err(crate::error::Error::Validation("Cannot create schedule".into()))
+            Err(crate::error::Error::Validation(
+                "Cannot create schedule".into(),
+            ))
         }
         async fn update_schedule(&self, _schedule: Schedule) -> Result<()> {
             Ok(())
@@ -2260,10 +2299,20 @@ mod tests {
         async fn delete_schedule(&self, _project_id: i32, _schedule_id: i32) -> Result<()> {
             Ok(())
         }
-        async fn set_schedule_active(&self, _project_id: i32, _schedule_id: i32, _active: bool) -> Result<()> {
+        async fn set_schedule_active(
+            &self,
+            _project_id: i32,
+            _schedule_id: i32,
+            _active: bool,
+        ) -> Result<()> {
             Ok(())
         }
-        async fn set_schedule_commit_hash(&self, _project_id: i32, _schedule_id: i32, _hash: &str) -> Result<()> {
+        async fn set_schedule_commit_hash(
+            &self,
+            _project_id: i32,
+            _schedule_id: i32,
+            _hash: &str,
+        ) -> Result<()> {
             Ok(())
         }
     }
@@ -2274,7 +2323,9 @@ mod tests {
             Err(crate::error::Error::NotFound("Session not found".into()))
         }
         async fn create_session(&self, _session: Session) -> Result<Session> {
-            Err(crate::error::Error::Validation("Cannot create session".into()))
+            Err(crate::error::Error::Validation(
+                "Cannot create session".into(),
+            ))
         }
         async fn expire_session(&self, _user_id: i32, _session_id: i32) -> Result<()> {
             Ok(())
@@ -2293,7 +2344,9 @@ mod tests {
             Ok(vec![])
         }
         async fn create_api_token(&self, _token: APIToken) -> Result<APIToken> {
-            Err(crate::error::Error::Validation("Cannot create token".into()))
+            Err(crate::error::Error::Validation(
+                "Cannot create token".into(),
+            ))
         }
         async fn get_api_token(&self, _token_id: i32) -> Result<APIToken> {
             Err(crate::error::Error::NotFound("Token not found".into()))
@@ -2312,7 +2365,9 @@ mod tests {
             Ok(vec![])
         }
         async fn create_event(&self, _event: Event) -> Result<Event> {
-            Err(crate::error::Error::Validation("Cannot create event".into()))
+            Err(crate::error::Error::Validation(
+                "Cannot create event".into(),
+            ))
         }
     }
 
@@ -2325,7 +2380,9 @@ mod tests {
             Err(crate::error::Error::NotFound("Runner not found".into()))
         }
         async fn create_runner(&self, _runner: Runner) -> Result<Runner> {
-            Err(crate::error::Error::Validation("Cannot create runner".into()))
+            Err(crate::error::Error::Validation(
+                "Cannot create runner".into(),
+            ))
         }
         async fn update_runner(&self, _runner: Runner) -> Result<()> {
             Ok(())
@@ -2364,7 +2421,11 @@ mod tests {
         async fn delete_view(&self, _project_id: i32, _view_id: i32) -> Result<()> {
             Ok(())
         }
-        async fn set_view_positions(&self, _project_id: i32, _positions: Vec<(i32, i32)>) -> Result<()> {
+        async fn set_view_positions(
+            &self,
+            _project_id: i32,
+            _positions: Vec<(i32, i32)>,
+        ) -> Result<()> {
             Ok(())
         }
     }
@@ -2374,11 +2435,19 @@ mod tests {
         async fn get_integrations(&self, _project_id: i32) -> Result<Vec<Integration>> {
             Ok(vec![])
         }
-        async fn get_integration(&self, _project_id: i32, _integration_id: i32) -> Result<Integration> {
-            Err(crate::error::Error::NotFound("Integration not found".into()))
+        async fn get_integration(
+            &self,
+            _project_id: i32,
+            _integration_id: i32,
+        ) -> Result<Integration> {
+            Err(crate::error::Error::NotFound(
+                "Integration not found".into(),
+            ))
         }
         async fn create_integration(&self, _integration: Integration) -> Result<Integration> {
-            Err(crate::error::Error::Validation("Cannot create integration".into()))
+            Err(crate::error::Error::Validation(
+                "Cannot create integration".into(),
+            ))
         }
         async fn update_integration(&self, _integration: Integration) -> Result<()> {
             Ok(())
@@ -2390,13 +2459,23 @@ mod tests {
 
     #[async_trait]
     impl ProjectInviteManager for MockStore {
-        async fn get_project_invites(&self, _project_id: i32, _params: RetrieveQueryParams) -> Result<Vec<ProjectInviteWithUser>> {
+        async fn get_project_invites(
+            &self,
+            _project_id: i32,
+            _params: RetrieveQueryParams,
+        ) -> Result<Vec<ProjectInviteWithUser>> {
             Ok(vec![])
         }
         async fn create_project_invite(&self, _invite: ProjectInvite) -> Result<ProjectInvite> {
-            Err(crate::error::Error::Validation("Cannot create invite".into()))
+            Err(crate::error::Error::Validation(
+                "Cannot create invite".into(),
+            ))
         }
-        async fn get_project_invite(&self, _project_id: i32, _invite_id: i32) -> Result<ProjectInvite> {
+        async fn get_project_invite(
+            &self,
+            _project_id: i32,
+            _invite_id: i32,
+        ) -> Result<ProjectInvite> {
             Err(crate::error::Error::NotFound("Invite not found".into()))
         }
         async fn get_project_invite_by_token(&self, _token: &str) -> Result<ProjectInvite> {
@@ -2412,34 +2491,79 @@ mod tests {
 
     #[async_trait]
     impl TerraformInventoryManager for MockStore {
-        async fn create_terraform_inventory_alias(&self, _alias: TerraformInventoryAlias) -> Result<TerraformInventoryAlias> {
-            Err(crate::error::Error::Validation("Cannot create alias".into()))
+        async fn create_terraform_inventory_alias(
+            &self,
+            _alias: TerraformInventoryAlias,
+        ) -> Result<TerraformInventoryAlias> {
+            Err(crate::error::Error::Validation(
+                "Cannot create alias".into(),
+            ))
         }
-        async fn update_terraform_inventory_alias(&self, _alias: TerraformInventoryAlias) -> Result<()> {
+        async fn update_terraform_inventory_alias(
+            &self,
+            _alias: TerraformInventoryAlias,
+        ) -> Result<()> {
             Ok(())
         }
-        async fn get_terraform_inventory_alias_by_alias(&self, _alias: &str) -> Result<TerraformInventoryAlias> {
+        async fn get_terraform_inventory_alias_by_alias(
+            &self,
+            _alias: &str,
+        ) -> Result<TerraformInventoryAlias> {
             Err(crate::error::Error::NotFound("Alias not found".into()))
         }
-        async fn get_terraform_inventory_alias(&self, _project_id: i32, _inventory_id: i32, _alias_id: &str) -> Result<TerraformInventoryAlias> {
+        async fn get_terraform_inventory_alias(
+            &self,
+            _project_id: i32,
+            _inventory_id: i32,
+            _alias_id: &str,
+        ) -> Result<TerraformInventoryAlias> {
             Err(crate::error::Error::NotFound("Alias not found".into()))
         }
-        async fn get_terraform_inventory_aliases(&self, _project_id: i32, _inventory_id: i32) -> Result<Vec<TerraformInventoryAlias>> {
+        async fn get_terraform_inventory_aliases(
+            &self,
+            _project_id: i32,
+            _inventory_id: i32,
+        ) -> Result<Vec<TerraformInventoryAlias>> {
             Ok(vec![])
         }
-        async fn delete_terraform_inventory_alias(&self, _project_id: i32, _inventory_id: i32, _alias_id: &str) -> Result<()> {
+        async fn delete_terraform_inventory_alias(
+            &self,
+            _project_id: i32,
+            _inventory_id: i32,
+            _alias_id: &str,
+        ) -> Result<()> {
             Ok(())
         }
-        async fn get_terraform_inventory_states(&self, _project_id: i32, _inventory_id: i32, _params: RetrieveQueryParams) -> Result<Vec<TerraformInventoryState>> {
+        async fn get_terraform_inventory_states(
+            &self,
+            _project_id: i32,
+            _inventory_id: i32,
+            _params: RetrieveQueryParams,
+        ) -> Result<Vec<TerraformInventoryState>> {
             Ok(vec![])
         }
-        async fn create_terraform_inventory_state(&self, _state: TerraformInventoryState) -> Result<TerraformInventoryState> {
-            Err(crate::error::Error::Validation("Cannot create state".into()))
+        async fn create_terraform_inventory_state(
+            &self,
+            _state: TerraformInventoryState,
+        ) -> Result<TerraformInventoryState> {
+            Err(crate::error::Error::Validation(
+                "Cannot create state".into(),
+            ))
         }
-        async fn delete_terraform_inventory_state(&self, _project_id: i32, _inventory_id: i32, _state_id: i32) -> Result<()> {
+        async fn delete_terraform_inventory_state(
+            &self,
+            _project_id: i32,
+            _inventory_id: i32,
+            _state_id: i32,
+        ) -> Result<()> {
             Ok(())
         }
-        async fn get_terraform_inventory_state(&self, _project_id: i32, _inventory_id: i32, _state_id: i32) -> Result<TerraformInventoryState> {
+        async fn get_terraform_inventory_state(
+            &self,
+            _project_id: i32,
+            _inventory_id: i32,
+            _state_id: i32,
+        ) -> Result<TerraformInventoryState> {
             Err(crate::error::Error::NotFound("State not found".into()))
         }
         async fn get_terraform_state_count(&self) -> Result<i32> {
@@ -2452,11 +2576,19 @@ mod tests {
         async fn get_secret_storages(&self, _project_id: i32) -> Result<Vec<SecretStorage>> {
             Ok(vec![])
         }
-        async fn get_secret_storage(&self, _project_id: i32, _storage_id: i32) -> Result<SecretStorage> {
-            Err(crate::error::Error::NotFound("Secret storage not found".into()))
+        async fn get_secret_storage(
+            &self,
+            _project_id: i32,
+            _storage_id: i32,
+        ) -> Result<SecretStorage> {
+            Err(crate::error::Error::NotFound(
+                "Secret storage not found".into(),
+            ))
         }
         async fn create_secret_storage(&self, _storage: SecretStorage) -> Result<SecretStorage> {
-            Err(crate::error::Error::Validation("Cannot create storage".into()))
+            Err(crate::error::Error::Validation(
+                "Cannot create storage".into(),
+            ))
         }
         async fn update_secret_storage(&self, _storage: SecretStorage) -> Result<()> {
             Ok(())
@@ -2483,21 +2615,43 @@ mod tests {
             _user_agent: Option<String>,
             _details: Option<serde_json::Value>,
         ) -> Result<AuditLog> {
-            Err(crate::error::Error::Validation("Cannot create audit log".into()))
+            Err(crate::error::Error::Validation(
+                "Cannot create audit log".into(),
+            ))
         }
         async fn get_audit_log(&self, _id: i64) -> Result<AuditLog> {
             Err(crate::error::Error::NotFound("Audit log not found".into()))
         }
         async fn search_audit_logs(&self, _filter: &AuditLogFilter) -> Result<AuditLogResult> {
-            Ok(AuditLogResult { total: 0, records: vec!(), limit: 0, offset: 0 })
+            Ok(AuditLogResult {
+                total: 0,
+                records: vec![],
+                limit: 0,
+                offset: 0,
+            })
         }
-        async fn get_audit_logs_by_project(&self, _project_id: i64, _limit: i64, _offset: i64) -> Result<Vec<AuditLog>> {
+        async fn get_audit_logs_by_project(
+            &self,
+            _project_id: i64,
+            _limit: i64,
+            _offset: i64,
+        ) -> Result<Vec<AuditLog>> {
             Ok(vec![])
         }
-        async fn get_audit_logs_by_user(&self, _user_id: i64, _limit: i64, _offset: i64) -> Result<Vec<AuditLog>> {
+        async fn get_audit_logs_by_user(
+            &self,
+            _user_id: i64,
+            _limit: i64,
+            _offset: i64,
+        ) -> Result<Vec<AuditLog>> {
             Ok(vec![])
         }
-        async fn get_audit_logs_by_action(&self, _action: &AuditAction, _limit: i64, _offset: i64) -> Result<Vec<AuditLog>> {
+        async fn get_audit_logs_by_action(
+            &self,
+            _action: &AuditAction,
+            _limit: i64,
+            _offset: i64,
+        ) -> Result<Vec<AuditLog>> {
             Ok(vec![])
         }
         async fn delete_audit_logs_before(&self, _before: DateTime<Utc>) -> Result<u64> {
@@ -2517,10 +2671,18 @@ mod tests {
             Ok(vec![])
         }
         async fn create_webhook(&self, _webhook: Webhook) -> Result<Webhook> {
-            Err(crate::error::Error::Validation("Cannot create webhook".into()))
+            Err(crate::error::Error::Validation(
+                "Cannot create webhook".into(),
+            ))
         }
-        async fn update_webhook(&self, _webhook_id: i64, _webhook: UpdateWebhook) -> Result<Webhook> {
-            Err(crate::error::Error::Validation("Cannot update webhook".into()))
+        async fn update_webhook(
+            &self,
+            _webhook_id: i64,
+            _webhook: UpdateWebhook,
+        ) -> Result<Webhook> {
+            Err(crate::error::Error::Validation(
+                "Cannot update webhook".into(),
+            ))
         }
         async fn delete_webhook(&self, _webhook_id: i64) -> Result<()> {
             Ok(())
@@ -2538,14 +2700,31 @@ mod tests {
         async fn get_playbooks(&self, _project_id: i32) -> Result<Vec<crate::models::Playbook>> {
             Ok(vec![])
         }
-        async fn get_playbook(&self, _id: i32, _project_id: i32) -> Result<crate::models::Playbook> {
+        async fn get_playbook(
+            &self,
+            _id: i32,
+            _project_id: i32,
+        ) -> Result<crate::models::Playbook> {
             Err(crate::error::Error::NotFound("Playbook not found".into()))
         }
-        async fn create_playbook(&self, _project_id: i32, _playbook: crate::models::PlaybookCreate) -> Result<crate::models::Playbook> {
-            Err(crate::error::Error::Validation("Cannot create playbook".into()))
+        async fn create_playbook(
+            &self,
+            _project_id: i32,
+            _playbook: crate::models::PlaybookCreate,
+        ) -> Result<crate::models::Playbook> {
+            Err(crate::error::Error::Validation(
+                "Cannot create playbook".into(),
+            ))
         }
-        async fn update_playbook(&self, _id: i32, _project_id: i32, _playbook: crate::models::PlaybookUpdate) -> Result<crate::models::Playbook> {
-            Err(crate::error::Error::Validation("Cannot update playbook".into()))
+        async fn update_playbook(
+            &self,
+            _id: i32,
+            _project_id: i32,
+            _playbook: crate::models::PlaybookUpdate,
+        ) -> Result<crate::models::Playbook> {
+            Err(crate::error::Error::Validation(
+                "Cannot update playbook".into(),
+            ))
         }
         async fn delete_playbook(&self, _id: i32, _project_id: i32) -> Result<()> {
             Ok(())
@@ -2558,7 +2737,9 @@ mod tests {
             Ok(vec![])
         }
         async fn get_playbook_run(&self, _id: i32, _project_id: i32) -> Result<PlaybookRun> {
-            Err(crate::error::Error::NotFound("Playbook run not found".into()))
+            Err(crate::error::Error::NotFound(
+                "Playbook run not found".into(),
+            ))
         }
         async fn get_playbook_run_by_task_id(&self, _task_id: i32) -> Result<Option<PlaybookRun>> {
             Ok(None)
@@ -2566,10 +2747,19 @@ mod tests {
         async fn create_playbook_run(&self, _run: PlaybookRunCreate) -> Result<PlaybookRun> {
             Err(crate::error::Error::Validation("Cannot create run".into()))
         }
-        async fn update_playbook_run(&self, _id: i32, _project_id: i32, _update: PlaybookRunUpdate) -> Result<PlaybookRun> {
+        async fn update_playbook_run(
+            &self,
+            _id: i32,
+            _project_id: i32,
+            _update: PlaybookRunUpdate,
+        ) -> Result<PlaybookRun> {
             Err(crate::error::Error::Validation("Cannot update run".into()))
         }
-        async fn update_playbook_run_status(&self, _id: i32, _status: PlaybookRunStatus) -> Result<()> {
+        async fn update_playbook_run_status(
+            &self,
+            _id: i32,
+            _status: PlaybookRunStatus,
+        ) -> Result<()> {
             Ok(())
         }
         async fn delete_playbook_run(&self, _id: i32, _project_id: i32) -> Result<()> {
@@ -2588,32 +2778,63 @@ mod tests {
 
     #[async_trait]
     impl IntegrationMatcherManager for MockStore {
-        async fn get_integration_matchers(&self, _project_id: i32, _integration_id: i32) -> Result<Vec<IntegrationMatcher>> {
+        async fn get_integration_matchers(
+            &self,
+            _project_id: i32,
+            _integration_id: i32,
+        ) -> Result<Vec<IntegrationMatcher>> {
             Ok(vec![])
         }
-        async fn create_integration_matcher(&self, _matcher: IntegrationMatcher) -> Result<IntegrationMatcher> {
-            Err(crate::error::Error::Validation("Cannot create matcher".into()))
+        async fn create_integration_matcher(
+            &self,
+            _matcher: IntegrationMatcher,
+        ) -> Result<IntegrationMatcher> {
+            Err(crate::error::Error::Validation(
+                "Cannot create matcher".into(),
+            ))
         }
         async fn update_integration_matcher(&self, _matcher: IntegrationMatcher) -> Result<()> {
             Ok(())
         }
-        async fn delete_integration_matcher(&self, _project_id: i32, _integration_id: i32, _matcher_id: i32) -> Result<()> {
+        async fn delete_integration_matcher(
+            &self,
+            _project_id: i32,
+            _integration_id: i32,
+            _matcher_id: i32,
+        ) -> Result<()> {
             Ok(())
         }
     }
 
     #[async_trait]
     impl IntegrationExtractValueManager for MockStore {
-        async fn get_integration_extract_values(&self, _project_id: i32, _integration_id: i32) -> Result<Vec<IntegrationExtractValue>> {
+        async fn get_integration_extract_values(
+            &self,
+            _project_id: i32,
+            _integration_id: i32,
+        ) -> Result<Vec<IntegrationExtractValue>> {
             Ok(vec![])
         }
-        async fn create_integration_extract_value(&self, _value: IntegrationExtractValue) -> Result<IntegrationExtractValue> {
-            Err(crate::error::Error::Validation("Cannot create value".into()))
+        async fn create_integration_extract_value(
+            &self,
+            _value: IntegrationExtractValue,
+        ) -> Result<IntegrationExtractValue> {
+            Err(crate::error::Error::Validation(
+                "Cannot create value".into(),
+            ))
         }
-        async fn update_integration_extract_value(&self, _value: IntegrationExtractValue) -> Result<()> {
+        async fn update_integration_extract_value(
+            &self,
+            _value: IntegrationExtractValue,
+        ) -> Result<()> {
             Ok(())
         }
-        async fn delete_integration_extract_value(&self, _project_id: i32, _integration_id: i32, _value_id: i32) -> Result<()> {
+        async fn delete_integration_extract_value(
+            &self,
+            _project_id: i32,
+            _integration_id: i32,
+            _value_id: i32,
+        ) -> Result<()> {
             Ok(())
         }
     }
@@ -2623,7 +2844,10 @@ mod tests {
         async fn get_project_roles(&self, _project_id: i32) -> Result<Vec<crate::models::Role>> {
             Ok(vec![])
         }
-        async fn create_project_role(&self, _role: crate::models::Role) -> Result<crate::models::Role> {
+        async fn create_project_role(
+            &self,
+            _role: crate::models::Role,
+        ) -> Result<crate::models::Role> {
             Err(crate::error::Error::Validation("Cannot create role".into()))
         }
         async fn update_project_role(&self, _role: crate::models::Role) -> Result<()> {
@@ -2642,11 +2866,24 @@ mod tests {
         async fn get_workflow(&self, _id: i32, _project_id: i32) -> Result<Workflow> {
             Err(crate::error::Error::NotFound("Workflow not found".into()))
         }
-        async fn create_workflow(&self, _project_id: i32, _payload: WorkflowCreate) -> Result<Workflow> {
-            Err(crate::error::Error::Validation("Cannot create workflow".into()))
+        async fn create_workflow(
+            &self,
+            _project_id: i32,
+            _payload: WorkflowCreate,
+        ) -> Result<Workflow> {
+            Err(crate::error::Error::Validation(
+                "Cannot create workflow".into(),
+            ))
         }
-        async fn update_workflow(&self, _id: i32, _project_id: i32, _payload: WorkflowUpdate) -> Result<Workflow> {
-            Err(crate::error::Error::Validation("Cannot update workflow".into()))
+        async fn update_workflow(
+            &self,
+            _id: i32,
+            _project_id: i32,
+            _payload: WorkflowUpdate,
+        ) -> Result<Workflow> {
+            Err(crate::error::Error::Validation(
+                "Cannot update workflow".into(),
+            ))
         }
         async fn delete_workflow(&self, _id: i32, _project_id: i32) -> Result<()> {
             Ok(())
@@ -2654,10 +2891,19 @@ mod tests {
         async fn get_workflow_nodes(&self, _workflow_id: i32) -> Result<Vec<WorkflowNode>> {
             Ok(vec![])
         }
-        async fn create_workflow_node(&self, _workflow_id: i32, _payload: WorkflowNodeCreate) -> Result<WorkflowNode> {
+        async fn create_workflow_node(
+            &self,
+            _workflow_id: i32,
+            _payload: WorkflowNodeCreate,
+        ) -> Result<WorkflowNode> {
             Err(crate::error::Error::Validation("Cannot create node".into()))
         }
-        async fn update_workflow_node(&self, _id: i32, _workflow_id: i32, _payload: WorkflowNodeUpdate) -> Result<WorkflowNode> {
+        async fn update_workflow_node(
+            &self,
+            _id: i32,
+            _workflow_id: i32,
+            _payload: WorkflowNodeUpdate,
+        ) -> Result<WorkflowNode> {
             Err(crate::error::Error::Validation("Cannot update node".into()))
         }
         async fn delete_workflow_node(&self, _id: i32, _workflow_id: i32) -> Result<()> {
@@ -2666,70 +2912,141 @@ mod tests {
         async fn get_workflow_edges(&self, _workflow_id: i32) -> Result<Vec<WorkflowEdge>> {
             Ok(vec![])
         }
-        async fn create_workflow_edge(&self, _workflow_id: i32, _payload: WorkflowEdgeCreate) -> Result<WorkflowEdge> {
+        async fn create_workflow_edge(
+            &self,
+            _workflow_id: i32,
+            _payload: WorkflowEdgeCreate,
+        ) -> Result<WorkflowEdge> {
             Err(crate::error::Error::Validation("Cannot create edge".into()))
         }
         async fn delete_workflow_edge(&self, _id: i32, _workflow_id: i32) -> Result<()> {
             Ok(())
         }
-        async fn get_workflow_runs(&self, _workflow_id: i32, _project_id: i32) -> Result<Vec<WorkflowRun>> {
+        async fn get_workflow_runs(
+            &self,
+            _workflow_id: i32,
+            _project_id: i32,
+        ) -> Result<Vec<WorkflowRun>> {
             Ok(vec![])
         }
-        async fn create_workflow_run(&self, _workflow_id: i32, _project_id: i32) -> Result<WorkflowRun> {
+        async fn create_workflow_run(
+            &self,
+            _workflow_id: i32,
+            _project_id: i32,
+        ) -> Result<WorkflowRun> {
             Err(crate::error::Error::Validation("Cannot create run".into()))
         }
-        async fn update_workflow_run_status(&self, _id: i32, _status: &str, _message: Option<String>) -> Result<()> {
+        async fn update_workflow_run_status(
+            &self,
+            _id: i32,
+            _status: &str,
+            _message: Option<String>,
+        ) -> Result<()> {
             Ok(())
         }
     }
 
     #[async_trait]
     impl crate::db::store::NotificationPolicyManager for MockStore {
-        async fn get_notification_policies(&self, _project_id: i32) -> Result<Vec<NotificationPolicy>> {
+        async fn get_notification_policies(
+            &self,
+            _project_id: i32,
+        ) -> Result<Vec<NotificationPolicy>> {
             Ok(vec![])
         }
-        async fn get_notification_policy(&self, _id: i32, _project_id: i32) -> Result<NotificationPolicy> {
+        async fn get_notification_policy(
+            &self,
+            _id: i32,
+            _project_id: i32,
+        ) -> Result<NotificationPolicy> {
             Err(crate::error::Error::NotFound("Policy not found".into()))
         }
-        async fn create_notification_policy(&self, _project_id: i32, _payload: NotificationPolicyCreate) -> Result<NotificationPolicy> {
-            Err(crate::error::Error::Validation("Cannot create policy".into()))
+        async fn create_notification_policy(
+            &self,
+            _project_id: i32,
+            _payload: NotificationPolicyCreate,
+        ) -> Result<NotificationPolicy> {
+            Err(crate::error::Error::Validation(
+                "Cannot create policy".into(),
+            ))
         }
-        async fn update_notification_policy(&self, _id: i32, _project_id: i32, _payload: NotificationPolicyUpdate) -> Result<NotificationPolicy> {
-            Err(crate::error::Error::Validation("Cannot update policy".into()))
+        async fn update_notification_policy(
+            &self,
+            _id: i32,
+            _project_id: i32,
+            _payload: NotificationPolicyUpdate,
+        ) -> Result<NotificationPolicy> {
+            Err(crate::error::Error::Validation(
+                "Cannot update policy".into(),
+            ))
         }
         async fn delete_notification_policy(&self, _id: i32, _project_id: i32) -> Result<()> {
             Ok(())
         }
-        async fn get_matching_policies(&self, _project_id: i32, _trigger: &str, _template_id: Option<i32>) -> Result<Vec<NotificationPolicy>> {
+        async fn get_matching_policies(
+            &self,
+            _project_id: i32,
+            _trigger: &str,
+            _template_id: Option<i32>,
+        ) -> Result<Vec<NotificationPolicy>> {
             Ok(vec![])
         }
     }
 
     #[async_trait]
     impl crate::db::store::CredentialTypeManager for MockStore {
-        async fn get_credential_types(&self) -> Result<Vec<crate::models::credential_type::CredentialType>> {
+        async fn get_credential_types(
+            &self,
+        ) -> Result<Vec<crate::models::credential_type::CredentialType>> {
             Ok(vec![])
         }
-        async fn get_credential_type(&self, _id: i32) -> Result<crate::models::credential_type::CredentialType> {
-            Err(crate::error::Error::NotFound("Credential type not found".into()))
+        async fn get_credential_type(
+            &self,
+            _id: i32,
+        ) -> Result<crate::models::credential_type::CredentialType> {
+            Err(crate::error::Error::NotFound(
+                "Credential type not found".into(),
+            ))
         }
-        async fn create_credential_type(&self, _payload: crate::models::credential_type::CredentialTypeCreate) -> Result<crate::models::credential_type::CredentialType> {
+        async fn create_credential_type(
+            &self,
+            _payload: crate::models::credential_type::CredentialTypeCreate,
+        ) -> Result<crate::models::credential_type::CredentialType> {
             Err(crate::error::Error::Validation("Cannot create type".into()))
         }
-        async fn update_credential_type(&self, _id: i32, _payload: crate::models::credential_type::CredentialTypeUpdate) -> Result<crate::models::credential_type::CredentialType> {
+        async fn update_credential_type(
+            &self,
+            _id: i32,
+            _payload: crate::models::credential_type::CredentialTypeUpdate,
+        ) -> Result<crate::models::credential_type::CredentialType> {
             Err(crate::error::Error::Validation("Cannot update type".into()))
         }
         async fn delete_credential_type(&self, _id: i32) -> Result<()> {
             Ok(())
         }
-        async fn get_credential_instances(&self, _project_id: i32) -> Result<Vec<crate::models::credential_type::CredentialInstance>> {
+        async fn get_credential_instances(
+            &self,
+            _project_id: i32,
+        ) -> Result<Vec<crate::models::credential_type::CredentialInstance>> {
             Ok(vec![])
         }
-        async fn get_credential_instance(&self, _id: i32, _project_id: i32) -> Result<crate::models::credential_type::CredentialInstance> {
-            Err(crate::error::Error::NotFound("Credential instance not found".into()))
+        async fn get_credential_instance(
+            &self,
+            _id: i32,
+            _project_id: i32,
+        ) -> Result<crate::models::credential_type::CredentialInstance> {
+            Err(crate::error::Error::NotFound(
+                "Credential instance not found".into(),
+            ))
         }
-        async fn create_credential_instance(&self, _project_id: i32, _payload: crate::models::credential_type::CredentialInstanceCreate) -> Result<crate::models::credential_type::CredentialInstance> {
-            Err(crate::error::Error::Validation("Cannot create instance".into()))
+        async fn create_credential_instance(
+            &self,
+            _project_id: i32,
+            _payload: crate::models::credential_type::CredentialInstanceCreate,
+        ) -> Result<crate::models::credential_type::CredentialInstance> {
+            Err(crate::error::Error::Validation(
+                "Cannot create instance".into(),
+            ))
         }
         async fn delete_credential_instance(&self, _id: i32, _project_id: i32) -> Result<()> {
             Ok(())
@@ -2738,58 +3055,120 @@ mod tests {
 
     #[async_trait]
     impl crate::db::store::DriftManager for MockStore {
-        async fn get_drift_configs(&self, _project_id: i32) -> Result<Vec<crate::models::drift::DriftConfig>> {
+        async fn get_drift_configs(
+            &self,
+            _project_id: i32,
+        ) -> Result<Vec<crate::models::drift::DriftConfig>> {
             Ok(vec![])
         }
-        async fn get_drift_config(&self, _id: i32, _project_id: i32) -> Result<crate::models::drift::DriftConfig> {
-            Err(crate::error::Error::NotFound("Drift config not found".into()))
+        async fn get_drift_config(
+            &self,
+            _id: i32,
+            _project_id: i32,
+        ) -> Result<crate::models::drift::DriftConfig> {
+            Err(crate::error::Error::NotFound(
+                "Drift config not found".into(),
+            ))
         }
-        async fn create_drift_config(&self, _project_id: i32, _payload: crate::models::drift::DriftConfigCreate) -> Result<crate::models::drift::DriftConfig> {
-            Err(crate::error::Error::Validation("Cannot create config".into()))
+        async fn create_drift_config(
+            &self,
+            _project_id: i32,
+            _payload: crate::models::drift::DriftConfigCreate,
+        ) -> Result<crate::models::drift::DriftConfig> {
+            Err(crate::error::Error::Validation(
+                "Cannot create config".into(),
+            ))
         }
-        async fn update_drift_config_enabled(&self, _id: i32, _project_id: i32, _enabled: bool) -> Result<()> {
+        async fn update_drift_config_enabled(
+            &self,
+            _id: i32,
+            _project_id: i32,
+            _enabled: bool,
+        ) -> Result<()> {
             Ok(())
         }
         async fn delete_drift_config(&self, _id: i32, _project_id: i32) -> Result<()> {
             Ok(())
         }
-        async fn get_drift_results(&self, _drift_config_id: i32, _limit: i64) -> Result<Vec<crate::models::drift::DriftResult>> {
+        async fn get_drift_results(
+            &self,
+            _drift_config_id: i32,
+            _limit: i64,
+        ) -> Result<Vec<crate::models::drift::DriftResult>> {
             Ok(vec![])
         }
-        async fn create_drift_result(&self, _project_id: i32, _drift_config_id: i32, _template_id: i32, _status: &str, _summary: Option<String>, _task_id: Option<i32>) -> Result<crate::models::drift::DriftResult> {
-            Err(crate::error::Error::Validation("Cannot create drift result".into()))
+        async fn create_drift_result(
+            &self,
+            _project_id: i32,
+            _drift_config_id: i32,
+            _template_id: i32,
+            _status: &str,
+            _summary: Option<String>,
+            _task_id: Option<i32>,
+        ) -> Result<crate::models::drift::DriftResult> {
+            Err(crate::error::Error::Validation(
+                "Cannot create drift result".into(),
+            ))
         }
-        async fn get_latest_drift_results(&self, _project_id: i32) -> Result<Vec<crate::models::drift::DriftResult>> {
+        async fn get_latest_drift_results(
+            &self,
+            _project_id: i32,
+        ) -> Result<Vec<crate::models::drift::DriftResult>> {
             Ok(vec![])
         }
     }
 
     #[async_trait]
     impl crate::db::store::LdapGroupMappingManager for MockStore {
-        async fn get_ldap_group_mappings(&self) -> Result<Vec<crate::models::ldap_group::LdapGroupMapping>> {
+        async fn get_ldap_group_mappings(
+            &self,
+        ) -> Result<Vec<crate::models::ldap_group::LdapGroupMapping>> {
             Ok(vec![])
         }
-        async fn create_ldap_group_mapping(&self, _payload: crate::models::ldap_group::LdapGroupMappingCreate) -> Result<crate::models::ldap_group::LdapGroupMapping> {
-            Err(crate::error::Error::Validation("Cannot create mapping".into()))
+        async fn create_ldap_group_mapping(
+            &self,
+            _payload: crate::models::ldap_group::LdapGroupMappingCreate,
+        ) -> Result<crate::models::ldap_group::LdapGroupMapping> {
+            Err(crate::error::Error::Validation(
+                "Cannot create mapping".into(),
+            ))
         }
         async fn delete_ldap_group_mapping(&self, _id: i32) -> Result<()> {
             Ok(())
         }
-        async fn get_mappings_for_groups(&self, _group_dns: &[String]) -> Result<Vec<crate::models::ldap_group::LdapGroupMapping>> {
+        async fn get_mappings_for_groups(
+            &self,
+            _group_dns: &[String],
+        ) -> Result<Vec<crate::models::ldap_group::LdapGroupMapping>> {
             Ok(vec![])
         }
     }
 
     #[async_trait]
     impl crate::db::store::SnapshotManager for MockStore {
-        async fn get_snapshots(&self, _project_id: i32, _template_id: Option<i32>, _limit: i64) -> Result<Vec<crate::models::snapshot::TaskSnapshot>> {
+        async fn get_snapshots(
+            &self,
+            _project_id: i32,
+            _template_id: Option<i32>,
+            _limit: i64,
+        ) -> Result<Vec<crate::models::snapshot::TaskSnapshot>> {
             Ok(vec![])
         }
-        async fn get_snapshot(&self, _id: i32, _project_id: i32) -> Result<crate::models::snapshot::TaskSnapshot> {
+        async fn get_snapshot(
+            &self,
+            _id: i32,
+            _project_id: i32,
+        ) -> Result<crate::models::snapshot::TaskSnapshot> {
             Err(crate::error::Error::NotFound("Snapshot not found".into()))
         }
-        async fn create_snapshot(&self, _project_id: i32, _payload: crate::models::snapshot::TaskSnapshotCreate) -> Result<crate::models::snapshot::TaskSnapshot> {
-            Err(crate::error::Error::Validation("Cannot create snapshot".into()))
+        async fn create_snapshot(
+            &self,
+            _project_id: i32,
+            _payload: crate::models::snapshot::TaskSnapshotCreate,
+        ) -> Result<crate::models::snapshot::TaskSnapshot> {
+            Err(crate::error::Error::Validation(
+                "Cannot create snapshot".into(),
+            ))
         }
         async fn delete_snapshot(&self, _id: i32, _project_id: i32) -> Result<()> {
             Ok(())
@@ -2798,47 +3177,99 @@ mod tests {
 
     #[async_trait]
     impl crate::db::store::CostEstimateManager for MockStore {
-        async fn get_cost_estimates(&self, _project_id: i32, _limit: i64) -> Result<Vec<crate::models::cost_estimate::CostEstimate>> {
+        async fn get_cost_estimates(
+            &self,
+            _project_id: i32,
+            _limit: i64,
+        ) -> Result<Vec<crate::models::cost_estimate::CostEstimate>> {
             Ok(vec![])
         }
-        async fn get_cost_estimate_for_task(&self, _project_id: i32, _task_id: i32) -> Result<Option<crate::models::cost_estimate::CostEstimate>> {
+        async fn get_cost_estimate_for_task(
+            &self,
+            _project_id: i32,
+            _task_id: i32,
+        ) -> Result<Option<crate::models::cost_estimate::CostEstimate>> {
             Ok(None)
         }
-        async fn create_cost_estimate(&self, _payload: crate::models::cost_estimate::CostEstimateCreate) -> Result<crate::models::cost_estimate::CostEstimate> {
-            Err(crate::error::Error::Validation("Cannot create estimate".into()))
+        async fn create_cost_estimate(
+            &self,
+            _payload: crate::models::cost_estimate::CostEstimateCreate,
+        ) -> Result<crate::models::cost_estimate::CostEstimate> {
+            Err(crate::error::Error::Validation(
+                "Cannot create estimate".into(),
+            ))
         }
-        async fn get_cost_summaries(&self, _project_id: i32) -> Result<Vec<crate::models::cost_estimate::CostSummary>> {
+        async fn get_cost_summaries(
+            &self,
+            _project_id: i32,
+        ) -> Result<Vec<crate::models::cost_estimate::CostSummary>> {
             Ok(vec![])
         }
     }
 
     #[async_trait]
     impl crate::db::store::TerraformStateManager for MockStore {
-        async fn get_terraform_state(&self, _project_id: i32, _workspace: &str) -> Result<Option<crate::models::TerraformState>> {
+        async fn get_terraform_state(
+            &self,
+            _project_id: i32,
+            _workspace: &str,
+        ) -> Result<Option<crate::models::TerraformState>> {
             Ok(None)
         }
-        async fn list_terraform_states(&self, _project_id: i32, _workspace: &str) -> Result<Vec<crate::models::TerraformStateSummary>> {
+        async fn list_terraform_states(
+            &self,
+            _project_id: i32,
+            _workspace: &str,
+        ) -> Result<Vec<crate::models::TerraformStateSummary>> {
             Ok(vec![])
         }
-        async fn get_terraform_state_by_serial(&self, _project_id: i32, _workspace: &str, _serial: i32) -> Result<Option<crate::models::TerraformState>> {
+        async fn get_terraform_state_by_serial(
+            &self,
+            _project_id: i32,
+            _workspace: &str,
+            _serial: i32,
+        ) -> Result<Option<crate::models::TerraformState>> {
             Ok(None)
         }
-        async fn create_terraform_state(&self, _state: crate::models::TerraformState) -> Result<crate::models::TerraformState> {
-            Err(crate::error::Error::Validation("Cannot create state".into()))
+        async fn create_terraform_state(
+            &self,
+            _state: crate::models::TerraformState,
+        ) -> Result<crate::models::TerraformState> {
+            Err(crate::error::Error::Validation(
+                "Cannot create state".into(),
+            ))
         }
         async fn delete_terraform_state(&self, _project_id: i32, _workspace: &str) -> Result<()> {
             Ok(())
         }
-        async fn delete_all_terraform_states(&self, _project_id: i32, _workspace: &str) -> Result<()> {
+        async fn delete_all_terraform_states(
+            &self,
+            _project_id: i32,
+            _workspace: &str,
+        ) -> Result<()> {
             Ok(())
         }
-        async fn lock_terraform_state(&self, _project_id: i32, _workspace: &str, _lock: crate::models::TerraformStateLock) -> Result<crate::models::TerraformStateLock> {
+        async fn lock_terraform_state(
+            &self,
+            _project_id: i32,
+            _workspace: &str,
+            _lock: crate::models::TerraformStateLock,
+        ) -> Result<crate::models::TerraformStateLock> {
             Err(crate::error::Error::Validation("Cannot lock state".into()))
         }
-        async fn unlock_terraform_state(&self, _project_id: i32, _workspace: &str, _lock_id: &str) -> Result<()> {
+        async fn unlock_terraform_state(
+            &self,
+            _project_id: i32,
+            _workspace: &str,
+            _lock_id: &str,
+        ) -> Result<()> {
             Ok(())
         }
-        async fn get_terraform_lock(&self, _project_id: i32, _workspace: &str) -> Result<Option<crate::models::TerraformStateLock>> {
+        async fn get_terraform_lock(
+            &self,
+            _project_id: i32,
+            _workspace: &str,
+        ) -> Result<Option<crate::models::TerraformStateLock>> {
             Ok(None)
         }
         async fn list_terraform_workspaces(&self, _project_id: i32) -> Result<Vec<String>> {
@@ -2851,22 +3282,50 @@ mod tests {
 
     #[async_trait]
     impl crate::db::store::PlanApprovalManager for MockStore {
-        async fn create_plan(&self, _plan: crate::models::TerraformPlan) -> Result<crate::models::TerraformPlan> {
+        async fn create_plan(
+            &self,
+            _plan: crate::models::TerraformPlan,
+        ) -> Result<crate::models::TerraformPlan> {
             Err(crate::error::Error::Validation("Cannot create plan".into()))
         }
-        async fn get_plan_by_task(&self, _project_id: i32, _task_id: i32) -> Result<Option<crate::models::TerraformPlan>> {
+        async fn get_plan_by_task(
+            &self,
+            _project_id: i32,
+            _task_id: i32,
+        ) -> Result<Option<crate::models::TerraformPlan>> {
             Ok(None)
         }
-        async fn list_pending_plans(&self, _project_id: i32) -> Result<Vec<crate::models::TerraformPlan>> {
+        async fn list_pending_plans(
+            &self,
+            _project_id: i32,
+        ) -> Result<Vec<crate::models::TerraformPlan>> {
             Ok(vec![])
         }
-        async fn approve_plan(&self, _id: i64, _reviewed_by: i32, _comment: Option<String>) -> Result<()> {
+        async fn approve_plan(
+            &self,
+            _id: i64,
+            _reviewed_by: i32,
+            _comment: Option<String>,
+        ) -> Result<()> {
             Ok(())
         }
-        async fn reject_plan(&self, _id: i64, _reviewed_by: i32, _comment: Option<String>) -> Result<()> {
+        async fn reject_plan(
+            &self,
+            _id: i64,
+            _reviewed_by: i32,
+            _comment: Option<String>,
+        ) -> Result<()> {
             Ok(())
         }
-        async fn update_plan_output(&self, _task_id: i32, _output: String, _json: Option<String>, _added: i32, _changed: i32, _removed: i32) -> Result<()> {
+        async fn update_plan_output(
+            &self,
+            _task_id: i32,
+            _output: String,
+            _json: Option<String>,
+            _added: i32,
+            _changed: i32,
+            _removed: i32,
+        ) -> Result<()> {
             Ok(())
         }
     }
@@ -2877,33 +3336,65 @@ mod tests {
             Ok(vec![])
         }
         async fn get_organization(&self, _id: i32) -> Result<crate::models::Organization> {
-            Err(crate::error::Error::NotFound("Organization not found".into()))
+            Err(crate::error::Error::NotFound(
+                "Organization not found".into(),
+            ))
         }
-        async fn get_organization_by_slug(&self, _slug: &str) -> Result<crate::models::Organization> {
-            Err(crate::error::Error::NotFound("Organization not found".into()))
+        async fn get_organization_by_slug(
+            &self,
+            _slug: &str,
+        ) -> Result<crate::models::Organization> {
+            Err(crate::error::Error::NotFound(
+                "Organization not found".into(),
+            ))
         }
-        async fn create_organization(&self, _payload: crate::models::OrganizationCreate) -> Result<crate::models::Organization> {
-            Err(crate::error::Error::Validation("Cannot create organization".into()))
+        async fn create_organization(
+            &self,
+            _payload: crate::models::OrganizationCreate,
+        ) -> Result<crate::models::Organization> {
+            Err(crate::error::Error::Validation(
+                "Cannot create organization".into(),
+            ))
         }
-        async fn update_organization(&self, _id: i32, _payload: crate::models::OrganizationUpdate) -> Result<crate::models::Organization> {
-            Err(crate::error::Error::Validation("Cannot update organization".into()))
+        async fn update_organization(
+            &self,
+            _id: i32,
+            _payload: crate::models::OrganizationUpdate,
+        ) -> Result<crate::models::Organization> {
+            Err(crate::error::Error::Validation(
+                "Cannot update organization".into(),
+            ))
         }
         async fn delete_organization(&self, _id: i32) -> Result<()> {
             Ok(())
         }
-        async fn get_organization_users(&self, _org_id: i32) -> Result<Vec<crate::models::OrganizationUser>> {
+        async fn get_organization_users(
+            &self,
+            _org_id: i32,
+        ) -> Result<Vec<crate::models::OrganizationUser>> {
             Ok(vec![])
         }
-        async fn add_user_to_organization(&self, _payload: crate::models::OrganizationUserCreate) -> Result<crate::models::OrganizationUser> {
+        async fn add_user_to_organization(
+            &self,
+            _payload: crate::models::OrganizationUserCreate,
+        ) -> Result<crate::models::OrganizationUser> {
             Err(crate::error::Error::Validation("Cannot add user".into()))
         }
         async fn remove_user_from_organization(&self, _org_id: i32, _user_id: i32) -> Result<()> {
             Ok(())
         }
-        async fn update_user_organization_role(&self, _org_id: i32, _user_id: i32, _role: &str) -> Result<()> {
+        async fn update_user_organization_role(
+            &self,
+            _org_id: i32,
+            _user_id: i32,
+            _role: &str,
+        ) -> Result<()> {
             Ok(())
         }
-        async fn get_user_organizations(&self, _user_id: i32) -> Result<Vec<crate::models::Organization>> {
+        async fn get_user_organizations(
+            &self,
+            _user_id: i32,
+        ) -> Result<Vec<crate::models::Organization>> {
             Ok(vec![])
         }
         async fn check_organization_quota(&self, _org_id: i32, _quota_type: &str) -> Result<bool> {
@@ -2913,48 +3404,116 @@ mod tests {
 
     #[async_trait]
     impl crate::db::store::DeploymentEnvironmentManager for MockStore {
-        async fn get_deployment_environments(&self, _project_id: i32) -> Result<Vec<crate::models::DeploymentEnvironment>> {
+        async fn get_deployment_environments(
+            &self,
+            _project_id: i32,
+        ) -> Result<Vec<crate::models::DeploymentEnvironment>> {
             Ok(vec![])
         }
-        async fn get_deployment_environment(&self, _id: i32, _project_id: i32) -> Result<crate::models::DeploymentEnvironment> {
-            Err(crate::error::Error::NotFound("Deployment environment not found".into()))
+        async fn get_deployment_environment(
+            &self,
+            _id: i32,
+            _project_id: i32,
+        ) -> Result<crate::models::DeploymentEnvironment> {
+            Err(crate::error::Error::NotFound(
+                "Deployment environment not found".into(),
+            ))
         }
-        async fn create_deployment_environment(&self, _project_id: i32, _payload: crate::models::DeploymentEnvironmentCreate) -> Result<crate::models::DeploymentEnvironment> {
-            Err(crate::error::Error::Validation("Cannot create environment".into()))
+        async fn create_deployment_environment(
+            &self,
+            _project_id: i32,
+            _payload: crate::models::DeploymentEnvironmentCreate,
+        ) -> Result<crate::models::DeploymentEnvironment> {
+            Err(crate::error::Error::Validation(
+                "Cannot create environment".into(),
+            ))
         }
-        async fn update_deployment_environment(&self, _id: i32, _project_id: i32, _payload: crate::models::DeploymentEnvironmentUpdate) -> Result<crate::models::DeploymentEnvironment> {
-            Err(crate::error::Error::Validation("Cannot update environment".into()))
+        async fn update_deployment_environment(
+            &self,
+            _id: i32,
+            _project_id: i32,
+            _payload: crate::models::DeploymentEnvironmentUpdate,
+        ) -> Result<crate::models::DeploymentEnvironment> {
+            Err(crate::error::Error::Validation(
+                "Cannot update environment".into(),
+            ))
         }
         async fn delete_deployment_environment(&self, _id: i32, _project_id: i32) -> Result<()> {
             Ok(())
         }
-        async fn get_deployment_history(&self, _env_id: i32, _project_id: i32) -> Result<Vec<crate::models::DeploymentRecord>> {
+        async fn get_deployment_history(
+            &self,
+            _env_id: i32,
+            _project_id: i32,
+        ) -> Result<Vec<crate::models::DeploymentRecord>> {
             Ok(vec![])
         }
-        async fn record_deployment(&self, _env_id: i32, _task_id: i32, _project_id: i32, _version: Option<String>, _deployed_by: Option<i32>, _status: &str) -> Result<()> {
+        async fn record_deployment(
+            &self,
+            _env_id: i32,
+            _task_id: i32,
+            _project_id: i32,
+            _version: Option<String>,
+            _deployed_by: Option<i32>,
+            _status: &str,
+        ) -> Result<()> {
             Ok(())
         }
     }
 
     #[async_trait]
     impl crate::db::store::StructuredOutputManager for MockStore {
-        async fn get_task_structured_outputs(&self, _task_id: i32, _project_id: i32) -> Result<Vec<crate::models::TaskStructuredOutput>> {
+        async fn get_task_structured_outputs(
+            &self,
+            _task_id: i32,
+            _project_id: i32,
+        ) -> Result<Vec<crate::models::TaskStructuredOutput>> {
             Ok(vec![])
         }
-        async fn get_task_outputs_map(&self, _task_id: i32, _project_id: i32) -> Result<crate::models::TaskOutputsMap> {
-            Ok(crate::models::TaskOutputsMap { task_id: 0, outputs: HashMap::new() })
+        async fn get_task_outputs_map(
+            &self,
+            _task_id: i32,
+            _project_id: i32,
+        ) -> Result<crate::models::TaskOutputsMap> {
+            Ok(crate::models::TaskOutputsMap {
+                task_id: 0,
+                outputs: HashMap::new(),
+            })
         }
-        async fn create_task_structured_output(&self, _task_id: i32, _project_id: i32, _payload: crate::models::TaskStructuredOutputCreate) -> Result<crate::models::TaskStructuredOutput> {
-            Err(crate::error::Error::Validation("Cannot create output".into()))
+        async fn create_task_structured_output(
+            &self,
+            _task_id: i32,
+            _project_id: i32,
+            _payload: crate::models::TaskStructuredOutputCreate,
+        ) -> Result<crate::models::TaskStructuredOutput> {
+            Err(crate::error::Error::Validation(
+                "Cannot create output".into(),
+            ))
         }
-        async fn create_task_structured_outputs_batch(&self, _task_id: i32, _project_id: i32, _outputs: Vec<crate::models::TaskStructuredOutputCreate>) -> Result<()> {
+        async fn create_task_structured_outputs_batch(
+            &self,
+            _task_id: i32,
+            _project_id: i32,
+            _outputs: Vec<crate::models::TaskStructuredOutputCreate>,
+        ) -> Result<()> {
             Ok(())
         }
-        async fn delete_task_structured_outputs(&self, _task_id: i32, _project_id: i32) -> Result<()> {
+        async fn delete_task_structured_outputs(
+            &self,
+            _task_id: i32,
+            _project_id: i32,
+        ) -> Result<()> {
             Ok(())
         }
-        async fn get_template_last_outputs(&self, _template_id: i32, _project_id: i32) -> Result<crate::models::TaskOutputsMap> {
-            Ok(crate::models::TaskOutputsMap { task_id: 0, outputs: HashMap::new() })
+        async fn get_template_last_outputs(
+            &self,
+            _template_id: i32,
+            _project_id: i32,
+        ) -> Result<crate::models::TaskOutputsMap> {
+            Ok(crate::models::TaskOutputsMap {
+                task_id: 0,
+                outputs: HashMap::new(),
+            })
         }
     }
 
@@ -3049,7 +3608,9 @@ mod tests {
     #[tokio::test]
     async fn test_migration_manager_apply_migration() {
         let wrapper = create_wrapper();
-        let result = wrapper.apply_migration(1, "test_migration".to_string()).await;
+        let result = wrapper
+            .apply_migration(1, "test_migration".to_string())
+            .await;
         assert!(result.is_ok());
     }
 

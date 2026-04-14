@@ -771,7 +771,10 @@ mod tests {
         }"#;
         let payload: TemplateCreatePayload = serde_json::from_str(json).unwrap();
         assert_eq!(payload.playbook, "roles/deploy/tasks/main.yml");
-        assert_eq!(payload.git_branch, Some("feature/add-support#42".to_string()));
+        assert_eq!(
+            payload.git_branch,
+            Some("feature/add-support#42".to_string())
+        );
     }
 
     #[test]

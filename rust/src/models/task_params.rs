@@ -146,8 +146,13 @@ mod tests {
     #[test]
     fn test_ansible_task_params_clone() {
         let params = AnsibleTaskParams {
-            debug: true, debug_level: 1, dry_run: false, diff: true,
-            limit: vec!["host1".to_string()], tags: vec![], skip_tags: vec![],
+            debug: true,
+            debug_level: 1,
+            dry_run: false,
+            diff: true,
+            limit: vec!["host1".to_string()],
+            tags: vec![],
+            skip_tags: vec![],
         };
         let cloned = params.clone();
         assert_eq!(cloned.debug, params.debug);
@@ -157,8 +162,13 @@ mod tests {
     #[test]
     fn test_terraform_task_params_clone() {
         let params = TerraformTaskParams {
-            plan: true, destroy: false, auto_approve: false, upgrade: true, reconfigure: true,
-            backend_init_required: true, backend_config: Some("config".to_string()),
+            plan: true,
+            destroy: false,
+            auto_approve: false,
+            upgrade: true,
+            reconfigure: true,
+            backend_init_required: true,
+            backend_config: Some("config".to_string()),
             workspace: Some("staging".to_string()),
         };
         let cloned = params.clone();
@@ -193,8 +203,14 @@ mod tests {
     #[test]
     fn test_terraform_task_params_all_true() {
         let params = TerraformTaskParams {
-            plan: true, destroy: true, auto_approve: true, upgrade: true, reconfigure: true,
-            backend_init_required: true, backend_config: None, workspace: None,
+            plan: true,
+            destroy: true,
+            auto_approve: true,
+            upgrade: true,
+            reconfigure: true,
+            backend_init_required: true,
+            backend_config: None,
+            workspace: None,
         };
         let json = serde_json::to_string(&params).unwrap();
         assert!(json.contains("\"plan\":true"));
@@ -205,8 +221,13 @@ mod tests {
     #[test]
     fn test_ansible_task_params_empty_vectors() {
         let params = AnsibleTaskParams {
-            debug: false, debug_level: 0, dry_run: false, diff: false,
-            limit: vec![], tags: vec![], skip_tags: vec![],
+            debug: false,
+            debug_level: 0,
+            dry_run: false,
+            diff: false,
+            limit: vec![],
+            tags: vec![],
+            skip_tags: vec![],
         };
         let json = serde_json::to_string(&params).unwrap();
         assert!(json.contains("\"limit\":[]"));
@@ -231,8 +252,12 @@ mod tests {
     #[test]
     fn test_ansible_task_params_serialization_roundtrip() {
         let original = AnsibleTaskParams {
-            debug: true, debug_level: 3, dry_run: true, diff: true,
-            limit: vec!["web".to_string()], tags: vec!["deploy".to_string()],
+            debug: true,
+            debug_level: 3,
+            dry_run: true,
+            diff: true,
+            limit: vec!["web".to_string()],
+            tags: vec!["deploy".to_string()],
             skip_tags: vec!["cleanup".to_string()],
         };
         let json = serde_json::to_string(&original).unwrap();

@@ -1,37 +1,94 @@
 //! Kubernetes Networking маршруты — Services, Ingress, NetworkPolicy, Gateway API
 
 use crate::api::handlers;
-use axum::{routing::{get, post, put, delete}, Router};
-use std::sync::Arc;
 use crate::api::state::AppState;
+use axum::{
+    routing::{delete, get, post, put},
+    Router,
+};
+use std::sync::Arc;
 
 /// Маршруты для управления networking-ресурсами
 pub fn networking_routes() -> Router<Arc<AppState>> {
     Router::new()
         // Services
         .route("/api/kubernetes/services", get(handlers::list_services))
-        .route("/api/kubernetes/namespaces/{namespace}/services", post(handlers::create_service))
-        .route("/api/kubernetes/namespaces/{namespace}/services/{name}", get(handlers::get_service))
-        .route("/api/kubernetes/namespaces/{namespace}/services/{name}", put(handlers::update_service))
-        .route("/api/kubernetes/namespaces/{namespace}/services/{name}", delete(handlers::delete_service))
-        .route("/api/kubernetes/namespaces/{namespace}/services/{name}/endpoints", get(handlers::get_service_endpoints))
-        .route("/api/kubernetes/namespaces/{namespace}/services/{name}/endpoint-slices", get(handlers::get_service_endpoint_slices))
+        .route(
+            "/api/kubernetes/namespaces/{namespace}/services",
+            post(handlers::create_service),
+        )
+        .route(
+            "/api/kubernetes/namespaces/{namespace}/services/{name}",
+            get(handlers::get_service),
+        )
+        .route(
+            "/api/kubernetes/namespaces/{namespace}/services/{name}",
+            put(handlers::update_service),
+        )
+        .route(
+            "/api/kubernetes/namespaces/{namespace}/services/{name}",
+            delete(handlers::delete_service),
+        )
+        .route(
+            "/api/kubernetes/namespaces/{namespace}/services/{name}/endpoints",
+            get(handlers::get_service_endpoints),
+        )
+        .route(
+            "/api/kubernetes/namespaces/{namespace}/services/{name}/endpoint-slices",
+            get(handlers::get_service_endpoint_slices),
+        )
         // Ingress & IngressClass
         .route("/api/kubernetes/ingresses", get(handlers::list_ingresses))
-        .route("/api/kubernetes/namespaces/{namespace}/ingresses", post(handlers::create_ingress))
-        .route("/api/kubernetes/namespaces/{namespace}/ingresses/{name}", get(handlers::get_ingress))
-        .route("/api/kubernetes/namespaces/{namespace}/ingresses/{name}", put(handlers::update_ingress))
-        .route("/api/kubernetes/namespaces/{namespace}/ingresses/{name}", delete(handlers::delete_ingress))
-        .route("/api/kubernetes/ingressclasses", get(handlers::list_ingress_classes))
-        .route("/api/kubernetes/ingressclasses/{name}", get(handlers::get_ingress_class))
+        .route(
+            "/api/kubernetes/namespaces/{namespace}/ingresses",
+            post(handlers::create_ingress),
+        )
+        .route(
+            "/api/kubernetes/namespaces/{namespace}/ingresses/{name}",
+            get(handlers::get_ingress),
+        )
+        .route(
+            "/api/kubernetes/namespaces/{namespace}/ingresses/{name}",
+            put(handlers::update_ingress),
+        )
+        .route(
+            "/api/kubernetes/namespaces/{namespace}/ingresses/{name}",
+            delete(handlers::delete_ingress),
+        )
+        .route(
+            "/api/kubernetes/ingressclasses",
+            get(handlers::list_ingress_classes),
+        )
+        .route(
+            "/api/kubernetes/ingressclasses/{name}",
+            get(handlers::get_ingress_class),
+        )
         // NetworkPolicy
-        .route("/api/kubernetes/networkpolicies", get(handlers::list_networkpolicies))
-        .route("/api/kubernetes/namespaces/{namespace}/networkpolicies", post(handlers::create_networkpolicy))
-        .route("/api/kubernetes/namespaces/{namespace}/networkpolicies/{name}", get(handlers::get_networkpolicy))
-        .route("/api/kubernetes/namespaces/{namespace}/networkpolicies/{name}", put(handlers::update_networkpolicy))
-        .route("/api/kubernetes/namespaces/{namespace}/networkpolicies/{name}", delete(handlers::delete_networkpolicy))
+        .route(
+            "/api/kubernetes/networkpolicies",
+            get(handlers::list_networkpolicies),
+        )
+        .route(
+            "/api/kubernetes/namespaces/{namespace}/networkpolicies",
+            post(handlers::create_networkpolicy),
+        )
+        .route(
+            "/api/kubernetes/namespaces/{namespace}/networkpolicies/{name}",
+            get(handlers::get_networkpolicy),
+        )
+        .route(
+            "/api/kubernetes/namespaces/{namespace}/networkpolicies/{name}",
+            put(handlers::update_networkpolicy),
+        )
+        .route(
+            "/api/kubernetes/namespaces/{namespace}/networkpolicies/{name}",
+            delete(handlers::delete_networkpolicy),
+        )
         // Gateway API (read-only)
-        .route("/api/kubernetes/gateway-api/status", get(handlers::get_gateway_api_status))
+        .route(
+            "/api/kubernetes/gateway-api/status",
+            get(handlers::get_gateway_api_status),
+        )
         .route("/api/kubernetes/gateways", get(handlers::list_gateways))
         .route("/api/kubernetes/httproutes", get(handlers::list_httproutes))
         .route("/api/kubernetes/grpcroutes", get(handlers::list_grpcroutes))

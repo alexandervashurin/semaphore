@@ -407,7 +407,11 @@ mod tests {
         let node = NodeSummary {
             name: "multi-role".to_string(),
             status: "Ready".to_string(),
-            roles: vec!["master".to_string(), "worker".to_string(), "etcd".to_string()],
+            roles: vec![
+                "master".to_string(),
+                "worker".to_string(),
+                "etcd".to_string(),
+            ],
             version: "v1.28.0".to_string(),
             internal_ip: "10.0.0.10".to_string(),
             external_ip: None,

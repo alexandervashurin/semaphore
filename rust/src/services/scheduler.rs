@@ -226,12 +226,9 @@ impl SchedulePool {
         }
 
         let expr = Self::normalize_cron_expression(cron);
-        let schedule: CronSchedule = expr.parse().map_err(|e| {
-            Error::Other(format!(
-                "Неверное cron выражение '{}': {}",
-                cron, e
-            ))
-        })?;
+        let schedule: CronSchedule = expr
+            .parse()
+            .map_err(|e| Error::Other(format!("Неверное cron выражение '{}': {}", cron, e)))?;
 
         let next = schedule.upcoming(Utc).next().ok_or_else(|| {
             Error::Other(format!(
@@ -255,8 +252,8 @@ impl SchedulePool {
             return Ok(());
         }
 
-        let run_at_only = schedule.cron_format.as_deref() == Some("run_at")
-            && schedule.cron.trim().is_empty();
+        let run_at_only =
+            schedule.cron_format.as_deref() == Some("run_at") && schedule.cron.trim().is_empty();
         if run_at_only {
             return Ok(());
         }
@@ -364,14 +361,32 @@ mod tests {
     #[test]
     fn test_normalize_cron_expression_preserves_valid() {
         // 5-полевые cron из UI дополняются секундным полем
-        assert_eq!(SchedulePool::normalize_cron_expression("0 * * * *"), "0 0 * * * *");
-        assert_eq!(SchedulePool::normalize_cron_expression("*/5 * * * *"), "0 */5 * * * *");
-        assert_eq!(SchedulePool::normalize_cron_expression("0 0 * * *"), "0 0 0 * * *");
-        assert_eq!(SchedulePool::normalize_cron_expression("0 12 * * 1-5"), "0 0 12 * * 1-5");
+        assert_eq!(
+            SchedulePool::normalize_cron_expression("0 * * * *"),
+            "0 0 * * * *"
+        );
+        assert_eq!(
+            SchedulePool::normalize_cron_expression("*/5 * * * *"),
+            "0 */5 * * * *"
+        );
+        assert_eq!(
+            SchedulePool::normalize_cron_expression("0 0 * * *"),
+            "0 0 0 * * *"
+        );
+        assert_eq!(
+            SchedulePool::normalize_cron_expression("0 12 * * 1-5"),
+            "0 0 12 * * 1-5"
+        );
 
         // 6-полевые (уже с секундами) не изменяются
-        assert_eq!(SchedulePool::normalize_cron_expression("0 0 * * * *"), "0 0 * * * *");
-        assert_eq!(SchedulePool::normalize_cron_expression("30 0 * * * *"), "30 0 * * * *");
+        assert_eq!(
+            SchedulePool::normalize_cron_expression("0 0 * * * *"),
+            "0 0 * * * *"
+        );
+        assert_eq!(
+            SchedulePool::normalize_cron_expression("30 0 * * * *"),
+            "30 0 * * * *"
+        );
     }
 
     #[test]
@@ -428,22 +443,34 @@ mod tests {
 
     #[test]
     fn test_normalize_cron_every_minute() {
-        assert_eq!(SchedulePool::normalize_cron_expression("* * * * *"), "0 * * * * *");
+        assert_eq!(
+            SchedulePool::normalize_cron_expression("* * * * *"),
+            "0 * * * * *"
+        );
     }
 
     #[test]
     fn test_normalize_cron_hourly() {
-        assert_eq!(SchedulePool::normalize_cron_expression("0 * * * *"), "0 0 * * * *");
+        assert_eq!(
+            SchedulePool::normalize_cron_expression("0 * * * *"),
+            "0 0 * * * *"
+        );
     }
 
     #[test]
     fn test_normalize_cron_daily() {
-        assert_eq!(SchedulePool::normalize_cron_expression("0 0 * * *"), "0 0 0 * * *");
+        assert_eq!(
+            SchedulePool::normalize_cron_expression("0 0 * * *"),
+            "0 0 0 * * *"
+        );
     }
 
     #[test]
     fn test_normalize_cron_weekday_range() {
-        assert_eq!(SchedulePool::normalize_cron_expression("30 8 * * 1-5"), "0 30 8 * * 1-5");
+        assert_eq!(
+            SchedulePool::normalize_cron_expression("30 8 * * 1-5"),
+            "0 30 8 * * 1-5"
+        );
     }
 
     #[test]
@@ -766,8 +793,14 @@ mod tests {
     #[test]
     fn test_normalize_cron_already_six_fields() {
         // 6-field cron should not be modified
-        assert_eq!(SchedulePool::normalize_cron_expression("0 0 0 * * *"), "0 0 0 * * *");
-        assert_eq!(SchedulePool::normalize_cron_expression("30 12 1 1 * *"), "30 12 1 1 * *");
+        assert_eq!(
+            SchedulePool::normalize_cron_expression("0 0 0 * * *"),
+            "0 0 0 * * *"
+        );
+        assert_eq!(
+            SchedulePool::normalize_cron_expression("30 12 1 1 * *"),
+            "30 12 1 1 * *"
+        );
     }
 
     #[test]
@@ -824,17 +857,26 @@ mod tests {
 
     #[test]
     fn test_normalize_cron_with_leading_whitespace() {
-        assert_eq!(SchedulePool::normalize_cron_expression("  * * * * *"), "0 * * * * *");
+        assert_eq!(
+            SchedulePool::normalize_cron_expression("  * * * * *"),
+            "0 * * * * *"
+        );
     }
 
     #[test]
     fn test_normalize_cron_with_trailing_whitespace() {
-        assert_eq!(SchedulePool::normalize_cron_expression("0 0 * * *  "), "0 0 0 * * *");
+        assert_eq!(
+            SchedulePool::normalize_cron_expression("0 0 * * *  "),
+            "0 0 0 * * *"
+        );
     }
 
     #[test]
     fn test_normalize_cron_preserves_six_fields() {
-        assert_eq!(SchedulePool::normalize_cron_expression("0 0 0 1 1 *"), "0 0 0 1 1 *");
+        assert_eq!(
+            SchedulePool::normalize_cron_expression("0 0 0 1 1 *"),
+            "0 0 0 1 1 *"
+        );
     }
 
     #[test]
@@ -860,7 +902,10 @@ mod tests {
 
     #[test]
     fn test_normalize_cron_every_second() {
-        assert_eq!(SchedulePool::normalize_cron_expression("* * * * * *"), "* * * * * *");
+        assert_eq!(
+            SchedulePool::normalize_cron_expression("* * * * * *"),
+            "* * * * * *"
+        );
     }
 
     #[test]
@@ -908,22 +953,34 @@ mod tests {
 
     #[test]
     fn test_normalize_cron_month_range() {
-        assert_eq!(SchedulePool::normalize_cron_expression("0 0 1 1-6 *"), "0 0 0 1 1-6 *");
+        assert_eq!(
+            SchedulePool::normalize_cron_expression("0 0 1 1-6 *"),
+            "0 0 0 1 1-6 *"
+        );
     }
 
     #[test]
     fn test_normalize_cron_list_of_values() {
-        assert_eq!(SchedulePool::normalize_cron_expression("15 3,6,9,12,18,21 * * *"), "0 15 3,6,9,12,18,21 * * *");
+        assert_eq!(
+            SchedulePool::normalize_cron_expression("15 3,6,9,12,18,21 * * *"),
+            "0 15 3,6,9,12,18,21 * * *"
+        );
     }
 
     #[test]
     fn test_normalize_cron_every_15_minutes() {
-        assert_eq!(SchedulePool::normalize_cron_expression("*/15 * * * *"), "0 */15 * * * *");
+        assert_eq!(
+            SchedulePool::normalize_cron_expression("*/15 * * * *"),
+            "0 */15 * * * *"
+        );
     }
 
     #[test]
     fn test_normalize_cron_quarterly() {
-        assert_eq!(SchedulePool::normalize_cron_expression("0 0 1 1,4,7,10 *"), "0 0 0 1 1,4,7,10 *");
+        assert_eq!(
+            SchedulePool::normalize_cron_expression("0 0 1 1,4,7,10 *"),
+            "0 0 0 1 1,4,7,10 *"
+        );
     }
 
     #[test]

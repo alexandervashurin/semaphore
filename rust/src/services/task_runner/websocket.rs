@@ -147,7 +147,9 @@ mod tests {
             })],
             ..runner
         };
-        runner_with_listener.notify_status_change(TaskStatus::Running).await;
+        runner_with_listener
+            .notify_status_change(TaskStatus::Running)
+            .await;
         let status = rx.recv_timeout(std::time::Duration::from_secs(2)).unwrap();
         assert_eq!(status, TaskStatus::Running);
     }
@@ -226,7 +228,13 @@ mod tests {
     async fn test_notify_status_change_with_all_statuses() {
         let runner = create_test_task_runner();
 
-        for status in [TaskStatus::Waiting, TaskStatus::Running, TaskStatus::Success, TaskStatus::Error, TaskStatus::Stopped] {
+        for status in [
+            TaskStatus::Waiting,
+            TaskStatus::Running,
+            TaskStatus::Success,
+            TaskStatus::Error,
+            TaskStatus::Stopped,
+        ] {
             runner.notify_status_change(status).await;
         }
     }
@@ -261,7 +269,9 @@ mod tests {
             })],
             ..runner
         };
-        runner_with_listener.notify_status_change(TaskStatus::Running).await;
+        runner_with_listener
+            .notify_status_change(TaskStatus::Running)
+            .await;
         let received = rx.recv_timeout(std::time::Duration::from_secs(2)).unwrap();
         assert_eq!(received, TaskStatus::Running);
     }

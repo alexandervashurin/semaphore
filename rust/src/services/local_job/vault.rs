@@ -194,7 +194,9 @@ mod tests {
     #[tokio::test]
     async fn test_create_vault_password_file() {
         let job = create_test_job();
-        let result = job.create_vault_password_file("test_vault", "my_secret_password").await;
+        let result = job
+            .create_vault_password_file("test_vault", "my_secret_password")
+            .await;
         assert!(result.is_ok());
         let path = result.unwrap();
         assert!(path.to_string_lossy().contains("vault_test_vault_password"));
@@ -222,7 +224,9 @@ mod tests {
     #[tokio::test]
     async fn test_create_vault_password_file_special_chars() {
         let job = create_test_job();
-        let result = job.create_vault_password_file("my-vault_123", "p@ssw0rd!").await;
+        let result = job
+            .create_vault_password_file("my-vault_123", "p@ssw0rd!")
+            .await;
         assert!(result.is_ok());
         let path = result.unwrap();
         // Проверяем что специальные символы сохранены в имени файла
@@ -258,7 +262,9 @@ mod tests {
     #[tokio::test]
     async fn test_create_vault_password_file_unicode() {
         let job = create_test_job();
-        let result = job.create_vault_password_file("vault_unicode", "pass123").await;
+        let result = job
+            .create_vault_password_file("vault_unicode", "pass123")
+            .await;
         assert!(result.is_ok());
         let path = result.unwrap();
         let filename = path.file_name().unwrap().to_string_lossy();

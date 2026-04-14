@@ -24,8 +24,7 @@ use super::types::{Task, TaskOutputLine, TaskStatusEvent};
 // ── Broadcast channels ────────────────────────────────────────────────────────
 
 /// Канал создания задач
-static TASK_CREATED_TX: Lazy<broadcast::Sender<Task>> =
-    Lazy::new(|| broadcast::channel(256).0);
+static TASK_CREATED_TX: Lazy<broadcast::Sender<Task>> = Lazy::new(|| broadcast::channel(256).0);
 
 /// Канал изменений статуса задач
 static TASK_STATUS_TX: Lazy<broadcast::Sender<TaskStatusEvent>> =
@@ -275,7 +274,8 @@ mod tests {
     #[test]
     fn test_broadcast_channel_creation() {
         // Test that broadcast channels can be created with expected capacity
-        let (tx, _rx): (broadcast::Sender<Task>, broadcast::Receiver<Task>) = broadcast::channel(256);
+        let (tx, _rx): (broadcast::Sender<Task>, broadcast::Receiver<Task>) =
+            broadcast::channel(256);
         // Verify sender exists
         let _ = tx.send(Task {
             id: 1,

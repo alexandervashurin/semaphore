@@ -179,11 +179,13 @@ mod tests {
         template.arguments = None;
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -214,11 +216,13 @@ mod tests {
         template.arguments = Some("{broken".to_string());
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -239,7 +243,8 @@ mod tests {
         task.template_id = 1;
         task.project_id = 1;
         task.created = Utc::now();
-        task.arguments = Some(r#"{"apply": ["-auto-approve"], "plan": ["-detailed-exitcode"]}"#.to_string());
+        task.arguments =
+            Some(r#"{"apply": ["-auto-approve"], "plan": ["-detailed-exitcode"]}"#.to_string());
 
         let mut template = crate::models::Template::default();
         template.id = 1;
@@ -250,11 +255,13 @@ mod tests {
         template.arguments = Some(r#"{"init": ["-upgrade"]}"#.to_string());
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -289,11 +296,13 @@ mod tests {
         template.arguments = Some(r#"[""]"#.to_string());
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -326,11 +335,13 @@ mod tests {
         template.arguments = Some(r#"["-x", "-y", "-z"]"#.to_string());
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -361,11 +372,13 @@ mod tests {
         template.arguments = Some(r#"["--tmpl-flag"]"#.to_string());
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -397,11 +410,13 @@ mod tests {
         template.r#type = TemplateType::Task;
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -451,11 +466,13 @@ mod tests {
         template.r#type = TemplateType::Task;
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -485,11 +502,13 @@ mod tests {
         template.arguments = Some("{}".to_string());
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -520,11 +539,13 @@ mod tests {
         template.arguments = Some(r#"["--first", "--second"]"#.to_string());
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -561,11 +582,13 @@ mod tests {
         template.r#type = TemplateType::Task;
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -597,11 +620,13 @@ mod tests {
         template.arguments = None;
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -633,11 +658,13 @@ mod tests {
         template.arguments = None;
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -669,11 +696,13 @@ mod tests {
         template.arguments = Some(r#"{"init": ["-backend=false"]}"#.to_string());
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -701,11 +730,13 @@ mod tests {
         template.r#type = TemplateType::Task;
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -740,11 +771,13 @@ mod tests {
         template.r#type = TemplateType::Task;
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -772,11 +805,13 @@ mod tests {
         template.arguments = Some(r#"["--valid"]"#.to_string());
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -805,11 +840,13 @@ mod tests {
         template.arguments = Some("also not json".to_string());
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -868,11 +905,13 @@ mod tests {
         template.arguments = Some(r#"{"plan": ["-out=tfplan"]}"#.to_string());
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -902,11 +941,13 @@ mod tests {
         template.arguments = None;
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -935,11 +976,13 @@ mod tests {
         template.arguments = None;
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );

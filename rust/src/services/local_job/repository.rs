@@ -279,11 +279,13 @@ mod tests {
         template.project_id = 1;
 
         let mut job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             repo,
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -314,11 +316,13 @@ mod tests {
         template.project_id = 1;
 
         let mut job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             repo,
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -354,11 +358,13 @@ mod tests {
         template.project_id = 1;
 
         let mut job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             repo,
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -402,11 +408,13 @@ mod tests {
         template.project_id = 1;
 
         let mut job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             repo,
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -507,11 +515,13 @@ mod tests {
         template.project_id = 1;
 
         let mut job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             repo,
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -533,7 +543,8 @@ mod tests {
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/custom/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -564,11 +575,13 @@ mod tests {
         template.project_id = 1;
 
         let mut job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             repo,
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -638,11 +651,13 @@ mod tests {
         template.project_id = 1;
 
         let mut job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             repo,
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             work_dir.clone(),
             tmp_dir.clone(),
         );
@@ -676,11 +691,13 @@ mod tests {
         template.project_id = 1;
 
         let mut job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             repo,
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );

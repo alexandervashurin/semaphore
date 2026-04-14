@@ -90,7 +90,11 @@ mod tests {
 
     #[test]
     fn test_project_user_all_roles() {
-        let roles = [ProjectUserRole::Owner, ProjectUserRole::Manager, ProjectUserRole::TaskRunner];
+        let roles = [
+            ProjectUserRole::Owner,
+            ProjectUserRole::Manager,
+            ProjectUserRole::TaskRunner,
+        ];
         for role in roles.iter() {
             let pu = ProjectUser::new(1, 1, role.clone());
             let json = serde_json::to_string(&pu).unwrap();
@@ -150,8 +154,13 @@ mod tests {
     #[test]
     fn test_project_user_roundtrip() {
         let original = ProjectUser {
-            id: 7, project_id: 42, user_id: 21, role: ProjectUserRole::Manager,
-            created: Utc::now(), username: "roundtrip".to_string(), name: "Round Trip".to_string(),
+            id: 7,
+            project_id: 42,
+            user_id: 21,
+            role: ProjectUserRole::Manager,
+            created: Utc::now(),
+            username: "roundtrip".to_string(),
+            name: "Round Trip".to_string(),
         };
         let json = serde_json::to_string(&original).unwrap();
         let restored: ProjectUser = serde_json::from_str(&json).unwrap();
@@ -163,7 +172,10 @@ mod tests {
     #[test]
     fn test_project_user_unicode_values() {
         let pu = ProjectUser {
-            id: 1, project_id: 1, user_id: 1, role: ProjectUserRole::Owner,
+            id: 1,
+            project_id: 1,
+            user_id: 1,
+            role: ProjectUserRole::Owner,
             created: Utc::now(),
             username: "пользователь".to_string(),
             name: "Иван Иванов".to_string(),
@@ -219,8 +231,13 @@ mod tests {
     #[test]
     fn test_project_user_debug_contains_all_fields() {
         let pu = ProjectUser {
-            id: 42, project_id: 10, user_id: 20, role: ProjectUserRole::Manager,
-            created: Utc::now(), username: "debuguser".to_string(), name: "Debug User".to_string(),
+            id: 42,
+            project_id: 10,
+            user_id: 20,
+            role: ProjectUserRole::Manager,
+            created: Utc::now(),
+            username: "debuguser".to_string(),
+            name: "Debug User".to_string(),
         };
         let debug_str = format!("{:?}", pu);
         assert!(debug_str.contains("42"));

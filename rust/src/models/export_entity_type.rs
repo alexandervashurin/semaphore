@@ -75,8 +75,14 @@ mod tests {
 
     #[test]
     fn test_export_entity_type_serialization() {
-        assert_eq!(serde_json::to_string(&ExportEntityType::Project).unwrap(), "\"project\"");
-        assert_eq!(serde_json::to_string(&ExportEntityType::AccessKey).unwrap(), "\"access_key\"");
+        assert_eq!(
+            serde_json::to_string(&ExportEntityType::Project).unwrap(),
+            "\"project\""
+        );
+        assert_eq!(
+            serde_json::to_string(&ExportEntityType::AccessKey).unwrap(),
+            "\"access_key\""
+        );
     }
 
     #[test]
@@ -148,10 +154,17 @@ mod tests {
     #[test]
     fn test_export_entity_type_serialization_roundtrip() {
         for t in vec![
-            ExportEntityType::Project, ExportEntityType::Template, ExportEntityType::Task,
-            ExportEntityType::User, ExportEntityType::Inventory, ExportEntityType::Repository,
-            ExportEntityType::Environment, ExportEntityType::AccessKey,
-            ExportEntityType::Integration, ExportEntityType::Schedule, ExportEntityType::Other,
+            ExportEntityType::Project,
+            ExportEntityType::Template,
+            ExportEntityType::Task,
+            ExportEntityType::User,
+            ExportEntityType::Inventory,
+            ExportEntityType::Repository,
+            ExportEntityType::Environment,
+            ExportEntityType::AccessKey,
+            ExportEntityType::Integration,
+            ExportEntityType::Schedule,
+            ExportEntityType::Other,
         ] {
             let json = serde_json::to_string(&t).unwrap();
             let deserialized: ExportEntityType = serde_json::from_str(&json).unwrap();
@@ -196,10 +209,17 @@ mod tests {
     #[test]
     fn test_export_entity_type_as_str_matches_serialization() {
         for t in vec![
-            ExportEntityType::Project, ExportEntityType::Template, ExportEntityType::Task,
-            ExportEntityType::User, ExportEntityType::Inventory, ExportEntityType::Repository,
-            ExportEntityType::Environment, ExportEntityType::AccessKey,
-            ExportEntityType::Integration, ExportEntityType::Schedule, ExportEntityType::Other,
+            ExportEntityType::Project,
+            ExportEntityType::Template,
+            ExportEntityType::Task,
+            ExportEntityType::User,
+            ExportEntityType::Inventory,
+            ExportEntityType::Repository,
+            ExportEntityType::Environment,
+            ExportEntityType::AccessKey,
+            ExportEntityType::Integration,
+            ExportEntityType::Schedule,
+            ExportEntityType::Other,
         ] {
             let as_str = t.as_str();
             let serialized = serde_json::to_string(&t).unwrap();
@@ -223,10 +243,17 @@ mod tests {
     #[test]
     fn test_export_entity_type_all_roundtrip() {
         for t in vec![
-            ExportEntityType::Project, ExportEntityType::Template, ExportEntityType::Task,
-            ExportEntityType::User, ExportEntityType::Inventory, ExportEntityType::Repository,
-            ExportEntityType::Environment, ExportEntityType::AccessKey,
-            ExportEntityType::Integration, ExportEntityType::Schedule, ExportEntityType::Other,
+            ExportEntityType::Project,
+            ExportEntityType::Template,
+            ExportEntityType::Task,
+            ExportEntityType::User,
+            ExportEntityType::Inventory,
+            ExportEntityType::Repository,
+            ExportEntityType::Environment,
+            ExportEntityType::AccessKey,
+            ExportEntityType::Integration,
+            ExportEntityType::Schedule,
+            ExportEntityType::Other,
         ] {
             let json = serde_json::to_string(&t).unwrap();
             let restored: ExportEntityType = serde_json::from_str(&json).unwrap();

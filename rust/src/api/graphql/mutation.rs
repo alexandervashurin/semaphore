@@ -286,15 +286,20 @@ impl MutationRoot {
         let state = ctx.data::<AppState>()?;
         let store = &state.store;
 
-        let mut task = store.get_task(project_id, task_id).await
+        let mut task = store
+            .get_task(project_id, task_id)
+            .await
             .map_err(|_| async_graphql::Error::new("Task not found"))?;
 
-        if matches!(task.status,
-            crate::services::task_logger::TaskStatus::Running |
-            crate::services::task_logger::TaskStatus::Waiting)
-        {
+        if matches!(
+            task.status,
+            crate::services::task_logger::TaskStatus::Running
+                | crate::services::task_logger::TaskStatus::Waiting
+        ) {
             task.status = crate::services::task_logger::TaskStatus::Stopped;
-            store.update_task(task).await
+            store
+                .update_task(task)
+                .await
                 .map_err(|e| async_graphql::Error::new(e.to_string()))?;
         }
 
@@ -338,10 +343,13 @@ impl MutationRoot {
             inventory_id: None,
             repository_id: None,
             environment_id: None,
-            params: debug.map(|d| serde_json::json!({"debug": d, "dry_run": dry_run.unwrap_or(false)})),
+            params: debug
+                .map(|d| serde_json::json!({"debug": d, "dry_run": dry_run.unwrap_or(false)})),
         };
 
-        let created = store.create_task(new_task).await
+        let created = store
+            .create_task(new_task)
+            .await
             .map_err(|e| async_graphql::Error::new(e.to_string()))?;
 
         let task_result = Task {
@@ -370,7 +378,8 @@ impl MutationRoot {
         let state = ctx.data::<AppState>()?;
         let store = &state.store;
 
-        store.approve_plan(plan_id as i64, reviewed_by, comment)
+        store
+            .approve_plan(plan_id as i64, reviewed_by, comment)
             .await
             .map_err(|e| async_graphql::Error::new(e.to_string()))?;
 
@@ -389,7 +398,8 @@ impl MutationRoot {
         let state = ctx.data::<AppState>()?;
         let store = &state.store;
 
-        store.reject_plan(plan_id as i64, reviewed_by, reason)
+        store
+            .reject_plan(plan_id as i64, reviewed_by, reason)
             .await
             .map_err(|e| async_graphql::Error::new(e.to_string()))?;
 

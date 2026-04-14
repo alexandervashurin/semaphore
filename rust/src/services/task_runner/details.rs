@@ -67,8 +67,8 @@ impl TaskRunner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::MockStore;
     use crate::db::store::*;
+    use crate::db::MockStore;
     use crate::db_lib::AccessKeyInstallerImpl;
     use crate::models::{Environment, Inventory, Project, Repository, Task, Template};
     use crate::services::task_logger::TaskStatus;
@@ -246,7 +246,10 @@ mod tests {
         );
 
         let result = runner.populate_details().await;
-        assert!(result.is_ok(), "Should succeed when all optional fields are None");
+        assert!(
+            result.is_ok(),
+            "Should succeed when all optional fields are None"
+        );
     }
 
     #[tokio::test]

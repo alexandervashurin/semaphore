@@ -103,9 +103,7 @@ pub async fn correlation_id_middleware(mut req: Request<Body>, next: Next) -> Re
 /// Принимаем только ASCII printable символы, длина 1..=128.
 /// Отклоняем пустые строки и потенциально опасный ввод.
 fn is_valid_correlation_id(s: &str) -> bool {
-    !s.is_empty()
-        && s.len() <= 128
-        && s.bytes().all(|b| b.is_ascii_graphic())
+    !s.is_empty() && s.len() <= 128 && s.bytes().all(|b| b.is_ascii_graphic())
 }
 
 // ============================================================================

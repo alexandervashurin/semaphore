@@ -184,15 +184,27 @@ mod tests {
     #[test]
     fn test_template_vault_equality() {
         let vault1 = TemplateVault {
-            id: 1, template_id: 10, project_id: 5, vault_id: 3, vault_key_id: 2,
+            id: 1,
+            template_id: 10,
+            project_id: 5,
+            vault_id: 3,
+            vault_key_id: 2,
             name: "A".to_string(),
         };
         let vault2 = TemplateVault {
-            id: 1, template_id: 10, project_id: 5, vault_id: 3, vault_key_id: 2,
+            id: 1,
+            template_id: 10,
+            project_id: 5,
+            vault_id: 3,
+            vault_key_id: 2,
             name: "A".to_string(),
         };
         let vault3 = TemplateVault {
-            id: 2, template_id: 10, project_id: 5, vault_id: 3, vault_key_id: 2,
+            id: 2,
+            template_id: 10,
+            project_id: 5,
+            vault_id: 3,
+            vault_key_id: 2,
             name: "A".to_string(),
         };
         assert_eq!(vault1.id, vault2.id);
@@ -219,10 +231,19 @@ mod tests {
 
     #[test]
     fn test_template_vault_name_variants() {
-        let names = ["vault", "Vault 1", "Production-Vault", "vault_name_with_underscores"];
+        let names = [
+            "vault",
+            "Vault 1",
+            "Production-Vault",
+            "vault_name_with_underscores",
+        ];
         for name in &names {
             let vault = TemplateVault {
-                id: 1, template_id: 1, project_id: 1, vault_id: 1, vault_key_id: 1,
+                id: 1,
+                template_id: 1,
+                project_id: 1,
+                vault_id: 1,
+                vault_key_id: 1,
                 name: name.to_string(),
             };
             let json = serde_json::to_string(&vault).unwrap();
@@ -248,8 +269,22 @@ mod tests {
     #[test]
     fn test_template_vault_vec_serialization() {
         let vaults = vec![
-            TemplateVault { id: 1, template_id: 10, project_id: 5, vault_id: 1, vault_key_id: 1, name: "V1".to_string() },
-            TemplateVault { id: 2, template_id: 10, project_id: 5, vault_id: 2, vault_key_id: 2, name: "V2".to_string() },
+            TemplateVault {
+                id: 1,
+                template_id: 10,
+                project_id: 5,
+                vault_id: 1,
+                vault_key_id: 1,
+                name: "V1".to_string(),
+            },
+            TemplateVault {
+                id: 2,
+                template_id: 10,
+                project_id: 5,
+                vault_id: 2,
+                vault_key_id: 2,
+                name: "V2".to_string(),
+            },
         ];
         let json = serde_json::to_string(&vaults).unwrap();
         assert!(json.contains("\"V1\""));
@@ -261,7 +296,11 @@ mod tests {
     #[test]
     fn test_template_vault_debug() {
         let vault = TemplateVault {
-            id: 1, template_id: 10, project_id: 5, vault_id: 3, vault_key_id: 2,
+            id: 1,
+            template_id: 10,
+            project_id: 5,
+            vault_id: 3,
+            vault_key_id: 2,
             name: "Debug Vault".to_string(),
         };
         let debug_str = format!("{:?}", vault);

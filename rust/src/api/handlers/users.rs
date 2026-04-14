@@ -290,7 +290,8 @@ mod tests {
     #[test]
     fn test_user_update_payload_roundtrip() {
         // UserUpdatePayload doesn't derive Serialize, test via deserialization
-        let json = r#"{"username": "roundtrip_user", "name": "Round Trip", "email": "round@trip.com"}"#;
+        let json =
+            r#"{"username": "roundtrip_user", "name": "Round Trip", "email": "round@trip.com"}"#;
         let restored: UserUpdatePayload = serde_json::from_str(json).unwrap();
         assert_eq!(restored.username, Some("roundtrip_user".to_string()));
         assert_eq!(restored.name, Some("Round Trip".to_string()));
@@ -351,8 +352,16 @@ mod tests {
         let mut username = Some("original".to_string());
         let name = Some("Original".to_string());
         let email = Some("orig@test.com".to_string());
-        let payload1 = UserUpdatePayload { username: username.clone(), name: name.clone(), email: email.clone() };
-        let payload2 = UserUpdatePayload { username: username.clone(), name: name.clone(), email: email.clone() };
+        let payload1 = UserUpdatePayload {
+            username: username.clone(),
+            name: name.clone(),
+            email: email.clone(),
+        };
+        let payload2 = UserUpdatePayload {
+            username: username.clone(),
+            name: name.clone(),
+            email: email.clone(),
+        };
         username = Some("modified".to_string());
         assert_eq!(payload1.username, Some("original".to_string()));
         assert_eq!(payload2.username, Some("original".to_string()));

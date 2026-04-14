@@ -125,12 +125,19 @@ mod tests {
     fn test_ansible_galaxy_requirements_all_variants() {
         let req = AnsibleGalaxyRequirements {
             roles: vec![
-                GalaxyRequirement { name: "role1".to_string(), version: "1.0.0".to_string() },
-                GalaxyRequirement { name: "role2".to_string(), version: "2.0.0".to_string() },
+                GalaxyRequirement {
+                    name: "role1".to_string(),
+                    version: "1.0.0".to_string(),
+                },
+                GalaxyRequirement {
+                    name: "role2".to_string(),
+                    version: "2.0.0".to_string(),
+                },
             ],
-            collections: vec![
-                GalaxyRequirement { name: "community.general".to_string(), version: "3.0.0".to_string() },
-            ],
+            collections: vec![GalaxyRequirement {
+                name: "community.general".to_string(),
+                version: "3.0.0".to_string(),
+            }],
         };
         assert_eq!(req.roles.len(), 2);
         assert_eq!(req.collections.len(), 1);
@@ -177,10 +184,19 @@ mod tests {
     #[test]
     fn test_galaxy_requirements_full() {
         let req = AnsibleGalaxyRequirements {
-            roles: vec![GalaxyRequirement { name: "a".to_string(), version: "1.0.0".to_string() }],
+            roles: vec![GalaxyRequirement {
+                name: "a".to_string(),
+                version: "1.0.0".to_string(),
+            }],
             collections: vec![
-                GalaxyRequirement { name: "b".to_string(), version: "2.0.0".to_string() },
-                GalaxyRequirement { name: "c".to_string(), version: "3.0.0".to_string() },
+                GalaxyRequirement {
+                    name: "b".to_string(),
+                    version: "2.0.0".to_string(),
+                },
+                GalaxyRequirement {
+                    name: "c".to_string(),
+                    version: "3.0.0".to_string(),
+                },
             ],
         };
         let json = serde_json::to_string(&req).unwrap();

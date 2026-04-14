@@ -761,14 +761,16 @@ impl AppFactory {
 
 /// Parses "KEY=VALUE" strings into (key, value) pairs.
 pub fn parse_environment_vars(env: &[String]) -> Vec<(&str, &str)> {
-    env.iter().map(|e| {
-        let parts: Vec<&str> = e.splitn(2, '=').collect();
-        if parts.len() == 2 {
-            (parts[0], parts[1])
-        } else {
-            (e.as_str(), "")
-        }
-    }).collect()
+    env.iter()
+        .map(|e| {
+            let parts: Vec<&str> = e.splitn(2, '=').collect();
+            if parts.len() == 2 {
+                (parts[0], parts[1])
+            } else {
+                (e.as_str(), "")
+            }
+        })
+        .collect()
 }
 
 /// Builds the argument list for ansible-playbook.
@@ -1156,12 +1158,7 @@ mod tests {
         extra_vars.insert("var1".to_string(), serde_json::json!("value1"));
         let cli_args = vec!["--limit".to_string(), "web".to_string()];
 
-        let args = build_ansible_args(
-            "deploy.yml",
-            Some("production.ini"),
-            &extra_vars,
-            &cli_args,
-        );
+        let args = build_ansible_args("deploy.yml", Some("production.ini"), &extra_vars, &cli_args);
 
         assert!(args.contains(&"deploy.yml".to_string()));
         assert!(args.contains(&"-i".to_string()));
@@ -1411,12 +1408,7 @@ mod tests {
     fn test_build_ansible_args_combined_inventory_and_cli() {
         use std::collections::HashMap;
         let cli = vec!["--limit".to_string(), "db".to_string(), "-vv".to_string()];
-        let args = build_ansible_args(
-            "site.yml",
-            Some("inventory/hosts"),
-            &HashMap::new(),
-            &cli,
-        );
+        let args = build_ansible_args("site.yml", Some("inventory/hosts"), &HashMap::new(), &cli);
 
         assert_eq!(args[0], "site.yml");
         assert_eq!(args[1], "-i");

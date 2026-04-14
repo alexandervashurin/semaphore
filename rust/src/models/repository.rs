@@ -149,15 +149,31 @@ mod tests {
 
     #[test]
     fn test_repository_type_serialization() {
-        assert_eq!(serde_json::to_string(&RepositoryType::Git).unwrap(), "\"git\"");
-        assert_eq!(serde_json::to_string(&RepositoryType::Http).unwrap(), "\"http\"");
-        assert_eq!(serde_json::to_string(&RepositoryType::Https).unwrap(), "\"https\"");
-        assert_eq!(serde_json::to_string(&RepositoryType::File).unwrap(), "\"file\"");
+        assert_eq!(
+            serde_json::to_string(&RepositoryType::Git).unwrap(),
+            "\"git\""
+        );
+        assert_eq!(
+            serde_json::to_string(&RepositoryType::Http).unwrap(),
+            "\"http\""
+        );
+        assert_eq!(
+            serde_json::to_string(&RepositoryType::Https).unwrap(),
+            "\"https\""
+        );
+        assert_eq!(
+            serde_json::to_string(&RepositoryType::File).unwrap(),
+            "\"file\""
+        );
     }
 
     #[test]
     fn test_repository_new() {
-        let repo = Repository::new(10, "my-repo".to_string(), "git@github.com:user/repo.git".to_string());
+        let repo = Repository::new(
+            10,
+            "my-repo".to_string(),
+            "git@github.com:user/repo.git".to_string(),
+        );
         assert_eq!(repo.id, 0);
         assert_eq!(repo.project_id, 10);
         assert_eq!(repo.name, "my-repo");
@@ -214,14 +230,22 @@ mod tests {
 
     #[test]
     fn test_repository_get_clone_url() {
-        let repo = Repository::new(1, "repo".to_string(), "https://github.com/user/repo.git".to_string());
+        let repo = Repository::new(
+            1,
+            "repo".to_string(),
+            "https://github.com/user/repo.git".to_string(),
+        );
         assert_eq!(repo.get_clone_url(), "https://github.com/user/repo.git");
     }
 
     #[test]
     fn test_repository_get_full_path() {
         // Without git_path
-        let repo = Repository::new(1, "repo".to_string(), "https://example.com/repo.git".to_string());
+        let repo = Repository::new(
+            1,
+            "repo".to_string(),
+            "https://example.com/repo.git".to_string(),
+        );
         assert_eq!(repo.get_full_path(), "https://example.com/repo.git");
 
         // With git_path
@@ -232,7 +256,11 @@ mod tests {
 
     #[test]
     fn test_repository_clone() {
-        let repo = Repository::new(1, "clone-repo".to_string(), "https://github.com/user/repo.git".to_string());
+        let repo = Repository::new(
+            1,
+            "clone-repo".to_string(),
+            "https://github.com/user/repo.git".to_string(),
+        );
         let cloned = repo.clone();
         assert_eq!(cloned.name, repo.name);
         assert_eq!(cloned.git_url, repo.git_url);
@@ -258,14 +286,22 @@ mod tests {
 
     #[test]
     fn test_repository_with_http_type() {
-        let repo = Repository::new(1, "http-repo".to_string(), "http://example.com/repo.git".to_string());
+        let repo = Repository::new(
+            1,
+            "http-repo".to_string(),
+            "http://example.com/repo.git".to_string(),
+        );
         assert_eq!(repo.git_type, RepositoryType::Git); // new() always uses Git type
         assert_eq!(repo.git_url, "http://example.com/repo.git");
     }
 
     #[test]
     fn test_repository_get_clone_url_with_branch() {
-        let mut repo = Repository::new(1, "repo".to_string(), "https://github.com/user/repo.git".to_string());
+        let mut repo = Repository::new(
+            1,
+            "repo".to_string(),
+            "https://github.com/user/repo.git".to_string(),
+        );
         repo.git_branch = Some("develop".to_string());
         // get_clone_url returns git_url regardless of branch
         assert_eq!(repo.get_clone_url(), "https://github.com/user/repo.git");
@@ -314,7 +350,11 @@ mod tests {
 
     #[test]
     fn test_repository_clone_equality() {
-        let repo1 = Repository::new(1, "repo1".to_string(), "https://github.com/user/repo1.git".to_string());
+        let repo1 = Repository::new(
+            1,
+            "repo1".to_string(),
+            "https://github.com/user/repo1.git".to_string(),
+        );
         let repo2 = repo1.clone();
         // Cloned repositories should have identical field values
         assert_eq!(repo1.id, repo2.id);
@@ -326,10 +366,15 @@ mod tests {
     #[test]
     fn test_repository_unicode_name_and_url() {
         let repo = Repository {
-            id: 1, project_id: 1, name: "Репозиторий".to_string(),
+            id: 1,
+            project_id: 1,
+            name: "Репозиторий".to_string(),
             git_url: "https://github.com/user/repo.git".to_string(),
-            git_type: RepositoryType::Git, git_branch: Some("main".to_string()),
-            key_id: None, git_path: None, created: None,
+            git_type: RepositoryType::Git,
+            git_branch: Some("main".to_string()),
+            key_id: None,
+            git_path: None,
+            created: None,
         };
         let json = serde_json::to_string(&repo).unwrap();
         let restored: Repository = serde_json::from_str(&json).unwrap();

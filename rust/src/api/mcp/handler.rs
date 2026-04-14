@@ -266,10 +266,7 @@ mod tests {
     #[test]
     fn test_specific_tool_names_exist() {
         let defs = tools::all_definitions();
-        let names: Vec<&str> = defs
-            .iter()
-            .filter_map(|d| d["name"].as_str())
-            .collect();
+        let names: Vec<&str> = defs.iter().filter_map(|d| d["name"].as_str()).collect();
         assert!(names.contains(&"list_projects"));
         assert!(names.contains(&"run_template"));
         assert!(names.contains(&"stop_task"));

@@ -81,7 +81,10 @@ mod tests {
     async fn test_multiple_projects() {
         let store = MockStore::new();
         for i in 1..=5 {
-            store.create_project(create_test_project(0, &format!("project-{}", i))).await.unwrap();
+            store
+                .create_project(create_test_project(0, &format!("project-{}", i)))
+                .await
+                .unwrap();
         }
 
         let projects = store.get_projects(None).await.unwrap();

@@ -453,7 +453,11 @@ mod tests {
 
         // Each exporter should have a non-empty name
         for (name, exporter) in &chain.exporters {
-            assert!(!exporter.get_name().is_empty(), "Exporter '{}' has empty name", name);
+            assert!(
+                !exporter.get_name().is_empty(),
+                "Exporter '{}' has empty name",
+                name
+            );
         }
     }
 
@@ -518,7 +522,8 @@ mod tests {
     fn test_value_map_append_and_clear() {
         let mut map: ValueMap<String> = ValueMap::new();
 
-        map.append_values(vec!["a".to_string(), "b".to_string()], "scope").unwrap();
+        map.append_values(vec!["a".to_string(), "b".to_string()], "scope")
+            .unwrap();
         assert_eq!(map.get_loaded_keys("scope").unwrap().len(), 2);
 
         map.clear();
@@ -579,7 +584,8 @@ mod tests {
     #[test]
     fn test_value_map_clear_removes_all_keys() {
         let mut map: ValueMap<String> = ValueMap::new();
-        map.append_values(vec!["a".to_string(), "b".to_string()], "scope").unwrap();
+        map.append_values(vec!["a".to_string(), "b".to_string()], "scope")
+            .unwrap();
         assert_eq!(map.get_loaded_keys("scope").unwrap().len(), 2);
 
         map.clear();
@@ -636,7 +642,8 @@ mod tests {
     fn test_value_map_multiple_appends_same_scope() {
         let mut map: ValueMap<String> = ValueMap::new();
         map.append_values(vec!["a".to_string()], "scope").unwrap();
-        map.append_values(vec!["b".to_string(), "c".to_string()], "scope").unwrap();
+        map.append_values(vec!["b".to_string(), "c".to_string()], "scope")
+            .unwrap();
         let keys = map.get_loaded_keys("scope").unwrap();
         assert_eq!(keys.len(), 3);
         assert_eq!(keys, vec!["0", "1", "2"]);
@@ -825,7 +832,8 @@ mod tests {
 
         fn deps(e: &dyn TypeExporter) -> Vec<&str> {
             if e.get_name() == std::any::type_name::<String>() {
-                if true { // just return A->B dependency
+                if true {
+                    // just return A->B dependency
                     Vec::new()
                 } else {
                     Vec::new()
@@ -864,7 +872,8 @@ mod tests {
     fn test_data_exporter_get_loaded_keys_int_valid() {
         let mut chain = ExporterChain::new();
         let mut map: ValueMap<String> = ValueMap::new();
-        map.append_values(vec!["a".to_string(), "b".to_string()], "scope").unwrap();
+        map.append_values(vec!["a".to_string(), "b".to_string()], "scope")
+            .unwrap();
         chain.add_exporter("Test", Box::new(map));
 
         let result = chain.get_loaded_keys_int("Test", "scope").unwrap();
@@ -1049,7 +1058,10 @@ mod tests {
         // Create chain with real exporters that have proper dependencies
         let mut exporters: HashMap<String, Box<dyn TypeExporter>> = HashMap::new();
         exporters.insert("User".to_string(), Box::new(ValueMap::<User>::new()));
-        exporters.insert("Template".to_string(), Box::new(ValueMap::<Template>::new()));
+        exporters.insert(
+            "Template".to_string(),
+            Box::new(ValueMap::<Template>::new()),
+        );
 
         // User has no deps, Template has no deps in ValueMap
         let result = ExporterChain::get_sorted_keys(&exporters, |e| e.import_depends_on()).unwrap();
@@ -1060,9 +1072,27 @@ mod tests {
     fn test_get_sorted_keys_linear_chain() {
         // A -> B -> C (C is dependency of B, B is dependency of A)
         let mut exporters: HashMap<String, Box<dyn TypeExporter>> = HashMap::new();
-        exporters.insert("A".to_string(), Box::new(DepTestExporter { export_deps: vec!["B"], import_deps: vec!["B"] }));
-        exporters.insert("B".to_string(), Box::new(DepTestExporter { export_deps: vec!["C"], import_deps: vec!["C"] }));
-        exporters.insert("C".to_string(), Box::new(DepTestExporter { export_deps: vec![], import_deps: vec![] }));
+        exporters.insert(
+            "A".to_string(),
+            Box::new(DepTestExporter {
+                export_deps: vec!["B"],
+                import_deps: vec!["B"],
+            }),
+        );
+        exporters.insert(
+            "B".to_string(),
+            Box::new(DepTestExporter {
+                export_deps: vec!["C"],
+                import_deps: vec!["C"],
+            }),
+        );
+        exporters.insert(
+            "C".to_string(),
+            Box::new(DepTestExporter {
+                export_deps: vec![],
+                import_deps: vec![],
+            }),
+        );
 
         let result = ExporterChain::get_sorted_keys(&exporters, |e| e.export_depends_on()).unwrap();
 
@@ -1127,7 +1157,11 @@ mod tests {
             Ok(())
         }
 
-        fn restore(&mut self, _store: &dyn Store, _exporter: &dyn DataExporter) -> Result<(), String> {
+        fn restore(
+            &mut self,
+            _store: &dyn Store,
+            _exporter: &dyn DataExporter,
+        ) -> Result<(), String> {
             Ok(())
         }
 

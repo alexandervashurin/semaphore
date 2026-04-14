@@ -2,10 +2,10 @@
 //!
 //! Аналог db/sql/task.go из Go версии (часть 3: TaskStage)
 
-use chrono::Utc;
 use crate::db::sql::types::SqlDb;
 use crate::error::{Error, Result};
 use crate::models::*;
+use chrono::Utc;
 use sqlx::Row;
 
 impl SqlDb {

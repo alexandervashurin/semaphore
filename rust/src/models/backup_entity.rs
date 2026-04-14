@@ -52,7 +52,10 @@ mod tests {
 
     #[test]
     fn test_backup_entity_get_type() {
-        assert_eq!(<TestBackupEntity as BackupEntity>::get_type(), "test_entity");
+        assert_eq!(
+            <TestBackupEntity as BackupEntity>::get_type(),
+            "test_entity"
+        );
     }
 
     #[test]

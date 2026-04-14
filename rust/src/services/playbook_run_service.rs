@@ -239,8 +239,7 @@ mod tests {
             999, // playbook_id
             1,   // project_id
             1,   // user_id
-            request,
-            &store,
+            request, &store,
         )
         .await;
 
@@ -414,7 +413,10 @@ mod tests {
         assert_eq!(request.inventory_id, Some(10));
         assert_eq!(request.environment_id, Some(20));
         assert_eq!(request.limit, Some("hosts".to_string()));
-        assert_eq!(request.tags, Some(vec!["tag1".to_string(), "tag2".to_string()]));
+        assert_eq!(
+            request.tags,
+            Some(vec!["tag1".to_string(), "tag2".to_string()])
+        );
         assert!(request.extra_vars.is_some());
     }
 

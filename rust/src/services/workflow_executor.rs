@@ -647,8 +647,10 @@ mod tests {
         let mut ctx = WorkflowExecutionContext::new(workflow, nodes, edges, run);
 
         // Помечаем узлы 1 и 2 как Success
-        ctx.node_statuses.insert(1, NodeExecutionStatus::Success(create_test_task(1)));
-        ctx.node_statuses.insert(2, NodeExecutionStatus::Success(create_test_task(2)));
+        ctx.node_statuses
+            .insert(1, NodeExecutionStatus::Success(create_test_task(1)));
+        ctx.node_statuses
+            .insert(2, NodeExecutionStatus::Success(create_test_task(2)));
         // Узел 3 остаётся Pending
         assert!(!ctx.is_complete());
     }
@@ -656,17 +658,16 @@ mod tests {
     #[test]
     fn test_is_complete_when_all_success() {
         let workflow = create_test_workflow();
-        let nodes = vec![
-            create_test_node(1),
-            create_test_node(2),
-        ];
+        let nodes = vec![create_test_node(1), create_test_node(2)];
         let edges = vec![];
         let run = create_test_run();
 
         let mut ctx = WorkflowExecutionContext::new(workflow, nodes, edges, run);
 
-        ctx.node_statuses.insert(1, NodeExecutionStatus::Success(create_test_task(1)));
-        ctx.node_statuses.insert(2, NodeExecutionStatus::Success(create_test_task(2)));
+        ctx.node_statuses
+            .insert(1, NodeExecutionStatus::Success(create_test_task(1)));
+        ctx.node_statuses
+            .insert(2, NodeExecutionStatus::Success(create_test_task(2)));
 
         assert!(ctx.is_complete());
     }
@@ -674,17 +675,16 @@ mod tests {
     #[test]
     fn test_has_running_nodes_with_running_task() {
         let workflow = create_test_workflow();
-        let nodes = vec![
-            create_test_node(1),
-            create_test_node(2),
-        ];
+        let nodes = vec![create_test_node(1), create_test_node(2)];
         let edges = vec![];
         let run = create_test_run();
 
         let mut ctx = WorkflowExecutionContext::new(workflow, nodes, edges, run);
 
-        ctx.node_statuses.insert(1, NodeExecutionStatus::Success(create_test_task(1)));
-        ctx.node_statuses.insert(2, NodeExecutionStatus::Running(create_test_task(2)));
+        ctx.node_statuses
+            .insert(1, NodeExecutionStatus::Success(create_test_task(1)));
+        ctx.node_statuses
+            .insert(2, NodeExecutionStatus::Running(create_test_task(2)));
 
         assert!(ctx.has_running_nodes());
     }
@@ -737,7 +737,8 @@ mod tests {
         let edges = vec![create_test_edge(1, 1, "success")];
         let run = create_test_run();
         let workflow = create_test_workflow();
-        let ctx = WorkflowExecutionContext::new(workflow, nodes.clone(), edges.clone(), run.clone());
+        let ctx =
+            WorkflowExecutionContext::new(workflow, nodes.clone(), edges.clone(), run.clone());
         let _ctx2 = ctx; // должна быть возможность перемещения
     }
 
@@ -825,7 +826,8 @@ mod tests {
         let mut ctx = WorkflowExecutionContext::new(workflow, nodes, edges, run);
 
         // Помечаем узел 2 как Success
-        ctx.node_statuses.insert(2, NodeExecutionStatus::Success(create_test_task(2)));
+        ctx.node_statuses
+            .insert(2, NodeExecutionStatus::Success(create_test_task(2)));
 
         // При Success узла 1 следующий — узел 2, но он уже completed
         // find_next_nodes всё равно вернёт 2, но execute_node должен проверить статус
@@ -836,17 +838,16 @@ mod tests {
     #[test]
     fn test_is_complete_with_failed_nodes() {
         let workflow = create_test_workflow();
-        let nodes = vec![
-            create_test_node(1),
-            create_test_node(2),
-        ];
+        let nodes = vec![create_test_node(1), create_test_node(2)];
         let edges = vec![];
         let run = create_test_run();
 
         let mut ctx = WorkflowExecutionContext::new(workflow, nodes, edges, run);
 
-        ctx.node_statuses.insert(1, NodeExecutionStatus::Success(create_test_task(1)));
-        ctx.node_statuses.insert(2, NodeExecutionStatus::Failed(create_test_task(2)));
+        ctx.node_statuses
+            .insert(1, NodeExecutionStatus::Success(create_test_task(1)));
+        ctx.node_statuses
+            .insert(2, NodeExecutionStatus::Failed(create_test_task(2)));
 
         // Failed считается завершённым
         assert!(ctx.is_complete());
@@ -855,16 +856,14 @@ mod tests {
     #[test]
     fn test_is_complete_with_skipped_nodes() {
         let workflow = create_test_workflow();
-        let nodes = vec![
-            create_test_node(1),
-            create_test_node(2),
-        ];
+        let nodes = vec![create_test_node(1), create_test_node(2)];
         let edges = vec![];
         let run = create_test_run();
 
         let mut ctx = WorkflowExecutionContext::new(workflow, nodes, edges, run);
 
-        ctx.node_statuses.insert(1, NodeExecutionStatus::Success(create_test_task(1)));
+        ctx.node_statuses
+            .insert(1, NodeExecutionStatus::Success(create_test_task(1)));
         ctx.node_statuses.insert(2, NodeExecutionStatus::Skipped);
 
         assert!(ctx.is_complete());

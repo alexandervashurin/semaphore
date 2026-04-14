@@ -251,8 +251,7 @@ mod tests {
             .unwrap();
         // MockStore не требует auth для некоторых routes — проверяем что не 500
         assert!(
-            response.status() == StatusCode::OK
-                || response.status() == StatusCode::UNAUTHORIZED
+            response.status() == StatusCode::OK || response.status() == StatusCode::UNAUTHORIZED
         );
     }
 
@@ -270,8 +269,7 @@ mod tests {
             .unwrap();
         // MockStore не требует auth для некоторых routes — проверяем что не 500
         assert!(
-            response.status() == StatusCode::OK
-                || response.status() == StatusCode::UNAUTHORIZED
+            response.status() == StatusCode::OK || response.status() == StatusCode::UNAUTHORIZED
         );
     }
 
@@ -288,8 +286,7 @@ mod tests {
             .await
             .unwrap();
         assert!(
-            response.status() == StatusCode::OK
-                || response.status() == StatusCode::UNAUTHORIZED
+            response.status() == StatusCode::OK || response.status() == StatusCode::UNAUTHORIZED
         );
     }
 
@@ -306,8 +303,7 @@ mod tests {
             .await
             .unwrap();
         assert!(
-            response.status() == StatusCode::OK
-                || response.status() == StatusCode::UNAUTHORIZED
+            response.status() == StatusCode::OK || response.status() == StatusCode::UNAUTHORIZED
         );
     }
 
@@ -387,10 +383,7 @@ mod tests {
             .await
             .unwrap();
         // metrics может быть на /metrics или /api/internal/metrics или не быть
-        assert!(
-            response.status() == StatusCode::OK
-                || response.status() == StatusCode::NOT_FOUND
-        );
+        assert!(response.status() == StatusCode::OK || response.status() == StatusCode::NOT_FOUND);
     }
 
     #[tokio::test]

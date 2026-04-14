@@ -747,25 +747,14 @@ mod tests {
 
     #[test]
     fn test_cli_parse_custom_url() {
-        let cli = Cli::try_parse_from([
-            "velum",
-            "--url",
-            "http://example.com:8080",
-            "version",
-        ])
-        .unwrap();
+        let cli =
+            Cli::try_parse_from(["velum", "--url", "http://example.com:8080", "version"]).unwrap();
         assert_eq!(cli.url, "http://example.com:8080");
     }
 
     #[test]
     fn test_cli_parse_token() {
-        let cli = Cli::try_parse_from([
-            "velum",
-            "--token",
-            "my-secret-token",
-            "version",
-        ])
-        .unwrap();
+        let cli = Cli::try_parse_from(["velum", "--token", "my-secret-token", "version"]).unwrap();
         assert_eq!(cli.token, Some("my-secret-token".to_string()));
     }
 
@@ -798,7 +787,8 @@ mod tests {
 
     #[test]
     fn test_cli_run_command_minimal() {
-        let cli = Cli::try_parse_from(["velum", "run", "--project", "1", "--template", "3"]).unwrap();
+        let cli =
+            Cli::try_parse_from(["velum", "run", "--project", "1", "--template", "3"]).unwrap();
         match cli.command {
             Commands::Run {
                 project,
@@ -898,7 +888,8 @@ mod tests {
 
     #[test]
     fn test_cli_approve_command() {
-        let cli = Cli::try_parse_from(["velum", "approve", "--project", "1", "--task", "99"]).unwrap();
+        let cli =
+            Cli::try_parse_from(["velum", "approve", "--project", "1", "--task", "99"]).unwrap();
         match cli.command {
             Commands::Approve { project, task } => {
                 assert_eq!(project, 1);
@@ -946,7 +937,8 @@ mod tests {
 
     #[test]
     fn test_cli_tasks_command_custom_limit() {
-        let cli = Cli::try_parse_from(["velum", "tasks", "--project", "5", "--limit", "25"]).unwrap();
+        let cli =
+            Cli::try_parse_from(["velum", "tasks", "--project", "5", "--limit", "25"]).unwrap();
         match cli.command {
             Commands::Tasks { project, limit } => {
                 assert_eq!(project, 5);

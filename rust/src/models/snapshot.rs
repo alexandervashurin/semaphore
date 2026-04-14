@@ -178,10 +178,18 @@ mod tests {
     #[test]
     fn test_task_snapshot_debug() {
         let snapshot = TaskSnapshot {
-            id: 1, project_id: 10, template_id: 5, task_id: 100,
-            git_branch: Some("main".to_string()), git_commit: None, arguments: None,
-            inventory_id: None, environment_id: None, message: None,
-            label: None, created_at: "2024-01-01".to_string(),
+            id: 1,
+            project_id: 10,
+            template_id: 5,
+            task_id: 100,
+            git_branch: Some("main".to_string()),
+            git_commit: None,
+            arguments: None,
+            inventory_id: None,
+            environment_id: None,
+            message: None,
+            label: None,
+            created_at: "2024-01-01".to_string(),
             template_name: "Debug Snap".to_string(),
         };
         let debug_str = format!("{:?}", snapshot);
@@ -191,7 +199,9 @@ mod tests {
 
     #[test]
     fn test_rollback_request_clone() {
-        let req = RollbackRequest { message: Some("Clone rollback".to_string()) };
+        let req = RollbackRequest {
+            message: Some("Clone rollback".to_string()),
+        };
         let cloned = req.clone();
         assert_eq!(cloned.message, req.message);
     }
@@ -199,9 +209,15 @@ mod tests {
     #[test]
     fn test_task_snapshot_create_debug() {
         let create = TaskSnapshotCreate {
-            template_id: 1, task_id: 1, git_branch: None, git_commit: None,
-            arguments: None, inventory_id: None, environment_id: None,
-            message: None, label: None,
+            template_id: 1,
+            task_id: 1,
+            git_branch: None,
+            git_commit: None,
+            arguments: None,
+            inventory_id: None,
+            environment_id: None,
+            message: None,
+            label: None,
         };
         let debug_str = format!("{:?}", create);
         assert!(debug_str.contains("TaskSnapshotCreate"));
@@ -209,7 +225,9 @@ mod tests {
 
     #[test]
     fn test_rollback_request_debug() {
-        let req = RollbackRequest { message: Some("Debug rollback".to_string()) };
+        let req = RollbackRequest {
+            message: Some("Debug rollback".to_string()),
+        };
         let debug_str = format!("{:?}", req);
         assert!(debug_str.contains("RollbackRequest"));
     }
@@ -225,10 +243,14 @@ mod tests {
     #[test]
     fn test_task_snapshot_create_all_populated() {
         let create = TaskSnapshotCreate {
-            template_id: 10, task_id: 100,
-            git_branch: Some("develop".to_string()), git_commit: Some("abc".to_string()),
-            arguments: Some("--arg".to_string()), inventory_id: Some(1),
-            environment_id: Some(2), message: Some("Auto".to_string()),
+            template_id: 10,
+            task_id: 100,
+            git_branch: Some("develop".to_string()),
+            git_commit: Some("abc".to_string()),
+            arguments: Some("--arg".to_string()),
+            inventory_id: Some(1),
+            environment_id: Some(2),
+            message: Some("Auto".to_string()),
             label: Some("v2.0".to_string()),
         };
         let json = serde_json::to_string(&create).unwrap();
@@ -247,11 +269,18 @@ mod tests {
     #[test]
     fn test_task_snapshot_unicode_message() {
         let snapshot = TaskSnapshot {
-            id: 1, project_id: 1, template_id: 1, task_id: 1,
-            git_branch: Some("main".to_string()), git_commit: Some("abc123".to_string()),
-            arguments: None, inventory_id: None, environment_id: None,
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            task_id: 1,
+            git_branch: Some("main".to_string()),
+            git_commit: Some("abc123".to_string()),
+            arguments: None,
+            inventory_id: None,
+            environment_id: None,
             message: Some("Успешный запуск".to_string()),
-            label: Some("v1.0".to_string()), created_at: "2024-01-01".to_string(),
+            label: Some("v1.0".to_string()),
+            created_at: "2024-01-01".to_string(),
             template_name: "Шаблон".to_string(),
         };
         let json = serde_json::to_string(&snapshot).unwrap();

@@ -705,7 +705,9 @@ mod tests {
     fn test_playbook_update_with_multiline_content() {
         let update = PlaybookUpdate {
             name: "multiline".to_string(),
-            content: "---\n- hosts: all\n  tasks:\n    - name: test\n      debug:\n        msg: hello".to_string(),
+            content:
+                "---\n- hosts: all\n  tasks:\n    - name: test\n      debug:\n        msg: hello"
+                    .to_string(),
             description: None,
             playbook_type: "ansible".to_string(),
         };

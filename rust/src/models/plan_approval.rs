@@ -70,9 +70,18 @@ mod tests {
 
     #[test]
     fn test_plan_status_from_str() {
-        assert_eq!("approved".parse::<PlanStatus>().unwrap(), PlanStatus::Approved);
-        assert_eq!("rejected".parse::<PlanStatus>().unwrap(), PlanStatus::Rejected);
-        assert_eq!("unknown".parse::<PlanStatus>().unwrap(), PlanStatus::Pending);
+        assert_eq!(
+            "approved".parse::<PlanStatus>().unwrap(),
+            PlanStatus::Approved
+        );
+        assert_eq!(
+            "rejected".parse::<PlanStatus>().unwrap(),
+            PlanStatus::Rejected
+        );
+        assert_eq!(
+            "unknown".parse::<PlanStatus>().unwrap(),
+            PlanStatus::Pending
+        );
     }
 
     #[test]
@@ -131,11 +140,19 @@ mod tests {
     #[test]
     fn test_terraform_plan_clone() {
         let plan = TerraformPlan {
-            id: 1, task_id: 100, project_id: 10,
-            plan_output: "Plan output".to_string(), plan_json: None,
-            resources_added: 1, resources_changed: 0, resources_removed: 0,
-            status: "pending".to_string(), created_at: Utc::now(),
-            reviewed_at: None, reviewed_by: None, review_comment: None,
+            id: 1,
+            task_id: 100,
+            project_id: 10,
+            plan_output: "Plan output".to_string(),
+            plan_json: None,
+            resources_added: 1,
+            resources_changed: 0,
+            resources_removed: 0,
+            status: "pending".to_string(),
+            created_at: Utc::now(),
+            reviewed_at: None,
+            reviewed_by: None,
+            review_comment: None,
         };
         let cloned = plan.clone();
         assert_eq!(cloned.plan_output, plan.plan_output);
@@ -145,11 +162,18 @@ mod tests {
     #[test]
     fn test_terraform_plan_with_review() {
         let plan = TerraformPlan {
-            id: 2, task_id: 200, project_id: 20,
-            plan_output: "Reviewed plan".to_string(), plan_json: Some("{}" .to_string()),
-            resources_added: 3, resources_changed: 1, resources_removed: 2,
-            status: "approved".to_string(), created_at: Utc::now(),
-            reviewed_at: Some(Utc::now()), reviewed_by: Some(5),
+            id: 2,
+            task_id: 200,
+            project_id: 20,
+            plan_output: "Reviewed plan".to_string(),
+            plan_json: Some("{}".to_string()),
+            resources_added: 3,
+            resources_changed: 1,
+            resources_removed: 2,
+            status: "approved".to_string(),
+            created_at: Utc::now(),
+            reviewed_at: Some(Utc::now()),
+            reviewed_by: Some(5),
             review_comment: Some("LGTM".to_string()),
         };
         let json = serde_json::to_string(&plan).unwrap();
@@ -159,7 +183,9 @@ mod tests {
 
     #[test]
     fn test_plan_review_payload_clone() {
-        let payload = PlanReviewPayload { comment: Some("Test".to_string()) };
+        let payload = PlanReviewPayload {
+            comment: Some("Test".to_string()),
+        };
         let cloned = payload.clone();
         assert_eq!(cloned.comment, payload.comment);
     }
@@ -176,11 +202,19 @@ mod tests {
     #[test]
     fn test_terraform_plan_debug() {
         let plan = TerraformPlan {
-            id: 1, task_id: 1, project_id: 1,
-            plan_output: "Debug".to_string(), plan_json: None,
-            resources_added: 0, resources_changed: 0, resources_removed: 0,
-            status: "pending".to_string(), created_at: Utc::now(),
-            reviewed_at: None, reviewed_by: None, review_comment: None,
+            id: 1,
+            task_id: 1,
+            project_id: 1,
+            plan_output: "Debug".to_string(),
+            plan_json: None,
+            resources_added: 0,
+            resources_changed: 0,
+            resources_removed: 0,
+            status: "pending".to_string(),
+            created_at: Utc::now(),
+            reviewed_at: None,
+            reviewed_by: None,
+            review_comment: None,
         };
         let debug_str = format!("{:?}", plan);
         assert!(debug_str.contains("TerraformPlan"));
@@ -195,11 +229,19 @@ mod tests {
     #[test]
     fn test_terraform_plan_unicode() {
         let plan = TerraformPlan {
-            id: 1, task_id: 100, project_id: 10,
-            plan_output: "План: 1 добавить".to_string(), plan_json: None,
-            resources_added: 1, resources_changed: 0, resources_removed: 0,
-            status: "pending".to_string(), created_at: Utc::now(),
-            reviewed_at: None, reviewed_by: None, review_comment: None,
+            id: 1,
+            task_id: 100,
+            project_id: 10,
+            plan_output: "План: 1 добавить".to_string(),
+            plan_json: None,
+            resources_added: 1,
+            resources_changed: 0,
+            resources_removed: 0,
+            status: "pending".to_string(),
+            created_at: Utc::now(),
+            reviewed_at: None,
+            reviewed_by: None,
+            review_comment: None,
         };
         let json = serde_json::to_string(&plan).unwrap();
         let restored: TerraformPlan = serde_json::from_str(&json).unwrap();
@@ -209,11 +251,19 @@ mod tests {
     #[test]
     fn test_terraform_plan_clone_independence() {
         let mut plan = TerraformPlan {
-            id: 1, task_id: 1, project_id: 1,
-            plan_output: "Original".to_string(), plan_json: None,
-            resources_added: 0, resources_changed: 0, resources_removed: 0,
-            status: "pending".to_string(), created_at: Utc::now(),
-            reviewed_at: None, reviewed_by: None, review_comment: None,
+            id: 1,
+            task_id: 1,
+            project_id: 1,
+            plan_output: "Original".to_string(),
+            plan_json: None,
+            resources_added: 0,
+            resources_changed: 0,
+            resources_removed: 0,
+            status: "pending".to_string(),
+            created_at: Utc::now(),
+            reviewed_at: None,
+            reviewed_by: None,
+            review_comment: None,
         };
         let cloned = plan.clone();
         plan.plan_output = "Modified".to_string();

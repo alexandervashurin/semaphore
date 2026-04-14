@@ -50,22 +50,34 @@ impl MockStore {
 
     /// Seed helper для тестов: добавить template
     pub fn seed_template(&self, template: Template) {
-        self.templates.write().unwrap().insert(template.id, template);
+        self.templates
+            .write()
+            .unwrap()
+            .insert(template.id, template);
     }
 
     /// Seed helper для тестов: добавить inventory
     pub fn seed_inventory(&self, inventory: Inventory) {
-        self.inventories.write().unwrap().insert(inventory.id, inventory);
+        self.inventories
+            .write()
+            .unwrap()
+            .insert(inventory.id, inventory);
     }
 
     /// Seed helper для тестов: добавить repository
     pub fn seed_repository(&self, repository: Repository) {
-        self.repositories.write().unwrap().insert(repository.id, repository);
+        self.repositories
+            .write()
+            .unwrap()
+            .insert(repository.id, repository);
     }
 
     /// Seed helper для тестов: добавить environment
     pub fn seed_environment(&self, environment: Environment) {
-        self.environments.write().unwrap().insert(environment.id, environment);
+        self.environments
+            .write()
+            .unwrap()
+            .insert(environment.id, environment);
     }
 
     /// Seed helper для тестов: добавить playbook_run
@@ -316,11 +328,17 @@ impl InventoryManager for MockStore {
         if inventory.id == 0 {
             inventory.id = (self.inventories.read().unwrap().len() as i32) + 1;
         }
-        self.inventories.write().unwrap().insert(inventory.id, inventory.clone());
+        self.inventories
+            .write()
+            .unwrap()
+            .insert(inventory.id, inventory.clone());
         Ok(inventory)
     }
     async fn update_inventory(&self, inventory: Inventory) -> Result<()> {
-        self.inventories.write().unwrap().insert(inventory.id, inventory.clone());
+        self.inventories
+            .write()
+            .unwrap()
+            .insert(inventory.id, inventory.clone());
         Ok(())
     }
     async fn delete_inventory(&self, _project_id: i32, inventory_id: i32) -> Result<()> {
@@ -332,7 +350,13 @@ impl InventoryManager for MockStore {
 #[async_trait]
 impl RepositoryManager for MockStore {
     async fn get_repositories(&self, _project_id: i32) -> Result<Vec<Repository>> {
-        Ok(self.repositories.read().unwrap().values().cloned().collect())
+        Ok(self
+            .repositories
+            .read()
+            .unwrap()
+            .values()
+            .cloned()
+            .collect())
     }
     async fn get_repository(&self, _project_id: i32, repository_id: i32) -> Result<Repository> {
         self.repositories
@@ -346,11 +370,17 @@ impl RepositoryManager for MockStore {
         if repository.id == 0 {
             repository.id = (self.repositories.read().unwrap().len() as i32) + 1;
         }
-        self.repositories.write().unwrap().insert(repository.id, repository.clone());
+        self.repositories
+            .write()
+            .unwrap()
+            .insert(repository.id, repository.clone());
         Ok(repository)
     }
     async fn update_repository(&self, repository: Repository) -> Result<()> {
-        self.repositories.write().unwrap().insert(repository.id, repository.clone());
+        self.repositories
+            .write()
+            .unwrap()
+            .insert(repository.id, repository.clone());
         Ok(())
     }
     async fn delete_repository(&self, _project_id: i32, repository_id: i32) -> Result<()> {
@@ -362,7 +392,13 @@ impl RepositoryManager for MockStore {
 #[async_trait]
 impl EnvironmentManager for MockStore {
     async fn get_environments(&self, _project_id: i32) -> Result<Vec<Environment>> {
-        Ok(self.environments.read().unwrap().values().cloned().collect())
+        Ok(self
+            .environments
+            .read()
+            .unwrap()
+            .values()
+            .cloned()
+            .collect())
     }
     async fn get_environment(&self, _project_id: i32, environment_id: i32) -> Result<Environment> {
         self.environments
@@ -376,11 +412,17 @@ impl EnvironmentManager for MockStore {
         if environment.id == 0 {
             environment.id = (self.environments.read().unwrap().len() as i32) + 1;
         }
-        self.environments.write().unwrap().insert(environment.id, environment.clone());
+        self.environments
+            .write()
+            .unwrap()
+            .insert(environment.id, environment.clone());
         Ok(environment)
     }
     async fn update_environment(&self, environment: Environment) -> Result<()> {
-        self.environments.write().unwrap().insert(environment.id, environment.clone());
+        self.environments
+            .write()
+            .unwrap()
+            .insert(environment.id, environment.clone());
         Ok(())
     }
     async fn delete_environment(&self, _project_id: i32, environment_id: i32) -> Result<()> {
@@ -954,7 +996,13 @@ impl ProjectRoleManager for MockStore {
 #[async_trait]
 impl OrganizationManager for MockStore {
     async fn get_organizations(&self) -> Result<Vec<Organization>> {
-        Ok(self.organizations.read().unwrap().values().cloned().collect())
+        Ok(self
+            .organizations
+            .read()
+            .unwrap()
+            .values()
+            .cloned()
+            .collect())
     }
     async fn get_organization(&self, id: i32) -> Result<Organization> {
         self.organizations
@@ -976,7 +1024,12 @@ impl OrganizationManager for MockStore {
     async fn create_organization(&self, payload: OrganizationCreate) -> Result<Organization> {
         use chrono::Utc;
         let slug = payload.slug.clone().unwrap_or_else(|| {
-            payload.name.to_lowercase().chars().map(|c| if c.is_alphanumeric() { c } else { '-' }).collect()
+            payload
+                .name
+                .to_lowercase()
+                .chars()
+                .map(|c| if c.is_alphanumeric() { c } else { '-' })
+                .collect()
         });
         let id = (self.organizations.read().unwrap().len() as i32) + 1;
         let org = Organization {
@@ -995,12 +1048,22 @@ impl OrganizationManager for MockStore {
         self.organizations.write().unwrap().insert(id, org.clone());
         Ok(org)
     }
-    async fn update_organization(&self, id: i32, payload: OrganizationUpdate) -> Result<Organization> {
+    async fn update_organization(
+        &self,
+        id: i32,
+        payload: OrganizationUpdate,
+    ) -> Result<Organization> {
         let mut orgs = self.organizations.write().unwrap();
         if let Some(org) = orgs.get_mut(&id) {
-            if let Some(name) = &payload.name { org.name = name.clone(); }
-            if let Some(desc) = &payload.description { org.description = Some(desc.clone()); }
-            if let Some(active) = payload.active { org.active = active; }
+            if let Some(name) = &payload.name {
+                org.name = name.clone();
+            }
+            if let Some(desc) = &payload.description {
+                org.description = Some(desc.clone());
+            }
+            if let Some(active) = payload.active {
+                org.active = active;
+            }
             org.updated = Some(Utc::now());
             Ok(org.clone())
         } else {
@@ -1012,10 +1075,19 @@ impl OrganizationManager for MockStore {
         Ok(())
     }
     async fn get_organization_users(&self, org_id: i32) -> Result<Vec<OrganizationUser>> {
-        Ok(self.organization_users.read().unwrap().values()
-            .filter(|&u| u.org_id == org_id).cloned().collect())
+        Ok(self
+            .organization_users
+            .read()
+            .unwrap()
+            .values()
+            .filter(|&u| u.org_id == org_id)
+            .cloned()
+            .collect())
     }
-    async fn add_user_to_organization(&self, payload: OrganizationUserCreate) -> Result<OrganizationUser> {
+    async fn add_user_to_organization(
+        &self,
+        payload: OrganizationUserCreate,
+    ) -> Result<OrganizationUser> {
         use chrono::Utc;
         let id = (self.organization_users.read().unwrap().len() as i32) + 1;
         let ou = OrganizationUser {
@@ -1025,28 +1097,56 @@ impl OrganizationManager for MockStore {
             role: payload.role.clone(),
             created: Utc::now(),
         };
-        self.organization_users.write().unwrap().insert(id, ou.clone());
+        self.organization_users
+            .write()
+            .unwrap()
+            .insert(id, ou.clone());
         Ok(ou)
     }
     async fn remove_user_from_organization(&self, org_id: i32, user_id: i32) -> Result<()> {
         let mut users = self.organization_users.write().unwrap();
-        let to_remove: Vec<i32> = users.iter().filter(|(_, u)| u.org_id == org_id && u.user_id == user_id)
-            .map(|(k, _)| *k).collect();
-        for k in to_remove { users.remove(&k); }
+        let to_remove: Vec<i32> = users
+            .iter()
+            .filter(|(_, u)| u.org_id == org_id && u.user_id == user_id)
+            .map(|(k, _)| *k)
+            .collect();
+        for k in to_remove {
+            users.remove(&k);
+        }
         Ok(())
     }
-    async fn update_user_organization_role(&self, org_id: i32, user_id: i32, role: &str) -> Result<()> {
+    async fn update_user_organization_role(
+        &self,
+        org_id: i32,
+        user_id: i32,
+        role: &str,
+    ) -> Result<()> {
         let mut users = self.organization_users.write().unwrap();
-        if let Some(ou) = users.values_mut().find(|u| u.org_id == org_id && u.user_id == user_id) {
+        if let Some(ou) = users
+            .values_mut()
+            .find(|u| u.org_id == org_id && u.user_id == user_id)
+        {
             ou.role = role.to_string();
         }
         Ok(())
     }
     async fn get_user_organizations(&self, user_id: i32) -> Result<Vec<Organization>> {
-        let org_ids: Vec<i32> = self.organization_users.read().unwrap().values()
-            .filter(|u| u.user_id == user_id).map(|u| u.org_id).collect();
-        Ok(self.organizations.read().unwrap().values()
-            .filter(|&o| org_ids.contains(&o.id)).cloned().collect())
+        let org_ids: Vec<i32> = self
+            .organization_users
+            .read()
+            .unwrap()
+            .values()
+            .filter(|u| u.user_id == user_id)
+            .map(|u| u.org_id)
+            .collect();
+        Ok(self
+            .organizations
+            .read()
+            .unwrap()
+            .values()
+            .filter(|&o| org_ids.contains(&o.id))
+            .cloned()
+            .collect())
     }
     async fn check_organization_quota(&self, org_id: i32, quota_type: &str) -> Result<bool> {
         let opt_org = self.organizations.read().unwrap().get(&org_id).cloned();
@@ -1059,14 +1159,23 @@ impl OrganizationManager for MockStore {
                 if let Some(max) = org.quota_max_projects {
                     let count = self.organizations.read().unwrap().len() as i64;
                     Ok(count < (max as i64))
-                } else { Ok(true) }
+                } else {
+                    Ok(true)
+                }
             }
             "users" => {
                 if let Some(max) = org.quota_max_users {
-                    let count = self.organization_users.read().unwrap().values()
-                        .filter(|u| u.org_id == org_id).count() as i64;
+                    let count = self
+                        .organization_users
+                        .read()
+                        .unwrap()
+                        .values()
+                        .filter(|u| u.org_id == org_id)
+                        .count() as i64;
                     Ok(count < (max as i64))
-                } else { Ok(true) }
+                } else {
+                    Ok(true)
+                }
             }
             _ => Ok(true),
         }
@@ -1251,19 +1360,34 @@ impl PlaybookManager for MockStore {
 #[async_trait]
 impl PlaybookRunManager for MockStore {
     async fn get_playbook_runs(&self, filter: PlaybookRunFilter) -> Result<Vec<PlaybookRun>> {
-        let runs: Vec<PlaybookRun> = self.playbook_runs.read().unwrap().values().cloned().collect();
-        let filtered: Vec<PlaybookRun> = runs.into_iter().filter(|r| {
-            if let Some(pid) = filter.project_id {
-                if r.project_id != pid { return false; }
-            }
-            if let Some(pb_id) = filter.playbook_id {
-                if r.playbook_id != pb_id { return false; }
-            }
-            if let Some(st) = &filter.status {
-                if r.status != *st { return false; }
-            }
-            true
-        }).collect();
+        let runs: Vec<PlaybookRun> = self
+            .playbook_runs
+            .read()
+            .unwrap()
+            .values()
+            .cloned()
+            .collect();
+        let filtered: Vec<PlaybookRun> = runs
+            .into_iter()
+            .filter(|r| {
+                if let Some(pid) = filter.project_id {
+                    if r.project_id != pid {
+                        return false;
+                    }
+                }
+                if let Some(pb_id) = filter.playbook_id {
+                    if r.playbook_id != pb_id {
+                        return false;
+                    }
+                }
+                if let Some(st) = &filter.status {
+                    if r.status != *st {
+                        return false;
+                    }
+                }
+                true
+            })
+            .collect();
         let limit = filter.limit.unwrap_or(100);
         let offset = filter.offset.unwrap_or(0);
         Ok(filtered.into_iter().skip(offset).take(limit).collect())
@@ -1280,8 +1404,13 @@ impl PlaybookRunManager for MockStore {
     }
 
     async fn get_playbook_run_by_task_id(&self, task_id: i32) -> Result<Option<PlaybookRun>> {
-        Ok(self.playbook_runs.read().unwrap().values()
-            .find(|&r| r.task_id == Some(task_id)).cloned())
+        Ok(self
+            .playbook_runs
+            .read()
+            .unwrap()
+            .values()
+            .find(|&r| r.task_id == Some(task_id))
+            .cloned())
     }
 
     async fn create_playbook_run(&self, run_create: PlaybookRunCreate) -> Result<PlaybookRun> {
@@ -1325,16 +1454,36 @@ impl PlaybookRunManager for MockStore {
     ) -> Result<PlaybookRun> {
         let mut runs = self.playbook_runs.write().unwrap();
         if let Some(run) = runs.get_mut(&id) {
-            if let Some(status) = update.status { run.status = status; }
-            if let Some(output) = update.output { run.output = Some(output); }
-            if let Some(msg) = update.error_message { run.error_message = Some(msg); }
-            if let Some(v) = update.hosts_total { run.hosts_total = Some(v); }
-            if let Some(v) = update.hosts_changed { run.hosts_changed = Some(v); }
-            if let Some(v) = update.hosts_unreachable { run.hosts_unreachable = Some(v); }
-            if let Some(v) = update.hosts_failed { run.hosts_failed = Some(v); }
-            if let Some(v) = update.start_time { run.start_time = Some(v); }
-            if let Some(v) = update.end_time { run.end_time = Some(v); }
-            if let Some(v) = update.duration_seconds { run.duration_seconds = Some(v); }
+            if let Some(status) = update.status {
+                run.status = status;
+            }
+            if let Some(output) = update.output {
+                run.output = Some(output);
+            }
+            if let Some(msg) = update.error_message {
+                run.error_message = Some(msg);
+            }
+            if let Some(v) = update.hosts_total {
+                run.hosts_total = Some(v);
+            }
+            if let Some(v) = update.hosts_changed {
+                run.hosts_changed = Some(v);
+            }
+            if let Some(v) = update.hosts_unreachable {
+                run.hosts_unreachable = Some(v);
+            }
+            if let Some(v) = update.hosts_failed {
+                run.hosts_failed = Some(v);
+            }
+            if let Some(v) = update.start_time {
+                run.start_time = Some(v);
+            }
+            if let Some(v) = update.end_time {
+                run.end_time = Some(v);
+            }
+            if let Some(v) = update.duration_seconds {
+                run.duration_seconds = Some(v);
+            }
             Ok(run.clone())
         } else {
             Err(Error::NotFound("PlaybookRun not found".to_string()))
@@ -1355,13 +1504,23 @@ impl PlaybookRunManager for MockStore {
     }
 
     async fn get_playbook_run_stats(&self, playbook_id: i32) -> Result<PlaybookRunStats> {
-        let runs: Vec<PlaybookRun> = self.playbook_runs.read().unwrap().values()
+        let runs: Vec<PlaybookRun> = self
+            .playbook_runs
+            .read()
+            .unwrap()
+            .values()
             .filter(|&r| r.playbook_id == playbook_id)
             .cloned()
             .collect();
         let total = runs.len() as i64;
-        let success = runs.iter().filter(|r| matches!(r.status, PlaybookRunStatus::Success)).count() as i64;
-        let failed = runs.iter().filter(|r| matches!(r.status, PlaybookRunStatus::Failed)).count() as i64;
+        let success = runs
+            .iter()
+            .filter(|r| matches!(r.status, PlaybookRunStatus::Success))
+            .count() as i64;
+        let failed = runs
+            .iter()
+            .filter(|r| matches!(r.status, PlaybookRunStatus::Failed))
+            .count() as i64;
         Ok(PlaybookRunStats {
             total_runs: total,
             success_runs: success,
@@ -2176,7 +2335,13 @@ mod tests {
             hosts_failed: Some(0),
         };
         store.seed_playbook_run(run);
-        let stored = store.playbook_runs.read().unwrap().get(&1).cloned().unwrap();
+        let stored = store
+            .playbook_runs
+            .read()
+            .unwrap()
+            .get(&1)
+            .cloned()
+            .unwrap();
         assert_eq!(stored.status, PlaybookRunStatus::Waiting);
     }
 
@@ -2262,7 +2427,10 @@ mod tests {
     #[tokio::test]
     async fn test_migration_manager_apply_migration() {
         let store = MockStore::new();
-        assert!(store.apply_migration(1, "test_migration".to_string()).await.is_ok());
+        assert!(store
+            .apply_migration(1, "test_migration".to_string())
+            .await
+            .is_ok());
     }
 
     #[tokio::test]
@@ -2311,7 +2479,10 @@ mod tests {
     #[tokio::test]
     async fn test_user_manager_get_users_empty() {
         let store = MockStore::new();
-        let users = store.get_users(RetrieveQueryParams::default()).await.unwrap();
+        let users = store
+            .get_users(RetrieveQueryParams::default())
+            .await
+            .unwrap();
         assert!(users.is_empty());
     }
 
@@ -2671,7 +2842,10 @@ mod tests {
             quota_max_tasks_per_month: None,
         };
         let org = store.create_organization(payload).await.unwrap();
-        let allowed = store.check_organization_quota(org.id, "projects").await.unwrap();
+        let allowed = store
+            .check_organization_quota(org.id, "projects")
+            .await
+            .unwrap();
         assert!(allowed);
     }
 
@@ -2717,37 +2891,52 @@ mod tests {
             quota_max_tasks_per_month: None,
         };
         let org = store.create_organization(org_payload).await.unwrap();
-        store.add_user_to_organization(OrganizationUserCreate {
-            org_id: org.id,
-            user_id: 20,
-            role: "admin".to_string(),
-        }).await.unwrap();
+        store
+            .add_user_to_organization(OrganizationUserCreate {
+                org_id: org.id,
+                user_id: 20,
+                role: "admin".to_string(),
+            })
+            .await
+            .unwrap();
 
         assert_eq!(store.get_organization_users(org.id).await.unwrap().len(), 1);
-        store.remove_user_from_organization(org.id, 20).await.unwrap();
+        store
+            .remove_user_from_organization(org.id, 20)
+            .await
+            .unwrap();
         assert_eq!(store.get_organization_users(org.id).await.unwrap().len(), 0);
     }
 
     #[tokio::test]
     async fn test_organization_manager_update_role() {
         let store = MockStore::new();
-        let org = store.create_organization(OrganizationCreate {
-            name: "Role Update Org".to_string(),
-            slug: Some("role-update".to_string()),
-            description: None,
-            settings: None,
-            quota_max_projects: None,
-            quota_max_users: None,
-            quota_max_tasks_per_month: None,
-        }).await.unwrap();
+        let org = store
+            .create_organization(OrganizationCreate {
+                name: "Role Update Org".to_string(),
+                slug: Some("role-update".to_string()),
+                description: None,
+                settings: None,
+                quota_max_projects: None,
+                quota_max_users: None,
+                quota_max_tasks_per_month: None,
+            })
+            .await
+            .unwrap();
 
-        store.add_user_to_organization(OrganizationUserCreate {
-            org_id: org.id,
-            user_id: 30,
-            role: "member".to_string(),
-        }).await.unwrap();
+        store
+            .add_user_to_organization(OrganizationUserCreate {
+                org_id: org.id,
+                user_id: 30,
+                role: "member".to_string(),
+            })
+            .await
+            .unwrap();
 
-        store.update_user_organization_role(org.id, 30, "owner").await.unwrap();
+        store
+            .update_user_organization_role(org.id, 30, "owner")
+            .await
+            .unwrap();
 
         let users = store.get_organization_users(org.id).await.unwrap();
         assert_eq!(users[0].role, "owner");
@@ -2756,15 +2945,18 @@ mod tests {
     #[tokio::test]
     async fn test_organization_manager_delete_organization() {
         let store = MockStore::new();
-        let org = store.create_organization(OrganizationCreate {
-            name: "To Delete".to_string(),
-            slug: Some("to-delete".to_string()),
-            description: None,
-            settings: None,
-            quota_max_projects: None,
-            quota_max_users: None,
-            quota_max_tasks_per_month: None,
-        }).await.unwrap();
+        let org = store
+            .create_organization(OrganizationCreate {
+                name: "To Delete".to_string(),
+                slug: Some("to-delete".to_string()),
+                description: None,
+                settings: None,
+                quota_max_projects: None,
+                quota_max_users: None,
+                quota_max_tasks_per_month: None,
+            })
+            .await
+            .unwrap();
 
         assert_eq!(store.get_organizations().await.unwrap().len(), 1);
         store.delete_organization(org.id).await.unwrap();
@@ -2856,7 +3048,10 @@ mod tests {
     #[tokio::test]
     async fn test_project_invite_manager_get_invites_empty() {
         let store = MockStore::new();
-        let invites = store.get_project_invites(1, RetrieveQueryParams::default()).await.unwrap();
+        let invites = store
+            .get_project_invites(1, RetrieveQueryParams::default())
+            .await
+            .unwrap();
         assert!(invites.is_empty());
     }
 
@@ -2950,13 +3145,19 @@ mod tests {
     #[tokio::test]
     async fn test_plan_approval_approve_ok() {
         let store = MockStore::new();
-        assert!(store.approve_plan(1, 2, Some("ok".to_string())).await.is_ok());
+        assert!(store
+            .approve_plan(1, 2, Some("ok".to_string()))
+            .await
+            .is_ok());
     }
 
     #[tokio::test]
     async fn test_plan_approval_reject_ok() {
         let store = MockStore::new();
-        assert!(store.reject_plan(1, 2, Some("no".to_string())).await.is_ok());
+        assert!(store
+            .reject_plan(1, 2, Some("no".to_string()))
+            .await
+            .is_ok());
     }
 
     // ============================================================
@@ -3006,7 +3207,10 @@ mod tests {
     #[tokio::test]
     async fn test_notification_policy_get_matching_empty() {
         let store = MockStore::new();
-        let policies = store.get_matching_policies(1, "task_success", None).await.unwrap();
+        let policies = store
+            .get_matching_policies(1, "task_success", None)
+            .await
+            .unwrap();
         assert!(policies.is_empty());
     }
 
@@ -3179,6 +3383,9 @@ mod tests {
         };
         store.seed_template(tpl2);
         assert_eq!(store.templates.read().unwrap().len(), 1);
-        assert_eq!(store.templates.read().unwrap().get(&1).unwrap().name, "overwritten");
+        assert_eq!(
+            store.templates.read().unwrap().get(&1).unwrap().name,
+            "overwritten"
+        );
     }
 }

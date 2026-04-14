@@ -122,7 +122,10 @@ mod tests {
         assert_eq!(session.id, 5);
         assert_eq!(session.user_id, 20);
         assert_eq!(session.ip, "10.0.0.1");
-        assert_eq!(session.verification_method, SessionVerificationMethod::EmailOtp);
+        assert_eq!(
+            session.verification_method,
+            SessionVerificationMethod::EmailOtp
+        );
     }
 
     #[test]

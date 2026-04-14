@@ -76,7 +76,10 @@ mod tests {
     #[test]
     fn test_view_clone() {
         let view = View {
-            id: 5, project_id: 20, title: "Clone View".to_string(), position: 3,
+            id: 5,
+            project_id: 20,
+            title: "Clone View".to_string(),
+            position: 3,
         };
         let cloned = view.clone();
         assert_eq!(cloned.title, view.title);
@@ -86,7 +89,10 @@ mod tests {
     #[test]
     fn test_view_debug() {
         let view = View {
-            id: 1, project_id: 1, title: "Debug View".to_string(), position: 0,
+            id: 1,
+            project_id: 1,
+            title: "Debug View".to_string(),
+            position: 0,
         };
         let debug_str = format!("{:?}", view);
         assert!(debug_str.contains("View"));
@@ -96,7 +102,10 @@ mod tests {
     #[test]
     fn test_view_name_alias() {
         let view = View {
-            id: 1, project_id: 1, title: "Title Test".to_string(), position: 0,
+            id: 1,
+            project_id: 1,
+            title: "Title Test".to_string(),
+            position: 0,
         };
         assert_eq!(view.name(), "Title Test");
         assert_eq!(view.title, view.name().to_string());
@@ -112,7 +121,10 @@ mod tests {
     #[test]
     fn test_view_zero_position() {
         let view = View {
-            id: 1, project_id: 1, title: "Zero Pos".to_string(), position: 0,
+            id: 1,
+            project_id: 1,
+            title: "Zero Pos".to_string(),
+            position: 0,
         };
         assert_eq!(view.position, 0);
         let json = serde_json::to_string(&view).unwrap();
@@ -122,7 +134,10 @@ mod tests {
     #[test]
     fn test_view_negative_position() {
         let view = View {
-            id: 1, project_id: 1, title: "Negative Pos".to_string(), position: -1,
+            id: 1,
+            project_id: 1,
+            title: "Negative Pos".to_string(),
+            position: -1,
         };
         let json = serde_json::to_string(&view).unwrap();
         assert!(json.contains("\"position\":-1"));
@@ -131,7 +146,10 @@ mod tests {
     #[test]
     fn test_view_large_position() {
         let view = View {
-            id: 1, project_id: 1, title: "Large Pos".to_string(), position: i32::MAX,
+            id: 1,
+            project_id: 1,
+            title: "Large Pos".to_string(),
+            position: i32::MAX,
         };
         let json = serde_json::to_string(&view).unwrap();
         let restored: View = serde_json::from_str(&json).unwrap();
@@ -141,7 +159,10 @@ mod tests {
     #[test]
     fn test_view_special_chars_title() {
         let view = View {
-            id: 1, project_id: 1, title: "View & <special> \"chars\"".to_string(), position: 0,
+            id: 1,
+            project_id: 1,
+            title: "View & <special> \"chars\"".to_string(),
+            position: 0,
         };
         let json = serde_json::to_string(&view).unwrap();
         let restored: View = serde_json::from_str(&json).unwrap();
@@ -151,7 +172,10 @@ mod tests {
     #[test]
     fn test_view_unicode_title() {
         let view = View {
-            id: 1, project_id: 1, title: "Представление".to_string(), position: 0,
+            id: 1,
+            project_id: 1,
+            title: "Представление".to_string(),
+            position: 0,
         };
         let json = serde_json::to_string(&view).unwrap();
         let restored: View = serde_json::from_str(&json).unwrap();
@@ -161,7 +185,10 @@ mod tests {
     #[test]
     fn test_view_clone_independence() {
         let mut view = View {
-            id: 1, project_id: 1, title: "Original".to_string(), position: 0,
+            id: 1,
+            project_id: 1,
+            title: "Original".to_string(),
+            position: 0,
         };
         let cloned = view.clone();
         view.title = "Modified".to_string();
@@ -171,7 +198,10 @@ mod tests {
     #[test]
     fn test_view_roundtrip() {
         let original = View {
-            id: 50, project_id: 25, title: "Roundtrip View".to_string(), position: 10,
+            id: 50,
+            project_id: 25,
+            title: "Roundtrip View".to_string(),
+            position: 10,
         };
         let json = serde_json::to_string(&original).unwrap();
         let restored: View = serde_json::from_str(&json).unwrap();

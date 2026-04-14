@@ -702,9 +702,36 @@ mod tests {
     #[test]
     fn test_make_unique_names_three_duplicates() {
         let mut items = vec![
-            BackupTemplate { name: "Same".to_string(), playbook: String::new(), arguments: None, template_type: String::new(), inventory: None, repository: None, environment: None, cron: None },
-            BackupTemplate { name: "Same".to_string(), playbook: String::new(), arguments: None, template_type: String::new(), inventory: None, repository: None, environment: None, cron: None },
-            BackupTemplate { name: "Same".to_string(), playbook: String::new(), arguments: None, template_type: String::new(), inventory: None, repository: None, environment: None, cron: None },
+            BackupTemplate {
+                name: "Same".to_string(),
+                playbook: String::new(),
+                arguments: None,
+                template_type: String::new(),
+                inventory: None,
+                repository: None,
+                environment: None,
+                cron: None,
+            },
+            BackupTemplate {
+                name: "Same".to_string(),
+                playbook: String::new(),
+                arguments: None,
+                template_type: String::new(),
+                inventory: None,
+                repository: None,
+                environment: None,
+                cron: None,
+            },
+            BackupTemplate {
+                name: "Same".to_string(),
+                playbook: String::new(),
+                arguments: None,
+                template_type: String::new(),
+                inventory: None,
+                repository: None,
+                environment: None,
+                cron: None,
+            },
         ];
 
         make_unique_names(&mut items, |item| &item.name, |item, name| item.name = name);
@@ -1412,15 +1439,39 @@ mod tests {
         let json = serde_json::to_string(&backup).unwrap();
         let restored: BackupFormat = serde_json::from_str(&json).unwrap();
 
-        assert_eq!(restored.project.name, "Project with \"quotes\" & <special> chars");
-        assert_eq!(restored.project.alert_chat, Some("#channel/with-slash".to_string()));
+        assert_eq!(
+            restored.project.name,
+            "Project with \"quotes\" & <special> chars"
+        );
+        assert_eq!(
+            restored.project.alert_chat,
+            Some("#channel/with-slash".to_string())
+        );
     }
 
     #[test]
     fn test_make_unique_names_preserves_first() {
         let mut items = vec![
-            BackupTemplate { name: "Original".to_string(), playbook: String::new(), arguments: None, template_type: String::new(), inventory: None, repository: None, environment: None, cron: None },
-            BackupTemplate { name: "Original".to_string(), playbook: String::new(), arguments: None, template_type: String::new(), inventory: None, repository: None, environment: None, cron: None },
+            BackupTemplate {
+                name: "Original".to_string(),
+                playbook: String::new(),
+                arguments: None,
+                template_type: String::new(),
+                inventory: None,
+                repository: None,
+                environment: None,
+                cron: None,
+            },
+            BackupTemplate {
+                name: "Original".to_string(),
+                playbook: String::new(),
+                arguments: None,
+                template_type: String::new(),
+                inventory: None,
+                repository: None,
+                environment: None,
+                cron: None,
+            },
         ];
 
         make_unique_names(&mut items, |item| &item.name, |item, name| item.name = name);
@@ -1432,9 +1483,36 @@ mod tests {
     #[test]
     fn test_make_unique_names_all_different() {
         let mut items = vec![
-            BackupTemplate { name: "A".to_string(), playbook: String::new(), arguments: None, template_type: String::new(), inventory: None, repository: None, environment: None, cron: None },
-            BackupTemplate { name: "B".to_string(), playbook: String::new(), arguments: None, template_type: String::new(), inventory: None, repository: None, environment: None, cron: None },
-            BackupTemplate { name: "C".to_string(), playbook: String::new(), arguments: None, template_type: String::new(), inventory: None, repository: None, environment: None, cron: None },
+            BackupTemplate {
+                name: "A".to_string(),
+                playbook: String::new(),
+                arguments: None,
+                template_type: String::new(),
+                inventory: None,
+                repository: None,
+                environment: None,
+                cron: None,
+            },
+            BackupTemplate {
+                name: "B".to_string(),
+                playbook: String::new(),
+                arguments: None,
+                template_type: String::new(),
+                inventory: None,
+                repository: None,
+                environment: None,
+                cron: None,
+            },
+            BackupTemplate {
+                name: "C".to_string(),
+                playbook: String::new(),
+                arguments: None,
+                template_type: String::new(),
+                inventory: None,
+                repository: None,
+                environment: None,
+                cron: None,
+            },
         ];
 
         make_unique_names(&mut items, |item| &item.name, |item, name| item.name = name);

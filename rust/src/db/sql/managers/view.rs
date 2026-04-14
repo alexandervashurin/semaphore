@@ -47,7 +47,10 @@ mod tests {
     #[test]
     fn test_view_name_returns_title() {
         let view = View {
-            id: 1, project_id: 10, title: "My View".to_string(), position: 0,
+            id: 1,
+            project_id: 10,
+            title: "My View".to_string(),
+            position: 0,
         };
         assert_eq!(view.name(), "My View");
     }
@@ -55,7 +58,10 @@ mod tests {
     #[test]
     fn test_view_default_values() {
         let view = View {
-            id: 0, project_id: 0, title: String::new(), position: 0,
+            id: 0,
+            project_id: 0,
+            title: String::new(),
+            position: 0,
         };
         assert_eq!(view.id, 0);
         assert!(view.title.is_empty());
@@ -64,7 +70,10 @@ mod tests {
     #[test]
     fn test_view_serialization() {
         let view = View {
-            id: 5, project_id: 20, title: "Test View".to_string(), position: 2,
+            id: 5,
+            project_id: 20,
+            title: "Test View".to_string(),
+            position: 2,
         };
         let json = serde_json::to_string(&view).unwrap();
         assert!(json.contains("\"title\":\"Test View\""));
@@ -84,7 +93,10 @@ mod tests {
     #[test]
     fn test_view_clone() {
         let view = View {
-            id: 1, project_id: 5, title: "Clone View".to_string(), position: 3,
+            id: 1,
+            project_id: 5,
+            title: "Clone View".to_string(),
+            position: 3,
         };
         let cloned = view.clone();
         assert_eq!(cloned.title, view.title);
@@ -94,7 +106,10 @@ mod tests {
     #[test]
     fn test_view_position() {
         let view = View {
-            id: 1, project_id: 1, title: "Positioned".to_string(), position: 10,
+            id: 1,
+            project_id: 1,
+            title: "Positioned".to_string(),
+            position: 10,
         };
         assert_eq!(view.position, 10);
     }
@@ -110,7 +125,10 @@ mod tests {
     #[test]
     fn test_view_zero_position() {
         let view = View {
-            id: 1, project_id: 1, title: "First".to_string(), position: 0,
+            id: 1,
+            project_id: 1,
+            title: "First".to_string(),
+            position: 0,
         };
         assert_eq!(view.position, 0);
     }

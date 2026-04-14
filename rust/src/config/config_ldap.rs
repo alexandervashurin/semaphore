@@ -278,7 +278,10 @@ mod tests {
         env::set_var("SEMAPHORE_LDAP_BIND_DN", "cn=bind,dc=test");
         env::set_var("SEMAPHORE_LDAP_BIND_PASSWORD", "bindpass");
         env::set_var("SEMAPHORE_LDAP_SEARCH_DN", "ou=search,dc=test");
-        env::set_var("SEMAPHORE_LDAP_SEARCH_FILTER", "(&(uid={login})(active=TRUE))");
+        env::set_var(
+            "SEMAPHORE_LDAP_SEARCH_FILTER",
+            "(&(uid={login})(active=TRUE))",
+        );
         env::set_var("SEMAPHORE_LDAP_NEEDTLS", "true");
 
         let config = load_ldap_from_env();

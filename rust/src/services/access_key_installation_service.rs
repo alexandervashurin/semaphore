@@ -132,8 +132,9 @@ impl AccessKeyEncryptionService for SimpleEncryptionService {
         match key.key_type {
             DbAccessKeyType::Ssh => {
                 if let Some(ref ssh_key) = key.ssh_key {
-                    key.secret =
-                        Some(serde_json::to_string(ssh_key).map_err(|e| Error::Other(e.to_string()))?);
+                    key.secret = Some(
+                        serde_json::to_string(ssh_key).map_err(|e| Error::Other(e.to_string()))?,
+                    );
                 }
             }
             DbAccessKeyType::LoginPassword => {
@@ -282,7 +283,9 @@ mod tests {
             source_storage_type: None,
         };
 
-        let installation = service.install(&key, DbAccessKeyRole::Git, &logger).unwrap();
+        let installation = service
+            .install(&key, DbAccessKeyRole::Git, &logger)
+            .unwrap();
         assert!(installation.ssh_agent.is_some());
     }
 
@@ -323,7 +326,9 @@ mod tests {
         serializer.serialize_secret(&mut key).unwrap();
         key.ssh_key = None;
 
-        let installation = service.install(&key, DbAccessKeyRole::Git, &logger).unwrap();
+        let installation = service
+            .install(&key, DbAccessKeyRole::Git, &logger)
+            .unwrap();
         assert!(installation.ssh_agent.is_some());
     }
 
@@ -355,7 +360,10 @@ mod tests {
         };
 
         encryption.serialize_secret(&mut key).unwrap();
-        assert!(key.secret.as_ref().is_some_and(|secret| secret.contains("\"login\":\"user\"")));
+        assert!(key
+            .secret
+            .as_ref()
+            .is_some_and(|secret| secret.contains("\"login\":\"user\"")));
     }
 
     #[test]
@@ -396,7 +404,9 @@ mod tests {
         serializer.encrypt_secret(&mut key).unwrap();
         key.ssh_key = None;
 
-        let installation = service.install(&key, DbAccessKeyRole::Git, &logger).unwrap();
+        let installation = service
+            .install(&key, DbAccessKeyRole::Git, &logger)
+            .unwrap();
         assert!(installation.ssh_agent.is_some());
     }
 
@@ -415,7 +425,9 @@ mod tests {
             ssh_key: Some(DbSshKey {
                 login: "git".to_string(),
                 passphrase: "".to_string(),
-                private_key: "-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----".to_string(),
+                private_key:
+                    "-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----"
+                        .to_string(),
             }),
             override_secret: false,
             storage_id: None,
@@ -429,7 +441,10 @@ mod tests {
         };
 
         encryption.serialize_secret(&mut key).unwrap();
-        assert!(key.secret.as_ref().is_some_and(|s| s.contains("\"private_key\"")));
+        assert!(key
+            .secret
+            .as_ref()
+            .is_some_and(|s| s.contains("\"private_key\"")));
     }
 
     #[test]
@@ -460,7 +475,9 @@ mod tests {
             source_storage_type: None,
         };
 
-        let installation = service.install(&key, DbAccessKeyRole::AnsibleUser, &logger).unwrap();
+        let installation = service
+            .install(&key, DbAccessKeyRole::AnsibleUser, &logger)
+            .unwrap();
         // None key type should return empty installation
         assert!(installation.ssh_agent.is_none());
     }
@@ -571,7 +588,9 @@ mod tests {
             source_storage_type: None,
         };
 
-        let installation = service.install(&key, DbAccessKeyRole::Git, &logger).unwrap();
+        let installation = service
+            .install(&key, DbAccessKeyRole::Git, &logger)
+            .unwrap();
         assert!(installation.ssh_agent.is_none());
         assert!(installation.login.is_none());
     }
@@ -610,7 +629,10 @@ mod tests {
     fn test_access_key_type_variants() {
         use crate::models::access_key::AccessKeyType;
         assert_eq!(format!("{}", AccessKeyType::None), "none");
-        assert_eq!(format!("{}", AccessKeyType::LoginPassword), "login_password");
+        assert_eq!(
+            format!("{}", AccessKeyType::LoginPassword),
+            "login_password"
+        );
         assert_eq!(format!("{}", AccessKeyType::SSH), "ssh");
         assert_eq!(format!("{}", AccessKeyType::AccessKey), "access_key");
     }
@@ -823,7 +845,9 @@ mod tests {
             source_storage_type: None,
         };
 
-        let installation = service.install(&key, DbAccessKeyRole::AnsibleUser, &logger).unwrap();
+        let installation = service
+            .install(&key, DbAccessKeyRole::AnsibleUser, &logger)
+            .unwrap();
         assert!(installation.login.is_some());
     }
 

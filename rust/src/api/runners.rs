@@ -201,12 +201,12 @@ pub async fn runner_heartbeat(
     State(state): State<Arc<AppState>>,
     Path(runner_id): Path<i32>,
 ) -> std::result::Result<Json<serde_json::Value>, (StatusCode, Json<ErrorResponse>)> {
-    state.store.touch_runner(runner_id)
-        .await
-        .map_err(|e| (
+    state.store.touch_runner(runner_id).await.map_err(|e| {
+        (
             StatusCode::NOT_FOUND,
-            Json(ErrorResponse::new(e.to_string()))
-        ))?;
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     Ok(Json(serde_json::json!({ "ok": true })))
 }
@@ -241,15 +241,16 @@ pub async fn runner_get_task(
     let _ = state.store.touch_runner(runner_id).await;
 
     // Ищем первую ожидающую задачу среди всех проектов (FIFO)
-    let tasks = state.store.get_global_tasks(
-        Some(vec!["waiting".to_string()]),
-        Some(1),
-    )
-    .await
-    .map_err(|e| (
-        StatusCode::INTERNAL_SERVER_ERROR,
-        Json(ErrorResponse::new(e.to_string()))
-    ))?;
+    let tasks = state
+        .store
+        .get_global_tasks(Some(vec!["waiting".to_string()]), Some(1))
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
+        })?;
 
     match tasks.into_iter().next() {
         Some(task_details) => {
@@ -329,9 +330,13 @@ pub async fn runner_submit_log(
     // Проверяем маркеры завершения в последней строке — обновляем статус задачи
     if let Some(last) = payload.output.last() {
         let lower = last.line.to_lowercase();
-        let new_status = if lower.contains("failed") || lower.contains("error") || lower.contains("fatal") {
+        let new_status = if lower.contains("failed")
+            || lower.contains("error")
+            || lower.contains("fatal")
+        {
             Some(crate::services::task_logger::TaskStatus::Error)
-        } else if lower.contains("ok=") || lower.contains("success") || lower.contains("completed") {
+        } else if lower.contains("ok=") || lower.contains("success") || lower.contains("completed")
+        {
             Some(crate::services::task_logger::TaskStatus::Success)
         } else {
             None

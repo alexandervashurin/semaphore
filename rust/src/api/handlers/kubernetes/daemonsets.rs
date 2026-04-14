@@ -279,7 +279,8 @@ fn daemonset_detail(ds: &DaemonSet) -> DaemonSetDetail {
     let conditions = status
         .and_then(|s| s.conditions.clone())
         .map(|conds| {
-            conds.iter()
+            conds
+                .iter()
                 .map(|c| DaemonSetCondition {
                     condition_type: c.type_.clone(),
                     status: c.status.clone(),

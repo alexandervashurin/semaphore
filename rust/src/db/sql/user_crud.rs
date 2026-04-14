@@ -207,7 +207,10 @@ mod tests {
             pro: false,
         };
         let user: User = row.into();
-        assert!(matches!(user.validate(), Err(ValidationError::UsernameEmpty)));
+        assert!(matches!(
+            user.validate(),
+            Err(ValidationError::UsernameEmpty)
+        ));
     }
 
     #[test]

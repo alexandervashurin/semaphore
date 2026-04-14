@@ -364,12 +364,7 @@ mod tests {
 
     #[test]
     fn test_schedule_cron_formats() {
-        let formats = vec![
-            "standard",
-            "run_at",
-            "cronstrue",
-            "quartz",
-        ];
+        let formats = vec!["standard", "run_at", "cronstrue", "quartz"];
         for fmt in formats {
             let schedule = Schedule {
                 id: 0,

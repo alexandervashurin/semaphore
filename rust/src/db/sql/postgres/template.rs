@@ -174,12 +174,16 @@ mod tests {
     #[test]
     fn test_postgres_returning_clause() {
         let query = "INSERT INTO template (...) VALUES (...) RETURNING id";
-        assert!(query.contains("RETURNING id"), "Postgres uses RETURNING clause");
+        assert!(
+            query.contains("RETURNING id"),
+            "Postgres uses RETURNING clause"
+        );
     }
 
     #[test]
     fn test_template_model_fields() {
-        let template = Template::default_template(10, "PgTemplate".to_string(), "deploy.yml".to_string());
+        let template =
+            Template::default_template(10, "PgTemplate".to_string(), "deploy.yml".to_string());
         assert_eq!(template.project_id, 10);
         assert_eq!(template.name, "PgTemplate");
         assert_eq!(template.playbook, "deploy.yml");
@@ -196,9 +200,19 @@ mod tests {
     #[test]
     fn test_template_bind_order_matches_query() {
         let columns = [
-            "project_id", "name", "playbook", "description",
-            "inventory_id", "repository_id", "environment_id",
-            "type", "app", "git_branch", "created", "arguments", "vault_key_id",
+            "project_id",
+            "name",
+            "playbook",
+            "description",
+            "inventory_id",
+            "repository_id",
+            "environment_id",
+            "type",
+            "app",
+            "git_branch",
+            "created",
+            "arguments",
+            "vault_key_id",
         ];
         assert_eq!(columns.len(), 13);
         assert_eq!(columns[0], "project_id");

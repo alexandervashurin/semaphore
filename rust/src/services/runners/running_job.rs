@@ -2,12 +2,12 @@
 //!
 //! Запущенная задача
 
-use std::sync::{Arc, Mutex, RwLock};
 use chrono::{DateTime, Utc};
+use std::sync::{Arc, Mutex, RwLock};
 use tokio::process::Command;
 
-use crate::services::task_logger::{TaskStatus, StatusListener, LogListener};
-use super::types::{LogRecord, CommitInfo, JobData};
+use super::types::{CommitInfo, JobData, LogRecord};
+use crate::services::task_logger::{LogListener, StatusListener, TaskStatus};
 
 /// Запущенная задача
 pub struct RunningJob {
@@ -298,9 +298,24 @@ mod tests {
         let c1 = Arc::new(AtomicUsize::new(0));
         let c2 = Arc::new(AtomicUsize::new(0));
         let c3 = Arc::new(AtomicUsize::new(0));
-        job.add_status_listener(Box::new({ let c = c1.clone(); move |_| { c.fetch_add(1, Ordering::SeqCst); } }));
-        job.add_status_listener(Box::new({ let c = c2.clone(); move |_| { c.fetch_add(1, Ordering::SeqCst); } }));
-        job.add_status_listener(Box::new({ let c = c3.clone(); move |_| { c.fetch_add(1, Ordering::SeqCst); } }));
+        job.add_status_listener(Box::new({
+            let c = c1.clone();
+            move |_| {
+                c.fetch_add(1, Ordering::SeqCst);
+            }
+        }));
+        job.add_status_listener(Box::new({
+            let c = c2.clone();
+            move |_| {
+                c.fetch_add(1, Ordering::SeqCst);
+            }
+        }));
+        job.add_status_listener(Box::new({
+            let c = c3.clone();
+            move |_| {
+                c.fetch_add(1, Ordering::SeqCst);
+            }
+        }));
         job.set_status(TaskStatus::Running);
         assert_eq!(c1.load(Ordering::SeqCst), 1);
         assert_eq!(c2.load(Ordering::SeqCst), 1);

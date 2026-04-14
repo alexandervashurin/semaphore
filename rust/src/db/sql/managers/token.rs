@@ -119,8 +119,12 @@ mod tests {
     #[test]
     fn test_api_token_clone() {
         let token = APIToken {
-            id: 1, user_id: 1, name: "Clone".to_string(),
-            token: "val".to_string(), created: Utc::now(), expired: false,
+            id: 1,
+            user_id: 1,
+            name: "Clone".to_string(),
+            token: "val".to_string(),
+            created: Utc::now(),
+            expired: false,
         };
         let cloned = token.clone();
         assert_eq!(cloned.name, token.name);
@@ -130,7 +134,9 @@ mod tests {
     #[test]
     fn test_api_token_expired() {
         let token = APIToken {
-            id: 1, user_id: 1, name: "Expired".to_string(),
+            id: 1,
+            user_id: 1,
+            name: "Expired".to_string(),
             token: "expired".to_string(),
             created: Utc::now() - chrono::Duration::days(30),
             expired: true,
@@ -142,8 +148,12 @@ mod tests {
     #[test]
     fn test_api_token_not_expired() {
         let token = APIToken {
-            id: 2, user_id: 1, name: "Active".to_string(),
-            token: "active_token".to_string(), created: Utc::now(), expired: false,
+            id: 2,
+            user_id: 1,
+            name: "Active".to_string(),
+            token: "active_token".to_string(),
+            created: Utc::now(),
+            expired: false,
         };
         assert!(!token.expired);
     }
@@ -160,16 +170,34 @@ mod tests {
     #[test]
     fn test_api_token_empty_name() {
         let token = APIToken {
-            id: 1, user_id: 1, name: String::new(),
-            token: "tok".to_string(), created: Utc::now(), expired: false,
+            id: 1,
+            user_id: 1,
+            name: String::new(),
+            token: "tok".to_string(),
+            created: Utc::now(),
+            expired: false,
         };
         assert!(token.name.is_empty());
     }
 
     #[test]
     fn test_api_token_different_users() {
-        let token1 = APIToken { id: 1, user_id: 1, name: "User1".to_string(), token: "t1".to_string(), created: Utc::now(), expired: false };
-        let token2 = APIToken { id: 2, user_id: 2, name: "User2".to_string(), token: "t2".to_string(), created: Utc::now(), expired: false };
+        let token1 = APIToken {
+            id: 1,
+            user_id: 1,
+            name: "User1".to_string(),
+            token: "t1".to_string(),
+            created: Utc::now(),
+            expired: false,
+        };
+        let token2 = APIToken {
+            id: 2,
+            user_id: 2,
+            name: "User2".to_string(),
+            token: "t2".to_string(),
+            created: Utc::now(),
+            expired: false,
+        };
         assert_ne!(token1.user_id, token2.user_id);
         assert_ne!(token1.name, token2.name);
     }
@@ -254,8 +282,12 @@ mod tests {
     #[test]
     fn test_api_token_partial_eq() {
         let token1 = APIToken {
-            id: 1, user_id: 1, name: "Same".to_string(),
-            token: "same".to_string(), created: Utc::now(), expired: false,
+            id: 1,
+            user_id: 1,
+            name: "Same".to_string(),
+            token: "same".to_string(),
+            created: Utc::now(),
+            expired: false,
         };
         let token2 = token1.clone();
         // APIToken may not implement PartialEq, so test field-by-field
@@ -296,8 +328,22 @@ mod tests {
     #[test]
     fn test_api_token_multiple_tokens_same_user() {
         let now = Utc::now();
-        let token1 = APIToken { id: 1, user_id: 10, name: "First".to_string(), token: "t1".to_string(), created: now, expired: false };
-        let token2 = APIToken { id: 2, user_id: 10, name: "Second".to_string(), token: "t2".to_string(), created: now, expired: false };
+        let token1 = APIToken {
+            id: 1,
+            user_id: 10,
+            name: "First".to_string(),
+            token: "t1".to_string(),
+            created: now,
+            expired: false,
+        };
+        let token2 = APIToken {
+            id: 2,
+            user_id: 10,
+            name: "Second".to_string(),
+            token: "t2".to_string(),
+            created: now,
+            expired: false,
+        };
 
         assert_eq!(token1.user_id, token2.user_id);
         assert_ne!(token1.id, token2.id);

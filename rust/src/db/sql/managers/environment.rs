@@ -103,7 +103,9 @@ impl EnvironmentManager for SqlStore {
 
 #[cfg(test)]
 mod tests {
-    use crate::models::environment::{Environment, EnvironmentSecret, EnvironmentSecretType, EnvironmentSecretValue};
+    use crate::models::environment::{
+        Environment, EnvironmentSecret, EnvironmentSecretType, EnvironmentSecretValue,
+    };
 
     #[test]
     fn test_environment_secret_type_serialization() {
@@ -144,7 +146,11 @@ mod tests {
 
     #[test]
     fn test_environment_new() {
-        let env = Environment::new(10, "production".to_string(), r#"{"KEY":"value"}"#.to_string());
+        let env = Environment::new(
+            10,
+            "production".to_string(),
+            r#"{"KEY":"value"}"#.to_string(),
+        );
         assert_eq!(env.id, 0);
         assert_eq!(env.project_id, 10);
         assert_eq!(env.name, "production");

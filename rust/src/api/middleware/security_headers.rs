@@ -330,12 +330,7 @@ mod tests {
             .layer(axum::middleware::from_fn(security_headers));
 
         let response = app
-            .oneshot(
-                Request::builder()
-                    .uri("/page")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
+            .oneshot(Request::builder().uri("/page").body(Body::empty()).unwrap())
             .await
             .unwrap();
 
@@ -348,11 +343,12 @@ mod tests {
     #[tokio::test]
     async fn test_strict_cors_allows_matching_origin() {
         const ORIGINS: &[&str] = &["https://example.com"];
-        let app = Router::new()
-            .route("/test", get(|| async { "OK" }))
-            .layer(axum::middleware::from_fn(move |req, next| {
-                strict_cors_headers(ORIGINS, req, next)
-            }));
+        let app =
+            Router::new()
+                .route("/test", get(|| async { "OK" }))
+                .layer(axum::middleware::from_fn(move |req, next| {
+                    strict_cors_headers(ORIGINS, req, next)
+                }));
 
         let response = app
             .oneshot(
@@ -378,11 +374,12 @@ mod tests {
     #[tokio::test]
     async fn test_strict_cors_blocks_non_matching_origin() {
         const ORIGINS: &[&str] = &["https://example.com"];
-        let app = Router::new()
-            .route("/test", get(|| async { "OK" }))
-            .layer(axum::middleware::from_fn(move |req, next| {
-                strict_cors_headers(ORIGINS, req, next)
-            }));
+        let app =
+            Router::new()
+                .route("/test", get(|| async { "OK" }))
+                .layer(axum::middleware::from_fn(move |req, next| {
+                    strict_cors_headers(ORIGINS, req, next)
+                }));
 
         let response = app
             .oneshot(
@@ -402,18 +399,21 @@ mod tests {
     #[tokio::test]
     async fn test_strict_cors_no_origin_header() {
         const ORIGINS: &[&str] = &["https://example.com"];
-        let app = Router::new()
-            .route("/test", get(|| async { "OK" }))
-            .layer(axum::middleware::from_fn(move |req, next| {
-                strict_cors_headers(ORIGINS, req, next)
-            }));
+        let app =
+            Router::new()
+                .route("/test", get(|| async { "OK" }))
+                .layer(axum::middleware::from_fn(move |req, next| {
+                    strict_cors_headers(ORIGINS, req, next)
+                }));
 
         let response = app
             .oneshot(Request::builder().uri("/test").body(Body::empty()).unwrap())
             .await
             .unwrap();
 
-        assert!(!response.headers().contains_key("Access-Control-Allow-Origin"));
+        assert!(!response
+            .headers()
+            .contains_key("Access-Control-Allow-Origin"));
     }
 
     #[tokio::test]
@@ -427,7 +427,10 @@ mod tests {
             .await
             .unwrap();
 
-        let methods = response.headers().get("Access-Control-Allow-Methods").unwrap();
+        let methods = response
+            .headers()
+            .get("Access-Control-Allow-Methods")
+            .unwrap();
         assert_eq!(methods, "GET, POST, PUT, DELETE, PATCH, OPTIONS");
     }
 
@@ -442,18 +445,22 @@ mod tests {
             .await
             .unwrap();
 
-        let allowed = response.headers().get("Access-Control-Allow-Headers").unwrap();
+        let allowed = response
+            .headers()
+            .get("Access-Control-Allow-Headers")
+            .unwrap();
         assert_eq!(allowed, "Content-Type, Authorization, X-Requested-With");
     }
 
     #[tokio::test]
     async fn test_strict_cors_additional_headers() {
         const ORIGINS: &[&str] = &["https://allowed.com"];
-        let app = Router::new()
-            .route("/test", get(|| async { "OK" }))
-            .layer(axum::middleware::from_fn(move |req, next| {
-                strict_cors_headers(ORIGINS, req, next)
-            }));
+        let app =
+            Router::new()
+                .route("/test", get(|| async { "OK" }))
+                .layer(axum::middleware::from_fn(move |req, next| {
+                    strict_cors_headers(ORIGINS, req, next)
+                }));
 
         let response = app
             .oneshot(
@@ -466,14 +473,11 @@ mod tests {
             .await
             .unwrap();
 
-        let allowed = response.headers().get("Access-Control-Allow-Headers").unwrap();
-        assert!(allowed
-            .to_str()
-            .unwrap()
-            .contains("X-RateLimit-Limit"));
-        assert!(allowed
-            .to_str()
-            .unwrap()
-            .contains("X-RateLimit-Remaining"));
+        let allowed = response
+            .headers()
+            .get("Access-Control-Allow-Headers")
+            .unwrap();
+        assert!(allowed.to_str().unwrap().contains("X-RateLimit-Limit"));
+        assert!(allowed.to_str().unwrap().contains("X-RateLimit-Remaining"));
     }
 }

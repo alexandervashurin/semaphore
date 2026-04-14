@@ -265,8 +265,13 @@ mod tests {
     #[test]
     fn test_workflow_node_serialization() {
         let node = WorkflowNode {
-            id: 5, workflow_id: 10, template_id: 20, name: "Test Node".to_string(),
-            pos_x: 100.5, pos_y: 200.5, wave: 2,
+            id: 5,
+            workflow_id: 10,
+            template_id: 20,
+            name: "Test Node".to_string(),
+            pos_x: 100.5,
+            pos_y: 200.5,
+            wave: 2,
         };
         let json = serde_json::to_string(&node).unwrap();
         assert!(json.contains("\"name\":\"Test Node\""));
@@ -277,8 +282,11 @@ mod tests {
     #[test]
     fn test_workflow_node_create_serialization() {
         let create = WorkflowNodeCreate {
-            template_id: 1, name: "Create Node".to_string(),
-            pos_x: 50.0, pos_y: 75.0, wave: 1,
+            template_id: 1,
+            name: "Create Node".to_string(),
+            pos_x: 50.0,
+            pos_y: 75.0,
+            wave: 1,
         };
         let json = serde_json::to_string(&create).unwrap();
         assert!(json.contains("\"name\":\"Create Node\""));
@@ -288,7 +296,10 @@ mod tests {
     #[test]
     fn test_workflow_node_update_serialization() {
         let update = WorkflowNodeUpdate {
-            name: "Updated Node".to_string(), pos_x: 150.0, pos_y: 250.0, wave: 3,
+            name: "Updated Node".to_string(),
+            pos_x: 150.0,
+            pos_y: 250.0,
+            wave: 3,
         };
         let json = serde_json::to_string(&update).unwrap();
         assert!(json.contains("\"name\":\"Updated Node\""));
@@ -297,7 +308,10 @@ mod tests {
     #[test]
     fn test_workflow_edge_serialization() {
         let edge = WorkflowEdge {
-            id: 1, workflow_id: 1, from_node_id: 1, to_node_id: 2,
+            id: 1,
+            workflow_id: 1,
+            from_node_id: 1,
+            to_node_id: 2,
             condition: "failure".to_string(),
         };
         let json = serde_json::to_string(&edge).unwrap();
@@ -307,7 +321,9 @@ mod tests {
     #[test]
     fn test_workflow_edge_create_clone() {
         let create = WorkflowEdgeCreate {
-            from_node_id: 1, to_node_id: 3, condition: "always".to_string(),
+            from_node_id: 1,
+            to_node_id: 3,
+            condition: "always".to_string(),
         };
         let cloned = create.clone();
         assert_eq!(cloned.from_node_id, create.from_node_id);
@@ -316,9 +332,14 @@ mod tests {
     #[test]
     fn test_workflow_run_clone() {
         let run = WorkflowRun {
-            id: 1, workflow_id: 10, project_id: 5,
-            status: "running".to_string(), message: Some("In progress".to_string()),
-            created: Utc::now(), started: Some(Utc::now()), finished: None,
+            id: 1,
+            workflow_id: 10,
+            project_id: 5,
+            status: "running".to_string(),
+            message: Some("In progress".to_string()),
+            created: Utc::now(),
+            started: Some(Utc::now()),
+            finished: None,
         };
         let cloned = run.clone();
         assert_eq!(cloned.status, run.status);
@@ -327,8 +348,12 @@ mod tests {
     #[test]
     fn test_workflow_clone() {
         let workflow = Workflow {
-            id: 1, project_id: 10, name: "Clone WF".to_string(),
-            description: None, created: Utc::now(), updated: Utc::now(),
+            id: 1,
+            project_id: 10,
+            name: "Clone WF".to_string(),
+            description: None,
+            created: Utc::now(),
+            updated: Utc::now(),
         };
         let cloned = workflow.clone();
         assert_eq!(cloned.name, workflow.name);
@@ -336,7 +361,10 @@ mod tests {
 
     #[test]
     fn test_workflow_create_clone() {
-        let create = WorkflowCreate { name: "Clone Create".to_string(), description: None };
+        let create = WorkflowCreate {
+            name: "Clone Create".to_string(),
+            description: None,
+        };
         let cloned = create.clone();
         assert_eq!(cloned.name, create.name);
     }

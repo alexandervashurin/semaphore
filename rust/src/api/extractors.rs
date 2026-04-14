@@ -106,8 +106,7 @@ impl FromRequestParts<Arc<AppState>> for AuthUser {
         if state.token_blacklist.is_revoked(&claims.jti) {
             return Err((
                 StatusCode::UNAUTHORIZED,
-                Json(ErrorResponse::new("Токен отозван")
-                    .with_code("TOKEN_REVOKED")),
+                Json(ErrorResponse::new("Токен отозван").with_code("TOKEN_REVOKED")),
             ));
         }
 

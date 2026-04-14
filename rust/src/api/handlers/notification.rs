@@ -225,7 +225,8 @@ mod tests {
     #[tokio::test]
     async fn test_create_notification_empty_name_rejected() {
         let app = create_test_app().await;
-        let body = json!({"name": "", "webhook_url": "http://example.com", "trigger": "on_failure"});
+        let body =
+            json!({"name": "", "webhook_url": "http://example.com", "trigger": "on_failure"});
         let resp = app
             .oneshot(
                 Request::builder()
@@ -238,7 +239,10 @@ mod tests {
             .await
             .unwrap();
         // 400 from handler or 422 from axum validation
-        assert!(resp.status() == StatusCode::BAD_REQUEST || resp.status() == StatusCode::UNPROCESSABLE_ENTITY);
+        assert!(
+            resp.status() == StatusCode::BAD_REQUEST
+                || resp.status() == StatusCode::UNPROCESSABLE_ENTITY
+        );
     }
 
     #[tokio::test]
@@ -257,13 +261,17 @@ mod tests {
             .await
             .unwrap();
         // 400 from handler or 422 from axum validation
-        assert!(resp.status() == StatusCode::BAD_REQUEST || resp.status() == StatusCode::UNPROCESSABLE_ENTITY);
+        assert!(
+            resp.status() == StatusCode::BAD_REQUEST
+                || resp.status() == StatusCode::UNPROCESSABLE_ENTITY
+        );
     }
 
     #[tokio::test]
     async fn test_create_notification_invalid_trigger_rejected() {
         let app = create_test_app().await;
-        let body = json!({"name": "Test", "webhook_url": "http://example.com", "trigger": "invalid"});
+        let body =
+            json!({"name": "Test", "webhook_url": "http://example.com", "trigger": "invalid"});
         let resp = app
             .oneshot(
                 Request::builder()
@@ -275,7 +283,10 @@ mod tests {
             )
             .await
             .unwrap();
-        assert!(resp.status() == StatusCode::BAD_REQUEST || resp.status() == StatusCode::UNPROCESSABLE_ENTITY);
+        assert!(
+            resp.status() == StatusCode::BAD_REQUEST
+                || resp.status() == StatusCode::UNPROCESSABLE_ENTITY
+        );
     }
 
     #[tokio::test]
@@ -283,7 +294,8 @@ mod tests {
         let triggers = ["on_failure", "on_success", "on_start", "always"];
         for trigger in &triggers {
             let app = create_test_app().await;
-            let body = json!({"name": "Test", "webhook_url": "http://example.com", "trigger": trigger});
+            let body =
+                json!({"name": "Test", "webhook_url": "http://example.com", "trigger": trigger});
             let resp = app
                 .oneshot(
                     Request::builder()
@@ -318,7 +330,8 @@ mod tests {
     #[tokio::test]
     async fn test_update_notification_empty_name_rejected() {
         let app = create_test_app().await;
-        let body = json!({"name": "", "webhook_url": "http://example.com", "trigger": "on_failure"});
+        let body =
+            json!({"name": "", "webhook_url": "http://example.com", "trigger": "on_failure"});
         let resp = app
             .oneshot(
                 Request::builder()
@@ -331,13 +344,17 @@ mod tests {
             .await
             .unwrap();
         // 400 from handler or 422 from axum validation
-        assert!(resp.status() == StatusCode::BAD_REQUEST || resp.status() == StatusCode::UNPROCESSABLE_ENTITY);
+        assert!(
+            resp.status() == StatusCode::BAD_REQUEST
+                || resp.status() == StatusCode::UNPROCESSABLE_ENTITY
+        );
     }
 
     #[tokio::test]
     async fn test_update_notification_invalid_trigger_rejected() {
         let app = create_test_app().await;
-        let body = json!({"name": "Test", "webhook_url": "http://example.com", "trigger": "invalid"});
+        let body =
+            json!({"name": "Test", "webhook_url": "http://example.com", "trigger": "invalid"});
         let resp = app
             .oneshot(
                 Request::builder()
@@ -349,7 +366,10 @@ mod tests {
             )
             .await
             .unwrap();
-        assert!(resp.status() == StatusCode::BAD_REQUEST || resp.status() == StatusCode::UNPROCESSABLE_ENTITY);
+        assert!(
+            resp.status() == StatusCode::BAD_REQUEST
+                || resp.status() == StatusCode::UNPROCESSABLE_ENTITY
+        );
     }
 
     #[tokio::test]

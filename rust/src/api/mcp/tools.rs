@@ -919,10 +919,7 @@ mod tests {
     #[test]
     fn test_all_definitions_unique_names() {
         let defs = all_definitions();
-        let names: Vec<&str> = defs
-            .iter()
-            .filter_map(|d| d["name"].as_str())
-            .collect();
+        let names: Vec<&str> = defs.iter().filter_map(|d| d["name"].as_str()).collect();
         let unique: std::collections::HashSet<_> = names.iter().collect();
         assert_eq!(names.len(), unique.len(), "Tool names must be unique");
     }
@@ -932,7 +929,11 @@ mod tests {
         let defs = all_definitions();
         for def in defs {
             let desc = def["description"].as_str().unwrap_or("");
-            assert!(!desc.is_empty(), "Tool '{}' has empty description", def["name"]);
+            assert!(
+                !desc.is_empty(),
+                "Tool '{}' has empty description",
+                def["name"]
+            );
         }
     }
 

@@ -64,13 +64,15 @@ pub async fn get_backup_restore_runbook() -> Result<Json<BackupRunbook>> {
         config_steps: vec![
             "Сохранить env/секреты и конфиги приложения (без утечки plaintext в логи).".to_string(),
             "Сохранить версии образов, миграций и commit SHA текущего деплоя.".to_string(),
-            "Проверить, что backup включает критичные каталоги и external integrations.".to_string(),
+            "Проверить, что backup включает критичные каталоги и external integrations."
+                .to_string(),
         ],
         restore_steps: vec![
             "Поднять чистое окружение с теми же версиями приложения/схемы.".to_string(),
             "Восстановить БД из дампа и применить миграции при необходимости.".to_string(),
             "Восстановить конфиги/секреты и перезапустить сервисы.".to_string(),
-            "Провести smoke-check: login, projects, templates, task run, audit entries.".to_string(),
+            "Провести smoke-check: login, projects, templates, task run, audit entries."
+                .to_string(),
         ],
         notes: vec![
             "Velero поддерживается только как optional read-only детект в v1.".to_string(),
@@ -113,7 +115,9 @@ pub async fn list_velero_backups(
         .list(&lp)
         .await
         .map_err(|e| Error::Kubernetes(format!("Velero Backup API not available: {e}")))?;
-    Ok(Json(items.items.iter().map(|x| serde_json::json!(x)).collect()))
+    Ok(Json(
+        items.items.iter().map(|x| serde_json::json!(x)).collect(),
+    ))
 }
 
 #[cfg(test)]
@@ -222,9 +226,7 @@ mod tests {
 
     #[test]
     fn test_velero_query_with_namespace() {
-        let q: VeleroQuery = serde_json::from_str(
-            r#"{"namespace": "velero"}"#
-        ).unwrap();
+        let q: VeleroQuery = serde_json::from_str(r#"{"namespace": "velero"}"#).unwrap();
         assert_eq!(q.namespace, Some("velero".to_string()));
         assert!(q.limit.is_none());
     }
@@ -238,9 +240,8 @@ mod tests {
 
     #[test]
     fn test_velero_query_full() {
-        let q: VeleroQuery = serde_json::from_str(
-            r#"{"namespace": "velero-ns", "limit": 15}"#
-        ).unwrap();
+        let q: VeleroQuery =
+            serde_json::from_str(r#"{"namespace": "velero-ns", "limit": 15}"#).unwrap();
         assert_eq!(q.namespace, Some("velero-ns".to_string()));
         assert_eq!(q.limit, Some(15));
     }
@@ -270,4 +271,3 @@ mod tests {
         assert!(serialized.contains("maintenance window"));
     }
 }
-

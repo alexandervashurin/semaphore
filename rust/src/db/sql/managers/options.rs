@@ -114,7 +114,10 @@ mod tests {
     #[test]
     fn test_option_special_characters() {
         let mut options = HashMap::new();
-        options.insert("url".to_string(), "https://example.com/path?q=test".to_string());
+        options.insert(
+            "url".to_string(),
+            "https://example.com/path?q=test".to_string(),
+        );
         let json = serde_json::to_string(&options).unwrap();
         assert!(json.contains("https://example.com/path?q=test"));
     }

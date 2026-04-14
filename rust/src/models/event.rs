@@ -89,8 +89,14 @@ mod tests {
         assert_eq!(EventType::TaskCreated.to_string(), "task_created");
         assert_eq!(EventType::TemplateDeleted.to_string(), "template_deleted");
         assert_eq!(EventType::InventoryUpdated.to_string(), "inventory_updated");
-        assert_eq!(EventType::EnvironmentDeleted.to_string(), "environment_deleted");
-        assert_eq!(EventType::AccessKeyCreated.to_string(), "access_key_created");
+        assert_eq!(
+            EventType::EnvironmentDeleted.to_string(),
+            "environment_deleted"
+        );
+        assert_eq!(
+            EventType::AccessKeyCreated.to_string(),
+            "access_key_created"
+        );
     }
 
     #[test]
@@ -155,15 +161,32 @@ mod tests {
     #[test]
     fn test_event_type_all_variants_serialization() {
         let types = vec![
-            EventType::TaskCreated, EventType::TaskUpdated, EventType::TaskDeleted,
-            EventType::TemplateCreated, EventType::TemplateUpdated, EventType::TemplateDeleted,
-            EventType::InventoryCreated, EventType::InventoryUpdated, EventType::InventoryDeleted,
-            EventType::RepositoryCreated, EventType::RepositoryUpdated, EventType::RepositoryDeleted,
-            EventType::EnvironmentCreated, EventType::EnvironmentUpdated, EventType::EnvironmentDeleted,
-            EventType::AccessKeyCreated, EventType::AccessKeyUpdated, EventType::AccessKeyDeleted,
-            EventType::IntegrationCreated, EventType::IntegrationUpdated, EventType::IntegrationDeleted,
-            EventType::UserJoined, EventType::UserLeft, EventType::UserUpdated,
-            EventType::ProjectUpdated, EventType::Other,
+            EventType::TaskCreated,
+            EventType::TaskUpdated,
+            EventType::TaskDeleted,
+            EventType::TemplateCreated,
+            EventType::TemplateUpdated,
+            EventType::TemplateDeleted,
+            EventType::InventoryCreated,
+            EventType::InventoryUpdated,
+            EventType::InventoryDeleted,
+            EventType::RepositoryCreated,
+            EventType::RepositoryUpdated,
+            EventType::RepositoryDeleted,
+            EventType::EnvironmentCreated,
+            EventType::EnvironmentUpdated,
+            EventType::EnvironmentDeleted,
+            EventType::AccessKeyCreated,
+            EventType::AccessKeyUpdated,
+            EventType::AccessKeyDeleted,
+            EventType::IntegrationCreated,
+            EventType::IntegrationUpdated,
+            EventType::IntegrationDeleted,
+            EventType::UserJoined,
+            EventType::UserLeft,
+            EventType::UserUpdated,
+            EventType::ProjectUpdated,
+            EventType::Other,
         ];
         for t in types {
             let json = serde_json::to_string(&t).unwrap();
@@ -183,8 +206,12 @@ mod tests {
     #[test]
     fn test_event_debug() {
         let event = Event {
-            id: 1, project_id: None, user_id: None, object_id: None,
-            object_type: "debug".to_string(), description: "Debug event".to_string(),
+            id: 1,
+            project_id: None,
+            user_id: None,
+            object_id: None,
+            object_type: "debug".to_string(),
+            description: "Debug event".to_string(),
             created: Utc::now(),
         };
         let debug_str = format!("{:?}", event);
@@ -196,15 +223,22 @@ mod tests {
         assert_eq!(EventType::TaskCreated.to_string(), "task_created");
         assert_eq!(EventType::TaskUpdated.to_string(), "task_updated");
         assert_eq!(EventType::TaskDeleted.to_string(), "task_deleted");
-        assert_eq!(EventType::IntegrationUpdated.to_string(), "integration_updated");
+        assert_eq!(
+            EventType::IntegrationUpdated.to_string(),
+            "integration_updated"
+        );
         assert_eq!(EventType::Other.to_string(), "unknown");
     }
 
     #[test]
     fn test_event_clone() {
         let event = Event {
-            id: 1, project_id: Some(10), user_id: Some(5), object_id: Some(100),
-            object_type: "task".to_string(), description: "Clone event".to_string(),
+            id: 1,
+            project_id: Some(10),
+            user_id: Some(5),
+            object_id: Some(100),
+            object_type: "task".to_string(),
+            description: "Clone event".to_string(),
             created: Utc::now(),
         };
         let cloned = event.clone();
@@ -232,8 +266,12 @@ mod tests {
     #[test]
     fn test_event_unicode_description() {
         let event = Event {
-            id: 1, project_id: None, user_id: None, object_id: None,
-            object_type: "task".to_string(), description: "Задача создана".to_string(),
+            id: 1,
+            project_id: None,
+            user_id: None,
+            object_id: None,
+            object_type: "task".to_string(),
+            description: "Задача создана".to_string(),
             created: Utc::now(),
         };
         let json = serde_json::to_string(&event).unwrap();
@@ -244,8 +282,12 @@ mod tests {
     #[test]
     fn test_event_clone_independence() {
         let mut event = Event {
-            id: 1, project_id: None, user_id: None, object_id: None,
-            object_type: "task".to_string(), description: "Original".to_string(),
+            id: 1,
+            project_id: None,
+            user_id: None,
+            object_id: None,
+            object_type: "task".to_string(),
+            description: "Original".to_string(),
             created: Utc::now(),
         };
         let cloned = event.clone();

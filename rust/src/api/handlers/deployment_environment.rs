@@ -130,8 +130,8 @@ pub async fn get_deploy_history(
 #[cfg(test)]
 mod tests {
     use crate::models::deployment_environment::{
-        DeploymentEnvironment, DeploymentEnvironmentCreate, DeploymentEnvironmentUpdate,
-        DeploymentRecord, EnvironmentTier, DeployEnvironmentStatus,
+        DeployEnvironmentStatus, DeploymentEnvironment, DeploymentEnvironmentCreate,
+        DeploymentEnvironmentUpdate, DeploymentRecord, EnvironmentTier,
     };
     use chrono::Utc;
 
@@ -323,7 +323,13 @@ mod tests {
 
     #[test]
     fn test_deployment_status_equality() {
-        assert_eq!(DeployEnvironmentStatus::Active, DeployEnvironmentStatus::Active);
-        assert_ne!(DeployEnvironmentStatus::Active, DeployEnvironmentStatus::Stopped);
+        assert_eq!(
+            DeployEnvironmentStatus::Active,
+            DeployEnvironmentStatus::Active
+        );
+        assert_ne!(
+            DeployEnvironmentStatus::Active,
+            DeployEnvironmentStatus::Stopped
+        );
     }
 }

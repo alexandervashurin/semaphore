@@ -103,25 +103,25 @@ pub fn template_routes() -> Router<Arc<AppState>> {
             "/api/project/{project_id}/workflows/{id}/run",
             post(handlers::workflow::run_workflow),
         )
-        // .route(
-        //     "/api/project/{project_id}/workflows/{id}/dry-run",
-        //     post(handlers::workflow::dry_run_workflow),
-        // )
-        // Template Marketplace - заглушки
-        // .route(
-        //     "/api/project/{project_id}/templates/marketplace",
-        //     get(handlers::template_marketplace::list_marketplace_templates),
-        // )
-        // Survey Forms - заглушки
-        // .route(
-        //     "/api/project/{project_id}/templates/{id}/survey",
-        //     get(handlers::survey_form::get_template_survey_form),
-        // )
-        // Template Views - заглушки
-        // .route(
-        //     "/api/project/{project_id}/templates/views",
-        //     get(handlers::template_view::list_template_views),
-        // )
+    // .route(
+    //     "/api/project/{project_id}/workflows/{id}/dry-run",
+    //     post(handlers::workflow::dry_run_workflow),
+    // )
+    // Template Marketplace - заглушки
+    // .route(
+    //     "/api/project/{project_id}/templates/marketplace",
+    //     get(handlers::template_marketplace::list_marketplace_templates),
+    // )
+    // Survey Forms - заглушки
+    // .route(
+    //     "/api/project/{project_id}/templates/{id}/survey",
+    //     get(handlers::survey_form::get_template_survey_form),
+    // )
+    // Template Views - заглушки
+    // .route(
+    //     "/api/project/{project_id}/templates/views",
+    //     get(handlers::template_view::list_template_views),
+    // )
 }
 
 #[cfg(test)]

@@ -198,7 +198,8 @@ mod tests {
 
     #[test]
     fn test_role_with_permissions() {
-        let role = Role::new_with_permissions(5, "admin".to_string(), "Admin".to_string(), 0b1111_1111);
+        let role =
+            Role::new_with_permissions(5, "admin".to_string(), "Admin".to_string(), 0b1111_1111);
         let perms = role.get_permissions();
         assert!(perms.run_tasks);
         assert!(perms.manage_secret_storages);
@@ -262,7 +263,8 @@ mod tests {
 
     #[test]
     fn test_role_clone() {
-        let role = Role::new_with_permissions(1, "clone".to_string(), "Clone".to_string(), 0b1111_1111);
+        let role =
+            Role::new_with_permissions(1, "clone".to_string(), "Clone".to_string(), 0b1111_1111);
         let cloned = role.clone();
         assert_eq!(cloned.slug, role.slug);
         assert_eq!(cloned.permissions, role.permissions);
@@ -279,9 +281,14 @@ mod tests {
     #[test]
     fn test_role_permissions_individual_bits() {
         let perms = RolePermissions {
-            run_tasks: false, update_resources: true, manage_project: false,
-            manage_users: true, manage_roles: false, view_audit_log: true,
-            manage_integrations: false, manage_secret_storages: true,
+            run_tasks: false,
+            update_resources: true,
+            manage_project: false,
+            manage_users: true,
+            manage_roles: false,
+            view_audit_log: true,
+            manage_integrations: false,
+            manage_secret_storages: true,
         };
         let bitmask = perms.to_bitmask();
         assert_eq!(bitmask, 0b1010_1010);
@@ -296,7 +303,9 @@ mod tests {
     #[test]
     fn test_role_special_chars() {
         let role = Role {
-            id: 1, project_id: 1, slug: "special&role".to_string(),
+            id: 1,
+            project_id: 1,
+            slug: "special&role".to_string(),
             name: "Special & <Role>".to_string(),
             description: Some("Role with \"quotes\"".to_string()),
             permissions: Some(0),

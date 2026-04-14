@@ -138,11 +138,21 @@ mod tests {
     #[test]
     fn test_cost_estimate_clone() {
         let estimate = CostEstimate {
-            id: 1, project_id: 10, task_id: 100, template_id: 5,
-            currency: "EUR".to_string(), monthly_cost: Some(50.0), monthly_cost_diff: Some(10.0),
-            resource_count: 5, resources_added: 2, resources_changed: 1, resources_deleted: 0,
-            breakdown_json: None, infracost_version: None,
-            created_at: "2024-01-01".to_string(), template_name: "Clone".to_string(),
+            id: 1,
+            project_id: 10,
+            task_id: 100,
+            template_id: 5,
+            currency: "EUR".to_string(),
+            monthly_cost: Some(50.0),
+            monthly_cost_diff: Some(10.0),
+            resource_count: 5,
+            resources_added: 2,
+            resources_changed: 1,
+            resources_deleted: 0,
+            breakdown_json: None,
+            infracost_version: None,
+            created_at: "2024-01-01".to_string(),
+            template_name: "Clone".to_string(),
         };
         let cloned = estimate.clone();
         assert_eq!(cloned.currency, estimate.currency);
@@ -152,11 +162,21 @@ mod tests {
     #[test]
     fn test_cost_estimate_debug() {
         let estimate = CostEstimate {
-            id: 1, project_id: 1, task_id: 1, template_id: 1,
-            currency: "USD".to_string(), monthly_cost: None, monthly_cost_diff: None,
-            resource_count: 0, resources_added: 0, resources_changed: 0, resources_deleted: 0,
-            breakdown_json: None, infracost_version: None,
-            created_at: "".to_string(), template_name: String::new(),
+            id: 1,
+            project_id: 1,
+            task_id: 1,
+            template_id: 1,
+            currency: "USD".to_string(),
+            monthly_cost: None,
+            monthly_cost_diff: None,
+            resource_count: 0,
+            resources_added: 0,
+            resources_changed: 0,
+            resources_deleted: 0,
+            breakdown_json: None,
+            infracost_version: None,
+            created_at: "".to_string(),
+            template_name: String::new(),
         };
         let debug_str = format!("{:?}", estimate);
         assert!(debug_str.contains("CostEstimate"));
@@ -174,10 +194,17 @@ mod tests {
     #[test]
     fn test_cost_estimate_create_clone() {
         let create = CostEstimateCreate {
-            project_id: 1, task_id: 1, template_id: 1,
-            currency: Some("USD".to_string()), monthly_cost: Some(100.0),
-            monthly_cost_diff: None, resource_count: None, resources_added: None,
-            resources_changed: None, resources_deleted: None, breakdown_json: None,
+            project_id: 1,
+            task_id: 1,
+            template_id: 1,
+            currency: Some("USD".to_string()),
+            monthly_cost: Some(100.0),
+            monthly_cost_diff: None,
+            resource_count: None,
+            resources_added: None,
+            resources_changed: None,
+            resources_deleted: None,
+            breakdown_json: None,
             infracost_version: None,
         };
         let cloned = create.clone();
@@ -187,8 +214,10 @@ mod tests {
     #[test]
     fn test_cost_summary_clone() {
         let summary = CostSummary {
-            template_id: 1, template_name: "Summary".to_string(),
-            latest_monthly_cost: Some(100.0), runs_with_cost: 10,
+            template_id: 1,
+            template_name: "Summary".to_string(),
+            latest_monthly_cost: Some(100.0),
+            runs_with_cost: 10,
             last_run_at: "2024-01-01".to_string(),
         };
         let cloned = summary.clone();
@@ -199,10 +228,18 @@ mod tests {
     #[test]
     fn test_cost_estimate_create_all_nulls() {
         let create = CostEstimateCreate {
-            project_id: 1, task_id: 1, template_id: 1,
-            currency: None, monthly_cost: None, monthly_cost_diff: None,
-            resource_count: None, resources_added: None, resources_changed: None,
-            resources_deleted: None, breakdown_json: None, infracost_version: None,
+            project_id: 1,
+            task_id: 1,
+            template_id: 1,
+            currency: None,
+            monthly_cost: None,
+            monthly_cost_diff: None,
+            resource_count: None,
+            resources_added: None,
+            resources_changed: None,
+            resources_deleted: None,
+            breakdown_json: None,
+            infracost_version: None,
         };
         let json = serde_json::to_string(&create).unwrap();
         assert!(json.contains("\"currency\":null"));
@@ -212,8 +249,10 @@ mod tests {
     #[test]
     fn test_cost_summary_zero_values() {
         let summary = CostSummary {
-            template_id: 0, template_name: String::new(),
-            latest_monthly_cost: Some(0.0), runs_with_cost: 0,
+            template_id: 0,
+            template_name: String::new(),
+            latest_monthly_cost: Some(0.0),
+            runs_with_cost: 0,
             last_run_at: String::new(),
         };
         let json = serde_json::to_string(&summary).unwrap();
@@ -224,11 +263,21 @@ mod tests {
     #[test]
     fn test_cost_estimate_unicode_template_name() {
         let estimate = CostEstimate {
-            id: 1, project_id: 1, task_id: 1, template_id: 1,
-            currency: "USD".to_string(), monthly_cost: None, monthly_cost_diff: None,
-            resource_count: 0, resources_added: 0, resources_changed: 0, resources_deleted: 0,
-            breakdown_json: None, infracost_version: None,
-            created_at: "2024-01-01".to_string(), template_name: "Шаблон".to_string(),
+            id: 1,
+            project_id: 1,
+            task_id: 1,
+            template_id: 1,
+            currency: "USD".to_string(),
+            monthly_cost: None,
+            monthly_cost_diff: None,
+            resource_count: 0,
+            resources_added: 0,
+            resources_changed: 0,
+            resources_deleted: 0,
+            breakdown_json: None,
+            infracost_version: None,
+            created_at: "2024-01-01".to_string(),
+            template_name: "Шаблон".to_string(),
         };
         let json = serde_json::to_string(&estimate).unwrap();
         let restored: CostEstimate = serde_json::from_str(&json).unwrap();
@@ -238,11 +287,21 @@ mod tests {
     #[test]
     fn test_cost_estimate_clone_independence() {
         let mut estimate = CostEstimate {
-            id: 1, project_id: 1, task_id: 1, template_id: 1,
-            currency: "Original".to_string(), monthly_cost: None, monthly_cost_diff: None,
-            resource_count: 0, resources_added: 0, resources_changed: 0, resources_deleted: 0,
-            breakdown_json: None, infracost_version: None,
-            created_at: "2024-01-01".to_string(), template_name: "Test".to_string(),
+            id: 1,
+            project_id: 1,
+            task_id: 1,
+            template_id: 1,
+            currency: "Original".to_string(),
+            monthly_cost: None,
+            monthly_cost_diff: None,
+            resource_count: 0,
+            resources_added: 0,
+            resources_changed: 0,
+            resources_deleted: 0,
+            breakdown_json: None,
+            infracost_version: None,
+            created_at: "2024-01-01".to_string(),
+            template_name: "Test".to_string(),
         };
         let cloned = estimate.clone();
         estimate.currency = "Modified".to_string();
@@ -252,8 +311,10 @@ mod tests {
     #[test]
     fn test_cost_summary_clone_independence() {
         let mut summary = CostSummary {
-            template_id: 1, template_name: "Original".to_string(),
-            latest_monthly_cost: Some(100.0), runs_with_cost: 10,
+            template_id: 1,
+            template_name: "Original".to_string(),
+            latest_monthly_cost: Some(100.0),
+            runs_with_cost: 10,
             last_run_at: "2024-01-01".to_string(),
         };
         let cloned = summary.clone();
@@ -264,11 +325,21 @@ mod tests {
     #[test]
     fn test_cost_estimate_negative_cost() {
         let estimate = CostEstimate {
-            id: 1, project_id: 1, task_id: 1, template_id: 1,
-            currency: "USD".to_string(), monthly_cost: Some(-50.0), monthly_cost_diff: Some(-10.0),
-            resource_count: 0, resources_added: 0, resources_changed: 0, resources_deleted: 5,
-            breakdown_json: None, infracost_version: None,
-            created_at: "2024-01-01".to_string(), template_name: "Negative".to_string(),
+            id: 1,
+            project_id: 1,
+            task_id: 1,
+            template_id: 1,
+            currency: "USD".to_string(),
+            monthly_cost: Some(-50.0),
+            monthly_cost_diff: Some(-10.0),
+            resource_count: 0,
+            resources_added: 0,
+            resources_changed: 0,
+            resources_deleted: 5,
+            breakdown_json: None,
+            infracost_version: None,
+            created_at: "2024-01-01".to_string(),
+            template_name: "Negative".to_string(),
         };
         let json = serde_json::to_string(&estimate).unwrap();
         assert!(json.contains("-50.0"));
@@ -277,8 +348,10 @@ mod tests {
     #[test]
     fn test_cost_summary_debug() {
         let summary = CostSummary {
-            template_id: 42, template_name: "Debug Summary".to_string(),
-            latest_monthly_cost: Some(500.0), runs_with_cost: 25,
+            template_id: 42,
+            template_name: "Debug Summary".to_string(),
+            latest_monthly_cost: Some(500.0),
+            runs_with_cost: 25,
             last_run_at: "2024-06-01".to_string(),
         };
         let debug_str = format!("{:?}", summary);

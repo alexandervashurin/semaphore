@@ -282,9 +282,18 @@ mod tests {
         runner_with_listener.log("msg2");
         runner_with_listener.log("msg3");
 
-        assert_eq!(rx.recv_timeout(std::time::Duration::from_secs(2)).unwrap(), "msg1");
-        assert_eq!(rx.recv_timeout(std::time::Duration::from_secs(2)).unwrap(), "msg2");
-        assert_eq!(rx.recv_timeout(std::time::Duration::from_secs(2)).unwrap(), "msg3");
+        assert_eq!(
+            rx.recv_timeout(std::time::Duration::from_secs(2)).unwrap(),
+            "msg1"
+        );
+        assert_eq!(
+            rx.recv_timeout(std::time::Duration::from_secs(2)).unwrap(),
+            "msg2"
+        );
+        assert_eq!(
+            rx.recv_timeout(std::time::Duration::from_secs(2)).unwrap(),
+            "msg3"
+        );
     }
 
     #[tokio::test]
@@ -299,10 +308,16 @@ mod tests {
         };
 
         runner_with_listener.set_status(TaskStatus::Running).await;
-        assert_eq!(rx.recv_timeout(std::time::Duration::from_secs(2)).unwrap(), TaskStatus::Running);
+        assert_eq!(
+            rx.recv_timeout(std::time::Duration::from_secs(2)).unwrap(),
+            TaskStatus::Running
+        );
 
         runner_with_listener.set_status(TaskStatus::Success).await;
-        assert_eq!(rx.recv_timeout(std::time::Duration::from_secs(2)).unwrap(), TaskStatus::Success);
+        assert_eq!(
+            rx.recv_timeout(std::time::Duration::from_secs(2)).unwrap(),
+            TaskStatus::Success
+        );
     }
 
     #[tokio::test]

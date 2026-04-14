@@ -354,10 +354,8 @@ mod tests {
             vec![],
         );
 
-        let key = middleware.generate_cache_key(
-            &Method::GET,
-            "/api/projects/123/tasks/456/details",
-        );
+        let key =
+            middleware.generate_cache_key(&Method::GET, "/api/projects/123/tasks/456/details");
         assert!(key.starts_with("http_cache:"));
         assert_ne!(
             key,

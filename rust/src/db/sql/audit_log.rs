@@ -3,7 +3,8 @@
 use crate::db::sql::types::SqlDb;
 use crate::error::{Error, Result};
 use crate::models::audit_log::{
-    AuditAction, AuditDetails, AuditLevel, AuditLog, AuditLogFilter, AuditLogResult, AuditObjectType,
+    AuditAction, AuditDetails, AuditLevel, AuditLog, AuditLogFilter, AuditLogResult,
+    AuditObjectType,
 };
 use chrono::Utc;
 use serde_json::Value as JsonValue;

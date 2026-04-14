@@ -62,7 +62,11 @@ mod tests {
 
     #[test]
     fn test_environment_new() {
-        let env = Environment::new(10, "production".to_string(), r#"{"KEY":"value"}"#.to_string());
+        let env = Environment::new(
+            10,
+            "production".to_string(),
+            r#"{"KEY":"value"}"#.to_string(),
+        );
         assert_eq!(env.id, 0);
         assert_eq!(env.project_id, 10);
         assert_eq!(env.name, "production");

@@ -109,8 +109,12 @@ mod tests {
     #[test]
     fn test_session_serialization() {
         let session = Session {
-            id: 1, user_id: 10, created: Utc::now(), last_active: Utc::now(),
-            ip: "192.168.1.1".to_string(), user_agent: "Mozilla/5.0".to_string(),
+            id: 1,
+            user_id: 10,
+            created: Utc::now(),
+            last_active: Utc::now(),
+            ip: "192.168.1.1".to_string(),
+            user_agent: "Mozilla/5.0".to_string(),
             expired: false,
             verification_method: SessionVerificationMethod::Totp,
             verified: true,
@@ -124,9 +128,14 @@ mod tests {
     #[test]
     fn test_session_clone() {
         let session = Session {
-            id: 1, user_id: 1, created: Utc::now(), last_active: Utc::now(),
-            ip: "127.0.0.1".to_string(), user_agent: "Test".to_string(),
-            expired: false, verification_method: SessionVerificationMethod::None,
+            id: 1,
+            user_id: 1,
+            created: Utc::now(),
+            last_active: Utc::now(),
+            ip: "127.0.0.1".to_string(),
+            user_agent: "Test".to_string(),
+            expired: false,
+            verification_method: SessionVerificationMethod::None,
             verified: false,
         };
         let cloned = session.clone();
@@ -137,9 +146,14 @@ mod tests {
     #[test]
     fn test_session_expired() {
         let session = Session {
-            id: 1, user_id: 1, created: Utc::now(), last_active: Utc::now(),
-            ip: "10.0.0.1".to_string(), user_agent: "Agent".to_string(),
-            expired: true, verification_method: SessionVerificationMethod::None,
+            id: 1,
+            user_id: 1,
+            created: Utc::now(),
+            last_active: Utc::now(),
+            ip: "10.0.0.1".to_string(),
+            user_agent: "Agent".to_string(),
+            expired: true,
+            verification_method: SessionVerificationMethod::None,
             verified: false,
         };
         assert!(session.expired);
@@ -148,13 +162,21 @@ mod tests {
     #[test]
     fn test_session_verified() {
         let session = Session {
-            id: 1, user_id: 1, created: Utc::now(), last_active: Utc::now(),
-            ip: String::new(), user_agent: String::new(),
-            expired: false, verification_method: SessionVerificationMethod::EmailOtp,
+            id: 1,
+            user_id: 1,
+            created: Utc::now(),
+            last_active: Utc::now(),
+            ip: String::new(),
+            user_agent: String::new(),
+            expired: false,
+            verification_method: SessionVerificationMethod::EmailOtp,
             verified: true,
         };
         assert!(session.verified);
-        assert_eq!(session.verification_method, SessionVerificationMethod::EmailOtp);
+        assert_eq!(
+            session.verification_method,
+            SessionVerificationMethod::EmailOtp
+        );
     }
 
     #[test]
@@ -183,9 +205,14 @@ mod tests {
     #[test]
     fn test_session_empty_strings() {
         let session = Session {
-            id: 1, user_id: 1, created: Utc::now(), last_active: Utc::now(),
-            ip: String::new(), user_agent: String::new(),
-            expired: false, verification_method: SessionVerificationMethod::None,
+            id: 1,
+            user_id: 1,
+            created: Utc::now(),
+            last_active: Utc::now(),
+            ip: String::new(),
+            user_agent: String::new(),
+            expired: false,
+            verification_method: SessionVerificationMethod::None,
             verified: false,
         };
         assert!(session.ip.is_empty());

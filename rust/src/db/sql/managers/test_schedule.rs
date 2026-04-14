@@ -86,15 +86,27 @@ mod tests {
     #[tokio::test]
     async fn test_set_schedule_commit_hash() {
         let store = MockStore::new();
-        store.set_schedule_commit_hash(1, 1, "abc123").await.unwrap();
+        store
+            .set_schedule_commit_hash(1, 1, "abc123")
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
     async fn test_schedule_name_uniqueness() {
         let store = MockStore::new();
-        store.create_schedule(create_test_schedule(0, 1, 1, "schedule-a")).await.unwrap();
-        store.create_schedule(create_test_schedule(0, 1, 1, "schedule-b")).await.unwrap();
-        store.create_schedule(create_test_schedule(0, 1, 2, "schedule-c")).await.unwrap();
+        store
+            .create_schedule(create_test_schedule(0, 1, 1, "schedule-a"))
+            .await
+            .unwrap();
+        store
+            .create_schedule(create_test_schedule(0, 1, 1, "schedule-b"))
+            .await
+            .unwrap();
+        store
+            .create_schedule(create_test_schedule(0, 1, 2, "schedule-c"))
+            .await
+            .unwrap();
 
         // MockStore.create_schedule always succeeds and assigns incremental IDs
         // The important thing is that multiple schedules can coexist

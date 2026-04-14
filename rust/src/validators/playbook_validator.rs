@@ -406,7 +406,10 @@ module:
         // Array is not a valid terraform config structure
         let content = "- item1\n- item2";
         let result = PlaybookValidator::validate_terraform_config(content);
-        assert!(matches!(result, Err(PlaybookValidationError::InvalidStructure(_))));
+        assert!(matches!(
+            result,
+            Err(PlaybookValidationError::InvalidStructure(_))
+        ));
     }
 
     #[test]
@@ -433,7 +436,10 @@ module:
     fn test_validate_shell_whitespace_only() {
         let content = "   \n  \n  ";
         let result = PlaybookValidator::validate_shell_script(content);
-        assert!(matches!(result, Err(PlaybookValidationError::InvalidStructure(_))));
+        assert!(matches!(
+            result,
+            Err(PlaybookValidationError::InvalidStructure(_))
+        ));
     }
 
     #[test]
@@ -490,7 +496,9 @@ tasks:
     fn test_validate_max_size_exceeded() {
         let content = "x".repeat(MAX_PLAYBOOK_SIZE + 100);
         let result = PlaybookValidator::validate(&content, "ansible");
-        assert!(matches!(result, Err(PlaybookValidationError::MaxSizeExceeded(s)) if s > MAX_PLAYBOOK_SIZE));
+        assert!(
+            matches!(result, Err(PlaybookValidationError::MaxSizeExceeded(s)) if s > MAX_PLAYBOOK_SIZE)
+        );
     }
 
     #[test]

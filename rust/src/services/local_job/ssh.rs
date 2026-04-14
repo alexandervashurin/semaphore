@@ -384,8 +384,10 @@ mod tests {
     fn test_clear_ssh_keys_resets_both_installations() {
         let mut job = create_test_job();
         // Установим фейковые значения
-        job.ssh_key_installation = Some(crate::services::ssh_agent::AccessKeyInstallation::default());
-        job.become_key_installation = Some(crate::services::ssh_agent::AccessKeyInstallation::default());
+        job.ssh_key_installation =
+            Some(crate::services::ssh_agent::AccessKeyInstallation::default());
+        job.become_key_installation =
+            Some(crate::services::ssh_agent::AccessKeyInstallation::default());
 
         assert!(job.ssh_key_installation.is_some());
         assert!(job.become_key_installation.is_some());
@@ -407,7 +409,10 @@ mod tests {
             None,
         );
         let db = model_access_key_to_db(&ak);
-        assert_eq!(db.ssh_key.as_ref().map(|s| s.login.clone()), Some("".to_string()));
+        assert_eq!(
+            db.ssh_key.as_ref().map(|s| s.login.clone()),
+            Some("".to_string())
+        );
     }
 
     #[test]
@@ -469,7 +474,10 @@ mod tests {
             user_id: Some(1),
             login_password_login: Some("deploy".to_string()),
             login_password_password: None,
-            ssh_key: Some("-----BEGIN RSA PRIVATE KEY-----\nkeydata\n-----END RSA PRIVATE KEY-----".to_string()),
+            ssh_key: Some(
+                "-----BEGIN RSA PRIVATE KEY-----\nkeydata\n-----END RSA PRIVATE KEY-----"
+                    .to_string(),
+            ),
             ssh_passphrase: Some("mypass".to_string()),
             access_key_access_key: None,
             access_key_secret_key: None,
@@ -652,7 +660,8 @@ mod tests {
             inventory,
             crate::models::Repository::default(),
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -707,8 +716,10 @@ mod tests {
     #[test]
     fn test_clear_ssh_keys_after_set() {
         let mut job = create_test_job();
-        job.ssh_key_installation = Some(crate::services::ssh_agent::AccessKeyInstallation::new_with_key_id(42));
-        job.become_key_installation = Some(crate::services::ssh_agent::AccessKeyInstallation::new_with_key_id(99));
+        job.ssh_key_installation =
+            Some(crate::services::ssh_agent::AccessKeyInstallation::new_with_key_id(42));
+        job.become_key_installation =
+            Some(crate::services::ssh_agent::AccessKeyInstallation::new_with_key_id(99));
 
         job.clear_ssh_keys();
         assert!(job.ssh_key_installation.is_none());

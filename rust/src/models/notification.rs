@@ -174,9 +174,14 @@ mod tests {
     #[test]
     fn test_notification_policy_clone_full() {
         let policy = NotificationPolicy {
-            id: 5, project_id: 20, name: "Clone Policy".to_string(),
-            channel_type: "generic".to_string(), webhook_url: "https://clone.com".to_string(),
-            trigger: "always".to_string(), template_id: Some(10), enabled: true,
+            id: 5,
+            project_id: 20,
+            name: "Clone Policy".to_string(),
+            channel_type: "generic".to_string(),
+            webhook_url: "https://clone.com".to_string(),
+            trigger: "always".to_string(),
+            template_id: Some(10),
+            enabled: true,
             created: Utc::now(),
         };
         let cloned = policy.clone();
@@ -187,9 +192,12 @@ mod tests {
     #[test]
     fn test_notification_policy_create_clone() {
         let create = NotificationPolicyCreate {
-            name: "Clone Create".to_string(), channel_type: "slack".to_string(),
-            webhook_url: "https://clone-create.com".to_string(), trigger: "on_failure".to_string(),
-            template_id: None, enabled: Some(false),
+            name: "Clone Create".to_string(),
+            channel_type: "slack".to_string(),
+            webhook_url: "https://clone-create.com".to_string(),
+            trigger: "on_failure".to_string(),
+            template_id: None,
+            enabled: Some(false),
         };
         let cloned = create.clone();
         assert_eq!(cloned.name, create.name);
@@ -198,9 +206,12 @@ mod tests {
     #[test]
     fn test_notification_policy_update_clone() {
         let update = NotificationPolicyUpdate {
-            name: "Clone Update".to_string(), channel_type: "teams".to_string(),
-            webhook_url: "https://clone-update.com".to_string(), trigger: "on_start".to_string(),
-            template_id: Some(5), enabled: true,
+            name: "Clone Update".to_string(),
+            channel_type: "teams".to_string(),
+            webhook_url: "https://clone-update.com".to_string(),
+            trigger: "on_start".to_string(),
+            template_id: Some(5),
+            enabled: true,
         };
         let cloned = update.clone();
         assert_eq!(cloned.enabled, update.enabled);
@@ -225,9 +236,12 @@ mod tests {
     #[test]
     fn test_notification_policy_create_with_template_id() {
         let create = NotificationPolicyCreate {
-            name: "With Template".to_string(), channel_type: "slack".to_string(),
-            webhook_url: "https://example.com".to_string(), trigger: "on_failure".to_string(),
-            template_id: Some(42), enabled: Some(true),
+            name: "With Template".to_string(),
+            channel_type: "slack".to_string(),
+            webhook_url: "https://example.com".to_string(),
+            trigger: "on_failure".to_string(),
+            template_id: Some(42),
+            enabled: Some(true),
         };
         let json = serde_json::to_string(&create).unwrap();
         assert!(json.contains("\"template_id\":42"));
@@ -238,9 +252,14 @@ mod tests {
         let triggers = ["on_failure", "on_success", "on_start", "always"];
         for trigger in triggers {
             let policy = NotificationPolicy {
-                id: 1, project_id: 1, name: "Trigger Test".to_string(),
-                channel_type: "generic".to_string(), webhook_url: "https://example.com".to_string(),
-                trigger: trigger.to_string(), template_id: None, enabled: true,
+                id: 1,
+                project_id: 1,
+                name: "Trigger Test".to_string(),
+                channel_type: "generic".to_string(),
+                webhook_url: "https://example.com".to_string(),
+                trigger: trigger.to_string(),
+                template_id: None,
+                enabled: true,
                 created: Utc::now(),
             };
             let json = serde_json::to_string(&policy).unwrap();

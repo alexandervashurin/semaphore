@@ -257,7 +257,12 @@ mod tests {
     use super::*;
     use k8s_openapi::ByteString;
 
-    fn make_secret(name: &str, namespace: &str, type_: &str, data: BTreeMap<String, ByteString>) -> Secret {
+    fn make_secret(
+        name: &str,
+        namespace: &str,
+        type_: &str,
+        data: BTreeMap<String, ByteString>,
+    ) -> Secret {
         Secret {
             metadata: kube::api::ObjectMeta {
                 name: Some(name.to_string()),

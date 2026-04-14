@@ -120,8 +120,7 @@ pub async fn get_template_last_outputs(
 #[cfg(test)]
 mod tests {
     use crate::models::task_structured_output::{
-        TaskStructuredOutput, TaskStructuredOutputCreate, TaskStructuredOutputBatch,
-        TaskOutputsMap,
+        TaskOutputsMap, TaskStructuredOutput, TaskStructuredOutputBatch, TaskStructuredOutputCreate,
     };
     use chrono::Utc;
     use serde_json::json;

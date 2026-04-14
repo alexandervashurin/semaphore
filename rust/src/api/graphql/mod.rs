@@ -53,7 +53,9 @@ pub async fn graphql_ws_handler(
     upgrade
         .protocols(ALL_WEBSOCKET_PROTOCOLS)
         .on_upgrade(move |stream| async move {
-            GraphQLWebSocket::new(stream, schema, protocol).serve().await;
+            GraphQLWebSocket::new(stream, schema, protocol)
+                .serve()
+                .await;
         })
 }
 

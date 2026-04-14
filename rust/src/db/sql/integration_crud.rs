@@ -194,8 +194,13 @@ mod tests {
         let methods = ["none", "hmac", "token", "basic", "oauth2"];
         for method in &methods {
             let integration = Integration {
-                id: 1, project_id: 1, name: "Test".to_string(), template_id: 1,
-                auth_method: method.to_string(), auth_header: None, auth_secret_id: None,
+                id: 1,
+                project_id: 1,
+                name: "Test".to_string(),
+                template_id: 1,
+                auth_method: method.to_string(),
+                auth_header: None,
+                auth_secret_id: None,
             };
             assert_eq!(integration.auth_method, *method);
         }
@@ -234,8 +239,24 @@ mod tests {
     #[test]
     fn test_integration_vec_serialization() {
         let integrations = vec![
-            Integration { id: 1, project_id: 10, name: "A".to_string(), template_id: 1, auth_method: "none".to_string(), auth_header: None, auth_secret_id: None },
-            Integration { id: 2, project_id: 10, name: "B".to_string(), template_id: 2, auth_method: "token".to_string(), auth_header: Some("Auth".to_string()), auth_secret_id: Some(1) },
+            Integration {
+                id: 1,
+                project_id: 10,
+                name: "A".to_string(),
+                template_id: 1,
+                auth_method: "none".to_string(),
+                auth_header: None,
+                auth_secret_id: None,
+            },
+            Integration {
+                id: 2,
+                project_id: 10,
+                name: "B".to_string(),
+                template_id: 2,
+                auth_method: "token".to_string(),
+                auth_header: Some("Auth".to_string()),
+                auth_secret_id: Some(1),
+            },
         ];
         let json = serde_json::to_string(&integrations).unwrap();
         assert!(json.contains("\"A\""));
@@ -245,8 +266,13 @@ mod tests {
     #[test]
     fn test_integration_debug() {
         let integration = Integration {
-            id: 1, project_id: 10, name: "Debug".to_string(), template_id: 5,
-            auth_method: "hmac".to_string(), auth_header: None, auth_secret_id: None,
+            id: 1,
+            project_id: 10,
+            name: "Debug".to_string(),
+            template_id: 5,
+            auth_method: "hmac".to_string(),
+            auth_header: None,
+            auth_secret_id: None,
         };
         let debug_str = format!("{:?}", integration);
         assert!(debug_str.contains("Debug"));

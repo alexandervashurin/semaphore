@@ -132,10 +132,10 @@ pub async fn add_task(
     let project_id = created.project_id;
     let task_id = created.id;
     let template_id = created.template_id;
-    
+
     tokio::spawn(async move {
         crate::services::task_execution::execute_task(store_arc.clone(), task_to_run).await;
-        
+
         // Отправляем Telegram уведомление после завершения
         if let Some(ref bot) = telegram_bot {
             // Перечитываем задачу для получения актуального статуса
@@ -146,14 +146,14 @@ pub async fn add_task(
                     .await
                     .map(|t| t.name)
                     .unwrap_or_else(|_| format!("Template #{}", template_id));
-                
+
                 // Получаем проект для имени
                 let project_name = store_arc
                     .get_project(project_id)
                     .await
                     .map(|p| p.name)
                     .unwrap_or_else(|_| format!("Project #{}", project_id));
-                
+
                 crate::services::task_execution::send_telegram_notification(
                     Some(bot),
                     &completed_task,

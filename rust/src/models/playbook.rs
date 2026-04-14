@@ -127,10 +127,15 @@ mod tests {
     #[test]
     fn test_playbook_clone() {
         let playbook = Playbook {
-            id: 1, project_id: 10, name: "clone.yml".to_string(),
-            content: "---".to_string(), description: None,
-            playbook_type: "ansible".to_string(), repository_id: None,
-            created: Utc::now(), updated: Utc::now(),
+            id: 1,
+            project_id: 10,
+            name: "clone.yml".to_string(),
+            content: "---".to_string(),
+            description: None,
+            playbook_type: "ansible".to_string(),
+            repository_id: None,
+            created: Utc::now(),
+            updated: Utc::now(),
         };
         let cloned = playbook.clone();
         assert_eq!(cloned.name, playbook.name);
@@ -140,10 +145,15 @@ mod tests {
     #[test]
     fn test_playbook_debug() {
         let playbook = Playbook {
-            id: 1, project_id: 1, name: "debug.yml".to_string(),
-            content: "---".to_string(), description: None,
-            playbook_type: "ansible".to_string(), repository_id: None,
-            created: Utc::now(), updated: Utc::now(),
+            id: 1,
+            project_id: 1,
+            name: "debug.yml".to_string(),
+            content: "---".to_string(),
+            description: None,
+            playbook_type: "ansible".to_string(),
+            repository_id: None,
+            created: Utc::now(),
+            updated: Utc::now(),
         };
         let debug_str = format!("{:?}", playbook);
         assert!(debug_str.contains("Playbook"));
@@ -153,8 +163,11 @@ mod tests {
     #[test]
     fn test_playbook_create_clone() {
         let create = PlaybookCreate {
-            name: "clone-create.yml".to_string(), content: "---".to_string(),
-            description: None, playbook_type: "shell".to_string(), repository_id: None,
+            name: "clone-create.yml".to_string(),
+            content: "---".to_string(),
+            description: None,
+            playbook_type: "shell".to_string(),
+            repository_id: None,
         };
         let cloned = create.clone();
         assert_eq!(cloned.name, create.name);
@@ -164,8 +177,10 @@ mod tests {
     #[test]
     fn test_playbook_update_clone() {
         let update = PlaybookUpdate {
-            name: "clone-update.yml".to_string(), content: "---".to_string(),
-            description: Some("Clone".to_string()), playbook_type: "ansible".to_string(),
+            name: "clone-update.yml".to_string(),
+            content: "---".to_string(),
+            description: Some("Clone".to_string()),
+            playbook_type: "ansible".to_string(),
         };
         let cloned = update.clone();
         assert_eq!(cloned.name, update.name);
@@ -192,10 +207,15 @@ mod tests {
     #[test]
     fn test_playbook_empty_description() {
         let playbook = Playbook {
-            id: 1, project_id: 1, name: "empty.yml".to_string(),
-            content: "---".to_string(), description: Some("".to_string()),
-            playbook_type: "ansible".to_string(), repository_id: None,
-            created: Utc::now(), updated: Utc::now(),
+            id: 1,
+            project_id: 1,
+            name: "empty.yml".to_string(),
+            content: "---".to_string(),
+            description: Some("".to_string()),
+            playbook_type: "ansible".to_string(),
+            repository_id: None,
+            created: Utc::now(),
+            updated: Utc::now(),
         };
         let json = serde_json::to_string(&playbook).unwrap();
         assert!(json.contains("\"description\":\"\""));
@@ -206,10 +226,15 @@ mod tests {
         let types = ["ansible", "terraform", "shell"];
         for pt in types {
             let playbook = Playbook {
-                id: 1, project_id: 1, name: "test.yml".to_string(),
-                content: "---".to_string(), description: None,
-                playbook_type: pt.to_string(), repository_id: None,
-                created: Utc::now(), updated: Utc::now(),
+                id: 1,
+                project_id: 1,
+                name: "test.yml".to_string(),
+                content: "---".to_string(),
+                description: None,
+                playbook_type: pt.to_string(),
+                repository_id: None,
+                created: Utc::now(),
+                updated: Utc::now(),
             };
             let json = serde_json::to_string(&playbook).unwrap();
             assert!(json.contains(&format!("\"playbook_type\":\"{}\"", pt)));
@@ -219,11 +244,15 @@ mod tests {
     #[test]
     fn test_playbook_unicode_content() {
         let playbook = Playbook {
-            id: 1, project_id: 1, name: "rus.yml".to_string(),
+            id: 1,
+            project_id: 1,
+            name: "rus.yml".to_string(),
             content: "---\n# Русское описание\n- hosts: all".to_string(),
             description: Some("Описание на русском".to_string()),
-            playbook_type: "ansible".to_string(), repository_id: None,
-            created: Utc::now(), updated: Utc::now(),
+            playbook_type: "ansible".to_string(),
+            repository_id: None,
+            created: Utc::now(),
+            updated: Utc::now(),
         };
         let json = serde_json::to_string(&playbook).unwrap();
         let restored: Playbook = serde_json::from_str(&json).unwrap();
@@ -233,10 +262,15 @@ mod tests {
     #[test]
     fn test_playbook_clone_independence() {
         let mut playbook = Playbook {
-            id: 1, project_id: 1, name: "original.yml".to_string(),
-            content: "---".to_string(), description: None,
-            playbook_type: "ansible".to_string(), repository_id: None,
-            created: Utc::now(), updated: Utc::now(),
+            id: 1,
+            project_id: 1,
+            name: "original.yml".to_string(),
+            content: "---".to_string(),
+            description: None,
+            playbook_type: "ansible".to_string(),
+            repository_id: None,
+            created: Utc::now(),
+            updated: Utc::now(),
         };
         let cloned = playbook.clone();
         playbook.name = "modified.yml".to_string();
@@ -246,11 +280,15 @@ mod tests {
     #[test]
     fn test_playbook_content_roundtrip() {
         let original = Playbook {
-            id: 42, project_id: 10, name: "roundtrip.yml".to_string(),
+            id: 42,
+            project_id: 10,
+            name: "roundtrip.yml".to_string(),
             content: "---\nhosts: all\ntasks: []".to_string(),
             description: Some("Roundtrip test".to_string()),
-            playbook_type: "ansible".to_string(), repository_id: Some(5),
-            created: Utc::now(), updated: Utc::now(),
+            playbook_type: "ansible".to_string(),
+            repository_id: Some(5),
+            created: Utc::now(),
+            updated: Utc::now(),
         };
         let json = serde_json::to_string(&original).unwrap();
         let restored: Playbook = serde_json::from_str(&json).unwrap();
@@ -276,10 +314,15 @@ mod tests {
     #[test]
     fn test_playbook_special_chars_in_content() {
         let playbook = Playbook {
-            id: 1, project_id: 1, name: "special.yml".to_string(),
+            id: 1,
+            project_id: 1,
+            name: "special.yml".to_string(),
             content: "---\n# Special: <tag> & \"quotes\"".to_string(),
-            description: None, playbook_type: "ansible".to_string(),
-            repository_id: None, created: Utc::now(), updated: Utc::now(),
+            description: None,
+            playbook_type: "ansible".to_string(),
+            repository_id: None,
+            created: Utc::now(),
+            updated: Utc::now(),
         };
         let json = serde_json::to_string(&playbook).unwrap();
         let restored: Playbook = serde_json::from_str(&json).unwrap();

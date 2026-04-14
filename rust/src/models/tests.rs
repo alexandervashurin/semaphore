@@ -370,7 +370,10 @@ mod tests {
     #[test]
     fn test_task_default() {
         let task = Task::default();
-        assert_eq!(task.status, crate::services::task_logger::TaskStatus::Waiting);
+        assert_eq!(
+            task.status,
+            crate::services::task_logger::TaskStatus::Waiting
+        );
         assert!(task.message.is_none());
     }
 
@@ -411,14 +414,8 @@ mod tests {
 
     #[test]
     fn test_hook_type_serialization() {
-        assert_eq!(
-            serde_json::to_string(&HookType::Http).unwrap(),
-            "\"http\""
-        );
-        assert_eq!(
-            serde_json::to_string(&HookType::Bash).unwrap(),
-            "\"bash\""
-        );
+        assert_eq!(serde_json::to_string(&HookType::Http).unwrap(), "\"http\"");
+        assert_eq!(serde_json::to_string(&HookType::Bash).unwrap(), "\"bash\"");
         assert_eq!(
             serde_json::to_string(&HookType::Python).unwrap(),
             "\"python\""

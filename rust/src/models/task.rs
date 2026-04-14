@@ -530,10 +530,22 @@ mod tests {
 
     #[test]
     fn test_task_stage_type_serialization() {
-        assert_eq!(serde_json::to_string(&TaskStageType::Init).unwrap(), "\"init\"");
-        assert_eq!(serde_json::to_string(&TaskStageType::TerraformPlan).unwrap(), "\"terraform_plan\"");
-        assert_eq!(serde_json::to_string(&TaskStageType::Running).unwrap(), "\"running\"");
-        assert_eq!(serde_json::to_string(&TaskStageType::PrintResult).unwrap(), "\"print_result\"");
+        assert_eq!(
+            serde_json::to_string(&TaskStageType::Init).unwrap(),
+            "\"init\""
+        );
+        assert_eq!(
+            serde_json::to_string(&TaskStageType::TerraformPlan).unwrap(),
+            "\"terraform_plan\""
+        );
+        assert_eq!(
+            serde_json::to_string(&TaskStageType::Running).unwrap(),
+            "\"running\""
+        );
+        assert_eq!(
+            serde_json::to_string(&TaskStageType::PrintResult).unwrap(),
+            "\"print_result\""
+        );
     }
 
     #[test]

@@ -223,7 +223,9 @@ mod tests {
 
     #[test]
     fn test_cost_query_max_limit() {
-        let query = CostQuery { limit: Some(i64::MAX) };
+        let query = CostQuery {
+            limit: Some(i64::MAX),
+        };
         assert_eq!(query.limit, Some(i64::MAX));
     }
 

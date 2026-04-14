@@ -2,14 +2,14 @@
 //!
 //! YAML apply с dry-run, diff и генератором kubectl-команды
 
+use crate::api::state::AppState;
+use crate::error::{Error, Result};
 use axum::{
     extract::{Query, State},
     Json,
 };
-use std::sync::Arc;
 use serde::{Deserialize, Serialize};
-use crate::api::state::AppState;
-use crate::error::{Error, Result};
+use std::sync::Arc;
 
 // ── Types ─────────────────────────────────────────────────────────
 
@@ -58,7 +58,7 @@ pub struct DiffResult {
 /// Генерирует kubectl-команду для действия
 #[derive(Debug, Deserialize)]
 pub struct KubectlGenQuery {
-    pub action: String,       // apply, delete, scale, rollout-restart
+    pub action: String, // apply, delete, scale, rollout-restart
     pub kind: Option<String>,
     pub name: Option<String>,
     pub namespace: Option<String>,
@@ -73,7 +73,11 @@ pub struct KubectlCommand {
 
 // ── Kubeconfig helper ─────────────────────────────────────────────
 fn kube_env(state: &AppState) -> Option<String> {
-    state.config.kubernetes.as_ref().and_then(|k| k.kubeconfig_path.clone())
+    state
+        .config
+        .kubernetes
+        .as_ref()
+        .and_then(|k| k.kubeconfig_path.clone())
 }
 
 fn kubectl_cmd(kubeconfig: &Option<String>) -> std::process::Command {
@@ -95,7 +99,10 @@ pub async fn apply_manifest(
     let kc = kube_env(&state);
     let manifest = payload.manifest.clone();
     let dry_run = payload.dry_run.unwrap_or(false);
-    let field_manager = payload.field_manager.clone().unwrap_or_else(|| "velum".to_string());
+    let field_manager = payload
+        .field_manager
+        .clone()
+        .unwrap_or_else(|| "velum".to_string());
     let force = payload.force.unwrap_or(false);
 
     // Build kubectl command string for display
@@ -103,15 +110,24 @@ pub async fn apply_manifest(
 
     let result = tokio::task::spawn_blocking(move || -> Result<(String, Vec<u8>)> {
         // Write manifest to temp file
-        let tmp = std::env::temp_dir().join(format!("velum-apply-{}.yaml", std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis()));
+        let tmp = std::env::temp_dir().join(format!(
+            "velum-apply-{}.yaml",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis()
+        ));
         std::fs::write(&tmp, manifest.as_bytes())
             .map_err(|e| Error::Other(format!("write tmp: {e}")))?;
 
         let mut cmd = kubectl_cmd(&kc);
-        cmd.arg("apply").arg("-f").arg(&tmp)
-            .arg("--field-manager").arg(&field_manager)
-            .arg("-o").arg("json");
+        cmd.arg("apply")
+            .arg("-f")
+            .arg(&tmp)
+            .arg("--field-manager")
+            .arg(&field_manager)
+            .arg("-o")
+            .arg("json");
         if dry_run {
             cmd.arg("--dry-run=server");
         }
@@ -121,13 +137,17 @@ pub async fn apply_manifest(
         let out = cmd.output().map_err(|e| Error::Other(e.to_string()))?;
         let _ = std::fs::remove_file(&tmp);
         Ok((String::from_utf8_lossy(&out.stderr).to_string(), out.stdout))
-    }).await.map_err(|e| Error::Other(e.to_string()))?;
+    })
+    .await
+    .map_err(|e| Error::Other(e.to_string()))?;
 
     match result {
         Ok((stderr, stdout)) => {
-            let warnings: Vec<String> = stderr.lines()
+            let warnings: Vec<String> = stderr
+                .lines()
                 .filter(|l| l.starts_with("Warning:"))
-                .map(String::from).collect();
+                .map(String::from)
+                .collect();
 
             let resources = parse_kubectl_apply_output(&stdout);
             let output_text = String::from_utf8_lossy(&stdout).to_string();
@@ -135,7 +155,11 @@ pub async fn apply_manifest(
             Ok(Json(ApplyResult {
                 success: true,
                 dry_run,
-                output: if output_text.len() > 4000 { output_text[..4000].to_string() + "…" } else { output_text },
+                output: if output_text.len() > 4000 {
+                    output_text[..4000].to_string() + "…"
+                } else {
+                    output_text
+                },
                 kubectl_command: kubectl_display,
                 resources,
                 warnings,
@@ -164,8 +188,13 @@ pub async fn diff_manifest(
     let kubectl_display = "kubectl diff -f -".to_string();
 
     let result = tokio::task::spawn_blocking(move || -> Result<String> {
-        let tmp = std::env::temp_dir().join(format!("velum-diff-{}.yaml", std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis()));
+        let tmp = std::env::temp_dir().join(format!(
+            "velum-diff-{}.yaml",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis()
+        ));
         std::fs::write(&tmp, manifest.as_bytes())
             .map_err(|e| Error::Other(format!("write tmp: {e}")))?;
 
@@ -177,10 +206,14 @@ pub async fn diff_manifest(
         // kubectl diff exits 1 if there are diffs, 0 if no diff, 2 on error
         let code = out.status.code().unwrap_or(2);
         if code == 2 {
-            return Err(Error::Other(String::from_utf8_lossy(&out.stderr).to_string()));
+            return Err(Error::Other(
+                String::from_utf8_lossy(&out.stderr).to_string(),
+            ));
         }
         Ok(String::from_utf8_lossy(&out.stdout).to_string())
-    }).await.map_err(|e| Error::Other(e.to_string()))?;
+    })
+    .await
+    .map_err(|e| Error::Other(e.to_string()))?;
 
     match result {
         Ok(diff) => Ok(Json(DiffResult {
@@ -198,7 +231,11 @@ pub async fn generate_kubectl_command(
     State(_state): State<Arc<AppState>>,
     Query(q): Query<KubectlGenQuery>,
 ) -> Result<Json<KubectlCommand>> {
-    let ns_flag = q.namespace.as_deref().map(|n| format!(" -n {n}")).unwrap_or_default();
+    let ns_flag = q
+        .namespace
+        .as_deref()
+        .map(|n| format!(" -n {n}"))
+        .unwrap_or_default();
     let kind_name = match (&q.kind, &q.name) {
         (Some(k), Some(n)) => format!("{}/{}", k.to_lowercase(), n),
         (Some(k), None) => k.to_lowercase(),
@@ -264,7 +301,10 @@ pub async fn generate_kubectl_command(
         ),
     };
 
-    Ok(Json(KubectlCommand { command, description }))
+    Ok(Json(KubectlCommand {
+        command,
+        description,
+    }))
 }
 
 /// GET /api/kubernetes/clusters
@@ -277,41 +317,55 @@ pub async fn list_configured_clusters(
     // Try to get contexts from kubeconfig
     let contexts = tokio::task::spawn_blocking(move || {
         let mut cmd = std::process::Command::new("kubectl");
-        if let Some(k) = &kc { cmd.env("KUBECONFIG", k); }
-        let out = cmd.arg("config").arg("get-contexts").arg("-o").arg("name")
+        if let Some(k) = &kc {
+            cmd.env("KUBECONFIG", k);
+        }
+        let out = cmd
+            .arg("config")
+            .arg("get-contexts")
+            .arg("-o")
+            .arg("name")
             .output();
         match out {
-            Ok(o) if o.status.success() => {
-                String::from_utf8_lossy(&o.stdout)
-                    .lines()
-                    .filter(|l| !l.trim().is_empty())
-                    .map(String::from)
-                    .collect::<Vec<_>>()
-            }
+            Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout)
+                .lines()
+                .filter(|l| !l.trim().is_empty())
+                .map(String::from)
+                .collect::<Vec<_>>(),
             _ => vec!["default".to_string()],
         }
-    }).await.map_err(|e| Error::Other(e.to_string()))?;
+    })
+    .await
+    .map_err(|e| Error::Other(e.to_string()))?;
 
     // Get current context
     let current = tokio::task::spawn_blocking(|| {
         let out = std::process::Command::new("kubectl")
-            .arg("config").arg("current-context")
+            .arg("config")
+            .arg("current-context")
             .output();
         match out {
             Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).trim().to_string(),
             _ => "default".to_string(),
         }
-    }).await.unwrap_or_else(|_| "default".to_string());
+    })
+    .await
+    .unwrap_or_else(|_| "default".to_string());
 
-    let clusters: Vec<serde_json::Value> = contexts.iter().map(|name| {
-        serde_json::json!({
-            "name": name,
-            "current": name == &current,
-            "id": name,
+    let clusters: Vec<serde_json::Value> = contexts
+        .iter()
+        .map(|name| {
+            serde_json::json!({
+                "name": name,
+                "current": name == &current,
+                "id": name,
+            })
         })
-    }).collect();
+        .collect();
 
-    Ok(Json(serde_json::json!({ "clusters": clusters, "current": current })))
+    Ok(Json(
+        serde_json::json!({ "clusters": clusters, "current": current }),
+    ))
 }
 
 /// POST /api/kubernetes/clusters/switch
@@ -328,16 +382,28 @@ pub async fn switch_cluster_context(
     let ctx = context.clone();
     tokio::task::spawn_blocking(move || -> Result<()> {
         let mut cmd = std::process::Command::new("kubectl");
-        if let Some(k) = &kc { cmd.env("KUBECONFIG", k); }
-        let out = cmd.arg("config").arg("use-context").arg(&ctx)
-            .output().map_err(|e| Error::Other(e.to_string()))?;
+        if let Some(k) = &kc {
+            cmd.env("KUBECONFIG", k);
+        }
+        let out = cmd
+            .arg("config")
+            .arg("use-context")
+            .arg(&ctx)
+            .output()
+            .map_err(|e| Error::Other(e.to_string()))?;
         if !out.status.success() {
-            return Err(Error::Other(String::from_utf8_lossy(&out.stderr).to_string()));
+            return Err(Error::Other(
+                String::from_utf8_lossy(&out.stderr).to_string(),
+            ));
         }
         Ok(())
-    }).await.map_err(|e| Error::Other(e.to_string()))??;
+    })
+    .await
+    .map_err(|e| Error::Other(e.to_string()))??;
 
-    Ok(Json(serde_json::json!({ "switched": true, "context": context })))
+    Ok(Json(
+        serde_json::json!({ "switched": true, "context": context }),
+    ))
 }
 
 // ── Helpers ───────────────────────────────────────────────────────
@@ -347,8 +413,12 @@ fn build_apply_command(field_manager: &str, dry_run: bool, force: bool) -> Strin
         "kubectl apply -f manifest.yaml".to_string(),
         format!("--field-manager={field_manager}"),
     ];
-    if dry_run { parts.push("--dry-run=server".to_string()); }
-    if force { parts.push("--force-conflicts".to_string()); }
+    if dry_run {
+        parts.push("--dry-run=server".to_string());
+    }
+    if force {
+        parts.push("--force-conflicts".to_string());
+    }
     parts.join(" ")
 }
 
@@ -363,15 +433,20 @@ fn parse_kubectl_apply_output(stdout: &[u8]) -> Vec<AppliedResource> {
             vec![]
         };
 
-        return items.iter().map(|item| {
-            AppliedResource {
+        return items
+            .iter()
+            .map(|item| AppliedResource {
                 kind: item["kind"].as_str().unwrap_or("Unknown").to_string(),
                 name: item["metadata"]["name"].as_str().unwrap_or("").to_string(),
                 namespace: item["metadata"]["namespace"].as_str().map(String::from),
-                action: item["metadata"]["annotations"]["kubectl.kubernetes.io/last-applied-configuration"]
-                    .as_str().map(|_| "configured").unwrap_or("created").to_string(),
-            }
-        }).collect();
+                action: item["metadata"]["annotations"]
+                    ["kubectl.kubernetes.io/last-applied-configuration"]
+                    .as_str()
+                    .map(|_| "configured")
+                    .unwrap_or("created")
+                    .to_string(),
+            })
+            .collect();
     }
     vec![]
 }
@@ -474,7 +549,10 @@ mod tests {
         };
         let json = serde_json::to_value(&result).unwrap();
         assert_eq!(json["warnings"].as_array().unwrap().len(), 1);
-        assert!(json["warnings"][0].as_str().unwrap().starts_with("Warning:"));
+        assert!(json["warnings"][0]
+            .as_str()
+            .unwrap()
+            .starts_with("Warning:"));
     }
 
     // ── DiffQuery / DiffResult ──
@@ -663,7 +741,10 @@ mod tests {
     #[test]
     fn test_build_apply_command_custom_manager() {
         let cmd = build_apply_command("custom-mgr", false, false);
-        assert_eq!(cmd, "kubectl apply -f manifest.yaml --field-manager=custom-mgr");
+        assert_eq!(
+            cmd,
+            "kubectl apply -f manifest.yaml --field-manager=custom-mgr"
+        );
     }
 
     // ── generate_kubectl_command actions ──
@@ -671,11 +752,22 @@ mod tests {
     #[test]
     fn test_kubectl_gen_query_all_actions() {
         let actions = vec![
-            "apply", "delete", "scale", "rollout-restart", "rollout-undo",
-            "get-yaml", "logs", "exec", "port-forward", "describe",
+            "apply",
+            "delete",
+            "scale",
+            "rollout-restart",
+            "rollout-undo",
+            "get-yaml",
+            "logs",
+            "exec",
+            "port-forward",
+            "describe",
         ];
         for action in actions {
-            let json = format!(r#"{{"action": "{}", "kind": "deployment", "name": "api"}}"#, action);
+            let json = format!(
+                r#"{{"action": "{}", "kind": "deployment", "name": "api"}}"#,
+                action
+            );
             let q: KubectlGenQuery = serde_json::from_str(&json).unwrap();
             assert_eq!(q.action, action);
         }

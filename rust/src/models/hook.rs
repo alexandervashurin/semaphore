@@ -75,7 +75,10 @@ mod tests {
     fn test_hook_type_serialization() {
         assert_eq!(serde_json::to_string(&HookType::Http).unwrap(), "\"http\"");
         assert_eq!(serde_json::to_string(&HookType::Bash).unwrap(), "\"bash\"");
-        assert_eq!(serde_json::to_string(&HookType::Python).unwrap(), "\"python\"");
+        assert_eq!(
+            serde_json::to_string(&HookType::Python).unwrap(),
+            "\"python\""
+        );
     }
 
     #[test]
@@ -155,7 +158,10 @@ mod tests {
         // HookType uses serde(rename_all = "snake_case") for serialization
         assert_eq!(serde_json::to_string(&HookType::Http).unwrap(), "\"http\"");
         assert_eq!(serde_json::to_string(&HookType::Bash).unwrap(), "\"bash\"");
-        assert_eq!(serde_json::to_string(&HookType::Python).unwrap(), "\"python\"");
+        assert_eq!(
+            serde_json::to_string(&HookType::Python).unwrap(),
+            "\"python\""
+        );
     }
 
     #[test]
@@ -206,10 +212,16 @@ mod tests {
     #[test]
     fn test_hook_with_all_fields_populated() {
         let hook = Hook {
-            id: 10, project_id: 50, template_id: 25, name: "Full Hook".to_string(),
-            r#type: HookType::Http, url: Some("https://full.com".to_string()),
-            script: Some("echo hello".to_string()), http_method: Some("PUT".to_string()),
-            http_body: Some(r#"{"key":"value"}"#.to_string()), timeout_secs: Some(60),
+            id: 10,
+            project_id: 50,
+            template_id: 25,
+            name: "Full Hook".to_string(),
+            r#type: HookType::Http,
+            url: Some("https://full.com".to_string()),
+            script: Some("echo hello".to_string()),
+            http_method: Some("PUT".to_string()),
+            http_body: Some(r#"{"key":"value"}"#.to_string()),
+            timeout_secs: Some(60),
         };
         let json = serde_json::to_string(&hook).unwrap();
         assert!(json.contains("\"id\":10"));
@@ -220,7 +232,10 @@ mod tests {
     #[test]
     fn test_hook_deserialization_all_types() {
         for hook_type in &["http", "bash", "python"] {
-            let json = format!(r#"{{"id":1,"project_id":1,"template_id":1,"name":"T","type":"{}","url":null,"script":null,"http_method":null,"http_body":null,"timeout_secs":null}}"#, hook_type);
+            let json = format!(
+                r#"{{"id":1,"project_id":1,"template_id":1,"name":"T","type":"{}","url":null,"script":null,"http_method":null,"http_body":null,"timeout_secs":null}}"#,
+                hook_type
+            );
             let hook: Hook = serde_json::from_str(&json).unwrap();
             assert_eq!(hook.name, "T");
         }

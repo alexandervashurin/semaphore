@@ -706,15 +706,13 @@ mod tests {
 
     #[test]
     fn test_role_wide_rules_not_wide() {
-        let rules = vec![
-            PolicyRule {
-                verbs: vec!["get".to_string()],
-                resources: Some(vec!["pods".to_string()]),
-                api_groups: Some(vec!["".to_string()]),
-                non_resource_urls: None,
-                resource_names: None,
-            },
-        ];
+        let rules = vec![PolicyRule {
+            verbs: vec!["get".to_string()],
+            resources: Some(vec!["pods".to_string()]),
+            api_groups: Some(vec!["".to_string()]),
+            non_resource_urls: None,
+            resource_names: None,
+        }];
         let (is_wide, warn) = role_wide_rules(&rules);
         assert!(!is_wide);
         assert!(warn.is_none());
@@ -750,9 +748,18 @@ mod tests {
     #[test]
     fn test_labels_psa_view() {
         let mut labels = BTreeMap::new();
-        labels.insert("pod-security.kubernetes.io/enforce".to_string(), "restricted".to_string());
-        labels.insert("pod-security.kubernetes.io/audit".to_string(), "baseline".to_string());
-        labels.insert("pod-security.kubernetes.io/warn".to_string(), "restricted".to_string());
+        labels.insert(
+            "pod-security.kubernetes.io/enforce".to_string(),
+            "restricted".to_string(),
+        );
+        labels.insert(
+            "pod-security.kubernetes.io/audit".to_string(),
+            "baseline".to_string(),
+        );
+        labels.insert(
+            "pod-security.kubernetes.io/warn".to_string(),
+            "restricted".to_string(),
+        );
 
         let view = labels_psa_view(&labels);
         assert_eq!(view.enforce, Some("restricted".to_string()));
@@ -857,7 +864,10 @@ mod tests {
     #[test]
     fn test_pod_security_admission_view_partial() {
         let mut labels = BTreeMap::new();
-        labels.insert("pod-security.kubernetes.io/enforce".to_string(), "baseline".to_string());
+        labels.insert(
+            "pod-security.kubernetes.io/enforce".to_string(),
+            "baseline".to_string(),
+        );
 
         let view = labels_psa_view(&labels);
         assert_eq!(view.enforce, Some("baseline".to_string()));
@@ -898,9 +908,7 @@ mod tests {
 
     #[test]
     fn test_rules_review_request_no_namespace() {
-        let req = RulesReviewRequest {
-            namespace: None,
-        };
+        let req = RulesReviewRequest { namespace: None };
         assert!(req.namespace.is_none());
     }
 
@@ -938,15 +946,13 @@ mod tests {
 
     #[test]
     fn test_role_wide_rules_single_non_wide() {
-        let rules = vec![
-            PolicyRule {
-                verbs: vec!["get".to_string()],
-                resources: Some(vec!["configmaps".to_string()]),
-                api_groups: Some(vec!["".to_string()]),
-                non_resource_urls: None,
-                resource_names: None,
-            },
-        ];
+        let rules = vec![PolicyRule {
+            verbs: vec!["get".to_string()],
+            resources: Some(vec!["configmaps".to_string()]),
+            api_groups: Some(vec!["".to_string()]),
+            non_resource_urls: None,
+            resource_names: None,
+        }];
         let (is_wide, warn) = role_wide_rules(&rules);
         assert!(!is_wide);
         assert!(warn.is_none());
@@ -965,15 +971,13 @@ mod tests {
 
     #[test]
     fn test_summarize_role_basic() {
-        let rules = vec![
-            PolicyRule {
-                verbs: vec!["get".to_string()],
-                resources: Some(vec!["pods".to_string()]),
-                api_groups: Some(vec!["".to_string()]),
-                non_resource_urls: None,
-                resource_names: None,
-            },
-        ];
+        let rules = vec![PolicyRule {
+            verbs: vec!["get".to_string()],
+            resources: Some(vec!["pods".to_string()]),
+            api_groups: Some(vec!["".to_string()]),
+            non_resource_urls: None,
+            resource_names: None,
+        }];
         let summary = summarize_role("test-role", "default", &rules);
         assert_eq!(summary.name, "test-role");
         assert_eq!(summary.namespace, Some("default".to_string()));
@@ -984,15 +988,13 @@ mod tests {
 
     #[test]
     fn test_summarize_cluster_role_system_name() {
-        let rules = vec![
-            PolicyRule {
-                verbs: vec!["get".to_string()],
-                resources: Some(vec!["nodes".to_string()]),
-                api_groups: Some(vec!["".to_string()]),
-                non_resource_urls: None,
-                resource_names: None,
-            },
-        ];
+        let rules = vec![PolicyRule {
+            verbs: vec!["get".to_string()],
+            resources: Some(vec!["nodes".to_string()]),
+            api_groups: Some(vec!["".to_string()]),
+            non_resource_urls: None,
+            resource_names: None,
+        }];
         let summary = summarize_cluster_role("system:kubelet", &rules);
         assert!(summary.is_system);
         assert!(summary.warning.is_some());
@@ -1001,15 +1003,13 @@ mod tests {
 
     #[test]
     fn test_summarize_cluster_role_non_system() {
-        let rules = vec![
-            PolicyRule {
-                verbs: vec!["*".to_string()],
-                resources: Some(vec!["*".to_string()]),
-                api_groups: Some(vec!["*".to_string()]),
-                non_resource_urls: None,
-                resource_names: None,
-            },
-        ];
+        let rules = vec![PolicyRule {
+            verbs: vec!["*".to_string()],
+            resources: Some(vec!["*".to_string()]),
+            api_groups: Some(vec!["*".to_string()]),
+            non_resource_urls: None,
+            resource_names: None,
+        }];
         let summary = summarize_cluster_role("my-custom-role", &rules);
         assert!(!summary.is_system);
         assert!(summary.wide_rules);
@@ -1018,9 +1018,7 @@ mod tests {
 
     #[test]
     fn test_namespace_query_default_none() {
-        let query = NamespaceQuery {
-            namespace: None,
-        };
+        let query = NamespaceQuery { namespace: None };
         assert!(query.namespace.is_none());
     }
 

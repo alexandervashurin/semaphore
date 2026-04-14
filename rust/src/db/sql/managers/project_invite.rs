@@ -45,9 +45,14 @@ mod tests {
     #[test]
     fn test_project_invite_serialization() {
         let invite = ProjectInvite {
-            id: 1, project_id: 10, user_id: 5, role: "manager".to_string(),
-            created: Utc::now(), updated: Utc::now(),
-            token: "invite-token-123".to_string(), inviter_user_id: 1,
+            id: 1,
+            project_id: 10,
+            user_id: 5,
+            role: "manager".to_string(),
+            created: Utc::now(),
+            updated: Utc::now(),
+            token: "invite-token-123".to_string(),
+            inviter_user_id: 1,
         };
         let json = serde_json::to_string(&invite).unwrap();
         assert!(json.contains("\"role\":\"manager\""));
@@ -57,10 +62,16 @@ mod tests {
     #[test]
     fn test_project_invite_with_user_serialization() {
         let invite = ProjectInviteWithUser {
-            id: 1, project_id: 10, user_id: 5, role: "task_runner".to_string(),
-            created: Utc::now(), updated: Utc::now(),
-            token: "token-456".to_string(), inviter_user_id: 1,
-            user_name: "John Doe".to_string(), user_email: "john@example.com".to_string(),
+            id: 1,
+            project_id: 10,
+            user_id: 5,
+            role: "task_runner".to_string(),
+            created: Utc::now(),
+            updated: Utc::now(),
+            token: "token-456".to_string(),
+            inviter_user_id: 1,
+            user_name: "John Doe".to_string(),
+            user_email: "john@example.com".to_string(),
         };
         let json = serde_json::to_string(&invite).unwrap();
         assert!(json.contains("\"user_name\":\"John Doe\""));
@@ -70,9 +81,14 @@ mod tests {
     #[test]
     fn test_project_invite_clone() {
         let invite = ProjectInvite {
-            id: 1, project_id: 10, user_id: 5, role: "manager".to_string(),
-            created: Utc::now(), updated: Utc::now(),
-            token: "clone-token".to_string(), inviter_user_id: 1,
+            id: 1,
+            project_id: 10,
+            user_id: 5,
+            role: "manager".to_string(),
+            created: Utc::now(),
+            updated: Utc::now(),
+            token: "clone-token".to_string(),
+            inviter_user_id: 1,
         };
         let cloned = invite.clone();
         assert_eq!(cloned.token, invite.token);
@@ -82,10 +98,16 @@ mod tests {
     #[test]
     fn test_project_invite_with_user_clone() {
         let invite = ProjectInviteWithUser {
-            id: 1, project_id: 10, user_id: 5, role: "owner".to_string(),
-            created: Utc::now(), updated: Utc::now(),
-            token: "tok".to_string(), inviter_user_id: 1,
-            user_name: "Clone User".to_string(), user_email: "clone@example.com".to_string(),
+            id: 1,
+            project_id: 10,
+            user_id: 5,
+            role: "owner".to_string(),
+            created: Utc::now(),
+            updated: Utc::now(),
+            token: "tok".to_string(),
+            inviter_user_id: 1,
+            user_name: "Clone User".to_string(),
+            user_email: "clone@example.com".to_string(),
         };
         let cloned = invite.clone();
         assert_eq!(cloned.user_name, invite.user_name);
@@ -112,9 +134,14 @@ mod tests {
         let roles = ["owner", "manager", "task_runner", "viewer"];
         for role in roles {
             let invite = ProjectInvite {
-                id: 1, project_id: 1, user_id: 1, role: role.to_string(),
-                created: Utc::now(), updated: Utc::now(),
-                token: "token".to_string(), inviter_user_id: 1,
+                id: 1,
+                project_id: 1,
+                user_id: 1,
+                role: role.to_string(),
+                created: Utc::now(),
+                updated: Utc::now(),
+                token: "token".to_string(),
+                inviter_user_id: 1,
             };
             let json = serde_json::to_string(&invite).unwrap();
             assert!(json.contains(&format!("\"role\":\"{}\"", role)));
@@ -124,10 +151,16 @@ mod tests {
     #[test]
     fn test_project_invite_empty_user_info() {
         let invite = ProjectInviteWithUser {
-            id: 1, project_id: 1, user_id: 1, role: "owner".to_string(),
-            created: Utc::now(), updated: Utc::now(),
-            token: "tok".to_string(), inviter_user_id: 1,
-            user_name: String::new(), user_email: String::new(),
+            id: 1,
+            project_id: 1,
+            user_id: 1,
+            role: "owner".to_string(),
+            created: Utc::now(),
+            updated: Utc::now(),
+            token: "tok".to_string(),
+            inviter_user_id: 1,
+            user_name: String::new(),
+            user_email: String::new(),
         };
         assert!(invite.user_name.is_empty());
         assert!(invite.user_email.is_empty());

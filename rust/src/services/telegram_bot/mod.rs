@@ -47,24 +47,28 @@ impl TelegramBot {
     }
 
     fn notification_bot() -> Option<Arc<TelegramBot>> {
-        NOTIFICATION_BOT
-            .get()
-            .and_then(|opt| opt.as_ref().cloned())
+        NOTIFICATION_BOT.get().and_then(|opt| opt.as_ref().cloned())
     }
 
     /// Создаёт бота если задан токен в конфиге / env.
     pub fn new(config: &Config) -> Option<Arc<Self>> {
-        let token = config.telegram_bot_token.clone()
+        let token = config
+            .telegram_bot_token
+            .clone()
             .or_else(|| std::env::var("SEMAPHORE_TELEGRAM_TOKEN").ok())?;
 
         if token.is_empty() {
             return None;
         }
 
-        let default_chat_id = std::env::var("SEMAPHORE_TELEGRAM_CHAT_ID").ok()
+        let default_chat_id = std::env::var("SEMAPHORE_TELEGRAM_CHAT_ID")
+            .ok()
             .filter(|s| !s.is_empty());
 
-        info!("Telegram bot configured (token: {}...)", &token[..token.len().min(10)]);
+        info!(
+            "Telegram bot configured (token: {}...)",
+            &token[..token.len().min(10)]
+        );
 
         Some(Arc::new(Self {
             token,
@@ -87,7 +91,8 @@ impl TelegramBot {
             "disable_web_page_preview": true,
         });
 
-        let resp = self.client
+        let resp = self
+            .client
             .post(self.api_url("sendMessage"))
             .json(&payload)
             .send()
@@ -96,7 +101,9 @@ impl TelegramBot {
 
         if !resp.status().is_success() {
             let body = resp.text().await.unwrap_or_default();
-            return Err(crate::error::Error::Other(format!("Telegram API error: {body}")));
+            return Err(crate::error::Error::Other(format!(
+                "Telegram API error: {body}"
+            )));
         }
         Ok(())
     }
@@ -229,7 +236,8 @@ impl TelegramBot {
             "allowed_updates": ["message"],
         });
 
-        let resp = self.client
+        let resp = self
+            .client
             .post(self.api_url("getUpdates"))
             .json(&payload)
             .timeout(std::time::Duration::from_secs(35))
@@ -237,13 +245,12 @@ impl TelegramBot {
             .await
             .map_err(|e| crate::error::Error::Other(format!("Telegram getUpdates: {e}")))?;
 
-        let body: serde_json::Value = resp.json().await
+        let body: serde_json::Value = resp
+            .json()
+            .await
             .map_err(|e| crate::error::Error::Other(format!("Telegram parse: {e}")))?;
 
-        let updates = body["result"]
-            .as_array()
-            .cloned()
-            .unwrap_or_default();
+        let updates = body["result"].as_array().cloned().unwrap_or_default();
 
         Ok(updates)
     }
@@ -258,19 +265,20 @@ impl TelegramBot {
                 ).await?;
             }
             "/help" => {
-                self.send_message(chat_id,
+                self.send_message(
+                    chat_id,
                     "<b>Команды:</b>\n\
                      /start — приветствие\n\
                      /help  — эта справка\n\
                      /status — статус сервера\n\n\
-                     <i>Уведомления о задачах отправляются автоматически.</i>"
-                ).await?;
+                     <i>Уведомления о задачах отправляются автоматически.</i>",
+                )
+                .await?;
             }
             "/status" => {
                 let ver = env!("CARGO_PKG_VERSION");
-                self.send_message(chat_id,
-                    &format!("🟢 Velum v{ver} работает")
-                ).await?;
+                self.send_message(chat_id, &format!("🟢 Velum v{ver} работает"))
+                    .await?;
             }
             _ => {
                 // Unknown command — ignore silently to avoid spam
@@ -1017,7 +1025,11 @@ mod notify_tests {
     fn unknown_command_not_in_known_set() {
         let known = vec!["/start", "/help", "/status"];
         let unknown = "/unknown_command";
-        let cmd = unknown.split_whitespace().next().unwrap_or("").to_lowercase();
+        let cmd = unknown
+            .split_whitespace()
+            .next()
+            .unwrap_or("")
+            .to_lowercase();
         assert!(!known.contains(&cmd.as_str()));
     }
 
@@ -1382,12 +1394,7 @@ mod notify_tests {
 
     #[test]
     fn bot_with_various_chat_id_formats() {
-        let formats = vec![
-            "-1001234567890",
-            "-123456789",
-            "123456789",
-            "user_123",
-        ];
+        let formats = vec!["-1001234567890", "-123456789", "123456789", "user_123"];
         for chat_id in formats {
             let bot = TelegramBot {
                 token: "tok".to_string(),
@@ -1405,10 +1412,22 @@ mod notify_tests {
             default_chat_id: None,
             client: reqwest::Client::new(),
         };
-        assert_eq!(bot.api_url("sendMessage"), "https://api.telegram.org/botabc123/sendMessage");
-        assert_eq!(bot.api_url("getUpdates"), "https://api.telegram.org/botabc123/getUpdates");
-        assert_eq!(bot.api_url("sendDocument"), "https://api.telegram.org/botabc123/sendDocument");
-        assert_eq!(bot.api_url("getMe"), "https://api.telegram.org/botabc123/getMe");
+        assert_eq!(
+            bot.api_url("sendMessage"),
+            "https://api.telegram.org/botabc123/sendMessage"
+        );
+        assert_eq!(
+            bot.api_url("getUpdates"),
+            "https://api.telegram.org/botabc123/getUpdates"
+        );
+        assert_eq!(
+            bot.api_url("sendDocument"),
+            "https://api.telegram.org/botabc123/sendDocument"
+        );
+        assert_eq!(
+            bot.api_url("getMe"),
+            "https://api.telegram.org/botabc123/getMe"
+        );
     }
 
     #[test]
@@ -1419,7 +1438,8 @@ mod notify_tests {
             client: reqwest::Client::new(),
         };
         let url = bot.api_url("sendMessage");
-        assert!(url.starts_with("https://api.telegram.org/bot123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11/"));
+        assert!(url
+            .starts_with("https://api.telegram.org/bot123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11/"));
     }
 
     // ── Additional tests: chat ID validation ───────────────────────
@@ -1451,7 +1471,8 @@ mod notify_tests {
     #[test]
     fn chat_id_invalid_contains_letters() {
         let chat_id = "-100abc123";
-        let is_valid = chat_id.starts_with("-100") && chat_id.chars().skip(4).all(|c| c.is_ascii_digit());
+        let is_valid =
+            chat_id.starts_with("-100") && chat_id.chars().skip(4).all(|c| c.is_ascii_digit());
         assert!(!is_valid);
     }
 

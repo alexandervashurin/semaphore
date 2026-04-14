@@ -566,8 +566,14 @@ mod tests {
 
         let events = vec![
             TaskPoolEvent::TaskCreated(task.clone()),
-            TaskPoolEvent::TaskFinished { task_id: 1, success: true },
-            TaskPoolEvent::TaskFailed { task_id: 1, error: "err".to_string() },
+            TaskPoolEvent::TaskFinished {
+                task_id: 1,
+                success: true,
+            },
+            TaskPoolEvent::TaskFailed {
+                task_id: 1,
+                error: "err".to_string(),
+            },
             TaskPoolEvent::TaskRequeued(task.clone()),
             TaskPoolEvent::QueueEmpty,
         ];
@@ -607,7 +613,11 @@ mod tests {
             params: None,
         };
 
-        state.queue.entry(1).or_insert_with(Vec::new).push(task1.clone());
+        state
+            .queue
+            .entry(1)
+            .or_insert_with(Vec::new)
+            .push(task1.clone());
         assert_eq!(state.queue.values().map(|q| q.len()).sum::<usize>(), 1);
 
         // Добавляем running задачу
@@ -617,7 +627,11 @@ mod tests {
             started_at: Utc::now(),
             runner_id: None,
         };
-        state.running.entry(1).or_insert_with(Vec::new).push(running);
+        state
+            .running
+            .entry(1)
+            .or_insert_with(Vec::new)
+            .push(running);
         assert_eq!(state.running.values().map(|r| r.len()).sum::<usize>(), 1);
     }
 
@@ -638,7 +652,10 @@ mod tests {
 
     #[test]
     fn test_task_pool_event_debug_format() {
-        let event = TaskPoolEvent::TaskFinished { task_id: 42, success: true };
+        let event = TaskPoolEvent::TaskFinished {
+            task_id: 42,
+            success: true,
+        };
         let debug_str = format!("{:?}", event);
         assert!(debug_str.contains("TaskFinished"));
         assert!(debug_str.contains("42"));
@@ -984,10 +1001,22 @@ mod tests {
 
     #[test]
     fn test_task_pool_event_debug_output() {
-        let task = Task { id: 7, project_id: 1, template_id: 1, status: TaskStatus::Waiting, ..Default::default() };
+        let task = Task {
+            id: 7,
+            project_id: 1,
+            template_id: 1,
+            status: TaskStatus::Waiting,
+            ..Default::default()
+        };
         let created = TaskPoolEvent::TaskCreated(task.clone());
-        let finished = TaskPoolEvent::TaskFinished { task_id: 7, success: true };
-        let failed = TaskPoolEvent::TaskFailed { task_id: 7, error: "boom".to_string() };
+        let finished = TaskPoolEvent::TaskFinished {
+            task_id: 7,
+            success: true,
+        };
+        let failed = TaskPoolEvent::TaskFailed {
+            task_id: 7,
+            error: "boom".to_string(),
+        };
         let requeued = TaskPoolEvent::TaskRequeued(task);
         let empty = TaskPoolEvent::QueueEmpty;
 
@@ -1005,7 +1034,13 @@ mod tests {
         assert!(state.queue.contains_key(&1));
         assert!(state.queue[&1].is_empty());
 
-        state.queue.entry(1).or_insert_with(Vec::new).push(Task { id: 1, project_id: 1, template_id: 1, status: TaskStatus::Waiting, ..Default::default() });
+        state.queue.entry(1).or_insert_with(Vec::new).push(Task {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            status: TaskStatus::Waiting,
+            ..Default::default()
+        });
         assert_eq!(state.queue[&1].len(), 1);
     }
 
@@ -1040,7 +1075,13 @@ mod tests {
     fn test_running_task_started_at_is_now() {
         let before = Utc::now();
         let running = RunningTask {
-            task: Task { id: 1, project_id: 1, template_id: 1, status: TaskStatus::Running, ..Default::default() },
+            task: Task {
+                id: 1,
+                project_id: 1,
+                template_id: 1,
+                status: TaskStatus::Running,
+                ..Default::default()
+            },
             project_id: 1,
             started_at: Utc::now(),
             runner_id: None,
@@ -1077,7 +1118,13 @@ mod tests {
         let pool = TaskPool::new(store, 5);
 
         assert_eq!(pool.get_queue_size().await, 0);
-        let task = Task { id: 1, project_id: 1, template_id: 1, status: TaskStatus::Waiting, ..Default::default() };
+        let task = Task {
+            id: 1,
+            project_id: 1,
+            template_id: 1,
+            status: TaskStatus::Waiting,
+            ..Default::default()
+        };
         pool.add_task(task).await.unwrap();
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
         assert!(pool.get_queue_size().await >= 1);
@@ -1085,7 +1132,10 @@ mod tests {
 
     #[test]
     fn test_task_pool_event_task_failed_with_error_string() {
-        let event = TaskPoolEvent::TaskFailed { task_id: 55, error: "connection timeout".to_string() };
+        let event = TaskPoolEvent::TaskFailed {
+            task_id: 55,
+            error: "connection timeout".to_string(),
+        };
         match event {
             TaskPoolEvent::TaskFailed { task_id, error } => {
                 assert_eq!(task_id, 55);
@@ -1097,7 +1147,10 @@ mod tests {
 
     #[test]
     fn test_task_pool_event_task_finished_with_success_false() {
-        let event = TaskPoolEvent::TaskFinished { task_id: 10, success: false };
+        let event = TaskPoolEvent::TaskFinished {
+            task_id: 10,
+            success: false,
+        };
         match event {
             TaskPoolEvent::TaskFinished { task_id, success } => {
                 assert_eq!(task_id, 10);

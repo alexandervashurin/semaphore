@@ -218,22 +218,22 @@ pub async fn oidc_callback(
             .set_client_secret(oauth2::ClientSecret::new(
                 provider_config.client_secret.clone(),
             ))
-            .set_auth_uri(oauth2::AuthUrl::new(provider_config.endpoint.auth_url.clone()).map_err(
-                |e| {
+            .set_auth_uri(
+                oauth2::AuthUrl::new(provider_config.endpoint.auth_url.clone()).map_err(|e| {
                     (
                         StatusCode::INTERNAL_SERVER_ERROR,
                         Json(ErrorResponse::new(format!("Invalid auth URL: {}", e))),
                     )
-                },
-            )?)
-            .set_token_uri(oauth2::TokenUrl::new(provider_config.endpoint.token_url.clone()).map_err(
-                |e| {
+                })?,
+            )
+            .set_token_uri(
+                oauth2::TokenUrl::new(provider_config.endpoint.token_url.clone()).map_err(|e| {
                     (
                         StatusCode::INTERNAL_SERVER_ERROR,
                         Json(ErrorResponse::new(format!("Invalid token URL: {}", e))),
                     )
-                },
-            )?)
+                })?,
+            )
             .set_redirect_uri(
                 oauth2::RedirectUrl::new(provider_config.redirect_url.clone()).map_err(|e| {
                     (
@@ -513,10 +513,7 @@ mod tests {
     #[test]
     fn test_oidc_first_str_claim_single_existing_key() {
         let v = serde_json::json!({"email": "user@example.com"});
-        assert_eq!(
-            oidc_first_str_claim(&v, &["email"]),
-            "user@example.com"
-        );
+        assert_eq!(oidc_first_str_claim(&v, &["email"]), "user@example.com");
     }
 
     #[test]
@@ -528,10 +525,7 @@ mod tests {
     #[test]
     fn test_oidc_first_str_claim_skips_empty_keys() {
         let v = serde_json::json!({"email": "user@example.com"});
-        assert_eq!(
-            oidc_first_str_claim(&v, &["", "email"]),
-            "user@example.com"
-        );
+        assert_eq!(oidc_first_str_claim(&v, &["", "email"]), "user@example.com");
     }
 
     #[test]
@@ -549,10 +543,7 @@ mod tests {
     #[test]
     fn test_oidc_first_str_claim_empty_string_value() {
         let v = serde_json::json!({"email": "", "name": "John"});
-        assert_eq!(
-            oidc_first_str_claim(&v, &["email", "name"]),
-            "John"
-        );
+        assert_eq!(oidc_first_str_claim(&v, &["email", "name"]), "John");
     }
 
     #[test]
@@ -725,7 +716,10 @@ mod tests {
         };
         let json = serde_json::to_string(&original).unwrap();
         let deserialized: LoginMetadataResponse = serde_json::from_str(&json).unwrap();
-        assert_eq!(original.oidc_providers.len(), deserialized.oidc_providers.len());
+        assert_eq!(
+            original.oidc_providers.len(),
+            deserialized.oidc_providers.len()
+        );
         assert_eq!(original.totp_enabled, deserialized.totp_enabled);
         assert_eq!(original.email_enabled, deserialized.email_enabled);
         assert_eq!(
@@ -741,10 +735,7 @@ mod tests {
     #[test]
     fn test_oidc_first_str_claim_special_characters_in_value() {
         let v = serde_json::json!({"email": "user+tag@example.com"});
-        assert_eq!(
-            oidc_first_str_claim(&v, &["email"]),
-            "user+tag@example.com"
-        );
+        assert_eq!(oidc_first_str_claim(&v, &["email"]), "user+tag@example.com");
     }
 
     #[test]

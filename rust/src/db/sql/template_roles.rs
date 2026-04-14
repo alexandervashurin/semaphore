@@ -134,7 +134,8 @@ mod tests {
 
     #[test]
     fn test_template_role_perm_deserialization() {
-        let json = r#"{"id":10,"project_id":100,"template_id":200,"role_id":300,"role_slug":"viewer"}"#;
+        let json =
+            r#"{"id":10,"project_id":100,"template_id":200,"role_id":300,"role_slug":"viewer"}"#;
         let role: TemplateRolePerm = serde_json::from_str(json).unwrap();
         assert_eq!(role.id, 10);
         assert_eq!(role.project_id, 100);

@@ -47,7 +47,7 @@ pub async fn list_kubernetes_clusters(
 ) -> Result<Json<ClusterList>> {
     // В production это читало бы ~/.kube/config
     // Для demo возвращаем mock данные
-    
+
     let clusters = vec![
         KubernetesCluster {
             name: "default".to_string(),
@@ -77,7 +77,7 @@ pub async fn list_kubernetes_clusters(
             namespaces_count: None,
         },
     ];
-    
+
     Ok(Json(ClusterList {
         clusters,
         current_context: "default".to_string(),
@@ -176,13 +176,11 @@ pub struct ClusterHealth {
     pub error: Option<String>,
 }
 
-pub async fn get_cluster_health(
-    State(state): State<Arc<AppState>>,
-) -> Result<Json<ClusterHealth>> {
+pub async fn get_cluster_health(State(state): State<Arc<AppState>>) -> Result<Json<ClusterHealth>> {
     // В production здесь была бы полная проверка компонентов
     // Для demo возвращаем mock данные
     let is_healthy = true; // state.kubernetes_client().is_ok();
-    
+
     Ok(Json(ClusterHealth {
         name: "default".to_string(),
         is_healthy,
@@ -193,7 +191,11 @@ pub async fn get_cluster_health(
         nodes_ready: 3,
         nodes_total: 3,
         pods_running: 25,
-        error: if !is_healthy { Some("API server unreachable".to_string()) } else { None },
+        error: if !is_healthy {
+            Some("API server unreachable".to_string())
+        } else {
+            None
+        },
     }))
 }
 
@@ -240,11 +242,26 @@ pub async fn get_k8s_cluster_summary(
             not_ready: 0,
         },
         resources: ResourceSummary {
-            pods: ResourceCount { total: 50, running: 45 },
-            deployments: ResourceCount { total: 15, running: 15 },
-            services: ResourceCount { total: 20, running: 20 },
-            configmaps: ResourceCount { total: 30, running: 30 },
-            secrets: ResourceCount { total: 25, running: 25 },
+            pods: ResourceCount {
+                total: 50,
+                running: 45,
+            },
+            deployments: ResourceCount {
+                total: 15,
+                running: 15,
+            },
+            services: ResourceCount {
+                total: 20,
+                running: 20,
+            },
+            configmaps: ResourceCount {
+                total: 30,
+                running: 30,
+            },
+            secrets: ResourceCount {
+                total: 25,
+                running: 25,
+            },
         },
     }))
 }
@@ -275,7 +292,7 @@ pub async fn get_aggregate_view(
     State(_state): State<Arc<AppState>>,
 ) -> Result<Json<AggregateView>> {
     let is_healthy = true;
-    
+
     Ok(Json(AggregateView {
         total_clusters: 3,
         healthy_clusters: if is_healthy { 1 } else { 0 },
@@ -285,7 +302,11 @@ pub async fn get_aggregate_view(
         clusters: vec![
             ClusterStatus {
                 name: "default".to_string(),
-                status: if is_healthy { "healthy".to_string() } else { "unhealthy".to_string() },
+                status: if is_healthy {
+                    "healthy".to_string()
+                } else {
+                    "unhealthy".to_string()
+                },
                 nodes: 3,
                 pods: 50,
             },
@@ -364,17 +385,15 @@ mod tests {
     #[test]
     fn test_cluster_list_serialization() {
         let list = ClusterList {
-            clusters: vec![
-                KubernetesCluster {
-                    name: "a".to_string(),
-                    context: "a".to_string(),
-                    server: "https://a:6443".to_string(),
-                    version: None,
-                    is_current: true,
-                    is_reachable: true,
-                    namespaces_count: Some(1),
-                },
-            ],
+            clusters: vec![KubernetesCluster {
+                name: "a".to_string(),
+                context: "a".to_string(),
+                server: "https://a:6443".to_string(),
+                version: None,
+                is_current: true,
+                is_reachable: true,
+                namespaces_count: Some(1),
+            }],
             current_context: "a".to_string(),
         };
         let value = serde_json::to_value(&list).unwrap();
@@ -433,11 +452,26 @@ mod tests {
                 not_ready: 0,
             },
             resources: ResourceSummary {
-                pods: ResourceCount { total: 100, running: 95 },
-                deployments: ResourceCount { total: 20, running: 20 },
-                services: ResourceCount { total: 30, running: 30 },
-                configmaps: ResourceCount { total: 50, running: 50 },
-                secrets: ResourceCount { total: 40, running: 40 },
+                pods: ResourceCount {
+                    total: 100,
+                    running: 95,
+                },
+                deployments: ResourceCount {
+                    total: 20,
+                    running: 20,
+                },
+                services: ResourceCount {
+                    total: 30,
+                    running: 30,
+                },
+                configmaps: ResourceCount {
+                    total: 50,
+                    running: 50,
+                },
+                secrets: ResourceCount {
+                    total: 40,
+                    running: 40,
+                },
             },
         };
         let value = serde_json::to_value(&summary).unwrap();
@@ -516,7 +550,10 @@ mod tests {
     #[test]
     fn test_derive_encryption_key_from_env() {
         let config = crate::config::Config::default();
-        std::env::set_var("SEMAPHORE_KUBECONFIG_KEY", "my-secret-key-12345678901234567890");
+        std::env::set_var(
+            "SEMAPHORE_KUBECONFIG_KEY",
+            "my-secret-key-12345678901234567890",
+        );
         let key = derive_encryption_key(&config);
         assert_eq!(key.len(), 32);
         assert_eq!(&key[..6], b"my-sec");

@@ -7,10 +7,10 @@ pub mod running_job;
 pub mod task_queue;
 pub mod types;
 
-pub use job_pool::{JobPool, Job, JobLogger};
+pub use job_pool::{Job, JobLogger, JobPool};
 pub use running_job::RunningJob;
-pub use task_queue::{TaskQueue, InMemoryTaskQueue, RedisTaskQueue, build_task_queue};
+pub use task_queue::{build_task_queue, InMemoryTaskQueue, RedisTaskQueue, TaskQueue};
 pub use types::{
-    JobData, RunnerState, RunnerProgress, JobProgress,
-    JobState, LogRecord, CommitInfo, RunnerRegistration,
+    CommitInfo, JobData, JobProgress, JobState, LogRecord, RunnerProgress, RunnerRegistration,
+    RunnerState,
 };

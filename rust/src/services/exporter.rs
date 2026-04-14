@@ -745,7 +745,9 @@ mod tests {
         let mut mapper = TypeKeyMapper::new();
         let err_handler = TestErrorHandler;
         let key = new_key_from_int(999);
-        let result = mapper.get_new_key("test", "scope", &key, &err_handler).unwrap();
+        let result = mapper
+            .get_new_key("test", "scope", &key, &err_handler)
+            .unwrap();
         assert_eq!(result, key);
     }
 
@@ -754,7 +756,9 @@ mod tests {
         let mut mapper = TypeKeyMapper::new();
         let err_handler = TestErrorHandler;
         mapper.map_int_keys("repo", "scope", 10, 20).unwrap();
-        let result = mapper.get_new_key_int("repo", "scope", 10, &err_handler).unwrap();
+        let result = mapper
+            .get_new_key_int("repo", "scope", 10, &err_handler)
+            .unwrap();
         assert_eq!(result, 20);
     }
 
@@ -762,7 +766,9 @@ mod tests {
     fn test_type_key_mapper_get_new_key_int_no_mapping() {
         let mut mapper = TypeKeyMapper::new();
         let err_handler = TestErrorHandler;
-        let result = mapper.get_new_key_int("repo", "scope", 42, &err_handler).unwrap();
+        let result = mapper
+            .get_new_key_int("repo", "scope", 42, &err_handler)
+            .unwrap();
         assert_eq!(result, 42);
     }
 
@@ -771,7 +777,9 @@ mod tests {
         let mut mapper = TypeKeyMapper::new();
         let err_handler = TestErrorHandler;
         mapper.map_int_keys("env", "scope", 1, 5).unwrap();
-        let result = mapper.get_new_key_int_ref("env", "scope", Some(1), &err_handler).unwrap();
+        let result = mapper
+            .get_new_key_int_ref("env", "scope", Some(1), &err_handler)
+            .unwrap();
         assert_eq!(result, Some(5));
     }
 
@@ -779,7 +787,9 @@ mod tests {
     fn test_type_key_mapper_get_new_key_int_ref_none() {
         let mut mapper = TypeKeyMapper::new();
         let err_handler = TestErrorHandler;
-        let result = mapper.get_new_key_int_ref("env", "scope", None, &err_handler).unwrap();
+        let result = mapper
+            .get_new_key_int_ref("env", "scope", None, &err_handler)
+            .unwrap();
         assert_eq!(result, None);
     }
 
@@ -817,7 +827,9 @@ mod tests {
     #[test]
     fn test_value_map_clear() {
         let mut value_map: ValueMap<String> = ValueMap::new();
-        value_map.append_values(vec!["a".to_string()], "scope").unwrap();
+        value_map
+            .append_values(vec!["a".to_string()], "scope")
+            .unwrap();
         value_map.on_error("err");
         value_map.clear();
         assert!(value_map.get_loaded_keys("scope").unwrap().is_empty());
@@ -855,8 +867,17 @@ mod tests {
     fn test_exporter_chain_key_mapping() {
         let mut chain = ExporterChain::new();
         let err_handler = TestErrorHandler;
-        chain.map_keys("User", "scope", &new_key_from_int(1), &new_key_from_int(100)).unwrap();
-        let result = chain.get_new_key("User", "scope", &new_key_from_int(1), &err_handler).unwrap();
+        chain
+            .map_keys(
+                "User",
+                "scope",
+                &new_key_from_int(1),
+                &new_key_from_int(100),
+            )
+            .unwrap();
+        let result = chain
+            .get_new_key("User", "scope", &new_key_from_int(1), &err_handler)
+            .unwrap();
         assert_eq!(result, new_key_from_int(100));
     }
 
@@ -865,7 +886,9 @@ mod tests {
         let mut chain = ExporterChain::new();
         let err_handler = TestErrorHandler;
         chain.map_int_keys("Repo", "scope", 5, 50).unwrap();
-        let result = chain.get_new_key_int("Repo", "scope", 5, &err_handler).unwrap();
+        let result = chain
+            .get_new_key_int("Repo", "scope", 5, &err_handler)
+            .unwrap();
         assert_eq!(result, 50);
     }
 
@@ -873,7 +896,9 @@ mod tests {
     fn test_exporter_chain_int_key_mapping_not_found() {
         let mut chain = ExporterChain::new();
         let err_handler = TestErrorHandler;
-        let result = chain.get_new_key_int("Repo", "scope", 999, &err_handler).unwrap();
+        let result = chain
+            .get_new_key_int("Repo", "scope", 999, &err_handler)
+            .unwrap();
         assert_eq!(result, 999);
     }
 
@@ -881,7 +906,9 @@ mod tests {
     fn test_exporter_chain_get_new_key_int_ref_none() {
         let mut chain = ExporterChain::new();
         let err_handler = TestErrorHandler;
-        let result = chain.get_new_key_int_ref("X", "scope", None, &err_handler).unwrap();
+        let result = chain
+            .get_new_key_int_ref("X", "scope", None, &err_handler)
+            .unwrap();
         assert_eq!(result, None);
     }
 
@@ -959,9 +986,24 @@ mod tests {
         mapper.map_int_keys("User", "proj1", 2, 200).unwrap();
         mapper.map_int_keys("Repo", "proj1", 5, 500).unwrap();
 
-        assert_eq!(mapper.get_new_key_int("User", "proj1", 1, &err_handler).unwrap(), 100);
-        assert_eq!(mapper.get_new_key_int("User", "proj1", 2, &err_handler).unwrap(), 200);
-        assert_eq!(mapper.get_new_key_int("Repo", "proj1", 5, &err_handler).unwrap(), 500);
+        assert_eq!(
+            mapper
+                .get_new_key_int("User", "proj1", 1, &err_handler)
+                .unwrap(),
+            100
+        );
+        assert_eq!(
+            mapper
+                .get_new_key_int("User", "proj1", 2, &err_handler)
+                .unwrap(),
+            200
+        );
+        assert_eq!(
+            mapper
+                .get_new_key_int("Repo", "proj1", 5, &err_handler)
+                .unwrap(),
+            500
+        );
     }
 
     #[test]
@@ -972,7 +1014,10 @@ mod tests {
         mapper.map_int_keys("X", "s", 1, 10).unwrap();
         mapper.map_int_keys("X", "s", 1, 20).unwrap(); // overwrite
 
-        assert_eq!(mapper.get_new_key_int("X", "s", 1, &err_handler).unwrap(), 20);
+        assert_eq!(
+            mapper.get_new_key_int("X", "s", 1, &err_handler).unwrap(),
+            20
+        );
     }
 
     #[test]
@@ -1105,7 +1150,9 @@ mod tests {
         mapper.map_int_keys("Env", "scope1", 1, 100).unwrap();
 
         // Same name but different scope should not find the mapping
-        let result = mapper.get_new_key_int("Env", "scope2", 1, &err_handler).unwrap();
+        let result = mapper
+            .get_new_key_int("Env", "scope2", 1, &err_handler)
+            .unwrap();
         assert_eq!(result, 1); // returns original
     }
 

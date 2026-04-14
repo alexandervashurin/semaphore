@@ -129,7 +129,9 @@ fn row_to_output(row: &sqlx::postgres::PgRow) -> TaskStructuredOutput {
 
 #[cfg(test)]
 mod tests {
-    use crate::models::{TaskOutputsMap, TaskStructuredOutput, TaskStructuredOutputBatch, TaskStructuredOutputCreate};
+    use crate::models::{
+        TaskOutputsMap, TaskStructuredOutput, TaskStructuredOutputBatch, TaskStructuredOutputCreate,
+    };
     use chrono::Utc;
     use serde_json::Value;
     use std::collections::HashMap;
@@ -194,7 +196,10 @@ mod tests {
     #[test]
     fn test_task_outputs_map() {
         let mut outputs = HashMap::new();
-        outputs.insert("url".to_string(), Value::String("https://example.com".to_string()));
+        outputs.insert(
+            "url".to_string(),
+            Value::String("https://example.com".to_string()),
+        );
         outputs.insert("count".to_string(), Value::Number(5.into()));
 
         let map = TaskOutputsMap {
@@ -294,9 +299,7 @@ mod tests {
 
     #[test]
     fn test_task_structured_output_batch_empty() {
-        let batch = TaskStructuredOutputBatch {
-            outputs: vec![],
-        };
+        let batch = TaskStructuredOutputBatch { outputs: vec![] };
         let json = serde_json::to_string(&batch).unwrap();
         assert!(json.contains("\"outputs\":[]"));
     }

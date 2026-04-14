@@ -555,7 +555,10 @@ mod tests {
             .await
             .unwrap();
         // Workflow doesn't exist, so either 404 or 422 from JSON deserialization
-        assert!(resp.status() == StatusCode::NOT_FOUND || resp.status() == StatusCode::UNPROCESSABLE_ENTITY);
+        assert!(
+            resp.status() == StatusCode::NOT_FOUND
+                || resp.status() == StatusCode::UNPROCESSABLE_ENTITY
+        );
     }
 
     #[tokio::test]

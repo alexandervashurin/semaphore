@@ -4,9 +4,7 @@
 
 use crate::api::state::AppState;
 use crate::db::store::AuditLogManager;
-use crate::models::audit_log::{
-    AuditAction, AuditLevel, AuditLogFilter, AuditObjectType,
-};
+use crate::models::audit_log::{AuditAction, AuditLevel, AuditLogFilter, AuditObjectType};
 use axum::{
     extract::{Query, State},
     http::header,
@@ -281,7 +279,9 @@ fn level_to_str(level: &AuditLevel) -> String {
     }
 }
 
-fn extract_meta(details: &Option<serde_json::Value>) -> (Option<String>, Option<String>, Option<String>) {
+fn extract_meta(
+    details: &Option<serde_json::Value>,
+) -> (Option<String>, Option<String>, Option<String>) {
     let meta = details
         .as_ref()
         .and_then(|d| d.get("metadata"))
@@ -326,11 +326,20 @@ fn map_rows(
         .collect()
 }
 
-fn apply_filters(rows: Vec<KubernetesAuditRow>, q: &KubernetesAuditQuery) -> Vec<KubernetesAuditRow> {
+fn apply_filters(
+    rows: Vec<KubernetesAuditRow>,
+    q: &KubernetesAuditQuery,
+) -> Vec<KubernetesAuditRow> {
     let mut out = rows;
     if let Some(resource) = &q.resource {
         let r = resource.to_lowercase();
-        out.retain(|x| x.resource.clone().unwrap_or_default().to_lowercase().contains(&r));
+        out.retain(|x| {
+            x.resource
+                .clone()
+                .unwrap_or_default()
+                .to_lowercase()
+                .contains(&r)
+        });
     }
     if let Some(verb) = &q.verb {
         let v = verb.to_lowercase();
@@ -344,10 +353,26 @@ fn apply_filters(rows: Vec<KubernetesAuditRow>, q: &KubernetesAuditQuery) -> Vec
         let s = search.to_lowercase();
         out.retain(|x| {
             x.description.to_lowercase().contains(&s)
-                || x.resource.clone().unwrap_or_default().to_lowercase().contains(&s)
-                || x.resource_name.clone().unwrap_or_default().to_lowercase().contains(&s)
-                || x.namespace.clone().unwrap_or_default().to_lowercase().contains(&s)
-                || x.username.clone().unwrap_or_default().to_lowercase().contains(&s)
+                || x.resource
+                    .clone()
+                    .unwrap_or_default()
+                    .to_lowercase()
+                    .contains(&s)
+                || x.resource_name
+                    .clone()
+                    .unwrap_or_default()
+                    .to_lowercase()
+                    .contains(&s)
+                || x.namespace
+                    .clone()
+                    .unwrap_or_default()
+                    .to_lowercase()
+                    .contains(&s)
+                || x.username
+                    .clone()
+                    .unwrap_or_default()
+                    .to_lowercase()
+                    .contains(&s)
         });
     }
     out
@@ -400,7 +425,10 @@ pub async fn export_kubernetes_audit(
     };
     let Json(rows) = list_kubernetes_audit(State(state), Query(list_query)).await?;
 
-    let format = query.format.unwrap_or_else(|| "json".to_string()).to_lowercase();
+    let format = query
+        .format
+        .unwrap_or_else(|| "json".to_string())
+        .to_lowercase();
     if format == "csv" {
         let mut csv = String::from("id,created,username,cluster,namespace,resource,resource_name,verb,action,level,description\n");
         for r in rows {
@@ -420,11 +448,7 @@ pub async fn export_kubernetes_audit(
             );
             csv.push_str(&line);
         }
-        Ok((
-            [(header::CONTENT_TYPE, "text/csv; charset=utf-8")],
-            csv,
-        )
-            .into_response())
+        Ok(([(header::CONTENT_TYPE, "text/csv; charset=utf-8")], csv).into_response())
     } else {
         Ok(Json(rows).into_response())
     }
@@ -439,22 +463,46 @@ mod tests {
 
     #[test]
     fn test_action_to_verb_create() {
-        assert_eq!(action_to_verb(&AuditAction::KubernetesResourceCreated), "create");
-        assert_eq!(action_to_verb(&AuditAction::KubernetesHelmReleaseInstalled), "create");
+        assert_eq!(
+            action_to_verb(&AuditAction::KubernetesResourceCreated),
+            "create"
+        );
+        assert_eq!(
+            action_to_verb(&AuditAction::KubernetesHelmReleaseInstalled),
+            "create"
+        );
     }
 
     #[test]
     fn test_action_to_verb_update() {
-        assert_eq!(action_to_verb(&AuditAction::KubernetesResourceUpdated), "update");
-        assert_eq!(action_to_verb(&AuditAction::KubernetesResourceScaled), "update");
-        assert_eq!(action_to_verb(&AuditAction::KubernetesHelmReleaseUpgraded), "update");
-        assert_eq!(action_to_verb(&AuditAction::KubernetesHelmReleaseRolledBack), "update");
+        assert_eq!(
+            action_to_verb(&AuditAction::KubernetesResourceUpdated),
+            "update"
+        );
+        assert_eq!(
+            action_to_verb(&AuditAction::KubernetesResourceScaled),
+            "update"
+        );
+        assert_eq!(
+            action_to_verb(&AuditAction::KubernetesHelmReleaseUpgraded),
+            "update"
+        );
+        assert_eq!(
+            action_to_verb(&AuditAction::KubernetesHelmReleaseRolledBack),
+            "update"
+        );
     }
 
     #[test]
     fn test_action_to_verb_delete() {
-        assert_eq!(action_to_verb(&AuditAction::KubernetesResourceDeleted), "delete");
-        assert_eq!(action_to_verb(&AuditAction::KubernetesHelmReleaseUninstalled), "delete");
+        assert_eq!(
+            action_to_verb(&AuditAction::KubernetesResourceDeleted),
+            "delete"
+        );
+        assert_eq!(
+            action_to_verb(&AuditAction::KubernetesHelmReleaseUninstalled),
+            "delete"
+        );
     }
 
     #[test]
@@ -620,17 +668,29 @@ mod tests {
     fn test_apply_filters_by_resource() {
         let rows = vec![
             KubernetesAuditRow {
-                id: 1, created: chrono::Utc::now(), username: None, cluster: None,
-                namespace: Some("default".to_string()), resource: Some("Pod".to_string()),
-                resource_name: Some("pod-1".to_string()), verb: "create".to_string(),
-                action: "kubernetes_resource_created".to_string(), description: "Created".to_string(),
+                id: 1,
+                created: chrono::Utc::now(),
+                username: None,
+                cluster: None,
+                namespace: Some("default".to_string()),
+                resource: Some("Pod".to_string()),
+                resource_name: Some("pod-1".to_string()),
+                verb: "create".to_string(),
+                action: "kubernetes_resource_created".to_string(),
+                description: "Created".to_string(),
                 level: "info".to_string(),
             },
             KubernetesAuditRow {
-                id: 2, created: chrono::Utc::now(), username: None, cluster: None,
-                namespace: Some("default".to_string()), resource: Some("Service".to_string()),
-                resource_name: Some("svc-1".to_string()), verb: "create".to_string(),
-                action: "kubernetes_resource_created".to_string(), description: "Created".to_string(),
+                id: 2,
+                created: chrono::Utc::now(),
+                username: None,
+                cluster: None,
+                namespace: Some("default".to_string()),
+                resource: Some("Service".to_string()),
+                resource_name: Some("svc-1".to_string()),
+                verb: "create".to_string(),
+                action: "kubernetes_resource_created".to_string(),
+                description: "Created".to_string(),
                 level: "info".to_string(),
             },
         ];
@@ -652,17 +712,29 @@ mod tests {
     fn test_apply_filters_by_verb() {
         let rows = vec![
             KubernetesAuditRow {
-                id: 1, created: chrono::Utc::now(), username: None, cluster: None,
-                namespace: Some("default".to_string()), resource: Some("Pod".to_string()),
-                resource_name: Some("pod-1".to_string()), verb: "create".to_string(),
-                action: "kubernetes_resource_created".to_string(), description: "Created".to_string(),
+                id: 1,
+                created: chrono::Utc::now(),
+                username: None,
+                cluster: None,
+                namespace: Some("default".to_string()),
+                resource: Some("Pod".to_string()),
+                resource_name: Some("pod-1".to_string()),
+                verb: "create".to_string(),
+                action: "kubernetes_resource_created".to_string(),
+                description: "Created".to_string(),
                 level: "info".to_string(),
             },
             KubernetesAuditRow {
-                id: 2, created: chrono::Utc::now(), username: None, cluster: None,
-                namespace: Some("default".to_string()), resource: Some("Pod".to_string()),
-                resource_name: Some("pod-2".to_string()), verb: "delete".to_string(),
-                action: "kubernetes_resource_deleted".to_string(), description: "Deleted".to_string(),
+                id: 2,
+                created: chrono::Utc::now(),
+                username: None,
+                cluster: None,
+                namespace: Some("default".to_string()),
+                resource: Some("Pod".to_string()),
+                resource_name: Some("pod-2".to_string()),
+                verb: "delete".to_string(),
+                action: "kubernetes_resource_deleted".to_string(),
+                description: "Deleted".to_string(),
                 level: "info".to_string(),
             },
         ];
@@ -684,17 +756,29 @@ mod tests {
     fn test_apply_filters_by_namespace() {
         let rows = vec![
             KubernetesAuditRow {
-                id: 1, created: chrono::Utc::now(), username: None, cluster: None,
-                namespace: Some("kube-system".to_string()), resource: Some("Pod".to_string()),
-                resource_name: Some("coredns".to_string()), verb: "create".to_string(),
-                action: "kubernetes_resource_created".to_string(), description: "Created".to_string(),
+                id: 1,
+                created: chrono::Utc::now(),
+                username: None,
+                cluster: None,
+                namespace: Some("kube-system".to_string()),
+                resource: Some("Pod".to_string()),
+                resource_name: Some("coredns".to_string()),
+                verb: "create".to_string(),
+                action: "kubernetes_resource_created".to_string(),
+                description: "Created".to_string(),
                 level: "info".to_string(),
             },
             KubernetesAuditRow {
-                id: 2, created: chrono::Utc::now(), username: None, cluster: None,
-                namespace: Some("default".to_string()), resource: Some("Pod".to_string()),
-                resource_name: Some("nginx".to_string()), verb: "create".to_string(),
-                action: "kubernetes_resource_created".to_string(), description: "Created".to_string(),
+                id: 2,
+                created: chrono::Utc::now(),
+                username: None,
+                cluster: None,
+                namespace: Some("default".to_string()),
+                resource: Some("Pod".to_string()),
+                resource_name: Some("nginx".to_string()),
+                verb: "create".to_string(),
+                action: "kubernetes_resource_created".to_string(),
+                description: "Created".to_string(),
                 level: "info".to_string(),
             },
         ];
@@ -716,18 +800,28 @@ mod tests {
     fn test_apply_filters_by_search_description() {
         let rows = vec![
             KubernetesAuditRow {
-                id: 1, created: chrono::Utc::now(), username: Some("alice".to_string()),
-                cluster: None, namespace: Some("default".to_string()),
-                resource: Some("Deployment".to_string()), resource_name: Some("app-1".to_string()),
-                verb: "update".to_string(), action: "kubernetes_resource_updated".to_string(),
+                id: 1,
+                created: chrono::Utc::now(),
+                username: Some("alice".to_string()),
+                cluster: None,
+                namespace: Some("default".to_string()),
+                resource: Some("Deployment".to_string()),
+                resource_name: Some("app-1".to_string()),
+                verb: "update".to_string(),
+                action: "kubernetes_resource_updated".to_string(),
                 description: "Обновлен ресурс Deployment/app-1 в namespace default".to_string(),
                 level: "info".to_string(),
             },
             KubernetesAuditRow {
-                id: 2, created: chrono::Utc::now(), username: Some("bob".to_string()),
-                cluster: None, namespace: Some("default".to_string()),
-                resource: Some("Pod".to_string()), resource_name: Some("pod-1".to_string()),
-                verb: "create".to_string(), action: "kubernetes_resource_created".to_string(),
+                id: 2,
+                created: chrono::Utc::now(),
+                username: Some("bob".to_string()),
+                cluster: None,
+                namespace: Some("default".to_string()),
+                resource: Some("Pod".to_string()),
+                resource_name: Some("pod-1".to_string()),
+                verb: "create".to_string(),
+                action: "kubernetes_resource_created".to_string(),
                 description: "Создан ресурс Pod/pod-1".to_string(),
                 level: "info".to_string(),
             },
@@ -750,16 +844,30 @@ mod tests {
     fn test_apply_filters_search_by_username() {
         let rows = vec![
             KubernetesAuditRow {
-                id: 1, created: chrono::Utc::now(), username: Some("alice".to_string()),
-                cluster: None, namespace: None, resource: None, resource_name: None,
-                verb: "create".to_string(), action: "kubernetes_resource_created".to_string(),
-                description: "test".to_string(), level: "info".to_string(),
+                id: 1,
+                created: chrono::Utc::now(),
+                username: Some("alice".to_string()),
+                cluster: None,
+                namespace: None,
+                resource: None,
+                resource_name: None,
+                verb: "create".to_string(),
+                action: "kubernetes_resource_created".to_string(),
+                description: "test".to_string(),
+                level: "info".to_string(),
             },
             KubernetesAuditRow {
-                id: 2, created: chrono::Utc::now(), username: Some("bob".to_string()),
-                cluster: None, namespace: None, resource: None, resource_name: None,
-                verb: "create".to_string(), action: "kubernetes_resource_created".to_string(),
-                description: "test".to_string(), level: "info".to_string(),
+                id: 2,
+                created: chrono::Utc::now(),
+                username: Some("bob".to_string()),
+                cluster: None,
+                namespace: None,
+                resource: None,
+                resource_name: None,
+                verb: "create".to_string(),
+                action: "kubernetes_resource_created".to_string(),
+                description: "test".to_string(),
+                level: "info".to_string(),
             },
         ];
         let query = KubernetesAuditQuery {

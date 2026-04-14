@@ -416,7 +416,13 @@ mod tests {
 
     #[test]
     fn test_user_equality() {
-        let u1 = User { id: 1, username: "a".to_string(), name: "a".to_string(), email: "a@b.com".to_string(), admin: true };
+        let u1 = User {
+            id: 1,
+            username: "a".to_string(),
+            name: "a".to_string(),
+            email: "a@b.com".to_string(),
+            admin: true,
+        };
         let u2 = u1.clone();
         assert_eq!(u1.id, u2.id);
         assert_eq!(u1.username, u2.username);

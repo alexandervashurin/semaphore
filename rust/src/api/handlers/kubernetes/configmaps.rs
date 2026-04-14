@@ -675,7 +675,7 @@ mod tests {
 
     #[test]
     fn test_container_references_configmap_env_from() {
-        use k8s_openapi::api::core::v1::{EnvFromSource, ConfigMapEnvSource};
+        use k8s_openapi::api::core::v1::{ConfigMapEnvSource, EnvFromSource};
         let container = Container {
             name: "app".to_string(),
             env_from: Some(vec![EnvFromSource {
@@ -705,7 +705,7 @@ mod tests {
 
     #[test]
     fn test_container_references_configmap_env_key_ref() {
-        use k8s_openapi::api::core::v1::{EnvVar, EnvVarSource, ConfigMapKeySelector};
+        use k8s_openapi::api::core::v1::{ConfigMapKeySelector, EnvVar, EnvVarSource};
         let container = Container {
             name: "app".to_string(),
             env: Some(vec![EnvVar {
@@ -741,7 +741,7 @@ mod tests {
 
     #[test]
     fn test_pod_spec_references_configmap_with_volume() {
-        use k8s_openapi::api::core::v1::{Volume, ConfigMapVolumeSource};
+        use k8s_openapi::api::core::v1::{ConfigMapVolumeSource, Volume};
         let spec = PodSpec {
             volumes: Some(vec![Volume {
                 name: "config-volume".to_string(),
@@ -762,7 +762,7 @@ mod tests {
 
     #[test]
     fn test_pod_spec_references_configmap_with_init_container() {
-        use k8s_openapi::api::core::v1::{EnvFromSource, ConfigMapEnvSource};
+        use k8s_openapi::api::core::v1::{ConfigMapEnvSource, EnvFromSource};
         let spec = PodSpec {
             volumes: None,
             containers: vec![],
@@ -838,7 +838,14 @@ mod tests {
 
     #[test]
     fn test_configmap_reference_all_kinds() {
-        let kinds = vec!["Pod", "Deployment", "StatefulSet", "DaemonSet", "Job", "CronJob"];
+        let kinds = vec![
+            "Pod",
+            "Deployment",
+            "StatefulSet",
+            "DaemonSet",
+            "Job",
+            "CronJob",
+        ];
         for kind in kinds {
             let ref_item = ConfigMapReference {
                 kind: kind.to_string(),

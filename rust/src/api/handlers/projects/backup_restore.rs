@@ -386,8 +386,12 @@ mod tests {
     #[test]
     fn test_backup_format_with_roles() {
         let mut backup = make_empty_backup();
-        backup.roles.push(serde_json::json!({"id": 1, "name": "admin"}));
-        backup.roles.push(serde_json::json!({"id": 2, "name": "viewer"}));
+        backup
+            .roles
+            .push(serde_json::json!({"id": 1, "name": "admin"}));
+        backup
+            .roles
+            .push(serde_json::json!({"id": 2, "name": "viewer"}));
         let json = serde_json::to_value(&backup).unwrap();
         assert_eq!(json["roles"].as_array().unwrap().len(), 2);
     }

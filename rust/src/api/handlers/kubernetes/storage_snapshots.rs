@@ -134,8 +134,7 @@ mod tests {
 
     #[test]
     fn test_snapshot_list_query_with_namespace() {
-        let q: SnapshotListQuery =
-            serde_json::from_str(r#"{"namespace": "kube-system"}"#).unwrap();
+        let q: SnapshotListQuery = serde_json::from_str(r#"{"namespace": "kube-system"}"#).unwrap();
         assert_eq!(q.namespace, Some("kube-system".to_string()));
         assert!(q.limit.is_none());
     }
@@ -149,9 +148,8 @@ mod tests {
 
     #[test]
     fn test_snapshot_list_query_full() {
-        let q: SnapshotListQuery = serde_json::from_str(
-            r#"{"namespace": "default", "limit": 10}"#
-        ).unwrap();
+        let q: SnapshotListQuery =
+            serde_json::from_str(r#"{"namespace": "default", "limit": 10}"#).unwrap();
         assert_eq!(q.namespace, Some("default".to_string()));
         assert_eq!(q.limit, Some(10));
     }

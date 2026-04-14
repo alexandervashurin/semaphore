@@ -52,13 +52,19 @@ mod tests {
     fn test_grpc_server_new() {
         let config = GrpcServerConfig::default();
         let server = GrpcServer::new(config);
-        assert_eq!(server.config.address, "0.0.0.0:50051".parse::<SocketAddr>().unwrap());
+        assert_eq!(
+            server.config.address,
+            "0.0.0.0:50051".parse::<SocketAddr>().unwrap()
+        );
     }
 
     #[test]
     fn test_grpc_server_with_defaults() {
         let server = GrpcServer::with_defaults();
-        assert_eq!(server.address(), "0.0.0.0:50051".parse::<SocketAddr>().unwrap());
+        assert_eq!(
+            server.address(),
+            "0.0.0.0:50051".parse::<SocketAddr>().unwrap()
+        );
     }
 
     #[test]
@@ -71,7 +77,10 @@ mod tests {
     #[test]
     fn test_grpc_server_config_default() {
         let config = GrpcServerConfig::default();
-        assert_eq!(config.address, "0.0.0.0:50051".parse::<SocketAddr>().unwrap());
+        assert_eq!(
+            config.address,
+            "0.0.0.0:50051".parse::<SocketAddr>().unwrap()
+        );
         assert!(config.enable_reflection);
         assert_eq!(config.max_message_size, 4 * 1024 * 1024);
     }

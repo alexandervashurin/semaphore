@@ -469,8 +469,14 @@ mod tests {
     #[test]
     fn test_access_key_type_from_str() {
         assert_eq!("ssh".parse::<AccessKeyType>().unwrap(), AccessKeyType::SSH);
-        assert_eq!("login_password".parse::<AccessKeyType>().unwrap(), AccessKeyType::LoginPassword);
-        assert_eq!("unknown".parse::<AccessKeyType>().unwrap(), AccessKeyType::None);
+        assert_eq!(
+            "login_password".parse::<AccessKeyType>().unwrap(),
+            AccessKeyType::LoginPassword
+        );
+        assert_eq!(
+            "unknown".parse::<AccessKeyType>().unwrap(),
+            AccessKeyType::None
+        );
     }
 
     #[test]
@@ -538,7 +544,12 @@ mod tests {
     #[test]
     fn test_get_ssh_key_data() {
         let key = AccessKey::new_ssh(
-            1, "key".to_string(), "private_key".to_string(), "pass".to_string(), "user".to_string(), None,
+            1,
+            "key".to_string(),
+            "private_key".to_string(),
+            "pass".to_string(),
+            "user".to_string(),
+            None,
         );
         let data = key.get_ssh_key_data().unwrap();
         assert_eq!(data.private_key, "private_key");
@@ -549,7 +560,11 @@ mod tests {
     #[test]
     fn test_get_login_password_data() {
         let key = AccessKey::new_login_password(
-            1, "key".to_string(), "admin".to_string(), "secret".to_string(), None,
+            1,
+            "key".to_string(),
+            "admin".to_string(),
+            "secret".to_string(),
+            None,
         );
         let data = key.get_login_password_data().unwrap();
         assert_eq!(data.login, "admin");
@@ -622,10 +637,22 @@ mod tests {
 
     #[test]
     fn test_access_key_owner_from_str() {
-        assert_eq!("user".parse::<AccessKeyOwner>().unwrap(), AccessKeyOwner::User);
-        assert_eq!("project".parse::<AccessKeyOwner>().unwrap(), AccessKeyOwner::Project);
-        assert_eq!("shared".parse::<AccessKeyOwner>().unwrap(), AccessKeyOwner::Shared);
-        assert_eq!("unknown".parse::<AccessKeyOwner>().unwrap(), AccessKeyOwner::Shared);
+        assert_eq!(
+            "user".parse::<AccessKeyOwner>().unwrap(),
+            AccessKeyOwner::User
+        );
+        assert_eq!(
+            "project".parse::<AccessKeyOwner>().unwrap(),
+            AccessKeyOwner::Project
+        );
+        assert_eq!(
+            "shared".parse::<AccessKeyOwner>().unwrap(),
+            AccessKeyOwner::Shared
+        );
+        assert_eq!(
+            "unknown".parse::<AccessKeyOwner>().unwrap(),
+            AccessKeyOwner::Shared
+        );
     }
 
     #[test]

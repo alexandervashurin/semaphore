@@ -176,14 +176,15 @@ pub async fn run_playbook(
     ),
     (StatusCode, Json<ErrorResponse>),
 > {
-    let result = PlaybookRunService::run_playbook(id, project_id, auth_user.user_id, payload, &state.store)
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse::new(e.to_string())),
-            )
-        })?;
+    let result =
+        PlaybookRunService::run_playbook(id, project_id, auth_user.user_id, payload, &state.store)
+            .await
+            .map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(ErrorResponse::new(e.to_string())),
+                )
+            })?;
 
     Ok((StatusCode::ACCEPTED, Json(result)))
 }

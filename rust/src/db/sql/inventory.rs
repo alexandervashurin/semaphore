@@ -156,7 +156,13 @@ mod tests {
 
     #[test]
     fn test_inventory_type_from_str() {
-        assert_eq!("static".parse::<InventoryType>().unwrap(), InventoryType::Static);
-        assert_eq!("unknown".parse::<InventoryType>().unwrap(), InventoryType::Static);
+        assert_eq!(
+            "static".parse::<InventoryType>().unwrap(),
+            InventoryType::Static
+        );
+        assert_eq!(
+            "unknown".parse::<InventoryType>().unwrap(),
+            InventoryType::Static
+        );
     }
 }

@@ -417,7 +417,12 @@ impl MetricsManager {
     }
 
     /// Отмечает завершение задачи успешно с labels
-    pub fn task_completed_with_labels(&self, duration_secs: f64, queue_time_secs: f64, labels: &TaskMetricLabels) {
+    pub fn task_completed_with_labels(
+        &self,
+        duration_secs: f64,
+        queue_time_secs: f64,
+        labels: &TaskMetricLabels,
+    ) {
         TASK_SUCCESS.inc();
         TASKS_RUNNING.dec();
         TASK_DURATION.observe(duration_secs);
@@ -812,9 +817,7 @@ mod tests {
 
     #[test]
     fn test_task_metric_labels_new() {
-        let labels = TaskMetricLabels::new(
-            "1", "proj", "10", "tpl", "5", "user", "ansible",
-        );
+        let labels = TaskMetricLabels::new("1", "proj", "10", "tpl", "5", "user", "ansible");
         assert_eq!(labels.project_id, "1");
         assert_eq!(labels.project_name, "proj");
         assert_eq!(labels.template_id, "10");
@@ -906,6 +909,8 @@ mod tests {
         let result = metrics_handler().await;
         assert!(result.is_ok());
         let output = result.unwrap();
-        assert!(output.contains("semaphore_") || output.contains("HELP") || output.contains("TYPE"));
+        assert!(
+            output.contains("semaphore_") || output.contains("HELP") || output.contains("TYPE")
+        );
     }
 }

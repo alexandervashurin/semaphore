@@ -130,8 +130,7 @@ async fn handle_event_stream(
     };
 
     // Настраиваем параметры watch
-    let mut watch_params = ListParams::default()
-        .timeout(300); // 5 минут таймаут
+    let mut watch_params = ListParams::default().timeout(300); // 5 минут таймаут
 
     // Добавляем фильтр по типам если указан
     if let Some(types) = &query.types {
@@ -242,9 +241,10 @@ async fn watch_events(
         send_initial_events: false,
     };
 
-    let stream = api.watch(&watch_params, "0").await.map_err(|e| {
-        crate::error::Error::Kubernetes(format!("Failed to start watch: {}", e))
-    })?;
+    let stream = api
+        .watch(&watch_params, "0")
+        .await
+        .map_err(|e| crate::error::Error::Kubernetes(format!("Failed to start watch: {}", e)))?;
 
     tokio::pin!(stream);
 

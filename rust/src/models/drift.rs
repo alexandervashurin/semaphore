@@ -178,10 +178,17 @@ mod tests {
     #[test]
     fn test_drift_config_with_status_clone() {
         let config = DriftConfig {
-            id: 1, project_id: 10, template_id: 5, enabled: true,
-            schedule: None, created: Utc::now(),
+            id: 1,
+            project_id: 10,
+            template_id: 5,
+            enabled: true,
+            schedule: None,
+            created: Utc::now(),
         };
-        let with_status = DriftConfigWithStatus { config, latest_result: None };
+        let with_status = DriftConfigWithStatus {
+            config,
+            latest_result: None,
+        };
         let cloned = with_status.clone();
         assert_eq!(cloned.config.enabled, with_status.config.enabled);
     }
@@ -191,8 +198,14 @@ mod tests {
         let statuses = ["clean", "drifted", "error", "pending"];
         for s in statuses {
             let result = DriftResult {
-                id: 1, drift_config_id: 1, project_id: 1, template_id: 1,
-                status: s.to_string(), summary: None, task_id: None, checked_at: Utc::now(),
+                id: 1,
+                drift_config_id: 1,
+                project_id: 1,
+                template_id: 1,
+                status: s.to_string(),
+                summary: None,
+                task_id: None,
+                checked_at: Utc::now(),
             };
             let json = serde_json::to_string(&result).unwrap();
             assert!(json.contains(&format!("\"status\":\"{}\"", s)));
@@ -211,9 +224,14 @@ mod tests {
     #[test]
     fn test_drift_result_debug() {
         let result = DriftResult {
-            id: 1, drift_config_id: 1, project_id: 1, template_id: 1,
-            status: "debug".to_string(), summary: Some("Debug summary".to_string()),
-            task_id: None, checked_at: Utc::now(),
+            id: 1,
+            drift_config_id: 1,
+            project_id: 1,
+            template_id: 1,
+            status: "debug".to_string(),
+            summary: Some("Debug summary".to_string()),
+            task_id: None,
+            checked_at: Utc::now(),
         };
         let debug_str = format!("{:?}", result);
         assert!(debug_str.contains("DriftResult"));
@@ -222,7 +240,9 @@ mod tests {
     #[test]
     fn test_drift_config_create_all_nulls() {
         let create = DriftConfigCreate {
-            template_id: 1, enabled: None, schedule: None,
+            template_id: 1,
+            enabled: None,
+            schedule: None,
         };
         let json = serde_json::to_string(&create).unwrap();
         assert!(json.contains("\"enabled\":null"));
@@ -232,7 +252,8 @@ mod tests {
     #[test]
     fn test_drift_config_update_all_nulls() {
         let update = DriftConfigUpdate {
-            enabled: None, schedule: None,
+            enabled: None,
+            schedule: None,
         };
         let json = serde_json::to_string(&update).unwrap();
         assert!(json.contains("\"enabled\":null"));
@@ -241,9 +262,14 @@ mod tests {
     #[test]
     fn test_drift_result_unicode_summary() {
         let result = DriftResult {
-            id: 1, drift_config_id: 1, project_id: 1, template_id: 1,
-            status: "drifted".to_string(), summary: Some("Обнаружен дрифт".to_string()),
-            task_id: Some(100), checked_at: Utc::now(),
+            id: 1,
+            drift_config_id: 1,
+            project_id: 1,
+            template_id: 1,
+            status: "drifted".to_string(),
+            summary: Some("Обнаружен дрифт".to_string()),
+            task_id: Some(100),
+            checked_at: Utc::now(),
         };
         let json = serde_json::to_string(&result).unwrap();
         let restored: DriftResult = serde_json::from_str(&json).unwrap();

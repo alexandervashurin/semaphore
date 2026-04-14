@@ -372,7 +372,11 @@ mod tests {
     #[tokio::test]
     async fn test_run_with_version() {
         let mut job = create_test_job();
-        job.set_run_params("testuser".to_string(), Some("v1.0".to_string()), "deploy".to_string());
+        job.set_run_params(
+            "testuser".to_string(),
+            Some("v1.0".to_string()),
+            "deploy".to_string(),
+        );
         let result = job.run("testuser", Some("v1.0"), "deploy").await;
         assert!(result.is_ok());
     }
@@ -416,7 +420,11 @@ mod tests {
     async fn test_run_with_long_incoming_version() {
         let mut job = create_test_job();
         let long_version = "v1.2.3-alpha.1+build.456";
-        job.set_run_params("testuser".to_string(), Some(long_version.to_string()), "deploy".to_string());
+        job.set_run_params(
+            "testuser".to_string(),
+            Some(long_version.to_string()),
+            "deploy".to_string(),
+        );
         let result = job.run("testuser", Some(long_version), "deploy").await;
         assert!(result.is_ok());
     }
@@ -480,7 +488,11 @@ mod tests {
     #[tokio::test]
     async fn test_run_with_special_chars_in_username() {
         let mut job = create_test_job();
-        job.set_run_params("user-name.test+tag".to_string(), None, "default".to_string());
+        job.set_run_params(
+            "user-name.test+tag".to_string(),
+            None,
+            "default".to_string(),
+        );
         let result = job.run("user-name.test+tag", None, "default").await;
         assert!(result.is_ok());
     }
@@ -488,7 +500,11 @@ mod tests {
     #[tokio::test]
     async fn test_run_with_special_chars_in_alias() {
         let mut job = create_test_job();
-        job.set_run_params("testuser".to_string(), None, "deploy-to-staging_env".to_string());
+        job.set_run_params(
+            "testuser".to_string(),
+            None,
+            "deploy-to-staging_env".to_string(),
+        );
         let result = job.run("testuser", None, "deploy-to-staging_env").await;
         assert!(result.is_ok());
     }
@@ -523,7 +539,8 @@ mod tests {
             inventory,
             crate::models::Repository::default(),
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             work_dir.clone(),
             tmp_dir.clone(),
         );
@@ -617,7 +634,11 @@ mod tests {
     #[tokio::test]
     async fn test_run_with_version_and_alias_both_nonempty() {
         let mut job = create_test_job();
-        job.set_run_params("deployer".to_string(), Some("v2.0".to_string()), "prod".to_string());
+        job.set_run_params(
+            "deployer".to_string(),
+            Some("v2.0".to_string()),
+            "prod".to_string(),
+        );
         let result = job.run("deployer", Some("v2.0"), "prod").await;
         assert!(result.is_ok());
     }
@@ -658,8 +679,14 @@ mod tests {
     #[tokio::test]
     async fn test_run_semver_version() {
         let mut job = create_test_job();
-        job.set_run_params("ci".to_string(), Some("1.2.3-beta.4+build.567".to_string()), "release".to_string());
-        let result = job.run("ci", Some("1.2.3-beta.4+build.567"), "release").await;
+        job.set_run_params(
+            "ci".to_string(),
+            Some("1.2.3-beta.4+build.567".to_string()),
+            "release".to_string(),
+        );
+        let result = job
+            .run("ci", Some("1.2.3-beta.4+build.567"), "release")
+            .await;
         assert!(result.is_ok());
     }
 
@@ -681,7 +708,8 @@ mod tests {
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );

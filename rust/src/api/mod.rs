@@ -34,10 +34,10 @@ pub mod routes {
     pub use playbooks::playbook_routes;
     pub use projects::project_routes;
     pub use repositories::repository_routes;
+    pub use static_files::static_routes;
     pub use tasks::task_routes;
     pub use templates::template_routes;
     pub use users::user_routes;
-    pub use static_files::static_routes;
 
     pub mod main;
     pub use main::api_routes;
@@ -46,11 +46,11 @@ pub mod runners;
 pub mod state;
 pub mod store_wrapper;
 pub mod system_info;
+pub mod token_blacklist;
 pub mod user;
 pub mod users;
 pub mod websocket;
 pub mod websocket_pubsub;
-pub mod token_blacklist;
 
 use axum::{middleware as axum_middleware, Router};
 use std::sync::Arc;
@@ -101,16 +101,17 @@ pub async fn create_app(store: Arc<dyn crate::db::Store + Send + Sync>) -> Route
     };
 
     // Initialize persistent task queue (Redis if available, otherwise in-memory)
-    let task_queue: Option<Arc<dyn crate::services::runners::task_queue::TaskQueue + Send + Sync>> = if let Some(ref cache) = cache {
-        // Reuse Redis connection for task queue
-        let redis_url = cache.redis_url().to_string();
-        let q = crate::services::runners::task_queue::build_task_queue(Some(&redis_url)).await;
-        info!("Persistent task queue initialized: {}", q.backend_name());
-        Some(q)
-    } else {
-        info!("Redis not available, using in-memory task queue");
-        None
-    };
+    let task_queue: Option<Arc<dyn crate::services::runners::task_queue::TaskQueue + Send + Sync>> =
+        if let Some(ref cache) = cache {
+            // Reuse Redis connection for task queue
+            let redis_url = cache.redis_url().to_string();
+            let q = crate::services::runners::task_queue::build_task_queue(Some(&redis_url)).await;
+            info!("Persistent task queue initialized: {}", q.backend_name());
+            Some(q)
+        } else {
+            info!("Redis not available, using in-memory task queue");
+            None
+        };
 
     // Initialize WebSocket manager with Redis Pub/Sub if available
     let ws_redis_url = cache.as_ref().map(|c| c.redis_url().to_string());
@@ -174,7 +175,9 @@ pub async fn create_app(store: Arc<dyn crate::db::Store + Send + Sync>) -> Route
         .merge(routes::static_routes())
         // Middleware (порядок: последний layer применяется первым)
         .layer(axum_middleware::from_fn(middleware::security_headers))
-        .layer(axum_middleware::from_fn(middleware::correlation_id_middleware))
+        .layer(axum_middleware::from_fn(
+            middleware::correlation_id_middleware,
+        ))
         .layer(axum_middleware::from_fn(middleware::trace_id_middleware))
         .layer(TraceLayer::new_for_http())
         .layer(cors)

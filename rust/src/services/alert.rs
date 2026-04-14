@@ -355,7 +355,10 @@ impl AlertService {
             let sign_bytes = mac.finalize().into_bytes();
             let sign = base64::engine::general_purpose::STANDARD.encode(sign_bytes);
             // Percent-encode base64 chars that are unsafe in URL query params
-            let encoded_sign = sign.replace('+', "%2B").replace('/', "%2F").replace('=', "%3D");
+            let encoded_sign = sign
+                .replace('+', "%2B")
+                .replace('/', "%2F")
+                .replace('=', "%3D");
             format!("{webhook_url}&timestamp={timestamp}&sign={encoded_sign}")
         } else {
             webhook_url.to_string()
@@ -381,8 +384,8 @@ impl AlertService {
         use sha2::Sha256;
         type HmacSha256 = Hmac<Sha256>;
 
-        let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
-            .expect("HMAC accepts any key length");
+        let mut mac =
+            HmacSha256::new_from_slice(secret.as_bytes()).expect("HMAC accepts any key length");
         mac.update(body);
         let result = mac.finalize().into_bytes();
         format!("sha256={}", hex::encode(result))
@@ -399,8 +402,8 @@ impl AlertService {
         use sha2::Sha256;
         type HmacSha256 = Hmac<Sha256>;
 
-        let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
-            .expect("HMAC accepts any key length");
+        let mut mac =
+            HmacSha256::new_from_slice(secret.as_bytes()).expect("HMAC accepts any key length");
         mac.update(timestamp_unix.as_bytes());
         mac.update(b".");
         mac.update(body);
@@ -820,7 +823,9 @@ mod tests {
                 desc: "d".to_string(),
                 version: "v".to_string(),
             },
-            chat: AlertChat { id: "ch".to_string() },
+            chat: AlertChat {
+                id: "ch".to_string(),
+            },
         };
         let cloned = alert.clone();
         assert_eq!(cloned.name, alert.name);
@@ -980,7 +985,9 @@ mod tests {
                 desc: "description".to_string(),
                 version: "2.0".to_string(),
             },
-            chat: AlertChat { id: "chat123".to_string() },
+            chat: AlertChat {
+                id: "chat123".to_string(),
+            },
         };
         let cloned = alert.clone();
         assert_eq!(cloned.name, "Name");
@@ -1003,12 +1010,23 @@ mod tests {
 
     #[test]
     fn test_alert_task_result_is_stringified_status() {
-        for status in [TaskStatus::Success, TaskStatus::Error, TaskStatus::Stopped, TaskStatus::Waiting, TaskStatus::Running, TaskStatus::Starting] {
+        for status in [
+            TaskStatus::Success,
+            TaskStatus::Error,
+            TaskStatus::Stopped,
+            TaskStatus::Waiting,
+            TaskStatus::Running,
+            TaskStatus::Starting,
+        ] {
             let mut task = create_test_task();
             task.status = status;
             let service = AlertService::new(task, "T".to_string(), "u".to_string());
             let alert = service.create_alert();
-            assert!(!alert.task.result.is_empty(), "Result should not be empty for {:?}", status);
+            assert!(
+                !alert.task.result.is_empty(),
+                "Result should not be empty for {:?}",
+                status
+            );
         }
     }
 
@@ -1029,7 +1047,10 @@ mod tests {
         let sign = base64::engine::general_purpose::STANDARD.encode(sign_bytes);
 
         // Check that encoding produces characters that need escaping
-        let encoded = sign.replace('+', "%2B").replace('/', "%2F").replace('=', "%3D");
+        let encoded = sign
+            .replace('+', "%2B")
+            .replace('/', "%2F")
+            .replace('=', "%3D");
         // Should not contain unescaped unsafe chars
         assert!(!encoded.contains('+'));
         assert!(!encoded.contains('/'));

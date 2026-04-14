@@ -96,9 +96,7 @@ mod tests {
 
     #[test]
     fn test_terraform_inventory_alias_new() {
-        let alias = TerraformInventoryAlias::new(
-            10, 5, 3, "prod-inventory".to_string(),
-        );
+        let alias = TerraformInventoryAlias::new(10, 5, 3, "prod-inventory".to_string());
         assert_eq!(alias.project_id, 10);
         assert_eq!(alias.inventory_id, 5);
         assert_eq!(alias.alias, "prod-inventory");
@@ -107,9 +105,7 @@ mod tests {
 
     #[test]
     fn test_terraform_inventory_alias_to_alias() {
-        let tf_alias = TerraformInventoryAlias::new(
-            10, 5, 3, "test-alias".to_string(),
-        );
+        let tf_alias = TerraformInventoryAlias::new(10, 5, 3, "test-alias".to_string());
         let base = tf_alias.to_alias();
         assert_eq!(base.alias, "test-alias");
         assert_eq!(base.project_id, 10);
@@ -117,9 +113,7 @@ mod tests {
 
     #[test]
     fn test_terraform_inventory_alias_serialization() {
-        let alias = TerraformInventoryAlias::new(
-            10, 5, 3, "prod".to_string(),
-        );
+        let alias = TerraformInventoryAlias::new(10, 5, 3, "prod".to_string());
         let json = serde_json::to_string(&alias).unwrap();
         assert!(json.contains("\"alias\":\"prod\""));
         assert!(json.contains("\"project_id\":10"));
@@ -197,7 +191,10 @@ mod tests {
 
     #[test]
     fn test_alias_clone() {
-        let alias = Alias { alias: "clone-base".to_string(), project_id: 42 };
+        let alias = Alias {
+            alias: "clone-base".to_string(),
+            project_id: 42,
+        };
         let cloned = alias.clone();
         assert_eq!(cloned.alias, alias.alias);
         assert_eq!(cloned.project_id, alias.project_id);
@@ -221,7 +218,10 @@ mod tests {
 
     #[test]
     fn test_alias_serialization() {
-        let alias = Alias { alias: "base-alias".to_string(), project_id: 100 };
+        let alias = Alias {
+            alias: "base-alias".to_string(),
+            project_id: 100,
+        };
         let json = serde_json::to_string(&alias).unwrap();
         assert!(json.contains("\"alias\":\"base-alias\""));
         assert!(json.contains("\"project_id\":100"));

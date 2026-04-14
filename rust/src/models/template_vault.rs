@@ -70,7 +70,11 @@ mod tests {
     #[test]
     fn test_template_vault_debug() {
         let vault = TemplateVault {
-            id: 1, template_id: 10, project_id: 5, vault_id: 3, vault_key_id: 2,
+            id: 1,
+            template_id: 10,
+            project_id: 5,
+            vault_id: 3,
+            vault_key_id: 2,
             name: "Debug Vault".to_string(),
         };
         let debug_str = format!("{:?}", vault);
@@ -98,7 +102,11 @@ mod tests {
     #[test]
     fn test_template_vault_empty_name() {
         let vault = TemplateVault {
-            id: 1, template_id: 1, project_id: 1, vault_id: 1, vault_key_id: 1,
+            id: 1,
+            template_id: 1,
+            project_id: 1,
+            vault_id: 1,
+            vault_key_id: 1,
             name: String::new(),
         };
         let json = serde_json::to_string(&vault).unwrap();
@@ -119,7 +127,11 @@ mod tests {
     #[test]
     fn test_template_vault_special_chars_name() {
         let vault = TemplateVault {
-            id: 1, template_id: 1, project_id: 1, vault_id: 1, vault_key_id: 1,
+            id: 1,
+            template_id: 1,
+            project_id: 1,
+            vault_id: 1,
+            vault_key_id: 1,
             name: "Vault & <secrets> \"quoted\"".to_string(),
         };
         let json = serde_json::to_string(&vault).unwrap();
@@ -130,7 +142,11 @@ mod tests {
     #[test]
     fn test_template_vault_zero_ids() {
         let vault = TemplateVault {
-            id: 0, template_id: 0, project_id: 0, vault_id: 0, vault_key_id: 0,
+            id: 0,
+            template_id: 0,
+            project_id: 0,
+            vault_id: 0,
+            vault_key_id: 0,
             name: "Zero".to_string(),
         };
         assert_eq!(vault.id, 0);
@@ -140,7 +156,11 @@ mod tests {
     #[test]
     fn test_template_vault_roundtrip() {
         let original = TemplateVault {
-            id: 7, template_id: 14, project_id: 21, vault_id: 28, vault_key_id: 35,
+            id: 7,
+            template_id: 14,
+            project_id: 21,
+            vault_id: 28,
+            vault_key_id: 35,
             name: "Roundtrip Vault".to_string(),
         };
         let json = serde_json::to_string(&original).unwrap();
@@ -153,7 +173,11 @@ mod tests {
     #[test]
     fn test_template_vault_unicode_name() {
         let vault = TemplateVault {
-            id: 1, template_id: 1, project_id: 1, vault_id: 1, vault_key_id: 1,
+            id: 1,
+            template_id: 1,
+            project_id: 1,
+            vault_id: 1,
+            vault_key_id: 1,
             name: "Хранилище секретов".to_string(),
         };
         let json = serde_json::to_string(&vault).unwrap();
@@ -164,7 +188,11 @@ mod tests {
     #[test]
     fn test_template_vault_clone_independence() {
         let mut vault = TemplateVault {
-            id: 1, template_id: 1, project_id: 1, vault_id: 1, vault_key_id: 1,
+            id: 1,
+            template_id: 1,
+            project_id: 1,
+            vault_id: 1,
+            vault_key_id: 1,
             name: "Original".to_string(),
         };
         let cloned = vault.clone();
@@ -191,7 +219,11 @@ mod tests {
     #[test]
     fn test_template_vault_newline_in_name() {
         let vault = TemplateVault {
-            id: 1, template_id: 1, project_id: 1, vault_id: 1, vault_key_id: 1,
+            id: 1,
+            template_id: 1,
+            project_id: 1,
+            vault_id: 1,
+            vault_key_id: 1,
             name: "Line1\nLine2".to_string(),
         };
         let json = serde_json::to_string(&vault).unwrap();
@@ -202,7 +234,11 @@ mod tests {
     #[test]
     fn test_template_vault_debug_format() {
         let vault = TemplateVault {
-            id: 99, template_id: 100, project_id: 200, vault_id: 300, vault_key_id: 400,
+            id: 99,
+            template_id: 100,
+            project_id: 200,
+            vault_id: 300,
+            vault_key_id: 400,
             name: "DebugTest".to_string(),
         };
         let debug_str = format!("{:?}", vault);

@@ -567,7 +567,9 @@ mod tests {
         for i in 0..20 {
             let limiter_clone = limiter.clone();
             handles.push(tokio::spawn(async move {
-                limiter_clone.is_allowed(&format!("concurrent_{}", i % 4)).await
+                limiter_clone
+                    .is_allowed(&format!("concurrent_{}", i % 4))
+                    .await
             }));
         }
 

@@ -201,12 +201,24 @@ mod tests {
 
     #[test]
     fn test_integration_matcher_matcher_types() {
-        let types = ["equals", "contains", "regex", "starts_with", "ends_with", "not_equals"];
+        let types = [
+            "equals",
+            "contains",
+            "regex",
+            "starts_with",
+            "ends_with",
+            "not_equals",
+        ];
         for mt in &types {
             let matcher = IntegrationMatcher {
-                id: 1, integration_id: 1, project_id: 1, name: "Test".to_string(),
-                body_data_type: "json".to_string(), key: None,
-                matcher_type: mt.to_string(), matcher_value: "val".to_string(),
+                id: 1,
+                integration_id: 1,
+                project_id: 1,
+                name: "Test".to_string(),
+                body_data_type: "json".to_string(),
+                key: None,
+                matcher_type: mt.to_string(),
+                matcher_value: "val".to_string(),
                 method: "POST".to_string(),
             };
             assert_eq!(matcher.matcher_type, *mt);
@@ -218,9 +230,14 @@ mod tests {
         let methods = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"];
         for method in &methods {
             let matcher = IntegrationMatcher {
-                id: 1, integration_id: 1, project_id: 1, name: "Test".to_string(),
-                body_data_type: "json".to_string(), key: None,
-                matcher_type: "equals".to_string(), matcher_value: "val".to_string(),
+                id: 1,
+                integration_id: 1,
+                project_id: 1,
+                name: "Test".to_string(),
+                body_data_type: "json".to_string(),
+                key: None,
+                matcher_type: "equals".to_string(),
+                matcher_value: "val".to_string(),
                 method: method.to_string(),
             };
             assert_eq!(matcher.method, *method);
@@ -248,8 +265,28 @@ mod tests {
     #[test]
     fn test_integration_matcher_vec_serialization() {
         let matchers = vec![
-            IntegrationMatcher { id: 1, integration_id: 10, project_id: 5, name: "A".to_string(), body_data_type: "json".to_string(), key: None, matcher_type: "equals".to_string(), matcher_value: "a".to_string(), method: "POST".to_string() },
-            IntegrationMatcher { id: 2, integration_id: 10, project_id: 5, name: "B".to_string(), body_data_type: "text".to_string(), key: Some("X".to_string()), matcher_type: "contains".to_string(), matcher_value: "b".to_string(), method: "GET".to_string() },
+            IntegrationMatcher {
+                id: 1,
+                integration_id: 10,
+                project_id: 5,
+                name: "A".to_string(),
+                body_data_type: "json".to_string(),
+                key: None,
+                matcher_type: "equals".to_string(),
+                matcher_value: "a".to_string(),
+                method: "POST".to_string(),
+            },
+            IntegrationMatcher {
+                id: 2,
+                integration_id: 10,
+                project_id: 5,
+                name: "B".to_string(),
+                body_data_type: "text".to_string(),
+                key: Some("X".to_string()),
+                matcher_type: "contains".to_string(),
+                matcher_value: "b".to_string(),
+                method: "GET".to_string(),
+            },
         ];
         let json = serde_json::to_string(&matchers).unwrap();
         assert!(json.contains("\"A\""));
@@ -261,9 +298,14 @@ mod tests {
     #[test]
     fn test_integration_matcher_debug() {
         let matcher = IntegrationMatcher {
-            id: 1, integration_id: 10, project_id: 5, name: "Debug".to_string(),
-            body_data_type: "json".to_string(), key: None,
-            matcher_type: "equals".to_string(), matcher_value: "test".to_string(),
+            id: 1,
+            integration_id: 10,
+            project_id: 5,
+            name: "Debug".to_string(),
+            body_data_type: "json".to_string(),
+            key: None,
+            matcher_type: "equals".to_string(),
+            matcher_value: "test".to_string(),
             method: "POST".to_string(),
         };
         let debug_str = format!("{:?}", matcher);

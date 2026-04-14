@@ -209,7 +209,10 @@ mod tests {
             totp: None,
             email_otp: None,
         };
-        assert!(matches!(user.validate(), Err(ValidationError::UsernameEmpty)));
+        assert!(matches!(
+            user.validate(),
+            Err(ValidationError::UsernameEmpty)
+        ));
     }
 
     #[test]

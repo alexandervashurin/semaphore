@@ -83,9 +83,7 @@ impl WebSocketPubSub {
         let json = serde_json::to_string(message).map_err(|e| e.to_string())?;
 
         if let Some(ref client) = self.client {
-            let mut conn = client
-                .get_connection()
-                .map_err(|e| e.to_string())?;
+            let mut conn = client.get_connection().map_err(|e| e.to_string())?;
 
             redis::cmd("PUBLISH")
                 .arg(&self.config.channel)
@@ -93,7 +91,10 @@ impl WebSocketPubSub {
                 .query::<()>(&mut conn)
                 .map_err(|e| e.to_string())?;
 
-            debug!("Published message to Redis channel: {}", self.config.channel);
+            debug!(
+                "Published message to Redis channel: {}",
+                self.config.channel
+            );
         }
 
         Ok(())
@@ -145,7 +146,10 @@ impl WebSocketPubSub {
                                                 }
                                             }
                                             Err(e) => {
-                                                error!("Failed to get Redis Pub/Sub message: {}", e);
+                                                error!(
+                                                    "Failed to get Redis Pub/Sub message: {}",
+                                                    e
+                                                );
                                                 break;
                                             }
                                         }
@@ -170,7 +174,10 @@ impl WebSocketPubSub {
     }
 
     /// Отправляет сообщение через локальный broadcast
-    pub fn broadcast(&self, message: WsMessage) -> Result<usize, broadcast::error::SendError<WsMessage>> {
+    pub fn broadcast(
+        &self,
+        message: WsMessage,
+    ) -> Result<usize, broadcast::error::SendError<WsMessage>> {
         self.broadcaster.send(message)
     }
 

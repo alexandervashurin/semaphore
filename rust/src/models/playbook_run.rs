@@ -248,7 +248,9 @@ mod tests {
     #[test]
     fn test_playbook_run_result_clone() {
         let result = PlaybookRunResult {
-            task_id: 100, template_id: 5, status: "waiting".to_string(),
+            task_id: 100,
+            template_id: 5,
+            status: "waiting".to_string(),
             message: "Task created".to_string(),
         };
         let cloned = result.clone();
@@ -259,7 +261,9 @@ mod tests {
     #[test]
     fn test_playbook_run_result_debug() {
         let result = PlaybookRunResult {
-            task_id: 1, template_id: 1, status: "running".to_string(),
+            task_id: 1,
+            template_id: 1,
+            status: "running".to_string(),
             message: "Debug result".to_string(),
         };
         let debug_str = format!("{:?}", result);
@@ -269,9 +273,12 @@ mod tests {
     #[test]
     fn test_ansible_playbook_params_clone() {
         let params = AnsiblePlaybookParams {
-            playbook: "clone.yml".to_string(), inventory_id: Some(1),
-            environment_id: Some(2), extra_vars: Some("{}".to_string()),
-            limit: Some("localhost".to_string()), tags: Some("deploy".to_string()),
+            playbook: "clone.yml".to_string(),
+            inventory_id: Some(1),
+            environment_id: Some(2),
+            extra_vars: Some("{}".to_string()),
+            limit: Some("localhost".to_string()),
+            tags: Some("deploy".to_string()),
             skip_tags: Some("test".to_string()),
         };
         let cloned = params.clone();
@@ -282,9 +289,13 @@ mod tests {
     #[test]
     fn test_ansible_playbook_params_debug() {
         let params = AnsiblePlaybookParams {
-            playbook: "debug.yml".to_string(), inventory_id: None,
-            environment_id: None, extra_vars: None, limit: None,
-            tags: None, skip_tags: None,
+            playbook: "debug.yml".to_string(),
+            inventory_id: None,
+            environment_id: None,
+            extra_vars: None,
+            limit: None,
+            tags: None,
+            skip_tags: None,
         };
         let debug_str = format!("{:?}", params);
         assert!(debug_str.contains("AnsiblePlaybookParams"));

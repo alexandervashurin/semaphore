@@ -22,7 +22,10 @@ mod tests {
     fn test_hook_type_serialization() {
         assert_eq!(serde_json::to_string(&HookType::Http).unwrap(), "\"http\"");
         assert_eq!(serde_json::to_string(&HookType::Bash).unwrap(), "\"bash\"");
-        assert_eq!(serde_json::to_string(&HookType::Python).unwrap(), "\"python\"");
+        assert_eq!(
+            serde_json::to_string(&HookType::Python).unwrap(),
+            "\"python\""
+        );
     }
 
     #[test]
@@ -45,10 +48,16 @@ mod tests {
     #[test]
     fn test_hook_serialization() {
         let hook = Hook {
-            id: 1, project_id: 10, template_id: 5, name: "Webhook".to_string(),
-            r#type: HookType::Http, url: Some("https://hooks.slack.com/xxx".to_string()),
-            script: None, http_method: Some("POST".to_string()),
-            http_body: Some(r#"{"text":"done"}"#.to_string()), timeout_secs: Some(30),
+            id: 1,
+            project_id: 10,
+            template_id: 5,
+            name: "Webhook".to_string(),
+            r#type: HookType::Http,
+            url: Some("https://hooks.slack.com/xxx".to_string()),
+            script: None,
+            http_method: Some("POST".to_string()),
+            http_body: Some(r#"{"text":"done"}"#.to_string()),
+            timeout_secs: Some(30),
         };
         let json = serde_json::to_string(&hook).unwrap();
         assert!(json.contains("\"name\":\"Webhook\""));

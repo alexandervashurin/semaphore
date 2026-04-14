@@ -871,10 +871,7 @@ mod tests {
         };
 
         let conn = config.get_connection_string(true).unwrap();
-        assert_eq!(
-            conn,
-            "postgres://postgres:pgpass@pg-host:5432/appdb"
-        );
+        assert_eq!(conn, "postgres://postgres:pgpass@pg-host:5432/appdb");
     }
 
     #[test]
@@ -1295,7 +1292,10 @@ mod tests {
             telegram_bot_token: Some("123456:ABC-DEF".to_string()),
             ..Default::default()
         };
-        assert_eq!(config.telegram_bot_token, Some("123456:ABC-DEF".to_string()));
+        assert_eq!(
+            config.telegram_bot_token,
+            Some("123456:ABC-DEF".to_string())
+        );
     }
 
     #[test]

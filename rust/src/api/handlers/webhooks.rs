@@ -2,21 +2,23 @@
 //!
 //! Обработчики HTTP запросов для управления webhook
 
+use crate::api::extractors::AuthUser;
+use crate::api::middleware::ErrorResponse;
+use crate::api::state::AppState;
+use crate::db::store::{ProjectStore, WebhookManager};
+use crate::error::Error;
+use crate::models::webhook::{
+    CreateWebhook, TestWebhook, UpdateWebhook, Webhook, WebhookLog, WebhookType,
+};
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
     Json,
 };
-use std::sync::Arc;
 use chrono::{DateTime, Utc};
-use crate::api::state::AppState;
-use crate::api::extractors::AuthUser;
-use crate::api::middleware::ErrorResponse;
-use crate::db::store::{ProjectStore, WebhookManager};
-use crate::models::webhook::{Webhook, WebhookType, CreateWebhook, UpdateWebhook, TestWebhook, WebhookLog};
-use crate::error::Error;
 use serde::Deserialize;
+use std::sync::Arc;
 
 /// Query параметры для GET /api/projects/:id/webhooks
 #[derive(Debug, Deserialize)]
@@ -35,17 +37,25 @@ pub async fn get_project_webhooks(
     Path(project_id): Path<i64>,
     Query(params): Query<WebhookQueryParams>,
 ) -> std::result::Result<Json<Vec<Webhook>>, (StatusCode, Json<ErrorResponse>)> {
-    let webhooks = state.store.get_webhooks_by_project(project_id).await
+    let webhooks = state
+        .store
+        .get_webhooks_by_project(project_id)
+        .await
         .map_err(|e| {
             tracing::error!("Failed to get webhooks: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse::new(e.to_string())))
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
         })?;
 
     let filtered: Vec<Webhook> = webhooks
         .into_iter()
         .filter(|w| {
             if let Some(active) = params.active {
-                if w.active != active { return false; }
+                if w.active != active {
+                    return false;
+                }
             }
             if let Some(t) = &params.r#type {
                 let type_str = match w.r#type {
@@ -56,7 +66,9 @@ pub async fn get_project_webhooks(
                     WebhookType::Telegram => "telegram",
                     WebhookType::Custom => "custom",
                 };
-                if type_str != t { return false; }
+                if type_str != t {
+                    return false;
+                }
             }
             true
         })
@@ -64,7 +76,7 @@ pub async fn get_project_webhooks(
 
     let limit = params.limit.unwrap_or(100) as usize;
     let offset = params.offset.unwrap_or(0) as usize;
-    
+
     let result: Vec<Webhook> = filtered.into_iter().skip(offset).take(limit).collect();
 
     Ok(Json(result))
@@ -77,14 +89,19 @@ pub async fn get_webhook(
     _user: AuthUser,
     Path((project_id, webhook_id)): Path<(i64, i64)>,
 ) -> std::result::Result<Json<Webhook>, (StatusCode, Json<ErrorResponse>)> {
-    let webhook = state.store.get_webhook(webhook_id).await
-        .map_err(|e| {
-            tracing::error!("Failed to get webhook: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse::new(e.to_string())))
-        })?;
+    let webhook = state.store.get_webhook(webhook_id).await.map_err(|e| {
+        tracing::error!("Failed to get webhook: {}", e);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     if webhook.project_id != Some(project_id) {
-        return Err((StatusCode::FORBIDDEN, Json(ErrorResponse::new("Webhook does not belong to project"))));
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(ErrorResponse::new("Webhook does not belong to project")),
+        ));
     }
 
     Ok(Json(webhook))
@@ -99,7 +116,7 @@ pub async fn create_webhook(
     Json(payload): Json<CreateWebhook>,
 ) -> std::result::Result<(StatusCode, Json<Webhook>), (StatusCode, Json<ErrorResponse>)> {
     let now = Utc::now();
-    
+
     let webhook = Webhook {
         id: 0,
         project_id: Some(project_id),
@@ -116,11 +133,13 @@ pub async fn create_webhook(
         updated: now,
     };
 
-    let created = state.store.create_webhook(webhook).await
-        .map_err(|e| {
-            tracing::error!("Failed to create webhook: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse::new(e.to_string())))
-        })?;
+    let created = state.store.create_webhook(webhook).await.map_err(|e| {
+        tracing::error!("Failed to create webhook: {}", e);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     Ok((StatusCode::CREATED, Json(created)))
 }
@@ -133,20 +152,31 @@ pub async fn update_webhook(
     Path((project_id, webhook_id)): Path<(i64, i64)>,
     Json(payload): Json<UpdateWebhook>,
 ) -> std::result::Result<Json<Webhook>, (StatusCode, Json<ErrorResponse>)> {
-    let existing = state.store.get_webhook(webhook_id).await
-        .map_err(|e| {
-            tracing::error!("Failed to get webhook: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse::new(e.to_string())))
-        })?;
+    let existing = state.store.get_webhook(webhook_id).await.map_err(|e| {
+        tracing::error!("Failed to get webhook: {}", e);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     if existing.project_id != Some(project_id) {
-        return Err((StatusCode::FORBIDDEN, Json(ErrorResponse::new("Webhook does not belong to project"))));
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(ErrorResponse::new("Webhook does not belong to project")),
+        ));
     }
 
-    let updated = state.store.update_webhook(webhook_id, payload).await
+    let updated = state
+        .store
+        .update_webhook(webhook_id, payload)
+        .await
         .map_err(|e| {
             tracing::error!("Failed to update webhook: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse::new(e.to_string())))
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
         })?;
 
     Ok(Json(updated))
@@ -159,21 +189,28 @@ pub async fn delete_webhook(
     _user: AuthUser,
     Path((project_id, webhook_id)): Path<(i64, i64)>,
 ) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    let existing = state.store.get_webhook(webhook_id).await
-        .map_err(|e| {
-            tracing::error!("Failed to get webhook: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse::new(e.to_string())))
-        })?;
+    let existing = state.store.get_webhook(webhook_id).await.map_err(|e| {
+        tracing::error!("Failed to get webhook: {}", e);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     if existing.project_id != Some(project_id) {
-        return Err((StatusCode::FORBIDDEN, Json(ErrorResponse::new("Webhook does not belong to project"))));
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(ErrorResponse::new("Webhook does not belong to project")),
+        ));
     }
 
-    state.store.delete_webhook(webhook_id).await
-        .map_err(|e| {
-            tracing::error!("Failed to delete webhook: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse::new(e.to_string())))
-        })?;
+    state.store.delete_webhook(webhook_id).await.map_err(|e| {
+        tracing::error!("Failed to delete webhook: {}", e);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -186,25 +223,38 @@ pub async fn test_webhook(
     Path((project_id, webhook_id)): Path<(i64, i64)>,
     payload: Option<Json<TestWebhook>>,
 ) -> std::result::Result<Json<serde_json::Value>, (StatusCode, Json<ErrorResponse>)> {
-    let webhook = state.store.get_webhook(webhook_id).await
-        .map_err(|e| {
-            tracing::error!("Failed to get webhook: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse::new(e.to_string())))
-        })?;
+    let webhook = state.store.get_webhook(webhook_id).await.map_err(|e| {
+        tracing::error!("Failed to get webhook: {}", e);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     if webhook.project_id != Some(project_id) {
-        return Err((StatusCode::FORBIDDEN, Json(ErrorResponse::new("Webhook does not belong to project"))));
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(ErrorResponse::new("Webhook does not belong to project")),
+        ));
     }
 
     use crate::services::webhook::WebhookService;
 
-    let _test_url = payload.as_ref().map(|p| p.0.url.clone()).unwrap_or_else(|| webhook.url.clone());
-    let _test_type = payload.as_ref().map(|p| p.0.r#type.clone()).unwrap_or_else(|| webhook.r#type.clone());
+    let _test_url = payload
+        .as_ref()
+        .map(|p| p.0.url.clone())
+        .unwrap_or_else(|| webhook.url.clone());
+    let _test_type = payload
+        .as_ref()
+        .map(|p| p.0.r#type.clone())
+        .unwrap_or_else(|| webhook.r#type.clone());
 
     // TODO: implement actual test webhook sending
     let _service = WebhookService::new();
 
-    Ok(Json(serde_json::json!({"success": true, "message": "Webhook test successful"})))
+    Ok(Json(
+        serde_json::json!({"success": true, "message": "Webhook test successful"}),
+    ))
 }
 
 /// GET /api/projects/:project_id/webhooks/:id/logs - Получение логов webhook
@@ -215,25 +265,36 @@ pub async fn get_webhook_logs(
     Path((project_id, webhook_id)): Path<(i64, i64)>,
     Query(params): Query<WebhookQueryParams>,
 ) -> std::result::Result<Json<Vec<WebhookLog>>, (StatusCode, Json<ErrorResponse>)> {
-    let webhook = state.store.get_webhook(webhook_id).await
-        .map_err(|e| {
-            tracing::error!("Failed to get webhook: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse::new(e.to_string())))
-        })?;
+    let webhook = state.store.get_webhook(webhook_id).await.map_err(|e| {
+        tracing::error!("Failed to get webhook: {}", e);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(e.to_string())),
+        )
+    })?;
 
     if webhook.project_id != Some(project_id) {
-        return Err((StatusCode::FORBIDDEN, Json(ErrorResponse::new("Webhook does not belong to project"))));
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(ErrorResponse::new("Webhook does not belong to project")),
+        ));
     }
 
-    let logs = state.store.get_webhook_logs(webhook_id).await
+    let logs = state
+        .store
+        .get_webhook_logs(webhook_id)
+        .await
         .map_err(|e| {
             tracing::error!("Failed to get webhook logs: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse::new(e.to_string())))
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(e.to_string())),
+            )
         })?;
 
     let limit = params.limit.unwrap_or(50) as usize;
     let offset = params.offset.unwrap_or(0) as usize;
-    
+
     let result: Vec<WebhookLog> = logs.into_iter().skip(offset).take(limit).collect();
 
     Ok(Json(result))
@@ -242,7 +303,9 @@ pub async fn get_webhook_logs(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::webhook::{Webhook, WebhookType, CreateWebhook, UpdateWebhook, TestWebhook, WebhookLog};
+    use crate::models::webhook::{
+        CreateWebhook, TestWebhook, UpdateWebhook, Webhook, WebhookLog, WebhookType,
+    };
     use serde_json;
 
     // =====================================================================
@@ -673,13 +736,15 @@ mod tests {
             },
         ];
 
-        let slack_hooks: Vec<&Webhook> = webhooks.iter()
+        let slack_hooks: Vec<&Webhook> = webhooks
+            .iter()
             .filter(|w| w.r#type == WebhookType::Slack)
             .collect();
         assert_eq!(slack_hooks.len(), 1);
         assert_eq!(slack_hooks[0].name, "Slack Hook");
 
-        let non_generic: Vec<&Webhook> = webhooks.iter()
+        let non_generic: Vec<&Webhook> = webhooks
+            .iter()
             .filter(|w| w.r#type != WebhookType::Generic)
             .collect();
         assert_eq!(non_generic.len(), 2);
@@ -689,12 +754,55 @@ mod tests {
     fn test_filter_combined_active_and_type() {
         let now = Utc::now();
         let webhooks = vec![
-            Webhook { id: 1, project_id: Some(1), name: "Active Slack".to_string(), r#type: WebhookType::Slack, url: "https://example.com/1".to_string(), secret: None, headers: None, active: true, events: serde_json::json!([]), retry_count: 1, timeout_secs: 10, created: now, updated: now },
-            Webhook { id: 2, project_id: Some(1), name: "Inactive Slack".to_string(), r#type: WebhookType::Slack, url: "https://example.com/2".to_string(), secret: None, headers: None, active: false, events: serde_json::json!([]), retry_count: 1, timeout_secs: 10, created: now, updated: now },
-            Webhook { id: 3, project_id: Some(1), name: "Active Discord".to_string(), r#type: WebhookType::Discord, url: "https://example.com/3".to_string(), secret: None, headers: None, active: true, events: serde_json::json!([]), retry_count: 1, timeout_secs: 10, created: now, updated: now },
+            Webhook {
+                id: 1,
+                project_id: Some(1),
+                name: "Active Slack".to_string(),
+                r#type: WebhookType::Slack,
+                url: "https://example.com/1".to_string(),
+                secret: None,
+                headers: None,
+                active: true,
+                events: serde_json::json!([]),
+                retry_count: 1,
+                timeout_secs: 10,
+                created: now,
+                updated: now,
+            },
+            Webhook {
+                id: 2,
+                project_id: Some(1),
+                name: "Inactive Slack".to_string(),
+                r#type: WebhookType::Slack,
+                url: "https://example.com/2".to_string(),
+                secret: None,
+                headers: None,
+                active: false,
+                events: serde_json::json!([]),
+                retry_count: 1,
+                timeout_secs: 10,
+                created: now,
+                updated: now,
+            },
+            Webhook {
+                id: 3,
+                project_id: Some(1),
+                name: "Active Discord".to_string(),
+                r#type: WebhookType::Discord,
+                url: "https://example.com/3".to_string(),
+                secret: None,
+                headers: None,
+                active: true,
+                events: serde_json::json!([]),
+                retry_count: 1,
+                timeout_secs: 10,
+                created: now,
+                updated: now,
+            },
         ];
 
-        let filtered: Vec<&Webhook> = webhooks.iter()
+        let filtered: Vec<&Webhook> = webhooks
+            .iter()
             .filter(|w| w.active && w.r#type == WebhookType::Slack)
             .collect();
 
@@ -727,4 +835,3 @@ mod tests {
         assert!(page.is_empty());
     }
 }
-

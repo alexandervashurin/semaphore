@@ -598,7 +598,10 @@ mod tests {
         let payload: TaskCreatePayload = serde_json::from_str(json).unwrap();
         assert_eq!(payload.playbook, Some("развертывание.yml".to_string()));
         assert_eq!(payload.environment, Some("Продакшн".to_string()));
-        assert_eq!(payload.arguments, Some("--comment 'Обновление'".to_string()));
+        assert_eq!(
+            payload.arguments,
+            Some("--comment 'Обновление'".to_string())
+        );
     }
 
     #[test]
@@ -611,7 +614,10 @@ mod tests {
         }"#;
         let payload: TaskCreatePayload = serde_json::from_str(json).unwrap();
         assert_eq!(payload.playbook, Some("path/to/deploy.yml".to_string()));
-        assert_eq!(payload.arguments, Some("-e \"key=value with spaces\"".to_string()));
+        assert_eq!(
+            payload.arguments,
+            Some("-e \"key=value with spaces\"".to_string())
+        );
         assert_eq!(payload.git_branch, Some("feature/fix-bug#123".to_string()));
     }
 

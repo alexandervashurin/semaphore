@@ -2,14 +2,17 @@
 //!
 //! SelfSubjectAccessReview с кэшированием (5 минут) для производительности
 
-use axum::{extract::{State, Path, Query}, Json};
+use axum::{
+    extract::{Path, Query, State},
+    Json,
+};
 use k8s_openapi::api::authorization::v1::{
     ResourceAttributes, SelfSubjectAccessReview, SelfSubjectAccessReviewSpec,
 };
 use kube::api::{Api, PostParams};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use std::collections::HashMap;
+use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::time::{Duration, Instant};
 
@@ -40,15 +43,21 @@ impl RbacCache {
 
     async fn get(&self, key: &str) -> Option<bool> {
         let entries = self.entries.read().await;
-        entries.get(key).filter(|e| e.expires > Instant::now()).map(|e| e.allowed)
+        entries
+            .get(key)
+            .filter(|e| e.expires > Instant::now())
+            .map(|e| e.allowed)
     }
 
     async fn set(&self, key: String, allowed: bool) {
         let mut entries = self.entries.write().await;
-        entries.insert(key, CacheEntry {
-            allowed,
-            expires: Instant::now() + self.ttl,
-        });
+        entries.insert(
+            key,
+            CacheEntry {
+                allowed,
+                expires: Instant::now() + self.ttl,
+            },
+        );
     }
 
     pub async fn clear(&self) {
@@ -159,11 +168,7 @@ async fn can_i(
         .await
         .map_err(|e| Error::Kubernetes(format!("RBAC SelfSubjectAccessReview failed: {e}")))?;
 
-    let allowed = created
-        .status
-        .as_ref()
-        .map(|s| s.allowed)
-        .unwrap_or(false);
+    let allowed = created.status.as_ref().map(|s| s.allowed).unwrap_or(false);
 
     // Сохраняем в кэш
     cache.set(cache_key, allowed).await;
@@ -209,10 +214,29 @@ pub async fn check_kubernetes_rbac(
     resources.push(check_resource(&review_api, "", "secrets", true, ns).await?);
     resources.push(check_resource(&review_api, "", "persistentvolumeclaims", true, ns).await?);
     resources.push(check_resource(&review_api, "", "persistentvolumes", false, ns).await?);
-    resources.push(check_resource(&review_api, "storage.k8s.io", "storageclasses", false, ns).await?);
+    resources
+        .push(check_resource(&review_api, "storage.k8s.io", "storageclasses", false, ns).await?);
     resources.push(check_resource(&review_api, "networking.k8s.io", "ingresses", true, ns).await?);
-    resources.push(check_resource(&review_api, "networking.k8s.io", "networkpolicies", true, ns).await?);
-    resources.push(check_resource(&review_api, "networking.k8s.io", "ingressclasses", false, ns).await?);
+    resources.push(
+        check_resource(
+            &review_api,
+            "networking.k8s.io",
+            "networkpolicies",
+            true,
+            ns,
+        )
+        .await?,
+    );
+    resources.push(
+        check_resource(
+            &review_api,
+            "networking.k8s.io",
+            "ingressclasses",
+            false,
+            ns,
+        )
+        .await?,
+    );
     resources.push(check_resource(&review_api, "batch", "jobs", true, ns).await?);
     resources.push(check_resource(&review_api, "batch", "cronjobs", true, ns).await?);
     resources.push(check_resource(&review_api, "policy", "poddisruptionbudgets", true, ns).await?);
@@ -227,16 +251,8 @@ pub async fn check_kubernetes_rbac(
         .await?,
     );
     resources.push(check_resource(&review_api, "", "serviceaccounts", true, ns).await?);
-    resources.push(
-        check_resource(
-            &review_api,
-            "rbac.authorization.k8s.io",
-            "roles",
-            true,
-            ns,
-        )
-        .await?,
-    );
+    resources
+        .push(check_resource(&review_api, "rbac.authorization.k8s.io", "roles", true, ns).await?);
     resources.push(
         check_resource(
             &review_api,
@@ -348,7 +364,7 @@ pub async fn check_rbac_action(
 ) -> Result<Json<RbacActionResponse>> {
     let client = state.kubernetes_client()?;
     let review_api: Api<SelfSubjectAccessReview> = Api::all(client.raw().clone());
-    
+
     // Проверяем, был ли результат в кэше
     let cache_key = format!(
         "{}:{}:{}:{}",
@@ -357,17 +373,18 @@ pub async fn check_rbac_action(
         payload.resource,
         payload.verb
     );
-    
+
     let cache = get_rbac_cache();
     let cached = cache.get(&cache_key).await.is_some();
-    
+
     let allowed = can_i(
         &review_api,
         payload.group.as_deref().unwrap_or(""),
         &payload.resource,
         &payload.verb,
         payload.namespace.as_deref(),
-    ).await?;
+    )
+    .await?;
 
     Ok(Json(RbacActionResponse {
         allowed,
@@ -384,7 +401,9 @@ pub async fn check_rbac_action(
 pub async fn clear_rbac_cache() -> Result<Json<serde_json::Value>> {
     let cache = get_rbac_cache();
     cache.clear().await;
-    Ok(Json(serde_json::json!({"cleared": true, "message": "RBAC cache cleared"})))
+    Ok(Json(
+        serde_json::json!({"cleared": true, "message": "RBAC cache cleared"}),
+    ))
 }
 
 #[cfg(test)]
@@ -412,8 +431,13 @@ mod tests {
     #[test]
     fn test_rbac_verb_matrix_all_true() {
         let matrix = RbacVerbMatrix {
-            get: true, list: true, watch: true,
-            create: true, update: true, patch: true, delete: true,
+            get: true,
+            list: true,
+            watch: true,
+            create: true,
+            update: true,
+            patch: true,
+            delete: true,
         };
         let json = serde_json::to_string(&matrix).unwrap();
         assert!(json.contains("\"get\":true"));
@@ -423,8 +447,13 @@ mod tests {
     #[test]
     fn test_rbac_verb_matrix_all_false() {
         let matrix = RbacVerbMatrix {
-            get: false, list: false, watch: false,
-            create: false, update: false, patch: false, delete: false,
+            get: false,
+            list: false,
+            watch: false,
+            create: false,
+            update: false,
+            patch: false,
+            delete: false,
         };
         let json = serde_json::to_string(&matrix).unwrap();
         assert!(json.contains("\"get\":false"));
@@ -434,8 +463,13 @@ mod tests {
     #[test]
     fn test_rbac_verb_matrix_mixed() {
         let matrix = RbacVerbMatrix {
-            get: true, list: true, watch: false,
-            create: false, update: false, patch: false, delete: true,
+            get: true,
+            list: true,
+            watch: false,
+            create: false,
+            update: false,
+            patch: false,
+            delete: true,
         };
         assert!(matrix.get);
         assert!(matrix.list);
@@ -452,8 +486,13 @@ mod tests {
             resource: "pods".to_string(),
             namespaced: true,
             verbs: RbacVerbMatrix {
-                get: true, list: true, watch: true,
-                create: false, update: false, patch: false, delete: false,
+                get: true,
+                list: true,
+                watch: true,
+                create: false,
+                update: false,
+                patch: false,
+                delete: false,
             },
         };
         let json = serde_json::to_value(&check).unwrap();
@@ -468,8 +507,13 @@ mod tests {
             resource: "namespaces".to_string(),
             namespaced: false,
             verbs: RbacVerbMatrix {
-                get: true, list: true, watch: false,
-                create: false, update: false, patch: false, delete: false,
+                get: true,
+                list: true,
+                watch: false,
+                create: false,
+                update: false,
+                patch: false,
+                delete: false,
             },
         };
         assert!(!check.namespaced);
@@ -481,7 +525,9 @@ mod tests {
     #[test]
     fn test_secret_access_hints_full_access() {
         let hints = SecretAccessHints {
-            has_get: true, has_list: true, has_watch: true,
+            has_get: true,
+            has_list: true,
+            has_watch: true,
             warning: None,
         };
         let json = serde_json::to_value(&hints).unwrap();
@@ -493,7 +539,9 @@ mod tests {
     #[test]
     fn test_secret_access_hints_with_warning() {
         let hints = SecretAccessHints {
-            has_get: true, has_list: false, has_watch: false,
+            has_get: true,
+            has_list: false,
+            has_watch: false,
             warning: Some("Limited permissions".to_string()),
         };
         assert!(hints.has_get);
@@ -509,7 +557,9 @@ mod tests {
             namespace: Some("kube-system".to_string()),
             resources: vec![],
             secrets_hints: SecretAccessHints {
-                has_get: false, has_list: false, has_watch: false,
+                has_get: false,
+                has_list: false,
+                has_watch: false,
                 warning: None,
             },
         };

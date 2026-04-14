@@ -259,7 +259,10 @@ mod tests {
         }"#;
         let payload: RepositoryCreatePayload = serde_json::from_str(json).unwrap();
         assert_eq!(payload.name, "GitLab Repo");
-        assert_eq!(payload.git_url, "https://gitlab.example.com/org/project.git");
+        assert_eq!(
+            payload.git_url,
+            "https://gitlab.example.com/org/project.git"
+        );
     }
 
     #[test]
@@ -352,7 +355,10 @@ mod tests {
             "git_url": "https://gitlab.com/org/team/subgroup/project.git"
         }"#;
         let payload: RepositoryCreatePayload = serde_json::from_str(json).unwrap();
-        assert_eq!(payload.git_url, "https://gitlab.com/org/team/subgroup/project.git");
+        assert_eq!(
+            payload.git_url,
+            "https://gitlab.com/org/team/subgroup/project.git"
+        );
     }
 
     #[test]

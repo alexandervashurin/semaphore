@@ -6,10 +6,13 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
-use k8s_openapi::api::core::v1::Event;
 use k8s_openapi::api::apps::v1::{Deployment, ReplicaSet};
+use k8s_openapi::api::core::v1::Event;
 use k8s_openapi::api::core::v1::{Pod, Service};
-use kube::{api::{Api, ListParams}, Client};
+use kube::{
+    api::{Api, ListParams},
+    Client,
+};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -54,40 +57,46 @@ pub async fn list_events(
 ) -> Result<Json<Vec<KubernetesEvent>>> {
     let client = state.kubernetes_client()?;
     let ns = query.namespace.unwrap_or_else(|| "default".to_string());
-    
+
     let mut lp = ListParams {
         limit: Some(query.limit.unwrap_or(100) as u32),
         ..Default::default()
     };
-    
+
     if let Some(selector) = query.field_selector {
         lp.field_selector = Some(selector);
     }
-    
+
     let api: Api<Event> = Api::namespaced(client.raw().clone(), &ns);
-    let event_list = api.list(&lp).await
+    let event_list = api
+        .list(&lp)
+        .await
         .map_err(|e| Error::Kubernetes(format!("Failed to list events: {}", e)))?;
-    
-    let events = event_list.items.iter().map(|e| {
-        let involved = &e.involved_object;
-        KubernetesEvent {
-            name: e.metadata.name.clone().unwrap_or_default(),
-            namespace: e.metadata.namespace.clone().unwrap_or_default(),
-            type_: e.type_.clone().unwrap_or_default(),
-            reason: e.reason.clone().unwrap_or_default(),
-            message: e.message.clone().unwrap_or_default(),
-            count: e.count.unwrap_or(1),
-            first_seen: e.first_timestamp.as_ref().map(|t| t.0.to_rfc3339()),
-            last_seen: e.last_timestamp.as_ref().map(|t| t.0.to_rfc3339()),
-            involved_object: InvolvedObjectSummary {
-                kind: involved.kind.clone().unwrap_or_default(),
-                name: involved.name.clone().unwrap_or_default(),
-                api_version: involved.api_version.clone(),
-                uid: involved.uid.clone(),
-            },
-        }
-    }).collect();
-    
+
+    let events = event_list
+        .items
+        .iter()
+        .map(|e| {
+            let involved = &e.involved_object;
+            KubernetesEvent {
+                name: e.metadata.name.clone().unwrap_or_default(),
+                namespace: e.metadata.namespace.clone().unwrap_or_default(),
+                type_: e.type_.clone().unwrap_or_default(),
+                reason: e.reason.clone().unwrap_or_default(),
+                message: e.message.clone().unwrap_or_default(),
+                count: e.count.unwrap_or(1),
+                first_seen: e.first_timestamp.as_ref().map(|t| t.0.to_rfc3339()),
+                last_seen: e.last_timestamp.as_ref().map(|t| t.0.to_rfc3339()),
+                involved_object: InvolvedObjectSummary {
+                    kind: involved.kind.clone().unwrap_or_default(),
+                    name: involved.name.clone().unwrap_or_default(),
+                    api_version: involved.api_version.clone(),
+                    uid: involved.uid.clone(),
+                },
+            }
+        })
+        .collect();
+
     Ok(Json(events))
 }
 
@@ -97,10 +106,12 @@ pub async fn get_event(
 ) -> Result<Json<Event>> {
     let client = state.kubernetes_client()?;
     let api: Api<Event> = Api::namespaced(client.raw().clone(), &namespace);
-    
-    let event = api.get(&name).await
+
+    let event = api
+        .get(&name)
+        .await
         .map_err(|e| Error::NotFound(format!("Event {} not found: {}", name, e)))?;
-    
+
     Ok(Json(event))
 }
 
@@ -155,16 +166,21 @@ pub async fn get_pod_metrics(
     Path((namespace, name)): Path<(String, String)>,
 ) -> Result<Json<PodMetrics>> {
     let client = state.kubernetes_client()?;
-    
+
     // Metrics API is separate from main Kubernetes API
     // Try to access metrics.k8s.io API group using dynamic API
     let gvk = kube::core::GroupVersionKind::gvk("metrics.k8s.io", "v1beta1", "PodMetrics");
     let api_resource = kube::core::ApiResource::from_gvk(&gvk);
-    let api: kube::Api<kube::core::DynamicObject> = kube::Api::namespaced_with(client.raw().clone(), &namespace, &api_resource);
-    
-    let obj = api.get(&name).await
-        .map_err(|e| Error::NotFound(format!("Pod metrics not available: {}. Ensure metrics-server is installed.", e)))?;
-    
+    let api: kube::Api<kube::core::DynamicObject> =
+        kube::Api::namespaced_with(client.raw().clone(), &namespace, &api_resource);
+
+    let obj = api.get(&name).await.map_err(|e| {
+        Error::NotFound(format!(
+            "Pod metrics not available: {}. Ensure metrics-server is installed.",
+            e
+        ))
+    })?;
+
     // Convert to PodMetrics
     let metrics = PodMetrics {
         name: obj.metadata.name.unwrap_or_default(),
@@ -173,7 +189,7 @@ pub async fn get_pod_metrics(
         timestamp: String::new(),
         window: String::new(),
     };
-    
+
     Ok(Json(metrics))
 }
 
@@ -183,22 +199,29 @@ pub async fn list_pod_metrics(
 ) -> Result<Json<Vec<PodMetrics>>> {
     let client = state.kubernetes_client()?;
     let ns = query.namespace.unwrap_or_else(|| "default".to_string());
-    
+
     let gvk = kube::core::GroupVersionKind::gvk("metrics.k8s.io", "v1beta1", "PodMetrics");
     let api_resource = kube::core::ApiResource::from_gvk(&gvk);
-    let api: kube::Api<kube::core::DynamicObject> = kube::Api::namespaced_with(client.raw().clone(), &ns, &api_resource);
-    
-    let list = api.list(&Default::default()).await
+    let api: kube::Api<kube::core::DynamicObject> =
+        kube::Api::namespaced_with(client.raw().clone(), &ns, &api_resource);
+
+    let list = api
+        .list(&Default::default())
+        .await
         .map_err(|e| Error::NotFound(format!("Pod metrics not available: {}", e)))?;
-    
-    let items: Vec<PodMetrics> = list.items.iter().map(|obj| PodMetrics {
-        name: obj.metadata.name.clone().unwrap_or_default(),
-        namespace: obj.metadata.namespace.clone().unwrap_or_default(),
-        containers: vec![],
-        timestamp: String::new(),
-        window: String::new(),
-    }).collect();
-    
+
+    let items: Vec<PodMetrics> = list
+        .items
+        .iter()
+        .map(|obj| PodMetrics {
+            name: obj.metadata.name.clone().unwrap_or_default(),
+            namespace: obj.metadata.namespace.clone().unwrap_or_default(),
+            containers: vec![],
+            timestamp: String::new(),
+            window: String::new(),
+        })
+        .collect();
+
     Ok(Json(items))
 }
 
@@ -207,21 +230,27 @@ pub async fn get_node_metrics(
     Path(name): Path<String>,
 ) -> Result<Json<NodeMetrics>> {
     let client = state.kubernetes_client()?;
-    
+
     let gvk = kube::core::GroupVersionKind::gvk("metrics.k8s.io", "v1beta1", "NodeMetrics");
     let api_resource = kube::core::ApiResource::from_gvk(&gvk);
-    let api: kube::Api<kube::core::DynamicObject> = kube::Api::all_with(client.raw().clone(), &api_resource);
-    
-    let obj = api.get(&name).await
+    let api: kube::Api<kube::core::DynamicObject> =
+        kube::Api::all_with(client.raw().clone(), &api_resource);
+
+    let obj = api
+        .get(&name)
+        .await
         .map_err(|e| Error::NotFound(format!("Node metrics not available: {}", e)))?;
-    
+
     let metrics = NodeMetrics {
         name: obj.metadata.name.unwrap_or_default(),
-        usage: ResourceUsage { cpu: String::new(), memory: String::new() },
+        usage: ResourceUsage {
+            cpu: String::new(),
+            memory: String::new(),
+        },
         timestamp: String::new(),
         window: String::new(),
     };
-    
+
     Ok(Json(metrics))
 }
 
@@ -229,21 +258,31 @@ pub async fn list_node_metrics(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<Vec<NodeMetrics>>> {
     let client = state.kubernetes_client()?;
-    
+
     let gvk = kube::core::GroupVersionKind::gvk("metrics.k8s.io", "v1beta1", "NodeMetrics");
     let api_resource = kube::core::ApiResource::from_gvk(&gvk);
-    let api: kube::Api<kube::core::DynamicObject> = kube::Api::all_with(client.raw().clone(), &api_resource);
-    
-    let list = api.list(&Default::default()).await
+    let api: kube::Api<kube::core::DynamicObject> =
+        kube::Api::all_with(client.raw().clone(), &api_resource);
+
+    let list = api
+        .list(&Default::default())
+        .await
         .map_err(|e| Error::NotFound(format!("Node metrics not available: {}", e)))?;
-    
-    let items: Vec<NodeMetrics> = list.items.iter().map(|obj| NodeMetrics {
-        name: obj.metadata.name.clone().unwrap_or_default(),
-        usage: ResourceUsage { cpu: String::new(), memory: String::new() },
-        timestamp: String::new(),
-        window: String::new(),
-    }).collect();
-    
+
+    let items: Vec<NodeMetrics> = list
+        .items
+        .iter()
+        .map(|obj| NodeMetrics {
+            name: obj.metadata.name.clone().unwrap_or_default(),
+            usage: ResourceUsage {
+                cpu: String::new(),
+                memory: String::new(),
+            },
+            timestamp: String::new(),
+            window: String::new(),
+        })
+        .collect();
+
     Ok(Json(items))
 }
 
@@ -255,9 +294,7 @@ pub async fn get_top_pods(
     Ok(Json(TopPods { pods: vec![] }))
 }
 
-pub async fn get_top_nodes(
-    State(state): State<Arc<AppState>>,
-) -> Result<Json<Vec<NodeMetrics>>> {
+pub async fn get_top_nodes(State(state): State<Arc<AppState>>) -> Result<Json<Vec<NodeMetrics>>> {
     // For now, return empty list - real implementation requires metrics-server
     Ok(Json(vec![]))
 }
@@ -308,28 +345,28 @@ pub async fn get_topology(
 ) -> Result<Json<TopologyData>> {
     let client = state.kubernetes_client()?;
     let ns = query.namespace.unwrap_or_else(|| "default".to_string());
-    
+
     let mut nodes = Vec::new();
     let mut edges = Vec::new();
-    
+
     // Load Deployments
     let deployments_api: Api<Deployment> = Api::namespaced(client.raw().clone(), &ns);
     let deployments = deployments_api.list(&Default::default()).await.ok();
-    
+
     if let Some(dep_list) = deployments {
         for dep in dep_list.items {
-            let node_id = format!("deployment/{}", dep.metadata.name.as_ref().unwrap_or(&String::new()));
-            
+            let node_id = format!(
+                "deployment/{}",
+                dep.metadata.name.as_ref().unwrap_or(&String::new())
+            );
+
             let spec = dep.spec.as_ref();
             let status = dep.status.as_ref();
             let desired = spec.and_then(|s| s.replicas).unwrap_or(1);
             let ready = status.and_then(|s| s.ready_replicas).unwrap_or(0);
-            
-            let replicas = TopologyReplicas {
-                desired,
-                ready,
-            };
-            
+
+            let replicas = TopologyReplicas { desired, ready };
+
             nodes.push(TopologyNode {
                 id: node_id.clone(),
                 kind: "Deployment".to_string(),
@@ -341,20 +378,23 @@ pub async fn get_topology(
             });
         }
     }
-    
+
     // Load ReplicaSets
     let rs_api: Api<ReplicaSet> = Api::namespaced(client.raw().clone(), &ns);
     let replica_sets = rs_api.list(&Default::default()).await.ok();
-    
+
     if let Some(rs_list) = replica_sets {
         for rs in rs_list.items {
-            let node_id = format!("replicaset/{}", rs.metadata.name.as_ref().unwrap_or(&String::new()));
-            
+            let node_id = format!(
+                "replicaset/{}",
+                rs.metadata.name.as_ref().unwrap_or(&String::new())
+            );
+
             let spec = rs.spec.as_ref();
             let status = rs.status.as_ref();
             let spec_replicas = spec.and_then(|s| s.replicas).unwrap_or(1);
             let ready_replicas = status.and_then(|s| s.ready_replicas).unwrap_or(0);
-            
+
             nodes.push(TopologyNode {
                 id: node_id.clone(),
                 kind: "ReplicaSet".to_string(),
@@ -367,7 +407,7 @@ pub async fn get_topology(
                 }),
                 labels: rs.metadata.labels.clone(),
             });
-            
+
             // Edge: ReplicaSet → Pods (by owner reference)
             if let Some(owner_refs) = rs.metadata.owner_references.as_ref() {
                 for owner in owner_refs {
@@ -382,17 +422,24 @@ pub async fn get_topology(
             }
         }
     }
-    
+
     // Load Pods
     let pods_api: Api<Pod> = Api::namespaced(client.raw().clone(), &ns);
     let pods = pods_api.list(&Default::default()).await.ok();
-    
+
     if let Some(pod_list) = pods {
         for pod in pod_list.items {
-            let node_id = format!("pod/{}", pod.metadata.name.as_ref().unwrap_or(&String::new()));
-            
-            let status = pod.status.as_ref().and_then(|s| s.phase.clone()).unwrap_or_default();
-            
+            let node_id = format!(
+                "pod/{}",
+                pod.metadata.name.as_ref().unwrap_or(&String::new())
+            );
+
+            let status = pod
+                .status
+                .as_ref()
+                .and_then(|s| s.phase.clone())
+                .unwrap_or_default();
+
             nodes.push(TopologyNode {
                 id: node_id.clone(),
                 kind: "Pod".to_string(),
@@ -402,7 +449,7 @@ pub async fn get_topology(
                 replicas: None,
                 labels: pod.metadata.labels.clone(),
             });
-            
+
             // Edge: Pod → ReplicaSet (by owner reference)
             if let Some(owner_refs) = pod.metadata.owner_references.as_ref() {
                 for owner in owner_refs {
@@ -417,15 +464,18 @@ pub async fn get_topology(
             }
         }
     }
-    
+
     // Load Services
     let services_api: Api<Service> = Api::namespaced(client.raw().clone(), &ns);
     let services = services_api.list(&Default::default()).await.ok();
-    
+
     if let Some(svc_list) = services {
         for svc in svc_list.items {
-            let node_id = format!("service/{}", svc.metadata.name.as_ref().unwrap_or(&String::new()));
-            
+            let node_id = format!(
+                "service/{}",
+                svc.metadata.name.as_ref().unwrap_or(&String::new())
+            );
+
             nodes.push(TopologyNode {
                 id: node_id.clone(),
                 kind: "Service".to_string(),
@@ -435,7 +485,7 @@ pub async fn get_topology(
                 replicas: None,
                 labels: svc.metadata.labels.clone(),
             });
-            
+
             // Edge: Service → Deployment/Pod (by selector)
             let selector = svc.spec.as_ref().and_then(|s| s.selector.as_ref());
             if let Some(selector) = selector {
@@ -453,7 +503,7 @@ pub async fn get_topology(
             }
         }
     }
-    
+
     Ok(Json(TopologyData {
         namespace: ns,
         nodes,
@@ -467,7 +517,7 @@ fn get_deployment_status(dep: &Deployment) -> String {
     let desired = spec.and_then(|s| s.replicas).unwrap_or(1);
     let ready = status.and_then(|s| s.ready_replicas).unwrap_or(0);
     let available = status.and_then(|s| s.available_replicas).unwrap_or(0);
-    
+
     if ready >= desired && available >= desired {
         "ready".to_string()
     } else if ready > 0 {
@@ -482,7 +532,7 @@ fn get_replicaset_status(rs: &ReplicaSet) -> String {
     let status = rs.status.as_ref();
     let desired = spec.and_then(|s| s.replicas).unwrap_or(1);
     let ready = status.and_then(|s| s.ready_replicas).unwrap_or(0);
-    
+
     if ready >= desired {
         "ready".to_string()
     } else if ready > 0 {
@@ -750,15 +800,13 @@ mod tests {
         let metrics = PodMetrics {
             name: "web-pod".to_string(),
             namespace: "default".to_string(),
-            containers: vec![
-                ContainerMetrics {
-                    name: "app".to_string(),
-                    usage: ResourceUsage {
-                        cpu: "100m".to_string(),
-                        memory: "128Mi".to_string(),
-                    },
+            containers: vec![ContainerMetrics {
+                name: "app".to_string(),
+                usage: ResourceUsage {
+                    cpu: "100m".to_string(),
+                    memory: "128Mi".to_string(),
                 },
-            ],
+            }],
             timestamp: "2024-01-01T00:00:00Z".to_string(),
             window: "1m".to_string(),
         };
@@ -895,7 +943,10 @@ mod tests {
         };
         assert_eq!(query.namespace, Some("kube-system".to_string()));
         assert_eq!(query.limit, Some(50));
-        assert_eq!(query.field_selector, Some("involvedObject.kind=Pod".to_string()));
+        assert_eq!(
+            query.field_selector,
+            Some("involvedObject.kind=Pod".to_string())
+        );
     }
 
     #[test]
@@ -920,9 +971,7 @@ mod tests {
 
     #[test]
     fn test_topology_query_none() {
-        let query = TopologyQuery {
-            namespace: None,
-        };
+        let query = TopologyQuery { namespace: None };
         assert!(query.namespace.is_none());
     }
 

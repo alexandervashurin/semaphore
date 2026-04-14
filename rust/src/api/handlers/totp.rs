@@ -361,7 +361,9 @@ mod tests {
     fn test_totp_disable_payload_clone_independence() {
         // TotpDisablePayload doesn't derive Clone
         let mut recovery_code = "original".to_string();
-        let p1 = TotpDisablePayload { recovery_code: recovery_code.clone() };
+        let p1 = TotpDisablePayload {
+            recovery_code: recovery_code.clone(),
+        };
         recovery_code = "modified".to_string();
         assert_eq!(p1.recovery_code, "original");
     }

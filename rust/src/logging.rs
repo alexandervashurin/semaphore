@@ -6,8 +6,7 @@ use tracing_subscriber::{self, EnvFilter};
 /// Initializes application logging.
 pub fn init_logging() {
     let logging_config = load_logging_from_env();
-    let env_filter =
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 
     match logging_config.format {
         LogFormat::Json => {

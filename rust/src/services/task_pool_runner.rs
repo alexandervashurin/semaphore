@@ -754,7 +754,10 @@ mod tests {
         let running = RunningTask::new(task, logger.clone(), template);
         // Both should point to same Arc
         assert!(Arc::strong_count(&logger) >= 2);
-        assert_eq!(Arc::strong_count(&running.logger), Arc::strong_count(&logger));
+        assert_eq!(
+            Arc::strong_count(&running.logger),
+            Arc::strong_count(&logger)
+        );
     }
 
     #[tokio::test]

@@ -132,7 +132,12 @@ mod tests {
 
     #[test]
     fn test_alias_special_characters() {
-        let alias = Alias::new(1, "alias&<special>".to_string(), 1, "type\"quoted\"".to_string());
+        let alias = Alias::new(
+            1,
+            "alias&<special>".to_string(),
+            1,
+            "type\"quoted\"".to_string(),
+        );
         let json = serde_json::to_string(&alias).unwrap();
         let restored: Alias = serde_json::from_str(&json).unwrap();
         assert_eq!(restored.alias, "alias&<special>");
@@ -141,7 +146,12 @@ mod tests {
 
     #[test]
     fn test_alias_large_ids() {
-        let alias = Alias::new(i32::MAX, "large-id".to_string(), i32::MAX, "template".to_string());
+        let alias = Alias::new(
+            i32::MAX,
+            "large-id".to_string(),
+            i32::MAX,
+            "template".to_string(),
+        );
         assert_eq!(alias.project_id, i32::MAX);
         assert_eq!(alias.owner_id, i32::MAX);
     }
@@ -176,8 +186,12 @@ mod tests {
     #[test]
     fn test_alias_roundtrip() {
         let original = Alias {
-            id: 77, project_id: 33, alias: "roundtrip".to_string(),
-            owner_id: 11, owner_type: "workflow".to_string(), created: Utc::now(),
+            id: 77,
+            project_id: 33,
+            alias: "roundtrip".to_string(),
+            owner_id: 11,
+            owner_type: "workflow".to_string(),
+            created: Utc::now(),
         };
         let json = serde_json::to_string(&original).unwrap();
         let restored: Alias = serde_json::from_str(&json).unwrap();
@@ -189,8 +203,12 @@ mod tests {
     #[test]
     fn test_alias_debug_contains_all_fields() {
         let alias = Alias {
-            id: 42, project_id: 10, alias: "debug-alias".to_string(),
-            owner_id: 5, owner_type: "template".to_string(), created: Utc::now(),
+            id: 42,
+            project_id: 10,
+            alias: "debug-alias".to_string(),
+            owner_id: 5,
+            owner_type: "template".to_string(),
+            created: Utc::now(),
         };
         let debug_str = format!("{:?}", alias);
         assert!(debug_str.contains("42"));

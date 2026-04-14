@@ -322,7 +322,10 @@ mod tests {
         let json = serde_json::to_string(&org).unwrap();
         let restored: Organization = serde_json::from_str(&json).unwrap();
         assert_eq!(restored.name, "Организация");
-        assert_eq!(restored.description, Some("Тестовая организация".to_string()));
+        assert_eq!(
+            restored.description,
+            Some("Тестовая организация".to_string())
+        );
     }
 
     #[test]
@@ -346,7 +349,10 @@ mod tests {
     fn test_organization_user_roles() {
         for role in &["owner", "admin", "member"] {
             let user = OrganizationUser {
-                id: 1, org_id: 1, user_id: 1, role: role.to_string(),
+                id: 1,
+                org_id: 1,
+                user_id: 1,
+                role: role.to_string(),
                 created: Utc::now(),
             };
             let json = serde_json::to_string(&user).unwrap();

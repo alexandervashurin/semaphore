@@ -2,16 +2,14 @@
 //!
 //! WebSocket streaming для логов и exec terminal
 
+use axum::extract::ws::Message;
 use axum::{
     extract::{Path, State, WebSocketUpgrade},
     response::Response,
 };
-use axum::extract::ws::Message;
 use futures_util::{SinkExt, StreamExt};
 use k8s_openapi::api::core::v1::Pod;
-use kube::{
-    api::{Api, AttachParams, LogParams},
-};
+use kube::api::{Api, AttachParams, LogParams};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -100,7 +98,9 @@ pub async fn pod_logs_ws(
                             LogWsMessage::Disconnect => {
                                 let _ = sender
                                     .send(Message::Text(
-                                        serde_json::json!({ "status": "disconnected" }).to_string().into(),
+                                        serde_json::json!({ "status": "disconnected" })
+                                            .to_string()
+                                            .into(),
                                     ))
                                     .await;
                                 break;
@@ -178,7 +178,7 @@ where
 }
 
 /// WebSocket exec terminal в Pod
-/// 
+///
 /// Поддерживает:
 /// - stdin/stdout streaming
 /// - resize терминала
@@ -190,7 +190,7 @@ pub async fn pod_exec_ws(
     Path((namespace, pod_name)): Path<(String, String)>,
 ) -> Response {
     use tokio::time::{timeout, Duration};
-    
+
     ws.on_upgrade(move |socket| async move {
         let mut socket = socket;
         let (mut sender, mut receiver) = socket.split();
@@ -198,13 +198,12 @@ pub async fn pod_exec_ws(
         // Ожидаем сообщение exec с параметрами
         let exec_params = tokio::time::timeout(
             Duration::from_secs(30), // 30 сек на подключение
-            receiver.next()
-        ).await;
+            receiver.next(),
+        )
+        .await;
 
         let msg = match exec_params {
-            Ok(Some(Ok(Message::Text(text)))) => {
-                serde_json::from_str::<ExecWsMessage>(&text).ok()
-            }
+            Ok(Some(Ok(Message::Text(text)))) => serde_json::from_str::<ExecWsMessage>(&text).ok(),
             _ => None,
         };
 
@@ -227,8 +226,9 @@ pub async fn pod_exec_ws(
             let session_timeout = Duration::from_secs(300); // 5 минут
             let _ = timeout(
                 session_timeout,
-                run_exec_session(&state, &namespace, &pod_name, receiver, sender)
-            ).await;
+                run_exec_session(&state, &namespace, &pod_name, receiver, sender),
+            )
+            .await;
             // После timeout сессия завершается
         } else {
             let _ = sender
@@ -245,7 +245,7 @@ pub async fn pod_exec_ws(
 }
 
 /// Сессия exec terminal с timeout и heartbeat
-/// 
+///
 /// NOTE: Полноценный exec через kube-rs требует работы с SubResourceApi.
 /// Эта реализация предоставляет timeout сессии (5 мин) и heartbeat для стабильности.
 /// Для production use case используется pod_exec() из pods.rs
@@ -260,7 +260,7 @@ where
     S1: futures_util::Stream<Item = std::result::Result<Message, axum::Error>> + Unpin,
     S2: futures_util::Sink<Message> + Unpin,
 {
-    use tokio::time::{Duration, interval};
+    use tokio::time::{interval, Duration};
 
     let mut heartbeat = interval(Duration::from_secs(30));
 
@@ -343,7 +343,11 @@ mod tests {
         let json = r#"{"action":"subscribe","container":"nginx","tail_lines":50,"follow":false}"#;
         let msg: LogWsMessage = serde_json::from_str(json).unwrap();
         match msg {
-            LogWsMessage::Subscribe { container, tail_lines, follow } => {
+            LogWsMessage::Subscribe {
+                container,
+                tail_lines,
+                follow,
+            } => {
                 assert_eq!(container, Some("nginx".to_string()));
                 assert_eq!(tail_lines, Some(50));
                 assert_eq!(follow, Some(false));
@@ -364,7 +368,9 @@ mod tests {
 
     #[test]
     fn test_exec_ws_message_stdin_serialization() {
-        let msg = ExecWsMessage::Stdin { data: "ls -la\n".to_string() };
+        let msg = ExecWsMessage::Stdin {
+            data: "ls -la\n".to_string(),
+        };
         let json = serde_json::to_string(&msg).unwrap();
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed["type"], "stdin");
@@ -411,7 +417,11 @@ mod tests {
         let json = r#"{"action":"subscribe","container":"sidecar"}"#;
         let msg: LogWsMessage = serde_json::from_str(json).unwrap();
         match msg {
-            LogWsMessage::Subscribe { container, tail_lines, follow } => {
+            LogWsMessage::Subscribe {
+                container,
+                tail_lines,
+                follow,
+            } => {
                 assert_eq!(container, Some("sidecar".to_string()));
                 assert!(tail_lines.is_none());
                 assert!(follow.is_none());
@@ -422,11 +432,17 @@ mod tests {
 
     #[test]
     fn test_exec_ws_message_roundtrip() {
-        let original = ExecWsMessage::Resize { cols: 200, rows: 60 };
+        let original = ExecWsMessage::Resize {
+            cols: 200,
+            rows: 60,
+        };
         let json = serde_json::to_string(&original).unwrap();
         let parsed: ExecWsMessage = serde_json::from_str(&json).unwrap();
         match (original, parsed) {
-            (ExecWsMessage::Resize { cols: c1, rows: r1 }, ExecWsMessage::Resize { cols: c2, rows: r2 }) => {
+            (
+                ExecWsMessage::Resize { cols: c1, rows: r1 },
+                ExecWsMessage::Resize { cols: c2, rows: r2 },
+            ) => {
                 assert_eq!(c1, c2);
                 assert_eq!(r1, r2);
             }

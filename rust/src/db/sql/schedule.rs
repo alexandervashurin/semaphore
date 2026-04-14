@@ -2,10 +2,10 @@
 //!
 //! Операции с расписаниями в SQL
 
-use chrono::Utc;
 use crate::db::sql::types::SqlDb;
 use crate::error::{Error, Result};
 use crate::models::{Schedule, ScheduleWithTpl};
+use chrono::Utc;
 use sqlx::Row;
 
 impl SqlDb {
@@ -266,10 +266,18 @@ mod tests {
     #[test]
     fn test_schedule_with_tpl_clone() {
         let schedule = Schedule {
-            id: 0, template_id: 0, project_id: 0, cron: "".to_string(),
-            cron_format: None, name: "".to_string(), active: false,
-            last_commit_hash: None, repository_id: None, created: None,
-            run_at: None, delete_after_run: false,
+            id: 0,
+            template_id: 0,
+            project_id: 0,
+            cron: "".to_string(),
+            cron_format: None,
+            name: "".to_string(),
+            active: false,
+            last_commit_hash: None,
+            repository_id: None,
+            created: None,
+            run_at: None,
+            delete_after_run: false,
         };
         let with_tpl = ScheduleWithTpl {
             schedule,
@@ -304,10 +312,18 @@ mod tests {
     #[test]
     fn test_schedule_default_values() {
         let schedule = Schedule {
-            id: 0, template_id: 0, project_id: 0, cron: "".to_string(),
-            cron_format: None, name: "".to_string(), active: false,
-            last_commit_hash: None, repository_id: None, created: None,
-            run_at: None, delete_after_run: false,
+            id: 0,
+            template_id: 0,
+            project_id: 0,
+            cron: "".to_string(),
+            cron_format: None,
+            name: "".to_string(),
+            active: false,
+            last_commit_hash: None,
+            repository_id: None,
+            created: None,
+            run_at: None,
+            delete_after_run: false,
         };
         assert_eq!(schedule.id, 0);
         assert_eq!(schedule.template_id, 0);

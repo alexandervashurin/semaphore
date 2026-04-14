@@ -79,7 +79,14 @@ impl AppState {
         task_queue: Option<Arc<dyn TaskQueue + Send + Sync>>,
         ws_redis_url: Option<String>,
     ) -> Self {
-        Self::with_ws_and_task_queue(store, config, cache, task_queue, Arc::new(WebSocketManager::new()), ws_redis_url)
+        Self::with_ws_and_task_queue(
+            store,
+            config,
+            cache,
+            task_queue,
+            Arc::new(WebSocketManager::new()),
+            ws_redis_url,
+        )
     }
 
     /// Создаёт состояние с пред-инициализированным WebSocket менеджером

@@ -691,7 +691,8 @@ mod tests {
             git_path: None,
             created: None,
         };
-        let git_repo = GitRepository::new(repo, 1, 1).with_tmp_dir(temp_dir.file_name().unwrap().to_string_lossy().to_string());
+        let git_repo = GitRepository::new(repo, 1, 1)
+            .with_tmp_dir(temp_dir.file_name().unwrap().to_string_lossy().to_string());
 
         // Поскольку tmp_dir_name используется для построения пути, проверим через прямой путь
         let path = git_repo.get_full_path();
@@ -1055,7 +1056,10 @@ mod tests {
         let git_repo2 = GitRepository::new(repo, 1, 1);
 
         assert_eq!(git_repo.repository.git_url, git_repo2.repository.git_url);
-        assert_eq!(git_repo.repository.git_branch, git_repo2.repository.git_branch);
+        assert_eq!(
+            git_repo.repository.git_branch,
+            git_repo2.repository.git_branch
+        );
     }
 
     #[test]

@@ -6,21 +6,24 @@
 //!
 //! list_pods / get_pod / delete_pod / pod_logs уже реализованы в workloads_k8s.rs
 
+use crate::api::extractors::AuthUser;
+use crate::api::state::AppState;
 use axum::{
-    extract::{Path, Query, State, ws::{WebSocket, WebSocketUpgrade, Message}},
-    response::IntoResponse,
+    extract::{
+        ws::{Message, WebSocket, WebSocketUpgrade},
+        Path, Query, State,
+    },
     http::StatusCode,
+    response::IntoResponse,
     Json,
 };
-use futures::{StreamExt, SinkExt};
+use futures::{SinkExt, StreamExt};
 use k8s_openapi::api::core::v1::Pod;
 use kube::api::{Api, AttachParams};
 use serde::Deserialize;
 use serde_json::json;
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use crate::api::extractors::AuthUser;
-use crate::api::state::AppState;
 
 // ──────────────────────────────────────────────────────────────────────────────
 // GET /api/kubernetes/clusters/:cluster_id/namespaces/:namespace/pods/:name/exec
@@ -47,10 +50,17 @@ pub async fn pod_exec(
 ) -> impl IntoResponse {
     let kube_client = match state.kubernetes_client() {
         Ok(c) => c,
-        Err(e) => return (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => {
+            return (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(json!({"error": e.to_string()})),
+            )
+                .into_response()
+        }
     };
 
-    let command: Vec<String> = q.command
+    let command: Vec<String> = q
+        .command
         .unwrap_or_else(|| "/bin/sh".to_string())
         .split_whitespace()
         .map(String::from)
@@ -71,9 +81,9 @@ pub async fn pod_exec(
             Ok(mut attached) => handle_exec_socket(socket, &mut attached).await,
             Err(e) => {
                 let mut ws = socket;
-                let _ = ws.send(Message::Text(
-                    format!("{{\"error\":\"{}\"}}", e).into()
-                )).await;
+                let _ = ws
+                    .send(Message::Text(format!("{{\"error\":\"{}\"}}", e).into()))
+                    .await;
                 let _ = ws.close().await;
             }
         }
@@ -86,7 +96,9 @@ async fn handle_exec_socket(socket: WebSocket, attached: &mut kube::api::Attache
     let mut pod_stdin = match attached.stdin() {
         Some(s) => s,
         None => {
-            let _ = ws_tx.send(Message::Text("{\"error\":\"no stdin\"}".into())).await;
+            let _ = ws_tx
+                .send(Message::Text("{\"error\":\"no stdin\"}".into()))
+                .await;
             return;
         }
     };
@@ -94,7 +106,9 @@ async fn handle_exec_socket(socket: WebSocket, attached: &mut kube::api::Attache
     let mut pod_stdout = match attached.stdout() {
         Some(s) => s,
         None => {
-            let _ = ws_tx.send(Message::Text("{\"error\":\"no stdout\"}".into())).await;
+            let _ = ws_tx
+                .send(Message::Text("{\"error\":\"no stdout\"}".into()))
+                .await;
             return;
         }
     };
@@ -103,10 +117,14 @@ async fn handle_exec_socket(socket: WebSocket, attached: &mut kube::api::Attache
         while let Some(Ok(msg)) = ws_rx.next().await {
             match msg {
                 Message::Binary(data) => {
-                    if pod_stdin.write_all(&data).await.is_err() { break; }
+                    if pod_stdin.write_all(&data).await.is_err() {
+                        break;
+                    }
                 }
                 Message::Text(text) => {
-                    if pod_stdin.write_all(text.as_bytes()).await.is_err() { break; }
+                    if pod_stdin.write_all(text.as_bytes()).await.is_err() {
+                        break;
+                    }
                 }
                 Message::Close(_) => break,
                 _ => {}
@@ -120,7 +138,11 @@ async fn handle_exec_socket(socket: WebSocket, attached: &mut kube::api::Attache
             match pod_stdout.read(&mut buf).await {
                 Ok(0) | Err(_) => break,
                 Ok(n) => {
-                    if ws_tx.send(Message::Binary(buf[..n].to_vec().into())).await.is_err() {
+                    if ws_tx
+                        .send(Message::Binary(buf[..n].to_vec().into()))
+                        .await
+                        .is_err()
+                    {
                         break;
                     }
                 }
@@ -154,20 +176,23 @@ pub async fn pod_portforward(
     ws: WebSocketUpgrade,
 ) -> impl IntoResponse {
     use tokio::time::{timeout, Duration};
-    
+
     let kube_client = match state.kubernetes_client() {
         Ok(c) => c,
-        Err(e) => return (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => {
+            return (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(json!({"error": e.to_string()})),
+            )
+                .into_response()
+        }
     };
 
     ws.on_upgrade(move |socket| async move {
         let pods: Api<Pod> = Api::namespaced(kube_client.raw().clone(), &namespace);
-        
+
         // Connection timeout: 30 секунд
-        let pf_result = timeout(
-            Duration::from_secs(30),
-            pods.portforward(&name, &[q.port])
-        ).await;
+        let pf_result = timeout(Duration::from_secs(30), pods.portforward(&name, &[q.port])).await;
 
         match pf_result {
             Ok(Ok(mut pf)) => {
@@ -176,28 +201,33 @@ pub async fn pod_portforward(
                         // Session timeout: 10 минут для port-forward
                         let _ = timeout(
                             Duration::from_secs(600),
-                            handle_portforward_socket(socket, stream)
-                        ).await;
+                            handle_portforward_socket(socket, stream),
+                        )
+                        .await;
                     }
                     None => {
                         let mut ws = socket;
-                        let _ = ws.send(Message::Text(
-                            format!("{{\"error\":\"port {} not available\"}}", q.port).into()
-                        )).await;
+                        let _ = ws
+                            .send(Message::Text(
+                                format!("{{\"error\":\"port {} not available\"}}", q.port).into(),
+                            ))
+                            .await;
                     }
                 }
             }
             Ok(Err(e)) => {
                 let mut ws = socket;
-                let _ = ws.send(Message::Text(
-                    format!("{{\"error\":\"{}\"}}", e).into()
-                )).await;
+                let _ = ws
+                    .send(Message::Text(format!("{{\"error\":\"{}\"}}", e).into()))
+                    .await;
             }
             Err(_) => {
                 let mut ws = socket;
-                let _ = ws.send(Message::Text(
-                    "{\"error\":\"Connection timeout (30s)\"}".into()
-                )).await;
+                let _ = ws
+                    .send(Message::Text(
+                        "{\"error\":\"Connection timeout (30s)\"}".into(),
+                    ))
+                    .await;
             }
         }
     })
@@ -214,10 +244,14 @@ where
         while let Some(Ok(msg)) = ws_rx.next().await {
             match msg {
                 Message::Binary(data) => {
-                    if pod_tx.write_all(&data).await.is_err() { break; }
+                    if pod_tx.write_all(&data).await.is_err() {
+                        break;
+                    }
                 }
                 Message::Text(text) => {
-                    if pod_tx.write_all(text.as_bytes()).await.is_err() { break; }
+                    if pod_tx.write_all(text.as_bytes()).await.is_err() {
+                        break;
+                    }
                 }
                 Message::Close(_) => break,
                 _ => {}
@@ -231,7 +265,11 @@ where
             match pod_rx.read(&mut buf).await {
                 Ok(0) | Err(_) => break,
                 Ok(n) => {
-                    if ws_tx.send(Message::Binary(buf[..n].to_vec().into())).await.is_err() {
+                    if ws_tx
+                        .send(Message::Binary(buf[..n].to_vec().into()))
+                        .await
+                        .is_err()
+                    {
                         break;
                     }
                 }
@@ -246,7 +284,7 @@ where
 }
 
 // Re-export pod CRUD functions from workloads_k8s
-pub use super::workloads_k8s::{list_pods, get_pod, delete_pod, pod_logs, evict_pod, PodLogsQuery};
+pub use super::workloads_k8s::{delete_pod, evict_pod, get_pod, list_pods, pod_logs, PodLogsQuery};
 
 #[cfg(test)]
 mod tests {
@@ -274,13 +312,21 @@ mod tests {
     fn test_pod_exec_query_command_splitting() {
         let json = r#"{"command": "ls -la /tmp"}"#;
         let q: PodExecQuery = serde_json::from_str(json).unwrap();
-        let parts: Vec<String> = q.command.unwrap().split_whitespace().map(String::from).collect();
+        let parts: Vec<String> = q
+            .command
+            .unwrap()
+            .split_whitespace()
+            .map(String::from)
+            .collect();
         assert_eq!(parts, vec!["ls", "-la", "/tmp"]);
     }
 
     #[test]
     fn test_pod_exec_default_command_is_sh() {
-        let q = PodExecQuery { command: None, container: None };
+        let q = PodExecQuery {
+            command: None,
+            container: None,
+        };
         let default_cmd = q.command.unwrap_or_else(|| "/bin/sh".to_string());
         assert_eq!(default_cmd, "/bin/sh");
     }

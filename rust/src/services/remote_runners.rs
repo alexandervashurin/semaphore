@@ -81,7 +81,11 @@ impl RemoteRunnersManager {
     }
 
     /// Регистрирует новый раннер
-    pub async fn register_runner(&self, runner: Runner, capabilities: RunnerCapabilities) -> Result<String, String> {
+    pub async fn register_runner(
+        &self,
+        runner: Runner,
+        capabilities: RunnerCapabilities,
+    ) -> Result<String, String> {
         if !self.config.enabled {
             return Err("Remote runners disabled".to_string());
         }
@@ -96,7 +100,7 @@ impl RemoteRunnersManager {
 
         let mut runners = self.runners.write().await;
         runners.insert(token.clone(), registered);
-        
+
         info!("Runner registered: {}", token);
         Ok(token)
     }
@@ -104,7 +108,7 @@ impl RemoteRunnersManager {
     /// Обновляет heartbeat раннера
     pub async fn heartbeat(&self, token: &str) -> Result<(), String> {
         let mut runners = self.runners.write().await;
-        
+
         match runners.get_mut(token) {
             Some(runner) => {
                 runner.last_heartbeat = Utc::now();
@@ -118,7 +122,7 @@ impl RemoteRunnersManager {
     /// Отменяет регистрацию раннера
     pub async fn unregister_runner(&self, token: &str) -> Result<(), String> {
         let mut runners = self.runners.write().await;
-        
+
         match runners.remove(token) {
             Some(_) => {
                 info!("Runner unregistered: {}", token);
@@ -132,7 +136,7 @@ impl RemoteRunnersManager {
     pub async fn get_active_runners(&self) -> Vec<RegisteredRunner> {
         let runners = self.runners.read().await;
         let cutoff = Utc::now() - chrono::Duration::seconds(self.config.runner_timeout_secs as i64);
-        
+
         runners
             .values()
             .filter(|r| r.last_heartbeat > cutoff)
@@ -160,7 +164,7 @@ impl RemoteRunnersManager {
     /// Назначает задачу раннеру
     pub async fn assign_task(&self, token: &str, task_id: i32) -> Result<(), String> {
         let mut runners = self.runners.write().await;
-        
+
         match runners.get_mut(token) {
             Some(runner) => {
                 runner.current_tasks.push(task_id);
@@ -174,7 +178,7 @@ impl RemoteRunnersManager {
     /// Завершает задачу на раннере
     pub async fn complete_task(&self, token: &str, task_id: i32) -> Result<(), String> {
         let mut runners = self.runners.write().await;
-        
+
         match runners.get_mut(token) {
             Some(runner) => {
                 runner.current_tasks.retain(|&id| id != task_id);
@@ -188,11 +192,11 @@ impl RemoteRunnersManager {
     /// Запускает мониторинг здоровья раннеров
     pub async fn start_health_monitor(self: Arc<Self>) {
         info!("Starting remote runners health monitor");
-        
-        let mut interval = tokio::time::interval(
-            tokio::time::Duration::from_secs(self.config.heartbeat_interval_secs)
-        );
-        
+
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(
+            self.config.heartbeat_interval_secs,
+        ));
+
         loop {
             interval.tick().await;
             self.check_health().await;
@@ -203,15 +207,18 @@ impl RemoteRunnersManager {
     async fn check_health(&self) {
         let cutoff = Utc::now() - chrono::Duration::seconds(self.config.runner_timeout_secs as i64);
         let mut runners = self.runners.write().await;
-        
+
         let mut to_remove = Vec::new();
         for (token, runner) in runners.iter() {
             if runner.last_heartbeat < cutoff {
-                warn!("Runner {} timed out (last heartbeat: {})", token, runner.last_heartbeat);
+                warn!(
+                    "Runner {} timed out (last heartbeat: {})",
+                    token, runner.last_heartbeat
+                );
                 to_remove.push(token.clone());
             }
         }
-        
+
         for token in to_remove {
             runners.remove(&token);
             error!("Runner {} removed due to timeout", token);
@@ -223,7 +230,7 @@ impl RemoteRunnersManager {
         let runners = self.runners.read().await;
         let active = self.get_active_runners().await.len();
         let total_tasks: usize = runners.values().map(|r| r.current_tasks.len()).sum();
-        
+
         RemoteRunnersStats {
             total_runners: runners.len(),
             active_runners: active,
@@ -302,7 +309,7 @@ mod tests {
     async fn test_runner_registration() {
         let config = RemoteRunnersConfig::default();
         let manager = RemoteRunnersManager::new(config);
-        
+
         let runner = Runner {
             id: 1,
             project_id: Some(1),
@@ -317,7 +324,7 @@ mod tests {
             touched: None,
             created: None,
         };
-        
+
         let capabilities = RunnerCapabilities::default();
         let result = manager.register_runner(runner, capabilities).await;
         assert!(result.is_ok());
@@ -328,7 +335,7 @@ mod tests {
     async fn test_heartbeat() {
         let config = RemoteRunnersConfig::default();
         let manager = RemoteRunnersManager::new(config);
-        
+
         let runner = Runner {
             id: 1,
             project_id: Some(1),
@@ -343,10 +350,10 @@ mod tests {
             touched: None,
             created: None,
         };
-        
+
         let capabilities = RunnerCapabilities::default();
         manager.register_runner(runner, capabilities).await.unwrap();
-        
+
         let result = manager.heartbeat("test-token").await;
         assert!(result.is_ok());
     }
@@ -355,14 +362,14 @@ mod tests {
     async fn test_task_queue() {
         let config = RemoteRunnersConfig::default();
         let manager = RemoteRunnersManager::new(config);
-        
+
         manager.queue_task(1).await;
         manager.queue_task(2).await;
-        
+
         let task1 = manager.dequeue_task().await;
         let task2 = manager.dequeue_task().await;
         let task3 = manager.dequeue_task().await;
-        
+
         assert_eq!(task1, Some(1));
         assert_eq!(task2, Some(2));
         assert_eq!(task3, None);
@@ -403,7 +410,9 @@ mod tests {
             created: None,
         };
 
-        let result = manager.register_runner(runner, RunnerCapabilities::default()).await;
+        let result = manager
+            .register_runner(runner, RunnerCapabilities::default())
+            .await;
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), "Remote runners disabled");
     }
@@ -438,7 +447,10 @@ mod tests {
             created: None,
         };
 
-        manager.register_runner(runner, RunnerCapabilities::default()).await.unwrap();
+        manager
+            .register_runner(runner, RunnerCapabilities::default())
+            .await
+            .unwrap();
 
         let result = manager.unregister_runner("test-token").await;
         assert!(result.is_ok());
@@ -477,7 +489,10 @@ mod tests {
             created: None,
         };
 
-        manager.register_runner(runner, RunnerCapabilities::default()).await.unwrap();
+        manager
+            .register_runner(runner, RunnerCapabilities::default())
+            .await
+            .unwrap();
 
         let result = manager.assign_task("test-token", 42).await;
         assert!(result.is_ok());
@@ -532,7 +547,10 @@ mod tests {
                 touched: None,
                 created: None,
             };
-            manager.register_runner(runner, RunnerCapabilities::default()).await.unwrap();
+            manager
+                .register_runner(runner, RunnerCapabilities::default())
+                .await
+                .unwrap();
         }
 
         manager.assign_task("token-1", 1).await.unwrap();
@@ -660,7 +678,9 @@ mod tests {
             created: None,
         };
 
-        let result = manager.register_runner(runner, RunnerCapabilities::default()).await;
+        let result = manager
+            .register_runner(runner, RunnerCapabilities::default())
+            .await;
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), "Remote runners disabled");
     }
@@ -703,7 +723,9 @@ mod tests {
                 touched: None,
                 created: None,
             };
-            let result = manager.register_runner(runner, RunnerCapabilities::default()).await;
+            let result = manager
+                .register_runner(runner, RunnerCapabilities::default())
+                .await;
             assert!(result.is_ok());
         }
 
@@ -730,7 +752,10 @@ mod tests {
             touched: None,
             created: None,
         };
-        manager.register_runner(runner1, RunnerCapabilities::default()).await.unwrap();
+        manager
+            .register_runner(runner1, RunnerCapabilities::default())
+            .await
+            .unwrap();
 
         let runner2 = Runner {
             id: 2,
@@ -746,7 +771,10 @@ mod tests {
             touched: None,
             created: None,
         };
-        manager.register_runner(runner2, RunnerCapabilities::default()).await.unwrap();
+        manager
+            .register_runner(runner2, RunnerCapabilities::default())
+            .await
+            .unwrap();
 
         let active = manager.get_active_runners().await;
         assert_eq!(active.len(), 1);
@@ -772,7 +800,10 @@ mod tests {
             touched: None,
             created: None,
         };
-        manager.register_runner(runner, RunnerCapabilities::default()).await.unwrap();
+        manager
+            .register_runner(runner, RunnerCapabilities::default())
+            .await
+            .unwrap();
 
         manager.assign_task("multi-task-token", 10).await.unwrap();
         manager.assign_task("multi-task-token", 20).await.unwrap();
@@ -801,7 +832,10 @@ mod tests {
             touched: None,
             created: None,
         };
-        manager.register_runner(runner, RunnerCapabilities::default()).await.unwrap();
+        manager
+            .register_runner(runner, RunnerCapabilities::default())
+            .await
+            .unwrap();
 
         let result = manager.complete_task("task-token", 999).await;
         assert!(result.is_ok());
@@ -826,7 +860,11 @@ mod tests {
             powershell: true,
             kubernetes: true,
             max_parallel_tasks: 10,
-            tags: vec!["linux".to_string(), "windows".to_string(), "macos".to_string()],
+            tags: vec![
+                "linux".to_string(),
+                "windows".to_string(),
+                "macos".to_string(),
+            ],
         };
 
         let json = serde_json::to_value(&caps).unwrap();
@@ -921,7 +959,10 @@ mod tests {
             touched: None,
             created: None,
         };
-        manager.register_runner(runner, RunnerCapabilities::default()).await.unwrap();
+        manager
+            .register_runner(runner, RunnerCapabilities::default())
+            .await
+            .unwrap();
 
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
         let result = manager.heartbeat("hb-test").await;
@@ -947,7 +988,10 @@ mod tests {
             touched: None,
             created: None,
         };
-        manager.register_runner(runner, RunnerCapabilities::default()).await.unwrap();
+        manager
+            .register_runner(runner, RunnerCapabilities::default())
+            .await
+            .unwrap();
 
         let active_before = manager.get_active_runners().await;
         assert_eq!(active_before.len(), 1);
@@ -997,7 +1041,10 @@ mod tests {
             touched: None,
             created: None,
         };
-        manager.register_runner(runner, RunnerCapabilities::default()).await.unwrap();
+        manager
+            .register_runner(runner, RunnerCapabilities::default())
+            .await
+            .unwrap();
 
         manager.assign_task("clear-test", 1).await.unwrap();
         manager.assign_task("clear-test", 2).await.unwrap();

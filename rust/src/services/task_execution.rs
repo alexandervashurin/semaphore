@@ -205,12 +205,8 @@ pub async fn execute_task(store: Arc<dyn Store + Send + Sync>, mut task: Task) {
     }
     match store.update_task(task.clone()).await {
         Ok(()) => {
-            crate::services::telegram_bot::notify_on_task_finished(
-                store.clone(),
-                &task,
-                &template,
-            )
-            .await;
+            crate::services::telegram_bot::notify_on_task_finished(store.clone(), &task, &template)
+                .await;
         }
         Err(e) => error!(
             "[task_runner] task {} failed to persist final status: {e}",
@@ -222,8 +218,8 @@ pub async fn execute_task(store: Arc<dyn Store + Send + Sync>, mut task: Task) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::db::store::{PlanApprovalManager, TaskManager};
     use crate::db::MockStore;
-    use crate::db::store::{TaskManager, PlanApprovalManager};
     use crate::models::{Task, Template, TerraformPlan};
     use std::sync::Arc;
 
@@ -500,7 +496,7 @@ mod telegram_tests {
 
     #[test]
     fn task_status_waiting_does_not_trigger_notification() {
-        // TaskStatus::Waiting, Running, Starting, Stopping, NotExecuted, 
+        // TaskStatus::Waiting, Running, Starting, Stopping, NotExecuted,
         // WaitingConfirmation, Confirmed, Rejected — не должны вызывать уведомления
         let statuses = [
             TaskStatus::Waiting,
@@ -516,7 +512,7 @@ mod telegram_tests {
         for status in statuses {
             let task = create_test_task_with_times(status, -10, 0);
 
-            // Проверяем что match в send_telegram_notification не вызывает notify_* 
+            // Проверяем что match в send_telegram_notification не вызывает notify_*
             // для этих статусов (через анализ кода — должен быть пустой match arm)
             match task.status {
                 TaskStatus::Success | TaskStatus::Error | TaskStatus::Stopped => {
@@ -540,7 +536,11 @@ pub fn calculate_task_duration(task: &Task) -> u64 {
         .zip(task.start)
         .map(|(end, start)| {
             let secs = (end - start).num_seconds();
-            if secs < 0 { 0 } else { secs as u64 }
+            if secs < 0 {
+                0
+            } else {
+                secs as u64
+            }
         })
         .unwrap_or(0)
 }
@@ -554,7 +554,10 @@ pub enum ApprovalDecision {
 }
 
 /// Чистая функция: решает, что делать с задачей
-pub fn evaluate_approval_gate(require_approval: bool, plan_status: Option<&str>) -> ApprovalDecision {
+pub fn evaluate_approval_gate(
+    require_approval: bool,
+    plan_status: Option<&str>,
+) -> ApprovalDecision {
     if !require_approval {
         return ApprovalDecision::Proceed;
     }
@@ -669,24 +672,42 @@ mod pure_helper_tests {
 
     #[test]
     fn no_approval_required_proceeds() {
-        assert_eq!(evaluate_approval_gate(false, None), ApprovalDecision::Proceed);
-        assert_eq!(evaluate_approval_gate(false, Some("approved")), ApprovalDecision::Proceed);
-        assert_eq!(evaluate_approval_gate(false, Some("rejected")), ApprovalDecision::Proceed);
+        assert_eq!(
+            evaluate_approval_gate(false, None),
+            ApprovalDecision::Proceed
+        );
+        assert_eq!(
+            evaluate_approval_gate(false, Some("approved")),
+            ApprovalDecision::Proceed
+        );
+        assert_eq!(
+            evaluate_approval_gate(false, Some("rejected")),
+            ApprovalDecision::Proceed
+        );
     }
 
     #[test]
     fn approved_plan_proceeds() {
-        assert_eq!(evaluate_approval_gate(true, Some("approved")), ApprovalDecision::Proceed);
+        assert_eq!(
+            evaluate_approval_gate(true, Some("approved")),
+            ApprovalDecision::Proceed
+        );
     }
 
     #[test]
     fn rejected_plan_stops() {
-        assert_eq!(evaluate_approval_gate(true, Some("rejected")), ApprovalDecision::Reject);
+        assert_eq!(
+            evaluate_approval_gate(true, Some("rejected")),
+            ApprovalDecision::Reject
+        );
     }
 
     #[test]
     fn pending_plan_waits() {
-        assert_eq!(evaluate_approval_gate(true, Some("pending")), ApprovalDecision::Wait);
+        assert_eq!(
+            evaluate_approval_gate(true, Some("pending")),
+            ApprovalDecision::Wait
+        );
     }
 
     #[test]
@@ -696,22 +717,34 @@ mod pure_helper_tests {
 
     #[test]
     fn unknown_plan_status_waits() {
-        assert_eq!(evaluate_approval_gate(true, Some("unknown_status")), ApprovalDecision::Wait);
+        assert_eq!(
+            evaluate_approval_gate(true, Some("unknown_status")),
+            ApprovalDecision::Wait
+        );
     }
 
     #[test]
     fn success_maps_to_success() {
-        assert_eq!(notification_type_for_status(TaskStatus::Success), TelegramNotificationType::Success);
+        assert_eq!(
+            notification_type_for_status(TaskStatus::Success),
+            TelegramNotificationType::Success
+        );
     }
 
     #[test]
     fn error_maps_to_failed() {
-        assert_eq!(notification_type_for_status(TaskStatus::Error), TelegramNotificationType::Failed);
+        assert_eq!(
+            notification_type_for_status(TaskStatus::Error),
+            TelegramNotificationType::Failed
+        );
     }
 
     #[test]
     fn stopped_maps_to_stopped() {
-        assert_eq!(notification_type_for_status(TaskStatus::Stopped), TelegramNotificationType::Stopped);
+        assert_eq!(
+            notification_type_for_status(TaskStatus::Stopped),
+            TelegramNotificationType::Stopped
+        );
     }
 
     #[test]
@@ -753,9 +786,15 @@ mod pure_helper_tests {
 
     #[test]
     fn telegram_notification_type_debug() {
-        assert_eq!(format!("{:?}", TelegramNotificationType::Success), "Success");
+        assert_eq!(
+            format!("{:?}", TelegramNotificationType::Success),
+            "Success"
+        );
         assert_eq!(format!("{:?}", TelegramNotificationType::Failed), "Failed");
-        assert_eq!(format!("{:?}", TelegramNotificationType::Stopped), "Stopped");
+        assert_eq!(
+            format!("{:?}", TelegramNotificationType::Stopped),
+            "Stopped"
+        );
         assert_eq!(format!("{:?}", TelegramNotificationType::None), "None");
     }
 
@@ -784,36 +823,93 @@ mod pure_helper_tests {
     #[test]
     fn evaluate_approval_gate_all_combinations() {
         // require_approval = false, any plan status -> Proceed
-        assert_eq!(evaluate_approval_gate(false, Some("approved")), ApprovalDecision::Proceed);
-        assert_eq!(evaluate_approval_gate(false, Some("rejected")), ApprovalDecision::Proceed);
-        assert_eq!(evaluate_approval_gate(false, Some("pending")), ApprovalDecision::Proceed);
-        assert_eq!(evaluate_approval_gate(false, None), ApprovalDecision::Proceed);
+        assert_eq!(
+            evaluate_approval_gate(false, Some("approved")),
+            ApprovalDecision::Proceed
+        );
+        assert_eq!(
+            evaluate_approval_gate(false, Some("rejected")),
+            ApprovalDecision::Proceed
+        );
+        assert_eq!(
+            evaluate_approval_gate(false, Some("pending")),
+            ApprovalDecision::Proceed
+        );
+        assert_eq!(
+            evaluate_approval_gate(false, None),
+            ApprovalDecision::Proceed
+        );
 
         // require_approval = true, approved -> Proceed
-        assert_eq!(evaluate_approval_gate(true, Some("approved")), ApprovalDecision::Proceed);
+        assert_eq!(
+            evaluate_approval_gate(true, Some("approved")),
+            ApprovalDecision::Proceed
+        );
 
         // require_approval = true, rejected -> Reject
-        assert_eq!(evaluate_approval_gate(true, Some("rejected")), ApprovalDecision::Reject);
+        assert_eq!(
+            evaluate_approval_gate(true, Some("rejected")),
+            ApprovalDecision::Reject
+        );
 
         // require_approval = true, anything else -> Wait
-        assert_eq!(evaluate_approval_gate(true, Some("pending")), ApprovalDecision::Wait);
-        assert_eq!(evaluate_approval_gate(true, Some("unknown")), ApprovalDecision::Wait);
+        assert_eq!(
+            evaluate_approval_gate(true, Some("pending")),
+            ApprovalDecision::Wait
+        );
+        assert_eq!(
+            evaluate_approval_gate(true, Some("unknown")),
+            ApprovalDecision::Wait
+        );
         assert_eq!(evaluate_approval_gate(true, None), ApprovalDecision::Wait);
     }
 
     #[test]
     fn notification_type_for_status_all_variants() {
-        assert_eq!(notification_type_for_status(TaskStatus::Success), TelegramNotificationType::Success);
-        assert_eq!(notification_type_for_status(TaskStatus::Error), TelegramNotificationType::Failed);
-        assert_eq!(notification_type_for_status(TaskStatus::Stopped), TelegramNotificationType::Stopped);
-        assert_eq!(notification_type_for_status(TaskStatus::Waiting), TelegramNotificationType::None);
-        assert_eq!(notification_type_for_status(TaskStatus::Running), TelegramNotificationType::None);
-        assert_eq!(notification_type_for_status(TaskStatus::Starting), TelegramNotificationType::None);
-        assert_eq!(notification_type_for_status(TaskStatus::Stopping), TelegramNotificationType::None);
-        assert_eq!(notification_type_for_status(TaskStatus::NotExecuted), TelegramNotificationType::None);
-        assert_eq!(notification_type_for_status(TaskStatus::WaitingConfirmation), TelegramNotificationType::None);
-        assert_eq!(notification_type_for_status(TaskStatus::Confirmed), TelegramNotificationType::None);
-        assert_eq!(notification_type_for_status(TaskStatus::Rejected), TelegramNotificationType::None);
+        assert_eq!(
+            notification_type_for_status(TaskStatus::Success),
+            TelegramNotificationType::Success
+        );
+        assert_eq!(
+            notification_type_for_status(TaskStatus::Error),
+            TelegramNotificationType::Failed
+        );
+        assert_eq!(
+            notification_type_for_status(TaskStatus::Stopped),
+            TelegramNotificationType::Stopped
+        );
+        assert_eq!(
+            notification_type_for_status(TaskStatus::Waiting),
+            TelegramNotificationType::None
+        );
+        assert_eq!(
+            notification_type_for_status(TaskStatus::Running),
+            TelegramNotificationType::None
+        );
+        assert_eq!(
+            notification_type_for_status(TaskStatus::Starting),
+            TelegramNotificationType::None
+        );
+        assert_eq!(
+            notification_type_for_status(TaskStatus::Stopping),
+            TelegramNotificationType::None
+        );
+        assert_eq!(
+            notification_type_for_status(TaskStatus::NotExecuted),
+            TelegramNotificationType::None
+        );
+        assert_eq!(
+            notification_type_for_status(TaskStatus::WaitingConfirmation),
+            TelegramNotificationType::None
+        );
+        assert_eq!(
+            notification_type_for_status(TaskStatus::Confirmed),
+            TelegramNotificationType::None
+        );
+        assert_eq!(
+            notification_type_for_status(TaskStatus::Rejected),
+            TelegramNotificationType::None
+        );
     }
 }
 
@@ -834,7 +930,10 @@ mod additional_tests {
     fn task_status_debug_format() {
         assert_eq!(format!("{:?}", TaskStatus::Waiting), "Waiting");
         assert_eq!(format!("{:?}", TaskStatus::Starting), "Starting");
-        assert_eq!(format!("{:?}", TaskStatus::WaitingConfirmation), "WaitingConfirmation");
+        assert_eq!(
+            format!("{:?}", TaskStatus::WaitingConfirmation),
+            "WaitingConfirmation"
+        );
         assert_eq!(format!("{:?}", TaskStatus::Confirmed), "Confirmed");
     }
 
@@ -984,7 +1083,10 @@ mod additional_tests {
 
     #[test]
     fn evaluate_approval_gate_no_approval_without_plan() {
-        assert_eq!(evaluate_approval_gate(false, None), ApprovalDecision::Proceed);
+        assert_eq!(
+            evaluate_approval_gate(false, None),
+            ApprovalDecision::Proceed
+        );
     }
 
     #[test]
@@ -1048,10 +1150,7 @@ mod additional_tests {
 
     #[test]
     fn notification_type_in_progress_statuses() {
-        let in_progress = [
-            TaskStatus::Running,
-            TaskStatus::Stopping,
-        ];
+        let in_progress = [TaskStatus::Running, TaskStatus::Stopping];
         for status in in_progress {
             assert_eq!(
                 notification_type_for_status(status),

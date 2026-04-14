@@ -130,10 +130,7 @@ mod tests {
     #[tokio::test]
     async fn test_prepare_error_err_branch() {
         let runner = create_test_task_runner();
-        let result = runner.prepare_error(
-            Err(crate::error::Error::Other("inner".into())),
-            "ctx",
-        );
+        let result = runner.prepare_error(Err(crate::error::Error::Other("inner".into())), "ctx");
         assert!(result.is_err());
         let msg = result.unwrap_err().to_string();
         assert!(msg.contains("ctx"));
@@ -157,10 +154,7 @@ mod tests {
     #[tokio::test]
     async fn test_log_error_does_not_panic() {
         let runner = create_test_task_runner();
-        runner.log_error(
-            &crate::error::Error::Other("boom".into()),
-            "step",
-        );
+        runner.log_error(&crate::error::Error::Other("boom".into()), "step");
     }
 
     #[tokio::test]
@@ -251,20 +245,14 @@ mod tests {
     #[tokio::test]
     async fn test_log_error_does_not_panic_with_empty_context() {
         let runner = create_test_task_runner();
-        runner.log_error(
-            &crate::error::Error::Other("err".into()),
-            "",
-        );
+        runner.log_error(&crate::error::Error::Other("err".into()), "");
     }
 
     #[tokio::test]
     async fn test_log_error_with_long_context() {
         let runner = create_test_task_runner();
         let long_context = "x".repeat(1000);
-        runner.log_error(
-            &crate::error::Error::Other("err".into()),
-            &long_context,
-        );
+        runner.log_error(&crate::error::Error::Other("err".into()), &long_context);
     }
 
     #[tokio::test]
@@ -280,7 +268,9 @@ mod tests {
     async fn test_handle_error_with_no_such_file() {
         let mut runner = create_test_task_runner();
         runner
-            .handle_error(crate::error::Error::Other("no such file or directory".into()))
+            .handle_error(crate::error::Error::Other(
+                "no such file or directory".into(),
+            ))
             .await;
         assert_eq!(runner.get_status(), TaskStatus::Error);
     }
@@ -289,7 +279,9 @@ mod tests {
     async fn test_handle_error_with_command_not_found() {
         let mut runner = create_test_task_runner();
         runner
-            .handle_error(crate::error::Error::Other("command not found: ansible".into()))
+            .handle_error(crate::error::Error::Other(
+                "command not found: ansible".into(),
+            ))
             .await;
         assert_eq!(runner.get_status(), TaskStatus::Error);
     }
@@ -298,7 +290,9 @@ mod tests {
     async fn test_handle_error_with_authentication_failed() {
         let mut runner = create_test_task_runner();
         runner
-            .handle_error(crate::error::Error::Other("authentication failed for key".into()))
+            .handle_error(crate::error::Error::Other(
+                "authentication failed for key".into(),
+            ))
             .await;
         assert_eq!(runner.get_status(), TaskStatus::Error);
     }

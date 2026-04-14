@@ -66,8 +66,14 @@ mod tests {
         assert_eq!(EventType::TaskCreated.to_string(), "task_created");
         assert_eq!(EventType::TemplateDeleted.to_string(), "template_deleted");
         assert_eq!(EventType::InventoryUpdated.to_string(), "inventory_updated");
-        assert_eq!(EventType::EnvironmentDeleted.to_string(), "environment_deleted");
-        assert_eq!(EventType::AccessKeyCreated.to_string(), "access_key_created");
+        assert_eq!(
+            EventType::EnvironmentDeleted.to_string(),
+            "environment_deleted"
+        );
+        assert_eq!(
+            EventType::AccessKeyCreated.to_string(),
+            "access_key_created"
+        );
     }
 
     #[test]
@@ -86,8 +92,12 @@ mod tests {
     #[test]
     fn test_event_serialization() {
         let event = Event {
-            id: 1, project_id: Some(10), user_id: Some(5), object_id: Some(100),
-            object_type: "task".to_string(), description: "Task started".to_string(),
+            id: 1,
+            project_id: Some(10),
+            user_id: Some(5),
+            object_id: Some(100),
+            object_type: "task".to_string(),
+            description: "Task started".to_string(),
             created: Utc::now(),
         };
         let json = serde_json::to_string(&event).unwrap();
@@ -98,8 +108,12 @@ mod tests {
     #[test]
     fn test_event_null_fields() {
         let event = Event {
-            id: 1, project_id: None, user_id: None, object_id: None,
-            object_type: "system".to_string(), description: "System event".to_string(),
+            id: 1,
+            project_id: None,
+            user_id: None,
+            object_id: None,
+            object_type: "system".to_string(),
+            description: "System event".to_string(),
             created: Utc::now(),
         };
         let json = serde_json::to_string(&event).unwrap();
@@ -110,8 +124,12 @@ mod tests {
     #[test]
     fn test_event_clone() {
         let event = Event {
-            id: 1, project_id: Some(1), user_id: Some(1), object_id: None,
-            object_type: "repo".to_string(), description: "Repo created".to_string(),
+            id: 1,
+            project_id: Some(1),
+            user_id: Some(1),
+            object_id: None,
+            object_type: "repo".to_string(),
+            description: "Repo created".to_string(),
             created: Utc::now(),
         };
         let cloned = event.clone();

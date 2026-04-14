@@ -253,7 +253,9 @@ mod tests {
             .await
             .unwrap();
         // Without auth middleware, route may return 401 or 404 depending on setup
-        assert!(resp.status() == StatusCode::UNAUTHORIZED || resp.status() == StatusCode::NOT_FOUND);
+        assert!(
+            resp.status() == StatusCode::UNAUTHORIZED || resp.status() == StatusCode::NOT_FOUND
+        );
     }
 
     #[tokio::test]
@@ -268,7 +270,9 @@ mod tests {
             )
             .await
             .unwrap();
-        assert!(resp.status() == StatusCode::UNAUTHORIZED || resp.status() == StatusCode::NOT_FOUND);
+        assert!(
+            resp.status() == StatusCode::UNAUTHORIZED || resp.status() == StatusCode::NOT_FOUND
+        );
     }
 
     #[tokio::test]
@@ -286,7 +290,9 @@ mod tests {
             )
             .await
             .unwrap();
-        assert!(resp.status() == StatusCode::UNAUTHORIZED || resp.status() == StatusCode::NOT_FOUND);
+        assert!(
+            resp.status() == StatusCode::UNAUTHORIZED || resp.status() == StatusCode::NOT_FOUND
+        );
     }
 
     #[tokio::test]
@@ -304,7 +310,9 @@ mod tests {
             )
             .await
             .unwrap();
-        assert!(resp.status() == StatusCode::UNAUTHORIZED || resp.status() == StatusCode::NOT_FOUND);
+        assert!(
+            resp.status() == StatusCode::UNAUTHORIZED || resp.status() == StatusCode::NOT_FOUND
+        );
     }
 
     #[test]
@@ -378,7 +386,10 @@ mod tests {
     fn test_plan_review_payload_unicode_comment() {
         let json = r#"{"comment": "Комментарий к утверждению"}"#;
         let payload: PlanReviewPayload = serde_json::from_str(json).unwrap();
-        assert_eq!(payload.comment, Some("Комментарий к утверждению".to_string()));
+        assert_eq!(
+            payload.comment,
+            Some("Комментарий к утверждению".to_string())
+        );
     }
 
     #[test]

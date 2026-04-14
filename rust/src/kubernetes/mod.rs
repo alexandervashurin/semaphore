@@ -12,8 +12,8 @@ pub mod helm;
 pub mod job;
 
 // Новые модули UI (kube-rs)
-pub mod service;
 pub mod cluster_manager;
+pub mod service;
 
 pub use client::KubernetesClient;
 pub use config::{HelmRepository, HelmRunnerConfig, JobRunnerConfig, KubernetesConfig};

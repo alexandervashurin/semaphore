@@ -102,7 +102,9 @@ mod tests {
     #[test]
     fn test_object_referrers_clone() {
         let referrers = ObjectReferrers {
-            templates: vec![1, 2], tasks: vec![3], schedules: vec![4, 5, 6],
+            templates: vec![1, 2],
+            tasks: vec![3],
+            schedules: vec![4, 5, 6],
             integrations: vec![],
         };
         let cloned = referrers.clone();
@@ -113,7 +115,10 @@ mod tests {
     #[test]
     fn test_object_referrers_debug() {
         let referrers = ObjectReferrers {
-            templates: vec![1], tasks: vec![], schedules: vec![], integrations: vec![],
+            templates: vec![1],
+            tasks: vec![],
+            schedules: vec![],
+            integrations: vec![],
         };
         let debug_str = format!("{:?}", referrers);
         assert!(debug_str.contains("ObjectReferrers"));
@@ -183,8 +188,10 @@ mod tests {
     #[test]
     fn test_object_referrers_roundtrip() {
         let original = ObjectReferrers {
-            templates: vec![1, 2, 3], tasks: vec![10, 20],
-            schedules: vec![30], integrations: vec![40, 50],
+            templates: vec![1, 2, 3],
+            tasks: vec![10, 20],
+            schedules: vec![30],
+            integrations: vec![40, 50],
         };
         let json = serde_json::to_string(&original).unwrap();
         let restored: ObjectReferrers = serde_json::from_str(&json).unwrap();
@@ -195,7 +202,10 @@ mod tests {
     #[test]
     fn test_object_referrers_clone_independence() {
         let mut referrers = ObjectReferrers {
-            templates: vec![1], tasks: vec![], schedules: vec![], integrations: vec![],
+            templates: vec![1],
+            tasks: vec![],
+            schedules: vec![],
+            integrations: vec![],
         };
         let cloned = referrers.clone();
         referrers.templates.push(2);

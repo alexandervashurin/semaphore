@@ -304,7 +304,11 @@ mod tests {
     #[test]
     fn test_local_job_set_run_params_with_version() {
         let mut job = create_test_local_job();
-        job.set_run_params("deploy_user".to_string(), Some("v1.2.3".to_string()), "deploy".to_string());
+        job.set_run_params(
+            "deploy_user".to_string(),
+            Some("v1.2.3".to_string()),
+            "deploy".to_string(),
+        );
 
         assert_eq!(job.username, "deploy_user");
         assert_eq!(job.incoming_version, Some("v1.2.3".to_string()));

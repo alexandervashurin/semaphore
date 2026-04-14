@@ -3,16 +3,16 @@
 //! Этот модуль предоставляет клиент для подключения к Kubernetes API
 //! с использованием библиотеки kube-rs
 
+use crate::error::{Error, Result};
+use k8s_openapi::api::core::v1::Namespace;
 use kube::{
     api::{Api, ListParams, ResourceExt},
     client::Client,
     config::{KubeConfigOptions, Kubeconfig},
     Config, Resource,
 };
-use k8s_openapi::api::core::v1::Namespace;
-use tracing::{info, warn, error, debug};
 use std::sync::Arc;
-use crate::error::{Error, Result};
+use tracing::{debug, error, info, warn};
 
 use super::types::KubeResourceMeta;
 
@@ -44,7 +44,7 @@ impl Default for KubeConfig {
 }
 
 /// Kubernetes клиент
-/// 
+///
 /// Обёртка над kube::Client для упрощения работы с Kubernetes API
 pub struct KubeClient {
     client: Client,
@@ -54,7 +54,7 @@ pub struct KubeClient {
 
 impl KubeClient {
     /// Создаёт новый Kubernetes клиент
-    /// 
+    ///
     /// # Пример
     /// ```rust,ignore
     /// use velum::api::handlers::kubernetes::client::{KubeClient, KubeConfig};
@@ -103,13 +103,13 @@ impl KubeClient {
     }
 
     /// Проверяет подключение к кластеру
-    /// 
+    ///
     /// # Возвращает
     /// * `Ok(true)` - подключение успешно
     /// * `Err(Error)` - ошибка подключения
     pub async fn check_connection(&self) -> Result<bool> {
         debug!("Checking Kubernetes connection");
-        
+
         let api: Api<Namespace> = Api::all(self.client.clone());
 
         match api.list(&ListParams::default().limit(1)).await {
@@ -125,11 +125,14 @@ impl KubeClient {
     }
 
     /// Получает API для работы с ресурсами в namespace
-    /// 
+    ///
     /// # Типы параметров
     /// * `T: Resource` - тип Kubernetes ресурса
     /// * `namespace` - опциональный namespace, если None используется default
-    pub fn api<T: Resource<Scope = kube::core::NamespaceResourceScope>>(&self, namespace: Option<&str>) -> Api<T>
+    pub fn api<T: Resource<Scope = kube::core::NamespaceResourceScope>>(
+        &self,
+        namespace: Option<&str>,
+    ) -> Api<T>
     where
         T::DynamicType: Default,
     {
@@ -138,7 +141,7 @@ impl KubeClient {
     }
 
     /// Получает API для cluster-scoped ресурсов
-    /// 
+    ///
     /// # Типы параметров
     /// * `T: Resource` - тип Kubernetes ресурса (должен быть cluster-scoped)
     pub fn api_all<T: Resource>(&self) -> Api<T>
@@ -165,7 +168,7 @@ impl KubeClient {
 }
 
 /// Сервис для управления Kubernetes кластером
-/// 
+///
 /// Высокоуровневая обёртка над KubeClient для бизнес-логики
 pub struct KubernetesClusterService {
     client: Arc<KubeClient>,
@@ -180,7 +183,7 @@ impl KubernetesClusterService {
     /// Получает список всех namespace'ов
     pub async fn list_namespaces(&self) -> Result<Vec<serde_json::Value>> {
         let api: Api<Namespace> = self.client.api_all();
-        
+
         let namespaces = api
             .list(&ListParams::default())
             .await
@@ -210,7 +213,7 @@ impl KubernetesClusterService {
     /// Получает детальную информацию о namespace
     pub async fn get_namespace(&self, name: &str) -> Result<serde_json::Value> {
         let api: Api<Namespace> = self.client.api_all();
-        
+
         let ns = api
             .get(name)
             .await
@@ -220,7 +223,11 @@ impl KubernetesClusterService {
     }
 
     /// Создаёт новый namespace
-    pub async fn create_namespace(&self, name: &str, labels: Option<std::collections::BTreeMap<String, String>>) -> Result<serde_json::Value> {
+    pub async fn create_namespace(
+        &self,
+        name: &str,
+        labels: Option<std::collections::BTreeMap<String, String>>,
+    ) -> Result<serde_json::Value> {
         let api: Api<Namespace> = self.client.api_all();
 
         let ns = Namespace {
@@ -243,7 +250,7 @@ impl KubernetesClusterService {
     /// Удаляет namespace
     pub async fn delete_namespace(&self, name: &str) -> Result<()> {
         let api: Api<Namespace> = self.client.api_all();
-        
+
         api.delete(name, &kube::api::DeleteParams::default())
             .await
             .map_err(|e| Error::Kubernetes(e.to_string()))?;
@@ -253,7 +260,8 @@ impl KubernetesClusterService {
 
     /// Получает информацию о кластере
     pub async fn get_cluster_info(&self) -> Result<serde_json::Value> {
-        let version = self.client
+        let version = self
+            .client
             .raw()
             .apiserver_version()
             .await
@@ -273,9 +281,9 @@ impl KubernetesClusterService {
     /// Получает список узлов кластера
     pub async fn list_nodes(&self) -> Result<Vec<serde_json::Value>> {
         use k8s_openapi::api::core::v1::Node;
-        
+
         let api: Api<Node> = self.client.api_all();
-        
+
         let nodes = api
             .list(&ListParams::default())
             .await
@@ -305,10 +313,14 @@ impl KubernetesClusterService {
                 .and_then(|s| s.conditions.as_ref())
                 .as_ref()
                 .and_then(|conditions| {
-                    conditions
-                        .iter()
-                        .find(|c| c.type_ == "Ready")
-                        .map(|c| if c.status == "True" { "Ready" } else { "NotReady" }.to_string())
+                    conditions.iter().find(|c| c.type_ == "Ready").map(|c| {
+                        if c.status == "True" {
+                            "Ready"
+                        } else {
+                            "NotReady"
+                        }
+                        .to_string()
+                    })
                 })
                 .unwrap_or_else(|| "Unknown".to_string());
 

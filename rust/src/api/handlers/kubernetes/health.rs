@@ -260,7 +260,10 @@ mod tests {
             "message": "3 nodes accessible"
         });
         assert_eq!(checks["checks"]["nodes"]["status"], "healthy");
-        assert!(checks["checks"]["nodes"]["message"].as_str().unwrap().contains("3 nodes"));
+        assert!(checks["checks"]["nodes"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("3 nodes"));
     }
 
     #[test]

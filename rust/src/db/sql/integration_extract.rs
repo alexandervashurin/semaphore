@@ -216,9 +216,15 @@ mod tests {
         let sources = ["body", "header", "query", "cookie", "path"];
         for source in &sources {
             let value = IntegrationExtractValue {
-                id: 1, integration_id: 1, project_id: 1, name: "Test".to_string(),
-                value_source: source.to_string(), body_data_type: "json".to_string(),
-                key: None, variable: None, value_name: "test".to_string(),
+                id: 1,
+                integration_id: 1,
+                project_id: 1,
+                name: "Test".to_string(),
+                value_source: source.to_string(),
+                body_data_type: "json".to_string(),
+                key: None,
+                variable: None,
+                value_name: "test".to_string(),
                 value_type: "string".to_string(),
             };
             let json = serde_json::to_string(&value).unwrap();
@@ -231,9 +237,15 @@ mod tests {
         let data_types = ["json", "xml", "text", "form", "yaml"];
         for dt in &data_types {
             let value = IntegrationExtractValue {
-                id: 1, integration_id: 1, project_id: 1, name: "Test".to_string(),
-                value_source: "body".to_string(), body_data_type: dt.to_string(),
-                key: None, variable: None, value_name: "test".to_string(),
+                id: 1,
+                integration_id: 1,
+                project_id: 1,
+                name: "Test".to_string(),
+                value_source: "body".to_string(),
+                body_data_type: dt.to_string(),
+                key: None,
+                variable: None,
+                value_name: "test".to_string(),
                 value_type: "string".to_string(),
             };
             assert_eq!(value.body_data_type, *dt);
@@ -261,8 +273,30 @@ mod tests {
     #[test]
     fn test_integration_extract_value_vec_serialization() {
         let values = vec![
-            IntegrationExtractValue { id: 1, integration_id: 10, project_id: 5, name: "A".to_string(), value_source: "body".to_string(), body_data_type: "json".to_string(), key: None, variable: None, value_name: "a".to_string(), value_type: "string".to_string() },
-            IntegrationExtractValue { id: 2, integration_id: 10, project_id: 5, name: "B".to_string(), value_source: "header".to_string(), body_data_type: "text".to_string(), key: Some("X-Val".to_string()), variable: None, value_name: "b".to_string(), value_type: "string".to_string() },
+            IntegrationExtractValue {
+                id: 1,
+                integration_id: 10,
+                project_id: 5,
+                name: "A".to_string(),
+                value_source: "body".to_string(),
+                body_data_type: "json".to_string(),
+                key: None,
+                variable: None,
+                value_name: "a".to_string(),
+                value_type: "string".to_string(),
+            },
+            IntegrationExtractValue {
+                id: 2,
+                integration_id: 10,
+                project_id: 5,
+                name: "B".to_string(),
+                value_source: "header".to_string(),
+                body_data_type: "text".to_string(),
+                key: Some("X-Val".to_string()),
+                variable: None,
+                value_name: "b".to_string(),
+                value_type: "string".to_string(),
+            },
         ];
         let json = serde_json::to_string(&values).unwrap();
         assert!(json.contains("\"A\""));
@@ -274,9 +308,15 @@ mod tests {
     #[test]
     fn test_integration_extract_value_debug() {
         let value = IntegrationExtractValue {
-            id: 1, integration_id: 10, project_id: 5, name: "Debug".to_string(),
-            value_source: "body".to_string(), body_data_type: "json".to_string(),
-            key: None, variable: None, value_name: "debug".to_string(),
+            id: 1,
+            integration_id: 10,
+            project_id: 5,
+            name: "Debug".to_string(),
+            value_source: "body".to_string(),
+            body_data_type: "json".to_string(),
+            key: None,
+            variable: None,
+            value_name: "debug".to_string(),
             value_type: "string".to_string(),
         };
         let debug_str = format!("{:?}", value);

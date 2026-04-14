@@ -27,7 +27,10 @@ mod tests {
     #[tokio::test]
     async fn test_get_users_empty() {
         let store = MockStore::new();
-        let users = store.get_users(RetrieveQueryParams::default()).await.unwrap();
+        let users = store
+            .get_users(RetrieveQueryParams::default())
+            .await
+            .unwrap();
         assert!(users.is_empty());
     }
 
@@ -85,11 +88,23 @@ mod tests {
     #[tokio::test]
     async fn test_multiple_users() {
         let store = MockStore::new();
-        store.create_user(create_test_user(1, "user1"), "password").await.unwrap();
-        store.create_user(create_test_user(2, "user2"), "password").await.unwrap();
-        store.create_user(create_test_user(3, "user3"), "password").await.unwrap();
+        store
+            .create_user(create_test_user(1, "user1"), "password")
+            .await
+            .unwrap();
+        store
+            .create_user(create_test_user(2, "user2"), "password")
+            .await
+            .unwrap();
+        store
+            .create_user(create_test_user(3, "user3"), "password")
+            .await
+            .unwrap();
 
-        let users = store.get_users(RetrieveQueryParams::default()).await.unwrap();
+        let users = store
+            .get_users(RetrieveQueryParams::default())
+            .await
+            .unwrap();
         assert_eq!(users.len(), 3);
     }
 }

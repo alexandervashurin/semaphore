@@ -214,15 +214,27 @@ mod tests {
         assert_eq!(InventoryType::Static.to_string(), "static");
         assert_eq!(InventoryType::StaticYaml.to_string(), "static_yaml");
         assert_eq!(InventoryType::File.to_string(), "file");
-        assert_eq!(InventoryType::TerraformInventory.to_string(), "terraform_inventory");
+        assert_eq!(
+            InventoryType::TerraformInventory.to_string(),
+            "terraform_inventory"
+        );
         assert_eq!(InventoryType::TofuWorkspace.to_string(), "tofu_workspace");
     }
 
     #[test]
     fn test_inventory_type_from_str() {
-        assert_eq!("static".parse::<InventoryType>().unwrap(), InventoryType::Static);
-        assert_eq!("file".parse::<InventoryType>().unwrap(), InventoryType::File);
-        assert_eq!("unknown".parse::<InventoryType>().unwrap(), InventoryType::Static);
+        assert_eq!(
+            "static".parse::<InventoryType>().unwrap(),
+            InventoryType::Static
+        );
+        assert_eq!(
+            "file".parse::<InventoryType>().unwrap(),
+            InventoryType::File
+        );
+        assert_eq!(
+            "unknown".parse::<InventoryType>().unwrap(),
+            InventoryType::Static
+        );
     }
 
     #[test]
@@ -295,17 +307,35 @@ mod tests {
         assert_eq!(InventoryType::StaticYaml.to_string(), "static_yaml");
         assert_eq!(InventoryType::StaticJson.to_string(), "static_json");
         assert_eq!(InventoryType::File.to_string(), "file");
-        assert_eq!(InventoryType::TerraformInventory.to_string(), "terraform_inventory");
-        assert_eq!(InventoryType::TerraformWorkspace.to_string(), "terraform_workspace");
+        assert_eq!(
+            InventoryType::TerraformInventory.to_string(),
+            "terraform_inventory"
+        );
+        assert_eq!(
+            InventoryType::TerraformWorkspace.to_string(),
+            "terraform_workspace"
+        );
         assert_eq!(InventoryType::TofuWorkspace.to_string(), "tofu_workspace");
     }
 
     #[test]
     fn test_inventory_type_from_str_all_variants() {
-        assert_eq!("static_yaml".parse::<InventoryType>().unwrap(), InventoryType::StaticYaml);
-        assert_eq!("static_json".parse::<InventoryType>().unwrap(), InventoryType::StaticJson);
-        assert_eq!("terraform_workspace".parse::<InventoryType>().unwrap(), InventoryType::TerraformWorkspace);
-        assert_eq!("tofu_workspace".parse::<InventoryType>().unwrap(), InventoryType::TofuWorkspace);
+        assert_eq!(
+            "static_yaml".parse::<InventoryType>().unwrap(),
+            InventoryType::StaticYaml
+        );
+        assert_eq!(
+            "static_json".parse::<InventoryType>().unwrap(),
+            InventoryType::StaticJson
+        );
+        assert_eq!(
+            "terraform_workspace".parse::<InventoryType>().unwrap(),
+            InventoryType::TerraformWorkspace
+        );
+        assert_eq!(
+            "tofu_workspace".parse::<InventoryType>().unwrap(),
+            InventoryType::TofuWorkspace
+        );
     }
 
     #[test]
@@ -360,13 +390,21 @@ mod tests {
 
     #[test]
     fn test_inventory_with_terraform_workspace() {
-        let inv = Inventory::new(1, "tf-workspace".to_string(), InventoryType::TerraformWorkspace);
+        let inv = Inventory::new(
+            1,
+            "tf-workspace".to_string(),
+            InventoryType::TerraformWorkspace,
+        );
         assert_eq!(inv.inventory_type, InventoryType::TerraformWorkspace);
     }
 
     #[test]
     fn test_inventory_with_tofu_workspace() {
-        let inv = Inventory::new(1, "tofu-workspace".to_string(), InventoryType::TofuWorkspace);
+        let inv = Inventory::new(
+            1,
+            "tofu-workspace".to_string(),
+            InventoryType::TofuWorkspace,
+        );
         assert_eq!(inv.inventory_type, InventoryType::TofuWorkspace);
     }
 

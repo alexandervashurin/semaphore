@@ -385,9 +385,8 @@ impl WebhookService {
             }
         }
 
-        let body_bytes = serde_json::to_vec(payload).map_err(|e| {
-            Error::Other(format!("Ошибка сериализации webhook: {}", e))
-        })?;
+        let body_bytes = serde_json::to_vec(payload)
+            .map_err(|e| Error::Other(format!("Ошибка сериализации webhook: {}", e)))?;
 
         let timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -403,15 +402,14 @@ impl WebhookService {
             );
             headers.insert(
                 reqwest::header::HeaderName::from_static("x-semaphore-signature"),
-                sig.parse().map_err(|e| {
-                    Error::Other(format!("Заголовок подписи webhook: {}", e))
-                })?,
+                sig.parse()
+                    .map_err(|e| Error::Other(format!("Заголовок подписи webhook: {}", e)))?,
             );
             headers.insert(
                 reqwest::header::HeaderName::from_static("x-semaphore-timestamp"),
-                timestamp.parse().map_err(|e| {
-                    Error::Other(format!("Заголовок timestamp webhook: {}", e))
-                })?,
+                timestamp
+                    .parse()
+                    .map_err(|e| Error::Other(format!("Заголовок timestamp webhook: {}", e)))?,
             );
         }
 
@@ -886,7 +884,9 @@ mod tests {
         };
 
         let event = create_task_event("task.completed", 1, "Test", None, None, Some("completed"));
-        let result = service.send_request(&config, &serde_json::json!({"test": true})).await;
+        let result = service
+            .send_request(&config, &serde_json::json!({"test": true}))
+            .await;
 
         // httpbin.org может быть недоступен, проверяем что вызов не паникует
         if let Ok(r) = result {

@@ -686,13 +686,14 @@ mod tests {
             TaskStatus::Running,
             TaskStatus::Running,
         ];
-        let distribution: std::collections::HashMap<String, i64> = statuses
-            .iter()
-            .fold(std::collections::HashMap::new(), |mut acc, s| {
-                let key = format!("{:?}", s);
-                *acc.entry(key).or_insert(0) += 1;
-                acc
-            });
+        let distribution: std::collections::HashMap<String, i64> =
+            statuses
+                .iter()
+                .fold(std::collections::HashMap::new(), |mut acc, s| {
+                    let key = format!("{:?}", s);
+                    *acc.entry(key).or_insert(0) += 1;
+                    acc
+                });
         assert_eq!(*distribution.get("Success").unwrap(), 2);
         assert_eq!(*distribution.get("Error").unwrap(), 1);
         assert_eq!(*distribution.get("Running").unwrap(), 2);

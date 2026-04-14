@@ -147,7 +147,10 @@ mod tests {
     #[test]
     fn test_postgres_returning_clause() {
         let query = "INSERT INTO project (...) VALUES (...) RETURNING id";
-        assert!(query.contains("RETURNING id"), "Postgres uses RETURNING clause");
+        assert!(
+            query.contains("RETURNING id"),
+            "Postgres uses RETURNING clause"
+        );
     }
 
     #[test]
@@ -169,7 +172,12 @@ mod tests {
     #[test]
     fn test_project_bind_order_matches_query() {
         let columns = [
-            "name", "created", "alert", "max_parallel_tasks", "type", "default_secret_storage_id",
+            "name",
+            "created",
+            "alert",
+            "max_parallel_tasks",
+            "type",
+            "default_secret_storage_id",
         ];
         assert_eq!(columns.len(), 6);
         assert_eq!(columns[0], "name");

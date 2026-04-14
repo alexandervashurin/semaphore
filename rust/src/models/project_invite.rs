@@ -186,8 +186,13 @@ mod tests {
     #[test]
     fn test_project_invite_debug() {
         let invite = ProjectInvite {
-            id: 1, project_id: 10, user_id: 5, role: "manager".to_string(),
-            created: Utc::now(), updated: Utc::now(), token: "debug".to_string(),
+            id: 1,
+            project_id: 10,
+            user_id: 5,
+            role: "manager".to_string(),
+            created: Utc::now(),
+            updated: Utc::now(),
+            token: "debug".to_string(),
             inviter_user_id: 1,
         };
         let debug_str = format!("{:?}", invite);
@@ -197,9 +202,15 @@ mod tests {
     #[test]
     fn test_project_invite_with_user_debug() {
         let invite = ProjectInviteWithUser {
-            id: 1, project_id: 10, user_id: 5, role: "manager".to_string(),
-            created: Utc::now(), updated: Utc::now(), token: "debug".to_string(),
-            inviter_user_id: 1, user_name: "Debug User".to_string(),
+            id: 1,
+            project_id: 10,
+            user_id: 5,
+            role: "manager".to_string(),
+            created: Utc::now(),
+            updated: Utc::now(),
+            token: "debug".to_string(),
+            inviter_user_id: 1,
+            user_name: "Debug User".to_string(),
             user_email: "debug@test.com".to_string(),
         };
         let debug_str = format!("{:?}", invite);
@@ -210,8 +221,13 @@ mod tests {
     #[test]
     fn test_project_invite_empty_token() {
         let invite = ProjectInvite {
-            id: 1, project_id: 1, user_id: 1, role: "viewer".to_string(),
-            created: Utc::now(), updated: Utc::now(), token: "".to_string(),
+            id: 1,
+            project_id: 1,
+            user_id: 1,
+            role: "viewer".to_string(),
+            created: Utc::now(),
+            updated: Utc::now(),
+            token: "".to_string(),
             inviter_user_id: 1,
         };
         assert!(invite.token.is_empty());
@@ -220,8 +236,13 @@ mod tests {
     #[test]
     fn test_project_invite_same_inviter() {
         let invite = ProjectInvite {
-            id: 1, project_id: 10, user_id: 5, role: "manager".to_string(),
-            created: Utc::now(), updated: Utc::now(), token: "self-invite".to_string(),
+            id: 1,
+            project_id: 10,
+            user_id: 5,
+            role: "manager".to_string(),
+            created: Utc::now(),
+            updated: Utc::now(),
+            token: "self-invite".to_string(),
             inviter_user_id: 5, // same as user_id
         };
         assert_eq!(invite.user_id, invite.inviter_user_id);
@@ -230,9 +251,16 @@ mod tests {
     #[test]
     fn test_project_invite_with_user_empty_fields() {
         let invite = ProjectInviteWithUser {
-            id: 0, project_id: 0, user_id: 0, role: String::new(),
-            created: Utc::now(), updated: Utc::now(), token: String::new(),
-            inviter_user_id: 0, user_name: String::new(), user_email: String::new(),
+            id: 0,
+            project_id: 0,
+            user_id: 0,
+            role: String::new(),
+            created: Utc::now(),
+            updated: Utc::now(),
+            token: String::new(),
+            inviter_user_id: 0,
+            user_name: String::new(),
+            user_email: String::new(),
         };
         assert!(invite.role.is_empty());
         assert!(invite.token.is_empty());
@@ -258,8 +286,13 @@ mod tests {
     #[test]
     fn test_project_invite_clone_independence() {
         let mut invite = ProjectInvite {
-            id: 1, project_id: 10, user_id: 5, role: "manager".to_string(),
-            created: Utc::now(), updated: Utc::now(), token: "original".to_string(),
+            id: 1,
+            project_id: 10,
+            user_id: 5,
+            role: "manager".to_string(),
+            created: Utc::now(),
+            updated: Utc::now(),
+            token: "original".to_string(),
             inviter_user_id: 1,
         };
         let cloned = invite.clone();

@@ -507,16 +507,43 @@ mod tests {
 
     #[test]
     fn test_task_status_from_str_all_variants() {
-        assert_eq!(TaskStatus::from_str("waiting").unwrap(), TaskStatus::Waiting);
-        assert_eq!(TaskStatus::from_str("starting").unwrap(), TaskStatus::Starting);
-        assert_eq!(TaskStatus::from_str("running").unwrap(), TaskStatus::Running);
-        assert_eq!(TaskStatus::from_str("success").unwrap(), TaskStatus::Success);
+        assert_eq!(
+            TaskStatus::from_str("waiting").unwrap(),
+            TaskStatus::Waiting
+        );
+        assert_eq!(
+            TaskStatus::from_str("starting").unwrap(),
+            TaskStatus::Starting
+        );
+        assert_eq!(
+            TaskStatus::from_str("running").unwrap(),
+            TaskStatus::Running
+        );
+        assert_eq!(
+            TaskStatus::from_str("success").unwrap(),
+            TaskStatus::Success
+        );
         assert_eq!(TaskStatus::from_str("error").unwrap(), TaskStatus::Error);
-        assert_eq!(TaskStatus::from_str("stopped").unwrap(), TaskStatus::Stopped);
-        assert_eq!(TaskStatus::from_str("not_executed").unwrap(), TaskStatus::NotExecuted);
-        assert_eq!(TaskStatus::from_str("waiting_confirmation").unwrap(), TaskStatus::WaitingConfirmation);
-        assert_eq!(TaskStatus::from_str("confirmed").unwrap(), TaskStatus::Confirmed);
-        assert_eq!(TaskStatus::from_str("rejected").unwrap(), TaskStatus::Rejected);
+        assert_eq!(
+            TaskStatus::from_str("stopped").unwrap(),
+            TaskStatus::Stopped
+        );
+        assert_eq!(
+            TaskStatus::from_str("not_executed").unwrap(),
+            TaskStatus::NotExecuted
+        );
+        assert_eq!(
+            TaskStatus::from_str("waiting_confirmation").unwrap(),
+            TaskStatus::WaitingConfirmation
+        );
+        assert_eq!(
+            TaskStatus::from_str("confirmed").unwrap(),
+            TaskStatus::Confirmed
+        );
+        assert_eq!(
+            TaskStatus::from_str("rejected").unwrap(),
+            TaskStatus::Rejected
+        );
     }
 
     #[test]
@@ -528,7 +555,10 @@ mod tests {
         assert_eq!(TaskStatus::Error.to_string(), "error");
         assert_eq!(TaskStatus::Stopped.to_string(), "stopped");
         assert_eq!(TaskStatus::NotExecuted.to_string(), "not_executed");
-        assert_eq!(TaskStatus::WaitingConfirmation.to_string(), "waiting_confirmation");
+        assert_eq!(
+            TaskStatus::WaitingConfirmation.to_string(),
+            "waiting_confirmation"
+        );
         assert_eq!(TaskStatus::Confirmed.to_string(), "confirmed");
         assert_eq!(TaskStatus::Rejected.to_string(), "rejected");
     }
@@ -669,9 +699,18 @@ mod tests {
 
     #[test]
     fn test_task_status_from_str_case_insensitive() {
-        assert_eq!(TaskStatus::from_str("WAITING").unwrap(), TaskStatus::Waiting);
-        assert_eq!(TaskStatus::from_str("Running").unwrap(), TaskStatus::Running);
-        assert_eq!(TaskStatus::from_str("SUCCESS").unwrap(), TaskStatus::Success);
+        assert_eq!(
+            TaskStatus::from_str("WAITING").unwrap(),
+            TaskStatus::Waiting
+        );
+        assert_eq!(
+            TaskStatus::from_str("Running").unwrap(),
+            TaskStatus::Running
+        );
+        assert_eq!(
+            TaskStatus::from_str("SUCCESS").unwrap(),
+            TaskStatus::Success
+        );
         assert_eq!(TaskStatus::from_str("Error").unwrap(), TaskStatus::Error);
     }
 
@@ -705,7 +744,12 @@ mod tests {
         for status in &statuses {
             let formatted = status.format();
             let status_name = status.to_string().to_uppercase();
-            assert!(formatted.contains(&status_name), "Format {:?} should contain {}", status, status_name);
+            assert!(
+                formatted.contains(&status_name),
+                "Format {:?} should contain {}",
+                status,
+                status_name
+            );
         }
     }
 
@@ -853,7 +897,11 @@ mod tests {
             let is_active = status.is_active();
             let is_finished = status.is_finished();
             // Статус не может быть одновременно активным и завершённым
-            assert!(!(is_active && is_finished), "{:?} cannot be both active and finished", status);
+            assert!(
+                !(is_active && is_finished),
+                "{:?} cannot be both active and finished",
+                status
+            );
         }
     }
 

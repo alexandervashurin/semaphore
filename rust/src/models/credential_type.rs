@@ -172,9 +172,12 @@ mod tests {
     #[test]
     fn test_credential_field_clone() {
         let field = CredentialField {
-            id: "clone_field".to_string(), label: "Clone".to_string(),
-            field_type: "string".to_string(), required: true,
-            default_value: Some("default".to_string()), help_text: None,
+            id: "clone_field".to_string(),
+            label: "Clone".to_string(),
+            field_type: "string".to_string(),
+            required: true,
+            default_value: Some("default".to_string()),
+            help_text: None,
         };
         let cloned = field.clone();
         assert_eq!(cloned.id, field.id);
@@ -195,8 +198,10 @@ mod tests {
     #[test]
     fn test_credential_type_create_clone() {
         let create = CredentialTypeCreate {
-            name: "Clone Type".to_string(), description: None,
-            input_schema: serde_json::json!([]), injectors: serde_json::json!([]),
+            name: "Clone Type".to_string(),
+            description: None,
+            input_schema: serde_json::json!([]),
+            injectors: serde_json::json!([]),
         };
         let cloned = create.clone();
         assert_eq!(cloned.name, create.name);
@@ -205,8 +210,10 @@ mod tests {
     #[test]
     fn test_credential_type_update_clone() {
         let update = CredentialTypeUpdate {
-            name: "Updated Type".to_string(), description: Some("Desc".to_string()),
-            input_schema: serde_json::json!([]), injectors: serde_json::json!([]),
+            name: "Updated Type".to_string(),
+            description: Some("Desc".to_string()),
+            input_schema: serde_json::json!([]),
+            injectors: serde_json::json!([]),
         };
         let cloned = update.clone();
         assert_eq!(cloned.name, update.name);
@@ -215,8 +222,13 @@ mod tests {
     #[test]
     fn test_credential_instance_clone() {
         let instance = CredentialInstance {
-            id: 1, project_id: 10, credential_type_id: 5, name: "Clone Instance".to_string(),
-            values: r#"{}"#.to_string(), description: None, created: Utc::now(),
+            id: 1,
+            project_id: 10,
+            credential_type_id: 5,
+            name: "Clone Instance".to_string(),
+            values: r#"{}"#.to_string(),
+            description: None,
+            created: Utc::now(),
         };
         let cloned = instance.clone();
         assert_eq!(cloned.name, instance.name);
@@ -225,8 +237,10 @@ mod tests {
     #[test]
     fn test_credential_instance_create_clone() {
         let create = CredentialInstanceCreate {
-            credential_type_id: 1, name: "Clone Create".to_string(),
-            values: serde_json::json!({}), description: None,
+            credential_type_id: 1,
+            name: "Clone Create".to_string(),
+            values: serde_json::json!({}),
+            description: None,
         };
         let cloned = create.clone();
         assert_eq!(cloned.name, create.name);
@@ -235,9 +249,12 @@ mod tests {
     #[test]
     fn test_credential_field_with_all_values() {
         let field = CredentialField {
-            id: "full_field".to_string(), label: "Full".to_string(),
-            field_type: "password".to_string(), required: true,
-            default_value: Some("****".to_string()), help_text: Some("Enter password".to_string()),
+            id: "full_field".to_string(),
+            label: "Full".to_string(),
+            field_type: "password".to_string(),
+            required: true,
+            default_value: Some("****".to_string()),
+            help_text: Some("Enter password".to_string()),
         };
         let json = serde_json::to_string(&field).unwrap();
         assert!(json.contains("\"id\":\"full_field\""));
@@ -262,9 +279,12 @@ mod tests {
     #[test]
     fn test_credential_field_clone_independence() {
         let mut field = CredentialField {
-            id: "field".to_string(), label: "Label".to_string(),
-            field_type: "string".to_string(), required: true,
-            default_value: None, help_text: None,
+            id: "field".to_string(),
+            label: "Label".to_string(),
+            field_type: "string".to_string(),
+            required: true,
+            default_value: None,
+            help_text: None,
         };
         let cloned = field.clone();
         field.label = "Modified".to_string();
@@ -274,8 +294,12 @@ mod tests {
     #[test]
     fn test_credential_instance_unicode_name() {
         let instance = CredentialInstance {
-            id: 1, project_id: 1, credential_type_id: 1, name: "Учетные данные".to_string(),
-            values: "{}".to_string(), description: None,
+            id: 1,
+            project_id: 1,
+            credential_type_id: 1,
+            name: "Учетные данные".to_string(),
+            values: "{}".to_string(),
+            description: None,
             created: chrono::Utc::now(),
         };
         let json = serde_json::to_string(&instance).unwrap();

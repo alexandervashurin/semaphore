@@ -165,12 +165,19 @@ mod tests {
     #[test]
     fn test_postgres_returning_clause() {
         let query = "INSERT INTO repository (...) VALUES (...) RETURNING id";
-        assert!(query.contains("RETURNING id"), "Postgres uses RETURNING clause");
+        assert!(
+            query.contains("RETURNING id"),
+            "Postgres uses RETURNING clause"
+        );
     }
 
     #[test]
     fn test_repository_model_fields() {
-        let repo = Repository::new(10, "pg-repo".to_string(), "https://github.com/user/repo.git".to_string());
+        let repo = Repository::new(
+            10,
+            "pg-repo".to_string(),
+            "https://github.com/user/repo.git".to_string(),
+        );
         assert_eq!(repo.project_id, 10);
         assert_eq!(repo.name, "pg-repo");
         assert_eq!(repo.git_type, RepositoryType::Git);
@@ -178,7 +185,11 @@ mod tests {
 
     #[test]
     fn test_repository_serialization() {
-        let repo = Repository::new(1, "pg-test-repo".to_string(), "https://example.com/repo.git".to_string());
+        let repo = Repository::new(
+            1,
+            "pg-test-repo".to_string(),
+            "https://example.com/repo.git".to_string(),
+        );
         let json = serde_json::to_string(&repo).unwrap();
         assert!(json.contains("\"name\":\"pg-test-repo\""));
         assert!(json.contains("\"git_type\":\"git\""));
@@ -187,7 +198,13 @@ mod tests {
     #[test]
     fn test_repository_bind_order_matches_query() {
         let columns = [
-            "project_id", "name", "git_url", "git_type", "git_branch", "key_id", "created",
+            "project_id",
+            "name",
+            "git_url",
+            "git_type",
+            "git_branch",
+            "key_id",
+            "created",
         ];
         assert_eq!(columns.len(), 7);
         assert_eq!(columns[0], "project_id");

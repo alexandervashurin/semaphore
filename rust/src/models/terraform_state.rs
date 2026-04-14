@@ -172,14 +172,12 @@ mod tests {
         let diff = StateDiff {
             from_serial: 3,
             to_serial: 5,
-            resources: vec![
-                StateDiffResource {
-                    address: "aws_instance.web".to_string(),
-                    change_type: "added".to_string(),
-                    resource_type: "aws_instance".to_string(),
-                    name: "web".to_string(),
-                },
-            ],
+            resources: vec![StateDiffResource {
+                address: "aws_instance.web".to_string(),
+                change_type: "added".to_string(),
+                resource_type: "aws_instance".to_string(),
+                name: "web".to_string(),
+            }],
             added: 1,
             changed: 0,
             removed: 0,
@@ -261,9 +259,14 @@ mod tests {
     #[test]
     fn test_terraform_state_summary_clone() {
         let summary = TerraformStateSummary {
-            id: 1, project_id: 10, workspace: "prod".to_string(), serial: 5,
-            lineage: "line-1".to_string(), encrypted: true,
-            md5: "abc123".to_string(), created_at: Utc::now(),
+            id: 1,
+            project_id: 10,
+            workspace: "prod".to_string(),
+            serial: 5,
+            lineage: "line-1".to_string(),
+            encrypted: true,
+            md5: "abc123".to_string(),
+            created_at: Utc::now(),
         };
         let cloned = summary.clone();
         assert_eq!(cloned.workspace, summary.workspace);
@@ -273,9 +276,14 @@ mod tests {
     #[test]
     fn test_terraform_state_summary_debug() {
         let summary = TerraformStateSummary {
-            id: 1, project_id: 1, workspace: "debug".to_string(), serial: 1,
-            lineage: "line-1".to_string(), encrypted: false,
-            md5: "md5".to_string(), created_at: Utc::now(),
+            id: 1,
+            project_id: 1,
+            workspace: "debug".to_string(),
+            serial: 1,
+            lineage: "line-1".to_string(),
+            encrypted: false,
+            md5: "md5".to_string(),
+            created_at: Utc::now(),
         };
         let debug_str = format!("{:?}", summary);
         assert!(debug_str.contains("TerraformStateSummary"));
@@ -284,11 +292,16 @@ mod tests {
     #[test]
     fn test_terraform_state_lock_debug() {
         let lock = TerraformStateLock {
-            project_id: 1, workspace: "debug-lock".to_string(),
-            lock_id: "lock-123".to_string(), operation: "Plan".to_string(),
-            info: "Debug info".to_string(), who: "debug@test.com".to_string(),
-            version: "1.0".to_string(), path: "module.test".to_string(),
-            created_at: Utc::now(), expires_at: Utc::now() + chrono::Duration::hours(1),
+            project_id: 1,
+            workspace: "debug-lock".to_string(),
+            lock_id: "lock-123".to_string(),
+            operation: "Plan".to_string(),
+            info: "Debug info".to_string(),
+            who: "debug@test.com".to_string(),
+            version: "1.0".to_string(),
+            path: "module.test".to_string(),
+            created_at: Utc::now(),
+            expires_at: Utc::now() + chrono::Duration::hours(1),
         };
         let debug_str = format!("{:?}", lock);
         assert!(debug_str.contains("TerraformStateLock"));
@@ -298,11 +311,16 @@ mod tests {
     #[test]
     fn test_lock_info_clone() {
         let lock = TerraformStateLock {
-            project_id: 1, workspace: "clone-lock".to_string(),
-            lock_id: "clone-id".to_string(), operation: "Apply".to_string(),
-            info: "Clone info".to_string(), who: "clone@test.com".to_string(),
-            version: "2.0".to_string(), path: "module.clone".to_string(),
-            created_at: Utc::now(), expires_at: Utc::now(),
+            project_id: 1,
+            workspace: "clone-lock".to_string(),
+            lock_id: "clone-id".to_string(),
+            operation: "Apply".to_string(),
+            info: "Clone info".to_string(),
+            who: "clone@test.com".to_string(),
+            version: "2.0".to_string(),
+            path: "module.clone".to_string(),
+            created_at: Utc::now(),
+            expires_at: Utc::now(),
         };
         let info = LockInfo::from_lock(&lock);
         let cloned = info.clone();
@@ -328,8 +346,12 @@ mod tests {
     #[test]
     fn test_state_diff_clone() {
         let diff = StateDiff {
-            from_serial: 1, to_serial: 3, resources: vec![],
-            added: 2, changed: 1, removed: 0,
+            from_serial: 1,
+            to_serial: 3,
+            resources: vec![],
+            added: 2,
+            changed: 1,
+            removed: 0,
         };
         let cloned = diff.clone();
         assert_eq!(cloned.from_serial, diff.from_serial);

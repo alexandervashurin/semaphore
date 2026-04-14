@@ -30,9 +30,10 @@ pub async fn get_metrics(
     let output = String::from_utf8(buffer).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let mut response = Response::new(output);
-    response
-        .headers_mut()
-        .insert(CONTENT_TYPE, HeaderValue::from_static("text/plain; version=0.0.4"));
+    response.headers_mut().insert(
+        CONTENT_TYPE,
+        HeaderValue::from_static("text/plain; version=0.0.4"),
+    );
 
     Ok(response)
 }
@@ -231,7 +232,11 @@ mod tests {
     fn test_get_memory_usage_mb_not_zero_on_active_system() {
         let result = get_memory_usage_mb().unwrap();
         // On any active system memory usage should be > 0
-        assert!(result > 0.0, "Memory usage should be greater than 0, got: {}", result);
+        assert!(
+            result > 0.0,
+            "Memory usage should be greater than 0, got: {}",
+            result
+        );
     }
 
     #[test]

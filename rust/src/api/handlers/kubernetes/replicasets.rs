@@ -309,7 +309,8 @@ fn replicaset_detail(rs: &ReplicaSet) -> ReplicaSetDetail {
     let conditions = status
         .and_then(|s| s.conditions.clone())
         .map(|conds| {
-            conds.iter()
+            conds
+                .iter()
                 .map(|c| ReplicaSetCondition {
                     condition_type: c.type_.clone(),
                     status: c.status.clone(),

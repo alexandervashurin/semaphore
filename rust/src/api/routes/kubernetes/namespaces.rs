@@ -1,20 +1,41 @@
 //! Kubernetes Namespaces маршруты
 
 use crate::api::handlers;
-use axum::{routing::{get, post, put, delete}, Router};
-use std::sync::Arc;
 use crate::api::state::AppState;
+use axum::{
+    routing::{delete, get, post, put},
+    Router,
+};
+use std::sync::Arc;
 
 /// Маршруты для управления namespaces
 pub fn namespaces_routes() -> Router<Arc<AppState>> {
     Router::new()
         .route("/api/kubernetes/namespaces", get(handlers::list_namespaces))
-        .route("/api/kubernetes/namespaces/{name}", get(handlers::get_namespace))
-        .route("/api/kubernetes/namespaces", post(handlers::create_namespace))
-        .route("/api/kubernetes/namespaces/{name}", put(handlers::update_namespace))
-        .route("/api/kubernetes/namespaces/{name}", delete(handlers::delete_namespace))
-        .route("/api/kubernetes/namespaces/{name}/quota", get(handlers::get_namespace_quota))
-        .route("/api/kubernetes/namespaces/{name}/limits", get(handlers::get_namespace_limits))
+        .route(
+            "/api/kubernetes/namespaces/{name}",
+            get(handlers::get_namespace),
+        )
+        .route(
+            "/api/kubernetes/namespaces",
+            post(handlers::create_namespace),
+        )
+        .route(
+            "/api/kubernetes/namespaces/{name}",
+            put(handlers::update_namespace),
+        )
+        .route(
+            "/api/kubernetes/namespaces/{name}",
+            delete(handlers::delete_namespace),
+        )
+        .route(
+            "/api/kubernetes/namespaces/{name}/quota",
+            get(handlers::get_namespace_quota),
+        )
+        .route(
+            "/api/kubernetes/namespaces/{name}/limits",
+            get(handlers::get_namespace_limits),
+        )
 }
 
 #[cfg(test)]

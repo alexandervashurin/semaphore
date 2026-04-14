@@ -2,10 +2,10 @@
 //!
 //! Типы для раннеров
 
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use crate::models::*;
 use crate::services::task_logger::TaskStatus;
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
 /// Данные задачи
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -124,7 +124,11 @@ mod tests {
 
     #[test]
     fn test_option_item_special_characters() {
-        let opt = OptionItem::new(1, "key:with:colons".to_string(), "value with spaces & special".to_string());
+        let opt = OptionItem::new(
+            1,
+            "key:with:colons".to_string(),
+            "value with spaces & special".to_string(),
+        );
         let json = serde_json::to_string(&opt).unwrap();
         assert!(json.contains("key:with:colons"));
         assert!(json.contains("value with spaces & special"));

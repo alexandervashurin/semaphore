@@ -2,20 +2,20 @@
 //!
 //! Фаза 2: полный CRUD/list для основных workload-ресурсов
 
+use crate::api::handlers::kubernetes::client::KubeClient;
+use crate::api::state::AppState;
+use crate::error::{Error, Result};
 use axum::{
     extract::{Path, Query, State},
     Json,
 };
-use std::sync::Arc;
-use std::collections::BTreeMap;
-use crate::api::state::AppState;
-use crate::error::{Error, Result};
-use crate::api::handlers::kubernetes::client::KubeClient;
-use k8s_openapi::api::apps::v1::{Deployment, DaemonSet, StatefulSet, ReplicaSet};
-use k8s_openapi::api::core::v1::{Pod, Event};
-use kube::api::{Api, ListParams, DeleteParams};
-use serde::{Deserialize, Serialize};
 use chrono::Utc;
+use k8s_openapi::api::apps::v1::{DaemonSet, Deployment, ReplicaSet, StatefulSet};
+use k8s_openapi::api::core::v1::{Event, Pod};
+use kube::api::{Api, DeleteParams, ListParams};
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+use std::sync::Arc;
 
 // ─────────────────────────────────────────────
 // Shared helpers
@@ -25,10 +25,15 @@ fn age_from_ts(ts: Option<&k8s_openapi::apimachinery::pkg::apis::meta::v1::Time>
     match ts {
         Some(t) => {
             let secs = (Utc::now() - t.0).num_seconds().max(0);
-            if secs < 60 { format!("{secs}s") }
-            else if secs < 3600 { format!("{}m", secs / 60) }
-            else if secs < 86400 { format!("{}h", secs / 3600) }
-            else { format!("{}d", secs / 86400) }
+            if secs < 60 {
+                format!("{secs}s")
+            } else if secs < 3600 {
+                format!("{}m", secs / 60)
+            } else if secs < 86400 {
+                format!("{}h", secs / 3600)
+            } else {
+                format!("{}d", secs / 86400)
+            }
         }
         None => "unknown".to_string(),
     }
@@ -76,62 +81,95 @@ pub async fn list_pods(
 ) -> Result<Json<Vec<PodSummary>>> {
     let client = state.kubernetes_client()?;
     let mut lp = ListParams::default();
-    if let Some(sel) = &query.label_selector { lp = lp.labels(sel); }
-    if let Some(l) = query.limit { lp = lp.limit(l as u32); }
+    if let Some(sel) = &query.label_selector {
+        lp = lp.labels(sel);
+    }
+    if let Some(l) = query.limit {
+        lp = lp.limit(l as u32);
+    }
 
     let api: Api<Pod> = match &query.namespace {
         Some(ns) => client.api(Some(ns.as_str())),
         None => client.api_all(),
     };
 
-    let list = api.list(&lp).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let list = api
+        .list(&lp)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
 
-    let summaries = list.items.iter().map(|p| {
-        let meta = &p.metadata;
-        let status = p.status.as_ref();
-        let phase = status.and_then(|s| s.phase.as_deref()).unwrap_or("Unknown").to_string();
-        let node_name = p.spec.as_ref().and_then(|s| s.node_name.clone());
-        let pod_ip = status.and_then(|s| s.pod_ip.clone());
+    let summaries = list
+        .items
+        .iter()
+        .map(|p| {
+            let meta = &p.metadata;
+            let status = p.status.as_ref();
+            let phase = status
+                .and_then(|s| s.phase.as_deref())
+                .unwrap_or("Unknown")
+                .to_string();
+            let node_name = p.spec.as_ref().and_then(|s| s.node_name.clone());
+            let pod_ip = status.and_then(|s| s.pod_ip.clone());
 
-        let containers: Vec<ContainerSummary> = p.spec.as_ref()
-            .map(|sp| sp.containers.iter().enumerate().map(|(i, c)| {
-                let cs = status.and_then(|s| s.container_statuses.as_ref())
-                    .and_then(|css| css.get(i));
-                let ready = cs.map(|cs| cs.ready).unwrap_or(false);
-                let restarts = cs.map(|cs| cs.restart_count).unwrap_or(0);
-                let state = cs.and_then(|cs| cs.state.as_ref()).map(|s| {
-                    if s.running.is_some() { "Running" }
-                    else if s.waiting.is_some() { "Waiting" }
-                    else if s.terminated.is_some() { "Terminated" }
-                    else { "Unknown" }
-                }).unwrap_or("Unknown").to_string();
-                ContainerSummary {
-                    name: c.name.clone(),
-                    image: c.image.clone().unwrap_or_default(),
-                    ready,
-                    state,
-                    restarts,
-                }
-            }).collect()).unwrap_or_default();
+            let containers: Vec<ContainerSummary> = p
+                .spec
+                .as_ref()
+                .map(|sp| {
+                    sp.containers
+                        .iter()
+                        .enumerate()
+                        .map(|(i, c)| {
+                            let cs = status
+                                .and_then(|s| s.container_statuses.as_ref())
+                                .and_then(|css| css.get(i));
+                            let ready = cs.map(|cs| cs.ready).unwrap_or(false);
+                            let restarts = cs.map(|cs| cs.restart_count).unwrap_or(0);
+                            let state = cs
+                                .and_then(|cs| cs.state.as_ref())
+                                .map(|s| {
+                                    if s.running.is_some() {
+                                        "Running"
+                                    } else if s.waiting.is_some() {
+                                        "Waiting"
+                                    } else if s.terminated.is_some() {
+                                        "Terminated"
+                                    } else {
+                                        "Unknown"
+                                    }
+                                })
+                                .unwrap_or("Unknown")
+                                .to_string();
+                            ContainerSummary {
+                                name: c.name.clone(),
+                                image: c.image.clone().unwrap_or_default(),
+                                ready,
+                                state,
+                                restarts,
+                            }
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
 
-        let total = containers.len();
-        let ready_count = containers.iter().filter(|c| c.ready).count();
-        let restarts: i32 = containers.iter().map(|c| c.restarts).sum();
+            let total = containers.len();
+            let ready_count = containers.iter().filter(|c| c.ready).count();
+            let restarts: i32 = containers.iter().map(|c| c.restarts).sum();
 
-        PodSummary {
-            name: meta.name.as_deref().unwrap_or_default().to_string(),
-            namespace: meta.namespace.as_deref().unwrap_or_default().to_string(),
-            uid: meta.uid.as_deref().unwrap_or_default().to_string(),
-            phase,
-            node_name,
-            pod_ip,
-            containers,
-            labels: meta.labels.clone().unwrap_or_default(),
-            age: age_from_ts(meta.creation_timestamp.as_ref()),
-            ready: format!("{ready_count}/{total}"),
-            restarts,
-        }
-    }).collect();
+            PodSummary {
+                name: meta.name.as_deref().unwrap_or_default().to_string(),
+                namespace: meta.namespace.as_deref().unwrap_or_default().to_string(),
+                uid: meta.uid.as_deref().unwrap_or_default().to_string(),
+                phase,
+                node_name,
+                pod_ip,
+                containers,
+                labels: meta.labels.clone().unwrap_or_default(),
+                age: age_from_ts(meta.creation_timestamp.as_ref()),
+                ready: format!("{ready_count}/{total}"),
+                restarts,
+            }
+        })
+        .collect();
 
     Ok(Json(summaries))
 }
@@ -143,7 +181,10 @@ pub async fn get_pod(
 ) -> Result<Json<serde_json::Value>> {
     let client = state.kubernetes_client()?;
     let api: Api<Pod> = client.api(Some(&namespace));
-    let pod = api.get(&name).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let pod = api
+        .get(&name)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
     Ok(Json(serde_json::to_value(pod).unwrap_or_default()))
 }
 
@@ -154,7 +195,8 @@ pub async fn delete_pod(
 ) -> Result<Json<serde_json::Value>> {
     let client = state.kubernetes_client()?;
     let api: Api<Pod> = client.api(Some(&namespace));
-    api.delete(&name, &DeleteParams::default()).await
+    api.delete(&name, &DeleteParams::default())
+        .await
         .map_err(|e| Error::Kubernetes(e.to_string()))?;
     Ok(Json(serde_json::json!({"deleted": true, "name": name})))
 }
@@ -168,28 +210,37 @@ pub async fn pod_logs(
     let client = state.kubernetes_client()?;
     let api: Api<Pod> = client.api(Some(&namespace));
     let mut lp = kube::api::LogParams::default();
-    if let Some(c) = &q.container { lp.container = Some(c.clone()); }
-    if let Some(n) = q.tail_lines { lp.tail_lines = Some(n as i64); }
+    if let Some(c) = &q.container {
+        lp.container = Some(c.clone());
+    }
+    if let Some(n) = q.tail_lines {
+        lp.tail_lines = Some(n as i64);
+    }
     lp.previous = q.previous.unwrap_or(false);
-    let logs = api.logs(&name, &lp).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
-    Ok(Json(serde_json::json!({"logs": logs, "container": q.container})))
+    let logs = api
+        .logs(&name, &lp)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
+    Ok(Json(
+        serde_json::json!({"logs": logs, "container": q.container}),
+    ))
 }
 
 /// POST /api/kubernetes/namespaces/{namespace}/pods/{name}/evict
-/// 
+///
 /// Evict pod using Kubernetes Eviction API (Policy/V1).
 /// Handles 429 Too Many Requests when PDB blocks the eviction.
 pub async fn evict_pod(
     State(state): State<Arc<AppState>>,
     Path((namespace, name)): Path<(String, String)>,
 ) -> Result<Json<serde_json::Value>> {
+    use axum::http::StatusCode;
     use k8s_openapi::api::policy::v1::Eviction;
     use kube::api::{DeleteParams, EvictParams};
-    use axum::http::StatusCode;
-    
+
     let client = state.kubernetes_client()?;
     let api: Api<Pod> = client.api(Some(&namespace));
-    
+
     let evict_params = EvictParams {
         delete_options: Some(DeleteParams {
             grace_period_seconds: Some(30),
@@ -197,7 +248,7 @@ pub async fn evict_pod(
         }),
         ..EvictParams::default()
     };
-    
+
     match api.evict(&name, &evict_params).await {
         Ok(_) => Ok(Json(serde_json::json!({
             "evicted": true,
@@ -259,45 +310,62 @@ pub async fn list_deployments(
 ) -> Result<Json<Vec<DeploymentSummary>>> {
     let client = state.kubernetes_client()?;
     let mut lp = ListParams::default();
-    if let Some(sel) = &query.label_selector { lp = lp.labels(sel); }
-    if let Some(l) = query.limit { lp = lp.limit(l as u32); }
+    if let Some(sel) = &query.label_selector {
+        lp = lp.labels(sel);
+    }
+    if let Some(l) = query.limit {
+        lp = lp.limit(l as u32);
+    }
 
     let api: Api<Deployment> = match &query.namespace {
         Some(ns) => client.api(Some(ns.as_str())),
         None => client.api_all(),
     };
 
-    let list = api.list(&lp).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let list = api
+        .list(&lp)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
 
-    let summaries = list.items.iter().map(|d| {
-        let meta = &d.metadata;
-        let status = d.status.as_ref();
-        let spec_replicas = d.spec.as_ref().and_then(|s| s.replicas).unwrap_or(0);
-        let ready = status.and_then(|s| s.ready_replicas).unwrap_or(0);
-        let available = status.and_then(|s| s.available_replicas).unwrap_or(0);
-        let updated = status.and_then(|s| s.updated_replicas).unwrap_or(0);
+    let summaries = list
+        .items
+        .iter()
+        .map(|d| {
+            let meta = &d.metadata;
+            let status = d.status.as_ref();
+            let spec_replicas = d.spec.as_ref().and_then(|s| s.replicas).unwrap_or(0);
+            let ready = status.and_then(|s| s.ready_replicas).unwrap_or(0);
+            let available = status.and_then(|s| s.available_replicas).unwrap_or(0);
+            let updated = status.and_then(|s| s.updated_replicas).unwrap_or(0);
 
-        let conditions = status.and_then(|s| s.conditions.as_ref())
-            .map(|conds| conds.iter().map(|c| DeploymentCondition {
-                type_: c.type_.clone(),
-                status: c.status.clone(),
-                message: c.message.clone(),
-            }).collect())
-            .unwrap_or_default();
+            let conditions = status
+                .and_then(|s| s.conditions.as_ref())
+                .map(|conds| {
+                    conds
+                        .iter()
+                        .map(|c| DeploymentCondition {
+                            type_: c.type_.clone(),
+                            status: c.status.clone(),
+                            message: c.message.clone(),
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
 
-        DeploymentSummary {
-            name: meta.name.as_deref().unwrap_or_default().to_string(),
-            namespace: meta.namespace.as_deref().unwrap_or_default().to_string(),
-            uid: meta.uid.as_deref().unwrap_or_default().to_string(),
-            replicas: spec_replicas,
-            ready_replicas: ready,
-            available_replicas: available,
-            updated_replicas: updated,
-            labels: meta.labels.clone().unwrap_or_default(),
-            age: age_from_ts(meta.creation_timestamp.as_ref()),
-            conditions,
-        }
-    }).collect();
+            DeploymentSummary {
+                name: meta.name.as_deref().unwrap_or_default().to_string(),
+                namespace: meta.namespace.as_deref().unwrap_or_default().to_string(),
+                uid: meta.uid.as_deref().unwrap_or_default().to_string(),
+                replicas: spec_replicas,
+                ready_replicas: ready,
+                available_replicas: available,
+                updated_replicas: updated,
+                labels: meta.labels.clone().unwrap_or_default(),
+                age: age_from_ts(meta.creation_timestamp.as_ref()),
+                conditions,
+            }
+        })
+        .collect();
 
     Ok(Json(summaries))
 }
@@ -309,7 +377,10 @@ pub async fn get_deployment(
 ) -> Result<Json<serde_json::Value>> {
     let client = state.kubernetes_client()?;
     let api: Api<Deployment> = client.api(Some(&namespace));
-    let d = api.get(&name).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let d = api
+        .get(&name)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
     Ok(Json(serde_json::to_value(d).unwrap_or_default()))
 }
 
@@ -326,11 +397,16 @@ pub async fn scale_deployment(
         "kind": "Deployment",
         "spec": { "replicas": body.replicas }
     });
-    api.patch(&name,
+    api.patch(
+        &name,
         &kube::api::PatchParams::apply("velum").force(),
         &kube::api::Patch::Apply(patch),
-    ).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
-    Ok(Json(serde_json::json!({"scaled": true, "replicas": body.replicas})))
+    )
+    .await
+    .map_err(|e| Error::Kubernetes(e.to_string()))?;
+    Ok(Json(
+        serde_json::json!({"scaled": true, "replicas": body.replicas}),
+    ))
 }
 
 /// POST /api/kubernetes/namespaces/{namespace}/deployments/{name}/restart
@@ -352,15 +428,20 @@ pub async fn restart_deployment(
             }
         }
     });
-    api.patch(&name,
+    api.patch(
+        &name,
         &kube::api::PatchParams::apply("velum").force(),
         &kube::api::Patch::Apply(patch),
-    ).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    )
+    .await
+    .map_err(|e| Error::Kubernetes(e.to_string()))?;
     Ok(Json(serde_json::json!({"restarted": true})))
 }
 
 #[derive(Debug, Deserialize)]
-pub struct ScaleBody { pub replicas: i32 }
+pub struct ScaleBody {
+    pub replicas: i32,
+}
 
 // ─────────────────────────────────────────────
 // DaemonSets
@@ -387,32 +468,43 @@ pub async fn list_daemonsets(
 ) -> Result<Json<Vec<DaemonSetSummary>>> {
     let client = state.kubernetes_client()?;
     let mut lp = ListParams::default();
-    if let Some(sel) = &query.label_selector { lp = lp.labels(sel); }
-    if let Some(l) = query.limit { lp = lp.limit(l as u32); }
+    if let Some(sel) = &query.label_selector {
+        lp = lp.labels(sel);
+    }
+    if let Some(l) = query.limit {
+        lp = lp.limit(l as u32);
+    }
 
     let api: Api<DaemonSet> = match &query.namespace {
         Some(ns) => client.api(Some(ns.as_str())),
         None => client.api_all(),
     };
 
-    let list = api.list(&lp).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let list = api
+        .list(&lp)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
 
-    let summaries = list.items.iter().map(|ds| {
-        let meta = ds.metadata.clone();
-        let status = ds.status.as_ref();
-        DaemonSetSummary {
-            name: meta.name.clone().unwrap_or_default(),
-            namespace: meta.namespace.clone().unwrap_or_default(),
-            uid: meta.uid.clone().unwrap_or_default(),
-            desired: status.map(|s| s.desired_number_scheduled).unwrap_or(0),
-            current: status.map(|s| s.current_number_scheduled).unwrap_or(0),
-            ready: status.map(|s| s.number_ready).unwrap_or(0),
-            updated: status.and_then(|s| s.updated_number_scheduled).unwrap_or(0),
-            available: status.and_then(|s| s.number_available).unwrap_or(0),
-            labels: meta.labels.clone().unwrap_or_default(),
-            age: age_from_ts(meta.creation_timestamp.as_ref()),
-        }
-    }).collect();
+    let summaries = list
+        .items
+        .iter()
+        .map(|ds| {
+            let meta = ds.metadata.clone();
+            let status = ds.status.as_ref();
+            DaemonSetSummary {
+                name: meta.name.clone().unwrap_or_default(),
+                namespace: meta.namespace.clone().unwrap_or_default(),
+                uid: meta.uid.clone().unwrap_or_default(),
+                desired: status.map(|s| s.desired_number_scheduled).unwrap_or(0),
+                current: status.map(|s| s.current_number_scheduled).unwrap_or(0),
+                ready: status.map(|s| s.number_ready).unwrap_or(0),
+                updated: status.and_then(|s| s.updated_number_scheduled).unwrap_or(0),
+                available: status.and_then(|s| s.number_available).unwrap_or(0),
+                labels: meta.labels.clone().unwrap_or_default(),
+                age: age_from_ts(meta.creation_timestamp.as_ref()),
+            }
+        })
+        .collect();
 
     Ok(Json(summaries))
 }
@@ -431,8 +523,13 @@ pub async fn restart_daemonset(
             "annotations": { "kubectl.kubernetes.io/restartedAt": now }
         }}}
     });
-    api.patch(&name, &kube::api::PatchParams::apply("velum").force(), &kube::api::Patch::Apply(patch))
-        .await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    api.patch(
+        &name,
+        &kube::api::PatchParams::apply("velum").force(),
+        &kube::api::Patch::Apply(patch),
+    )
+    .await
+    .map_err(|e| Error::Kubernetes(e.to_string()))?;
     Ok(Json(serde_json::json!({"restarted": true})))
 }
 
@@ -460,31 +557,46 @@ pub async fn list_statefulsets(
 ) -> Result<Json<Vec<StatefulSetSummary>>> {
     let client = state.kubernetes_client()?;
     let mut lp = ListParams::default();
-    if let Some(sel) = &query.label_selector { lp = lp.labels(sel); }
-    if let Some(l) = query.limit { lp = lp.limit(l as u32); }
+    if let Some(sel) = &query.label_selector {
+        lp = lp.labels(sel);
+    }
+    if let Some(l) = query.limit {
+        lp = lp.limit(l as u32);
+    }
 
     let api: Api<StatefulSet> = match &query.namespace {
         Some(ns) => client.api(Some(ns.as_str())),
         None => client.api_all(),
     };
 
-    let list = api.list(&lp).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let list = api
+        .list(&lp)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
 
-    let summaries = list.items.iter().map(|ss| {
-        let meta = ss.metadata.clone();
-        let status = ss.status.as_ref();
-        StatefulSetSummary {
-            name: meta.name.clone().unwrap_or_default(),
-            namespace: meta.namespace.clone().unwrap_or_default(),
-            uid: meta.uid.clone().unwrap_or_default(),
-            replicas: ss.spec.as_ref().and_then(|s| s.replicas).unwrap_or(0),
-            ready_replicas: status.and_then(|s| s.ready_replicas).unwrap_or(0),
-            current_replicas: status.and_then(|s| s.current_replicas).unwrap_or(0),
-            service_name: ss.spec.as_ref().map(|s| s.service_name.clone()).unwrap_or_default(),
-            labels: meta.labels.clone().unwrap_or_default(),
-            age: age_from_ts(meta.creation_timestamp.as_ref()),
-        }
-    }).collect();
+    let summaries = list
+        .items
+        .iter()
+        .map(|ss| {
+            let meta = ss.metadata.clone();
+            let status = ss.status.as_ref();
+            StatefulSetSummary {
+                name: meta.name.clone().unwrap_or_default(),
+                namespace: meta.namespace.clone().unwrap_or_default(),
+                uid: meta.uid.clone().unwrap_or_default(),
+                replicas: ss.spec.as_ref().and_then(|s| s.replicas).unwrap_or(0),
+                ready_replicas: status.and_then(|s| s.ready_replicas).unwrap_or(0),
+                current_replicas: status.and_then(|s| s.current_replicas).unwrap_or(0),
+                service_name: ss
+                    .spec
+                    .as_ref()
+                    .map(|s| s.service_name.clone())
+                    .unwrap_or_default(),
+                labels: meta.labels.clone().unwrap_or_default(),
+                age: age_from_ts(meta.creation_timestamp.as_ref()),
+            }
+        })
+        .collect();
 
     Ok(Json(summaries))
 }
@@ -501,9 +613,16 @@ pub async fn scale_statefulset(
         "apiVersion": "apps/v1", "kind": "StatefulSet",
         "spec": { "replicas": body.replicas }
     });
-    api.patch(&name, &kube::api::PatchParams::apply("velum").force(), &kube::api::Patch::Apply(patch))
-        .await.map_err(|e| Error::Kubernetes(e.to_string()))?;
-    Ok(Json(serde_json::json!({"scaled": true, "replicas": body.replicas})))
+    api.patch(
+        &name,
+        &kube::api::PatchParams::apply("velum").force(),
+        &kube::api::Patch::Apply(patch),
+    )
+    .await
+    .map_err(|e| Error::Kubernetes(e.to_string()))?;
+    Ok(Json(
+        serde_json::json!({"scaled": true, "replicas": body.replicas}),
+    ))
 }
 
 // ─────────────────────────────────────────────
@@ -530,34 +649,47 @@ pub async fn list_replicasets(
 ) -> Result<Json<Vec<ReplicaSetSummary>>> {
     let client = state.kubernetes_client()?;
     let mut lp = ListParams::default();
-    if let Some(sel) = &query.label_selector { lp = lp.labels(sel); }
-    if let Some(l) = query.limit { lp = lp.limit(l as u32); }
+    if let Some(sel) = &query.label_selector {
+        lp = lp.labels(sel);
+    }
+    if let Some(l) = query.limit {
+        lp = lp.limit(l as u32);
+    }
 
     let api: Api<ReplicaSet> = match &query.namespace {
         Some(ns) => client.api(Some(ns.as_str())),
         None => client.api_all(),
     };
 
-    let list = api.list(&lp).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let list = api
+        .list(&lp)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
 
-    let summaries = list.items.iter().map(|rs| {
-        let meta = rs.metadata.clone();
-        let status = rs.status.as_ref();
-        let owner = meta.owner_references.as_ref()
-            .and_then(|r| r.first())
-            .map(|o| format!("{}/{}", o.kind, o.name));
-        ReplicaSetSummary {
-            name: meta.name.clone().unwrap_or_default(),
-            namespace: meta.namespace.clone().unwrap_or_default(),
-            uid: meta.uid.clone().unwrap_or_default(),
-            desired: rs.spec.as_ref().and_then(|s| s.replicas).unwrap_or(0),
-            ready: status.and_then(|s| s.ready_replicas).unwrap_or(0),
-            available: status.and_then(|s| s.available_replicas).unwrap_or(0),
-            owner,
-            labels: meta.labels.clone().unwrap_or_default(),
-            age: age_from_ts(meta.creation_timestamp.as_ref()),
-        }
-    }).collect();
+    let summaries = list
+        .items
+        .iter()
+        .map(|rs| {
+            let meta = rs.metadata.clone();
+            let status = rs.status.as_ref();
+            let owner = meta
+                .owner_references
+                .as_ref()
+                .and_then(|r| r.first())
+                .map(|o| format!("{}/{}", o.kind, o.name));
+            ReplicaSetSummary {
+                name: meta.name.clone().unwrap_or_default(),
+                namespace: meta.namespace.clone().unwrap_or_default(),
+                uid: meta.uid.clone().unwrap_or_default(),
+                desired: rs.spec.as_ref().and_then(|s| s.replicas).unwrap_or(0),
+                ready: status.and_then(|s| s.ready_replicas).unwrap_or(0),
+                available: status.and_then(|s| s.available_replicas).unwrap_or(0),
+                owner,
+                labels: meta.labels.clone().unwrap_or_default(),
+                age: age_from_ts(meta.creation_timestamp.as_ref()),
+            }
+        })
+        .collect();
 
     Ok(Json(summaries))
 }
@@ -596,57 +728,73 @@ pub async fn list_k8s_events(
 ) -> Result<Json<Vec<EventSummary>>> {
     let client = state.kubernetes_client()?;
     let mut lp = ListParams::default();
-    if let Some(l) = query.limit { lp = lp.limit(l as u32); }
+    if let Some(l) = query.limit {
+        lp = lp.limit(l as u32);
+    }
 
     let api: Api<Event> = match &query.namespace {
         Some(ns) => client.api(Some(ns.as_str())),
         None => client.api_all(),
     };
 
-    let list = api.list(&lp).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let list = api
+        .list(&lp)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
 
-    let mut summaries: Vec<EventSummary> = list.items.iter().filter_map(|e| {
-        let meta = &e.metadata;
-        let involved = &e.involved_object;
-        let kind = involved.kind.as_deref().unwrap_or("Unknown");
-        let ev_type = e.type_.as_deref().unwrap_or("Normal");
+    let mut summaries: Vec<EventSummary> = list
+        .items
+        .iter()
+        .filter_map(|e| {
+            let meta = &e.metadata;
+            let involved = &e.involved_object;
+            let kind = involved.kind.as_deref().unwrap_or("Unknown");
+            let ev_type = e.type_.as_deref().unwrap_or("Normal");
 
-        // Filter by kind/type if specified
-        if let Some(fk) = &query.kind {
-            if !kind.eq_ignore_ascii_case(fk) { return None; }
-        }
-        if let Some(ft) = &query.type_ {
-            if !ev_type.eq_ignore_ascii_case(ft) { return None; }
-        }
+            // Filter by kind/type if specified
+            if let Some(fk) = &query.kind {
+                if !kind.eq_ignore_ascii_case(fk) {
+                    return None;
+                }
+            }
+            if let Some(ft) = &query.type_ {
+                if !ev_type.eq_ignore_ascii_case(ft) {
+                    return None;
+                }
+            }
 
-        let last_ts = e.last_timestamp.as_ref()
-            .map(|t| t.0.to_rfc3339())
-            .or_else(|| e.event_time.as_ref().map(|t| t.0.to_rfc3339()))
-            .unwrap_or_default();
+            let last_ts = e
+                .last_timestamp
+                .as_ref()
+                .map(|t| t.0.to_rfc3339())
+                .or_else(|| e.event_time.as_ref().map(|t| t.0.to_rfc3339()))
+                .unwrap_or_default();
 
-        let source = e.source.as_ref()
-            .and_then(|s| s.component.as_deref())
-            .unwrap_or("").to_string();
+            let source = e
+                .source
+                .as_ref()
+                .and_then(|s| s.component.as_deref())
+                .unwrap_or("")
+                .to_string();
 
-        Some(EventSummary {
-            name: meta.name.clone().unwrap_or_default(),
-            namespace: meta.namespace.clone().unwrap_or_default(),
-            reason: e.reason.clone().unwrap_or_default(),
-            message: e.message.clone().unwrap_or_default(),
-            type_: ev_type.to_string(),
-            count: e.count.unwrap_or(1),
-            involved_kind: kind.to_string(),
-            involved_name: involved.name.clone().unwrap_or_default(),
-            age: age_from_ts(meta.creation_timestamp.as_ref()),
-            last_timestamp: last_ts,
-            source,
+            Some(EventSummary {
+                name: meta.name.clone().unwrap_or_default(),
+                namespace: meta.namespace.clone().unwrap_or_default(),
+                reason: e.reason.clone().unwrap_or_default(),
+                message: e.message.clone().unwrap_or_default(),
+                type_: ev_type.to_string(),
+                count: e.count.unwrap_or(1),
+                involved_kind: kind.to_string(),
+                involved_name: involved.name.clone().unwrap_or_default(),
+                age: age_from_ts(meta.creation_timestamp.as_ref()),
+                last_timestamp: last_ts,
+                source,
+            })
         })
-    }).collect();
+        .collect();
 
     // Sort: Warning first, then by count desc
-    summaries.sort_by(|a, b| {
-        b.type_.cmp(&a.type_).then(b.count.cmp(&a.count))
-    });
+    summaries.sort_by(|a, b| b.type_.cmp(&a.type_).then(b.count.cmp(&a.count)));
 
     Ok(Json(summaries))
 }

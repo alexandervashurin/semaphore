@@ -194,7 +194,10 @@ mod tests {
     #[test]
     fn test_convert_float_large_integer() {
         let value = json!(1_000_000_000.0);
-        assert_eq!(convert_float_to_int_if_possible(&value), Some(1_000_000_000));
+        assert_eq!(
+            convert_float_to_int_if_possible(&value),
+            Some(1_000_000_000)
+        );
     }
 
     #[test]
@@ -241,7 +244,10 @@ mod tests {
         let mut result = Map::new();
         flatten_value(&value, "", &mut result);
 
-        assert_eq!(result.get("value"), Some(&Value::String("hello".to_string())));
+        assert_eq!(
+            result.get("value"),
+            Some(&Value::String("hello".to_string()))
+        );
     }
 
     #[test]
@@ -327,10 +333,7 @@ mod tests {
         };
 
         let flat = struct_to_flat_map(&obj);
-        assert_eq!(
-            flat.get("l2.l3.value"),
-            Some(&Value::Number(999.into()))
-        );
+        assert_eq!(flat.get("l2.l3.value"), Some(&Value::Number(999.into())));
     }
 
     #[test]
@@ -351,10 +354,7 @@ mod tests {
         }
 
         let obj = Container {
-            items: vec![
-                json!({"name": "first"}),
-                json!({"name": "second"}),
-            ],
+            items: vec![json!({"name": "first"}), json!({"name": "second"})],
         };
 
         let flat = struct_to_flat_map(&obj);

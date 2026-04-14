@@ -130,7 +130,8 @@ mod tests {
 
     #[test]
     fn test_ldap_group_mapping_create_deserialize() {
-        let json = r#"{"ldap_group_dn":"CN=dev,DC=test,DC=com","project_id":7,"role":"task_runner"}"#;
+        let json =
+            r#"{"ldap_group_dn":"CN=dev,DC=test,DC=com","project_id":7,"role":"task_runner"}"#;
         let create: LdapGroupMappingCreate = serde_json::from_str(json).unwrap();
         assert_eq!(create.project_id, 7);
         assert_eq!(create.role, "task_runner");

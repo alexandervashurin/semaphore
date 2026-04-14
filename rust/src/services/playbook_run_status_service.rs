@@ -278,9 +278,13 @@ mod tests {
         let run = create_test_playbook_run(9);
         store.seed_playbook_run(run);
 
-        PlaybookRunStatusService::update_from_task_status(9, &TaskStatus::WaitingConfirmation, &store)
-            .await
-            .unwrap();
+        PlaybookRunStatusService::update_from_task_status(
+            9,
+            &TaskStatus::WaitingConfirmation,
+            &store,
+        )
+        .await
+        .unwrap();
 
         let updated = store.get_playbook_run_by_task_id(9).await.unwrap().unwrap();
         assert_eq!(updated.status, PlaybookRunStatus::Waiting);
@@ -296,7 +300,11 @@ mod tests {
             .await
             .unwrap();
 
-        let updated = store.get_playbook_run_by_task_id(10).await.unwrap().unwrap();
+        let updated = store
+            .get_playbook_run_by_task_id(10)
+            .await
+            .unwrap()
+            .unwrap();
         assert_eq!(updated.status, PlaybookRunStatus::Running);
     }
 
@@ -310,7 +318,11 @@ mod tests {
             .await
             .unwrap();
 
-        let updated = store.get_playbook_run_by_task_id(11).await.unwrap().unwrap();
+        let updated = store
+            .get_playbook_run_by_task_id(11)
+            .await
+            .unwrap()
+            .unwrap();
         assert_eq!(updated.status, PlaybookRunStatus::Waiting);
     }
 
@@ -319,8 +331,9 @@ mod tests {
         let store = MockStore::new();
 
         // Task без связанного playbook run — должно вернуть Ok(())
-        let result = PlaybookRunStatusService::update_from_task_status(999, &TaskStatus::Running, &store)
-            .await;
+        let result =
+            PlaybookRunStatusService::update_from_task_status(999, &TaskStatus::Running, &store)
+                .await;
 
         assert!(result.is_ok());
     }
@@ -331,11 +344,9 @@ mod tests {
         let run = create_test_playbook_run(12);
         store.seed_playbook_run(run);
 
-        PlaybookRunStatusService::update_run_statistics(
-            1, 1, 10, 5, 1, 2, &store
-        )
-        .await
-        .unwrap();
+        PlaybookRunStatusService::update_run_statistics(1, 1, 10, 5, 1, 2, &store)
+            .await
+            .unwrap();
 
         let updated = store.get_playbook_run(1, 1).await.unwrap();
         assert_eq!(updated.hosts_total, Some(10));
@@ -351,18 +362,14 @@ mod tests {
         store.seed_playbook_run(run);
 
         // Первое обновление
-        PlaybookRunStatusService::update_run_statistics(
-            1, 1, 5, 3, 0, 1, &store
-        )
-        .await
-        .unwrap();
+        PlaybookRunStatusService::update_run_statistics(1, 1, 5, 3, 0, 1, &store)
+            .await
+            .unwrap();
 
         // Второе обновление
-        PlaybookRunStatusService::update_run_statistics(
-            1, 1, 10, 7, 2, 3, &store
-        )
-        .await
-        .unwrap();
+        PlaybookRunStatusService::update_run_statistics(1, 1, 10, 7, 2, 3, &store)
+            .await
+            .unwrap();
 
         let updated = store.get_playbook_run(1, 1).await.unwrap();
         assert_eq!(updated.hosts_total, Some(10));

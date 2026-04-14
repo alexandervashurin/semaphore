@@ -8,8 +8,8 @@ use crate::db::store::{
 use async_graphql::{Context, Object, Result};
 
 use super::types::{
-    AuditEvent, Environment, Inventory, KubernetesClusterInfo, KubernetesNamespace,
-    KubernetesNode, Project, Repository, Runner, Schedule, Task, Template, User,
+    AuditEvent, Environment, Inventory, KubernetesClusterInfo, KubernetesNamespace, KubernetesNode,
+    Project, Repository, Runner, Schedule, Task, Template, User,
 };
 
 /// Корневой тип для Query
@@ -70,7 +70,10 @@ impl QueryRoot {
     async fn project(&self, ctx: &Context<'_>, id: i32) -> Result<Project> {
         let state = ctx.data::<AppState>()?;
         let p = state.store.get_project(id).await?;
-        Ok(Project { id: p.id, name: p.name })
+        Ok(Project {
+            id: p.id,
+            name: p.name,
+        })
     }
 
     /// Получить шаблоны проекта
@@ -226,10 +229,7 @@ impl QueryRoot {
     /// Список Kubernetes namespaces.
     ///
     /// Возвращает пустой список если Kubernetes не сконфигурирован.
-    async fn kubernetes_namespaces(
-        &self,
-        ctx: &Context<'_>,
-    ) -> Result<Vec<KubernetesNamespace>> {
+    async fn kubernetes_namespaces(&self, ctx: &Context<'_>) -> Result<Vec<KubernetesNamespace>> {
         let state = ctx.data::<AppState>()?;
 
         let client = match state.kubernetes_client() {
@@ -254,7 +254,11 @@ impl QueryRoot {
                             .collect()
                     })
                     .unwrap_or_default();
-                KubernetesNamespace { name, status, labels }
+                KubernetesNamespace {
+                    name,
+                    status,
+                    labels,
+                }
             })
             .collect())
     }
@@ -279,10 +283,7 @@ impl QueryRoot {
             .map(|v| {
                 let name = v["name"].as_str().unwrap_or("unknown").to_string();
 
-                let status = v["status"]
-                    .as_str()
-                    .unwrap_or("Unknown")
-                    .to_string();
+                let status = v["status"].as_str().unwrap_or("Unknown").to_string();
 
                 let roles: Vec<String> = v["roles"]
                     .as_array()
@@ -297,7 +298,13 @@ impl QueryRoot {
                 let version = v["version"].as_str().unwrap_or("").to_string();
                 let os_image = v["os_image"].as_str().unwrap_or("").to_string();
 
-                KubernetesNode { name, status, roles, version, os_image }
+                KubernetesNode {
+                    name,
+                    status,
+                    roles,
+                    version,
+                    os_image,
+                }
             })
             .collect())
     }
@@ -305,10 +312,7 @@ impl QueryRoot {
     /// Информация о Kubernetes кластере.
     ///
     /// Возвращает ошибку если Kubernetes не сконфигурирован.
-    async fn kubernetes_cluster_info(
-        &self,
-        ctx: &Context<'_>,
-    ) -> Result<KubernetesClusterInfo> {
+    async fn kubernetes_cluster_info(&self, ctx: &Context<'_>) -> Result<KubernetesClusterInfo> {
         let state = ctx.data::<AppState>()?;
 
         let client = state
@@ -328,7 +332,10 @@ impl QueryRoot {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::graphql::types::{User, Project, Template, Task, Inventory, Repository, Environment, Schedule, Runner, AuditEvent, KubernetesNamespace, KubernetesNode, KubernetesClusterInfo};
+    use crate::api::graphql::types::{
+        AuditEvent, Environment, Inventory, KubernetesClusterInfo, KubernetesNamespace,
+        KubernetesNode, Project, Repository, Runner, Schedule, Task, Template, User,
+    };
 
     #[test]
     fn test_query_root_exists() {

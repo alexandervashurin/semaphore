@@ -183,7 +183,11 @@ pub async fn list_deployments(
         .await
         .map_err(|e| Error::Kubernetes(format!("Failed to list deployments: {}", e)))?;
 
-    let deployments = deployment_list.items.iter().map(deployment_summary).collect();
+    let deployments = deployment_list
+        .items
+        .iter()
+        .map(deployment_summary)
+        .collect();
 
     Ok(Json(deployments))
 }
@@ -362,7 +366,10 @@ pub async fn scale_deployment(
         .map_err(|e| Error::Kubernetes(format!("Failed to scale deployment: {}", e)))?;
 
     Ok(Json(OperationResponse {
-        message: format!("Deployment {} scaled to {} replicas", name, payload.replicas),
+        message: format!(
+            "Deployment {} scaled to {} replicas",
+            name, payload.replicas
+        ),
         name,
         namespace,
         replicas: Some(payload.replicas),
@@ -386,7 +393,7 @@ pub async fn restart_deployment(
         .map_err(|e| Error::NotFound(format!("Deployment {} not found: {}", name, e)))?;
 
     let restart_time = Utc::now().to_rfc3339();
-    
+
     let template_annotations = deployment
         .spec
         .as_mut()
@@ -580,7 +587,7 @@ pub async fn get_deployment_history_detailed(
     Path((namespace, name)): Path<(String, String)>,
 ) -> Result<Json<DetailedRolloutHistory>> {
     use k8s_openapi::api::apps::v1::ReplicaSet;
-    
+
     let kube_client = state.kubernetes_client()?;
     let client = kube_client.raw().clone();
 
@@ -595,32 +602,51 @@ pub async fn get_deployment_history_detailed(
     let rs_api: Api<ReplicaSet> = Api::namespaced(client, &namespace);
     let label_selector = format!("app.kubernetes.io/instance={},app={}", name, name);
     let lp = ListParams::default().labels(&label_selector);
-    
-    let replica_sets = rs_api.list(&lp).await
+
+    let replica_sets = rs_api
+        .list(&lp)
+        .await
         .map_err(|e| Error::Kubernetes(format!("Failed to list ReplicaSets: {}", e)))?;
 
     // Собираем информацию о ревизиях
-    let mut revisions: Vec<DetailedRevisionInfo> = replica_sets.items.iter().map(|rs| {
-        let revision = rs.metadata.annotations.as_ref()
-            .and_then(|a| a.get("deployment.kubernetes.io/revision"))
-            .and_then(|r| r.parse::<i64>().ok())
-            .unwrap_or(0);
-        
-        DetailedRevisionInfo {
-            revision,
-            replica_set_name: rs.metadata.name.clone().unwrap_or_default(),
-            replicas: rs.spec.as_ref().and_then(|s| s.replicas).unwrap_or(0),
-            ready_replicas: rs.status.as_ref().and_then(|s| s.ready_replicas).unwrap_or(0),
-            available_replicas: rs.status.as_ref().and_then(|s| s.available_replicas).unwrap_or(0),
-            created_at: rs.metadata.creation_timestamp.as_ref().map(|t| t.0),
-            image: rs.spec.as_ref()
-                .and_then(|s| s.template.as_ref())
-                .and_then(|t| t.spec.as_ref())
-                .and_then(|s| s.containers.first())
-                .and_then(|c| c.image.clone())
-                .unwrap_or_default(),
-        }
-    }).collect();
+    let mut revisions: Vec<DetailedRevisionInfo> = replica_sets
+        .items
+        .iter()
+        .map(|rs| {
+            let revision = rs
+                .metadata
+                .annotations
+                .as_ref()
+                .and_then(|a| a.get("deployment.kubernetes.io/revision"))
+                .and_then(|r| r.parse::<i64>().ok())
+                .unwrap_or(0);
+
+            DetailedRevisionInfo {
+                revision,
+                replica_set_name: rs.metadata.name.clone().unwrap_or_default(),
+                replicas: rs.spec.as_ref().and_then(|s| s.replicas).unwrap_or(0),
+                ready_replicas: rs
+                    .status
+                    .as_ref()
+                    .and_then(|s| s.ready_replicas)
+                    .unwrap_or(0),
+                available_replicas: rs
+                    .status
+                    .as_ref()
+                    .and_then(|s| s.available_replicas)
+                    .unwrap_or(0),
+                created_at: rs.metadata.creation_timestamp.as_ref().map(|t| t.0),
+                image: rs
+                    .spec
+                    .as_ref()
+                    .and_then(|s| s.template.as_ref())
+                    .and_then(|t| t.spec.as_ref())
+                    .and_then(|s| s.containers.first())
+                    .and_then(|c| c.image.clone())
+                    .unwrap_or_default(),
+            }
+        })
+        .collect();
 
     // Сортируем по ревизии
     revisions.sort_by(|a, b| b.revision.cmp(&a.revision));
@@ -628,7 +654,10 @@ pub async fn get_deployment_history_detailed(
     Ok(Json(DetailedRolloutHistory {
         name,
         namespace,
-        current_revision: deployment.metadata.annotations.as_ref()
+        current_revision: deployment
+            .metadata
+            .annotations
+            .as_ref()
             .and_then(|a| a.get("deployment.kubernetes.io/revision"))
             .and_then(|r| r.parse::<i64>().ok())
             .unwrap_or(1),
@@ -659,7 +688,8 @@ fn deployment_summary(deployment: &Deployment) -> DeploymentSummary {
     let conditions = status
         .and_then(|s| s.conditions.clone())
         .map(|conds| {
-            conds.iter()
+            conds
+                .iter()
                 .map(|c| DeploymentCondition {
                     condition_type: c.type_.clone(),
                     status: c.status.clone(),
@@ -730,7 +760,8 @@ fn deployment_detail(deployment: &Deployment) -> DeploymentDetail {
     let conditions = status
         .and_then(|s| s.conditions.clone())
         .map(|conds| {
-            conds.iter()
+            conds
+                .iter()
                 .map(|c| DeploymentCondition {
                     condition_type: c.type_.clone(),
                     status: c.status.clone(),
@@ -958,9 +989,7 @@ mod tests {
 
     #[test]
     fn test_rollback_payload_with_revision() {
-        let payload = RollbackPayload {
-            revision: Some(3),
-        };
+        let payload = RollbackPayload { revision: Some(3) };
         assert_eq!(payload.revision, Some(3));
     }
 

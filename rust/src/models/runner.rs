@@ -195,10 +195,18 @@ mod tests {
     #[test]
     fn test_runner_debug() {
         let runner = Runner {
-            id: 1, project_id: None, token: "debug".to_string(),
-            name: "Debug Runner".to_string(), active: true, last_active: None,
-            webhook: None, max_parallel_tasks: None, tag: None,
-            cleaning_requested: None, touched: None, created: None,
+            id: 1,
+            project_id: None,
+            token: "debug".to_string(),
+            name: "Debug Runner".to_string(),
+            active: true,
+            last_active: None,
+            webhook: None,
+            max_parallel_tasks: None,
+            tag: None,
+            cleaning_requested: None,
+            touched: None,
+            created: None,
         };
         let debug_str = format!("{:?}", runner);
         assert!(debug_str.contains("Runner"));
@@ -208,10 +216,18 @@ mod tests {
     #[test]
     fn test_runner_empty_token() {
         let runner = Runner {
-            id: 1, project_id: None, token: String::new(),
-            name: "Empty Token".to_string(), active: true, last_active: None,
-            webhook: None, max_parallel_tasks: None, tag: None,
-            cleaning_requested: None, touched: None, created: None,
+            id: 1,
+            project_id: None,
+            token: String::new(),
+            name: "Empty Token".to_string(),
+            active: true,
+            last_active: None,
+            webhook: None,
+            max_parallel_tasks: None,
+            tag: None,
+            cleaning_requested: None,
+            touched: None,
+            created: None,
         };
         assert!(runner.token.is_empty());
     }
@@ -219,10 +235,18 @@ mod tests {
     #[test]
     fn test_runner_max_parallel_tasks_zero() {
         let runner = Runner {
-            id: 1, project_id: None, token: "t".to_string(),
-            name: "Zero Parallel".to_string(), active: true, last_active: None,
-            webhook: None, max_parallel_tasks: Some(0), tag: None,
-            cleaning_requested: None, touched: None, created: None,
+            id: 1,
+            project_id: None,
+            token: "t".to_string(),
+            name: "Zero Parallel".to_string(),
+            active: true,
+            last_active: None,
+            webhook: None,
+            max_parallel_tasks: Some(0),
+            tag: None,
+            cleaning_requested: None,
+            touched: None,
+            created: None,
         };
         assert_eq!(runner.max_parallel_tasks, Some(0));
     }
@@ -239,10 +263,18 @@ mod tests {
     fn test_runner_cleaning_requested_set() {
         let now = Utc::now();
         let runner = Runner {
-            id: 1, project_id: None, token: "clean".to_string(),
-            name: "Clean Runner".to_string(), active: true, last_active: None,
-            webhook: None, max_parallel_tasks: None, tag: None,
-            cleaning_requested: Some(now), touched: None, created: None,
+            id: 1,
+            project_id: None,
+            token: "clean".to_string(),
+            name: "Clean Runner".to_string(),
+            active: true,
+            last_active: None,
+            webhook: None,
+            max_parallel_tasks: None,
+            tag: None,
+            cleaning_requested: Some(now),
+            touched: None,
+            created: None,
         };
         assert!(runner.cleaning_requested.is_some());
     }
@@ -252,10 +284,18 @@ mod tests {
         let tags = ["linux", "docker", "k8s", "prod", "staging"];
         for tag in tags {
             let runner = Runner {
-                id: 1, project_id: None, token: "t".to_string(),
-                name: "Tag Runner".to_string(), active: true, last_active: None,
-                webhook: None, max_parallel_tasks: None, tag: Some(tag.to_string()),
-                cleaning_requested: None, touched: None, created: None,
+                id: 1,
+                project_id: None,
+                token: "t".to_string(),
+                name: "Tag Runner".to_string(),
+                active: true,
+                last_active: None,
+                webhook: None,
+                max_parallel_tasks: None,
+                tag: Some(tag.to_string()),
+                cleaning_requested: None,
+                touched: None,
+                created: None,
             };
             let json = serde_json::to_string(&runner).unwrap();
             assert!(json.contains(&format!("\"tag\":\"{}\"", tag)));
@@ -265,10 +305,18 @@ mod tests {
     #[test]
     fn test_runner_unicode_name() {
         let runner = Runner {
-            id: 1, project_id: None, token: "t".to_string(),
-            name: "Раннер".to_string(), active: true, last_active: None,
-            webhook: None, max_parallel_tasks: None, tag: None,
-            cleaning_requested: None, touched: None, created: None,
+            id: 1,
+            project_id: None,
+            token: "t".to_string(),
+            name: "Раннер".to_string(),
+            active: true,
+            last_active: None,
+            webhook: None,
+            max_parallel_tasks: None,
+            tag: None,
+            cleaning_requested: None,
+            touched: None,
+            created: None,
         };
         let json = serde_json::to_string(&runner).unwrap();
         let restored: Runner = serde_json::from_str(&json).unwrap();
@@ -278,10 +326,18 @@ mod tests {
     #[test]
     fn test_runner_clone_independence() {
         let mut runner = Runner {
-            id: 1, project_id: None, token: "original".to_string(),
-            name: "Test".to_string(), active: true, last_active: None,
-            webhook: None, max_parallel_tasks: None, tag: None,
-            cleaning_requested: None, touched: None, created: None,
+            id: 1,
+            project_id: None,
+            token: "original".to_string(),
+            name: "Test".to_string(),
+            active: true,
+            last_active: None,
+            webhook: None,
+            max_parallel_tasks: None,
+            tag: None,
+            cleaning_requested: None,
+            touched: None,
+            created: None,
         };
         let cloned = runner.clone();
         runner.token = "modified".to_string();

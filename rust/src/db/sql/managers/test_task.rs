@@ -58,9 +58,18 @@ mod tests {
     #[tokio::test]
     async fn test_get_tasks_filters_by_template() {
         let store = MockStore::new();
-        store.create_task(create_test_task(0, 1, 1, TaskStatus::Waiting)).await.unwrap();
-        store.create_task(create_test_task(0, 1, 1, TaskStatus::Running)).await.unwrap();
-        store.create_task(create_test_task(0, 1, 2, TaskStatus::Waiting)).await.unwrap();
+        store
+            .create_task(create_test_task(0, 1, 1, TaskStatus::Waiting))
+            .await
+            .unwrap();
+        store
+            .create_task(create_test_task(0, 1, 1, TaskStatus::Running))
+            .await
+            .unwrap();
+        store
+            .create_task(create_test_task(0, 1, 2, TaskStatus::Waiting))
+            .await
+            .unwrap();
 
         // Без фильтрации по template_id
         let all = store.get_tasks(1, None).await.unwrap();
@@ -79,7 +88,10 @@ mod tests {
         store.create_task(task).await.unwrap();
 
         // Обновим статус
-        store.update_task_status(1, 1, TaskStatus::Running).await.unwrap();
+        store
+            .update_task_status(1, 1, TaskStatus::Running)
+            .await
+            .unwrap();
         let updated = store.get_task(1, 1).await.unwrap();
         assert_eq!(updated.status, TaskStatus::Running);
     }
@@ -114,7 +126,10 @@ mod tests {
     #[tokio::test]
     async fn test_get_tasks_returns_task_with_tpl() {
         let store = MockStore::new();
-        store.create_task(create_test_task(1, 1, 1, TaskStatus::Waiting)).await.unwrap();
+        store
+            .create_task(create_test_task(1, 1, 1, TaskStatus::Waiting))
+            .await
+            .unwrap();
 
         let tasks = store.get_tasks(1, None).await.unwrap();
         assert_eq!(tasks.len(), 1);
@@ -126,8 +141,14 @@ mod tests {
     #[tokio::test]
     async fn test_get_global_tasks() {
         let store = MockStore::new();
-        store.create_task(create_test_task(0, 1, 1, TaskStatus::Waiting)).await.unwrap();
-        store.create_task(create_test_task(0, 2, 1, TaskStatus::Running)).await.unwrap();
+        store
+            .create_task(create_test_task(0, 1, 1, TaskStatus::Waiting))
+            .await
+            .unwrap();
+        store
+            .create_task(create_test_task(0, 2, 1, TaskStatus::Running))
+            .await
+            .unwrap();
 
         let all = store.get_global_tasks(None, None).await.unwrap();
         assert_eq!(all.len(), 2);
@@ -183,25 +204,46 @@ mod tests {
         store.create_task(task).await.unwrap();
 
         // Waiting -> Running
-        store.update_task_status(1, 1, TaskStatus::Running).await.unwrap();
-        assert_eq!(store.get_task(1, 1).await.unwrap().status, TaskStatus::Running);
+        store
+            .update_task_status(1, 1, TaskStatus::Running)
+            .await
+            .unwrap();
+        assert_eq!(
+            store.get_task(1, 1).await.unwrap().status,
+            TaskStatus::Running
+        );
 
         // Running -> Success
-        store.update_task_status(1, 1, TaskStatus::Success).await.unwrap();
-        assert_eq!(store.get_task(1, 1).await.unwrap().status, TaskStatus::Success);
+        store
+            .update_task_status(1, 1, TaskStatus::Success)
+            .await
+            .unwrap();
+        assert_eq!(
+            store.get_task(1, 1).await.unwrap().status,
+            TaskStatus::Success
+        );
 
         // Running -> Error
         let task2 = create_test_task(2, 1, 1, TaskStatus::Running);
         store.create_task(task2).await.unwrap();
-        store.update_task_status(1, 2, TaskStatus::Error).await.unwrap();
-        assert_eq!(store.get_task(1, 2).await.unwrap().status, TaskStatus::Error);
+        store
+            .update_task_status(1, 2, TaskStatus::Error)
+            .await
+            .unwrap();
+        assert_eq!(
+            store.get_task(1, 2).await.unwrap().status,
+            TaskStatus::Error
+        );
     }
 
     #[tokio::test]
     async fn test_multiple_tasks_same_project() {
         let store = MockStore::new();
         for i in 1..=5 {
-            store.create_task(create_test_task(0, 1, 1, TaskStatus::Waiting)).await.unwrap();
+            store
+                .create_task(create_test_task(0, 1, 1, TaskStatus::Waiting))
+                .await
+                .unwrap();
             let _ = i; // suppress unused warning
         }
 
@@ -212,9 +254,18 @@ mod tests {
     #[tokio::test]
     async fn test_tasks_different_projects() {
         let store = MockStore::new();
-        store.create_task(create_test_task(0, 1, 1, TaskStatus::Waiting)).await.unwrap();
-        store.create_task(create_test_task(0, 2, 1, TaskStatus::Waiting)).await.unwrap();
-        store.create_task(create_test_task(0, 1, 2, TaskStatus::Running)).await.unwrap();
+        store
+            .create_task(create_test_task(0, 1, 1, TaskStatus::Waiting))
+            .await
+            .unwrap();
+        store
+            .create_task(create_test_task(0, 2, 1, TaskStatus::Waiting))
+            .await
+            .unwrap();
+        store
+            .create_task(create_test_task(0, 1, 2, TaskStatus::Running))
+            .await
+            .unwrap();
 
         // MockStore.get_tasks не фильтрует по project_id, возвращает все задачи
         let all = store.get_tasks(1, None).await.unwrap();

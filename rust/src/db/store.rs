@@ -1114,11 +1114,7 @@ mod tests {
 
     #[test]
     fn test_audit_level_variants_exist() {
-        let levels = vec![
-            AuditLevel::Info,
-            AuditLevel::Warning,
-            AuditLevel::Error,
-        ];
+        let levels = vec![AuditLevel::Info, AuditLevel::Warning, AuditLevel::Error];
         assert_eq!(levels.len(), 3);
     }
 

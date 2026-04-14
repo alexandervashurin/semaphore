@@ -464,7 +464,10 @@ mod tests {
             user_id: None,
             login_password_login: None,
             login_password_password: None,
-            ssh_key: Some("-----BEGIN RSA PRIVATE KEY-----\ntestcontent\n-----END RSA PRIVATE KEY-----".to_string()),
+            ssh_key: Some(
+                "-----BEGIN RSA PRIVATE KEY-----\ntestcontent\n-----END RSA PRIVATE KEY-----"
+                    .to_string(),
+            ),
             ssh_passphrase: None,
             access_key_access_key: None,
             access_key_secret_key: None,
@@ -493,7 +496,10 @@ mod tests {
         assert!(content.contains("-----END RSA PRIVATE KEY-----"));
 
         // Проверяем путь содержит ID ключа
-        assert!(installation.private_key_path.to_string_lossy().contains("key_10"));
+        assert!(installation
+            .private_key_path
+            .to_string_lossy()
+            .contains("key_10"));
 
         // Уборка
         installation.destroy().unwrap();
@@ -511,7 +517,9 @@ mod tests {
             user_id: None,
             login_password_login: None,
             login_password_password: None,
-            ssh_key: Some("-----BEGIN RSA PRIVATE KEY-----\ntest\n-----END RSA PRIVATE KEY-----".to_string()),
+            ssh_key: Some(
+                "-----BEGIN RSA PRIVATE KEY-----\ntest\n-----END RSA PRIVATE KEY-----".to_string(),
+            ),
             ssh_passphrase: Some("my-secret-passphrase".to_string()),
             access_key_access_key: None,
             access_key_secret_key: None,
@@ -532,7 +540,10 @@ mod tests {
         let installation = result.unwrap();
 
         assert!(installation.passphrase.is_some());
-        assert_eq!(installation.passphrase.as_ref().unwrap(), "my-secret-passphrase");
+        assert_eq!(
+            installation.passphrase.as_ref().unwrap(),
+            "my-secret-passphrase"
+        );
 
         installation.destroy().unwrap();
         let _ = fs::remove_dir_all(&temp_dir);
@@ -549,7 +560,10 @@ mod tests {
             user_id: None,
             login_password_login: None,
             login_password_password: None,
-            ssh_key: Some("-----BEGIN RSA PRIVATE KEY-----\ndestroy_me\n-----END RSA PRIVATE KEY-----".to_string()),
+            ssh_key: Some(
+                "-----BEGIN RSA PRIVATE KEY-----\ndestroy_me\n-----END RSA PRIVATE KEY-----"
+                    .to_string(),
+            ),
             ssh_passphrase: None,
             access_key_access_key: None,
             access_key_secret_key: None,
@@ -670,7 +684,9 @@ mod tests {
             user_id: None,
             login_password_login: None,
             login_password_password: None,
-            ssh_key: Some("-----BEGIN RSA PRIVATE KEY-----\nkey1\n-----END RSA PRIVATE KEY-----".to_string()),
+            ssh_key: Some(
+                "-----BEGIN RSA PRIVATE KEY-----\nkey1\n-----END RSA PRIVATE KEY-----".to_string(),
+            ),
             ssh_passphrase: None,
             access_key_access_key: None,
             access_key_secret_key: None,
@@ -691,7 +707,9 @@ mod tests {
             user_id: None,
             login_password_login: None,
             login_password_password: None,
-            ssh_key: Some("-----BEGIN RSA PRIVATE KEY-----\nkey2\n-----END RSA PRIVATE KEY-----".to_string()),
+            ssh_key: Some(
+                "-----BEGIN RSA PRIVATE KEY-----\nkey2\n-----END RSA PRIVATE KEY-----".to_string(),
+            ),
             ssh_passphrase: None,
             access_key_access_key: None,
             access_key_secret_key: None,
@@ -729,7 +747,8 @@ mod tests {
     fn test_destroy_nonexistent_file_does_not_error() {
         // SshKeyInstallation::destroy должен корректно обрабатывать
         // ситуацию когда файл уже удалён
-        let installation = SshKeyInstallation::new(PathBuf::from("/tmp/semaphore_test_nonexistent/key"));
+        let installation =
+            SshKeyInstallation::new(PathBuf::from("/tmp/semaphore_test_nonexistent/key"));
 
         // Не создавая файл, вызываем destroy — не должно быть ошибки
         let result = installation.destroy();
@@ -747,7 +766,9 @@ mod tests {
             user_id: None,
             login_password_login: None,
             login_password_password: None,
-            ssh_key: Some("-----BEGIN RSA PRIVATE KEY-----\nboth\n-----END RSA PRIVATE KEY-----".to_string()),
+            ssh_key: Some(
+                "-----BEGIN RSA PRIVATE KEY-----\nboth\n-----END RSA PRIVATE KEY-----".to_string(),
+            ),
             ssh_passphrase: None,
             access_key_access_key: None,
             access_key_secret_key: None,
@@ -815,7 +836,10 @@ mod tests {
             user_id: None,
             login_password_login: None,
             login_password_password: None,
-            ssh_key: Some("-----BEGIN RSA PRIVATE KEY-----\ndir_test\n-----END RSA PRIVATE KEY-----".to_string()),
+            ssh_key: Some(
+                "-----BEGIN RSA PRIVATE KEY-----\ndir_test\n-----END RSA PRIVATE KEY-----"
+                    .to_string(),
+            ),
             ssh_passphrase: None,
             access_key_access_key: None,
             access_key_secret_key: None,
@@ -874,8 +898,14 @@ mod tests {
             .with_public_key(PathBuf::from("/chain/public"))
             .with_passphrase("chain_pass".to_string());
 
-        assert_eq!(installation.private_key_path, PathBuf::from("/chain/private"));
-        assert_eq!(installation.public_key_path, Some(PathBuf::from("/chain/public")));
+        assert_eq!(
+            installation.private_key_path,
+            PathBuf::from("/chain/private")
+        );
+        assert_eq!(
+            installation.public_key_path,
+            Some(PathBuf::from("/chain/public"))
+        );
         assert_eq!(installation.passphrase, Some("chain_pass".to_string()));
     }
 }

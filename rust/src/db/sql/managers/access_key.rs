@@ -140,7 +140,7 @@ impl AccessKeyManager for SqlStore {
 #[cfg(test)]
 mod tests {
     use crate::models::access_key::{
-        AccessKey, AccessKeyOwner, AccessKeyType, AccessKeySourceStorageType,
+        AccessKey, AccessKeyOwner, AccessKeySourceStorageType, AccessKeyType,
     };
 
     #[test]
@@ -174,7 +174,10 @@ mod tests {
             "access_key".parse::<AccessKeyType>().unwrap(),
             AccessKeyType::AccessKey
         );
-        assert_eq!("invalid".parse::<AccessKeyType>().unwrap(), AccessKeyType::None);
+        assert_eq!(
+            "invalid".parse::<AccessKeyType>().unwrap(),
+            AccessKeyType::None
+        );
     }
 
     #[test]
@@ -186,7 +189,10 @@ mod tests {
 
     #[test]
     fn test_access_key_owner_from_str() {
-        assert_eq!("user".parse::<AccessKeyOwner>().unwrap(), AccessKeyOwner::User);
+        assert_eq!(
+            "user".parse::<AccessKeyOwner>().unwrap(),
+            AccessKeyOwner::User
+        );
         assert_eq!(
             "project".parse::<AccessKeyOwner>().unwrap(),
             AccessKeyOwner::Project

@@ -2,10 +2,10 @@
 //!
 //! Операции с ключами доступа в SQL
 
-use chrono::Utc;
 use crate::db::sql::types::SqlDb;
 use crate::error::{Error, Result};
 use crate::models::AccessKey;
+use chrono::Utc;
 use sqlx::Row;
 
 impl SqlDb {
@@ -154,7 +154,7 @@ impl SqlDb {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::access_key::{AccessKeyType, AccessKeyOwner, AccessKeySourceStorageType};
+    use crate::models::access_key::{AccessKeyOwner, AccessKeySourceStorageType, AccessKeyType};
 
     #[test]
     fn test_access_key_type_display() {
@@ -167,10 +167,22 @@ mod tests {
     #[test]
     fn test_access_key_type_from_str() {
         assert_eq!("ssh".parse::<AccessKeyType>().unwrap(), AccessKeyType::SSH);
-        assert_eq!("login_password".parse::<AccessKeyType>().unwrap(), AccessKeyType::LoginPassword);
-        assert_eq!("access_key".parse::<AccessKeyType>().unwrap(), AccessKeyType::AccessKey);
-        assert_eq!("none".parse::<AccessKeyType>().unwrap(), AccessKeyType::None);
-        assert_eq!("unknown".parse::<AccessKeyType>().unwrap(), AccessKeyType::None);
+        assert_eq!(
+            "login_password".parse::<AccessKeyType>().unwrap(),
+            AccessKeyType::LoginPassword
+        );
+        assert_eq!(
+            "access_key".parse::<AccessKeyType>().unwrap(),
+            AccessKeyType::AccessKey
+        );
+        assert_eq!(
+            "none".parse::<AccessKeyType>().unwrap(),
+            AccessKeyType::None
+        );
+        assert_eq!(
+            "unknown".parse::<AccessKeyType>().unwrap(),
+            AccessKeyType::None
+        );
     }
 
     #[test]
@@ -208,10 +220,22 @@ mod tests {
 
     #[test]
     fn test_access_key_owner_from_str() {
-        assert_eq!("user".parse::<AccessKeyOwner>().unwrap(), AccessKeyOwner::User);
-        assert_eq!("project".parse::<AccessKeyOwner>().unwrap(), AccessKeyOwner::Project);
-        assert_eq!("shared".parse::<AccessKeyOwner>().unwrap(), AccessKeyOwner::Shared);
-        assert_eq!("unknown".parse::<AccessKeyOwner>().unwrap(), AccessKeyOwner::Shared);
+        assert_eq!(
+            "user".parse::<AccessKeyOwner>().unwrap(),
+            AccessKeyOwner::User
+        );
+        assert_eq!(
+            "project".parse::<AccessKeyOwner>().unwrap(),
+            AccessKeyOwner::Project
+        );
+        assert_eq!(
+            "shared".parse::<AccessKeyOwner>().unwrap(),
+            AccessKeyOwner::Shared
+        );
+        assert_eq!(
+            "unknown".parse::<AccessKeyOwner>().unwrap(),
+            AccessKeyOwner::Shared
+        );
     }
 
     #[test]
@@ -224,11 +248,26 @@ mod tests {
 
     #[test]
     fn test_access_key_source_storage_type_from_str() {
-        assert_eq!("db".parse::<AccessKeySourceStorageType>().unwrap(), AccessKeySourceStorageType::DB);
-        assert_eq!("storage".parse::<AccessKeySourceStorageType>().unwrap(), AccessKeySourceStorageType::Storage);
-        assert_eq!("env".parse::<AccessKeySourceStorageType>().unwrap(), AccessKeySourceStorageType::Env);
-        assert_eq!("file".parse::<AccessKeySourceStorageType>().unwrap(), AccessKeySourceStorageType::File);
-        assert_eq!("unknown".parse::<AccessKeySourceStorageType>().unwrap(), AccessKeySourceStorageType::DB);
+        assert_eq!(
+            "db".parse::<AccessKeySourceStorageType>().unwrap(),
+            AccessKeySourceStorageType::DB
+        );
+        assert_eq!(
+            "storage".parse::<AccessKeySourceStorageType>().unwrap(),
+            AccessKeySourceStorageType::Storage
+        );
+        assert_eq!(
+            "env".parse::<AccessKeySourceStorageType>().unwrap(),
+            AccessKeySourceStorageType::Env
+        );
+        assert_eq!(
+            "file".parse::<AccessKeySourceStorageType>().unwrap(),
+            AccessKeySourceStorageType::File
+        );
+        assert_eq!(
+            "unknown".parse::<AccessKeySourceStorageType>().unwrap(),
+            AccessKeySourceStorageType::DB
+        );
     }
 
     #[test]

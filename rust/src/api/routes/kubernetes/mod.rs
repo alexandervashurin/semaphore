@@ -15,23 +15,23 @@
 //! - integration  — Multi-cluster, Backup, GitOps, Audit, Runbook, Inventory Sync
 //! - apply        — Apply manifest, Diff, Kubectl generator
 
-mod cluster;
-mod namespaces;
-mod workloads;
-mod networking;
-mod config;
-mod storage;
-mod rbac;
-mod batch;
 mod advanced;
-mod observability;
+mod apply;
+mod batch;
+mod cluster;
+mod config;
 mod helm;
 mod integration;
-mod apply;
+mod namespaces;
+mod networking;
+mod observability;
+mod rbac;
+mod storage;
+mod workloads;
 
+use crate::api::state::AppState;
 use axum::Router;
 use std::sync::Arc;
-use crate::api::state::AppState;
 
 /// Создаёт маршруты Kubernetes API
 pub fn kubernetes_routes() -> Router<Arc<AppState>> {

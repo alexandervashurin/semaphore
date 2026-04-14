@@ -186,7 +186,8 @@ mod tests {
 
     #[test]
     fn test_running_args_new() {
-        let args = LocalAppRunningArgs::new(1, 2, 3, "python main.py".to_string(), "/work".to_string());
+        let args =
+            LocalAppRunningArgs::new(1, 2, 3, "python main.py".to_string(), "/work".to_string());
         assert_eq!(args.project_id, 1);
         assert_eq!(args.template_id, 2);
         assert_eq!(args.task_id, 3);

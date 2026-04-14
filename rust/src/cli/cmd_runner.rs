@@ -19,7 +19,11 @@ pub struct RunnerCommand {
     pub token: Option<String>,
 
     /// URL Velum-сервера
-    #[arg(long, env = "VELUM_SERVER_URL", default_value = "http://localhost:3000")]
+    #[arg(
+        long,
+        env = "VELUM_SERVER_URL",
+        default_value = "http://localhost:3000"
+    )]
     pub server_url: String,
 
     /// Имя раннера (отображается в UI)
@@ -51,21 +55,26 @@ impl RunnerCommand {
         let rt = tokio::runtime::Runtime::new()
             .map_err(|e| crate::error::Error::Other(e.to_string()))?;
 
-        rt.block_on(async {
-            self.run_agent(token).await
-        }).map_err(|e| crate::error::Error::Other(e.to_string()))?;
+        rt.block_on(async { self.run_agent(token).await })
+            .map_err(|e| crate::error::Error::Other(e.to_string()))?;
 
         Ok(())
     }
 
-    async fn run_agent(&self, token: String) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    async fn run_agent(
+        &self,
+        token: String,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(30))
             .build()?;
 
         // Регистрация / переподключение
         let runner_id = self.register(&client, &token).await?;
-        println!("✅ Runner registered (id={runner_id}). Polling for tasks every {}s...", self.poll_interval);
+        println!(
+            "✅ Runner registered (id={runner_id}). Polling for tasks every {}s...",
+            self.poll_interval
+        );
 
         let mut heartbeat_tick = tokio::time::interval(std::time::Duration::from_secs(30));
         let poll_delay = std::time::Duration::from_secs(self.poll_interval);
@@ -93,7 +102,11 @@ impl RunnerCommand {
     }
 
     /// Регистрирует раннер на сервере, возвращает runner_id
-    async fn register(&self, client: &reqwest::Client, token: &str) -> Result<i32, Box<dyn std::error::Error + Send + Sync>> {
+    async fn register(
+        &self,
+        client: &reqwest::Client,
+        token: &str,
+    ) -> Result<i32, Box<dyn std::error::Error + Send + Sync>> {
         let payload = serde_json::json!({
             "token": token,
             "name": self.name.as_deref().unwrap_or("velum-runner"),
@@ -114,14 +127,23 @@ impl RunnerCommand {
         }
 
         let body: serde_json::Value = resp.json().await?;
-        let id = body["id"].as_i64().ok_or("Missing 'id' in registration response")? as i32;
+        let id = body["id"]
+            .as_i64()
+            .ok_or("Missing 'id' in registration response")? as i32;
         Ok(id)
     }
 
     /// Heartbeat — обновляет last_active на сервере
-    async fn heartbeat(&self, client: &reqwest::Client, runner_id: i32) -> Result<(), reqwest::Error> {
+    async fn heartbeat(
+        &self,
+        client: &reqwest::Client,
+        runner_id: i32,
+    ) -> Result<(), reqwest::Error> {
         let _ = client
-            .post(format!("{}/api/internal/runners/{runner_id}", self.server_url))
+            .post(format!(
+                "{}/api/internal/runners/{runner_id}",
+                self.server_url
+            ))
             .json(&serde_json::json!({}))
             .send()
             .await?;
@@ -135,7 +157,10 @@ impl RunnerCommand {
         runner_id: i32,
     ) -> Result<Option<TaskAssignment>, Box<dyn std::error::Error + Send + Sync>> {
         let resp = client
-            .get(format!("{}/api/internal/runners/{runner_id}/task", self.server_url))
+            .get(format!(
+                "{}/api/internal/runners/{runner_id}/task",
+                self.server_url
+            ))
             .send()
             .await?;
 
@@ -252,12 +277,21 @@ impl RunnerCommand {
         if let Some(ref env) = assignment.environment {
             if env.contains("terraform") {
                 let cmd = if assignment.dry_run { "plan" } else { "apply" };
-                return ("terraform".to_string(), vec![cmd.to_string(), "-auto-approve".to_string()]);
+                return (
+                    "terraform".to_string(),
+                    vec![cmd.to_string(), "-auto-approve".to_string()],
+                );
             }
         }
 
         // Bash fallback
-        ("bash".to_string(), vec!["-c".to_string(), "echo 'No playbook configured'".to_string()])
+        (
+            "bash".to_string(),
+            vec![
+                "-c".to_string(),
+                "echo 'No playbook configured'".to_string(),
+            ],
+        )
     }
 
     /// Отправляет буфер логов на сервер

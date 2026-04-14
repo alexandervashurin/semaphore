@@ -162,7 +162,7 @@ impl CredentialTypeManager for SqlStore {
 #[cfg(test)]
 mod tests {
     use crate::models::credential_type::{
-        CredentialField, CredentialInstance, CredentialInstanceCreate, CredentialInjector,
+        CredentialField, CredentialInjector, CredentialInstance, CredentialInstanceCreate,
         CredentialType, CredentialTypeCreate, CredentialTypeUpdate,
     };
     use chrono::Utc;

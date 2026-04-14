@@ -3,14 +3,14 @@
 //! Это основной слой взаимодействия с apiserver.
 //! Существующий [client.rs](client.rs) с kubectl subprocess остаётся для задач Job/Helm.
 
-use kube::{Client, Config, config::KubeConfigOptions};
-use k8s_openapi::api::core::v1::{Namespace, Pod, Event, Service, ConfigMap, Secret};
-use k8s_openapi::api::apps::v1::{Deployment, DaemonSet, StatefulSet, ReplicaSet};
+use crate::error::{Error, Result};
+use k8s_openapi::api::apps::v1::{DaemonSet, Deployment, ReplicaSet, StatefulSet};
+use k8s_openapi::api::core::v1::{ConfigMap, Event, Namespace, Pod, Secret, Service};
 use k8s_openapi::api::networking::v1::Ingress;
-use kube::api::{Api, ListParams, LogParams, DeleteParams, Patch, PatchParams, PostParams};
+use kube::api::{Api, DeleteParams, ListParams, LogParams, Patch, PatchParams, PostParams};
+use kube::{config::KubeConfigOptions, Client, Config};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use crate::error::{Error, Result};
 
 /// Информация о версии кластера Kubernetes
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -52,7 +52,10 @@ pub struct NamespaceList {
 #[derive(Debug, Clone)]
 pub enum ConnectionMode {
     /// Из kubeconfig-файла, опциональный контекст
-    KubeConfig { path: Option<String>, context: Option<String> },
+    KubeConfig {
+        path: Option<String>,
+        context: Option<String>,
+    },
     /// Из переменных окружения KUBERNETES_SERVICE_HOST (in-cluster / SA)
     InCluster,
     /// Автоматический выбор: сначала in-cluster, затем kubeconfig
@@ -72,16 +75,11 @@ impl KubernetesClusterService {
     /// Создаёт сервис по заданному режиму подключения
     pub async fn connect(mode: ConnectionMode) -> Result<Self> {
         let config = match mode {
-            ConnectionMode::Infer => {
-                Config::infer().await.map_err(|e| {
-                    Error::Other(format!("Kubernetes config inference failed: {e}"))
-                })?
-            }
-            ConnectionMode::InCluster => {
-                Config::incluster().map_err(|e| {
-                    Error::Other(format!("Kubernetes in-cluster config failed: {e}"))
-                })?
-            }
+            ConnectionMode::Infer => Config::infer()
+                .await
+                .map_err(|e| Error::Other(format!("Kubernetes config inference failed: {e}")))?,
+            ConnectionMode::InCluster => Config::incluster()
+                .map_err(|e| Error::Other(format!("Kubernetes in-cluster config failed: {e}")))?,
             ConnectionMode::KubeConfig { path, context } => {
                 // Если путь задан — выставляем KUBECONFIG env временно
                 let options = KubeConfigOptions {
@@ -96,14 +94,12 @@ impl KubernetesClusterService {
                     })?;
                     Config::from_custom_kubeconfig(kube_config, &options)
                         .await
-                        .map_err(|e| {
-                            Error::Other(format!("Failed to build kube Config: {e}"))
-                        })?
+                        .map_err(|e| Error::Other(format!("Failed to build kube Config: {e}")))?
                 } else {
                     // Из KUBECONFIG env / ~/.kube/config
-                    Config::from_kubeconfig(&options).await.map_err(|e| {
-                        Error::Other(format!("Failed to load kubeconfig: {e}"))
-                    })?
+                    Config::from_kubeconfig(&options)
+                        .await
+                        .map_err(|e| Error::Other(format!("Failed to load kubeconfig: {e}")))?
                 }
             }
         };
@@ -130,11 +126,12 @@ impl KubernetesClusterService {
             },
             Err(e) => {
                 let msg = e.to_string();
-                let status = if msg.contains("401") || msg.contains("403") || msg.contains("Unauthorized") {
-                    "unauthorized"
-                } else {
-                    "unreachable"
-                };
+                let status =
+                    if msg.contains("401") || msg.contains("403") || msg.contains("Unauthorized") {
+                        "unauthorized"
+                    } else {
+                        "unreachable"
+                    };
                 ClusterInfo {
                     reachable: false,
                     status: status.to_string(),
@@ -174,16 +171,28 @@ impl KubernetesClusterService {
 
         let cont = ns_list.metadata.continue_.filter(|s| !s.is_empty());
 
-        let items = ns_list.items.into_iter().map(|ns| {
-            let name = ns.metadata.name.unwrap_or_default();
-            let phase = ns.status
-                .and_then(|s| s.phase)
-                .unwrap_or_else(|| "Unknown".to_string());
-            let labels = ns.metadata.labels.unwrap_or_default();
-            NamespaceInfo { name, phase, labels }
-        }).collect();
+        let items = ns_list
+            .items
+            .into_iter()
+            .map(|ns| {
+                let name = ns.metadata.name.unwrap_or_default();
+                let phase = ns
+                    .status
+                    .and_then(|s| s.phase)
+                    .unwrap_or_else(|| "Unknown".to_string());
+                let labels = ns.metadata.labels.unwrap_or_default();
+                NamespaceInfo {
+                    name,
+                    phase,
+                    labels,
+                }
+            })
+            .collect();
 
-        Ok(NamespaceList { items, continue_token: cont })
+        Ok(NamespaceList {
+            items,
+            continue_token: cont,
+        })
     }
 
     // ─── Pods ────────────────────────────────────────────────────────────────
@@ -222,7 +231,10 @@ impl KubernetesClusterService {
         let cont = pod_list.metadata.continue_.filter(|s| !s.is_empty());
 
         let items = pod_list.items.into_iter().map(pod_to_info).collect();
-        Ok(PodList { items, continue_token: cont })
+        Ok(PodList {
+            items,
+            continue_token: cont,
+        })
     }
 
     /// Получить детальную информацию о Pod'е
@@ -319,7 +331,10 @@ impl KubernetesClusterService {
         })?;
         let cont = list.metadata.continue_.filter(|s| !s.is_empty());
         let items = list.items.into_iter().map(deployment_to_info).collect();
-        Ok(DeploymentList { items, continue_token: cont })
+        Ok(DeploymentList {
+            items,
+            continue_token: cont,
+        })
     }
 
     /// Детальная информация о Deployment'е
@@ -337,26 +352,25 @@ impl KubernetesClusterService {
     }
 
     /// Масштабировать Deployment (patch replicas)
-    pub async fn scale_deployment(
-        &self,
-        namespace: &str,
-        name: &str,
-        replicas: i32,
-    ) -> Result<()> {
+    pub async fn scale_deployment(&self, namespace: &str, name: &str, replicas: i32) -> Result<()> {
         let api: Api<Deployment> = Api::namespaced(self.client.clone(), namespace);
         let patch = serde_json::json!({
             "spec": { "replicas": replicas }
         });
-        api.patch(name, &PatchParams::apply("velum").force(), &Patch::Merge(&patch))
-            .await
-            .map_err(|e| {
-                let msg = e.to_string();
-                if msg.contains("403") || msg.contains("Forbidden") {
-                    Error::Other(format!("FORBIDDEN: {msg}"))
-                } else {
-                    Error::Other(format!("Failed to scale deployment: {msg}"))
-                }
-            })?;
+        api.patch(
+            name,
+            &PatchParams::apply("velum").force(),
+            &Patch::Merge(&patch),
+        )
+        .await
+        .map_err(|e| {
+            let msg = e.to_string();
+            if msg.contains("403") || msg.contains("Forbidden") {
+                Error::Other(format!("FORBIDDEN: {msg}"))
+            } else {
+                Error::Other(format!("Failed to scale deployment: {msg}"))
+            }
+        })?;
         Ok(())
     }
 
@@ -375,16 +389,20 @@ impl KubernetesClusterService {
                 }
             }
         });
-        api.patch(name, &PatchParams::apply("velum").force(), &Patch::Merge(&patch))
-            .await
-            .map_err(|e| {
-                let msg = e.to_string();
-                if msg.contains("403") || msg.contains("Forbidden") {
-                    Error::Other(format!("FORBIDDEN: {msg}"))
-                } else {
-                    Error::Other(format!("Failed to restart deployment: {msg}"))
-                }
-            })?;
+        api.patch(
+            name,
+            &PatchParams::apply("velum").force(),
+            &Patch::Merge(&patch),
+        )
+        .await
+        .map_err(|e| {
+            let msg = e.to_string();
+            if msg.contains("403") || msg.contains("Forbidden") {
+                Error::Other(format!("FORBIDDEN: {msg}"))
+            } else {
+                Error::Other(format!("Failed to restart deployment: {msg}"))
+            }
+        })?;
         Ok(())
     }
 
@@ -412,7 +430,10 @@ impl KubernetesClusterService {
         })?;
         let cont = list.metadata.continue_.filter(|s| !s.is_empty());
         let items = list.items.into_iter().map(daemonset_to_info).collect();
-        Ok(DaemonSetList { items, continue_token: cont })
+        Ok(DaemonSetList {
+            items,
+            continue_token: cont,
+        })
     }
 
     pub async fn get_daemonset(&self, namespace: &str, name: &str) -> Result<DaemonSetInfo> {
@@ -436,15 +457,20 @@ impl KubernetesClusterService {
                 "kubectl.kubernetes.io/restartedAt": now
             }}}}
         });
-        api.patch(name, &PatchParams::apply("velum").force(), &Patch::Merge(&patch))
-            .await.map_err(|e| {
-                let msg = e.to_string();
-                if msg.contains("403") || msg.contains("Forbidden") {
-                    Error::Other(format!("FORBIDDEN: {msg}"))
-                } else {
-                    Error::Other(format!("Failed to restart daemonset: {msg}"))
-                }
-            })?;
+        api.patch(
+            name,
+            &PatchParams::apply("velum").force(),
+            &Patch::Merge(&patch),
+        )
+        .await
+        .map_err(|e| {
+            let msg = e.to_string();
+            if msg.contains("403") || msg.contains("Forbidden") {
+                Error::Other(format!("FORBIDDEN: {msg}"))
+            } else {
+                Error::Other(format!("Failed to restart daemonset: {msg}"))
+            }
+        })?;
         Ok(())
     }
 
@@ -472,7 +498,10 @@ impl KubernetesClusterService {
         })?;
         let cont = list.metadata.continue_.filter(|s| !s.is_empty());
         let items = list.items.into_iter().map(statefulset_to_info).collect();
-        Ok(StatefulSetList { items, continue_token: cont })
+        Ok(StatefulSetList {
+            items,
+            continue_token: cont,
+        })
     }
 
     pub async fn get_statefulset(&self, namespace: &str, name: &str) -> Result<StatefulSetInfo> {
@@ -488,18 +517,28 @@ impl KubernetesClusterService {
         Ok(statefulset_to_info(s))
     }
 
-    pub async fn scale_statefulset(&self, namespace: &str, name: &str, replicas: i32) -> Result<()> {
+    pub async fn scale_statefulset(
+        &self,
+        namespace: &str,
+        name: &str,
+        replicas: i32,
+    ) -> Result<()> {
         let api: Api<StatefulSet> = Api::namespaced(self.client.clone(), namespace);
         let patch = serde_json::json!({ "spec": { "replicas": replicas } });
-        api.patch(name, &PatchParams::apply("velum").force(), &Patch::Merge(&patch))
-            .await.map_err(|e| {
-                let msg = e.to_string();
-                if msg.contains("403") || msg.contains("Forbidden") {
-                    Error::Other(format!("FORBIDDEN: {msg}"))
-                } else {
-                    Error::Other(format!("Failed to scale statefulset: {msg}"))
-                }
-            })?;
+        api.patch(
+            name,
+            &PatchParams::apply("velum").force(),
+            &Patch::Merge(&patch),
+        )
+        .await
+        .map_err(|e| {
+            let msg = e.to_string();
+            if msg.contains("403") || msg.contains("Forbidden") {
+                Error::Other(format!("FORBIDDEN: {msg}"))
+            } else {
+                Error::Other(format!("Failed to scale statefulset: {msg}"))
+            }
+        })?;
         Ok(())
     }
 
@@ -527,7 +566,10 @@ impl KubernetesClusterService {
         })?;
         let cont = list.metadata.continue_.filter(|s| !s.is_empty());
         let items = list.items.into_iter().map(replicaset_to_info).collect();
-        Ok(ReplicaSetList { items, continue_token: cont })
+        Ok(ReplicaSetList {
+            items,
+            continue_token: cont,
+        })
     }
 
     // ─── Events ───────────────────────────────────────────────────────────────
@@ -538,7 +580,7 @@ impl KubernetesClusterService {
         namespace: &str,
         involved_object_name: Option<String>,
         involved_object_kind: Option<String>,
-        event_type: Option<String>,   // Normal | Warning
+        event_type: Option<String>, // Normal | Warning
         limit: Option<u32>,
     ) -> Result<EventList> {
         let api: Api<Event> = Api::namespaced(self.client.clone(), namespace);
@@ -565,139 +607,236 @@ impl KubernetesClusterService {
                 Error::Other(format!("Failed to list events: {msg}"))
             }
         })?;
-        let items = list.items.into_iter().map(|e| {
-            let meta = &e.metadata;
-            EventInfo {
-                name: meta.name.clone().unwrap_or_default(),
-                namespace: meta.namespace.clone().unwrap_or_default(),
-                type_: e.type_.clone().unwrap_or_else(|| "Normal".to_string()),
-                reason: e.reason.clone().unwrap_or_default(),
-                message: e.message.clone().unwrap_or_default(),
-                involved_object_name: e.involved_object.name.clone().unwrap_or_default(),
-                involved_object_kind: e.involved_object.kind.clone().unwrap_or_default(),
-                count: e.count.unwrap_or(1),
-                first_time: e.first_timestamp.as_ref().map(|t| t.0.to_rfc3339()),
-                last_time: e.last_timestamp.as_ref().map(|t| t.0.to_rfc3339()),
-            }
-        }).collect();
+        let items = list
+            .items
+            .into_iter()
+            .map(|e| {
+                let meta = &e.metadata;
+                EventInfo {
+                    name: meta.name.clone().unwrap_or_default(),
+                    namespace: meta.namespace.clone().unwrap_or_default(),
+                    type_: e.type_.clone().unwrap_or_else(|| "Normal".to_string()),
+                    reason: e.reason.clone().unwrap_or_default(),
+                    message: e.message.clone().unwrap_or_default(),
+                    involved_object_name: e.involved_object.name.clone().unwrap_or_default(),
+                    involved_object_kind: e.involved_object.kind.clone().unwrap_or_default(),
+                    count: e.count.unwrap_or(1),
+                    first_time: e.first_timestamp.as_ref().map(|t| t.0.to_rfc3339()),
+                    last_time: e.last_timestamp.as_ref().map(|t| t.0.to_rfc3339()),
+                }
+            })
+            .collect();
         Ok(EventList { items })
     }
 
     // ─── Services ─────────────────────────────────────────────────────────────
 
-    pub async fn list_services(&self, namespace: &str, limit: Option<u32>, continue_token: Option<String>) -> Result<ServiceList> {
+    pub async fn list_services(
+        &self,
+        namespace: &str,
+        limit: Option<u32>,
+        continue_token: Option<String>,
+    ) -> Result<ServiceList> {
         let api: Api<Service> = Api::namespaced(self.client.clone(), namespace);
         let limit = limit.unwrap_or(100).min(500);
         let mut lp = ListParams::default().limit(limit);
-        if let Some(ref c) = continue_token { lp = lp.continue_token(c.as_str()); }
-        let list = api.list(&lp).await.map_err(|e| map_err("list services", e))?;
+        if let Some(ref c) = continue_token {
+            lp = lp.continue_token(c.as_str());
+        }
+        let list = api
+            .list(&lp)
+            .await
+            .map_err(|e| map_err("list services", e))?;
         let cont = list.metadata.continue_.filter(|s| !s.is_empty());
-        Ok(ServiceList { items: list.items.into_iter().map(service_to_info).collect(), continue_token: cont })
+        Ok(ServiceList {
+            items: list.items.into_iter().map(service_to_info).collect(),
+            continue_token: cont,
+        })
     }
 
     pub async fn get_service(&self, namespace: &str, name: &str) -> Result<ServiceInfo> {
         let api: Api<Service> = Api::namespaced(self.client.clone(), namespace);
-        api.get(name).await.map(service_to_info).map_err(|e| map_err_named("Service", name, e))
+        api.get(name)
+            .await
+            .map(service_to_info)
+            .map_err(|e| map_err_named("Service", name, e))
     }
 
     pub async fn delete_service(&self, namespace: &str, name: &str) -> Result<()> {
         let api: Api<Service> = Api::namespaced(self.client.clone(), namespace);
-        api.delete(name, &DeleteParams::default()).await.map_err(|e| map_err_named("Service", name, e))?;
+        api.delete(name, &DeleteParams::default())
+            .await
+            .map_err(|e| map_err_named("Service", name, e))?;
         Ok(())
     }
 
     // ─── Ingress ──────────────────────────────────────────────────────────────
 
-    pub async fn list_ingresses(&self, namespace: &str, limit: Option<u32>, continue_token: Option<String>) -> Result<IngressList> {
+    pub async fn list_ingresses(
+        &self,
+        namespace: &str,
+        limit: Option<u32>,
+        continue_token: Option<String>,
+    ) -> Result<IngressList> {
         let api: Api<Ingress> = Api::namespaced(self.client.clone(), namespace);
         let limit = limit.unwrap_or(100).min(500);
         let mut lp = ListParams::default().limit(limit);
-        if let Some(ref c) = continue_token { lp = lp.continue_token(c.as_str()); }
-        let list = api.list(&lp).await.map_err(|e| map_err("list ingresses", e))?;
+        if let Some(ref c) = continue_token {
+            lp = lp.continue_token(c.as_str());
+        }
+        let list = api
+            .list(&lp)
+            .await
+            .map_err(|e| map_err("list ingresses", e))?;
         let cont = list.metadata.continue_.filter(|s| !s.is_empty());
-        Ok(IngressList { items: list.items.into_iter().map(ingress_to_info).collect(), continue_token: cont })
+        Ok(IngressList {
+            items: list.items.into_iter().map(ingress_to_info).collect(),
+            continue_token: cont,
+        })
     }
 
     pub async fn get_ingress(&self, namespace: &str, name: &str) -> Result<IngressInfo> {
         let api: Api<Ingress> = Api::namespaced(self.client.clone(), namespace);
-        api.get(name).await.map(ingress_to_info).map_err(|e| map_err_named("Ingress", name, e))
+        api.get(name)
+            .await
+            .map(ingress_to_info)
+            .map_err(|e| map_err_named("Ingress", name, e))
     }
 
     pub async fn delete_ingress(&self, namespace: &str, name: &str) -> Result<()> {
         let api: Api<Ingress> = Api::namespaced(self.client.clone(), namespace);
-        api.delete(name, &DeleteParams::default()).await.map_err(|e| map_err_named("Ingress", name, e))?;
+        api.delete(name, &DeleteParams::default())
+            .await
+            .map_err(|e| map_err_named("Ingress", name, e))?;
         Ok(())
     }
 
     // ─── ConfigMaps ───────────────────────────────────────────────────────────
 
-    pub async fn list_configmaps(&self, namespace: &str, limit: Option<u32>, continue_token: Option<String>) -> Result<ConfigMapList> {
+    pub async fn list_configmaps(
+        &self,
+        namespace: &str,
+        limit: Option<u32>,
+        continue_token: Option<String>,
+    ) -> Result<ConfigMapList> {
         let api: Api<ConfigMap> = Api::namespaced(self.client.clone(), namespace);
         let limit = limit.unwrap_or(100).min(500);
         let mut lp = ListParams::default().limit(limit);
-        if let Some(ref c) = continue_token { lp = lp.continue_token(c.as_str()); }
-        let list = api.list(&lp).await.map_err(|e| map_err("list configmaps", e))?;
+        if let Some(ref c) = continue_token {
+            lp = lp.continue_token(c.as_str());
+        }
+        let list = api
+            .list(&lp)
+            .await
+            .map_err(|e| map_err("list configmaps", e))?;
         let cont = list.metadata.continue_.filter(|s| !s.is_empty());
-        Ok(ConfigMapList { items: list.items.into_iter().map(configmap_to_info).collect(), continue_token: cont })
+        Ok(ConfigMapList {
+            items: list.items.into_iter().map(configmap_to_info).collect(),
+            continue_token: cont,
+        })
     }
 
     pub async fn get_configmap(&self, namespace: &str, name: &str) -> Result<ConfigMapInfo> {
         let api: Api<ConfigMap> = Api::namespaced(self.client.clone(), namespace);
-        api.get(name).await.map(configmap_to_info).map_err(|e| map_err_named("ConfigMap", name, e))
+        api.get(name)
+            .await
+            .map(configmap_to_info)
+            .map_err(|e| map_err_named("ConfigMap", name, e))
     }
 
     pub async fn delete_configmap(&self, namespace: &str, name: &str) -> Result<()> {
         let api: Api<ConfigMap> = Api::namespaced(self.client.clone(), namespace);
-        api.delete(name, &DeleteParams::default()).await.map_err(|e| map_err_named("ConfigMap", name, e))?;
+        api.delete(name, &DeleteParams::default())
+            .await
+            .map_err(|e| map_err_named("ConfigMap", name, e))?;
         Ok(())
     }
 
     pub async fn create_configmap(&self, namespace: &str, cm: ConfigMap) -> Result<ConfigMapInfo> {
         let api: Api<ConfigMap> = Api::namespaced(self.client.clone(), namespace);
-        api.create(&PostParams::default(), &cm).await.map(configmap_to_info).map_err(|e| map_err("create configmap", e))
+        api.create(&PostParams::default(), &cm)
+            .await
+            .map(configmap_to_info)
+            .map_err(|e| map_err("create configmap", e))
     }
 
-    pub async fn update_configmap(&self, namespace: &str, name: &str, data: BTreeMap<String, String>) -> Result<ConfigMapInfo> {
+    pub async fn update_configmap(
+        &self,
+        namespace: &str,
+        name: &str,
+        data: BTreeMap<String, String>,
+    ) -> Result<ConfigMapInfo> {
         let api: Api<ConfigMap> = Api::namespaced(self.client.clone(), namespace);
         let patch = serde_json::json!({ "data": data });
-        api.patch(name, &PatchParams::apply("velum").force(), &Patch::Merge(&patch))
-            .await.map(configmap_to_info).map_err(|e| map_err("update configmap", e))
+        api.patch(
+            name,
+            &PatchParams::apply("velum").force(),
+            &Patch::Merge(&patch),
+        )
+        .await
+        .map(configmap_to_info)
+        .map_err(|e| map_err("update configmap", e))
     }
 
     // ─── Secrets ──────────────────────────────────────────────────────────────
 
-    pub async fn list_secrets(&self, namespace: &str, limit: Option<u32>, continue_token: Option<String>) -> Result<SecretList> {
+    pub async fn list_secrets(
+        &self,
+        namespace: &str,
+        limit: Option<u32>,
+        continue_token: Option<String>,
+    ) -> Result<SecretList> {
         let api: Api<Secret> = Api::namespaced(self.client.clone(), namespace);
         let limit = limit.unwrap_or(100).min(500);
         let mut lp = ListParams::default().limit(limit);
-        if let Some(ref c) = continue_token { lp = lp.continue_token(c.as_str()); }
-        let list = api.list(&lp).await.map_err(|e| map_err("list secrets", e))?;
+        if let Some(ref c) = continue_token {
+            lp = lp.continue_token(c.as_str());
+        }
+        let list = api
+            .list(&lp)
+            .await
+            .map_err(|e| map_err("list secrets", e))?;
         let cont = list.metadata.continue_.filter(|s| !s.is_empty());
-        Ok(SecretList { items: list.items.into_iter().map(secret_to_info).collect(), continue_token: cont })
+        Ok(SecretList {
+            items: list.items.into_iter().map(secret_to_info).collect(),
+            continue_token: cont,
+        })
     }
 
     pub async fn get_secret(&self, namespace: &str, name: &str) -> Result<SecretInfo> {
         let api: Api<Secret> = Api::namespaced(self.client.clone(), namespace);
-        api.get(name).await.map(secret_to_info).map_err(|e| map_err_named("Secret", name, e))
+        api.get(name)
+            .await
+            .map(secret_to_info)
+            .map_err(|e| map_err_named("Secret", name, e))
     }
 
     pub async fn delete_secret(&self, namespace: &str, name: &str) -> Result<()> {
         let api: Api<Secret> = Api::namespaced(self.client.clone(), namespace);
-        api.delete(name, &DeleteParams::default()).await.map_err(|e| map_err_named("Secret", name, e))?;
+        api.delete(name, &DeleteParams::default())
+            .await
+            .map_err(|e| map_err_named("Secret", name, e))?;
         Ok(())
     }
 
     /// Получить Secret; при reveal=true декодирует base64-значения
-    pub async fn get_secret_raw(&self, namespace: &str, name: &str, reveal: bool) -> Result<SecretInfo> {
+    pub async fn get_secret_raw(
+        &self,
+        namespace: &str,
+        name: &str,
+        reveal: bool,
+    ) -> Result<SecretInfo> {
         let api: Api<Secret> = Api::namespaced(self.client.clone(), namespace);
-        let s = api.get(name).await.map_err(|e| map_err_named("Secret", name, e))?;
+        let s = api
+            .get(name)
+            .await
+            .map_err(|e| map_err_named("Secret", name, e))?;
         if reveal {
             Ok(secret_to_info_revealed(s))
         } else {
             Ok(secret_to_info(s))
         }
     }
-
 }
 
 // ─── Pod DTO helpers ─────────────────────────────────────────────────────────
@@ -744,8 +883,7 @@ fn pod_to_info(pod: Pod) -> PodInfo {
     let name = meta.name.clone().unwrap_or_default();
     let namespace = meta.namespace.clone().unwrap_or_default();
     let labels = meta.labels.clone().unwrap_or_default();
-    let created_at = meta.creation_timestamp.as_ref()
-        .map(|t| t.0.to_rfc3339());
+    let created_at = meta.creation_timestamp.as_ref().map(|t| t.0.to_rfc3339());
 
     let spec = pod.spec.as_ref();
     let node_name = spec.and_then(|s| s.node_name.clone());
@@ -759,43 +897,48 @@ fn pod_to_info(pod: Pod) -> PodInfo {
     let host_ip = status.and_then(|s| s.host_ip.clone());
 
     // Container statuses
-    let cs_list = status.and_then(|s| s.container_statuses.clone()).unwrap_or_default();
-
-    // Spec containers for image info fallback
-    let spec_containers: Vec<_> = spec
-        .map(|s| s.containers.clone())
+    let cs_list = status
+        .and_then(|s| s.container_statuses.clone())
         .unwrap_or_default();
 
-    let containers: Vec<ContainerStatus> = spec_containers.iter().map(|c| {
-        let cs = cs_list.iter().find(|cs| cs.name == c.name);
-        let (ready, restart_count, state_str, state_reason) = cs.map(|cs| {
-            let ready = cs.ready;
-            let rc = cs.restart_count;
-            let (st, r) = if let Some(ref s) = cs.state {
-                if s.running.is_some() {
-                    ("running".to_string(), None)
-                } else if let Some(ref w) = s.waiting {
-                    ("waiting".to_string(), w.reason.clone())
-                } else if let Some(ref t) = s.terminated {
-                    ("terminated".to_string(), t.reason.clone())
-                } else {
-                    ("unknown".to_string(), None)
-                }
-            } else {
-                ("unknown".to_string(), None)
-            };
-            (ready, rc, st, r)
-        }).unwrap_or((false, 0, "unknown".to_string(), None));
+    // Spec containers for image info fallback
+    let spec_containers: Vec<_> = spec.map(|s| s.containers.clone()).unwrap_or_default();
 
-        ContainerStatus {
-            name: c.name.clone(),
-            image: c.image.clone().unwrap_or_default(),
-            ready,
-            restart_count,
-            state: state_str,
-            reason: state_reason,
-        }
-    }).collect();
+    let containers: Vec<ContainerStatus> = spec_containers
+        .iter()
+        .map(|c| {
+            let cs = cs_list.iter().find(|cs| cs.name == c.name);
+            let (ready, restart_count, state_str, state_reason) = cs
+                .map(|cs| {
+                    let ready = cs.ready;
+                    let rc = cs.restart_count;
+                    let (st, r) = if let Some(ref s) = cs.state {
+                        if s.running.is_some() {
+                            ("running".to_string(), None)
+                        } else if let Some(ref w) = s.waiting {
+                            ("waiting".to_string(), w.reason.clone())
+                        } else if let Some(ref t) = s.terminated {
+                            ("terminated".to_string(), t.reason.clone())
+                        } else {
+                            ("unknown".to_string(), None)
+                        }
+                    } else {
+                        ("unknown".to_string(), None)
+                    };
+                    (ready, rc, st, r)
+                })
+                .unwrap_or((false, 0, "unknown".to_string(), None));
+
+            ContainerStatus {
+                name: c.name.clone(),
+                image: c.image.clone().unwrap_or_default(),
+                ready,
+                restart_count,
+                state: state_str,
+                reason: state_reason,
+            }
+        })
+        .collect();
 
     let ready_count = containers.iter().filter(|c| c.ready).count() as u32;
     let total_count = containers.len() as u32;
@@ -865,11 +1008,16 @@ fn deployment_to_info(d: Deployment) -> DeploymentInfo {
 
     let images: Vec<String> = spec
         .map(|s| {
-            s.template.spec.as_ref().map(|ps| {
-                ps.containers.iter()
-                    .filter_map(|c| c.image.clone())
-                    .collect()
-            }).unwrap_or_default()
+            s.template
+                .spec
+                .as_ref()
+                .map(|ps| {
+                    ps.containers
+                        .iter()
+                        .filter_map(|c| c.image.clone())
+                        .collect()
+                })
+                .unwrap_or_default()
         })
         .unwrap_or_default();
 
@@ -936,22 +1084,37 @@ fn daemonset_to_info(d: DaemonSet) -> DaemonSetInfo {
     let created_at = meta.creation_timestamp.as_ref().map(|t| t.0.to_rfc3339());
 
     let spec = d.spec.as_ref();
-    let images: Vec<String> = spec.map(|s| {
-        s.template.spec.as_ref().map(|ps| {
-            ps.containers.iter().filter_map(|c| c.image.clone()).collect()
-        }).unwrap_or_default()
-    }).unwrap_or_default();
-    let node_selector = spec.and_then(|s| s.template.spec.as_ref())
+    let images: Vec<String> = spec
+        .map(|s| {
+            s.template
+                .spec
+                .as_ref()
+                .map(|ps| {
+                    ps.containers
+                        .iter()
+                        .filter_map(|c| c.image.clone())
+                        .collect()
+                })
+                .unwrap_or_default()
+        })
+        .unwrap_or_default();
+    let node_selector = spec
+        .and_then(|s| s.template.spec.as_ref())
         .and_then(|ps| ps.node_selector.clone())
         .unwrap_or_default();
 
     let status = d.status.as_ref();
     DaemonSetInfo {
-        name, namespace, labels, images, node_selector, created_at,
-        desired:   status.map(|s| s.desired_number_scheduled).unwrap_or(0),
-        current:   status.map(|s| s.current_number_scheduled).unwrap_or(0),
-        ready:     status.map(|s| s.number_ready).unwrap_or(0),
-        updated:   status.and_then(|s| s.updated_number_scheduled).unwrap_or(0),
+        name,
+        namespace,
+        labels,
+        images,
+        node_selector,
+        created_at,
+        desired: status.map(|s| s.desired_number_scheduled).unwrap_or(0),
+        current: status.map(|s| s.current_number_scheduled).unwrap_or(0),
+        ready: status.map(|s| s.number_ready).unwrap_or(0),
+        updated: status.and_then(|s| s.updated_number_scheduled).unwrap_or(0),
         available: status.and_then(|s| s.number_available).unwrap_or(0),
     }
 }
@@ -987,17 +1150,31 @@ fn statefulset_to_info(s: StatefulSet) -> StatefulSetInfo {
     let spec = s.spec.as_ref();
     let replicas_desired = spec.and_then(|sp| sp.replicas).unwrap_or(1);
     let service_name = spec.map(|sp| sp.service_name.clone()).unwrap_or_default();
-    let images: Vec<String> = spec.map(|sp| {
-        sp.template.spec.as_ref().map(|ps| {
-            ps.containers.iter().filter_map(|c| c.image.clone()).collect()
-        }).unwrap_or_default()
-    }).unwrap_or_default();
+    let images: Vec<String> = spec
+        .map(|sp| {
+            sp.template
+                .spec
+                .as_ref()
+                .map(|ps| {
+                    ps.containers
+                        .iter()
+                        .filter_map(|c| c.image.clone())
+                        .collect()
+                })
+                .unwrap_or_default()
+        })
+        .unwrap_or_default();
 
     let status = s.status.as_ref();
     StatefulSetInfo {
-        name, namespace, labels, images, service_name, created_at,
+        name,
+        namespace,
+        labels,
+        images,
+        service_name,
+        created_at,
         replicas_desired,
-        replicas_ready:   status.and_then(|st| st.ready_replicas).unwrap_or(0),
+        replicas_ready: status.and_then(|st| st.ready_replicas).unwrap_or(0),
         replicas_current: status.and_then(|st| st.current_replicas).unwrap_or(0),
     }
 }
@@ -1030,21 +1207,37 @@ fn replicaset_to_info(rs: ReplicaSet) -> ReplicaSetInfo {
     let created_at = meta.creation_timestamp.as_ref().map(|t| t.0.to_rfc3339());
 
     // Найти владельца Deployment через ownerReferences
-    let owner_deployment = meta.owner_references.as_ref()
+    let owner_deployment = meta
+        .owner_references
+        .as_ref()
         .and_then(|refs| refs.iter().find(|r| r.kind == "Deployment"))
         .map(|r| r.name.clone());
 
     let spec = rs.spec.as_ref();
     let replicas_desired = spec.and_then(|s| s.replicas).unwrap_or(0);
-    let images: Vec<String> = spec.and_then(|s| s.template.as_ref()).map(|t| {
-        t.spec.as_ref().map(|ps| {
-            ps.containers.iter().filter_map(|c| c.image.clone()).collect()
-        }).unwrap_or_default()
-    }).unwrap_or_default();
+    let images: Vec<String> = spec
+        .and_then(|s| s.template.as_ref())
+        .map(|t| {
+            t.spec
+                .as_ref()
+                .map(|ps| {
+                    ps.containers
+                        .iter()
+                        .filter_map(|c| c.image.clone())
+                        .collect()
+                })
+                .unwrap_or_default()
+        })
+        .unwrap_or_default();
 
     let status = rs.status.as_ref();
     ReplicaSetInfo {
-        name, namespace, labels, images, owner_deployment, created_at,
+        name,
+        namespace,
+        labels,
+        images,
+        owner_deployment,
+        created_at,
         replicas_desired,
         replicas_ready: status.and_then(|s| s.ready_replicas).unwrap_or(0),
     }
@@ -1111,28 +1304,56 @@ fn service_to_info(svc: Service) -> ServiceInfo {
     let created_at = meta.creation_timestamp.as_ref().map(|t| t.0.to_rfc3339());
 
     let spec = svc.spec.as_ref();
-    let type_ = spec.and_then(|s| s.type_.clone()).unwrap_or_else(|| "ClusterIP".to_string());
-    let cluster_ip = spec.and_then(|s| s.cluster_ip.clone()).filter(|ip| !ip.is_empty());
+    let type_ = spec
+        .and_then(|s| s.type_.clone())
+        .unwrap_or_else(|| "ClusterIP".to_string());
+    let cluster_ip = spec
+        .and_then(|s| s.cluster_ip.clone())
+        .filter(|ip| !ip.is_empty());
     let headless = cluster_ip.as_deref() == Some("None");
     let selector = spec.and_then(|s| s.selector.clone()).unwrap_or_default();
-    let external_ips = spec.and_then(|s| s.external_ips.clone()).unwrap_or_default();
+    let external_ips = spec
+        .and_then(|s| s.external_ips.clone())
+        .unwrap_or_default();
     let load_balancer_ip = spec.and_then(|s| s.load_balancer_ip.clone());
 
-    let ports = spec.and_then(|s| s.ports.clone()).unwrap_or_default().into_iter().map(|p| {
-        let target_port = p.target_port.map(|tp| match tp {
-            k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(n) => n.to_string(),
-            k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::String(s) => s,
-        }).unwrap_or_default();
-        ServicePortInfo {
-            name: p.name,
-            protocol: p.protocol.unwrap_or_else(|| "TCP".to_string()),
-            port: p.port,
-            target_port,
-            node_port: p.node_port,
-        }
-    }).collect();
+    let ports = spec
+        .and_then(|s| s.ports.clone())
+        .unwrap_or_default()
+        .into_iter()
+        .map(|p| {
+            let target_port = p
+                .target_port
+                .map(|tp| match tp {
+                    k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(n) => {
+                        n.to_string()
+                    }
+                    k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::String(s) => s,
+                })
+                .unwrap_or_default();
+            ServicePortInfo {
+                name: p.name,
+                protocol: p.protocol.unwrap_or_else(|| "TCP".to_string()),
+                port: p.port,
+                target_port,
+                node_port: p.node_port,
+            }
+        })
+        .collect();
 
-    ServiceInfo { name, namespace, type_, cluster_ip, external_ips, load_balancer_ip, ports, selector, labels, headless, created_at }
+    ServiceInfo {
+        name,
+        namespace,
+        type_,
+        cluster_ip,
+        external_ips,
+        load_balancer_ip,
+        ports,
+        selector,
+        labels,
+        headless,
+        created_at,
+    }
 }
 
 // ─── Ingress DTOs ─────────────────────────────────────────────────────────────
@@ -1187,42 +1408,88 @@ fn ingress_to_info(ing: Ingress) -> IngressInfo {
     let spec = ing.spec.as_ref();
     let ingress_class = spec.and_then(|s| s.ingress_class_name.clone());
 
-    let rules = spec.and_then(|s| s.rules.clone()).unwrap_or_default().into_iter().map(|r| {
-        let host = r.host.clone();
-        let paths = r.http.as_ref().map(|h| h.paths.iter().map(|p| {
-            let backend_service = p.backend.service.as_ref()
-                .map(|s| s.name.clone()).unwrap_or_default();
-            let backend_port = p.backend.service.as_ref()
-                .and_then(|s| s.port.as_ref())
-                .map(|port| {
-                    if let Some(n) = port.number { n.to_string() }
-                    else if let Some(ref nm) = port.name { nm.clone() }
-                    else { String::new() }
-                }).unwrap_or_default();
-            IngressPath {
-                path: p.path.clone().unwrap_or_else(|| "/".to_string()),
-                path_type: p.path_type.clone(),
-                backend_service,
-                backend_port,
-            }
-        }).collect()).unwrap_or_default();
-        IngressRule { host, paths }
-    }).collect();
+    let rules = spec
+        .and_then(|s| s.rules.clone())
+        .unwrap_or_default()
+        .into_iter()
+        .map(|r| {
+            let host = r.host.clone();
+            let paths = r
+                .http
+                .as_ref()
+                .map(|h| {
+                    h.paths
+                        .iter()
+                        .map(|p| {
+                            let backend_service = p
+                                .backend
+                                .service
+                                .as_ref()
+                                .map(|s| s.name.clone())
+                                .unwrap_or_default();
+                            let backend_port = p
+                                .backend
+                                .service
+                                .as_ref()
+                                .and_then(|s| s.port.as_ref())
+                                .map(|port| {
+                                    if let Some(n) = port.number {
+                                        n.to_string()
+                                    } else if let Some(ref nm) = port.name {
+                                        nm.clone()
+                                    } else {
+                                        String::new()
+                                    }
+                                })
+                                .unwrap_or_default();
+                            IngressPath {
+                                path: p.path.clone().unwrap_or_else(|| "/".to_string()),
+                                path_type: p.path_type.clone(),
+                                backend_service,
+                                backend_port,
+                            }
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            IngressRule { host, paths }
+        })
+        .collect();
 
-    let tls = spec.and_then(|s| s.tls.clone()).unwrap_or_default().into_iter().map(|t| IngressTls {
-        hosts: t.hosts.unwrap_or_default(),
-        secret_name: t.secret_name,
-    }).collect();
+    let tls = spec
+        .and_then(|s| s.tls.clone())
+        .unwrap_or_default()
+        .into_iter()
+        .map(|t| IngressTls {
+            hosts: t.hosts.unwrap_or_default(),
+            secret_name: t.secret_name,
+        })
+        .collect();
 
-    let load_balancer_ips = ing.status.as_ref()
+    let load_balancer_ips = ing
+        .status
+        .as_ref()
         .and_then(|s| s.load_balancer.as_ref())
         .and_then(|lb| lb.ingress.as_ref())
-        .map(|ingresses| ingresses.iter()
-            .filter_map(|i| i.ip.clone().or_else(|| i.hostname.clone()))
-            .collect())
+        .map(|ingresses| {
+            ingresses
+                .iter()
+                .filter_map(|i| i.ip.clone().or_else(|| i.hostname.clone()))
+                .collect()
+        })
         .unwrap_or_default();
 
-    IngressInfo { name, namespace, ingress_class, rules, tls, labels, annotations, load_balancer_ips, created_at }
+    IngressInfo {
+        name,
+        namespace,
+        ingress_class,
+        rules,
+        tls,
+        labels,
+        annotations,
+        load_balancer_ips,
+        created_at,
+    }
 }
 
 // ─── ConfigMap DTOs ───────────────────────────────────────────────────────────
@@ -1251,7 +1518,10 @@ fn configmap_to_info(cm: ConfigMap) -> ConfigMapInfo {
         labels: meta.labels.clone().unwrap_or_default(),
         created_at: meta.creation_timestamp.as_ref().map(|t| t.0.to_rfc3339()),
         data: cm.data.unwrap_or_default(),
-        binary_data_keys: cm.binary_data.map(|b| b.keys().cloned().collect()).unwrap_or_default(),
+        binary_data_keys: cm
+            .binary_data
+            .map(|b| b.keys().cloned().collect())
+            .unwrap_or_default(),
     }
 }
 
@@ -1279,7 +1549,9 @@ pub struct SecretList {
 
 fn secret_to_info(s: Secret) -> SecretInfo {
     let meta = &s.metadata;
-    let data_keys = s.data.as_ref()
+    let data_keys = s
+        .data
+        .as_ref()
         .map(|d| d.keys().cloned().collect())
         .unwrap_or_default();
     SecretInfo {
@@ -1296,7 +1568,9 @@ fn secret_to_info(s: Secret) -> SecretInfo {
 /// Секрет с раскрытыми значениями (явный вызов из handler при reveal=true)
 pub fn secret_to_info_revealed(s: Secret) -> SecretInfo {
     let mut info = secret_to_info(s.clone());
-    let revealed: BTreeMap<String, String> = s.data.unwrap_or_default()
+    let revealed: BTreeMap<String, String> = s
+        .data
+        .unwrap_or_default()
         .into_iter()
         .map(|(k, v)| {
             let decoded = String::from_utf8(v.0).unwrap_or_else(|_| "<binary>".to_string());
@@ -1404,8 +1678,16 @@ mod tests {
     fn test_namespace_list_pagination() {
         let list = NamespaceList {
             items: vec![
-                NamespaceInfo { name: "ns1".into(), phase: "Active".into(), labels: BTreeMap::new() },
-                NamespaceInfo { name: "ns2".into(), phase: "Terminating".into(), labels: BTreeMap::new() },
+                NamespaceInfo {
+                    name: "ns1".into(),
+                    phase: "Active".into(),
+                    labels: BTreeMap::new(),
+                },
+                NamespaceInfo {
+                    name: "ns2".into(),
+                    phase: "Terminating".into(),
+                    labels: BTreeMap::new(),
+                },
             ],
             continue_token: Some("token123".into()),
         };
@@ -1477,17 +1759,20 @@ mod tests {
     #[test]
     fn test_pod_list_with_items() {
         let list = PodList {
-            items: vec![
-                PodInfo {
-                    name: "pod1".into(), namespace: "default".into(),
-                    phase: "Running".into(), reason: None,
-                    node_name: Some("node1".into()),
-                    pod_ip: Some("10.0.0.1".into()),
-                    host_ip: Some("192.168.1.1".into()),
-                    containers: vec![], labels: BTreeMap::new(),
-                    created_at: None, ready_count: 1, total_count: 1,
-                },
-            ],
+            items: vec![PodInfo {
+                name: "pod1".into(),
+                namespace: "default".into(),
+                phase: "Running".into(),
+                reason: None,
+                node_name: Some("node1".into()),
+                pod_ip: Some("10.0.0.1".into()),
+                host_ip: Some("192.168.1.1".into()),
+                containers: vec![],
+                labels: BTreeMap::new(),
+                created_at: None,
+                ready_count: 1,
+                total_count: 1,
+            }],
             continue_token: None,
         };
         assert_eq!(list.items.len(), 1);
@@ -1535,14 +1820,19 @@ mod tests {
     #[test]
     fn test_deployment_list() {
         let list = DeploymentList {
-            items: vec![
-                DeploymentInfo {
-                    name: "dep1".into(), namespace: "default".into(),
-                    replicas_desired: 1, replicas_ready: 1, replicas_available: 1,
-                    replicas_updated: 1, labels: BTreeMap::new(), selector: BTreeMap::new(),
-                    images: vec![], created_at: None, conditions: vec![],
-                },
-            ],
+            items: vec![DeploymentInfo {
+                name: "dep1".into(),
+                namespace: "default".into(),
+                replicas_desired: 1,
+                replicas_ready: 1,
+                replicas_available: 1,
+                replicas_updated: 1,
+                labels: BTreeMap::new(),
+                selector: BTreeMap::new(),
+                images: vec![],
+                created_at: None,
+                conditions: vec![],
+            }],
             continue_token: Some("abc".into()),
         };
         assert_eq!(list.items.len(), 1);
@@ -1607,14 +1897,17 @@ mod tests {
     #[test]
     fn test_statefulset_list() {
         let list = StatefulSetList {
-            items: vec![
-                StatefulSetInfo {
-                    name: "ss1".into(), namespace: "default".into(),
-                    replicas_desired: 1, replicas_ready: 0, replicas_current: 1,
-                    images: vec![], labels: BTreeMap::new(), service_name: "svc".into(),
-                    created_at: None,
-                },
-            ],
+            items: vec![StatefulSetInfo {
+                name: "ss1".into(),
+                namespace: "default".into(),
+                replicas_desired: 1,
+                replicas_ready: 0,
+                replicas_current: 1,
+                images: vec![],
+                labels: BTreeMap::new(),
+                service_name: "svc".into(),
+                created_at: None,
+            }],
             continue_token: None,
         };
         assert_eq!(list.items.len(), 1);
@@ -1692,16 +1985,18 @@ mod tests {
     #[test]
     fn test_event_list() {
         let list = EventList {
-            items: vec![
-                EventInfo {
-                    name: "ev1".into(), namespace: "default".into(),
-                    type_: "Normal".into(), reason: "Started".into(),
-                    message: "Started container".into(),
-                    involved_object_name: "pod1".into(),
-                    involved_object_kind: "Pod".into(),
-                    count: 1, first_time: None, last_time: None,
-                },
-            ],
+            items: vec![EventInfo {
+                name: "ev1".into(),
+                namespace: "default".into(),
+                type_: "Normal".into(),
+                reason: "Started".into(),
+                message: "Started container".into(),
+                involved_object_name: "pod1".into(),
+                involved_object_kind: "Pod".into(),
+                count: 1,
+                first_time: None,
+                last_time: None,
+            }],
         };
         assert_eq!(list.items.len(), 1);
         assert_eq!(list.items[0].type_, "Normal");
@@ -1792,14 +2087,12 @@ mod tests {
     fn test_ingress_rule_with_paths() {
         let rule = IngressRule {
             host: Some("example.com".into()),
-            paths: vec![
-                IngressPath {
-                    path: "/api".into(),
-                    path_type: "Prefix".into(),
-                    backend_service: "api-svc".into(),
-                    backend_port: "8080".into(),
-                },
-            ],
+            paths: vec![IngressPath {
+                path: "/api".into(),
+                path_type: "Prefix".into(),
+                backend_service: "api-svc".into(),
+                backend_port: "8080".into(),
+            }],
         };
         assert_eq!(rule.host, Some("example.com".into()));
         assert_eq!(rule.paths.len(), 1);
@@ -1938,7 +2231,10 @@ mod tests {
             created_at: None,
         };
         assert!(secret.data_revealed.is_some());
-        assert_eq!(secret.data_revealed.as_ref().unwrap().get("password"), Some(&"secret123".into()));
+        assert_eq!(
+            secret.data_revealed.as_ref().unwrap().get("password"),
+            Some(&"secret123".into())
+        );
     }
 
     #[test]
@@ -1988,7 +2284,7 @@ mod tests {
     fn test_connection_mode_incluster() {
         let mode = ConnectionMode::InCluster;
         match mode {
-            ConnectionMode::InCluster => {},
+            ConnectionMode::InCluster => {}
             _ => panic!("Expected InCluster variant"),
         }
     }
@@ -1997,7 +2293,7 @@ mod tests {
     fn test_connection_mode_infer() {
         let mode = ConnectionMode::Infer;
         match mode {
-            ConnectionMode::Infer => {},
+            ConnectionMode::Infer => {}
             _ => panic!("Expected Infer variant"),
         }
     }
@@ -2210,8 +2506,11 @@ mod tests {
     #[test]
     fn test_service_port_int_and_string_target() {
         let int_target = ServicePortInfo {
-            name: None, protocol: "TCP".into(), port: 443,
-            target_port: "443".into(), node_port: None,
+            name: None,
+            protocol: "TCP".into(),
+            port: 443,
+            target_port: "443".into(),
+            node_port: None,
         };
         assert_eq!(int_target.target_port, "443");
     }
@@ -2267,9 +2566,15 @@ mod tests {
             name: "ordered".into(),
             namespace: "default".into(),
             phase: "Running".into(),
-            reason: None, node_name: None, pod_ip: None, host_ip: None,
-            containers: vec![], labels, created_at: None,
-            ready_count: 1, total_count: 1,
+            reason: None,
+            node_name: None,
+            pod_ip: None,
+            host_ip: None,
+            containers: vec![],
+            labels,
+            created_at: None,
+            ready_count: 1,
+            total_count: 1,
         };
 
         let json = serde_json::to_string(&pod).unwrap();

@@ -162,12 +162,19 @@ mod tests {
     #[test]
     fn test_postgres_returning_clause() {
         let query = "INSERT INTO environment (...) VALUES (...) RETURNING id";
-        assert!(query.contains("RETURNING id"), "Postgres uses RETURNING clause");
+        assert!(
+            query.contains("RETURNING id"),
+            "Postgres uses RETURNING clause"
+        );
     }
 
     #[test]
     fn test_environment_model_fields() {
-        let env = Environment::new(10, "pg-production".to_string(), r#"{"DB":"localhost"}"#.to_string());
+        let env = Environment::new(
+            10,
+            "pg-production".to_string(),
+            r#"{"DB":"localhost"}"#.to_string(),
+        );
         assert_eq!(env.project_id, 10);
         assert_eq!(env.name, "pg-production");
         assert_eq!(env.json, r#"{"DB":"localhost"}"#);
@@ -184,7 +191,12 @@ mod tests {
     #[test]
     fn test_environment_bind_order_matches_query() {
         let columns = [
-            "project_id", "name", "json", "secret_storage_id", "secrets", "created",
+            "project_id",
+            "name",
+            "json",
+            "secret_storage_id",
+            "secrets",
+            "created",
         ];
         assert_eq!(columns.len(), 6);
         assert_eq!(columns[0], "project_id");

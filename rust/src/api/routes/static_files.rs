@@ -49,8 +49,10 @@ pub fn static_routes() -> Router<Arc<AppState>> {
     }
 
     // ServeDir для раздачи статических файлов с fallback на index.html для SPA
-    let serve_dir = ServeDir::new(&web_path)
-        .not_found_service(ServeDir::new(&web_path).fallback(ServeDir::new(&web_path).append_index_html_on_directories(true)));
+    let serve_dir = ServeDir::new(&web_path).not_found_service(
+        ServeDir::new(&web_path)
+            .fallback(ServeDir::new(&web_path).append_index_html_on_directories(true)),
+    );
 
     Router::new()
         // В axum 0.8 используем fallback_service вместо nest_service
@@ -87,16 +89,28 @@ mod tests {
         let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
         let default_path = manifest_dir.join("..").join("web").join("public");
         let path_str = default_path.to_string_lossy();
-        assert!(path_str.contains("web"), "Default path should contain 'web'");
-        assert!(path_str.contains("public"), "Default path should contain 'public'");
+        assert!(
+            path_str.contains("web"),
+            "Default path should contain 'web'"
+        );
+        assert!(
+            path_str.contains("public"),
+            "Default path should contain 'public'"
+        );
     }
 
     #[test]
     fn test_check_api_path_logic_blocks_api_paths() {
         let api_path = "/api/tasks";
         let non_api_path = "/index.html";
-        assert!(api_path.starts_with("/api/"), "API path should start with /api/");
-        assert!(!non_api_path.starts_with("/api/"), "Static path should not start with /api/");
+        assert!(
+            api_path.starts_with("/api/"),
+            "API path should start with /api/"
+        );
+        assert!(
+            !non_api_path.starts_with("/api/"),
+            "Static path should not start with /api/"
+        );
     }
 
     #[test]

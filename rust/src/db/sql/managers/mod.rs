@@ -73,17 +73,17 @@ pub mod webhook;
 pub mod workflow;
 
 #[cfg(test)]
-mod test_task;
+mod test_organization;
 #[cfg(test)]
 mod test_playbook_run;
 #[cfg(test)]
-mod test_schedule;
-#[cfg(test)]
-mod test_user;
-#[cfg(test)]
 mod test_project;
 #[cfg(test)]
-mod test_organization;
+mod test_schedule;
+#[cfg(test)]
+mod test_task;
+#[cfg(test)]
+mod test_user;
 
 // Ре-экспорт трейтов для удобства
 pub use access_key::*;

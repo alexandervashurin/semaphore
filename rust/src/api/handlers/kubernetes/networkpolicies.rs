@@ -284,7 +284,9 @@ mod tests {
 
     #[test]
     fn test_network_policy_summary_with_ingress_rules() {
-        use k8s_openapi::api::networking::v1::{NetworkPolicyIngressRule, NetworkPolicyPeer, NetworkPolicySpec};
+        use k8s_openapi::api::networking::v1::{
+            NetworkPolicyIngressRule, NetworkPolicyPeer, NetworkPolicySpec,
+        };
         let mut np = NetworkPolicy::default();
         np.metadata.name = Some("allow-ingress".to_string());
         np.metadata.namespace = Some("web".to_string());

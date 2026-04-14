@@ -979,8 +979,7 @@ mod key_installer_tests {
 
     #[test]
     fn test_ssh_key_with_public_key() {
-        let key = SshKey::new(b"private".to_vec(), None)
-            .with_public_key(b"public".to_vec());
+        let key = SshKey::new(b"private".to_vec(), None).with_public_key(b"public".to_vec());
         assert_eq!(key.public_key, Some(b"public".to_vec()));
         assert_eq!(key.private_key, b"private");
     }
@@ -1108,7 +1107,8 @@ mod key_installer_tests {
     #[test]
     fn test_utils_validate_key_valid_openssh() {
         let key = SshKey::new(
-            b"-----BEGIN OPENSSH PRIVATE KEY-----\ndata\n-----END OPENSSH PRIVATE KEY-----".to_vec(),
+            b"-----BEGIN OPENSSH PRIVATE KEY-----\ndata\n-----END OPENSSH PRIVATE KEY-----"
+                .to_vec(),
             None,
         );
         assert!(utils::validate_key(&key).is_ok());
@@ -1174,8 +1174,7 @@ mod key_installer_tests {
 
     #[test]
     fn test_ssh_key_with_public_key_chain() {
-        let key = SshKey::new(b"priv".to_vec(), None)
-            .with_public_key(b"pub".to_vec());
+        let key = SshKey::new(b"priv".to_vec(), None).with_public_key(b"pub".to_vec());
         assert_eq!(key.public_key, Some(b"pub".to_vec()));
     }
 
@@ -1197,7 +1196,12 @@ mod key_installer_tests {
     fn test_key_installer_ansible_user_with_login_password() {
         let installer = KeyInstaller::new();
         let logger = BasicLogger::new();
-        let key = AccessKey::new_login_password(1, "ansible_user".to_string(), "pass".to_string(), Some(1));
+        let key = AccessKey::new_login_password(
+            1,
+            "ansible_user".to_string(),
+            "pass".to_string(),
+            Some(1),
+        );
         let result = installer.install(&key, AccessKeyRole::AnsibleUser, &logger);
         assert!(result.is_ok());
         let installation = result.unwrap();
@@ -1338,8 +1342,8 @@ mod key_installer_tests {
 
     #[test]
     fn test_ssh_key_clone() {
-        let key = SshKey::new(b"key".to_vec(), Some("pass".to_string()))
-            .with_public_key(b"pub".to_vec());
+        let key =
+            SshKey::new(b"key".to_vec(), Some("pass".to_string())).with_public_key(b"pub".to_vec());
         let cloned = key.clone();
         assert_eq!(cloned.private_key, key.private_key);
         assert_eq!(cloned.passphrase, key.passphrase);
@@ -1406,7 +1410,10 @@ mod key_installer_tests {
     fn test_access_key_role_display_all_variants() {
         let roles = vec![
             (AccessKeyRole::Git, "git"),
-            (AccessKeyRole::AnsiblePasswordVault, "ansible_password_vault"),
+            (
+                AccessKeyRole::AnsiblePasswordVault,
+                "ansible_password_vault",
+            ),
             (AccessKeyRole::AnsibleBecomeUser, "ansible_become_user"),
             (AccessKeyRole::AnsibleUser, "ansible_user"),
         ];
@@ -1436,7 +1443,13 @@ mod key_installer_tests {
 
     #[test]
     fn test_access_key_ssh_with_empty_passphrase() {
-        let key = AccessKey::new_ssh(1, "private".to_string(), "".to_string(), "user".to_string(), None);
+        let key = AccessKey::new_ssh(
+            1,
+            "private".to_string(),
+            "".to_string(),
+            "user".to_string(),
+            None,
+        );
         assert!(key.ssh_key.is_some());
         let ssh_data = key.get_ssh_key_data().unwrap();
         assert!(ssh_data.passphrase.is_empty());
@@ -1562,7 +1575,9 @@ mod key_installer_tests {
     fn test_access_key_installation_get_git_env_contains_terminal_prompt() {
         let installation = AccessKeyInstallation::new();
         let env = installation.get_git_env();
-        let has_terminal_prompt = env.iter().any(|(k, v)| k == "GIT_TERMINAL_PROMPT" && v == "0");
+        let has_terminal_prompt = env
+            .iter()
+            .any(|(k, v)| k == "GIT_TERMINAL_PROMPT" && v == "0");
         assert!(has_terminal_prompt);
     }
 
@@ -1595,7 +1610,8 @@ mod key_installer_tests {
 
         let key = AccessKey::new_ssh(
             10,
-            "-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----".to_string(),
+            "-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----"
+                .to_string(),
             "".to_string(),
             "ansible_user".to_string(),
             Some(1),
@@ -1642,7 +1658,10 @@ mod key_installer_tests {
     #[test]
     fn test_utils_validate_key_only_begin_no_private_keyword() {
         // "BEGIN RSA PUBLIC KEY" содержит BEGIN, но не содержит PRIVATE KEY
-        let key = SshKey::new(b"-----BEGIN RSA PUBLIC KEY-----\ntest\n-----END RSA PUBLIC KEY-----".to_vec(), None);
+        let key = SshKey::new(
+            b"-----BEGIN RSA PUBLIC KEY-----\ntest\n-----END RSA PUBLIC KEY-----".to_vec(),
+            None,
+        );
         let result = utils::validate_key(&key);
         assert!(result.is_err());
     }
@@ -1802,7 +1821,9 @@ mod key_installer_tests {
     fn test_access_key_installation_git_env_idempotent() {
         let installation = AccessKeyInstallation::new();
         let env = installation.get_git_env();
-        assert!(env.iter().any(|(k, v)| k == "GIT_TERMINAL_PROMPT" && v == "0"));
+        assert!(env
+            .iter()
+            .any(|(k, v)| k == "GIT_TERMINAL_PROMPT" && v == "0"));
     }
 
     #[test]
@@ -2057,7 +2078,10 @@ mod key_installer_tests {
         let agent = SshAgent::simple("localhost".to_string(), "user".to_string(), key);
         installation.ssh_agent = Some(agent);
         let env = installation.get_git_env();
-        let ssh_cmd = env.iter().find(|(k, _)| k == "GIT_SSH_COMMAND").map(|(_, v)| v.clone());
+        let ssh_cmd = env
+            .iter()
+            .find(|(k, _)| k == "GIT_SSH_COMMAND")
+            .map(|(_, v)| v.clone());
         assert!(ssh_cmd.is_some());
         let ssh_cmd = ssh_cmd.unwrap();
         assert!(ssh_cmd.contains("StrictHostKeyChecking=no"));
@@ -2186,7 +2210,12 @@ mod key_installer_tests {
 
     #[test]
     fn test_access_key_role_from_str_lowercase_all() {
-        for role_str in &["git", "ansible_password_vault", "ansible_become_user", "ansible_user"] {
+        for role_str in &[
+            "git",
+            "ansible_password_vault",
+            "ansible_become_user",
+            "ansible_user",
+        ] {
             let result = AccessKeyRole::from_str(role_str);
             assert!(result.is_ok(), "Failed to parse: {}", role_str);
         }
@@ -2236,7 +2265,8 @@ mod key_installer_tests {
 
     #[test]
     fn test_ssh_key_private_key_starts_with_dash_dash_dash_dash_begin() {
-        let key_data = "-----BEGIN OPENSSH PRIVATE KEY-----\nvalid\n-----END OPENSSH PRIVATE KEY-----";
+        let key_data =
+            "-----BEGIN OPENSSH PRIVATE KEY-----\nvalid\n-----END OPENSSH PRIVATE KEY-----";
         let key = SshKey::from_string(key_data.to_string(), None);
         let key_str = String::from_utf8_lossy(&key.private_key);
         assert!(key_str.starts_with("-----BEGIN"));

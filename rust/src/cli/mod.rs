@@ -15,11 +15,11 @@ pub type CliResult<T> = Result<T>;
 #[cfg(test)]
 mod tests;
 
+pub mod cmd_healthcheck;
 pub mod cmd_migrate;
 pub mod cmd_project;
 pub mod cmd_runner;
 pub mod cmd_server;
-pub mod cmd_healthcheck;
 pub mod cmd_setup;
 pub mod cmd_token;
 pub mod cmd_user;
@@ -31,11 +31,11 @@ use crate::db::SqlStore;
 use clap::{Parser, Subcommand};
 use std::sync::Arc;
 
+pub use cmd_healthcheck::HealthcheckCommand;
 pub use cmd_migrate::MigrateCommand;
 pub use cmd_project::ProjectCommand;
 pub use cmd_runner::RunnerCommand;
 pub use cmd_server::ServerCommand;
-pub use cmd_healthcheck::HealthcheckCommand;
 pub use cmd_setup::SetupCommand;
 pub use cmd_token::TokenCommand;
 pub use cmd_user::UserCommand;

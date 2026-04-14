@@ -347,10 +347,18 @@ impl std::fmt::Display for AuditAction {
             AuditAction::KubernetesResourceUpdated => write!(f, "kubernetes_resource_updated"),
             AuditAction::KubernetesResourceDeleted => write!(f, "kubernetes_resource_deleted"),
             AuditAction::KubernetesResourceScaled => write!(f, "kubernetes_resource_scaled"),
-            AuditAction::KubernetesHelmReleaseInstalled => write!(f, "kubernetes_helm_release_installed"),
-            AuditAction::KubernetesHelmReleaseUpgraded => write!(f, "kubernetes_helm_release_upgraded"),
-            AuditAction::KubernetesHelmReleaseRolledBack => write!(f, "kubernetes_helm_release_rolled_back"),
-            AuditAction::KubernetesHelmReleaseUninstalled => write!(f, "kubernetes_helm_release_uninstalled"),
+            AuditAction::KubernetesHelmReleaseInstalled => {
+                write!(f, "kubernetes_helm_release_installed")
+            }
+            AuditAction::KubernetesHelmReleaseUpgraded => {
+                write!(f, "kubernetes_helm_release_upgraded")
+            }
+            AuditAction::KubernetesHelmReleaseRolledBack => {
+                write!(f, "kubernetes_helm_release_rolled_back")
+            }
+            AuditAction::KubernetesHelmReleaseUninstalled => {
+                write!(f, "kubernetes_helm_release_uninstalled")
+            }
             AuditAction::Other => write!(f, "other"),
         }
     }
@@ -558,9 +566,18 @@ mod tests {
     #[test]
     fn test_audit_action_deserialize_k8s_variants() {
         let actions = [
-            ("kubernetes_resource_created", AuditAction::KubernetesResourceCreated),
-            ("kubernetes_resource_deleted", AuditAction::KubernetesResourceDeleted),
-            ("kubernetes_helm_release_installed", AuditAction::KubernetesHelmReleaseInstalled),
+            (
+                "kubernetes_resource_created",
+                AuditAction::KubernetesResourceCreated,
+            ),
+            (
+                "kubernetes_resource_deleted",
+                AuditAction::KubernetesResourceDeleted,
+            ),
+            (
+                "kubernetes_helm_release_installed",
+                AuditAction::KubernetesHelmReleaseInstalled,
+            ),
         ];
         for (json_str, expected) in &actions {
             let json = format!("\"{}\"", json_str);
@@ -595,15 +612,22 @@ mod tests {
 
     #[test]
     fn test_audit_result_serialization_with_records() {
-        let records = vec![
-            AuditLog {
-                id: 1, project_id: None, user_id: None, username: None,
-                action: AuditAction::Login, object_type: AuditObjectType::User,
-                object_id: None, object_name: None, description: "Login".to_string(),
-                level: AuditLevel::Info, ip_address: None, user_agent: None,
-                details: None, created: Utc::now(),
-            },
-        ];
+        let records = vec![AuditLog {
+            id: 1,
+            project_id: None,
+            user_id: None,
+            username: None,
+            action: AuditAction::Login,
+            object_type: AuditObjectType::User,
+            object_id: None,
+            object_name: None,
+            description: "Login".to_string(),
+            level: AuditLevel::Info,
+            ip_address: None,
+            user_agent: None,
+            details: None,
+            created: Utc::now(),
+        }];
         let result = AuditLogResult {
             total: 1,
             records,

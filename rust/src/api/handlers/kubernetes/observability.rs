@@ -2,20 +2,19 @@
 //!
 //! Metrics API (node/pod), cluster-wide events stream, topology
 
-use axum::{
-    extract::{Path, Query, State},
-    Json,
-    http,
-};
-use std::sync::Arc;
-use std::collections::BTreeMap;
+use crate::api::handlers::kubernetes::client::KubeClient;
 use crate::api::state::AppState;
 use crate::error::{Error, Result};
-use crate::api::handlers::kubernetes::client::KubeClient;
+use axum::{
+    extract::{Path, Query, State},
+    http, Json,
+};
 use k8s_openapi::api::apps::v1::Deployment;
 use k8s_openapi::api::core::v1::{Pod, Service};
 use kube::api::{Api, ListParams};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+use std::sync::Arc;
 
 // ─────────────────────────────────────────────
 // Types
@@ -141,19 +140,20 @@ fn format_bytes(b: i64) -> String {
 
 /// GET /api/kubernetes/metrics/status
 /// Проверяет, доступен ли metrics-server
-pub async fn get_metrics_status(
-    State(state): State<Arc<AppState>>,
-) -> Result<Json<MetricsStatus>> {
+pub async fn get_metrics_status(State(state): State<Arc<AppState>>) -> Result<Json<MetricsStatus>> {
     let client = state.kubernetes_client()?;
     let raw = client.raw();
 
     // Пробуем достучаться до /apis/metrics.k8s.io/v1beta1
-    match raw.request_text(
-        http::Request::builder()
-            .uri("/apis/metrics.k8s.io/v1beta1")
-            .body(Vec::<u8>::new())
-            .map_err(|e| Error::Kubernetes(e.to_string()))?,
-    ).await {
+    match raw
+        .request_text(
+            http::Request::builder()
+                .uri("/apis/metrics.k8s.io/v1beta1")
+                .body(Vec::<u8>::new())
+                .map_err(|e| Error::Kubernetes(e.to_string()))?,
+        )
+        .await
+    {
         Ok(_) => Ok(Json(MetricsStatus {
             available: true,
             message: "metrics-server is available".to_string(),
@@ -176,35 +176,47 @@ pub async fn get_node_metrics(
     let client = state.kubernetes_client()?;
     let raw = client.raw();
 
-    let resp = raw.request_text(
-        http::Request::builder()
-            .uri("/apis/metrics.k8s.io/v1beta1/nodes")
-            .body(Vec::<u8>::new())
-            .map_err(|e| Error::Kubernetes(e.to_string()))?,
-    ).await.map_err(|e| Error::Kubernetes(format!("metrics-server unavailable: {e}")))?;
+    let resp = raw
+        .request_text(
+            http::Request::builder()
+                .uri("/apis/metrics.k8s.io/v1beta1/nodes")
+                .body(Vec::<u8>::new())
+                .map_err(|e| Error::Kubernetes(e.to_string()))?,
+        )
+        .await
+        .map_err(|e| Error::Kubernetes(format!("metrics-server unavailable: {e}")))?;
 
-    let json: serde_json::Value = serde_json::from_str(&resp)
-        .map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let json: serde_json::Value =
+        serde_json::from_str(&resp).map_err(|e| Error::Kubernetes(e.to_string()))?;
 
     let items = json["items"].as_array().cloned().unwrap_or_default();
-    let metrics = items.iter().map(|item| {
-        let name = item["metadata"]["name"].as_str().unwrap_or("unknown").to_string();
-        let cpu_str = item["usage"]["cpu"].as_str().unwrap_or("0m").to_string();
-        let mem_str = item["usage"]["memory"].as_str().unwrap_or("0Ki").to_string();
-        let cpu_cores = parse_cpu_to_cores(&cpu_str);
-        let mem_bytes = parse_memory_to_bytes(&mem_str);
-        NodeMetrics {
-            name,
-            cpu_usage: if cpu_str.ends_with('m') {
-                cpu_str.clone()
-            } else {
-                format!("{:.0}m", cpu_cores * 1000.0)
-            },
-            memory_usage: format_bytes(mem_bytes),
-            cpu_usage_cores: cpu_cores,
-            memory_usage_bytes: mem_bytes,
-        }
-    }).collect();
+    let metrics = items
+        .iter()
+        .map(|item| {
+            let name = item["metadata"]["name"]
+                .as_str()
+                .unwrap_or("unknown")
+                .to_string();
+            let cpu_str = item["usage"]["cpu"].as_str().unwrap_or("0m").to_string();
+            let mem_str = item["usage"]["memory"]
+                .as_str()
+                .unwrap_or("0Ki")
+                .to_string();
+            let cpu_cores = parse_cpu_to_cores(&cpu_str);
+            let mem_bytes = parse_memory_to_bytes(&mem_str);
+            NodeMetrics {
+                name,
+                cpu_usage: if cpu_str.ends_with('m') {
+                    cpu_str.clone()
+                } else {
+                    format!("{:.0}m", cpu_cores * 1000.0)
+                },
+                memory_usage: format_bytes(mem_bytes),
+                cpu_usage_cores: cpu_cores,
+                memory_usage_bytes: mem_bytes,
+            }
+        })
+        .collect();
 
     Ok(Json(metrics))
 }
@@ -227,44 +239,68 @@ pub async fn get_pod_metrics(
         "/apis/metrics.k8s.io/v1beta1/pods".to_string()
     };
 
-    let resp = raw.request_text(
-        http::Request::builder()
-            .uri(uri.as_str())
-            .body(Vec::<u8>::new())
-            .map_err(|e| Error::Kubernetes(e.to_string()))?,
-    ).await.map_err(|e| Error::Kubernetes(format!("metrics-server unavailable: {e}")))?;
+    let resp = raw
+        .request_text(
+            http::Request::builder()
+                .uri(uri.as_str())
+                .body(Vec::<u8>::new())
+                .map_err(|e| Error::Kubernetes(e.to_string()))?,
+        )
+        .await
+        .map_err(|e| Error::Kubernetes(format!("metrics-server unavailable: {e}")))?;
 
-    let json: serde_json::Value = serde_json::from_str(&resp)
-        .map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let json: serde_json::Value =
+        serde_json::from_str(&resp).map_err(|e| Error::Kubernetes(e.to_string()))?;
 
     let items = json["items"].as_array().cloned().unwrap_or_default();
     let limit = query.limit.unwrap_or(100) as usize;
 
-    let metrics = items.iter().take(limit).map(|item| {
-        let name = item["metadata"]["name"].as_str().unwrap_or("unknown").to_string();
-        let namespace = item["metadata"]["namespace"].as_str().unwrap_or("default").to_string();
-        let containers_raw = item["containers"].as_array().cloned().unwrap_or_default();
+    let metrics = items
+        .iter()
+        .take(limit)
+        .map(|item| {
+            let name = item["metadata"]["name"]
+                .as_str()
+                .unwrap_or("unknown")
+                .to_string();
+            let namespace = item["metadata"]["namespace"]
+                .as_str()
+                .unwrap_or("default")
+                .to_string();
+            let containers_raw = item["containers"].as_array().cloned().unwrap_or_default();
 
-        let containers: Vec<ContainerMetrics> = containers_raw.iter().map(|c| {
-            let cname = c["name"].as_str().unwrap_or("unknown").to_string();
-            let cpu = c["usage"]["cpu"].as_str().unwrap_or("0m").to_string();
-            let mem = c["usage"]["memory"].as_str().unwrap_or("0Ki").to_string();
-            ContainerMetrics {
-                name: cname,
-                cpu_usage: cpu,
-                memory_usage: format_bytes(parse_memory_to_bytes(&mem)),
+            let containers: Vec<ContainerMetrics> = containers_raw
+                .iter()
+                .map(|c| {
+                    let cname = c["name"].as_str().unwrap_or("unknown").to_string();
+                    let cpu = c["usage"]["cpu"].as_str().unwrap_or("0m").to_string();
+                    let mem = c["usage"]["memory"].as_str().unwrap_or("0Ki").to_string();
+                    ContainerMetrics {
+                        name: cname,
+                        cpu_usage: cpu,
+                        memory_usage: format_bytes(parse_memory_to_bytes(&mem)),
+                    }
+                })
+                .collect();
+
+            let cpu_total: f64 = containers_raw
+                .iter()
+                .map(|c| parse_cpu_to_cores(c["usage"]["cpu"].as_str().unwrap_or("0m")))
+                .sum();
+            let memory_total: i64 = containers_raw
+                .iter()
+                .map(|c| parse_memory_to_bytes(c["usage"]["memory"].as_str().unwrap_or("0Ki")))
+                .sum();
+
+            PodMetrics {
+                name,
+                namespace,
+                containers,
+                cpu_total,
+                memory_total,
             }
-        }).collect();
-
-        let cpu_total: f64 = containers_raw.iter()
-            .map(|c| parse_cpu_to_cores(c["usage"]["cpu"].as_str().unwrap_or("0m")))
-            .sum();
-        let memory_total: i64 = containers_raw.iter()
-            .map(|c| parse_memory_to_bytes(c["usage"]["memory"].as_str().unwrap_or("0Ki")))
-            .sum();
-
-        PodMetrics { name, namespace, containers, cpu_total, memory_total }
-    }).collect();
+        })
+        .collect();
 
     Ok(Json(metrics))
 }
@@ -288,21 +324,30 @@ pub async fn get_topology(
         Some(n) => client.api(Some(n)),
         None => client.api_all(),
     };
-    let services = svc_api.list(&lp).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let services = svc_api
+        .list(&lp)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
 
     // Fetch Deployments
     let dep_api: Api<Deployment> = match ns {
         Some(n) => client.api(Some(n)),
         None => client.api_all(),
     };
-    let deployments = dep_api.list(&lp).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let deployments = dep_api
+        .list(&lp)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
 
     // Fetch Pods
     let pod_api: Api<Pod> = match ns {
         Some(n) => client.api(Some(n)),
         None => client.api_all(),
     };
-    let pods = pod_api.list(&lp).await.map_err(|e| Error::Kubernetes(e.to_string()))?;
+    let pods = pod_api
+        .list(&lp)
+        .await
+        .map_err(|e| Error::Kubernetes(e.to_string()))?;
 
     let mut nodes: Vec<TopologyNode> = Vec::new();
     let mut edges: Vec<TopologyEdge> = Vec::new();
@@ -329,14 +374,24 @@ pub async fn get_topology(
         let name = meta.name.clone().unwrap_or_default();
         let ns_name = meta.namespace.clone().unwrap_or_default();
         let id = format!("deploy/{ns_name}/{name}");
-        let dep_labels = dep.spec.as_ref()
+        let dep_labels = dep
+            .spec
+            .as_ref()
             .and_then(|s| s.selector.match_labels.as_ref())
             .cloned()
             .unwrap_or_default();
 
-        let ready = dep.status.as_ref().and_then(|s| s.ready_replicas).unwrap_or(0);
+        let ready = dep
+            .status
+            .as_ref()
+            .and_then(|s| s.ready_replicas)
+            .unwrap_or(0);
         let desired = dep.spec.as_ref().and_then(|s| s.replicas).unwrap_or(0);
-        let status = if ready >= desired && desired > 0 { "Ready" } else { "NotReady" };
+        let status = if ready >= desired && desired > 0 {
+            "Ready"
+        } else {
+            "NotReady"
+        };
 
         nodes.push(TopologyNode {
             id: id.clone(),
@@ -351,13 +406,21 @@ pub async fn get_topology(
         for svc in &services.items {
             let svc_meta = &svc.metadata;
             let svc_ns = svc_meta.namespace.as_deref().unwrap_or_default();
-            if svc_ns != ns_name { continue; }
-            let svc_selector = svc.spec.as_ref()
+            if svc_ns != ns_name {
+                continue;
+            }
+            let svc_selector = svc
+                .spec
+                .as_ref()
                 .and_then(|s| s.selector.as_ref())
                 .cloned()
                 .unwrap_or_default();
             // Match: all service selector labels present in dep labels
-            if !svc_selector.is_empty() && svc_selector.iter().all(|(k, v)| dep_labels.get(k) == Some(v)) {
+            if !svc_selector.is_empty()
+                && svc_selector
+                    .iter()
+                    .all(|(k, v)| dep_labels.get(k) == Some(v))
+            {
                 let svc_name = svc_meta.name.clone().unwrap_or_default();
                 edges.push(TopologyEdge {
                     source: format!("svc/{svc_ns}/{svc_name}"),
@@ -375,7 +438,9 @@ pub async fn get_topology(
         let ns_name = meta.namespace.clone().unwrap_or_default();
         let id = format!("pod/{ns_name}/{name}");
 
-        let phase = pod.status.as_ref()
+        let phase = pod
+            .status
+            .as_ref()
             .and_then(|s| s.phase.as_deref())
             .unwrap_or("Unknown");
 
@@ -393,12 +458,20 @@ pub async fn get_topology(
         // Connect deployment → pod if pod labels match deployment selector
         for dep in &deployments.items {
             let dep_ns = dep.metadata.namespace.as_deref().unwrap_or_default();
-            if dep_ns != ns_name { continue; }
-            let dep_selector = dep.spec.as_ref()
+            if dep_ns != ns_name {
+                continue;
+            }
+            let dep_selector = dep
+                .spec
+                .as_ref()
                 .and_then(|s| s.selector.match_labels.as_ref())
                 .cloned()
                 .unwrap_or_default();
-            if !dep_selector.is_empty() && dep_selector.iter().all(|(k, v)| pod_labels.get(k) == Some(v)) {
+            if !dep_selector.is_empty()
+                && dep_selector
+                    .iter()
+                    .all(|(k, v)| pod_labels.get(k) == Some(v))
+            {
                 let dep_name = dep.metadata.name.clone().unwrap_or_default();
                 edges.push(TopologyEdge {
                     source: format!("deploy/{dep_ns}/{dep_name}"),
@@ -518,6 +591,9 @@ pub async fn get_namespace_topology(
 ) -> Result<Json<TopologyGraph>> {
     get_topology(
         State(state),
-        Query(TopologyQuery { namespace: Some(namespace) }),
-    ).await
+        Query(TopologyQuery {
+            namespace: Some(namespace),
+        }),
+    )
+    .await
 }

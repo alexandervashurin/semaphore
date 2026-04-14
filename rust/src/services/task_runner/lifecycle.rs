@@ -119,8 +119,8 @@ impl TaskRunner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::MockStore;
     use crate::db::store::*;
+    use crate::db::MockStore;
     use crate::models::Task;
     use crate::services::task_logger::TaskStatus;
     use chrono::Utc;

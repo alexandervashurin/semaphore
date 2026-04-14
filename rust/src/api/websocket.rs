@@ -18,7 +18,7 @@ use redis::AsyncCommands;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{broadcast, RwLock};
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 
 use crate::api::state::AppState;
 

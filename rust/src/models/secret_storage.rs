@@ -128,14 +128,26 @@ mod tests {
 
     #[test]
     fn test_secret_storage_type_from_str() {
-        assert_eq!("vault".parse::<SecretStorageType>().unwrap(), SecretStorageType::Vault);
-        assert_eq!("dvls".parse::<SecretStorageType>().unwrap(), SecretStorageType::Dvls);
-        assert_eq!("unknown".parse::<SecretStorageType>().unwrap(), SecretStorageType::Local);
+        assert_eq!(
+            "vault".parse::<SecretStorageType>().unwrap(),
+            SecretStorageType::Vault
+        );
+        assert_eq!(
+            "dvls".parse::<SecretStorageType>().unwrap(),
+            SecretStorageType::Dvls
+        );
+        assert_eq!(
+            "unknown".parse::<SecretStorageType>().unwrap(),
+            SecretStorageType::Local
+        );
     }
 
     #[test]
     fn test_secret_storage_type_serialization() {
-        assert_eq!(serde_json::to_string(&SecretStorageType::Local).unwrap(), "\"local\"");
+        assert_eq!(
+            serde_json::to_string(&SecretStorageType::Local).unwrap(),
+            "\"local\""
+        );
     }
 
     #[test]
@@ -206,10 +218,22 @@ mod tests {
 
     #[test]
     fn test_secret_storage_type_deserialization() {
-        assert_eq!("local".parse::<SecretStorageType>().unwrap(), SecretStorageType::Local);
-        assert_eq!("vault".parse::<SecretStorageType>().unwrap(), SecretStorageType::Vault);
-        assert_eq!("dvls".parse::<SecretStorageType>().unwrap(), SecretStorageType::Dvls);
-        assert_eq!("invalid".parse::<SecretStorageType>().unwrap(), SecretStorageType::Local);
+        assert_eq!(
+            "local".parse::<SecretStorageType>().unwrap(),
+            SecretStorageType::Local
+        );
+        assert_eq!(
+            "vault".parse::<SecretStorageType>().unwrap(),
+            SecretStorageType::Vault
+        );
+        assert_eq!(
+            "dvls".parse::<SecretStorageType>().unwrap(),
+            SecretStorageType::Dvls
+        );
+        assert_eq!(
+            "invalid".parse::<SecretStorageType>().unwrap(),
+            SecretStorageType::Local
+        );
     }
 
     #[test]
@@ -257,7 +281,12 @@ mod tests {
 
     #[test]
     fn test_secret_storage_clone_independence() {
-        let mut storage = SecretStorage::new(1, "Original".to_string(), SecretStorageType::Local, "{}".to_string());
+        let mut storage = SecretStorage::new(
+            1,
+            "Original".to_string(),
+            SecretStorageType::Local,
+            "{}".to_string(),
+        );
         let cloned = storage.clone();
         storage.name = "Modified".to_string();
         assert_eq!(cloned.name, "Original");
@@ -265,7 +294,12 @@ mod tests {
 
     #[test]
     fn test_secret_storage_read_only_true() {
-        let mut storage = SecretStorage::new(1, "RO Vault".to_string(), SecretStorageType::Vault, "{}".to_string());
+        let mut storage = SecretStorage::new(
+            1,
+            "RO Vault".to_string(),
+            SecretStorageType::Vault,
+            "{}".to_string(),
+        );
         storage.read_only = true;
         let json = serde_json::to_string(&storage).unwrap();
         assert!(json.contains("\"read_only\":true"));

@@ -309,9 +309,18 @@ mod tests {
         let job = create_test_job();
         let details = job.get_task_details("deployer", Some("v2.0.0"));
 
-        assert_eq!(details.get("username").unwrap().as_str().unwrap(), "deployer");
-        assert_eq!(details.get("commit_hash").unwrap().as_str().unwrap(), "abc123");
-        assert_eq!(details.get("commit_message").unwrap().as_str().unwrap(), "Test commit");
+        assert_eq!(
+            details.get("username").unwrap().as_str().unwrap(),
+            "deployer"
+        );
+        assert_eq!(
+            details.get("commit_hash").unwrap().as_str().unwrap(),
+            "abc123"
+        );
+        assert_eq!(
+            details.get("commit_message").unwrap().as_str().unwrap(),
+            "Test commit"
+        );
     }
 
     #[test]
@@ -408,8 +417,13 @@ mod tests {
         template.r#type = TemplateType::Task;
 
         let mut job = LocalJob::new(
-            task, template, inventory, repository,
-            environment, logger, key_installer,
+            task,
+            template,
+            inventory,
+            repository,
+            environment,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -451,10 +465,13 @@ mod tests {
             json: "{}".to_string(),
             secret_storage_id: None,
             secret_storage_key_prefix: None,
-            secrets: Some(r#"[
+            secrets: Some(
+                r#"[
                 {"name": "API_KEY", "secret": "abc123", "secret_type": "env"},
                 {"name": "DB_HOST", "secret": "localhost", "secret_type": "env"}
-            ]"#.to_string()),
+            ]"#
+                .to_string(),
+            ),
             created: None,
         };
 
@@ -464,7 +481,8 @@ mod tests {
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             environment,
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -503,7 +521,8 @@ mod tests {
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             environment,
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -533,18 +552,22 @@ mod tests {
         template.r#type = TemplateType::Task;
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
 
         let shell_env = job.get_shell_environment_extra_env("user", None);
         // Должен содержать SEMAPHORE_TASK_DETAILS_MESSAGE
-        let msg_var = shell_env.iter().find(|e| e.starts_with("SEMAPHORE_TASK_DETAILS_MESSAGE="));
+        let msg_var = shell_env
+            .iter()
+            .find(|e| e.starts_with("SEMAPHORE_TASK_DETAILS_MESSAGE="));
         assert!(msg_var.is_some());
         // Опасные символы должны быть экранированы
         let msg_val = msg_var.unwrap();
@@ -571,19 +594,27 @@ mod tests {
         template.r#type = TemplateType::Build;
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
 
         let details = job.get_task_details("builder", Some("v0.9.0"));
         assert_eq!(details.get("type").unwrap().as_str().unwrap(), "build");
-        assert_eq!(details.get("target_version").unwrap().as_str().unwrap(), "v1.0.0");
-        assert_eq!(details.get("incoming_version").unwrap().as_str().unwrap(), "v0.9.0");
+        assert_eq!(
+            details.get("target_version").unwrap().as_str().unwrap(),
+            "v1.0.0"
+        );
+        assert_eq!(
+            details.get("incoming_version").unwrap().as_str().unwrap(),
+            "v0.9.0"
+        );
     }
 
     #[test]
@@ -622,7 +653,8 @@ mod tests {
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             environment,
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -659,11 +691,13 @@ mod tests {
         template.r#type = TemplateType::Shell;
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -702,7 +736,9 @@ mod tests {
         let job = create_test_job();
         let vars = job.get_shell_environment_extra_env("myuser", None);
         // Должен содержать SEMAPHORE_TASK_DETAILS_USERNAME
-        let user_var = vars.iter().find(|v| v.starts_with("SEMAPHORE_TASK_DETAILS_USERNAME="));
+        let user_var = vars
+            .iter()
+            .find(|v| v.starts_with("SEMAPHORE_TASK_DETAILS_USERNAME="));
         assert!(user_var.is_some());
         assert!(user_var.unwrap().contains("myuser"));
     }
@@ -735,7 +771,8 @@ mod tests {
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             environment,
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -764,11 +801,13 @@ mod tests {
         template.r#type = TemplateType::Build;
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -808,7 +847,8 @@ mod tests {
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             environment,
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
@@ -837,18 +877,22 @@ mod tests {
         template.r#type = TemplateType::Task;
 
         let job = LocalJob::new(
-            task, template,
+            task,
+            template,
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             crate::models::Environment::default(),
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );
 
         let shell_env = job.get_shell_environment_extra_env("user", None);
         // Пустое message не должно попасть в vars
-        let msg_var = shell_env.iter().find(|e| e.starts_with("SEMAPHORE_TASK_DETAILS_MESSAGE="));
+        let msg_var = shell_env
+            .iter()
+            .find(|e| e.starts_with("SEMAPHORE_TASK_DETAILS_MESSAGE="));
         assert!(msg_var.is_none());
     }
 
@@ -900,7 +944,8 @@ mod tests {
             crate::models::Inventory::default(),
             crate::models::Repository::default(),
             environment,
-            logger, key_installer,
+            logger,
+            key_installer,
             PathBuf::from("/tmp/work"),
             PathBuf::from("/tmp/tmp"),
         );

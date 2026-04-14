@@ -187,12 +187,20 @@ mod tests {
     #[test]
     fn test_cost_estimate_clone() {
         let estimate = CostEstimate {
-            id: 1, project_id: 1, task_id: 1, template_id: 1,
+            id: 1,
+            project_id: 1,
+            task_id: 1,
+            template_id: 1,
             currency: "EUR".to_string(),
-            monthly_cost: Some(50.0), monthly_cost_diff: Some(10.0),
-            resource_count: 5, resources_added: 1, resources_changed: 0,
-            resources_deleted: 0, breakdown_json: None,
-            infracost_version: None, created_at: "2024-01-01".to_string(),
+            monthly_cost: Some(50.0),
+            monthly_cost_diff: Some(10.0),
+            resource_count: 5,
+            resources_added: 1,
+            resources_changed: 0,
+            resources_deleted: 0,
+            breakdown_json: None,
+            infracost_version: None,
+            created_at: "2024-01-01".to_string(),
             template_name: "Test".to_string(),
         };
         let cloned = estimate.clone();
@@ -203,11 +211,18 @@ mod tests {
     #[test]
     fn test_cost_estimate_create_clone() {
         let create = CostEstimateCreate {
-            project_id: 2, task_id: 20, template_id: 3,
-            currency: Some("RUB".to_string()), monthly_cost: Some(1000.0),
-            monthly_cost_diff: None, resource_count: Some(1),
-            resources_added: None, resources_changed: None, resources_deleted: None,
-            breakdown_json: None, infracost_version: None,
+            project_id: 2,
+            task_id: 20,
+            template_id: 3,
+            currency: Some("RUB".to_string()),
+            monthly_cost: Some(1000.0),
+            monthly_cost_diff: None,
+            resource_count: Some(1),
+            resources_added: None,
+            resources_changed: None,
+            resources_deleted: None,
+            breakdown_json: None,
+            infracost_version: None,
         };
         let cloned = create.clone();
         assert_eq!(cloned.currency, create.currency);
@@ -216,8 +231,10 @@ mod tests {
     #[test]
     fn test_cost_summary_clone() {
         let summary = CostSummary {
-            template_id: 1, template_name: "Summary".to_string(),
-            latest_monthly_cost: Some(0.0), runs_with_cost: 0,
+            template_id: 1,
+            template_name: "Summary".to_string(),
+            latest_monthly_cost: Some(0.0),
+            runs_with_cost: 0,
             last_run_at: String::new(),
         };
         let cloned = summary.clone();

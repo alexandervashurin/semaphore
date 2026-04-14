@@ -49,6 +49,9 @@ mod tests {
     fn test_extract_token_complex_jwt() {
         let token = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test.signature";
         let result = extract_token_from_header(Some(token));
-        assert_eq!(result, Some("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test.signature"));
+        assert_eq!(
+            result,
+            Some("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test.signature")
+        );
     }
 }

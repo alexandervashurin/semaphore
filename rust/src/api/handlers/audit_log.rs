@@ -398,7 +398,10 @@ mod tests {
 
     #[test]
     fn test_csv_escape_with_quote() {
-        assert_eq!(csv_escape("value\"with\"quotes"), "\"value\"\"with\"\"quotes\"");
+        assert_eq!(
+            csv_escape("value\"with\"quotes"),
+            "\"value\"\"with\"\"quotes\""
+        );
     }
 
     #[test]

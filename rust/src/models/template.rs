@@ -368,13 +368,22 @@ mod tests {
 
     #[test]
     fn test_template_type_from_str() {
-        assert_eq!("ansible".parse::<TemplateType>().unwrap(), TemplateType::Ansible);
-        assert_eq!("unknown".parse::<TemplateType>().unwrap(), TemplateType::Default);
+        assert_eq!(
+            "ansible".parse::<TemplateType>().unwrap(),
+            TemplateType::Ansible
+        );
+        assert_eq!(
+            "unknown".parse::<TemplateType>().unwrap(),
+            TemplateType::Default
+        );
     }
 
     #[test]
     fn test_template_type_serialization() {
-        assert_eq!(serde_json::to_string(&TemplateType::Deploy).unwrap(), "\"deploy\"");
+        assert_eq!(
+            serde_json::to_string(&TemplateType::Deploy).unwrap(),
+            "\"deploy\""
+        );
     }
 
     #[test]
@@ -386,8 +395,14 @@ mod tests {
 
     #[test]
     fn test_template_app_from_str() {
-        assert_eq!("ansible".parse::<TemplateApp>().unwrap(), TemplateApp::Ansible);
-        assert_eq!("unknown".parse::<TemplateApp>().unwrap(), TemplateApp::Default);
+        assert_eq!(
+            "ansible".parse::<TemplateApp>().unwrap(),
+            TemplateApp::Ansible
+        );
+        assert_eq!(
+            "unknown".parse::<TemplateApp>().unwrap(),
+            TemplateApp::Default
+        );
     }
 
     #[test]
@@ -487,11 +502,23 @@ mod tests {
 
     #[test]
     fn test_template_type_from_str_all_variants() {
-        assert_eq!("default".parse::<TemplateType>().unwrap(), TemplateType::Default);
-        assert_eq!("build".parse::<TemplateType>().unwrap(), TemplateType::Build);
-        assert_eq!("deploy".parse::<TemplateType>().unwrap(), TemplateType::Deploy);
+        assert_eq!(
+            "default".parse::<TemplateType>().unwrap(),
+            TemplateType::Default
+        );
+        assert_eq!(
+            "build".parse::<TemplateType>().unwrap(),
+            TemplateType::Build
+        );
+        assert_eq!(
+            "deploy".parse::<TemplateType>().unwrap(),
+            TemplateType::Deploy
+        );
         assert_eq!("task".parse::<TemplateType>().unwrap(), TemplateType::Task);
-        assert_eq!("shell".parse::<TemplateType>().unwrap(), TemplateType::Shell);
+        assert_eq!(
+            "shell".parse::<TemplateType>().unwrap(),
+            TemplateType::Shell
+        );
     }
 
     #[test]

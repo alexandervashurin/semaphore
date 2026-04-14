@@ -638,12 +638,10 @@ mod tests {
 
     #[test]
     fn test_get_entry_by_name_none() {
-        let items = vec![
-            BackupEnvironment {
-                name: "Test1".to_string(),
-                json: String::new(),
-            },
-        ];
+        let items = vec![BackupEnvironment {
+            name: "Test1".to_string(),
+            json: String::new(),
+        }];
         let name = Some("NonExistent".to_string());
         let result = get_entry_by_name(&name, &items);
         assert!(result.is_none());
@@ -651,12 +649,10 @@ mod tests {
 
     #[test]
     fn test_get_entry_by_name_none_name() {
-        let items = vec![
-            BackupEnvironment {
-                name: "Test1".to_string(),
-                json: String::new(),
-            },
-        ];
+        let items = vec![BackupEnvironment {
+            name: "Test1".to_string(),
+            json: String::new(),
+        }];
         let result = get_entry_by_name(&None, &items);
         assert!(result.is_none());
     }

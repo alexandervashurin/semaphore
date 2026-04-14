@@ -360,7 +360,8 @@ pub async fn logout(
     (StatusCode, Json<ErrorResponse>),
 > {
     // Try to revoke the bearer token from this request
-    let auth_header = req.headers()
+    let auth_header = req
+        .headers()
         .get(header::AUTHORIZATION)
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.strip_prefix("Bearer "))

@@ -114,7 +114,10 @@ mod tests {
     #[test]
     fn test_task_outputs_map() {
         let mut outputs = HashMap::new();
-        outputs.insert("url".to_string(), Value::String("https://example.com".to_string()));
+        outputs.insert(
+            "url".to_string(),
+            Value::String("https://example.com".to_string()),
+        );
         outputs.insert("count".to_string(), Value::Number(5.into()));
 
         let map = TaskOutputsMap {
@@ -129,9 +132,13 @@ mod tests {
     #[test]
     fn test_task_structured_output_clone() {
         let output = TaskStructuredOutput {
-            id: 1, task_id: 100, project_id: 10,
-            key: "clone_key".to_string(), value: Value::String("val".to_string()),
-            value_type: "string".to_string(), created: Utc::now(),
+            id: 1,
+            task_id: 100,
+            project_id: 10,
+            key: "clone_key".to_string(),
+            value: Value::String("val".to_string()),
+            value_type: "string".to_string(),
+            created: Utc::now(),
         };
         let cloned = output.clone();
         assert_eq!(cloned.key, output.key);
@@ -141,7 +148,9 @@ mod tests {
     #[test]
     fn test_task_structured_output_create_clone() {
         let create = TaskStructuredOutputCreate {
-            key: "clone_create".to_string(), value: Value::Bool(true), value_type: "bool".to_string(),
+            key: "clone_create".to_string(),
+            value: Value::Bool(true),
+            value_type: "bool".to_string(),
         };
         let cloned = create.clone();
         assert_eq!(cloned.key, create.key);
@@ -151,11 +160,11 @@ mod tests {
     #[test]
     fn test_task_structured_output_batch_clone() {
         let batch = TaskStructuredOutputBatch {
-            outputs: vec![
-                TaskStructuredOutputCreate {
-                    key: "k1".to_string(), value: Value::String("v1".to_string()), value_type: "string".to_string(),
-                },
-            ],
+            outputs: vec![TaskStructuredOutputCreate {
+                key: "k1".to_string(),
+                value: Value::String("v1".to_string()),
+                value_type: "string".to_string(),
+            }],
         };
         let cloned = batch.clone();
         assert_eq!(cloned.outputs.len(), batch.outputs.len());
@@ -164,9 +173,13 @@ mod tests {
     #[test]
     fn test_task_structured_output_with_number_value() {
         let output = TaskStructuredOutput {
-            id: 2, task_id: 200, project_id: 20,
-            key: "port".to_string(), value: Value::Number(8080.into()),
-            value_type: "number".to_string(), created: Utc::now(),
+            id: 2,
+            task_id: 200,
+            project_id: 20,
+            key: "port".to_string(),
+            value: Value::Number(8080.into()),
+            value_type: "number".to_string(),
+            created: Utc::now(),
         };
         let json = serde_json::to_string(&output).unwrap();
         assert!(json.contains("\"key\":\"port\""));
@@ -176,9 +189,13 @@ mod tests {
     #[test]
     fn test_task_structured_output_with_bool_value() {
         let output = TaskStructuredOutput {
-            id: 3, task_id: 300, project_id: 30,
-            key: "enabled".to_string(), value: Value::Bool(true),
-            value_type: "bool".to_string(), created: Utc::now(),
+            id: 3,
+            task_id: 300,
+            project_id: 30,
+            key: "enabled".to_string(),
+            value: Value::Bool(true),
+            value_type: "bool".to_string(),
+            created: Utc::now(),
         };
         let json = serde_json::to_string(&output).unwrap();
         assert!(json.contains("\"key\":\"enabled\""));
@@ -188,9 +205,13 @@ mod tests {
     #[test]
     fn test_task_structured_output_debug() {
         let output = TaskStructuredOutput {
-            id: 1, task_id: 1, project_id: 1,
-            key: "debug".to_string(), value: Value::Null,
-            value_type: "string".to_string(), created: Utc::now(),
+            id: 1,
+            task_id: 1,
+            project_id: 1,
+            key: "debug".to_string(),
+            value: Value::Null,
+            value_type: "string".to_string(),
+            created: Utc::now(),
         };
         let debug_str = format!("{:?}", output);
         assert!(debug_str.contains("TaskStructuredOutput"));
@@ -228,10 +249,13 @@ mod tests {
     #[test]
     fn test_task_structured_output_roundtrip() {
         let original = TaskStructuredOutput {
-            id: 10, task_id: 20, project_id: 5,
+            id: 10,
+            task_id: 20,
+            project_id: 5,
             key: "output_key".to_string(),
             value: Value::String("output_value".to_string()),
-            value_type: "string".to_string(), created: Utc::now(),
+            value_type: "string".to_string(),
+            created: Utc::now(),
         };
         let json = serde_json::to_string(&original).unwrap();
         let restored: TaskStructuredOutput = serde_json::from_str(&json).unwrap();

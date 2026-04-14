@@ -97,7 +97,7 @@ impl SnapshotManager for SqlStore {
 
 #[cfg(test)]
 mod tests {
-    use crate::models::snapshot::{TaskSnapshot, TaskSnapshotCreate, RollbackRequest};
+    use crate::models::snapshot::{RollbackRequest, TaskSnapshot, TaskSnapshotCreate};
 
     #[test]
     fn test_task_snapshot_serialization() {
@@ -396,7 +396,10 @@ mod tests {
     fn test_rollback_request_deserialization() {
         let json = r#"{"message": "Please rollback this deployment"}"#;
         let req: RollbackRequest = serde_json::from_str(json).unwrap();
-        assert_eq!(req.message, Some("Please rollback this deployment".to_string()));
+        assert_eq!(
+            req.message,
+            Some("Please rollback this deployment".to_string())
+        );
     }
 
     #[test]

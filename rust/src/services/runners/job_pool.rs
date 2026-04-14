@@ -11,9 +11,9 @@ use tokio::time::{interval, sleep, timeout, Duration};
 use crate::db::store::Store;
 use crate::error::Result;
 use crate::models::Task;
+use crate::services::runners::task_queue::TaskQueue;
 use crate::services::task_execution;
 use crate::services::task_logger::TaskStatus;
-use crate::services::runners::task_queue::TaskQueue;
 
 /// Логгер задач
 pub struct JobLogger {
@@ -36,7 +36,13 @@ impl JobLogger {
     }
 
     pub fn task_info(&self, message: &str, task_id: i32, status: &str) {
-        tracing::info!("[{}] {} - Task {}: {}", self.context, message, task_id, status);
+        tracing::info!(
+            "[{}] {} - Task {}: {}",
+            self.context,
+            message,
+            task_id,
+            status
+        );
     }
 }
 
@@ -68,8 +74,14 @@ impl JobPool {
     }
 
     /// Создаёт пул задач с персистентной очередью (Redis)
-    pub fn with_task_queue(store: Arc<dyn Store + Send + Sync>, task_queue: Option<Arc<dyn TaskQueue>>) -> Self {
-        let backend = task_queue.as_ref().map(|q| q.backend_name()).unwrap_or("none");
+    pub fn with_task_queue(
+        store: Arc<dyn Store + Send + Sync>,
+        task_queue: Option<Arc<dyn TaskQueue>>,
+    ) -> Self {
+        let backend = task_queue
+            .as_ref()
+            .map(|q| q.backend_name())
+            .unwrap_or("none");
         tracing::info!("[job_pool] Task queue backend: {}", backend);
         Self {
             queue: Arc::new(Mutex::new(Vec::new())),
@@ -99,7 +111,9 @@ impl JobPool {
 
         match result {
             Ok(()) => tracing::info!("[job_pool] All tasks finished, shutdown complete"),
-            Err(_) => tracing::warn!("[job_pool] Shutdown timeout (30s), forcing exit with running tasks"),
+            Err(_) => {
+                tracing::warn!("[job_pool] Shutdown timeout (30s), forcing exit with running tasks")
+            }
         }
     }
 
@@ -163,7 +177,10 @@ impl JobPool {
         if let Some(ref tq) = self.task_queue {
             match tq.pop().await {
                 Ok(Some(task_id)) => {
-                    tracing::info!("[job_pool] Launching task from persistent queue: {}", task_id);
+                    tracing::info!(
+                        "[job_pool] Launching task from persistent queue: {}",
+                        task_id
+                    );
                     self.launch_task_by_id(task_id).await;
                     return;
                 }
@@ -243,10 +260,11 @@ impl JobPool {
         }
 
         let limit = available_slots.min(50) as i32;
-        let tasks = match self.store.get_global_tasks(
-            Some(vec!["waiting".to_string()]),
-            Some(limit),
-        ).await {
+        let tasks = match self
+            .store
+            .get_global_tasks(Some(vec!["waiting".to_string()]), Some(limit))
+            .await
+        {
             Ok(t) => t,
             Err(e) => {
                 tracing::warn!("[job_pool] Failed to fetch waiting tasks: {e}");
@@ -269,7 +287,11 @@ impl JobPool {
                     }
                 }
                 if let Err(e) = tq.push(task_id).await {
-                    logger.task_info("Failed to push to task queue", task_id, &format!("error: {}", e));
+                    logger.task_info(
+                        "Failed to push to task queue",
+                        task_id,
+                        &format!("error: {}", e),
+                    );
                 }
             }
             return;
@@ -375,7 +397,10 @@ mod tests {
     async fn test_exists_in_queue_positive() {
         let pool = JobPool::new(make_store());
         pool.queue.lock().await.push(QueuedTask {
-            task: crate::models::Task { id: 99, ..crate::models::Task::default() },
+            task: crate::models::Task {
+                id: 99,
+                ..crate::models::Task::default()
+            },
             status: TaskStatus::Waiting,
         });
         assert!(pool.exists_in_queue(99).await);
@@ -463,7 +488,10 @@ mod tests {
         let mut queue = pool.queue.lock().await;
         for i in 1..=5 {
             queue.push(QueuedTask {
-                task: crate::models::Task { id: i, ..crate::models::Task::default() },
+                task: crate::models::Task {
+                    id: i,
+                    ..crate::models::Task::default()
+                },
                 status: TaskStatus::Waiting,
             });
         }
@@ -493,7 +521,10 @@ mod tests {
     #[test]
     fn test_queued_task_clone() {
         let qt1 = QueuedTask {
-            task: crate::models::Task { id: 1, ..crate::models::Task::default() },
+            task: crate::models::Task {
+                id: 1,
+                ..crate::models::Task::default()
+            },
             status: TaskStatus::Running,
         };
         let qt2 = qt1.clone();
@@ -504,7 +535,10 @@ mod tests {
     #[test]
     fn test_queued_task_task_id_accessible() {
         let qt = QueuedTask {
-            task: crate::models::Task { id: 42, ..crate::models::Task::default() },
+            task: crate::models::Task {
+                id: 42,
+                ..crate::models::Task::default()
+            },
             status: TaskStatus::Waiting,
         };
         assert_eq!(qt.task.id, 42);
@@ -548,7 +582,10 @@ mod tests {
     #[tokio::test]
     async fn test_queued_task_with_error_status() {
         let qt = QueuedTask {
-            task: crate::models::Task { id: 99, ..crate::models::Task::default() },
+            task: crate::models::Task {
+                id: 99,
+                ..crate::models::Task::default()
+            },
             status: TaskStatus::Error,
         };
         assert_eq!(qt.status, TaskStatus::Error);
@@ -558,7 +595,10 @@ mod tests {
     #[tokio::test]
     async fn test_queued_task_with_running_status() {
         let qt = QueuedTask {
-            task: crate::models::Task { id: 10, ..crate::models::Task::default() },
+            task: crate::models::Task {
+                id: 10,
+                ..crate::models::Task::default()
+            },
             status: TaskStatus::Running,
         };
         assert_eq!(qt.status, TaskStatus::Running);
@@ -588,7 +628,10 @@ mod tests {
         let mut queue = pool.queue.lock().await;
         for i in 1..=3 {
             queue.push(QueuedTask {
-                task: crate::models::Task { id: i, ..crate::models::Task::default() },
+                task: crate::models::Task {
+                    id: i,
+                    ..crate::models::Task::default()
+                },
                 status: TaskStatus::Waiting,
             });
         }
@@ -638,7 +681,10 @@ mod tests {
     #[tokio::test]
     async fn test_job_type_alias() {
         let job: Job = QueuedTask {
-            task: crate::models::Task { id: 7, ..crate::models::Task::default() },
+            task: crate::models::Task {
+                id: 7,
+                ..crate::models::Task::default()
+            },
             status: TaskStatus::Waiting,
         };
         assert_eq!(job.task.id, 7);
@@ -647,7 +693,10 @@ mod tests {
     #[tokio::test]
     async fn test_queued_task_with_success_status() {
         let qt = QueuedTask {
-            task: crate::models::Task { id: 50, ..crate::models::Task::default() },
+            task: crate::models::Task {
+                id: 50,
+                ..crate::models::Task::default()
+            },
             status: TaskStatus::Success,
         };
         assert_eq!(qt.status, TaskStatus::Success);
@@ -656,7 +705,10 @@ mod tests {
     #[tokio::test]
     async fn test_queued_task_with_stopped_status() {
         let qt = QueuedTask {
-            task: crate::models::Task { id: 51, ..crate::models::Task::default() },
+            task: crate::models::Task {
+                id: 51,
+                ..crate::models::Task::default()
+            },
             status: TaskStatus::Stopped,
         };
         assert_eq!(qt.status, TaskStatus::Stopped);

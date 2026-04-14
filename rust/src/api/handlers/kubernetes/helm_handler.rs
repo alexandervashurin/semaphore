@@ -3,19 +3,23 @@
 //! HTTP handlers поверх `kubernetes::helm::HelmClient` (subprocess-based).
 //! Все блокирующие вызовы выполняются через `spawn_blocking`.
 
+use crate::api::state::AppState;
+use crate::error::{Error, Result};
 use axum::{
     extract::{Path, Query, State},
     Json,
 };
-use std::sync::Arc;
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
-use crate::api::state::AppState;
-use crate::error::{Error, Result};
+use std::collections::HashMap;
+use std::sync::Arc;
 
 // ── Kubeconfig helper ─────────────────────────────────────────────
 fn get_kubeconfig(state: &AppState) -> Option<String> {
-    state.config.kubernetes.as_ref().and_then(|k| k.kubeconfig_path.clone())
+    state
+        .config
+        .kubernetes
+        .as_ref()
+        .and_then(|k| k.kubeconfig_path.clone())
 }
 
 fn helm_cmd(kubeconfig: &Option<String>) -> std::process::Command {
@@ -116,9 +120,7 @@ pub struct ReleaseListQuery {
 // ── Handlers ──────────────────────────────────────────────────────
 
 /// GET /api/kubernetes/helm/status
-pub async fn helm_status(
-    State(_state): State<Arc<AppState>>,
-) -> Result<Json<HelmStatus>> {
+pub async fn helm_status(State(_state): State<Arc<AppState>>) -> Result<Json<HelmStatus>> {
     let result = tokio::task::spawn_blocking(move || -> Result<String> {
         // Run `helm version --short`
         let output = std::process::Command::new("helm")
@@ -130,7 +132,9 @@ pub async fn helm_status(
             return Err(Error::Other("helm not working".to_string()));
         }
         Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
-    }).await.map_err(|e| Error::Other(e.to_string()))?;
+    })
+    .await
+    .map_err(|e| Error::Other(e.to_string()))?;
 
     match result {
         Ok(version) => Ok(Json(HelmStatus {
@@ -154,7 +158,10 @@ pub async fn list_helm_repos(
 ) -> Result<Json<Vec<HelmRepoInfo>>> {
     let repos = tokio::task::spawn_blocking(move || -> Result<Vec<HelmRepoInfo>> {
         let output = std::process::Command::new("helm")
-            .arg("repo").arg("list").arg("-o").arg("json")
+            .arg("repo")
+            .arg("list")
+            .arg("-o")
+            .arg("json")
             .output()
             .map_err(|e| Error::Other(format!("helm error: {e}")))?;
 
@@ -169,7 +176,9 @@ pub async fn list_helm_repos(
         let repos: Vec<HelmRepoInfo> = serde_json::from_slice(&output.stdout)
             .map_err(|e| Error::Other(format!("parse error: {e}")))?;
         Ok(repos)
-    }).await.map_err(|e| Error::Other(e.to_string()))??;
+    })
+    .await
+    .map_err(|e| Error::Other(e.to_string()))??;
 
     Ok(Json(repos))
 }
@@ -188,18 +197,29 @@ pub async fn add_helm_repo(
     tokio::task::spawn_blocking(move || -> Result<()> {
         let mut cmd = helm_cmd(&kc);
         cmd.arg("repo").arg("add").arg(&name).arg(&url);
-        if let Some(u) = &username { cmd.arg("--username").arg(u); }
-        if let Some(p) = &password { cmd.arg("--password").arg(p); }
+        if let Some(u) = &username {
+            cmd.arg("--username").arg(u);
+        }
+        if let Some(p) = &password {
+            cmd.arg("--password").arg(p);
+        }
         let out = cmd.output().map_err(|e| Error::Other(e.to_string()))?;
         if !out.status.success() {
             let stderr = String::from_utf8_lossy(&out.stderr).to_string();
             return Err(Error::Other(stderr));
         }
-        let _ = std::process::Command::new("helm").arg("repo").arg("update").output();
+        let _ = std::process::Command::new("helm")
+            .arg("repo")
+            .arg("update")
+            .output();
         Ok(())
-    }).await.map_err(|e| Error::Other(e.to_string()))??;
+    })
+    .await
+    .map_err(|e| Error::Other(e.to_string()))??;
 
-    Ok(Json(serde_json::json!({"added": true, "name": payload.name})))
+    Ok(Json(
+        serde_json::json!({"added": true, "name": payload.name}),
+    ))
 }
 
 /// DELETE /api/kubernetes/helm/repos/{name}
@@ -210,14 +230,20 @@ pub async fn remove_helm_repo(
     let repo_name = name.clone();
     tokio::task::spawn_blocking(move || -> Result<()> {
         let out = std::process::Command::new("helm")
-            .arg("repo").arg("remove").arg(&repo_name)
+            .arg("repo")
+            .arg("remove")
+            .arg(&repo_name)
             .output()
             .map_err(|e| Error::Other(e.to_string()))?;
         if !out.status.success() {
-            return Err(Error::Other(String::from_utf8_lossy(&out.stderr).to_string()));
+            return Err(Error::Other(
+                String::from_utf8_lossy(&out.stderr).to_string(),
+            ));
         }
         Ok(())
-    }).await.map_err(|e| Error::Other(e.to_string()))??;
+    })
+    .await
+    .map_err(|e| Error::Other(e.to_string()))??;
 
     Ok(Json(serde_json::json!({"removed": true, "name": name})))
 }
@@ -227,10 +253,14 @@ pub async fn update_helm_repos(
     State(_state): State<Arc<AppState>>,
 ) -> Result<Json<serde_json::Value>> {
     let out = tokio::task::spawn_blocking(|| {
-        std::process::Command::new("helm").arg("repo").arg("update")
+        std::process::Command::new("helm")
+            .arg("repo")
+            .arg("update")
             .output()
             .map_err(|e| Error::Other(e.to_string()))
-    }).await.map_err(|e| Error::Other(e.to_string()))??;
+    })
+    .await
+    .map_err(|e| Error::Other(e.to_string()))??;
 
     if !out.status.success() {
         let stderr = String::from_utf8_lossy(&out.stderr).to_string();
@@ -269,10 +299,16 @@ pub async fn list_helm_releases(
         if out.stdout.is_empty() || out.stdout == b"null" {
             return Ok(vec![]);
         }
-        let releases: Vec<HelmReleaseInfo> = serde_json::from_slice(&out.stdout)
-            .map_err(|e| Error::Other(format!("parse error: {e}; raw: {}", String::from_utf8_lossy(&out.stdout))))?;
+        let releases: Vec<HelmReleaseInfo> = serde_json::from_slice(&out.stdout).map_err(|e| {
+            Error::Other(format!(
+                "parse error: {e}; raw: {}",
+                String::from_utf8_lossy(&out.stdout)
+            ))
+        })?;
         Ok(releases)
-    }).await.map_err(|e| Error::Other(e.to_string()))??;
+    })
+    .await
+    .map_err(|e| Error::Other(e.to_string()))??;
 
     Ok(Json(releases))
 }
@@ -285,16 +321,25 @@ pub async fn get_helm_release(
     let (ns2, name2) = (ns.clone(), name.clone());
     let info = tokio::task::spawn_blocking(move || -> Result<serde_json::Value> {
         let out = std::process::Command::new("helm")
-            .arg("status").arg(&name2).arg("-n").arg(&ns2).arg("-o").arg("json")
+            .arg("status")
+            .arg(&name2)
+            .arg("-n")
+            .arg(&ns2)
+            .arg("-o")
+            .arg("json")
             .output()
             .map_err(|e| Error::Other(e.to_string()))?;
         if !out.status.success() {
-            return Err(Error::Other(String::from_utf8_lossy(&out.stderr).to_string()));
+            return Err(Error::Other(
+                String::from_utf8_lossy(&out.stderr).to_string(),
+            ));
         }
-        let v: serde_json::Value = serde_json::from_slice(&out.stdout)
-            .map_err(|e| Error::Other(e.to_string()))?;
+        let v: serde_json::Value =
+            serde_json::from_slice(&out.stdout).map_err(|e| Error::Other(e.to_string()))?;
         Ok(v)
-    }).await.map_err(|e| Error::Other(e.to_string()))??;
+    })
+    .await
+    .map_err(|e| Error::Other(e.to_string()))??;
 
     Ok(Json(info))
 }
@@ -310,21 +355,34 @@ pub async fn install_helm_release(
         cmd.arg("install")
             .arg(&payload.release_name)
             .arg(&payload.chart)
-            .arg("-n").arg(&payload.namespace)
-            .arg("-o").arg("json");
-        if let Some(v) = &payload.version { cmd.arg("--version").arg(v); }
-        if payload.dry_run.unwrap_or(false) { cmd.arg("--dry-run"); }
+            .arg("-n")
+            .arg(&payload.namespace)
+            .arg("-o")
+            .arg("json");
+        if let Some(v) = &payload.version {
+            cmd.arg("--version").arg(v);
+        }
+        if payload.dry_run.unwrap_or(false) {
+            cmd.arg("--dry-run");
+        }
         if let Some(vals) = &payload.values {
-            for (k, v) in vals { cmd.arg("--set").arg(format!("{k}={v}")); }
+            for (k, v) in vals {
+                cmd.arg("--set").arg(format!("{k}={v}"));
+            }
         }
         let out = cmd.output().map_err(|e| Error::Other(e.to_string()))?;
         if !out.status.success() {
-            return Err(Error::Other(String::from_utf8_lossy(&out.stderr).to_string()));
+            return Err(Error::Other(
+                String::from_utf8_lossy(&out.stderr).to_string(),
+            ));
         }
         Ok(String::from_utf8_lossy(&out.stdout).to_string())
-    }).await.map_err(|e| Error::Other(e.to_string()))??;
+    })
+    .await
+    .map_err(|e| Error::Other(e.to_string()))??;
 
-    let v: serde_json::Value = serde_json::from_str(&out).unwrap_or(serde_json::json!({"output": out}));
+    let v: serde_json::Value =
+        serde_json::from_str(&out).unwrap_or(serde_json::json!({"output": out}));
     Ok(Json(v))
 }
 
@@ -340,21 +398,34 @@ pub async fn upgrade_helm_release(
         cmd.arg("upgrade")
             .arg(&name)
             .arg(&payload.chart)
-            .arg("-n").arg(&ns)
-            .arg("-o").arg("json");
-        if let Some(v) = &payload.version { cmd.arg("--version").arg(v); }
-        if payload.dry_run.unwrap_or(false) { cmd.arg("--dry-run"); }
+            .arg("-n")
+            .arg(&ns)
+            .arg("-o")
+            .arg("json");
+        if let Some(v) = &payload.version {
+            cmd.arg("--version").arg(v);
+        }
+        if payload.dry_run.unwrap_or(false) {
+            cmd.arg("--dry-run");
+        }
         if let Some(vals) = &payload.values {
-            for (k, v) in vals { cmd.arg("--set").arg(format!("{k}={v}")); }
+            for (k, v) in vals {
+                cmd.arg("--set").arg(format!("{k}={v}"));
+            }
         }
         let out = cmd.output().map_err(|e| Error::Other(e.to_string()))?;
         if !out.status.success() {
-            return Err(Error::Other(String::from_utf8_lossy(&out.stderr).to_string()));
+            return Err(Error::Other(
+                String::from_utf8_lossy(&out.stderr).to_string(),
+            ));
         }
         Ok(String::from_utf8_lossy(&out.stdout).to_string())
-    }).await.map_err(|e| Error::Other(e.to_string()))??;
+    })
+    .await
+    .map_err(|e| Error::Other(e.to_string()))??;
 
-    let v: serde_json::Value = serde_json::from_str(&out).unwrap_or(serde_json::json!({"output": out}));
+    let v: serde_json::Value =
+        serde_json::from_str(&out).unwrap_or(serde_json::json!({"output": out}));
     Ok(Json(v))
 }
 
@@ -370,10 +441,14 @@ pub async fn uninstall_helm_release(
         cmd.arg("uninstall").arg(&name2).arg("-n").arg(&ns2);
         let out = cmd.output().map_err(|e| Error::Other(e.to_string()))?;
         if !out.status.success() {
-            return Err(Error::Other(String::from_utf8_lossy(&out.stderr).to_string()));
+            return Err(Error::Other(
+                String::from_utf8_lossy(&out.stderr).to_string(),
+            ));
         }
         Ok(())
-    }).await.map_err(|e| Error::Other(e.to_string()))??;
+    })
+    .await
+    .map_err(|e| Error::Other(e.to_string()))??;
 
     Ok(Json(serde_json::json!({"uninstalled": true, "name": name})))
 }
@@ -389,15 +464,25 @@ pub async fn rollback_helm_release(
     let rev = payload.revision;
     tokio::task::spawn_blocking(move || -> Result<()> {
         let mut cmd = helm_cmd(&kc);
-        cmd.arg("rollback").arg(&name2).arg(rev.to_string()).arg("-n").arg(&ns2);
+        cmd.arg("rollback")
+            .arg(&name2)
+            .arg(rev.to_string())
+            .arg("-n")
+            .arg(&ns2);
         let out = cmd.output().map_err(|e| Error::Other(e.to_string()))?;
         if !out.status.success() {
-            return Err(Error::Other(String::from_utf8_lossy(&out.stderr).to_string()));
+            return Err(Error::Other(
+                String::from_utf8_lossy(&out.stderr).to_string(),
+            ));
         }
         Ok(())
-    }).await.map_err(|e| Error::Other(e.to_string()))??;
+    })
+    .await
+    .map_err(|e| Error::Other(e.to_string()))??;
 
-    Ok(Json(serde_json::json!({"rolled_back": true, "revision": rev})))
+    Ok(Json(
+        serde_json::json!({"rolled_back": true, "revision": rev}),
+    ))
 }
 
 /// GET /api/kubernetes/helm/namespaces/{ns}/releases/{name}/history
@@ -407,16 +492,25 @@ pub async fn helm_release_history(
 ) -> Result<Json<Vec<HelmHistoryEntry>>> {
     let history = tokio::task::spawn_blocking(move || -> Result<Vec<HelmHistoryEntry>> {
         let out = std::process::Command::new("helm")
-            .arg("history").arg(&name).arg("-n").arg(&ns).arg("-o").arg("json")
+            .arg("history")
+            .arg(&name)
+            .arg("-n")
+            .arg(&ns)
+            .arg("-o")
+            .arg("json")
             .output()
             .map_err(|e| Error::Other(e.to_string()))?;
         if !out.status.success() {
-            return Err(Error::Other(String::from_utf8_lossy(&out.stderr).to_string()));
+            return Err(Error::Other(
+                String::from_utf8_lossy(&out.stderr).to_string(),
+            ));
         }
         let h: Vec<HelmHistoryEntry> = serde_json::from_slice(&out.stdout)
             .map_err(|e| Error::Other(format!("parse error: {e}")))?;
         Ok(h)
-    }).await.map_err(|e| Error::Other(e.to_string()))??;
+    })
+    .await
+    .map_err(|e| Error::Other(e.to_string()))??;
 
     Ok(Json(history))
 }
@@ -428,16 +522,24 @@ pub async fn get_helm_release_values(
 ) -> Result<Json<serde_json::Value>> {
     let vals = tokio::task::spawn_blocking(move || -> Result<serde_json::Value> {
         let out = std::process::Command::new("helm")
-            .arg("get").arg("values").arg(&name).arg("-n").arg(&ns).arg("-o").arg("json")
+            .arg("get")
+            .arg("values")
+            .arg(&name)
+            .arg("-n")
+            .arg(&ns)
+            .arg("-o")
+            .arg("json")
             .output()
             .map_err(|e| Error::Other(e.to_string()))?;
         if !out.status.success() {
             return Ok(serde_json::json!({}));
         }
-        let v: serde_json::Value = serde_json::from_slice(&out.stdout)
-            .unwrap_or(serde_json::json!({}));
+        let v: serde_json::Value =
+            serde_json::from_slice(&out.stdout).unwrap_or(serde_json::json!({}));
         Ok(v)
-    }).await.map_err(|e| Error::Other(e.to_string()))??;
+    })
+    .await
+    .map_err(|e| Error::Other(e.to_string()))??;
 
     Ok(Json(vals))
 }
@@ -449,14 +551,22 @@ pub async fn get_helm_release_manifest(
 ) -> Result<Json<serde_json::Value>> {
     let manifest = tokio::task::spawn_blocking(move || -> Result<String> {
         let out = std::process::Command::new("helm")
-            .arg("get").arg("manifest").arg(&name).arg("-n").arg(&ns)
+            .arg("get")
+            .arg("manifest")
+            .arg(&name)
+            .arg("-n")
+            .arg(&ns)
             .output()
             .map_err(|e| Error::Other(e.to_string()))?;
         if !out.status.success() {
-            return Err(Error::Other(String::from_utf8_lossy(&out.stderr).to_string()));
+            return Err(Error::Other(
+                String::from_utf8_lossy(&out.stderr).to_string(),
+            ));
         }
         Ok(String::from_utf8_lossy(&out.stdout).to_string())
-    }).await.map_err(|e| Error::Other(e.to_string()))??;
+    })
+    .await
+    .map_err(|e| Error::Other(e.to_string()))??;
 
     Ok(Json(serde_json::json!({"manifest": manifest})))
 }
@@ -471,7 +581,11 @@ pub async fn search_helm_charts(
     let query = q.q.unwrap_or_default();
     let charts = tokio::task::spawn_blocking(move || -> Result<Vec<HelmChartResult>> {
         let mut cmd = std::process::Command::new("helm");
-        cmd.arg("search").arg("repo").arg(&query).arg("-o").arg("json");
+        cmd.arg("search")
+            .arg("repo")
+            .arg(&query)
+            .arg("-o")
+            .arg("json");
         let out = cmd.output().map_err(|e| Error::Other(e.to_string()))?;
         if !out.status.success() {
             let stderr = String::from_utf8_lossy(&out.stderr);
@@ -493,13 +607,18 @@ pub async fn search_helm_charts(
         }
         let raw: Vec<Raw> = serde_json::from_slice(&out.stdout)
             .map_err(|e| Error::Other(format!("parse error: {e}")))?;
-        Ok(raw.into_iter().map(|r| HelmChartResult {
-            name: r.name,
-            version: r.version,
-            app_version: r.app_version,
-            description: r.description,
-        }).collect())
-    }).await.map_err(|e| Error::Other(e.to_string()))??;
+        Ok(raw
+            .into_iter()
+            .map(|r| HelmChartResult {
+                name: r.name,
+                version: r.version,
+                app_version: r.app_version,
+                description: r.description,
+            })
+            .collect())
+    })
+    .await
+    .map_err(|e| Error::Other(e.to_string()))??;
 
     Ok(Json(charts))
 }
@@ -512,14 +631,20 @@ pub async fn get_chart_default_values(
 ) -> Result<Json<serde_json::Value>> {
     let vals = tokio::task::spawn_blocking(move || -> Result<String> {
         let out = std::process::Command::new("helm")
-            .arg("show").arg("values").arg(&chart)
+            .arg("show")
+            .arg("values")
+            .arg(&chart)
             .output()
             .map_err(|e| Error::Other(e.to_string()))?;
         if !out.status.success() {
-            return Err(Error::Other(String::from_utf8_lossy(&out.stderr).to_string()));
+            return Err(Error::Other(
+                String::from_utf8_lossy(&out.stderr).to_string(),
+            ));
         }
         Ok(String::from_utf8_lossy(&out.stdout).to_string())
-    }).await.map_err(|e| Error::Other(e.to_string()))??;
+    })
+    .await
+    .map_err(|e| Error::Other(e.to_string()))??;
 
     Ok(Json(serde_json::json!({"values_yaml": vals})))
 }
@@ -642,7 +767,11 @@ mod tests {
         };
         assert_eq!(payload.release_name, "my-nginx");
         assert!(payload.dry_run.unwrap_or(false));
-        assert!(payload.values.as_ref().unwrap().contains_key("replicaCount"));
+        assert!(payload
+            .values
+            .as_ref()
+            .unwrap()
+            .contains_key("replicaCount"));
     }
 
     #[test]
@@ -662,9 +791,7 @@ mod tests {
 
     #[test]
     fn test_rollback_payload() {
-        let payload = RollbackPayload {
-            revision: 3,
-        };
+        let payload = RollbackPayload { revision: 3 };
         assert_eq!(payload.revision, 3);
     }
 

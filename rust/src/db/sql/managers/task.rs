@@ -256,8 +256,8 @@ impl TaskManager for SqlStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{Task, TaskOutput, TaskWithTpl};
     use crate::models::template::{TemplateApp, TemplateType};
+    use crate::models::{Task, TaskOutput, TaskWithTpl};
     use crate::services::task_logger::TaskStatus;
     use chrono::Utc;
 

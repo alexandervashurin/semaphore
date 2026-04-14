@@ -8,7 +8,10 @@ use axum::{
     Json,
 };
 use k8s_openapi::api::core::v1::{ConfigMap, Secret};
-use kube::{api::{Api, ListParams, DeleteParams, PostParams}, Client};
+use kube::{
+    api::{Api, DeleteParams, ListParams, PostParams},
+    Client,
+};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -44,7 +47,7 @@ pub async fn list_helm_repos(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<HelmRepositoryList>> {
     let client = state.kubernetes_client()?;
-    
+
     // Helm repos are typically stored in kubeconfig or as ConfigMaps
     // For now, return a static list of common repos
     let repos = vec![
@@ -69,8 +72,10 @@ pub async fn list_helm_repos(
             username: None,
         },
     ];
-    
-    Ok(Json(HelmRepositoryList { repositories: repos }))
+
+    Ok(Json(HelmRepositoryList {
+        repositories: repos,
+    }))
 }
 
 pub async fn add_helm_repo(
@@ -147,19 +152,25 @@ pub async fn search_helm_charts(
             keywords: vec!["database".to_string(), "postgresql".to_string()],
         },
     ];
-    
+
     let filtered: Vec<HelmChart> = if let Some(q) = &query.query {
-        charts.into_iter().filter(|c| {
-            c.name.to_lowercase().contains(&q.to_lowercase()) ||
-            c.description.as_ref().map(|d| d.to_lowercase().contains(&q.to_lowercase())).unwrap_or(false)
-        }).collect()
+        charts
+            .into_iter()
+            .filter(|c| {
+                c.name.to_lowercase().contains(&q.to_lowercase())
+                    || c.description
+                        .as_ref()
+                        .map(|d| d.to_lowercase().contains(&q.to_lowercase()))
+                        .unwrap_or(false)
+            })
+            .collect()
     } else {
         charts
     };
-    
+
     let limit = query.limit.unwrap_or(50) as usize;
     let result: Vec<HelmChart> = filtered.into_iter().take(limit).collect();
-    
+
     Ok(Json(HelmChartList { charts: result }))
 }
 
@@ -212,31 +223,39 @@ pub async fn list_helm_releases(
     Query(query): Query<ListReleasesQuery>,
 ) -> Result<Json<HelmReleaseList>> {
     let client = state.kubernetes_client()?;
-    
+
     // Helm releases are stored as Secrets or ConfigMaps in the namespace
     let ns = query.namespace.unwrap_or_else(|| "default".to_string());
-    
+
     // Try to get releases from Secrets (Helm v3 default)
     let secrets_api: Api<Secret> = Api::namespaced(client.raw().clone(), &ns);
     let lp = ListParams::default().labels("owner=helm");
-    
+
     let secrets = secrets_api.list(&lp).await.ok();
-    
+
     let mut releases = Vec::new();
-    
+
     if let Some(secret_list) = secrets {
         for secret in secret_list.items {
             if let Some(labels) = &secret.metadata.labels {
                 if labels.get("name").is_some() {
                     let release = HelmRelease {
-                        name: labels.get("name").map(|v| v.as_str()).unwrap_or("unknown").to_string(),
+                        name: labels
+                            .get("name")
+                            .map(|v| v.as_str())
+                            .unwrap_or("unknown")
+                            .to_string(),
                         namespace: ns.clone(),
                         chart: "unknown".to_string(),
                         chart_version: "unknown".to_string(),
                         app_version: None,
                         status: "deployed".to_string(),
                         revision: 1,
-                        deployed_at: secret.metadata.creation_timestamp.as_ref().map(|t| t.0.to_rfc3339()),
+                        deployed_at: secret
+                            .metadata
+                            .creation_timestamp
+                            .as_ref()
+                            .map(|t| t.0.to_rfc3339()),
                         values: None,
                     };
                     releases.push(release);
@@ -244,7 +263,7 @@ pub async fn list_helm_releases(
             }
         }
     }
-    
+
     Ok(Json(HelmReleaseList { releases }))
 }
 
@@ -270,7 +289,10 @@ pub async fn install_helm_chart(
         name: payload.name.clone(),
         namespace: payload.namespace.clone(),
         chart: payload.chart.clone(),
-        chart_version: payload.version.clone().unwrap_or_else(|| "latest".to_string()),
+        chart_version: payload
+            .version
+            .clone()
+            .unwrap_or_else(|| "latest".to_string()),
         app_version: None,
         status: "deployed".to_string(),
         revision: 1,
@@ -309,7 +331,10 @@ pub async fn upgrade_helm_release(
         name: name.clone(),
         namespace: namespace.clone(),
         chart: payload.chart.clone(),
-        chart_version: payload.version.clone().unwrap_or_else(|| "latest".to_string()),
+        chart_version: payload
+            .version
+            .clone()
+            .unwrap_or_else(|| "latest".to_string()),
         app_version: None,
         status: "upgraded".to_string(),
         revision: 2,
@@ -318,15 +343,8 @@ pub async fn upgrade_helm_release(
     };
 
     // Log to audit log
-    KubernetesAuditLogger::log_helm_upgrade(
-        &state,
-        None,
-        None,
-        &name,
-        &payload.chart,
-        &namespace,
-    )
-    .await;
+    KubernetesAuditLogger::log_helm_upgrade(&state, None, None, &name, &payload.chart, &namespace)
+        .await;
 
     Ok(Json(release))
 }
@@ -351,15 +369,7 @@ pub async fn rollback_helm_release(
     };
 
     // Log to audit log
-    KubernetesAuditLogger::log_helm_rollback(
-        &state,
-        None,
-        None,
-        &name,
-        revision,
-        &namespace,
-    )
-    .await;
+    KubernetesAuditLogger::log_helm_rollback(&state, None, None, &name, revision, &namespace).await;
 
     Ok(Json(release))
 }
@@ -391,14 +401,7 @@ pub async fn uninstall_helm_release(
     }
 
     // Log to audit log
-    KubernetesAuditLogger::log_helm_uninstall(
-        &state,
-        None,
-        None,
-        &name,
-        &namespace,
-    )
-    .await;
+    KubernetesAuditLogger::log_helm_uninstall(&state, None, None, &name, &namespace).await;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -547,9 +550,11 @@ mod tests {
     #[test]
     fn test_helm_repo_list() {
         let list = HelmRepositoryList {
-            repositories: vec![
-                HelmRepository { name: "stable".to_string(), url: "https://stable".to_string(), username: None },
-            ],
+            repositories: vec![HelmRepository {
+                name: "stable".to_string(),
+                url: "https://stable".to_string(),
+                username: None,
+            }],
         };
         assert_eq!(list.repositories.len(), 1);
     }
@@ -579,17 +584,15 @@ mod tests {
     #[test]
     fn test_helm_chart_list() {
         let list = HelmChartList {
-            charts: vec![
-                HelmChart {
-                    name: "redis".to_string(),
-                    version: "17.0.0".to_string(),
-                    app_version: Some("7.0".to_string()),
-                    description: Some("Redis chart".to_string()),
-                    home: None,
-                    sources: vec![],
-                    keywords: vec![],
-                },
-            ],
+            charts: vec![HelmChart {
+                name: "redis".to_string(),
+                version: "17.0.0".to_string(),
+                app_version: Some("7.0".to_string()),
+                description: Some("Redis chart".to_string()),
+                home: None,
+                sources: vec![],
+                keywords: vec![],
+            }],
         };
         assert_eq!(list.charts.len(), 1);
         assert_eq!(list.charts[0].name, "redis");
@@ -622,19 +625,17 @@ mod tests {
     #[test]
     fn test_helm_release_list() {
         let list = HelmReleaseList {
-            releases: vec![
-                HelmRelease {
-                    name: "my-nginx".to_string(),
-                    namespace: "default".to_string(),
-                    chart: "nginx".to_string(),
-                    chart_version: "15.0.0".to_string(),
-                    app_version: Some("1.24.0".to_string()),
-                    status: "deployed".to_string(),
-                    revision: 1,
-                    deployed_at: Some("2024-01-01T00:00:00Z".to_string()),
-                    values: None,
-                },
-            ],
+            releases: vec![HelmRelease {
+                name: "my-nginx".to_string(),
+                namespace: "default".to_string(),
+                chart: "nginx".to_string(),
+                chart_version: "15.0.0".to_string(),
+                app_version: Some("1.24.0".to_string()),
+                status: "deployed".to_string(),
+                revision: 1,
+                deployed_at: Some("2024-01-01T00:00:00Z".to_string()),
+                values: None,
+            }],
         };
         assert_eq!(list.releases.len(), 1);
         assert_eq!(list.releases[0].status, "deployed");
@@ -720,17 +721,13 @@ mod tests {
 
     #[test]
     fn test_rollback_query_with_revision() {
-        let query = RollbackQuery {
-            revision: Some(5),
-        };
+        let query = RollbackQuery { revision: Some(5) };
         assert_eq!(query.revision, Some(5));
     }
 
     #[test]
     fn test_rollback_query_no_revision() {
-        let query = RollbackQuery {
-            revision: None,
-        };
+        let query = RollbackQuery { revision: None };
         assert!(query.revision.is_none());
     }
 
@@ -769,9 +766,21 @@ mod tests {
     fn test_helm_repository_list_multiple() {
         let list = HelmRepositoryList {
             repositories: vec![
-                HelmRepository { name: "stable".to_string(), url: "https://stable".to_string(), username: None },
-                HelmRepository { name: "bitnami".to_string(), url: "https://bitnami".to_string(), username: None },
-                HelmRepository { name: "private".to_string(), url: "https://private".to_string(), username: Some("user".to_string()) },
+                HelmRepository {
+                    name: "stable".to_string(),
+                    url: "https://stable".to_string(),
+                    username: None,
+                },
+                HelmRepository {
+                    name: "bitnami".to_string(),
+                    url: "https://bitnami".to_string(),
+                    username: None,
+                },
+                HelmRepository {
+                    name: "private".to_string(),
+                    url: "https://private".to_string(),
+                    username: Some("user".to_string()),
+                },
             ],
         };
         assert_eq!(list.repositories.len(), 3);

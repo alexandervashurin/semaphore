@@ -323,7 +323,11 @@ mod tests {
         for (type_str, expected) in types {
             let json = format!(r#"{{"name": "Test", "inventory_type": "{}"}}"#, type_str);
             let payload: InventoryCreatePayload = serde_json::from_str(&json).unwrap();
-            assert_eq!(payload.inventory_type, expected, "Failed for type: {}", type_str);
+            assert_eq!(
+                payload.inventory_type, expected,
+                "Failed for type: {}",
+                type_str
+            );
         }
     }
 

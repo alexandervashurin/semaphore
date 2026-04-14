@@ -361,7 +361,10 @@ mod tests {
 
         // Arc::strong_count должен быть >= 2 (original + running)
         assert!(Arc::strong_count(&logger) >= 2);
-        assert_eq!(Arc::strong_count(&running.logger), Arc::strong_count(&logger));
+        assert_eq!(
+            Arc::strong_count(&running.logger),
+            Arc::strong_count(&logger)
+        );
     }
 
     #[test]
@@ -450,11 +453,8 @@ mod tests {
         let pool = TaskPool::new(store, project, ws_manager);
 
         // Multiple concurrent reads should work fine
-        let (r1, r2, r3) = tokio::join!(
-            pool.is_shutdown(),
-            pool.is_shutdown(),
-            pool.is_shutdown(),
-        );
+        let (r1, r2, r3) =
+            tokio::join!(pool.is_shutdown(), pool.is_shutdown(), pool.is_shutdown(),);
         assert!(!r1);
         assert!(!r2);
         assert!(!r3);

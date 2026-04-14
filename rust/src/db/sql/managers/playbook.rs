@@ -165,7 +165,8 @@ mod tests {
 
     #[test]
     fn test_playbook_update_deserialize() {
-        let json = r#"{"name":"upd.yml","content":"---","description":"desc","playbook_type":"ansible"}"#;
+        let json =
+            r#"{"name":"upd.yml","content":"---","description":"desc","playbook_type":"ansible"}"#;
         let update: PlaybookUpdate = serde_json::from_str(json).unwrap();
         assert_eq!(update.name, "upd.yml");
         assert_eq!(update.description, Some("desc".to_string()));

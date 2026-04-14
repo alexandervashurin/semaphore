@@ -99,7 +99,9 @@ impl TerraformInventoryManager for SqlStore {
 
 #[cfg(test)]
 mod tests {
-    use crate::models::terraform_inventory::{Alias, TerraformInventoryAlias, TerraformInventoryState};
+    use crate::models::terraform_inventory::{
+        Alias, TerraformInventoryAlias, TerraformInventoryState,
+    };
     use chrono::Utc;
 
     #[test]

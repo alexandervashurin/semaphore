@@ -721,9 +721,7 @@ mod tests {
 
     #[test]
     fn test_vpa_api_status() {
-        let status = VpaApiStatus {
-            installed: true,
-        };
+        let status = VpaApiStatus { installed: true };
         assert!(status.installed);
     }
 
@@ -783,7 +781,10 @@ mod tests {
         };
         assert_eq!(summary.name, "cpu-hpa");
         assert_eq!(summary.min_replicas, Some(3));
-        assert_eq!(summary.metrics_hint, Some("CPU utilization 85%".to_string()));
+        assert_eq!(
+            summary.metrics_hint,
+            Some("CPU utilization 85%".to_string())
+        );
     }
 
     #[test]
@@ -851,7 +852,11 @@ mod tests {
             kind: "Certificate".to_string(),
             plural: "certificates".to_string(),
             scope: "Namespaced".to_string(),
-            versions: vec!["v1".to_string(), "v1alpha2".to_string(), "v1alpha3".to_string()],
+            versions: vec![
+                "v1".to_string(),
+                "v1alpha2".to_string(),
+                "v1alpha3".to_string(),
+            ],
         };
         assert_eq!(summary.versions.len(), 3);
         assert_eq!(summary.versions[0], "v1");
@@ -859,9 +864,7 @@ mod tests {
 
     #[test]
     fn test_vpa_api_status_not_installed() {
-        let status = VpaApiStatus {
-            installed: false,
-        };
+        let status = VpaApiStatus { installed: false };
         assert!(!status.installed);
     }
 
@@ -871,9 +874,7 @@ mod tests {
 
     #[test]
     fn test_ns_query_none() {
-        let query = NsQuery {
-            namespace: None,
-        };
+        let query = NsQuery { namespace: None };
         assert!(query.namespace.is_none());
     }
 
