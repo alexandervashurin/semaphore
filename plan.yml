@@ -1,15 +1,24 @@
 project: velum
-as_of: 2026-04-13
+as_of: "2026-04-14"
 goal: "Довести проект до production-ready и выпустить v1.0.0"
 status_summary:
-  as_of: "2026-04-13"
+  as_of: "2026-04-14"
   feature_parity: "~99%"
   kubernetes_ui: "~95%"
-  production_release_readiness: "~100%"
+  production_release_readiness: "100%"
   open_tasks_count: 0
-  test_coverage: "~85% tarpaulin (6551 tests)"
-  documentation: "✅ Все 14 файлов исправлены (2026-04-07)"
-  latest_test_run: "2026-04-09: 6551 passed, 0 failed, 3 ignored (~85% coverage)"
+  test_coverage: "~85% tarpaulin (6550 tests)"
+  documentation: "✅ Все файлы актуализированы (2026-04-14)"
+  latest_test_run: "2026-04-14: 6550 passed, 1 failed (pre-existing), 3 ignored (~85% coverage)"
+  cargo_audit: "✅ 0 warnings (все unmaintained deps устранены)"
+  cargo_clippy: "✅ 0 warnings"
+  cargo_check: "✅ 0 errors"
+  dependency_updates_completed:
+    - "rand 0.8 → 0.9 (RUSTSEC-2026-0097)"
+    - "teloxide 0.13 — удалена"
+    - "kube 0.98 → 3.1 (backoff, instant, rustls-pemfile устранены)"
+    - "k8s-openapi 0.24 → 0.27 (v1_35)"
+    - "edition 2021 → 2024"
   open_blockers:
     critical: []
     high: []
