@@ -83,7 +83,6 @@ impl WasmPluginLoader {
         let mut engine_config = Config::new();
         engine_config.wasm_reference_types(true);
         engine_config.wasm_multi_value(true);
-        engine_config.async_support(true);
 
         let engine = Engine::new(&engine_config)
             .map_err(|e| Error::Other(format!("Failed to create WASM engine: {}", e)))?;
