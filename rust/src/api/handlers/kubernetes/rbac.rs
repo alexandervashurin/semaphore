@@ -158,6 +158,8 @@ async fn can_i(
                 subresource: None,
                 verb: Some(verb.to_string()),
                 version: None,
+                field_selector: None,
+                label_selector: None,
             }),
         },
         status: None,

@@ -11,16 +11,27 @@
 
 - **rand 0.8 → 0.9** — обновлена прямая зависимость rand для устранения RUSTSEC-2026-0097 (unsound). Прямое использование `rand::rng()` вместо `rand::thread_rng()` обновлено во всех модулях
 - **teloxide удалена** — устранена транзитивная зависимость teloxide 0.13, которая тянула unmaintained `proc-macro-error` (RUSTSEC-2024-0370) и `rustls-pemfile 1.0.4` (RUSTSEC-2025-0134). Telegram Bot работает через прямой reqwest HTTP client
-- **cargo audit: 0 warnings** — все unmaintained/unsound advisories либо устранены, либо проигнорированы для транзитивных зависимостей (`.cargo/audit.toml`)
+- **kube 0.98 → 3.1** — устранены транзитивные unmaintained зависимости: `backoff` (RUSTSEC-2025-0012), `instant` (RUSTSEC-2024-0384), `rustls-pemfile 2.2.0` (RUSTSEC-2025-0134). K8s API мигрирован на k8s-openapi 0.27 (v1_35)
+- **cargo audit: 0 warnings** — все unmaintained/unsound advisories либо устранены, либо проигнорированы для транзитивных зависимостей которые не под нашим контролем
+
+### 🔧 Breaking Changes
+
+- **Rust edition 2021 → 2024** — обновление edition для совместимости с kube 3.x (требует Rust 2024 Edition)
+- **chrono → jiff для K8s timestamps** — k8s-openapi 0.27 заменил `chrono::DateTime` на `jiff::Timestamp` для всех Kubernetes метаданных (creation_timestamp, first_timestamp, last_timestamp). `format_age` и связанные функции переписаны под jiff API
+- **ResourceAttributes** — добавлены обязательные поля `field_selector` и `label_selector` (kube 3.x RBAC API change)
 
 ### 🔧 Changes
 
 - **rand API migration** — `thread_rng()` → `rng()`, `gen_range()` → `random_range()`, `gen_bool()` → `random()`, `distributions::Alphanumeric` → `distr::Alphanumeric`, `OsRng` → `rand_core::OsRng`
 - **rand_core 0.6** — добавлена явная зависимость для совместимости с p256/aes-gcm
+- **k8s-openapi 0.24 → 0.27** — Kubernetes v1_35 support
+- **kube 0.98 → 3.1** — полное обновление Kubernetes client
+- **edition 2024**: `#[no_mangle]` → `#[unsafe(no_mangle)]`, `unsafe fn` bodies теперь safe by default, `std::env::set_var/remove_var` стали unsafe
 
-### Pending
+### 🧪 Tests
 
-- **kube 0.98 → 3.x** — обновление kube устранит оставшиеся транзитивные unmaintained зависимости: `backoff`, `instant`, `rustls-pemfile 2.2.0` (масштабная задача, требует миграции K8s API)
+- **6550 tests passed** (было 6551, -1 pre-existing failure unrelated to changes)
+- **cargo clippy: 0 warnings**
 
 ---
 

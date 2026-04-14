@@ -13,6 +13,7 @@
 //! - **db_lib** — Библиотека работы с БД (замена Go db_lib)
 //! - **services** — Бизнес-логика (task runner, scheduler, notifications)
 //! - **cli** — Интерфейс командной строки
+
 //! - **models** — Модели данных
 //! - **config** — Конфигурация приложения (HA, LDAP, OIDC)
 //! - **ffi** — FFI модуль для вызова из Go (cgo)
@@ -81,7 +82,7 @@
 //! - GitHub: <https://github.com/tnl-o/velum>
 //! - Документация: <https://github.com/tnl-o/velum/tree/main/docs>
 
-#![allow(unused_imports, unused_variables, dead_code, unused_mut)]
+#![allow(unused_imports, unused_variables, dead_code, unused_mut, clippy::collapsible_if, unsafe_op_in_unsafe_fn)]
 
 pub mod api;
 pub mod cache;

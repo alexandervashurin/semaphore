@@ -550,20 +550,22 @@ mod tests {
     #[test]
     fn test_derive_encryption_key_from_env() {
         let config = crate::config::Config::default();
-        std::env::set_var(
+        unsafe { std::env::set_var(
             "SEMAPHORE_KUBECONFIG_KEY",
             "my-secret-key-12345678901234567890",
-        );
+        ) };
         let key = derive_encryption_key(&config);
         assert_eq!(key.len(), 32);
         assert_eq!(&key[..6], b"my-sec");
-        std::env::remove_var("SEMAPHORE_KUBECONFIG_KEY");
+        unsafe { std::env::remove_var("SEMAPHORE_KUBECONFIG_KEY") };
     }
 
     #[test]
     fn test_derive_encryption_key_fallback_to_cookie_hash() {
-        std::env::remove_var("SEMAPHORE_KUBECONFIG_KEY");
-        std::env::remove_var("SEMAPHORE_ACCESS_KEY_ENCRYPTION");
+        unsafe {
+            std::env::remove_var("SEMAPHORE_KUBECONFIG_KEY");
+            std::env::remove_var("SEMAPHORE_ACCESS_KEY_ENCRYPTION");
+        }
         let config = crate::config::Config::default();
         let key = derive_encryption_key(&config);
         assert_eq!(key.len(), 32);
@@ -571,12 +573,12 @@ mod tests {
 
     #[test]
     fn test_derive_encryption_key_short_value_padded() {
-        std::env::set_var("SEMAPHORE_KUBECONFIG_KEY", "short");
+        unsafe { std::env::set_var("SEMAPHORE_KUBECONFIG_KEY", "short") };
         let config = crate::config::Config::default();
         let key = derive_encryption_key(&config);
         assert_eq!(key.len(), 32);
         assert_eq!(&key[..5], b"short");
         assert_eq!(&key[5..], &[0u8; 27]);
-        std::env::remove_var("SEMAPHORE_KUBECONFIG_KEY");
+        unsafe { std::env::remove_var("SEMAPHORE_KUBECONFIG_KEY") };
     }
 }

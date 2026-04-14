@@ -6,9 +6,8 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
-use chrono::DateTime;
-use chrono::Utc;
 use k8s_openapi::api::apps::v1::DaemonSet;
+use k8s_openapi::jiff::Timestamp;
 use kube::api::{Api, DeleteParams, ListParams};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -48,7 +47,7 @@ pub struct DaemonSetDetail {
     pub template_labels: BTreeMap<String, String>,
     pub containers: Vec<ContainerInfo>,
     pub conditions: Vec<DaemonSetCondition>,
-    pub created_at: Option<DateTime<Utc>>,
+    pub created_at: Option<String>,
 }
 
 /// Информация о контейнере
@@ -307,36 +306,46 @@ fn daemonset_detail(ds: &DaemonSet) -> DaemonSetDetail {
         template_labels,
         containers,
         conditions,
-        created_at: ds.metadata.creation_timestamp.as_ref().map(|t| t.0),
+        created_at: ds.metadata.creation_timestamp.as_ref().map(|t| t.0.to_string()),
     }
 }
 
-fn format_age(time: &DateTime<Utc>) -> String {
-    let now = Utc::now();
-    let duration = now.signed_duration_since(*time);
-
-    if duration.num_days() > 365 {
-        format!("{}y", duration.num_days() / 365)
-    } else if duration.num_days() > 30 {
-        format!("{}d", duration.num_days() / 30)
-    } else if duration.num_days() > 0 {
-        format!("{}d", duration.num_days())
-    } else if duration.num_hours() > 0 {
-        format!("{}h", duration.num_hours())
-    } else if duration.num_minutes() > 0 {
-        format!("{}m", duration.num_minutes())
+fn format_age(time: &Timestamp) -> String {
+    let now = Timestamp::now();
+    let duration = now.duration_since(*time);
+    let total_secs = duration.as_secs().abs();
+    let days = total_secs / 86400;
+    if days > 365 {
+        format!("{}y", days / 365)
+    } else if days > 30 {
+        format!("{}d", days / 30)
+    } else if days > 0 {
+        format!("{}d", days)
     } else {
-        format!("{}s", duration.num_seconds())
+        let hours = total_secs / 3600;
+        if hours > 0 {
+            format!("{}h", hours)
+        } else {
+            let mins = total_secs / 60;
+            if mins > 0 {
+                format!("{}m", mins)
+            } else {
+                format!("{}s", total_secs)
+            }
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Duration;
+    use k8s_openapi::jiff::Timestamp;
 
-    fn make_ts(seconds_ago: i64) -> DateTime<Utc> {
-        Utc::now() - Duration::seconds(seconds_ago)
+    fn make_ts(seconds_ago: i64) -> Timestamp {
+        use std::time::Duration;
+        let now = Timestamp::now();
+        let dur = k8s_openapi::jiff::SignedDuration::from_secs(seconds_ago);
+        now.checked_sub(dur).unwrap()
     }
 
     #[test]
@@ -405,7 +414,7 @@ mod tests {
                 image: Some("k8s.gcr.io/kube-proxy:v1.28".to_string()),
             }],
             conditions: vec![],
-            created_at: Some(Utc::now()),
+            created_at: Some(Timestamp::now().to_string()),
         };
         assert_eq!(detail.name, "kube-proxy");
         assert_eq!(detail.containers.len(), 1);

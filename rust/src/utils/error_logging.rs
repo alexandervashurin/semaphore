@@ -138,19 +138,19 @@ mod tests {
     #[test]
     fn test_log_debug_f_with_debug_env() {
         // Установим RUST_LOG=debug чтобы покрыть ветку с логированием
-        std::env::set_var("RUST_LOG", "debug");
+        unsafe { std::env::set_var("RUST_LOG", "debug") };
         let err = "debug message";
         log_debug_f(&err, &[("key", "value")]);
         // Проверяем что не паникует
-        std::env::remove_var("RUST_LOG");
+        unsafe { std::env::remove_var("RUST_LOG") };
     }
 
     #[test]
     fn test_log_debug_f_with_partial_debug_env() {
-        std::env::set_var("RUST_LOG", "info,debug");
+        unsafe { std::env::set_var("RUST_LOG", "info,debug") };
         let err = "partial debug";
         log_debug_f(&err, &[("x", "1")]);
-        std::env::remove_var("RUST_LOG");
+        unsafe { std::env::remove_var("RUST_LOG") };
     }
 
     #[test]
@@ -200,10 +200,10 @@ mod tests {
 
     #[test]
     fn test_log_debug_f_empty_fields() {
-        std::env::set_var("RUST_LOG", "debug");
+        unsafe { std::env::set_var("RUST_LOG", "debug") };
         let err = "debug no fields";
         log_debug_f(&err, &[]);
-        std::env::remove_var("RUST_LOG");
+        unsafe { std::env::remove_var("RUST_LOG") };
     }
 
     #[test]
@@ -227,7 +227,7 @@ mod tests {
 
     #[test]
     fn test_log_debug_f_no_output_without_env() {
-        std::env::remove_var("RUST_LOG");
+        unsafe { std::env::remove_var("RUST_LOG") };
         let err = "should not appear";
         log_debug_f(&err, &[("k", "v")]);
         // Проверяем что не паникует когда env не установлен
@@ -235,10 +235,10 @@ mod tests {
 
     #[test]
     fn test_log_debug_f_env_with_unrelated_value() {
-        std::env::set_var("RUST_LOG", "warn");
+        unsafe { std::env::set_var("RUST_LOG", "warn") };
         let err = "debug with unrelated env";
         log_debug_f(&err, &[("k", "v")]);
-        std::env::remove_var("RUST_LOG");
+        unsafe { std::env::remove_var("RUST_LOG") };
     }
 
     #[test]

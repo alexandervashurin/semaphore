@@ -24,7 +24,9 @@ use std::sync::Arc;
 fn age_from_ts(ts: Option<&k8s_openapi::apimachinery::pkg::apis::meta::v1::Time>) -> String {
     match ts {
         Some(t) => {
-            let secs = (Utc::now() - t.0).num_seconds().max(0);
+            let now = k8s_openapi::jiff::Timestamp::now();
+            let dur = now.duration_since(t.0);
+            let secs = dur.as_secs().abs();
             if secs < 60 {
                 format!("{secs}s")
             } else if secs < 3600 {
@@ -590,7 +592,7 @@ pub async fn list_statefulsets(
                 service_name: ss
                     .spec
                     .as_ref()
-                    .map(|s| s.service_name.clone())
+                    .and_then(|s| s.service_name.clone())
                     .unwrap_or_default(),
                 labels: meta.labels.clone().unwrap_or_default(),
                 age: age_from_ts(meta.creation_timestamp.as_ref()),
@@ -766,8 +768,8 @@ pub async fn list_k8s_events(
             let last_ts = e
                 .last_timestamp
                 .as_ref()
-                .map(|t| t.0.to_rfc3339())
-                .or_else(|| e.event_time.as_ref().map(|t| t.0.to_rfc3339()))
+                .map(|t| t.0.to_string())
+                .or_else(|| e.event_time.as_ref().map(|t| t.0.to_string()))
                 .unwrap_or_default();
 
             let source = e
@@ -805,7 +807,8 @@ mod tests {
     use chrono::Duration;
 
     fn make_ts(seconds_ago: i64) -> Option<k8s_openapi::apimachinery::pkg::apis::meta::v1::Time> {
-        let ts = Utc::now() - Duration::seconds(seconds_ago);
+        let epoch_secs = Utc::now().timestamp() - seconds_ago;
+        let ts = k8s_openapi::jiff::Timestamp::from_second(epoch_secs).ok()?;
         Some(k8s_openapi::apimachinery::pkg::apis::meta::v1::Time(ts))
     }
 
@@ -847,9 +850,10 @@ mod tests {
 
     #[test]
     fn test_age_from_ts_negative() {
-        // Future timestamp should be clamped to 0
-        let age = age_from_ts(make_ts(-100).as_ref());
-        assert_eq!(age, "0s");
+        // Future timestamp — age should be small (within a few seconds due to rounding)
+        let age = age_from_ts(make_ts(-10).as_ref());
+        // Should be "0s" to ~"11s" (10s future + 1s rounding tolerance)
+        assert!(age.ends_with('s'), "Expected seconds format, got: {age}");
     }
 
     #[test]

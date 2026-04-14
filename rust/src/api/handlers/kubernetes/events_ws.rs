@@ -305,8 +305,8 @@ fn convert_event(event: &Event) -> Option<EventStreamMessage> {
         reason: event.reason.clone().unwrap_or_default(),
         message: event.message.clone().unwrap_or_default(),
         count: event.count.unwrap_or(1),
-        first_seen: event.first_timestamp.as_ref().map(|t| t.0.to_rfc3339()),
-        last_seen: event.last_timestamp.as_ref().map(|t| t.0.to_rfc3339()),
+        first_seen: event.first_timestamp.as_ref().map(|t| t.0.to_string()),
+        last_seen: event.last_timestamp.as_ref().map(|t| t.0.to_string()),
         involved_object: Box::new(EventInvolvedObject {
             kind: involved.kind.clone()?,
             name: involved.name.clone()?,

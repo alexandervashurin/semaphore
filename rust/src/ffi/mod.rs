@@ -200,7 +200,7 @@ impl C_AccessKeyInstallation {
 ///
 /// # Safety
 /// Эта функция небезопасна, так как работает с raw pointers
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_install_access_key(
     key: *const C_AccessKey,
     role: C_AccessKeyRole,
@@ -245,7 +245,7 @@ pub unsafe extern "C" fn rust_install_access_key(
 ///
 /// # Safety
 /// Эта функция должна вызываться для освобождения памяти
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_free_access_key_installation(
     installation: *mut C_AccessKeyInstallation,
 ) {
@@ -272,7 +272,7 @@ pub unsafe extern "C" fn rust_free_access_key_installation(
 ///
 /// # Safety
 /// Возвращает raw pointer, который должен быть освобождён через rust_free_logger
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_create_logger() -> *mut C_Logger {
     let logger = Box::new(BasicLogger::new());
     Box::into_raw(logger) as *mut C_Logger
@@ -282,7 +282,7 @@ pub unsafe extern "C" fn rust_create_logger() -> *mut C_Logger {
 ///
 /// # Safety
 /// Должен вызываться для логгеров, созданных через rust_create_logger
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_free_logger(logger: *mut C_Logger) {
     if logger.is_null() {
         return;
@@ -295,7 +295,7 @@ pub unsafe extern "C" fn rust_free_logger(logger: *mut C_Logger) {
 /// # Safety
 /// Работает с raw pointers. Копирует строку внутрь, поэтому вызывающая сторона
 /// должна освободить свою копию отдельно.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_logger_log(logger: *mut C_Logger, message: *const c_char) {
     if logger.is_null() || message.is_null() {
         return;
@@ -311,7 +311,7 @@ pub unsafe extern "C" fn rust_logger_log(logger: *mut C_Logger, message: *const 
 ///
 /// # Safety
 /// Работает с raw pointers
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_logger_set_status(logger: *mut C_Logger, status: C_TaskStatus) {
     if logger.is_null() {
         return;
@@ -338,7 +338,7 @@ pub unsafe extern "C" fn rust_logger_set_status(logger: *mut C_Logger, status: C
 ///
 /// # Safety
 /// Работает с raw pointers
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_logger_get_status(logger: *mut C_Logger) -> C_TaskStatus {
     if logger.is_null() {
         return C_TaskStatus::Waiting;

@@ -158,20 +158,20 @@ mod tests {
 
     #[test]
     fn test_get_public_host_default() {
-        std::env::remove_var("VELUM_WEB_HOST");
+        unsafe { std::env::remove_var("VELUM_WEB_HOST") };
         assert_eq!(get_public_host(), "http://localhost:3000");
     }
 
     #[test]
     fn test_get_public_host_from_env() {
-        std::env::set_var("VELUM_WEB_HOST", "https://example.com");
+        unsafe { std::env::set_var("VELUM_WEB_HOST", "https://example.com") };
         assert_eq!(get_public_host(), "https://example.com");
-        std::env::remove_var("VELUM_WEB_HOST");
+        unsafe { std::env::remove_var("VELUM_WEB_HOST") };
     }
 
     #[test]
     fn test_get_public_alias_url() {
-        std::env::remove_var("VELUM_WEB_HOST");
+        unsafe { std::env::remove_var("VELUM_WEB_HOST") };
         let url = get_public_alias_url("test", "alias123");
         assert_eq!(url, "http://localhost:3000/api/alias123");
     }

@@ -198,10 +198,39 @@ sprints:
         completion_notes:
           - "rand 0.9: 15 файлов обновлено (thread_rng→rng, gen_range→random_range, distr::Alphanumeric)"
           - "teloxide удалена — Telegram Bot работает через reqwest напрямую"
-          - "cargo audit: 0 warnings (4 транзитивные проигнорированы в .cargo/audit.toml)"
-          - "cargo test: 6548 passed, 3 failed (pre-existing failures, не связаны с changes)"
+          - "cargo audit: 0 warnings"
+          - "cargo test: 6550 passed, 1 failed (pre-existing failure)"
           - "cargo clippy: 0 warnings"
-          - "kube 0.98→3.x отложено — масштабная миграция K8s API"
+          - "kube 0.98→3.1 ЗАВЕРШЁН — см. SEC-08"
+
+      - task_id: SEC-08
+        title: "Kubernetes client: kube 0.98 → 3.1 migration"
+        priority: critical
+        estimate: large
+        status: completed
+        assignee: assistant
+        subtasks:
+          - "Обновить k8s-openapi 0.24 → 0.27 (v1_35)"
+          - "Обновить kube 0.98 → 3.1, kube-runtime 0.98 → 3.1"
+          - "Edition 2021 → 2024"
+          - "chrono → jiff для K8s timestamps (23 места: to_rfc3339 → to_string, format_age переписана)"
+          - "ResourceAttributes: добавить field_selector, label_selector"
+          - "service_name: Option<String> → String unwrap"
+          - "edition 2024: #[no_mangle] → #[unsafe(no_mangle)], set_var/remove_var → unsafe {}"
+          - "130 вызовов env::set_var/remove_var обёрнуты в unsafe {}"
+        done_when:
+          - "cargo check: 0 errors"
+          - "cargo clippy -- -D warnings: 0 warnings"
+          - "cargo test: 6550+ passed"
+          - "cargo audit: 0 warnings (backoff, instant, rustls-pemfile устранены)"
+        completion_notes:
+          - "k8s-openapi 0.27: Kubernetes v1_35 support"
+          - "kube 3.1: backoff→backon, chrono→jiff, ErrorResponse→Status, Aggregated Discovery"
+          - "edition 2024: unsafe fn bodies safe by default, raw pointer deref in unsafe fn"
+          - "format_age переписана: DateTime<Utc> → jiff::Timestamp"
+          - "make_ts в тестах: from_second для jiff Timestamp"
+          - "35 файлов K8s handlers обновлены"
+          - "cargo audit: backoff/instant/rustls-pemfile advisories устранены"
 
     sprint_done_when:
       - "SEC-01 завершён"
@@ -1121,6 +1150,14 @@ task_index:
     title: "Dependency cleanup: rand + teloxide"
     priority: high
     estimate: medium
+    status: completed
+    assignee: assistant
+  - sprint_id: S0
+    sprint_title: "Спринт 0 — Critical Security Fixes (1-2 недели)"
+    task_id: SEC-08
+    title: "Kubernetes client: kube 0.98 → 3.1 migration"
+    priority: critical
+    estimate: large
     status: completed
     assignee: assistant
   - sprint_id: S1

@@ -288,8 +288,8 @@ async fn get_kubernetes_events(
             reason: e.reason.clone().unwrap_or_default(),
             message: e.message.clone().unwrap_or_default(),
             count: e.count.unwrap_or(1),
-            first_seen: e.first_timestamp.as_ref().map(|t| t.0.to_rfc3339()),
-            last_seen: e.last_timestamp.as_ref().map(|t| t.0.to_rfc3339()),
+            first_seen: e.first_timestamp.as_ref().map(|t| t.0.to_string()),
+            last_seen: e.last_timestamp.as_ref().map(|t| t.0.to_string()),
         })
         .collect();
 

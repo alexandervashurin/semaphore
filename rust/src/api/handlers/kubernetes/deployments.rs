@@ -6,9 +6,10 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use k8s_openapi::api::apps::v1::Deployment;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
+use k8s_openapi::jiff::Timestamp;
 use kube::{
     api::{Api, DeleteParams, ListParams, Patch, PatchParams, PostParams},
     Client,
@@ -45,7 +46,7 @@ pub struct DeploymentCondition {
     pub status: String,
     pub reason: Option<String>,
     pub message: Option<String>,
-    pub last_update_time: Option<DateTime<Utc>>,
+    pub last_update_time: Option<String>,
 }
 
 /// Детальная информация о Deployment
@@ -63,7 +64,7 @@ pub struct DeploymentDetail {
     pub template_labels: BTreeMap<String, String>,
     pub containers: Vec<ContainerInfo>,
     pub conditions: Vec<DeploymentCondition>,
-    pub created_at: Option<DateTime<Utc>>,
+    pub created_at: Option<String>,
 }
 
 /// Информация о контейнере
@@ -131,7 +132,7 @@ pub struct RolloutHistory {
 pub struct RevisionInfo {
     pub revision: i64,
     pub change_cause: Option<String>,
-    pub created_at: Option<DateTime<Utc>>,
+    pub created_at: Option<String>,
 }
 
 /// Детальная информация о ревизии с ReplicaSet
@@ -143,7 +144,7 @@ pub struct DetailedRevisionInfo {
     pub ready_replicas: i32,
     pub available_replicas: i32,
     pub image: String,
-    pub created_at: Option<DateTime<Utc>>,
+    pub created_at: Option<String>,
 }
 
 /// Детальная история rollout
@@ -497,7 +498,7 @@ pub async fn get_deployment_history(
             vec![RevisionInfo {
                 revision: rev,
                 change_cause: None,
-                created_at: deployment.metadata.creation_timestamp.as_ref().map(|t| t.0),
+                created_at: deployment.metadata.creation_timestamp.as_ref().map(|t| t.0.to_string()),
             }]
         })
         .unwrap_or_default();
@@ -635,7 +636,7 @@ pub async fn get_deployment_history_detailed(
                     .as_ref()
                     .and_then(|s| s.available_replicas)
                     .unwrap_or(0),
-                created_at: rs.metadata.creation_timestamp.as_ref().map(|t| t.0),
+                created_at: rs.metadata.creation_timestamp.as_ref().map(|t| t.0.to_string()),
                 image: rs
                     .spec
                     .as_ref()
@@ -695,7 +696,7 @@ fn deployment_summary(deployment: &Deployment) -> DeploymentSummary {
                     status: c.status.clone(),
                     reason: c.reason.clone(),
                     message: c.message.clone(),
-                    last_update_time: c.last_update_time.as_ref().map(|t| t.0),
+                    last_update_time: c.last_update_time.as_ref().map(|t| t.0.to_string()),
                 })
                 .collect()
         })
@@ -767,7 +768,7 @@ fn deployment_detail(deployment: &Deployment) -> DeploymentDetail {
                     status: c.status.clone(),
                     reason: c.reason.clone(),
                     message: c.message.clone(),
-                    last_update_time: c.last_update_time.as_ref().map(|t| t.0),
+                    last_update_time: c.last_update_time.as_ref().map(|t| t.0.to_string()),
                 })
                 .collect()
         })
@@ -790,85 +791,89 @@ fn deployment_detail(deployment: &Deployment) -> DeploymentDetail {
         template_labels,
         containers,
         conditions,
-        created_at: deployment.metadata.creation_timestamp.as_ref().map(|t| t.0),
+        created_at: deployment.metadata.creation_timestamp.as_ref().map(|t| t.0.to_string()),
     }
 }
 
-fn format_age(time: &DateTime<Utc>) -> String {
-    let now = Utc::now();
-    let duration = now.signed_duration_since(*time);
-
-    if duration.num_days() > 365 {
-        format!("{}y", duration.num_days() / 365)
-    } else if duration.num_days() > 30 {
-        format!("{}d", duration.num_days() / 30)
-    } else if duration.num_days() > 0 {
-        format!("{}d", duration.num_days())
-    } else if duration.num_hours() > 0 {
-        format!("{}h", duration.num_hours())
-    } else if duration.num_minutes() > 0 {
-        format!("{}m", duration.num_minutes())
+fn format_age(time: &Timestamp) -> String {
+    let now = Timestamp::now();
+    let duration = now.duration_since(*time);
+    let total_secs = duration.as_secs().abs();
+    let days = total_secs / 86400;
+    if days > 365 {
+        format!("{}y", days / 365)
+    } else if days > 30 {
+        format!("{}d", days / 30)
+    } else if days > 0 {
+        format!("{}d", days)
     } else {
-        format!("{}s", duration.num_seconds())
+        let hours = total_secs / 3600;
+        if hours > 0 {
+            format!("{}h", hours)
+        } else {
+            let mins = total_secs / 60;
+            if mins > 0 {
+                format!("{}m", mins)
+            } else {
+                format!("{}s", total_secs)
+            }
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Duration;
+
+    fn make_ts_seconds_ago(secs: i64) -> Timestamp {
+        let now = Timestamp::now();
+        let dur = k8s_openapi::jiff::SignedDuration::from_secs(secs);
+        now.checked_sub(dur).unwrap()
+    }
 
     #[test]
     fn test_format_age_seconds() {
-        let now = Utc::now();
-        let age = format_age(&(now - Duration::seconds(30)));
+        let age = format_age(&make_ts_seconds_ago(30));
         assert_eq!(age, "30s");
     }
 
     #[test]
     fn test_format_age_minutes() {
-        let now = Utc::now();
-        let age = format_age(&(now - Duration::minutes(15)));
+        let age = format_age(&make_ts_seconds_ago(15 * 60));
         assert_eq!(age, "15m");
     }
 
     #[test]
     fn test_format_age_hours() {
-        let now = Utc::now();
-        let age = format_age(&(now - Duration::hours(3)));
+        let age = format_age(&make_ts_seconds_ago(3 * 3600));
         assert_eq!(age, "3h");
     }
 
     #[test]
     fn test_format_age_days() {
-        let now = Utc::now();
-        let age = format_age(&(now - Duration::days(7)));
+        let age = format_age(&make_ts_seconds_ago(7 * 86400));
         assert_eq!(age, "7d");
     }
 
     #[test]
     fn test_format_age_months() {
-        let now = Utc::now();
-        let age = format_age(&(now - Duration::days(45)));
+        let age = format_age(&make_ts_seconds_ago(45 * 86400));
         assert_eq!(age, "1d"); // 45/30 = 1
     }
 
     #[test]
     fn test_format_age_years() {
-        let now = Utc::now();
-        let age = format_age(&(now - Duration::days(400)));
+        let age = format_age(&make_ts_seconds_ago(400 * 86400));
         assert_eq!(age, "1y"); // 400/365 = 1
     }
 
     #[test]
     fn test_format_age_future() {
-        let now = Utc::now();
-        let age = format_age(&(now + Duration::seconds(10)));
-        // Future timestamps produce 0s since duration is negative but num_seconds() returns positive
-        // Actually chrono's signed_duration_since returns negative duration
-        // and num_seconds() on negative duration returns negative value
-        // so the else branch would execute: format!("{}s", duration.num_seconds())
-        // which gives "-10s" or similar. Let's just verify it doesn't panic.
+        let now = Timestamp::now();
+        let dur = k8s_openapi::jiff::SignedDuration::from_secs(10);
+        let ts = now.checked_add(dur).unwrap();
+        let age = format_age(&ts);
+        // Future timestamps produce 0s since duration is negative but abs() makes it positive
         assert!(!age.is_empty());
     }
 
@@ -902,7 +907,7 @@ mod tests {
             status: "True".to_string(),
             reason: Some("MinimumReplicasAvailable".to_string()),
             message: Some("Deployment has minimum replicas".to_string()),
-            last_update_time: Some(Utc::now()),
+            last_update_time: Some(Timestamp::now().to_string()),
         };
         assert_eq!(condition.condition_type, "Available");
         assert_eq!(condition.status, "True");
@@ -939,7 +944,7 @@ mod tests {
             template_labels: BTreeMap::from([("app".to_string(), "my-app".to_string())]),
             containers: vec![],
             conditions: vec![],
-            created_at: Some(Utc::now()),
+            created_at: Some(Timestamp::now().to_string()),
         };
         assert_eq!(detail.name, "my-app");
         assert_eq!(detail.replicas, 5);
@@ -1097,7 +1102,7 @@ mod tests {
         let revision = RevisionInfo {
             revision: 5,
             change_cause: Some("Updated image to v2".to_string()),
-            created_at: Some(Utc::now()),
+            created_at: Some(Timestamp::now().to_string()),
         };
         assert_eq!(revision.revision, 5);
         assert!(revision.change_cause.is_some());
@@ -1123,7 +1128,7 @@ mod tests {
             ready_replicas: 3,
             available_replicas: 3,
             image: "nginx:1.25".to_string(),
-            created_at: Some(Utc::now()),
+            created_at: Some(Timestamp::now().to_string()),
         };
         assert_eq!(rev.revision, 3);
         assert_eq!(rev.replica_set_name, "web-app-abc123");
@@ -1159,7 +1164,7 @@ mod tests {
                     ready_replicas: 3,
                     available_replicas: 3,
                     image: "api:v5".to_string(),
-                    created_at: Some(Utc::now()),
+                    created_at: Some(Timestamp::now().to_string()),
                 },
                 DetailedRevisionInfo {
                     revision: 4,
@@ -1212,29 +1217,25 @@ mod tests {
 
     #[test]
     fn test_format_age_exact_boundary_minutes() {
-        let now = Utc::now();
-        let age = format_age(&(now - Duration::minutes(60)));
+        let age = format_age(&make_ts_seconds_ago(60 * 60));
         assert_eq!(age, "1h");
     }
 
     #[test]
     fn test_format_age_exact_boundary_days() {
-        let now = Utc::now();
-        let age = format_age(&(now - Duration::hours(24)));
+        let age = format_age(&make_ts_seconds_ago(24 * 3600));
         assert_eq!(age, "1d");
     }
 
     #[test]
     fn test_format_age_zero_seconds() {
-        let now = Utc::now();
-        let age = format_age(&now);
+        let age = format_age(&make_ts_seconds_ago(0));
         assert_eq!(age, "0s");
     }
 
     #[test]
     fn test_format_age_large_year_value() {
-        let now = Utc::now();
-        let age = format_age(&(now - Duration::days(730)));
+        let age = format_age(&make_ts_seconds_ago(730 * 86400));
         assert_eq!(age, "2y");
     }
 }

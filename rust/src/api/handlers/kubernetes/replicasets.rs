@@ -6,9 +6,8 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
-use chrono::DateTime;
-use chrono::Utc;
 use k8s_openapi::api::apps::v1::ReplicaSet;
+use k8s_openapi::jiff::Timestamp;
 use kube::api::{Api, DeleteParams, ListParams};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -46,7 +45,7 @@ pub struct ReplicaSetDetail {
     pub containers: Vec<ContainerInfo>,
     pub owner_references: Vec<OwnerReference>,
     pub conditions: Vec<ReplicaSetCondition>,
-    pub created_at: Option<DateTime<Utc>>,
+    pub created_at: Option<String>,
 }
 
 /// Информация о контейнере
@@ -336,36 +335,44 @@ fn replicaset_detail(rs: &ReplicaSet) -> ReplicaSetDetail {
         containers,
         owner_references,
         conditions,
-        created_at: rs.metadata.creation_timestamp.as_ref().map(|t| t.0),
+        created_at: rs.metadata.creation_timestamp.as_ref().map(|t| t.0.to_string()),
     }
 }
 
-fn format_age(time: &DateTime<Utc>) -> String {
-    let now = Utc::now();
-    let duration = now.signed_duration_since(*time);
-
-    if duration.num_days() > 365 {
-        format!("{}y", duration.num_days() / 365)
-    } else if duration.num_days() > 30 {
-        format!("{}d", duration.num_days() / 30)
-    } else if duration.num_days() > 0 {
-        format!("{}d", duration.num_days())
-    } else if duration.num_hours() > 0 {
-        format!("{}h", duration.num_hours())
-    } else if duration.num_minutes() > 0 {
-        format!("{}m", duration.num_minutes())
+fn format_age(time: &Timestamp) -> String {
+    let now = Timestamp::now();
+    let duration = now.duration_since(*time);
+    let total_secs = duration.as_secs().abs();
+    let days = total_secs / 86400;
+    if days > 365 {
+        format!("{}y", days / 365)
+    } else if days > 30 {
+        format!("{}d", days / 30)
+    } else if days > 0 {
+        format!("{}d", days)
     } else {
-        format!("{}s", duration.num_seconds())
+        let hours = total_secs / 3600;
+        if hours > 0 {
+            format!("{}h", hours)
+        } else {
+            let mins = total_secs / 60;
+            if mins > 0 {
+                format!("{}m", mins)
+            } else {
+                format!("{}s", total_secs)
+            }
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Duration;
 
-    fn make_ts(seconds_ago: i64) -> DateTime<Utc> {
-        Utc::now() - Duration::seconds(seconds_ago)
+    fn make_ts(seconds_ago: i64) -> Timestamp {
+        let now = Timestamp::now();
+        let dur = k8s_openapi::jiff::SignedDuration::from_secs(seconds_ago);
+        now.checked_sub(dur).unwrap()
     }
 
     #[test]
@@ -462,7 +469,7 @@ mod tests {
                 reason: None,
                 message: None,
             }],
-            created_at: Some(Utc::now()),
+            created_at: Some(Timestamp::now().to_string()),
         };
         assert_eq!(detail.name, "web-rs");
         assert_eq!(detail.containers.len(), 1);

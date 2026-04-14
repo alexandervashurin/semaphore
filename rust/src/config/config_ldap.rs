@@ -190,15 +190,19 @@ mod tests {
 
     #[test]
     fn test_load_ldap_from_env() {
-        env::set_var("SEMAPHORE_LDAP_ENABLE", "true");
-        env::set_var("SEMAPHORE_LDAP_SERVER", "test.server");
+        unsafe {
+            std::env::set_var("SEMAPHORE_LDAP_ENABLE", "true");
+            std::env::set_var("SEMAPHORE_LDAP_SERVER", "test.server");
+        }
 
         let config = load_ldap_from_env();
         assert!(config.enable);
         assert_eq!(config.server, "test.server");
 
-        env::remove_var("SEMAPHORE_LDAP_ENABLE");
-        env::remove_var("SEMAPHORE_LDAP_SERVER");
+        unsafe {
+            std::env::remove_var("SEMAPHORE_LDAP_ENABLE");
+            std::env::remove_var("SEMAPHORE_LDAP_SERVER");
+        }
     }
 
     #[test]
@@ -273,16 +277,18 @@ mod tests {
 
     #[test]
     fn test_load_ldap_from_env_all_fields() {
-        env::set_var("SEMAPHORE_LDAP_ENABLE", "1");
-        env::set_var("SEMAPHORE_LDAP_SERVER", "full.ldap.server");
-        env::set_var("SEMAPHORE_LDAP_BIND_DN", "cn=bind,dc=test");
-        env::set_var("SEMAPHORE_LDAP_BIND_PASSWORD", "bindpass");
-        env::set_var("SEMAPHORE_LDAP_SEARCH_DN", "ou=search,dc=test");
-        env::set_var(
-            "SEMAPHORE_LDAP_SEARCH_FILTER",
-            "(&(uid={login})(active=TRUE))",
-        );
-        env::set_var("SEMAPHORE_LDAP_NEEDTLS", "true");
+        unsafe {
+            std::env::set_var("SEMAPHORE_LDAP_ENABLE", "1");
+            std::env::set_var("SEMAPHORE_LDAP_SERVER", "full.ldap.server");
+            std::env::set_var("SEMAPHORE_LDAP_BIND_DN", "cn=bind,dc=test");
+            std::env::set_var("SEMAPHORE_LDAP_BIND_PASSWORD", "bindpass");
+            std::env::set_var("SEMAPHORE_LDAP_SEARCH_DN", "ou=search,dc=test");
+            std::env::set_var(
+                "SEMAPHORE_LDAP_SEARCH_FILTER",
+                "(&(uid={login})(active=TRUE))",
+            );
+            std::env::set_var("SEMAPHORE_LDAP_NEEDTLS", "true");
+        }
 
         let config = load_ldap_from_env();
         assert!(config.enable);
@@ -293,21 +299,25 @@ mod tests {
         assert_eq!(config.search_filter, "(&(uid={login})(active=TRUE))");
         assert!(config.need_tls);
 
-        env::remove_var("SEMAPHORE_LDAP_ENABLE");
-        env::remove_var("SEMAPHORE_LDAP_SERVER");
-        env::remove_var("SEMAPHORE_LDAP_BIND_DN");
-        env::remove_var("SEMAPHORE_LDAP_BIND_PASSWORD");
-        env::remove_var("SEMAPHORE_LDAP_SEARCH_DN");
-        env::remove_var("SEMAPHORE_LDAP_SEARCH_FILTER");
-        env::remove_var("SEMAPHORE_LDAP_NEEDTLS");
+        unsafe {
+            std::env::remove_var("SEMAPHORE_LDAP_ENABLE");
+            std::env::remove_var("SEMAPHORE_LDAP_SERVER");
+            std::env::remove_var("SEMAPHORE_LDAP_BIND_DN");
+            std::env::remove_var("SEMAPHORE_LDAP_BIND_PASSWORD");
+            std::env::remove_var("SEMAPHORE_LDAP_SEARCH_DN");
+            std::env::remove_var("SEMAPHORE_LDAP_SEARCH_FILTER");
+            std::env::remove_var("SEMAPHORE_LDAP_NEEDTLS");
+        }
     }
 
     #[test]
     fn test_load_ldap_from_env_mappings() {
-        env::set_var("SEMAPHORE_LDAP_MAPPING_DN", "distinguishedName");
-        env::set_var("SEMAPHORE_LDAP_MAPPING_MAIL", "email");
-        env::set_var("SEMAPHORE_LDAP_MAPPING_UID", "sAMAccountName");
-        env::set_var("SEMAPHORE_LDAP_MAPPING_CN", "displayName");
+        unsafe {
+            std::env::set_var("SEMAPHORE_LDAP_MAPPING_DN", "distinguishedName");
+            std::env::set_var("SEMAPHORE_LDAP_MAPPING_MAIL", "email");
+            std::env::set_var("SEMAPHORE_LDAP_MAPPING_UID", "sAMAccountName");
+            std::env::set_var("SEMAPHORE_LDAP_MAPPING_CN", "displayName");
+        }
 
         let config = load_ldap_from_env();
         assert_eq!(config.mappings.dn, "distinguishedName");
@@ -315,10 +325,12 @@ mod tests {
         assert_eq!(config.mappings.uid, "sAMAccountName");
         assert_eq!(config.mappings.cn, "displayName");
 
-        env::remove_var("SEMAPHORE_LDAP_MAPPING_DN");
-        env::remove_var("SEMAPHORE_LDAP_MAPPING_MAIL");
-        env::remove_var("SEMAPHORE_LDAP_MAPPING_UID");
-        env::remove_var("SEMAPHORE_LDAP_MAPPING_CN");
+        unsafe {
+            std::env::remove_var("SEMAPHORE_LDAP_MAPPING_DN");
+            std::env::remove_var("SEMAPHORE_LDAP_MAPPING_MAIL");
+            std::env::remove_var("SEMAPHORE_LDAP_MAPPING_UID");
+            std::env::remove_var("SEMAPHORE_LDAP_MAPPING_CN");
+        }
     }
 
     #[test]
@@ -361,18 +373,18 @@ mod tests {
 
     #[test]
     fn test_load_ldap_from_env_enable_false() {
-        env::set_var("SEMAPHORE_LDAP_ENABLE", "false");
+        unsafe { std::env::set_var("SEMAPHORE_LDAP_ENABLE", "false") };
         let config = load_ldap_from_env();
         assert!(!config.enable);
-        env::remove_var("SEMAPHORE_LDAP_ENABLE");
+        unsafe { std::env::remove_var("SEMAPHORE_LDAP_ENABLE") };
     }
 
     #[test]
     fn test_load_ldap_from_env_enable_invalid() {
-        env::set_var("SEMAPHORE_LDAP_ENABLE", "invalid");
+        unsafe { std::env::set_var("SEMAPHORE_LDAP_ENABLE", "invalid") };
         let config = load_ldap_from_env();
         assert!(!config.enable);
-        env::remove_var("SEMAPHORE_LDAP_ENABLE");
+        unsafe { std::env::remove_var("SEMAPHORE_LDAP_ENABLE") };
     }
 
     #[test]

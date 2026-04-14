@@ -621,8 +621,8 @@ impl KubernetesClusterService {
                     involved_object_name: e.involved_object.name.clone().unwrap_or_default(),
                     involved_object_kind: e.involved_object.kind.clone().unwrap_or_default(),
                     count: e.count.unwrap_or(1),
-                    first_time: e.first_timestamp.as_ref().map(|t| t.0.to_rfc3339()),
-                    last_time: e.last_timestamp.as_ref().map(|t| t.0.to_rfc3339()),
+                    first_time: e.first_timestamp.as_ref().map(|t| t.0.to_string()),
+                    last_time: e.last_timestamp.as_ref().map(|t| t.0.to_string()),
                 }
             })
             .collect();
@@ -883,7 +883,7 @@ fn pod_to_info(pod: Pod) -> PodInfo {
     let name = meta.name.clone().unwrap_or_default();
     let namespace = meta.namespace.clone().unwrap_or_default();
     let labels = meta.labels.clone().unwrap_or_default();
-    let created_at = meta.creation_timestamp.as_ref().map(|t| t.0.to_rfc3339());
+    let created_at = meta.creation_timestamp.as_ref().map(|t| t.0.to_string());
 
     let spec = pod.spec.as_ref();
     let node_name = spec.and_then(|s| s.node_name.clone());
@@ -998,7 +998,7 @@ fn deployment_to_info(d: Deployment) -> DeploymentInfo {
     let name = meta.name.clone().unwrap_or_default();
     let namespace = meta.namespace.clone().unwrap_or_default();
     let labels = meta.labels.clone().unwrap_or_default();
-    let created_at = meta.creation_timestamp.as_ref().map(|t| t.0.to_rfc3339());
+    let created_at = meta.creation_timestamp.as_ref().map(|t| t.0.to_string());
 
     let spec = d.spec.as_ref();
     let replicas_desired = spec.and_then(|s| s.replicas).unwrap_or(1);
@@ -1081,7 +1081,7 @@ fn daemonset_to_info(d: DaemonSet) -> DaemonSetInfo {
     let name = meta.name.clone().unwrap_or_default();
     let namespace = meta.namespace.clone().unwrap_or_default();
     let labels = meta.labels.clone().unwrap_or_default();
-    let created_at = meta.creation_timestamp.as_ref().map(|t| t.0.to_rfc3339());
+    let created_at = meta.creation_timestamp.as_ref().map(|t| t.0.to_string());
 
     let spec = d.spec.as_ref();
     let images: Vec<String> = spec
@@ -1145,11 +1145,11 @@ fn statefulset_to_info(s: StatefulSet) -> StatefulSetInfo {
     let name = meta.name.clone().unwrap_or_default();
     let namespace = meta.namespace.clone().unwrap_or_default();
     let labels = meta.labels.clone().unwrap_or_default();
-    let created_at = meta.creation_timestamp.as_ref().map(|t| t.0.to_rfc3339());
+    let created_at = meta.creation_timestamp.as_ref().map(|t| t.0.to_string());
 
     let spec = s.spec.as_ref();
     let replicas_desired = spec.and_then(|sp| sp.replicas).unwrap_or(1);
-    let service_name = spec.map(|sp| sp.service_name.clone()).unwrap_or_default();
+    let service_name = spec.and_then(|sp| sp.service_name.clone()).unwrap_or_default();
     let images: Vec<String> = spec
         .map(|sp| {
             sp.template
@@ -1204,7 +1204,7 @@ fn replicaset_to_info(rs: ReplicaSet) -> ReplicaSetInfo {
     let name = meta.name.clone().unwrap_or_default();
     let namespace = meta.namespace.clone().unwrap_or_default();
     let labels = meta.labels.clone().unwrap_or_default();
-    let created_at = meta.creation_timestamp.as_ref().map(|t| t.0.to_rfc3339());
+    let created_at = meta.creation_timestamp.as_ref().map(|t| t.0.to_string());
 
     // Найти владельца Deployment через ownerReferences
     let owner_deployment = meta
@@ -1301,7 +1301,7 @@ fn service_to_info(svc: Service) -> ServiceInfo {
     let name = meta.name.clone().unwrap_or_default();
     let namespace = meta.namespace.clone().unwrap_or_default();
     let labels = meta.labels.clone().unwrap_or_default();
-    let created_at = meta.creation_timestamp.as_ref().map(|t| t.0.to_rfc3339());
+    let created_at = meta.creation_timestamp.as_ref().map(|t| t.0.to_string());
 
     let spec = svc.spec.as_ref();
     let type_ = spec
@@ -1403,7 +1403,7 @@ fn ingress_to_info(ing: Ingress) -> IngressInfo {
     let namespace = meta.namespace.clone().unwrap_or_default();
     let labels = meta.labels.clone().unwrap_or_default();
     let annotations = meta.annotations.clone().unwrap_or_default();
-    let created_at = meta.creation_timestamp.as_ref().map(|t| t.0.to_rfc3339());
+    let created_at = meta.creation_timestamp.as_ref().map(|t| t.0.to_string());
 
     let spec = ing.spec.as_ref();
     let ingress_class = spec.and_then(|s| s.ingress_class_name.clone());
@@ -1516,7 +1516,7 @@ fn configmap_to_info(cm: ConfigMap) -> ConfigMapInfo {
         name: meta.name.clone().unwrap_or_default(),
         namespace: meta.namespace.clone().unwrap_or_default(),
         labels: meta.labels.clone().unwrap_or_default(),
-        created_at: meta.creation_timestamp.as_ref().map(|t| t.0.to_rfc3339()),
+        created_at: meta.creation_timestamp.as_ref().map(|t| t.0.to_string()),
         data: cm.data.unwrap_or_default(),
         binary_data_keys: cm
             .binary_data
@@ -1559,7 +1559,7 @@ fn secret_to_info(s: Secret) -> SecretInfo {
         namespace: meta.namespace.clone().unwrap_or_default(),
         type_: s.type_.clone().unwrap_or_else(|| "Opaque".to_string()),
         labels: meta.labels.clone().unwrap_or_default(),
-        created_at: meta.creation_timestamp.as_ref().map(|t| t.0.to_rfc3339()),
+        created_at: meta.creation_timestamp.as_ref().map(|t| t.0.to_string()),
         data_keys,
         data_revealed: None,
     }

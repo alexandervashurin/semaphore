@@ -255,7 +255,7 @@ pub async fn list_helm_releases(
                             .metadata
                             .creation_timestamp
                             .as_ref()
-                            .map(|t| t.0.to_rfc3339()),
+                            .map(|t| t.0.to_string()),
                         values: None,
                     };
                     releases.push(release);

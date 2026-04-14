@@ -101,7 +101,7 @@ fn cron_summary(cj: &CronJob) -> CronJobSummary {
             .unwrap_or(0),
         last_schedule_time: st
             .and_then(|s| s.last_schedule_time.as_ref())
-            .map(|t| t.0.to_rfc3339()),
+            .map(|t| t.0.to_string()),
     }
 }
 

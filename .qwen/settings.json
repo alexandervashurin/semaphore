@@ -91,7 +91,9 @@
       "Bash('}\"),')",
       "Bash('.to_string()' *)",
       "Bash(new_line *)",
-      "Bash(new_line)"
+      "Bash(new_line)",
+      "Bash(rustc *)",
+      "Bash(true)"
     ]
   },
   "$version": 3

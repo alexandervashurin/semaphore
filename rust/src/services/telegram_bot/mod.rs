@@ -471,7 +471,7 @@ mod notify_tests {
     #[test]
     fn telegram_bot_new_returns_none_without_token() {
         // Убедимся что переменные окружения не заданы
-        std::env::remove_var("SEMAPHORE_TELEGRAM_TOKEN");
+        unsafe { std::env::remove_var("SEMAPHORE_TELEGRAM_TOKEN") };
 
         let config = crate::config::Config::default();
         let bot = TelegramBot::new(&config);
@@ -640,7 +640,7 @@ mod notify_tests {
 
     #[test]
     fn start_bot_if_configured_without_token() {
-        std::env::remove_var("SEMAPHORE_TELEGRAM_TOKEN");
+        unsafe { std::env::remove_var("SEMAPHORE_TELEGRAM_TOKEN") };
         let config = crate::config::Config::default();
 
         // Не должен паниковать даже без токена
@@ -904,7 +904,7 @@ mod notify_tests {
 
     #[test]
     fn notification_bot_static_init_returns_none_without_config() {
-        std::env::remove_var("SEMAPHORE_TELEGRAM_TOKEN");
+        unsafe { std::env::remove_var("SEMAPHORE_TELEGRAM_TOKEN") };
 
         let config = crate::config::Config::default();
         TelegramBot::init_notification_bot(&config);
@@ -935,7 +935,7 @@ mod notify_tests {
         let base_url = "https://semaphore.example.com";
 
         // Мокируем get_public_host через установку переменной окружения
-        std::env::set_var("SEMAPHORE_PUBLIC_HOST", base_url);
+        unsafe { std::env::set_var("SEMAPHORE_PUBLIC_HOST", base_url) };
 
         let expected = format!("{base_url}/project/{project_id}/tasks/{task_id}");
         assert_eq!(expected, "https://semaphore.example.com/project/5/tasks/42");

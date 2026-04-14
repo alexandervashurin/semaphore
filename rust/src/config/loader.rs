@@ -300,15 +300,19 @@ mod tests {
 
     #[test]
     fn test_load_from_env() {
-        env::set_var("SEMAPHORE_DB_HOST", "testhost");
-        env::set_var("SEMAPHORE_DB_USER", "testuser");
+        unsafe {
+            std::env::set_var("SEMAPHORE_DB_HOST", "testhost");
+            std::env::set_var("SEMAPHORE_DB_USER", "testuser");
+        }
 
         let config = load_from_env().unwrap();
         assert_eq!(config.database.hostname, "testhost");
         assert_eq!(config.database.username, "testuser");
 
-        env::remove_var("SEMAPHORE_DB_HOST");
-        env::remove_var("SEMAPHORE_DB_USER");
+        unsafe {
+            std::env::remove_var("SEMAPHORE_DB_HOST");
+            std::env::remove_var("SEMAPHORE_DB_USER");
+        }
     }
 
     #[test]
@@ -600,66 +604,78 @@ mod tests {
 
     #[test]
     fn test_load_from_env_ldap_enable_true() {
-        env::set_var("SEMAPHORE_LDAP_ENABLE", "true");
+        unsafe { std::env::set_var("SEMAPHORE_LDAP_ENABLE", "true") };
         let config = load_from_env().unwrap();
         assert!(config.ldap.is_some());
         assert!(config.ldap.unwrap().enable);
-        env::remove_var("SEMAPHORE_LDAP_ENABLE");
+        unsafe { std::env::remove_var("SEMAPHORE_LDAP_ENABLE") };
     }
 
     #[test]
     fn test_load_from_env_ldap_enable_1() {
-        env::set_var("SEMAPHORE_LDAP_ENABLE", "1");
+        unsafe { std::env::set_var("SEMAPHORE_LDAP_ENABLE", "1") };
         let config = load_from_env().unwrap();
         assert!(config.ldap.is_some());
         assert!(config.ldap.unwrap().enable);
-        env::remove_var("SEMAPHORE_LDAP_ENABLE");
+        unsafe { std::env::remove_var("SEMAPHORE_LDAP_ENABLE") };
     }
 
     #[test]
     fn test_load_from_env_ldap_enable_false() {
-        env::set_var("SEMAPHORE_LDAP_ENABLE", "false");
+        unsafe { std::env::set_var("SEMAPHORE_LDAP_ENABLE", "false") };
         let config = load_from_env().unwrap();
         assert!(config.ldap.is_some());
         assert!(!config.ldap.unwrap().enable);
-        env::remove_var("SEMAPHORE_LDAP_ENABLE");
+        unsafe { std::env::remove_var("SEMAPHORE_LDAP_ENABLE") };
     }
 
     #[test]
     fn test_load_from_env_totp() {
-        env::set_var("SEMAPHORE_AUTH_TOTP_ENABLE", "true");
-        env::set_var("SEMAPHORE_AUTH_TOTP_ALLOW_RECOVERY", "1");
+        unsafe {
+            std::env::set_var("SEMAPHORE_AUTH_TOTP_ENABLE", "true");
+            std::env::set_var("SEMAPHORE_AUTH_TOTP_ALLOW_RECOVERY", "1");
+        }
         let config = load_from_env().unwrap();
         assert!(config.auth.totp.enable);
         assert!(config.auth.totp.allow_recovery);
-        env::remove_var("SEMAPHORE_AUTH_TOTP_ENABLE");
-        env::remove_var("SEMAPHORE_AUTH_TOTP_ALLOW_RECOVERY");
+        unsafe {
+            std::env::remove_var("SEMAPHORE_AUTH_TOTP_ENABLE");
+            std::env::remove_var("SEMAPHORE_AUTH_TOTP_ALLOW_RECOVERY");
+        }
     }
 
     #[test]
     fn test_load_from_env_ha() {
-        env::set_var("SEMAPHORE_HA_ENABLE", "true");
-        env::set_var("SEMAPHORE_HA_REDIS_HOST", "redis.host");
-        env::set_var("SEMAPHORE_HA_REDIS_PORT", "6380");
+        unsafe {
+            std::env::set_var("SEMAPHORE_HA_ENABLE", "true");
+            std::env::set_var("SEMAPHORE_HA_REDIS_HOST", "redis.host");
+            std::env::set_var("SEMAPHORE_HA_REDIS_PORT", "6380");
+        }
         let config = load_from_env().unwrap();
         assert!(config.ha.enable);
         assert_eq!(config.ha.redis.host, "redis.host");
         assert_eq!(config.ha.redis.port, 6380);
-        env::remove_var("SEMAPHORE_HA_ENABLE");
-        env::remove_var("SEMAPHORE_HA_REDIS_HOST");
-        env::remove_var("SEMAPHORE_HA_REDIS_PORT");
+        unsafe {
+            std::env::remove_var("SEMAPHORE_HA_ENABLE");
+            std::env::remove_var("SEMAPHORE_HA_REDIS_HOST");
+            std::env::remove_var("SEMAPHORE_HA_REDIS_PORT");
+        }
     }
 
     #[test]
     fn test_load_from_env_ha_invalid_port() {
-        env::set_var("SEMAPHORE_HA_ENABLE", "true");
-        env::set_var("SEMAPHORE_HA_REDIS_PORT", "not_a_number");
+        unsafe {
+            std::env::set_var("SEMAPHORE_HA_ENABLE", "true");
+            std::env::set_var("SEMAPHORE_HA_REDIS_PORT", "not_a_number");
+        }
         let config = load_from_env().unwrap();
         assert!(config.ha.enable);
         // При невалидном порте может быть 0 или дефолтное значение
         assert!(config.ha.redis.port >= 0);
-        env::remove_var("SEMAPHORE_HA_ENABLE");
-        env::remove_var("SEMAPHORE_HA_REDIS_PORT");
+        unsafe {
+            std::env::remove_var("SEMAPHORE_HA_ENABLE");
+            std::env::remove_var("SEMAPHORE_HA_REDIS_PORT");
+        }
     }
 
     #[test]

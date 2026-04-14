@@ -198,18 +198,22 @@ mod tests {
 
     #[test]
     fn test_load_ha_from_env() {
-        env::set_var("SEMAPHORE_HA_ENABLE", "true");
-        env::set_var("SEMAPHORE_HA_REDIS_HOST", "test.redis.host");
-        env::set_var("SEMAPHORE_HA_REDIS_PORT", "6380");
+        unsafe {
+            std::env::set_var("SEMAPHORE_HA_ENABLE", "true");
+            std::env::set_var("SEMAPHORE_HA_REDIS_HOST", "test.redis.host");
+            std::env::set_var("SEMAPHORE_HA_REDIS_PORT", "6380");
+        }
 
         let config = load_ha_from_env();
         assert!(config.is_enabled());
         assert_eq!(config.redis.host, "test.redis.host");
         assert_eq!(config.redis.port, 6380);
 
-        env::remove_var("SEMAPHORE_HA_ENABLE");
-        env::remove_var("SEMAPHORE_HA_REDIS_HOST");
-        env::remove_var("SEMAPHORE_HA_REDIS_PORT");
+        unsafe {
+            std::env::remove_var("SEMAPHORE_HA_ENABLE");
+            std::env::remove_var("SEMAPHORE_HA_REDIS_HOST");
+            std::env::remove_var("SEMAPHORE_HA_REDIS_PORT");
+        }
     }
 
     #[test]
@@ -378,11 +382,13 @@ mod tests {
 
     #[test]
     fn test_load_ha_from_env_all_fields() {
-        env::set_var("SEMAPHORE_HA_ENABLE", "true");
-        env::set_var("SEMAPHORE_HA_REDIS_HOST", "full.redis.host");
-        env::set_var("SEMAPHORE_HA_REDIS_PORT", "6390");
-        env::set_var("SEMAPHORE_HA_REDIS_PASSWORD", "redis_password");
-        env::set_var("SEMAPHORE_HA_REDIS_DB", "5");
+        unsafe {
+            std::env::set_var("SEMAPHORE_HA_ENABLE", "true");
+            std::env::set_var("SEMAPHORE_HA_REDIS_HOST", "full.redis.host");
+            std::env::set_var("SEMAPHORE_HA_REDIS_PORT", "6390");
+            std::env::set_var("SEMAPHORE_HA_REDIS_PASSWORD", "redis_password");
+            std::env::set_var("SEMAPHORE_HA_REDIS_DB", "5");
+        }
 
         let config = load_ha_from_env();
         assert!(config.enable);
@@ -391,17 +397,21 @@ mod tests {
         assert_eq!(config.redis.password, "redis_password");
         assert_eq!(config.redis.db, 5);
 
-        env::remove_var("SEMAPHORE_HA_ENABLE");
-        env::remove_var("SEMAPHORE_HA_REDIS_HOST");
-        env::remove_var("SEMAPHORE_HA_REDIS_PORT");
-        env::remove_var("SEMAPHORE_HA_REDIS_PASSWORD");
-        env::remove_var("SEMAPHORE_HA_REDIS_DB");
+        unsafe {
+            std::env::remove_var("SEMAPHORE_HA_ENABLE");
+            std::env::remove_var("SEMAPHORE_HA_REDIS_HOST");
+            std::env::remove_var("SEMAPHORE_HA_REDIS_PORT");
+            std::env::remove_var("SEMAPHORE_HA_REDIS_PASSWORD");
+            std::env::remove_var("SEMAPHORE_HA_REDIS_DB");
+        }
     }
 
     #[test]
     fn test_load_ha_from_env_invalid_port() {
-        env::set_var("SEMAPHORE_HA_ENABLE", "true");
-        env::set_var("SEMAPHORE_HA_REDIS_PORT", "not_a_number");
+        unsafe {
+            std::env::set_var("SEMAPHORE_HA_ENABLE", "true");
+            std::env::set_var("SEMAPHORE_HA_REDIS_PORT", "not_a_number");
+        }
 
         let config = load_ha_from_env();
         assert!(config.enable);
@@ -409,20 +419,26 @@ mod tests {
         // Главное что config создался без паники
         assert!(config.redis.port >= 0);
 
-        env::remove_var("SEMAPHORE_HA_ENABLE");
-        env::remove_var("SEMAPHORE_HA_REDIS_PORT");
+        unsafe {
+            std::env::remove_var("SEMAPHORE_HA_ENABLE");
+            std::env::remove_var("SEMAPHORE_HA_REDIS_PORT");
+        }
     }
 
     #[test]
     fn test_load_ha_from_env_invalid_db() {
-        env::set_var("SEMAPHORE_HA_ENABLE", "true");
-        env::set_var("SEMAPHORE_HA_REDIS_DB", "not_a_number");
+        unsafe {
+            std::env::set_var("SEMAPHORE_HA_ENABLE", "true");
+            std::env::set_var("SEMAPHORE_HA_REDIS_DB", "not_a_number");
+        }
 
         let config = load_ha_from_env();
         assert_eq!(config.redis.db, 0); // default since parse failed
 
-        env::remove_var("SEMAPHORE_HA_ENABLE");
-        env::remove_var("SEMAPHORE_HA_REDIS_DB");
+        unsafe {
+            std::env::remove_var("SEMAPHORE_HA_ENABLE");
+            std::env::remove_var("SEMAPHORE_HA_REDIS_DB");
+        }
     }
 
     #[test]

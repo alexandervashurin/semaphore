@@ -200,7 +200,7 @@ impl KubernetesClusterService {
                     "name": meta.name.clone().unwrap_or_else(|| "unknown".to_string()),
                     "uid": meta.uid.clone().unwrap_or_else(|| "unknown".to_string()),
                     "status": status.as_ref().and_then(|s| s.phase.clone()).unwrap_or_else(|| "Unknown".to_string()),
-                    "created_at": meta.creation_timestamp.as_ref().map(|t| t.0.to_rfc3339()).unwrap_or_else(|| "unknown".to_string()),
+                    "created_at": meta.creation_timestamp.as_ref().map(|t| t.0.to_string()).unwrap_or_else(|| "unknown".to_string()),
                     "labels": meta.labels.clone().unwrap_or_default(),
                     "annotations": meta.annotations.clone().unwrap_or_default(),
                 })

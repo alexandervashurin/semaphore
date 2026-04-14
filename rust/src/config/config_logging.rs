@@ -189,18 +189,22 @@ mod tests {
 
     #[test]
     fn test_load_logging_from_env() {
-        env::set_var("VELUM_LOG_FORMAT", "json");
-        env::set_var("VELUM_LOG_LEVEL", "debug");
-        env::set_var("VELUM_LOG_FILE", "/tmp/test.log");
+        unsafe {
+            std::env::set_var("VELUM_LOG_FORMAT", "json");
+            std::env::set_var("VELUM_LOG_LEVEL", "debug");
+            std::env::set_var("VELUM_LOG_FILE", "/tmp/test.log");
+        }
 
         let config = load_logging_from_env();
         assert_eq!(config.format, LogFormat::Json);
         assert_eq!(config.level, LogLevel::Debug);
         assert_eq!(config.file, Some("/tmp/test.log".to_string()));
 
-        env::remove_var("VELUM_LOG_FORMAT");
-        env::remove_var("VELUM_LOG_LEVEL");
-        env::remove_var("VELUM_LOG_FILE");
+        unsafe {
+            std::env::remove_var("VELUM_LOG_FORMAT");
+            std::env::remove_var("VELUM_LOG_LEVEL");
+            std::env::remove_var("VELUM_LOG_FILE");
+        }
     }
 
     #[test]
@@ -314,59 +318,63 @@ mod tests {
 
     #[test]
     fn test_load_logging_from_env_numeric_values() {
-        env::set_var("VELUM_LOG_MAX_SIZE", "500");
-        env::set_var("VELUM_LOG_MAX_BACKUPS", "10");
-        env::set_var("VELUM_LOG_MAX_AGE", "60");
+        unsafe {
+            std::env::set_var("VELUM_LOG_MAX_SIZE", "500");
+            std::env::set_var("VELUM_LOG_MAX_BACKUPS", "10");
+            std::env::set_var("VELUM_LOG_MAX_AGE", "60");
+        }
 
         let config = load_logging_from_env();
         assert_eq!(config.max_size, 500);
         assert_eq!(config.max_backups, 10);
         assert_eq!(config.max_age, 60);
 
-        env::remove_var("VELUM_LOG_MAX_SIZE");
-        env::remove_var("VELUM_LOG_MAX_BACKUPS");
-        env::remove_var("VELUM_LOG_MAX_AGE");
+        unsafe {
+            std::env::remove_var("VELUM_LOG_MAX_SIZE");
+            std::env::remove_var("VELUM_LOG_MAX_BACKUPS");
+            std::env::remove_var("VELUM_LOG_MAX_AGE");
+        }
     }
 
     #[test]
     fn test_load_logging_from_env_compress_true() {
-        env::set_var("VELUM_LOG_COMPRESS", "true");
+        unsafe { std::env::set_var("VELUM_LOG_COMPRESS", "true") };
         let config = load_logging_from_env();
         assert!(config.compress);
-        env::remove_var("VELUM_LOG_COMPRESS");
+        unsafe { std::env::remove_var("VELUM_LOG_COMPRESS") };
     }
 
     #[test]
     fn test_load_logging_from_env_compress_1() {
-        env::set_var("VELUM_LOG_COMPRESS", "1");
+        unsafe { std::env::set_var("VELUM_LOG_COMPRESS", "1") };
         let config = load_logging_from_env();
         assert!(config.compress);
-        env::remove_var("VELUM_LOG_COMPRESS");
+        unsafe { std::env::remove_var("VELUM_LOG_COMPRESS") };
     }
 
     #[test]
     fn test_load_logging_from_env_compress_false() {
-        env::set_var("VELUM_LOG_COMPRESS", "false");
+        unsafe { std::env::set_var("VELUM_LOG_COMPRESS", "false") };
         let config = load_logging_from_env();
         assert!(!config.compress);
-        env::remove_var("VELUM_LOG_COMPRESS");
+        unsafe { std::env::remove_var("VELUM_LOG_COMPRESS") };
     }
 
     #[test]
     fn test_load_logging_from_env_invalid_numeric() {
-        env::set_var("VELUM_LOG_MAX_SIZE", "not_a_number");
+        unsafe { std::env::set_var("VELUM_LOG_MAX_SIZE", "not_a_number") };
         let config = load_logging_from_env();
         // При невалидном значении может быть 0 или дефолтное значение
         assert!(config.max_size >= 0);
-        env::remove_var("VELUM_LOG_MAX_SIZE");
+        unsafe { std::env::remove_var("VELUM_LOG_MAX_SIZE") };
     }
 
     #[test]
     fn test_log_level_unknown_value() {
-        env::set_var("VELUM_LOG_LEVEL", "unknown");
+        unsafe { std::env::set_var("VELUM_LOG_LEVEL", "unknown") };
         let config = load_logging_from_env();
         assert_eq!(config.level, LogLevel::Info); // defaults to Info
-        env::remove_var("VELUM_LOG_LEVEL");
+        unsafe { std::env::remove_var("VELUM_LOG_LEVEL") };
     }
 
     #[test]
@@ -412,18 +420,18 @@ mod tests {
 
     #[test]
     fn test_load_logging_from_env_case_insensitive_level() {
-        env::set_var("VELUM_LOG_LEVEL", "DEBUG");
+        unsafe { std::env::set_var("VELUM_LOG_LEVEL", "DEBUG") };
         let config = load_logging_from_env();
         assert_eq!(config.level, LogLevel::Debug);
-        env::remove_var("VELUM_LOG_LEVEL");
+        unsafe { std::env::remove_var("VELUM_LOG_LEVEL") };
     }
 
     #[test]
     fn test_load_logging_from_env_case_insensitive_format() {
-        env::set_var("VELUM_LOG_FORMAT", "JSON");
+        unsafe { std::env::set_var("VELUM_LOG_FORMAT", "JSON") };
         let config = load_logging_from_env();
         assert_eq!(config.format, LogFormat::Json);
-        env::remove_var("VELUM_LOG_FORMAT");
+        unsafe { std::env::remove_var("VELUM_LOG_FORMAT") };
     }
 
     #[test]

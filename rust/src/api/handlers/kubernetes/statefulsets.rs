@@ -6,9 +6,8 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
-use chrono::DateTime;
-use chrono::Utc;
 use k8s_openapi::api::apps::v1::StatefulSet;
+use k8s_openapi::jiff::Timestamp;
 use kube::api::{Api, DeleteParams, ListParams, PostParams};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -49,7 +48,7 @@ pub struct StatefulSetDetail {
     pub service_name: String,
     pub update_strategy: String,
     pub conditions: Vec<StatefulSetCondition>,
-    pub created_at: Option<DateTime<Utc>>,
+    pub created_at: Option<String>,
 }
 
 /// Информация о контейнере
@@ -361,7 +360,7 @@ fn statefulset_detail(sf: &StatefulSet) -> StatefulSetDetail {
         })
         .unwrap_or_default();
 
-    let service_name = spec.map(|s| s.service_name.clone()).unwrap_or_default();
+    let service_name = spec.and_then(|s| s.service_name.clone()).unwrap_or_default();
 
     let update_strategy = spec
         .and_then(|s| s.update_strategy.as_ref())
@@ -402,36 +401,44 @@ fn statefulset_detail(sf: &StatefulSet) -> StatefulSetDetail {
         service_name,
         update_strategy,
         conditions,
-        created_at: sf.metadata.creation_timestamp.as_ref().map(|t| t.0),
+        created_at: sf.metadata.creation_timestamp.as_ref().map(|t| t.0.to_string()),
     }
 }
 
-fn format_age(time: &DateTime<Utc>) -> String {
-    let now = Utc::now();
-    let duration = now.signed_duration_since(*time);
-
-    if duration.num_days() > 365 {
-        format!("{}y", duration.num_days() / 365)
-    } else if duration.num_days() > 30 {
-        format!("{}d", duration.num_days() / 30)
-    } else if duration.num_days() > 0 {
-        format!("{}d", duration.num_days())
-    } else if duration.num_hours() > 0 {
-        format!("{}h", duration.num_hours())
-    } else if duration.num_minutes() > 0 {
-        format!("{}m", duration.num_minutes())
+fn format_age(time: &Timestamp) -> String {
+    let now = Timestamp::now();
+    let duration = now.duration_since(*time);
+    let total_secs = duration.as_secs().abs();
+    let days = total_secs / 86400;
+    if days > 365 {
+        format!("{}y", days / 365)
+    } else if days > 30 {
+        format!("{}d", days / 30)
+    } else if days > 0 {
+        format!("{}d", days)
     } else {
-        format!("{}s", duration.num_seconds())
+        let hours = total_secs / 3600;
+        if hours > 0 {
+            format!("{}h", hours)
+        } else {
+            let mins = total_secs / 60;
+            if mins > 0 {
+                format!("{}m", mins)
+            } else {
+                format!("{}s", total_secs)
+            }
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Duration;
 
-    fn make_ts(seconds_ago: i64) -> DateTime<Utc> {
-        Utc::now() - Duration::seconds(seconds_ago)
+    fn make_ts(seconds_ago: i64) -> Timestamp {
+        let now = Timestamp::now();
+        let dur = k8s_openapi::jiff::SignedDuration::from_secs(seconds_ago);
+        now.checked_sub(dur).unwrap()
     }
 
     #[test]
@@ -510,7 +517,7 @@ mod tests {
             service_name: "redis-headless".to_string(),
             update_strategy: "RollingUpdate".to_string(),
             conditions: vec![],
-            created_at: Some(Utc::now()),
+            created_at: Some(Timestamp::now().to_string()),
         };
         assert_eq!(detail.name, "redis");
         assert_eq!(detail.volume_claim_templates.len(), 1);

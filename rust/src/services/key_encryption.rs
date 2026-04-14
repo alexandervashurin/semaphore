@@ -346,7 +346,7 @@ mod tests {
     #[test]
     fn test_get_encryption_key_none_when_not_set() {
         // Убедимся что переменная не задана
-        std::env::remove_var("SEMAPHORE_ACCESS_KEY_ENCRYPTION");
+        unsafe { std::env::remove_var("SEMAPHORE_ACCESS_KEY_ENCRYPTION") };
         let result = get_encryption_key();
         assert!(result.is_none());
     }
@@ -354,10 +354,10 @@ mod tests {
     #[test]
     fn test_get_encryption_key_some_when_set() {
         // Set the env var temporarily
-        std::env::set_var("SEMAPHORE_ACCESS_KEY_ENCRYPTION", "test_key_123");
+        unsafe { std::env::set_var("SEMAPHORE_ACCESS_KEY_ENCRYPTION", "test_key_123") };
         let result = get_encryption_key();
         // Key should be obtained (32 bytes)
-        std::env::remove_var("SEMAPHORE_ACCESS_KEY_ENCRYPTION");
+        unsafe { std::env::remove_var("SEMAPHORE_ACCESS_KEY_ENCRYPTION") };
         assert!(result.is_some());
     }
 }
