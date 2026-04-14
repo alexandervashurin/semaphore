@@ -1,129 +1,121 @@
+# .github/workflows/community_release.yml
 name: Community Release
-
-'on':
+on:
   push:
     tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
-      - v*-rc*
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v*-rc*"
 
 permissions:
   contents: write
 
 jobs:
+  # 1. Сборка релизного пакета
   release:
+    name: Сборка релиза
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v6
+      - name: Checkout репозитория
+        uses: actions/checkout@v4
 
-      - name: Setup golang
-        uses: actions/setup-go@v6
+      - name: Установка Go
+        uses: actions/setup-go@v5
         with:
-          go-version: '^1.24.6'
+          go-version: '^1.23' # Стабильная ветка
 
-      - name: Setup nodejs
-        uses: actions/setup-node@v6
+      - name: Установка Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '20' # LTS-версия
           cache: 'npm'
           cache-dependency-path: web/package-lock.json
 
-      - name: Install go-task
-        run: |
-          go install github.com/go-task/task/v3/cmd/task@latest
+      - name: Установка go-task
+        run: go install github.com/go-task/task/v3/cmd/task@latest
 
-      - name: Install rpm
-        run: |
-          sudo apt update && sudo apt-get install rpm
+      - name: Установка rpm
+        run: sudo apt update && sudo apt-get install -y rpm
 
-      - name: Install deps
-        run: |
-          task deps
+      - name: Установка зависимостей
+        run: task deps
 
-      - name: Import gnupg
+      - name: Импорт GPG ключа
         run: |
-          echo "${{ secrets.GPG_KEY }}" | tr " " "\n" | base64 -d | gpg --import --batch
+          echo "${{ secrets.GPG_KEY }}" | tr ' ' '\n' | base64 -d | gpg --import --batch
           gpg --sign -u "${{ vars.GPG_KEY_ID }}" --pinentry-mode loopback --yes --batch --passphrase "${{ secrets.GPG_PASS }}" --output unlock.sig --detach-sign README.md
           rm -f unlock.sig
 
-      - name: Reset repo
-        run: |
-          git reset --hard
+      - name: Сброс состояния репозитория
+        run: git reset --hard
 
-      - name: Run release
+      - name: Запуск релиза
         run: |
           GITHUB_TOKEN=${{ github.token }} \
-          GPG_KEY_ID="${{ vars.GPG_KEY_ID }}" \
           PROJECT_NAME=semaphore_community \
+          GPG_KEY_ID="${{ vars.GPG_KEY_ID }}" \
             task release:prod
 
+  # 2. Публикация Docker-образов
   deploy-prod:
+    name: Публикация Community-образов
     runs-on: ubuntu-latest
     if: github.repository_owner == 'semaphoreui'
-
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v6
+      - name: Checkout репозитория
+        uses: actions/checkout@v4
 
-      - name: Setup qemu
+      - name: Настройка QEMU
         id: qemu
         uses: docker/setup-qemu-action@v3
 
-      - name: Setup buildx
+      - name: Настройка Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@v3
 
-      - name: Hub login
+      - name: Авторизация в Docker Hub
         uses: docker/login-action@v3
         if: github.event_name != 'pull_request'
         with:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASS }}
 
-
-
-      - name: Server meta
+      - name: Метаданные Server
         id: server
         uses: docker/metadata-action@v5
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          images: |
-            velum/velum-community
+          images: velum/velum-community
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
             maintainer=Velum <support@semaphoreui.com>
-          tags: |
-            type=raw,value=${{ github.ref_name }}
-          flavor: |
-            latest=true
+          tags: type=raw,value=${{ github.ref_name }}
+          flavor: latest=true
 
-      - name: Server build
-        uses: docker/build-push-action@v7
+      - name: Сборка Server
+        uses: docker/build-push-action@v5
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
           file: deployment/docker/server/Dockerfile
-          platforms: linux/amd64,linux/arm64 # ,linux/arm/v6
+          platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.server.outputs.labels }}
           tags: ${{ steps.server.outputs.tags }}
 
-      - name: Server build with Ansible 2.16.5
-        uses: docker/build-push-action@v7
+      - name: Сборка Server (Ansible 2.16.5)
+        uses: docker/build-push-action@v5
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
-          build-args: |
-            ANSIBLE_VERSION=9.4.0
+          build-args: ANSIBLE_VERSION=9.4.0
           file: deployment/docker/server/Dockerfile
-          platforms: linux/amd64,linux/arm64 # ,linux/arm/v6
+          platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.server.outputs.labels }}
           tags: velum/velum-community:${{ github.ref_name }}-ansible2.16.5
 
-      - name: Server build with PowerShell 7.5.0
-        uses: docker/build-push-action@v7
+      - name: Сборка Server (PowerShell 7.5.0)
+        uses: docker/build-push-action@v5
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -137,49 +129,43 @@ jobs:
           labels: ${{ steps.server.outputs.labels }}
           tags: velum/velum-community:${{ github.ref_name }}-powershell7.5.0
 
-
-
-      - name: Runner meta
+      - name: Метаданные Runner
         id: runner
         uses: docker/metadata-action@v5
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          images: |
-            semaphoreui/runner-community
+          images: semaphoreui/runner-community
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
             maintainer=Velum <support@semaphoreui.com>
-          tags: |
-            type=raw,value=${{ github.ref_name }}
-          flavor: |
-            latest=true
+          tags: type=raw,value=${{ github.ref_name }}
+          flavor: latest=true
 
-      - name: Runner build
-        uses: docker/build-push-action@v7
+      - name: Сборка Runner
+        uses: docker/build-push-action@v5
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
           file: deployment/docker/runner/Dockerfile
-          platforms: linux/amd64,linux/arm64 #,linux/arm/v6
+          platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.runner.outputs.labels }}
           tags: ${{ steps.runner.outputs.tags }}
 
-      - name: Runner build with Ansible 2.16.5
-        uses: docker/build-push-action@v7
+      - name: Сборка Runner (Ansible 2.16.5)
+        uses: docker/build-push-action@v5
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
-          build-args: |
-            ANSIBLE_VERSION=9.4.0
+          build-args: ANSIBLE_VERSION=9.4.0
           file: deployment/docker/runner/Dockerfile
-          platforms: linux/amd64,linux/arm64 #,linux/arm/v6
+          platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.runner.outputs.labels }}
           tags: semaphoreui/runner-community:${{ github.ref_name }}-ansible2.16.5
 
-      - name: Runner build with PowerShell 7.5.0
-        uses: docker/build-push-action@v7
+      - name: Сборка Runner (PowerShell 7.5.0)
+        uses: docker/build-push-action@v5
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
