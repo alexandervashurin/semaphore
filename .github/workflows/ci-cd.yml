@@ -162,7 +162,9 @@ jobs:
       - name: Ожидание БД
         run: |
           for i in $(seq 1 30); do
-            if pg_isready -h localhost -p 5432 -U velum 2>/dev/null; then
+            if PGPASSWORD=velum_pass \
+              psql -h localhost -p 5432 -U velum -d velum \
+              -c 'SELECT 1' >/dev/null 2>&1; then
               echo "DB ready"
               exit 0
             fi
