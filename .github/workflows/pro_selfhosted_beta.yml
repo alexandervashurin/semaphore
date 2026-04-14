@@ -16,13 +16,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: "^1.23"
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "20"
           cache: "npm"
@@ -58,7 +58,7 @@ jobs:
     if: github.repository_owner == 'semaphoreui'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Настройка QEMU
         id: qemu
         uses: docker/setup-qemu-action@v3
@@ -97,7 +97,7 @@ jobs:
           tags: type=raw,value=${{ github.ref_name }}
 
       - name: Server build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -114,7 +114,7 @@ jobs:
           provenance: false
 
       - name: Server build (Ansible 2.16.5)
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -135,7 +135,7 @@ jobs:
           provenance: false
 
       - name: Server build (PowerShell 7.5.0)
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -173,7 +173,7 @@ jobs:
           tags: type=raw,value=${{ github.ref_name }}
 
       - name: Runner build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -189,7 +189,7 @@ jobs:
           provenance: false
 
       - name: Runner build (Ansible 2.16.5)
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -209,7 +209,7 @@ jobs:
           provenance: false
 
       - name: Runner build (PowerShell 7.5.0)
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .

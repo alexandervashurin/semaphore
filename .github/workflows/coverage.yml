@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout репозитория
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Установка Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -31,7 +31,7 @@ jobs:
             libsqlite3-dev
 
       - name: Кэш Cargo registry и target
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -59,7 +59,7 @@ jobs:
             --exclude-files tests/*
 
       - name: Сохранение отчёта покрытия
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: rust-coverage-cobertura
           path: coverage/cobertura.xml

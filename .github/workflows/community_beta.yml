@@ -13,15 +13,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout репозитория
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Установка Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: "^1.23"
 
       - name: Установка Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "20"
           cache: "npm"
@@ -58,7 +58,7 @@ jobs:
     if: github.repository_owner == 'semaphoreui'
     steps:
       - name: Checkout репозитория
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Настройка QEMU
         id: qemu
@@ -91,7 +91,7 @@ jobs:
             latest=false
 
       - name: Сборка Server
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -119,7 +119,7 @@ jobs:
 
       - name: Сборка Runner (отключено)
         if: false
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .

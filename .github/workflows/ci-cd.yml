@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Установка Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -56,7 +56,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Установка Rust toolchain
         uses: dtolnay/rust-toolchain@stable
       - name: Установка cargo-audit
@@ -73,7 +73,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Настройка QEMU
         uses: docker/setup-qemu-action@v3
       - name: Настройка Buildx
@@ -85,7 +85,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Сборка и публикация
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile
@@ -104,7 +104,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Настройка QEMU
         uses: docker/setup-qemu-action@v3
       - name: Настройка Buildx
@@ -116,7 +116,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Сборка и публикация
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile
@@ -149,7 +149,7 @@ jobs:
           --health-retries 5
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Ожидание БД
         run: |
           for i in $(seq 1 30); do
@@ -208,7 +208,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Установка Rust toolchain
         uses: dtolnay/rust-toolchain@stable
       - name: Генерация

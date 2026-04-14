@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout репозитория
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Установка Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -28,7 +28,7 @@ jobs:
           components: clippy, rustfmt
 
       - name: Кэш зависимостей Cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -64,13 +64,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout репозитория
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Установка Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
       - name: Кэш зависимостей Cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -104,7 +104,7 @@ jobs:
       # Загрузка артефактов для разных платформ
       - name: Upload Linux AMD64
         if: matrix.os == 'ubuntu-latest'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: velum-linux-amd64
           path: rust/target/release/velum
@@ -112,7 +112,7 @@ jobs:
 
       - name: Upload Linux ARM64
         if: matrix.os == 'ubuntu-24.04-arm'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: velum-linux-arm64
           path: rust/target/release/velum
@@ -120,7 +120,7 @@ jobs:
 
       - name: Upload macOS ARM64
         if: matrix.os == 'macos-latest'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: velum-darwin-arm64
           path: rust/target/release/velum
@@ -128,7 +128,7 @@ jobs:
 
       - name: Upload macOS AMD64
         if: matrix.os == 'macos-13'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: velum-darwin-amd64
           path: rust/target/release/velum
@@ -141,7 +141,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout репозитория
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Установка Rust toolchain
         uses: dtolnay/rust-toolchain@stable
       - name: Установка cargo-audit
@@ -158,7 +158,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout репозитория
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Установка Rust toolchain
         uses: dtolnay/rust-toolchain@stable
       - name: Системные зависимости
@@ -181,7 +181,7 @@ jobs:
             --output-dir ../coverage \
             --exclude-files tests/*
       - name: Сохранение отчёта
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: rust-coverage-cobertura
           path: coverage/cobertura.xml
@@ -201,7 +201,7 @@ jobs:
       IMAGE_NAME: ${{ github.repository }}
     steps:
       - name: Checkout репозитория
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Настройка QEMU
         uses: docker/setup-qemu-action@v3
       - name: Настройка Docker Buildx
@@ -223,7 +223,7 @@ jobs:
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=raw,value=staging,enable=${{ github.ref == 'refs/heads/develop' }}
       - name: Сборка и публикация
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile
@@ -256,7 +256,7 @@ jobs:
           --health-retries 5
     steps:
       - name: Checkout репозитория
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Установка Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Системные зависимости
@@ -325,7 +325,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout репозитория
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Установка Rust toolchain
         uses: dtolnay/rust-toolchain@stable
       - name: Генерация документации
@@ -360,24 +360,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout репозитория
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Download Linux AMD64
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: velum-linux-amd64
           path: release/linux-amd64
       - name: Download Linux ARM64
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: velum-linux-arm64
           path: release/linux-arm64
       - name: Download Darwin AMD64
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: velum-darwin-amd64
           path: release/darwin-amd64
       - name: Download Darwin ARM64
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: velum-darwin-arm64
           path: release/darwin-arm64
@@ -388,7 +388,7 @@ jobs:
             mv "$dir/velum" "$dir/velum-$platform"
           done
       - name: Архивация релиза
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: release-binaries
           path: release/

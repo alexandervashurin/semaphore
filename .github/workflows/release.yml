@@ -29,7 +29,7 @@ jobs:
       should_release: ${{ steps.check.outputs.should_release }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Проверка коммитов с последнего релиза
@@ -59,7 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Установка Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -81,7 +81,7 @@ jobs:
           SEMAPHORE_JWT_SECRET: test-ci-secret-key-32-bytes-long!
         run: cargo test --features postgres -- --test-threads=4 --skip api_integration --skip kubernetes_integration
       - name: Загрузка бинарника
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: velum-linux-amd64
           path: rust/target/release/velum
@@ -95,7 +95,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Определение версии
@@ -127,7 +127,7 @@ jobs:
           git tag -a "${{ steps.version.outputs.version }}" -m "Release ${{ steps.version.outputs.version }}"
           git push origin "${{ steps.version.outputs.version }}"
       - name: Загрузка артефактов
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
       - name: Создание релиза
         env:
           GH_TOKEN: ${{ github.token }}
