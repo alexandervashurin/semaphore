@@ -27,14 +27,14 @@ fn get_encryption_key() -> Option<[u8; 32]> {
     Some(key)
 }
 
-/// Шифрует строку, возвращает "$enc$<base64>"
+/// Шифрует строку, возвращает `"$enc$<base64>"`
 fn encrypt_value(plaintext: &str, key: &[u8; 32]) -> Result<String> {
     let encrypted = crate::utils::encryption::aes256_encrypt(plaintext.as_bytes(), key)
         .map_err(|e| Error::Other(e.to_string()))?;
     Ok(format!("{}{}", ENC_PREFIX, encrypted))
 }
 
-/// Дешифрует строку вида "$enc$<base64>"
+/// Дешифрует строку вида `"$enc$<base64>"`
 fn decrypt_value(ciphertext: &str, key: &[u8; 32]) -> Result<String> {
     let data = ciphertext.trim_start_matches(ENC_PREFIX);
     let plaintext = crate::utils::encryption::aes256_decrypt(data, key)
