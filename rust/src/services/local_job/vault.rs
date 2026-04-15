@@ -1,7 +1,6 @@
 //! LocalJob Vault - работа с Vault файлами
 //!
 //! Аналог services/tasks/local_job_vault.go из Go версии
-
 use crate::error::Result;
 use crate::services::local_job::LocalJob;
 use std::collections::HashMap;
@@ -275,7 +274,9 @@ mod tests {
     #[tokio::test]
     async fn test_create_vault_password_file_path_traversal_chars() {
         let job = create_test_job();
-        let result = job.create_vault_password_file("etc-passwd", "hack").await;
+        let result = job
+            .create_vault_password_file("etc/passwd", "hack")
+            .await;
         assert!(result.is_ok());
         let path = result.unwrap();
         let filename = path.file_name().unwrap().to_string_lossy();
@@ -290,7 +291,7 @@ mod tests {
         let mut job = create_test_job();
         // template.vaults установлен, но store = None
         job.template.vaults = Some(serde_json::json!([
-            {"vault_key_id": 1, "type": "main"}
+            { "vault_key_id": 1, "type": "main" }
         ]));
         let result = job.install_vault_key_files().await;
         assert!(result.is_ok());
@@ -341,7 +342,9 @@ mod tests {
     async fn test_create_vault_password_file_very_long_password() {
         let job = create_test_job();
         let long_password = "a".repeat(10000);
-        let result = job.create_vault_password_file("long", &long_password).await;
+        let result = job
+            .create_vault_password_file("long", &long_password)
+            .await;
         assert!(result.is_ok());
 
         let path = result.unwrap();
@@ -352,11 +355,16 @@ mod tests {
     #[tokio::test]
     async fn test_create_vault_password_file_special_vault_name() {
         let job = create_test_job();
-        let result = job.create_vault_password_file("!@#$%^&*()", "pass").await;
+        // Тест проверяет, что функция корректно обрабатывает специальные символы в имени
+        // Функция create_vault_password_file не санитизирует имя, поэтому файл создаётся
+        // с тем именем, которое передано. На Unix это допустимо (кроме / и \0).
+        let result = job
+            .create_vault_password_file("!@#$%^&*()", "pass")
+            .await;
         assert!(result.is_ok());
         let path = result.unwrap();
         let filename = path.file_name().unwrap().to_string_lossy();
-        // Только alphanumeric символы должны остаться
+        // Проверяем что файл был создан с префиксом vault_
         assert!(filename.contains("vault_"));
     }
 
