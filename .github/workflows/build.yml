@@ -1,10 +1,7 @@
 ---
-# .github/workflows/build.yml
+# Полный пайплайн сборки, тестирования и артефактов
 name: Build Pipeline
-
-# Триггеры запуска пайплайна
-# yamllint disable-line rule:truthy
-on:
+on: # yamllint disable-line rule:truthy
   push:
     branches: [main, develop]
   pull_request:
@@ -16,7 +13,6 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  # 1. Проверка кода, форматирование и линтинг
   check:
     name: Check & Lint
     runs-on: ubuntu-latest
@@ -36,7 +32,9 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             rust/target
-          key: ${{ runner.os }}-check-${{ hashFiles('rust/Cargo.lock') }}
+          key: >-
+            ${{ runner.os }}-check-${{
+            hashFiles('rust/Cargo.lock') }}
 
       - name: Установка системных зависимостей
         run: |
@@ -56,7 +54,6 @@ jobs:
         working-directory: rust
         run: cargo clippy --all-features -- -D warnings
 
-  # 2. Тесты на нескольких ОС и архитектурах
   test:
     name: Test (${{ matrix.os }})
     needs: [check]
@@ -79,7 +76,9 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             rust/target
-          key: ${{ runner.os }}-test-${{ hashFiles('rust/Cargo.lock') }}
+          key: >-
+            ${{ runner.os }}-test-${{
+            hashFiles('rust/Cargo.lock') }}
 
       - name: Системные зависимости (Linux)
         if: runner.os == 'Linux'
@@ -92,8 +91,9 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install openssl pkg-config sqlite
         env:
-          # yamllint disable-line rule:line-length
-          PKG_CONFIG_PATH: /opt/homebrew/opt/openssl@3/lib/pkgconfig:/usr/local/opt/openssl@3/lib/pkgconfig
+          PKG_CONFIG_PATH: >-
+            /opt/homebrew/opt/openssl@3/lib/pkgconfig:
+            /usr/local/opt/openssl@3/lib/pkgconfig
 
       - name: Сборка релизной версии
         working-directory: rust
@@ -103,15 +103,14 @@ jobs:
         working-directory: rust
         env:
           SEMAPHORE_DB_PATH: /tmp/test.db
-          # yamllint disable-line rule:line-length
-          SEMAPHORE_JWT_SECRET: test-ci-secret-key-32-bytes-long!
+          SEMAPHORE_JWT_SECRET: >-
+            test-ci-secret-key-32-bytes-long!
         run: >-
           cargo test --release --features postgres --
           --test-threads=4
           --skip api_integration
           --skip kubernetes_integration
 
-      # Загрузка артефактов для разных платформ
       - name: Upload Linux AMD64
         if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v5
@@ -144,7 +143,6 @@ jobs:
           path: rust/target/release/velum
           retention-days: 7
 
-  # 3. Аудит безопасности зависимостей
   security:
     name: Security Audit
     needs: [check]
@@ -160,13 +158,13 @@ jobs:
         working-directory: rust
         run: cargo audit
 
-  # 4. Сборка отчёта покрытия (только main)
   coverage:
     name: Coverage
     needs: [test]
     runs-on: ubuntu-latest
-    # yamllint disable-line rule:line-length
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main'
     steps:
       - name: Checkout репозитория
         uses: actions/checkout@v5
@@ -183,8 +181,8 @@ jobs:
         working-directory: rust
         env:
           SEMAPHORE_DB_PATH: /tmp/test.db
-          # yamllint disable-line rule:line-length
-          SEMAPHORE_JWT_SECRET: test-ci-secret-key-32-bytes-long!
+          SEMAPHORE_JWT_SECRET: >-
+            test-ci-secret-key-32-bytes-long!
         run: |
           cargo tarpaulin \
             --workspace \
@@ -200,13 +198,14 @@ jobs:
           path: coverage/cobertura.xml
           retention-days: 7
 
-  # 5. Сборка Docker-образа (main / develop)
   docker:
     name: Docker Build
     needs: [test]
     runs-on: ubuntu-latest
-    # yamllint disable-line rule:line-length
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    if: >-
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' ||
+       github.ref == 'refs/heads/develop')
     permissions:
       packages: write
       contents: read
@@ -231,13 +230,13 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          # yamllint disable rule:line-length
           tags: |
             type=ref,event=branch
             type=sha
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-            type=raw,value=staging,enable=${{ github.ref == 'refs/heads/develop' }}
-          # yamllint enable rule:line-length
+            type=raw,value=latest,enable=${{
+              github.ref == 'refs/heads/main' }}
+            type=raw,value=staging,enable=${{
+              github.ref == 'refs/heads/develop' }}
       - name: Сборка и публикация
         uses: docker/build-push-action@v6
         with:
@@ -250,13 +249,13 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # 6. E2E Smoke-тесты (только main)
   e2e:
     name: E2E Smoke Test
     needs: [docker]
     runs-on: ubuntu-latest
-    # yamllint disable-line rule:line-length
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main'
     services:
       postgres:
         image: postgres:15-alpine
@@ -285,8 +284,9 @@ jobs:
         run: |
           for i in $(seq 1 30); do
             if PGPASSWORD=velum_pass \
-              psql -h localhost -p 5432 -U velum -d velum \
-              -c 'SELECT 1' >/dev/null 2>&1; then
+               psql -h localhost -p 5432 \
+               -U velum -d velum \
+               -c 'SELECT 1' >/dev/null 2>&1; then
               echo "DB ready"
               exit 0
             fi
@@ -296,20 +296,25 @@ jobs:
           exit 1
       - name: Сборка и запуск сервера
         env:
-          VELUM_DB_URL: postgres://velum:velum_pass@localhost:5432/velum
+          VELUM_DB_URL: >-
+            postgres://velum:velum_pass@localhost:5432/velum
           VELUM_DB_DIALECT: postgres
-          VELUM_JWT_SECRET: e2e-test-secret-key-32-bytes-long!
-          # yamllint disable-line rule:line-length
-          VELUM_WEB_PATH: ${{ github.workspace }}/web/public
+          VELUM_JWT_SECRET: >-
+            e2e-test-secret-key-32-bytes-long!
+          VELUM_WEB_PATH: >-
+            ${{ github.workspace }}/web/public
           VELUM_ADMIN: admin
           VELUM_ADMIN_PASSWORD: admin123
         run: |
           cd rust && cargo build --release
-          ./target/release/velum server --host 0.0.0.0 --port 3000 &
+          ./target/release/velum server \
+            --host 0.0.0.0 --port 3000 &
           SERVER_PID=$!
-          echo "SERVER_PID=$SERVER_PID" >> "$GITHUB_ENV"
+          echo "SERVER_PID=$SERVER_PID" \
+            >> "$GITHUB_ENV"
           for i in $(seq 1 60); do
-            if curl -sf http://localhost:3000/healthz >/dev/null 2>&1; then
+            if curl -sf http://localhost:3000/healthz \
+               >/dev/null 2>&1; then
               echo "Server ready"
               exit 0
             fi
@@ -325,12 +330,13 @@ jobs:
           echo "Health endpoints OK"
       - name: API smoke-тесты
         run: |
-          TOKEN=$(curl -sf -X POST http://localhost:3000/api/auth/login \
+          TOKEN=$(curl -sf -X POST \
+            http://localhost:3000/api/auth/login \
             -H 'Content-Type: application/json' \
-            -d '{ "username": "admin", "password": "admin123" }' \
+            -d '{ "username": "admin", \
+                  "password": "admin123" }' \
             | jq -r '.token')
           echo "Auth OK"
-          # yamllint disable-line rule:line-length
           curl -sf http://localhost:3000/api/projects \
             -H "Authorization: Bearer $TOKEN" >/dev/null
           echo "Projects API OK"
@@ -342,13 +348,13 @@ jobs:
         if: always()
         run: kill "$SERVER_PID" 2>/dev/null || true
 
-  # 7. Генерация документации
   docs:
     name: Build Documentation
     needs: [check]
     runs-on: ubuntu-latest
-    # yamllint disable-line rule:line-length
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main'
     steps:
       - name: Checkout репозитория
         uses: actions/checkout@v5
@@ -362,7 +368,8 @@ jobs:
           mkdir -p public
           cp -r rust/target/doc/* public/
           if [ ! -f public/index.html ]; then
-            echo '<meta http-equiv="refresh" content="0;url=velum_ffi/">' \
+            echo '<meta http-equiv="refresh" \
+                  content="0; url=velum/index.html">' \
               > public/index.html
           fi
       - name: Сохранение артефакта
@@ -372,7 +379,6 @@ jobs:
           path: public/
           retention-days: 1
 
-  # 8. Деплой документации на GitHub Pages
   deploy-docs:
     name: Deploy Docs
     needs: [docs]
@@ -388,12 +394,12 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-  # 9. Сборка релизных бинарников (агрегация)
   collect-binaries:
     name: Collect Binaries
     needs: [test]
-    # yamllint disable-line rule:line-length
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout репозитория

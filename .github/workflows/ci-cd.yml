@@ -1,19 +1,15 @@
 ---
-# .github/workflows/ci-cd.yml
+# Автоматизация CI/CD: качество, безопасность и деплой образов
 name: CI/CD Pipeline
-
-# yamllint disable-line rule:truthy
-on:
+on: # yamllint disable-line rule:truthy
   push:
     branches: [main, develop]
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
-
 permissions:
   contents: read
   packages: write
-
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
@@ -21,7 +17,6 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # 1. Качество кода
   quality:
     name: Quality Gate
     runs-on: ubuntu-latest
@@ -50,11 +45,14 @@ jobs:
         working-directory: rust
         env:
           SEMAPHORE_DB_PATH: /tmp/test.db
-          SEMAPHORE_JWT_SECRET: test-ci-secret-key-32-bytes-long!
-        # yamllint disable-line rule:line-length
-        run: cargo test --features postgres -- --test-threads=4 --skip api_integration --skip kubernetes_integration
+          SEMAPHORE_JWT_SECRET: >-
+            test-ci-secret-key-32-bytes-long!
+        run: >-
+          cargo test --features postgres --
+          --test-threads=4
+          --skip api_integration
+          --skip kubernetes_integration
 
-  # 2. Аудит безопасности
   security:
     name: Security Audit
     runs-on: ubuntu-latest
@@ -69,12 +67,13 @@ jobs:
         working-directory: rust
         run: cargo audit
 
-  # 3. Docker Staging
   docker-staging:
     name: Docker Staging
     needs: [quality, security]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/develop'
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -100,12 +99,13 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # 4. Docker Latest
   docker-latest:
     name: Docker Latest
     needs: [quality, security]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main'
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -131,12 +131,13 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # 5. E2E Smoke Test
   e2e-smoke:
     name: E2E Smoke Test
     needs: [docker-latest]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main'
     services:
       postgres:
         image: postgres:15-alpine
@@ -158,13 +159,14 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y --no-install-recommends \
-            postgresql-client jq libssl-dev pkg-config libsqlite3-dev
+            postgresql-client jq libssl-dev pkg-config \
+            libsqlite3-dev
       - name: Ожидание БД
         run: |
           for i in $(seq 1 30); do
             if PGPASSWORD=velum_pass \
-              psql -h localhost -p 5432 -U velum -d velum \
-              -c 'SELECT 1' >/dev/null 2>&1; then
+               psql -h localhost -p 5432 -U velum -d velum \
+               -c 'SELECT 1' >/dev/null 2>&1; then
               echo "DB ready"
               exit 0
             fi
@@ -174,18 +176,24 @@ jobs:
           exit 1
       - name: Запуск сервера
         env:
-          VELUM_DB_URL: postgres://velum:velum_pass@localhost:5432/velum
+          VELUM_DB_URL: >-
+            postgres://velum:velum_pass@localhost:5432/velum
           VELUM_DB_DIALECT: postgres
-          VELUM_JWT_SECRET: e2e-test-secret-key-32-bytes-long!
-          VELUM_WEB_PATH: ${{ github.workspace }}/web/public
+          VELUM_JWT_SECRET: >-
+            e2e-test-secret-key-32-bytes-long!
+          VELUM_WEB_PATH: >-
+            ${{ github.workspace }}/web/public
           VELUM_ADMIN: admin
           VELUM_ADMIN_PASSWORD: admin123
         run: |
-          cd rust && cargo run --release -- server --host 0.0.0.0 --port 3000 &
+          cd rust && cargo run --release -- \
+            server --host 0.0.0.0 --port 3000 &
           SERVER_PID=$!
-          echo "SERVER_PID=$SERVER_PID" >> "$GITHUB_ENV"
+          echo "SERVER_PID=$SERVER_PID" \
+            >> "$GITHUB_ENV"
           for i in $(seq 1 60); do
-            if curl -sf http://localhost:3000/healthz >/dev/null 2>&1; then
+            if curl -sf http://localhost:3000/healthz \
+               >/dev/null 2>&1; then
               echo "Server ready"
               exit 0
             fi
@@ -200,9 +208,11 @@ jobs:
           curl -sf http://localhost:3000/readyz
       - name: API smoke tests
         run: |
-          TOKEN=$(curl -sf -X POST http://localhost:3000/api/auth/login \
+          TOKEN=$(curl -sf -X POST \
+            http://localhost:3000/api/auth/login \
             -H 'Content-Type: application/json' \
-            -d '{"username":"admin","password":"admin123"}' \
+            -d '{ "username": "admin", \
+                  "password": "admin123" }' \
             | jq -r '.token')
           echo "Got token: ${TOKEN:0:10}..."
           AUTH="Authorization: Bearer $TOKEN"

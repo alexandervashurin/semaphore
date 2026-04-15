@@ -1,20 +1,25 @@
 ---
-# .github/workflows/docs.yml
+# Пайплайн для сборки и публикации документации на GitHub Pages
 name: Publish Documentation
 
-on:  # yamllint disable-line rule:truthy
+on: # yamllint disable-line rule:truthy
   push:
     branches: [main]
-    paths: ['rust/**', 'docs/**', 'wiki/**', 'openapi.yml', 'api-docs.yml']
+    paths:
+      - 'rust/**'
+      - 'docs/**'
+      - 'wiki/**'
+      - 'openapi.yml'
+      - 'api-docs.yml'
   workflow_dispatch:
 
-# Разрешения для GitHub Pages
+# Разрешения для работы с GitHub Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Отменяем старые запуски
+# Отменяем устаревшие запуски при новых коммитах
 concurrency:
   group: "pages"
   cancel-in-progress: true
@@ -37,7 +42,8 @@ jobs:
 
       - name: Установка mdBook
         run: |
-          curl -L https://github.com/rust-lang/mdBook/releases/download/v0.4.40/mdbook-v0.4.40-x86_64-unknown-linux-gnu.tar.gz | tar xz
+          URL="https://github.com/rust-lang/mdBook/releases/download/v0.4.40/mdbook-v0.4.40-x86_64-unknown-linux-gnu.tar.gz"
+          curl -L "$URL" | tar xz
           sudo mv mdbook /usr/local/bin/
           mdbook --version
 
@@ -48,7 +54,9 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             rust/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('rust/Cargo.lock') }}
+          key: >-
+            ${{ runner.os }}-cargo-${{
+            hashFiles('rust/Cargo.lock') }}
 
       - name: Установка системных зависимостей
         run: |
@@ -67,32 +75,14 @@ jobs:
 
       - name: Объединение артефактов
         run: |
-          # Создаём финальную структуру
           mkdir -p public
-
-          # Копируем mdBook (основной сайт)
           cp -r docs/book/book/* public/
-
-          # Копируем Rust API docs в поддиректорию
           mkdir -p public/rustdoc
           cp -r rust/target/doc/* public/rustdoc/
-
-          # Копируем OpenAPI спецификацию
           cp openapi.yml public/
           cp api-docs.yml public/
-
-          # Создаём редирект с корня на mdBook
           cat > public/index.html << 'EOF'
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <meta http-equiv="refresh" content="0; url=velum/">
-              <title>Velum Documentation</title>
-            </head>
-            <body>
-              <p>Redirecting to <a href="velum/">Velum documentation</a>...</p>
-            </body>
-          </html>
+          <meta http-equiv="refresh" content="0; url=velum/">
           EOF
 
       - name: Сохранение артефакта для GitHub Pages
