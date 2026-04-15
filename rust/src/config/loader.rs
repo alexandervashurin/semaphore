@@ -640,7 +640,7 @@ mod tests {
         }
         let config = load_from_env().unwrap();
         assert!(config.ha.enable);
-        assert!(config.ha.redis.port >= 0);
+        assert_eq!(config.ha.redis.port, 6379);
         unsafe {
             std::env::remove_var("SEMAPHORE_HA_ENABLE");
             std::env::remove_var("SEMAPHORE_HA_REDIS_PORT");

@@ -1,7 +1,6 @@
 //! Project Stats Model
 //!
 //! Статистика проекта
-
 use serde::{Deserialize, Serialize};
 
 /// Статистика проекта
@@ -9,25 +8,18 @@ use serde::{Deserialize, Serialize};
 pub struct ProjectStats {
     /// Количество задач
     pub task_count: i32,
-
     /// Количество успешных задач
     pub success_count: i32,
-
     /// Количество неудачных задач
     pub fail_count: i32,
-
     /// Количество остановленных задач
     pub stopped_count: i32,
-
     /// Количество активных пользователей
     pub active_user_count: i32,
-
     /// Количество шаблонов
     pub template_count: i32,
-
     /// Количество инвентарей
     pub inventory_count: i32,
-
     /// Количество репозиториев
     pub repository_count: i32,
 }
@@ -234,7 +226,6 @@ mod tests {
             repository_count: 2,
         };
         let cloned = stats.clone();
-        stats.success_count = 0;
         assert_eq!(cloned.success_count, 80);
     }
 

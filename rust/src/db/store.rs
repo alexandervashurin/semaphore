@@ -1216,7 +1216,7 @@ mod tests {
             offset: 0,
             ..Default::default()
         };
-        assert!(params.offset >= 0);
+        assert_eq!(params.offset, 0);
     }
 
     #[test]

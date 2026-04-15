@@ -1,7 +1,6 @@
 //! Config HA - High Availability конфигурация
 //!
 //! Аналог util/config.go из Go версии (часть 7: HA)
-
 use serde::{Deserialize, Serialize};
 
 /// HA (High Availability) конфигурация
@@ -10,11 +9,9 @@ pub struct HAConfigFull {
     /// Включить HA режим
     #[serde(default)]
     pub enable: bool,
-
     /// Redis конфигурация
     #[serde(default)]
     pub redis: HARedisConfigFull,
-
     /// Node ID (генерируется автоматически)
     #[serde(skip)]
     pub node_id: String,
@@ -26,15 +23,12 @@ pub struct HARedisConfigFull {
     /// Redis хост
     #[serde(default)]
     pub host: String,
-
     /// Redis порт
     #[serde(default)]
     pub port: u16,
-
     /// Redis пароль
     #[serde(default)]
     pub password: String,
-
     /// Redis DB
     #[serde(default)]
     pub db: u8,
@@ -101,7 +95,6 @@ impl HAConfigFull {
 /// Загружает HA конфигурацию из переменных окружения
 pub fn load_ha_from_env() -> HAConfigFull {
     use std::env;
-
     let mut config = HAConfigFull::new();
 
     if let Ok(val) = env::var("SEMAPHORE_HA_ENABLE") {
@@ -421,9 +414,8 @@ mod tests {
 
         let config = load_ha_from_env();
         assert!(config.enable);
-        // При невалидном порте может быть 0 или дефолтное значение
-        // Главное что config создался без паники
-        assert!(config.redis.port >= 0);
+        // При невалидном порте остаётся дефолтное значение (6379)
+        // Сравнение >= 0 удалено — для u16 оно всегда истинно
 
         unsafe {
             std::env::remove_var("SEMAPHORE_HA_ENABLE");

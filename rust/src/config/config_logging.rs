@@ -1,14 +1,12 @@
 //! Config Logging - конфигурация логирования
 //!
 //! Аналог util/config.go из Go версии (часть 8: логирование)
-
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 /// Тип формата логов
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[serde(rename_all = "lowercase")]
-#[derive(Default)]
 pub enum LogFormat {
     Json,
     #[default]
@@ -16,9 +14,8 @@ pub enum LogFormat {
 }
 
 /// Тип уровня логирования
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[serde(rename_all = "lowercase")]
-#[derive(Default)]
 pub enum LogLevel {
     Debug,
     #[default]
@@ -29,33 +26,21 @@ pub enum LogLevel {
 
 /// Конфигурация логирования
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct LoggingConfig {
     /// Формат логов (json/text)
-    #[serde(default)]
     pub format: LogFormat,
-
     /// Уровень логирования
-    #[serde(default)]
     pub level: LogLevel,
-
     /// Путь к файлу логов (если пустой - в stdout)
-    #[serde(default)]
     pub file: Option<String>,
-
     /// Максимальный размер файла логов в МБ
-    #[serde(default)]
     pub max_size: u64,
-
     /// Максимальное количество файлов логов
-    #[serde(default)]
     pub max_backups: u32,
-
     /// Максимальный возраст файлов логов в днях
-    #[serde(default)]
     pub max_age: u32,
-
     /// Сжимать старые файлы логов
-    #[serde(default)]
     pub compress: bool,
 }
 
@@ -103,7 +88,6 @@ impl LoggingConfig {
 /// Загружает конфигурацию логирования из переменных окружения
 pub fn load_logging_from_env() -> LoggingConfig {
     use std::env;
-
     let mut config = LoggingConfig::new();
 
     if let Ok(format) = env::var("VELUM_LOG_FORMAT") {
@@ -306,13 +290,14 @@ mod tests {
 
     #[test]
     fn test_logging_config_defaults_from_serde() {
+        // #[serde(default)] на структуре заставляет serde использовать LoggingConfig::default()
         let json = r#"{}"#;
         let config: LoggingConfig = serde_json::from_str(json).unwrap();
         assert_eq!(config.format, LogFormat::Text);
         assert_eq!(config.level, LogLevel::Info);
-        assert_eq!(config.max_size, 0);
-        assert_eq!(config.max_backups, 0);
-        assert_eq!(config.max_age, 0);
+        assert_eq!(config.max_size, 100); // Исправлено: 0 -> 100 из impl Default
+        assert_eq!(config.max_backups, 3); // Исправлено
+        assert_eq!(config.max_age, 28); // Исправлено
         assert!(!config.compress);
     }
 
@@ -364,8 +349,8 @@ mod tests {
     fn test_load_logging_from_env_invalid_numeric() {
         unsafe { std::env::set_var("VELUM_LOG_MAX_SIZE", "not_a_number") };
         let config = load_logging_from_env();
-        // При невалидном значении может быть 0 или дефолтное значение
-        assert!(config.max_size >= 0);
+        // При невалидном значении остаётся дефолтное (100)
+        assert_eq!(config.max_size, 100);
         unsafe { std::env::remove_var("VELUM_LOG_MAX_SIZE") };
     }
 
@@ -373,7 +358,7 @@ mod tests {
     fn test_log_level_unknown_value() {
         unsafe { std::env::set_var("VELUM_LOG_LEVEL", "unknown") };
         let config = load_logging_from_env();
-        assert_eq!(config.level, LogLevel::Info); // defaults to Info
+        assert_eq!(config.level, LogLevel::Info);
         unsafe { std::env::remove_var("VELUM_LOG_LEVEL") };
     }
 
