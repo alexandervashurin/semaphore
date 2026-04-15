@@ -92,8 +92,8 @@ pub fn load_from_env() -> Result<Config> {
     }
 
     if let Ok(port) = env::var("SEMAPHORE_HA_REDIS_PORT") {
-        if let Ok(port_num) = port.parse() {
-            config.ha.redis.port = port_num;
+        if let Ok(port_num) = port.parse::<u16>() {
+            config.ha.redis.port = port_num as i32;
         }
     }
 
@@ -279,7 +279,6 @@ mod tests {
     use std::sync::Mutex;
 
     /// Мьютекс для защиты глобальных переменных окружения при параллельном запуске тестов.
-    /// Это устраняет race conditions, которые приводят к случайным падениям в CI.
     static ENV_MUTEX: Mutex<()> = Mutex::new(());
 
     #[test]
@@ -288,13 +287,11 @@ mod tests {
             hostname: "localhost".to_string(),
             ..Default::default()
         };
-
         let second = DbConfig {
             hostname: String::new(),
             username: "admin".to_string(),
             ..Default::default()
         };
-
         let merged = merge_db_configs(first, second);
         assert_eq!(merged.hostname, "localhost");
         assert_eq!(merged.username, "admin");
@@ -303,15 +300,17 @@ mod tests {
     #[test]
     fn test_load_from_env() {
         let _guard = ENV_MUTEX.lock().unwrap();
-        std::env::set_var("SEMAPHORE_DB_HOST", "testhost");
-        std::env::set_var("SEMAPHORE_DB_USER", "testuser");
-
+        unsafe {
+            std::env::set_var("SEMAPHORE_DB_HOST", "testhost");
+            std::env::set_var("SEMAPHORE_DB_USER", "testuser");
+        }
         let config = load_from_env().unwrap();
         assert_eq!(config.database.hostname, "testhost");
         assert_eq!(config.database.username, "testuser");
-
-        std::env::remove_var("SEMAPHORE_DB_HOST");
-        std::env::remove_var("SEMAPHORE_DB_USER");
+        unsafe {
+            std::env::remove_var("SEMAPHORE_DB_HOST");
+            std::env::remove_var("SEMAPHORE_DB_USER");
+        }
     }
 
     #[test]
@@ -320,12 +319,10 @@ mod tests {
             web_host: "first".to_string(),
             ..Default::default()
         };
-
         let second = Config {
             web_host: "second".to_string(),
             ..Default::default()
         };
-
         let merged = merge_configs(first, second);
         assert_eq!(merged.web_host, "second");
     }
@@ -339,9 +336,7 @@ mod tests {
             db_name: "first-db".to_string(),
             ..Default::default()
         };
-
         let second = DbConfig::default();
-
         let merged = merge_db_configs(first, second);
         assert!(!merged.hostname.is_empty());
     }
@@ -353,13 +348,11 @@ mod tests {
             username: "first-user".to_string(),
             ..Default::default()
         };
-
         let second = DbConfig {
             hostname: "second-host".to_string(),
             username: "second-user".to_string(),
             ..Default::default()
         };
-
         let merged = merge_db_configs(first, second);
         assert_eq!(merged.hostname, "second-host");
         assert_eq!(merged.username, "second-user");
@@ -371,12 +364,10 @@ mod tests {
             path: Some("/first/path.db".to_string()),
             ..Default::default()
         };
-
         let second = DbConfig {
             path: Some("/second/path.db".to_string()),
             ..Default::default()
         };
-
         let merged = merge_db_configs(first, second);
         assert_eq!(merged.path, Some("/second/path.db".to_string()));
     }
@@ -387,9 +378,7 @@ mod tests {
             path: Some("/first/path.db".to_string()),
             ..Default::default()
         };
-
         let second = DbConfig::default();
-
         let merged = merge_db_configs(first, second);
         assert_eq!(merged.path, Some("/first/path.db".to_string()));
     }
@@ -400,37 +389,30 @@ mod tests {
             connection_string: Some("postgres://first".to_string()),
             ..Default::default()
         };
-
         let second = DbConfig {
             connection_string: Some("postgres://second".to_string()),
             ..Default::default()
         };
-
         let merged = merge_db_configs(first, second);
-        assert_eq!(
-            merged.connection_string,
-            Some("postgres://second".to_string())
-        );
+        assert_eq!(merged.connection_string, Some("postgres://second".to_string()));
     }
 
     #[test]
     fn test_merge_auth_configs_totp() {
         let first = AuthConfig {
-            totp: crate::config::types::TotpConfig {
+            totp: TotpConfig {
                 enable: false,
                 allow_recovery: false,
             },
             ..Default::default()
         };
-
         let second = AuthConfig {
-            totp: crate::config::types::TotpConfig {
+            totp: TotpConfig {
                 enable: true,
                 allow_recovery: true,
             },
             ..Default::default()
         };
-
         let merged = merge_auth_configs(first, second);
         assert!(merged.totp.enable);
         assert!(merged.totp.allow_recovery);
@@ -439,16 +421,14 @@ mod tests {
     #[test]
     fn test_merge_auth_configs_first_enabled() {
         let first = AuthConfig {
-            totp: crate::config::types::TotpConfig {
+            totp: TotpConfig {
                 enable: true,
                 allow_recovery: false,
             },
             email_enabled: false,
             ..Default::default()
         };
-
         let second = AuthConfig::default();
-
         let merged = merge_auth_configs(first, second);
         assert!(merged.totp.enable);
     }
@@ -460,13 +440,11 @@ mod tests {
             node_id: "first-node".to_string(),
             ..Default::default()
         };
-
         let second = HAConfig {
             enable: true,
             node_id: String::new(),
             ..Default::default()
         };
-
         let merged = merge_ha_configs(first, second);
         assert!(merged.enable);
         assert_eq!(merged.node_id, "first-node");
@@ -481,7 +459,6 @@ mod tests {
             },
             ..Default::default()
         };
-
         let second = HAConfig {
             redis: HARedisConfig {
                 port: 0,
@@ -490,7 +467,6 @@ mod tests {
             },
             ..Default::default()
         };
-
         let merged = merge_ha_configs(first, second);
         assert_eq!(merged.redis.host, "redis.example.com");
         assert_eq!(merged.redis.port, 6379);
@@ -502,12 +478,10 @@ mod tests {
             cookie_hash: vec![1, 2, 3],
             ..Default::default()
         };
-
         let second = Config {
             cookie_hash: vec![],
             ..Default::default()
         };
-
         let merged = merge_configs(first, second);
         assert_eq!(merged.cookie_hash, vec![1, 2, 3]);
     }
@@ -522,7 +496,6 @@ mod tests {
             mailer_secure: false,
             ..Default::default()
         };
-
         let second = Config {
             mailer_host: String::new(),
             mailer_port: String::new(),
@@ -531,7 +504,6 @@ mod tests {
             mailer_secure: true,
             ..Default::default()
         };
-
         let merged = merge_configs(first, second);
         assert_eq!(merged.mailer_host, "first.smtp");
         assert_eq!(merged.mailer_port, "25");
@@ -549,7 +521,6 @@ mod tests {
             },
             ..Default::default()
         };
-
         let second = Config {
             alert: AlertConfig {
                 enabled: true,
@@ -558,7 +529,6 @@ mod tests {
             },
             ..Default::default()
         };
-
         let merged = merge_configs(first, second);
         assert!(merged.alert.enabled);
         assert_eq!(merged.alert.email, Some("first@example.com".to_string()));
@@ -571,12 +541,10 @@ mod tests {
             email_sender: "first@sender.com".to_string(),
             ..Default::default()
         };
-
         let second = Config {
             email_sender: String::new(),
             ..Default::default()
         };
-
         let merged = merge_configs(first, second);
         assert_eq!(merged.email_sender, "first@sender.com");
     }
@@ -587,12 +555,10 @@ mod tests {
             telegram_bot_token: Some("token123".to_string()),
             ..Default::default()
         };
-
         let second = Config {
             telegram_bot_token: None,
             ..Default::default()
         };
-
         let merged = merge_configs(first, second);
         assert_eq!(merged.telegram_bot_token, Some("token123".to_string()));
     }
@@ -600,77 +566,82 @@ mod tests {
     #[test]
     fn test_load_from_env_ldap_enable_true() {
         let _guard = ENV_MUTEX.lock().unwrap();
-        std::env::set_var("SEMAPHORE_LDAP_ENABLE", "true");
+        unsafe { std::env::set_var("SEMAPHORE_LDAP_ENABLE", "true") };
         let config = load_from_env().unwrap();
         assert!(config.ldap.is_some());
         assert!(config.ldap.unwrap().enable);
-        std::env::remove_var("SEMAPHORE_LDAP_ENABLE");
+        unsafe { std::env::remove_var("SEMAPHORE_LDAP_ENABLE") };
     }
 
     #[test]
     fn test_load_from_env_ldap_enable_1() {
         let _guard = ENV_MUTEX.lock().unwrap();
-        std::env::set_var("SEMAPHORE_LDAP_ENABLE", "1");
+        unsafe { std::env::set_var("SEMAPHORE_LDAP_ENABLE", "1") };
         let config = load_from_env().unwrap();
         assert!(config.ldap.is_some());
         assert!(config.ldap.unwrap().enable);
-        std::env::remove_var("SEMAPHORE_LDAP_ENABLE");
+        unsafe { std::env::remove_var("SEMAPHORE_LDAP_ENABLE") };
     }
 
     #[test]
     fn test_load_from_env_ldap_enable_false() {
         let _guard = ENV_MUTEX.lock().unwrap();
-        std::env::set_var("SEMAPHORE_LDAP_ENABLE", "false");
+        unsafe { std::env::set_var("SEMAPHORE_LDAP_ENABLE", "false") };
         let config = load_from_env().unwrap();
         assert!(config.ldap.is_some());
         assert!(!config.ldap.unwrap().enable);
-        std::env::remove_var("SEMAPHORE_LDAP_ENABLE");
+        unsafe { std::env::remove_var("SEMAPHORE_LDAP_ENABLE") };
     }
 
     #[test]
     fn test_load_from_env_totp() {
         let _guard = ENV_MUTEX.lock().unwrap();
-        std::env::set_var("SEMAPHORE_AUTH_TOTP_ENABLE", "true");
-        std::env::set_var("SEMAPHORE_AUTH_TOTP_ALLOW_RECOVERY", "1");
-
+        unsafe {
+            std::env::set_var("SEMAPHORE_AUTH_TOTP_ENABLE", "true");
+            std::env::set_var("SEMAPHORE_AUTH_TOTP_ALLOW_RECOVERY", "1");
+        }
         let config = load_from_env().unwrap();
         assert!(config.auth.totp.enable);
         assert!(config.auth.totp.allow_recovery);
-
-        std::env::remove_var("SEMAPHORE_AUTH_TOTP_ENABLE");
-        std::env::remove_var("SEMAPHORE_AUTH_TOTP_ALLOW_RECOVERY");
+        unsafe {
+            std::env::remove_var("SEMAPHORE_AUTH_TOTP_ENABLE");
+            std::env::remove_var("SEMAPHORE_AUTH_TOTP_ALLOW_RECOVERY");
+        }
     }
 
     #[test]
     fn test_load_from_env_ha() {
         let _guard = ENV_MUTEX.lock().unwrap();
-        std::env::set_var("SEMAPHORE_HA_ENABLE", "true");
-        std::env::set_var("SEMAPHORE_HA_REDIS_HOST", "redis.host");
-        std::env::set_var("SEMAPHORE_HA_REDIS_PORT", "6380");
-
+        unsafe {
+            std::env::set_var("SEMAPHORE_HA_ENABLE", "true");
+            std::env::set_var("SEMAPHORE_HA_REDIS_HOST", "redis.host");
+            std::env::set_var("SEMAPHORE_HA_REDIS_PORT", "6380");
+        }
         let config = load_from_env().unwrap();
         assert!(config.ha.enable);
         assert_eq!(config.ha.redis.host, "redis.host");
         assert_eq!(config.ha.redis.port, 6380);
-
-        std::env::remove_var("SEMAPHORE_HA_ENABLE");
-        std::env::remove_var("SEMAPHORE_HA_REDIS_HOST");
-        std::env::remove_var("SEMAPHORE_HA_REDIS_PORT");
+        unsafe {
+            std::env::remove_var("SEMAPHORE_HA_ENABLE");
+            std::env::remove_var("SEMAPHORE_HA_REDIS_HOST");
+            std::env::remove_var("SEMAPHORE_HA_REDIS_PORT");
+        }
     }
 
     #[test]
     fn test_load_from_env_ha_invalid_port() {
         let _guard = ENV_MUTEX.lock().unwrap();
-        std::env::set_var("SEMAPHORE_HA_ENABLE", "true");
-        std::env::set_var("SEMAPHORE_HA_REDIS_PORT", "not_a_number");
-
+        unsafe {
+            std::env::set_var("SEMAPHORE_HA_ENABLE", "true");
+            std::env::set_var("SEMAPHORE_HA_REDIS_PORT", "not_a_number");
+        }
         let config = load_from_env().unwrap();
         assert!(config.ha.enable);
-        // При невалидном порте остается дефолтное значение (обычно 6379)
         assert!(config.ha.redis.port >= 0);
-
-        std::env::remove_var("SEMAPHORE_HA_ENABLE");
-        std::env::remove_var("SEMAPHORE_HA_REDIS_PORT");
+        unsafe {
+            std::env::remove_var("SEMAPHORE_HA_ENABLE");
+            std::env::remove_var("SEMAPHORE_HA_REDIS_PORT");
+        }
     }
 
     #[test]
@@ -683,12 +654,10 @@ mod tests {
             }),
             ..Default::default()
         };
-
         let second = Config {
             ldap: None,
             ..Default::default()
         };
-
         let merged = merge_configs(first, second);
         assert!(merged.ldap.is_some());
         assert_eq!(merged.ldap.unwrap().server, "first.ldap");
@@ -704,7 +673,6 @@ mod tests {
             }),
             ..Default::default()
         };
-
         let second = Config {
             ldap: Some(LdapConfig {
                 enable: false,
@@ -713,7 +681,6 @@ mod tests {
             }),
             ..Default::default()
         };
-
         let merged = merge_configs(first, second);
         assert!(merged.ldap.is_some());
         assert_eq!(merged.ldap.unwrap().server, "second.ldap");
@@ -721,15 +688,13 @@ mod tests {
 
     #[test]
     fn test_merge_db_configs_with_options() {
-        let mut first_options = std::collections::HashMap::new();
+        let mut first_options = HashMap::new();
         first_options.insert("charset".to_string(), "utf8".to_string());
         let first = DbConfig {
             options: first_options,
             ..Default::default()
         };
-
         let second = DbConfig::default();
-
         let merged = merge_db_configs(first, second);
         assert!(!merged.options.is_empty());
         assert_eq!(merged.options.get("charset"), Some(&"utf8".to_string()));
@@ -738,14 +703,12 @@ mod tests {
     #[test]
     fn test_merge_db_configs_second_options_override() {
         let first = DbConfig::default();
-
-        let mut second_options = std::collections::HashMap::new();
+        let mut second_options = HashMap::new();
         second_options.insert("ssl_mode".to_string(), "require".to_string());
         let second = DbConfig {
             options: second_options,
             ..Default::default()
         };
-
         let merged = merge_db_configs(first, second);
         assert_eq!(merged.options.get("ssl_mode"), Some(&"require".to_string()));
     }
@@ -763,9 +726,7 @@ mod tests {
             }),
             ..Default::default()
         };
-
         let second = Config::default();
-
         let merged = merge_configs(first, second);
         assert!(merged.redis.is_some());
         assert!(merged.kubernetes.is_some());
