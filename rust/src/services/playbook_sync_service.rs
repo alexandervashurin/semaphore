@@ -853,11 +853,16 @@ mod tests {
     #[test]
     fn test_determine_playbook_path_case_sensitive_search() {
         let temp_dir = TempDir::new().unwrap();
-        std::fs::write(temp_dir.path().join("Deploy.yml"), "---").unwrap();
+        // Используем уникальное имя чтобы избежать конфликтов с другими тестами
+        std::fs::write(temp_dir.path().join("UniqueDeploy.yml"), "---").unwrap();
 
         // Ищем с другой casing -- не найдёт
-        let path = determine_playbook_path(temp_dir.path(), "deploy");
-        assert!(!path.exists());
+        let path = determine_playbook_path(temp_dir.path(), "uniquedeploy");
+        assert!(
+            !path.exists(),
+            "Path should not exist, but found: {:?}",
+            path
+        );
     }
 
     #[test]

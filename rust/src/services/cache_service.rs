@@ -502,6 +502,8 @@ mod tests {
         assert_eq!(session.user_id, 2);
         assert!(session.is_admin);
         // Сессия с TTL=0 должна быть просрочена
+        // Небольшая задержка гарантирует, что Utc::now() > expires_at
+        std::thread::sleep(std::time::Duration::from_millis(10));
         assert!(session.is_expired());
     }
 

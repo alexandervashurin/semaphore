@@ -136,6 +136,9 @@ mod tests {
     use super::*;
     use std::env;
 
+    /// Мьютекс для синхронизации тестов, работающих с переменными окружения
+    static ENV_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[test]
     fn test_ha_config_default() {
         let config = HAConfigFull::default();
@@ -198,6 +201,7 @@ mod tests {
 
     #[test]
     fn test_load_ha_from_env() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         unsafe {
             std::env::set_var("SEMAPHORE_HA_ENABLE", "true");
             std::env::set_var("SEMAPHORE_HA_REDIS_HOST", "test.redis.host");
@@ -382,6 +386,7 @@ mod tests {
 
     #[test]
     fn test_load_ha_from_env_all_fields() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         unsafe {
             std::env::set_var("SEMAPHORE_HA_ENABLE", "true");
             std::env::set_var("SEMAPHORE_HA_REDIS_HOST", "full.redis.host");
@@ -408,6 +413,7 @@ mod tests {
 
     #[test]
     fn test_load_ha_from_env_invalid_port() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         unsafe {
             std::env::set_var("SEMAPHORE_HA_ENABLE", "true");
             std::env::set_var("SEMAPHORE_HA_REDIS_PORT", "not_a_number");
@@ -427,6 +433,7 @@ mod tests {
 
     #[test]
     fn test_load_ha_from_env_invalid_db() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         unsafe {
             std::env::set_var("SEMAPHORE_HA_ENABLE", "true");
             std::env::set_var("SEMAPHORE_HA_REDIS_DB", "not_a_number");
