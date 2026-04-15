@@ -1,3 +1,4 @@
+
 //! Config Logging - конфигурация логирования
 //!
 //! Аналог util/config.go из Go версии (часть 8: логирование)
@@ -90,15 +91,15 @@ pub fn load_logging_from_env() -> LoggingConfig {
     use std::env;
     let mut config = LoggingConfig::new();
 
-    if let Ok(format) = env::var("VELUM_LOG_FORMAT") {
-        config.format = match format.to_lowercase().as_str() {
+    if let Ok(v) = env::var("VELUM_LOG_FORMAT") {
+        config.format = match v.trim().to_lowercase().as_str() {
             "json" => LogFormat::Json,
             _ => LogFormat::Text,
         };
     }
 
-    if let Ok(level) = env::var("VELUM_LOG_LEVEL") {
-        config.level = match level.to_lowercase().as_str() {
+    if let Ok(v) = env::var("VELUM_LOG_LEVEL") {
+        config.level = match v.trim().to_lowercase().as_str() {
             "debug" => LogLevel::Debug,
             "info" => LogLevel::Info,
             "warn" => LogLevel::Warn,
@@ -107,30 +108,25 @@ pub fn load_logging_from_env() -> LoggingConfig {
         };
     }
 
-    if let Ok(file) = env::var("VELUM_LOG_FILE") {
-        config.file = Some(file);
-    }
-
-    if let Ok(max_size) = env::var("VELUM_LOG_MAX_SIZE") {
-        if let Ok(size) = max_size.parse() {
-            config.max_size = size;
+    if let Ok(v) = env::var("VELUM_LOG_FILE") {
+        let trimmed = v.trim().to_string();
+        if !trimmed.is_empty() {
+            config.file = Some(trimmed);
         }
     }
 
-    if let Ok(max_backups) = env::var("VELUM_LOG_MAX_BACKUPS") {
-        if let Ok(backups) = max_backups.parse() {
-            config.max_backups = backups;
-        }
+    if let Ok(v) = env::var("VELUM_LOG_MAX_SIZE") {
+        if let Ok(val) = v.trim().parse() { config.max_size = val; }
+    }
+    if let Ok(v) = env::var("VELUM_LOG_MAX_BACKUPS") {
+        if let Ok(val) = v.trim().parse() { config.max_backups = val; }
+    }
+    if let Ok(v) = env::var("VELUM_LOG_MAX_AGE") {
+        if let Ok(val) = v.trim().parse() { config.max_age = val; }
     }
 
-    if let Ok(max_age) = env::var("VELUM_LOG_MAX_AGE") {
-        if let Ok(age) = max_age.parse() {
-            config.max_age = age;
-        }
-    }
-
-    if let Ok(compress) = env::var("VELUM_LOG_COMPRESS") {
-        config.compress = compress.to_lowercase() == "true" || compress == "1";
+    if let Ok(v) = env::var("VELUM_LOG_COMPRESS") {
+        config.compress = matches!(v.trim().to_lowercase().as_str(), "true" | "1" | "yes");
     }
 
     config
