@@ -1,4 +1,3 @@
-
 //! Config Logging - конфигурация логирования
 //!
 //! Аналог util/config.go из Go версии (часть 8: логирование)
@@ -116,13 +115,19 @@ pub fn load_logging_from_env() -> LoggingConfig {
     }
 
     if let Ok(v) = env::var("VELUM_LOG_MAX_SIZE") {
-        if let Ok(val) = v.trim().parse() { config.max_size = val; }
+        if let Ok(val) = v.trim().parse() {
+            config.max_size = val;
+        }
     }
     if let Ok(v) = env::var("VELUM_LOG_MAX_BACKUPS") {
-        if let Ok(val) = v.trim().parse() { config.max_backups = val; }
+        if let Ok(val) = v.trim().parse() {
+            config.max_backups = val;
+        }
     }
     if let Ok(v) = env::var("VELUM_LOG_MAX_AGE") {
-        if let Ok(val) = v.trim().parse() { config.max_age = val; }
+        if let Ok(val) = v.trim().parse() {
+            config.max_age = val;
+        }
     }
 
     if let Ok(v) = env::var("VELUM_LOG_COMPRESS") {
