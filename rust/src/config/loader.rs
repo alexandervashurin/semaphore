@@ -394,7 +394,10 @@ mod tests {
             ..Default::default()
         };
         let merged = merge_db_configs(first, second);
-        assert_eq!(merged.connection_string, Some("postgres://second".to_string()));
+        assert_eq!(
+            merged.connection_string,
+            Some("postgres://second".to_string())
+        );
     }
 
     #[test]
