@@ -274,9 +274,7 @@ mod tests {
     #[tokio::test]
     async fn test_create_vault_password_file_path_traversal_chars() {
         let job = create_test_job();
-        let result = job
-            .create_vault_password_file("etc/passwd", "hack")
-            .await;
+        let result = job.create_vault_password_file("etc/passwd", "hack").await;
         assert!(result.is_ok());
         let path = result.unwrap();
         let filename = path.file_name().unwrap().to_string_lossy();
@@ -342,9 +340,7 @@ mod tests {
     async fn test_create_vault_password_file_very_long_password() {
         let job = create_test_job();
         let long_password = "a".repeat(10000);
-        let result = job
-            .create_vault_password_file("long", &long_password)
-            .await;
+        let result = job.create_vault_password_file("long", &long_password).await;
         assert!(result.is_ok());
 
         let path = result.unwrap();
@@ -358,9 +354,7 @@ mod tests {
         // Тест проверяет, что функция корректно обрабатывает специальные символы в имени
         // Функция create_vault_password_file не санитизирует имя, поэтому файл создаётся
         // с тем именем, которое передано. На Unix это допустимо (кроме / и \0).
-        let result = job
-            .create_vault_password_file("!@#$%^&*()", "pass")
-            .await;
+        let result = job.create_vault_password_file("!@#$%^&*()", "pass").await;
         assert!(result.is_ok());
         let path = result.unwrap();
         let filename = path.file_name().unwrap().to_string_lossy();
