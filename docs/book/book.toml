@@ -1,0 +1,23 @@
+[book]
+authors = ["Velum Contributors"]
+language = "en"
+multilingual = false
+src = "src"
+title = "Velum Documentation"
+
+[output.html]
+default-theme = "rust"
+preferred-dark-theme = "navy"
+git-repository-url = "https://github.com/alexandervashurin/semaphore"
+edit-url-template = "https://github.com/alexandervashurin/semaphore/edit/main/docs/book/{path}"
+site-url = "/velum-docs/"
+cname = "alexandervashurin.github.io"
+
+[output.html.fold]
+enable = true
+level = 0
+
+[output.html.playground]
+editable = false
+
+[preprocessor.links]

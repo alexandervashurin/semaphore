@@ -5,7 +5,7 @@ name: Publish Documentation
 on:  # yamllint disable-line rule:truthy
   push:
     branches: [main]
-    paths: ['rust/**', 'docs/**']
+    paths: ['rust/**', 'docs/**', 'wiki/**', 'openapi.yml', 'api-docs.yml']
   workflow_dispatch:
 
 # Разрешения для GitHub Pages
@@ -25,15 +25,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout репозитория
-        uses: actions/checkout@v4  # ✅ Исправлено с @v6 на @v4
+        uses: actions/checkout@v4
 
       - name: Установка Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
 
+      - name: Установка mdBook
+        run: |
+          curl -L https://github.com/rust-lang/mdBook/releases/download/v0.4.40/mdbook-v0.4.40-x86_64-unknown-linux-gnu.tar.gz | tar xz
+          sudo mv mdbook /usr/local/bin/
+          mdbook --version
+
       - name: Кэш Cargo registry
-        uses: actions/cache@v4  # ✅ Исправлено с @v5 на @v4
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -46,33 +52,50 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y pkg-config libssl-dev
 
-      - name: Генерация документации
+      - name: Генерация Rust документации
         run: |
           cd rust
           cargo doc --no-deps --document-private-items
 
-      - name: Добавление редиректа
-        # yamllint disable rule:line-length
+      - name: Сборка mdBook
         run: |
-          mkdir -p rust/target/doc
-          cat > rust/target/doc/index.html << 'EOF'
+          cd docs/book
+          mdbook build
+
+      - name: Объединение артефактов
+        run: |
+          # Создаём финальную структуру
+          mkdir -p public
+
+          # Копируем mdBook (основной сайт)
+          cp -r docs/book/book/* public/
+
+          # Копируем Rust API docs в поддиректорию
+          mkdir -p public/rustdoc
+          cp -r rust/target/doc/* public/rustdoc/
+
+          # Копируем OpenAPI спецификацию
+          cp openapi.yml public/
+          cp api-docs.yml public/
+
+          # Создаём редирект с корня на mdBook
+          cat > public/index.html << 'EOF'
           <!DOCTYPE html>
           <html>
             <head>
-              <meta http-equiv="refresh" content="0; url=velum_ffi/">
-              <title>Redirect to Velum Documentation</title>
+              <meta http-equiv="refresh" content="0; url=velum/">
+              <title>Velum Documentation</title>
             </head>
             <body>
-              <p>Redirecting to <a href="velum_ffi/">Velum documentation</a>...</p>
+              <p>Redirecting to <a href="velum/">Velum documentation</a>...</p>
             </body>
           </html>
           EOF
-        # yamllint enable rule:line-length
 
       - name: Сохранение артефакта для GitHub Pages
         uses: actions/upload-pages-artifact@v3
         with:
-          path: rust/target/doc
+          path: public
 
       - name: Публикация на GitHub Pages
         id: deployment
