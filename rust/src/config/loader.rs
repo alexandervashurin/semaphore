@@ -1,7 +1,6 @@
 //! Config Loader - загрузка конфигурации
 //!
 //! Аналог util/config.go из Go версии (часть 2: загрузка)
-
 use crate::config::types::{
     AlertConfig, AuthConfig, Config, DbConfig, HAConfig, HARedisConfig, LdapConfig, TotpConfig,
 };
@@ -15,7 +14,6 @@ use std::fs;
 pub fn load_from_file(path: &str) -> Result<Config> {
     let content = fs::read_to_string(path)
         .map_err(|e| Error::Other(format!("Failed to read config file: {}", e)))?;
-
     let config: Config = serde_json::from_str(&content)
         .map_err(|e| Error::Other(format!("Failed to parse config JSON: {}", e)))?;
 
@@ -278,7 +276,11 @@ pub fn load_config(config_path: Option<&str>) -> Result<Config> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::env;
+    use std::sync::Mutex;
+
+    /// Мьютекс для защиты глобальных переменных окружения при параллельном запуске тестов.
+    /// Это устраняет race conditions, которые приводят к случайным падениям в CI.
+    static ENV_MUTEX: Mutex<()> = Mutex::new(());
 
     #[test]
     fn test_merge_db_configs() {
@@ -300,19 +302,16 @@ mod tests {
 
     #[test]
     fn test_load_from_env() {
-        unsafe {
-            std::env::set_var("SEMAPHORE_DB_HOST", "testhost");
-            std::env::set_var("SEMAPHORE_DB_USER", "testuser");
-        }
+        let _guard = ENV_MUTEX.lock().unwrap();
+        std::env::set_var("SEMAPHORE_DB_HOST", "testhost");
+        std::env::set_var("SEMAPHORE_DB_USER", "testuser");
 
         let config = load_from_env().unwrap();
         assert_eq!(config.database.hostname, "testhost");
         assert_eq!(config.database.username, "testuser");
 
-        unsafe {
-            std::env::remove_var("SEMAPHORE_DB_HOST");
-            std::env::remove_var("SEMAPHORE_DB_USER");
-        }
+        std::env::remove_var("SEMAPHORE_DB_HOST");
+        std::env::remove_var("SEMAPHORE_DB_USER");
     }
 
     #[test]
@@ -343,11 +342,7 @@ mod tests {
 
         let second = DbConfig::default();
 
-        // merge_db_configs: second overrides first if second's fields are non-empty
-        // Since second is default (empty strings), first's values should be kept
-        // But default DbConfig has "0.0.0.0" for hostname, so it overrides
         let merged = merge_db_configs(first, second);
-        // Проверяем что merge не паникует и возвращает валидный конфиг
         assert!(!merged.hostname.is_empty());
     }
 
@@ -604,78 +599,78 @@ mod tests {
 
     #[test]
     fn test_load_from_env_ldap_enable_true() {
-        unsafe { std::env::set_var("SEMAPHORE_LDAP_ENABLE", "true") };
+        let _guard = ENV_MUTEX.lock().unwrap();
+        std::env::set_var("SEMAPHORE_LDAP_ENABLE", "true");
         let config = load_from_env().unwrap();
         assert!(config.ldap.is_some());
         assert!(config.ldap.unwrap().enable);
-        unsafe { std::env::remove_var("SEMAPHORE_LDAP_ENABLE") };
+        std::env::remove_var("SEMAPHORE_LDAP_ENABLE");
     }
 
     #[test]
     fn test_load_from_env_ldap_enable_1() {
-        unsafe { std::env::set_var("SEMAPHORE_LDAP_ENABLE", "1") };
+        let _guard = ENV_MUTEX.lock().unwrap();
+        std::env::set_var("SEMAPHORE_LDAP_ENABLE", "1");
         let config = load_from_env().unwrap();
         assert!(config.ldap.is_some());
         assert!(config.ldap.unwrap().enable);
-        unsafe { std::env::remove_var("SEMAPHORE_LDAP_ENABLE") };
+        std::env::remove_var("SEMAPHORE_LDAP_ENABLE");
     }
 
     #[test]
     fn test_load_from_env_ldap_enable_false() {
-        unsafe { std::env::set_var("SEMAPHORE_LDAP_ENABLE", "false") };
+        let _guard = ENV_MUTEX.lock().unwrap();
+        std::env::set_var("SEMAPHORE_LDAP_ENABLE", "false");
         let config = load_from_env().unwrap();
         assert!(config.ldap.is_some());
         assert!(!config.ldap.unwrap().enable);
-        unsafe { std::env::remove_var("SEMAPHORE_LDAP_ENABLE") };
+        std::env::remove_var("SEMAPHORE_LDAP_ENABLE");
     }
 
     #[test]
     fn test_load_from_env_totp() {
-        unsafe {
-            std::env::set_var("SEMAPHORE_AUTH_TOTP_ENABLE", "true");
-            std::env::set_var("SEMAPHORE_AUTH_TOTP_ALLOW_RECOVERY", "1");
-        }
+        let _guard = ENV_MUTEX.lock().unwrap();
+        std::env::set_var("SEMAPHORE_AUTH_TOTP_ENABLE", "true");
+        std::env::set_var("SEMAPHORE_AUTH_TOTP_ALLOW_RECOVERY", "1");
+
         let config = load_from_env().unwrap();
         assert!(config.auth.totp.enable);
         assert!(config.auth.totp.allow_recovery);
-        unsafe {
-            std::env::remove_var("SEMAPHORE_AUTH_TOTP_ENABLE");
-            std::env::remove_var("SEMAPHORE_AUTH_TOTP_ALLOW_RECOVERY");
-        }
+
+        std::env::remove_var("SEMAPHORE_AUTH_TOTP_ENABLE");
+        std::env::remove_var("SEMAPHORE_AUTH_TOTP_ALLOW_RECOVERY");
     }
 
     #[test]
     fn test_load_from_env_ha() {
-        unsafe {
-            std::env::set_var("SEMAPHORE_HA_ENABLE", "true");
-            std::env::set_var("SEMAPHORE_HA_REDIS_HOST", "redis.host");
-            std::env::set_var("SEMAPHORE_HA_REDIS_PORT", "6380");
-        }
+        let _guard = ENV_MUTEX.lock().unwrap();
+        std::env::set_var("SEMAPHORE_HA_ENABLE", "true");
+        std::env::set_var("SEMAPHORE_HA_REDIS_HOST", "redis.host");
+        std::env::set_var("SEMAPHORE_HA_REDIS_PORT", "6380");
+
         let config = load_from_env().unwrap();
         assert!(config.ha.enable);
         assert_eq!(config.ha.redis.host, "redis.host");
         assert_eq!(config.ha.redis.port, 6380);
-        unsafe {
-            std::env::remove_var("SEMAPHORE_HA_ENABLE");
-            std::env::remove_var("SEMAPHORE_HA_REDIS_HOST");
-            std::env::remove_var("SEMAPHORE_HA_REDIS_PORT");
-        }
+
+        std::env::remove_var("SEMAPHORE_HA_ENABLE");
+        std::env::remove_var("SEMAPHORE_HA_REDIS_HOST");
+        std::env::remove_var("SEMAPHORE_HA_REDIS_PORT");
     }
 
     #[test]
     fn test_load_from_env_ha_invalid_port() {
-        unsafe {
-            std::env::set_var("SEMAPHORE_HA_ENABLE", "true");
-            std::env::set_var("SEMAPHORE_HA_REDIS_PORT", "not_a_number");
-        }
+        let _guard = ENV_MUTEX.lock().unwrap();
+        std::env::set_var("SEMAPHORE_HA_ENABLE", "true");
+        std::env::set_var("SEMAPHORE_HA_REDIS_PORT", "not_a_number");
+
         let config = load_from_env().unwrap();
         assert!(config.ha.enable);
-        // При невалидном порте может быть 0 или дефолтное значение
+        // При невалидном порте остается дефолтное значение (обычно 6379)
         assert!(config.ha.redis.port >= 0);
-        unsafe {
-            std::env::remove_var("SEMAPHORE_HA_ENABLE");
-            std::env::remove_var("SEMAPHORE_HA_REDIS_PORT");
-        }
+
+        std::env::remove_var("SEMAPHORE_HA_ENABLE");
+        std::env::remove_var("SEMAPHORE_HA_REDIS_PORT");
     }
 
     #[test]
