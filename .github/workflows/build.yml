@@ -253,9 +253,7 @@ jobs:
     name: E2E Smoke Test
     needs: [docker]
     runs-on: ubuntu-latest
-    if: >-
-      github.event_name == 'push' &&
-      github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     services:
       postgres:
         image: postgres:15-alpine
@@ -273,77 +271,81 @@ jobs:
     steps:
       - name: Checkout репозитория
         uses: actions/checkout@v5
+
       - name: Установка Rust
         uses: dtolnay/rust-toolchain@stable
+
       - name: Системные зависимости
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y --no-install-recommends \
-            libssl-dev pkg-config libsqlite3-dev jq
+          sudo apt-get install -y --no-install-recommends libssl-dev pkg-config libsqlite3-dev jq
+
       - name: Ожидание готовности БД
         run: |
           for i in $(seq 1 30); do
-            if PGPASSWORD=velum_pass \
-               psql -h localhost -p 5432 \
-               -U velum -d velum \
-               -c 'SELECT 1' >/dev/null 2>&1; then
-              echo "DB ready"
+            if PGPASSWORD=velum_pass psql -h localhost -p 5432 -U velum -d velum -c 'SELECT 1' >/dev/null 2>&1; then
+              echo "✅ DB ready"
               exit 0
             fi
             sleep 2
           done
-          echo "DB timeout"
+          echo "❌ DB timeout"
           exit 1
+
       - name: Сборка и запуск сервера
         env:
-          VELUM_DB_URL: >-
-            postgres://velum:velum_pass@localhost:5432/velum
+          VELUM_DB_URL: postgres://velum:velum_pass@localhost:5432/velum
           VELUM_DB_DIALECT: postgres
-          VELUM_JWT_SECRET: >-
-            e2e-test-secret-key-32-bytes-long!
-          VELUM_WEB_PATH: >-
-            ${{ github.workspace }}/web/public
+          VELUM_JWT_SECRET: e2e-test-secret-key-32-bytes-long!
+          VELUM_WEB_PATH: ${{ github.workspace }}/web/public
           VELUM_ADMIN: admin
           VELUM_ADMIN_PASSWORD: admin123
         run: |
-          cd rust && cargo build --release
-          ./target/release/velum server \
-            --host 0.0.0.0 --port 3000 &
+          cd rust && cargo build --release --bin velum
+
+          # Запуск в фоне
+          ./target/release/velum server --host 0.0.0.0 --port 3000 &
           SERVER_PID=$!
-          echo "SERVER_PID=$SERVER_PID" \
-            >> "$GITHUB_ENV"
+          echo "SERVER_PID=$SERVER_PID" >> "$GITHUB_ENV"
+
+          # Health-check
           for i in $(seq 1 60); do
-            if curl -sf http://localhost:3000/healthz \
-               >/dev/null 2>&1; then
-              echo "Server ready"
+            if curl -sf http://localhost:3000/healthz >/dev/null 2>&1; then
+              echo "✅ Server ready"
               exit 0
             fi
             sleep 2
           done
-          echo "Server timeout"
+          echo "❌ Server timeout"
           kill "$SERVER_PID" 2>/dev/null || true
           exit 1
+
       - name: Проверка health-эндпоинтов
         run: |
           curl -sf http://localhost:3000/healthz
           curl -sf http://localhost:3000/readyz
-          echo "Health endpoints OK"
+          echo "✅ Health endpoints OK"
+
       - name: API smoke-тесты
         run: |
-          TOKEN=$(curl -sf -X POST \
-            http://localhost:3000/api/auth/login \
+          TOKEN=$(curl -sf -X POST http://localhost:3000/api/auth/login \
             -H 'Content-Type: application/json' \
-            -d '{ "username": "admin", \
-                  "password": "admin123" }' \
-            | jq -r '.token')
-          echo "Auth OK"
+            -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
+          echo "✅ Auth OK"
+
           curl -sf http://localhost:3000/api/projects \
             -H "Authorization: Bearer $TOKEN" >/dev/null
-          echo "Projects API OK"
+          echo "✅ Projects API OK"
+
           curl -sf http://localhost:3000/api/templates \
             -H "Authorization: Bearer $TOKEN" >/dev/null
-          echo "Templates API OK"
-          echo "All smoke tests passed ✅"
+          echo "✅ Templates API OK"
+
+          echo "🎉 All smoke tests passed ✅"
+
+      - name: Очистка процессов
+        if: always()
+        run: kill "$SERVER_PID" 2>/dev/null || true
       - name: Очистка процессов
         if: always()
         run: kill "$SERVER_PID" 2>/dev/null || true
