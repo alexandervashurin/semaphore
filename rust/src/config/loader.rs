@@ -93,7 +93,7 @@ pub fn load_from_env() -> Result<Config> {
 
     if let Ok(port) = env::var("SEMAPHORE_HA_REDIS_PORT") {
         if let Ok(port_num) = port.parse::<u16>() {
-            config.ha.redis.port = port_num as i32;
+            config.ha.redis.port = port_num;
         }
     }
 
@@ -400,14 +400,14 @@ mod tests {
     #[test]
     fn test_merge_auth_configs_totp() {
         let first = AuthConfig {
-            totp: TotpConfig {
+            totp: crate::config::types::TotpConfig {
                 enable: false,
                 allow_recovery: false,
             },
             ..Default::default()
         };
         let second = AuthConfig {
-            totp: TotpConfig {
+            totp: crate::config::types::TotpConfig {
                 enable: true,
                 allow_recovery: true,
             },
@@ -421,7 +421,7 @@ mod tests {
     #[test]
     fn test_merge_auth_configs_first_enabled() {
         let first = AuthConfig {
-            totp: TotpConfig {
+            totp: crate::config::types::TotpConfig {
                 enable: true,
                 allow_recovery: false,
             },
