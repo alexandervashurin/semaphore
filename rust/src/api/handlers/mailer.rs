@@ -221,6 +221,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(unused_assignments)]
     fn test_email_payload_clone_independence() {
         // TestEmailPayload doesn't derive Clone
         let mut to = "original@example.com".to_string();

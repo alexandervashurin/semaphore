@@ -349,6 +349,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(unused_assignments)]
     fn test_totp_confirm_payload_clone_independence() {
         // TotpConfirmPayload doesn't derive Clone
         let mut code = "original".to_string();
@@ -358,6 +359,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(unused_assignments)]
     fn test_totp_disable_payload_clone_independence() {
         // TotpDisablePayload doesn't derive Clone
         let mut recovery_code = "original".to_string();

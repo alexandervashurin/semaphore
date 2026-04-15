@@ -333,6 +333,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(unused_assignments)]
     fn test_access_key_update_payload_clone_independence() {
         // AccessKeyUpdatePayload doesn't derive Clone
         let mut name = Some("Original".to_string());

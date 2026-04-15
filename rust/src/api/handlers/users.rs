@@ -347,6 +347,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(unused_assignments)]
     fn test_user_update_payload_clone_independence() {
         // UserUpdatePayload doesn't derive Clone, so we test field-level independence
         let mut username = Some("original".to_string());
