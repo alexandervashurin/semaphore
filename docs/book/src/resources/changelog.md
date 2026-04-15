@@ -1,3 +1,17 @@
-# Changelog
+# Список изменений
 
-See the project [CHANGELOG.md](../../CHANGELOG.md).
+> История изменений Velum
+>
+> 📖 См. также: [Релизы](./releases.md), [Руководство по миграции](../troubleshooting/migration.md)
+
+---
+
+Полный список изменений доступен в корне репозитория:
+[CHANGELOG.md](../../CHANGELOG.md)
+
+---
+
+## Следующие шаги
+
+- [Релизы](./releases.md) — страница релизов
+- [Руководство по миграции](../troubleshooting/migration.md) — обновление между версиями

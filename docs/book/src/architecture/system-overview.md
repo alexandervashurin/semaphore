@@ -1,101 +1,67 @@
-# System Overview
+# Обзор системы
 
-> High-level architecture of Velum
+> Высокоуровневая архитектура Velum
 >
-> 📖 See also: [[Database Schema]], [[Auth & Security]], [[Task Execution Flow]], [[Kubernetes Integration]]
+> 📖 См. также: [Схема базы данных](./database-schema.md), [Аутентификация и безопасность](./auth-security.md), [Выполнение задач](./task-execution.md), [Интеграция с Kubernetes](./kubernetes.md)
 
 ---
 
-## Architecture Diagram
+## Схема архитектуры
 
 ```
-┌─────────────────────────────────────────────────┐
-│                  Web UI (Vanilla JS)             │
-│            48 pages (28 base + 20 K8s)           │
-└────────────────────┬────────────────────────────┘
-                     │ HTTP / WebSocket
-┌────────────────────▼────────────────────────────┐
-│              API Layer (Axum 0.8)                │
-│                                                  │
-│  ┌──────────┐ ┌─────────┐ ┌──────────────────┐  │
-│  │ REST API │ │GraphQL  │ │ WebSocket / MCP  │  │
-│  │ 135+     │ │ Queries │ │ 60 Tools         │  │
-│  └────┬─────┘ └────┬────┘ └────────┬─────────┘  │
-│       │            │               │             │
-│       └────────────┼───────────────┘             │
-│                    ▼                              │
-│           Middleware Stack                        │
-│  • Auth (JWT/LDAP/OIDC)                          │
-│  • Rate Limiting                                 │
-│  • Correlation ID                                │
-│  • Security Headers                              │
-└────────────────────┬────────────────────────────┘
-                     │
-┌────────────────────▼────────────────────────────┐
-│              Service Layer                       │
-│                                                  │
-│  ┌──────────┐ ┌─────────┐ ┌──────────────────┐  │
-│  │ Task     │ │Scheduler│ │ Alert/Notify     │  │
-│  │ Runner   │ │ (cron)  │ │ Webhooks         │  │
-│  └──────────┘ └─────────┘ └──────────────────┘  │
-│  ┌──────────┐ ┌─────────┐ ┌──────────────────┐  │
-│  │ Backup/  │ │ Export/ │ │ Remote Runners   │  │
-│  │ Restore  │ │ Import  │ │ (Heartbeat)      │  │
-│  └──────────┘ └─────────┘ └──────────────────┘  │
-└────────────────────┬────────────────────────────┘
-                     │
-┌────────────────────▼────────────────────────────┐
-│              Data Layer                          │
-│                                                  │
-│  ┌──────────────────┐  ┌──────────────────────┐  │
-│  │ PostgreSQL       │  │ Redis (HA mode)      │  │
-│  │ (SQLx 0.8)       │  │ • Task Queue         │  │
-│  │ • Users          │  │ • WebSocket Pub/Sub  │  │
-│  │ • Projects       │  │ • Session Cache      │  │
-│  │ • Tasks          │  └──────────────────────┘  │
-│  │ • Templates      │                             │
-│  └──────────────────┘                             │
-└──────────────────────────────────────────────────┘
-                     │
-┌────────────────────▼────────────────────────────┐
-│          External Integrations                   │
-│                                                  │
-│  • Kubernetes (kube-rs 0.98)                     │
-│  • Ansible / Terraform / Bash / PowerShell       │
-│  • LDAP / OIDC                                   │
-│  • Telegram Bot (teloxide)                       │
-│  • Prometheus Metrics                            │
-│  • HashiCorp Vault                               │
-└──────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│              Веб-интерфейс                   │
+│         (48 HTML-страниц, CSS, JS)           │
+└──────────────────┬──────────────────────────┘
+                   │ HTTP / WebSocket
+┌──────────────────▼──────────────────────────┐
+│              API-слой (Axum)                 │
+│  Handlers → Middleware → Auth → Validation  │
+└──────────────────┬──────────────────────────┘
+                   │
+┌──────────────────▼──────────────────────────┐
+│           Слой сервисов (Rust)               │
+│  TaskPool, Scheduler, PlaybookSync, Cache   │
+└────────┬──────────────────────┬─────────────┘
+         │                      │
+┌────────▼────────┐   ┌─────────▼────────────┐
+│   PostgreSQL    │   │      Redis (HA)      │
+│   (SQLx)        │   │   (очередь, кэш)     │
+└─────────────────┘   └──────────────────────┘
+         │
+┌────────▼────────────────────────────────────┐
+│        Внешние интеграции                   │
+│  Ansible │ Terraform │ Kubernetes │ Git     │
+└─────────────────────────────────────────────┘
 ```
 
 ---
 
-## Key Components
+## Ключевые компоненты
 
-### Backend (Rust)
+### Бэкенд (Rust)
 
-| Module | Lines | Description |
-|--------|-------|-------------|
-| `api/` | 9000+ | HTTP handlers, routes, middleware |
-| `services/` | 12000+ | Business logic |
+| Модуль | Строк | Описание |
+|--------|-------|----------|
+| `api/` | 9000+ | HTTP-обработчики, маршруты, middleware |
+| `services/` | 12000+ | Бизнес-логика |
 | `db/` | 5000+ | SQLx PostgreSQL |
-| `kubernetes/` | 2300+ | K8s client integration |
-| `models/` | 8000+ | Data structures |
+| `kubernetes/` | 2300+ | Интеграция с K8s-клиентом |
+| `models/` | 8000+ | Структуры данных |
 
-### Frontend (Vanilla JS)
+### Фронтенд (Vanilla JS)
 
-| Component | Count | Description |
-|-----------|-------|-------------|
-| HTML Pages | 48 | Core + K8s pages |
-| CSS | 1692 lines | Material Design, responsive |
-| JS | 1 app.js | API client, sidebar |
+| Компонент | Количество | Описание |
+|-----------|-----------|----------|
+| HTML-страницы | 48 | Основные + K8s-страницы |
+| CSS | 1692 строки | Material Design, адаптивный |
+| JS | 1 app.js | API-клиент, боковая панель |
 
 ---
 
-## Next Steps
+## Следующие шаги
 
-- [[Database Schema]] — PostgreSQL schema details
-- [[Auth & Security]] — authentication architecture
-- [[Task Execution Flow]] — how tasks run
-- [[Kubernetes Integration]] — K8s integration details
+- [Схема базы данных](./database-schema.md) — детали схемы PostgreSQL
+- [Аутентификация и безопасность](./auth-security.md) — архитектура аутентификации
+- [Выполнение задач](./task-execution.md) — как запускаются задачи
+- [Интеграция с Kubernetes](./kubernetes.md) — интеграция с K8s

@@ -1,12 +1,12 @@
 # GraphQL API
 
-> Query Velum data with GraphQL
+> Запрос данных Velum через GraphQL
 >
-> 📖 See also: [[REST API]], [[WebSocket API]], [[MCP Server]]
+> 📖 См. также: [REST API](./rest-api.md), [WebSocket API](./websocket-api.md), [MCP сервер](./mcp-server.md), [OpenAPI](./openapi.md)
 
 ---
 
-## Endpoint
+## Эндпоинт
 
 ```
 POST /graphql
@@ -14,9 +14,9 @@ POST /graphql
 
 ---
 
-## Schema
+## Схема
 
-### Query Types
+### Типы запросов (Query)
 
 ```graphql
 type Query {
@@ -37,7 +37,7 @@ type Query {
 }
 ```
 
-### Subscription Types
+### Типы подписок (Subscription)
 
 ```graphql
 type Subscription {
@@ -48,9 +48,9 @@ type Subscription {
 
 ---
 
-## Example Queries
+## Примеры запросов
 
-### List Projects with Templates
+### Список проектов с шаблонами
 
 ```graphql
 query {
@@ -66,7 +66,7 @@ query {
 }
 ```
 
-### Watch Task Output
+### Отслеживание вывода задачи
 
 ```graphql
 subscription {
@@ -79,8 +79,8 @@ subscription {
 
 ---
 
-## Next Steps
+## Следующие шаги
 
-- [[REST API]] — traditional REST endpoints
-- [[WebSocket API]] — WebSocket events
-- [[MCP Server]] — AI tools integration
+- [REST API](./rest-api.md) — традиционные REST-эндпоинты
+- [WebSocket API](./websocket-api.md) — WebSocket-события
+- [MCP сервер](./mcp-server.md) — интеграция с AI-инструментами

@@ -1,36 +1,47 @@
-# Velum Documentation
+# Документация Velum
 
-> **Velum** — open-source DevOps automation platform (Rust + Kubernetes UI)
+> **Velum** — open-source платформа для автоматизации DevOps (Rust + Kubernetes UI)
 >
-> Manage playbooks, templates, tasks, and infrastructure as code.
+> Управляйте плейбуками, шаблонами, задачами и инфраструктурой как кодом.
 
 ---
 
-## Quick Links
+## Быстрые ссылки
 
-| Resource | Description |
-|----------|-------------|
-| [Quick Start](./getting-started/quick-start.md) | Install and run Velum in 5 minutes |
-| [REST API](./api-reference/rest-api.md) | Full REST API reference |
-| [OpenAPI Spec](./api-reference/openapi.md) | Interactive API documentation (Redoc) |
-| [Rust API Docs](./development/rust-api.md) | Generated Rust API documentation |
-| [Docker Deployment](./deployment/docker-deployment.md) | Deploy with Docker Compose |
-| [Kubernetes](./architecture/kubernetes.md) | K8s integration guide |
+| Ресурс | Описание |
+|--------|----------|
+| [Быстрый старт](./getting-started/quick-start.md) | Установка и запуск Velum за 5 минут |
+| [REST API](./api-reference/rest-api.md) | Полная справка по REST API |
+| [OpenAPI](./api-reference/openapi.md) | Интерактивная документация по API (ReDoc) |
+| [Rust API](./development/rust-api.md) | Автоматически сгенерированная документация Rust API |
+| [Docker](./deployment/docker-deployment.md) | Развёртывание через Docker Compose |
+| [Kubernetes](./deployment/kubernetes-deployment.md) | Руководство по интеграции с K8s |
 
-## Project Stats
+## Статистика проекта
 
-| Metric | Value |
-|--------|-------|
-| **Language** | Rust (backend) + Vanilla JS (frontend) |
-| **Tests** | 6550+ unit tests, ~85% coverage |
-| **API Endpoints** | 135+ REST + GraphQL + WebSocket |
-| **Docker Size** | ~23MB (optimized build) |
-| **Platforms** | Linux amd64/arm64, macOS amd64/arm64 |
+| Метрика | Значение |
+|---------|----------|
+| **Язык** | Rust (бэкенд) + Vanilla JS (фронтенд) |
+| **Тесты** | 6550+ юнит-тестов, ~85% покрытие |
+| **API эндпоинты** | 135+ REST + GraphQL + WebSocket |
+| **Размер Docker** | ~23 МБ (оптимизированная сборка) |
+| **Платформы** | Linux amd64/arm64, macOS amd64/arm64 |
 
-## External Links
+## Внешние ссылки
 
-- [GitHub Repository](https://github.com/alexandervashurin/semaphore)
-- [Issue Tracker](https://github.com/alexandervashurin/semaphore/issues)
-- [Changelog](../CHANGELOG.md)
-- [OpenAPI Specification](../api-docs.yml)
-- [Postman Collection](../.postman/)
+- [Репозиторий GitHub](https://github.com/alexandervashurin/semaphore)
+- [Баг-трекер](https://github.com/alexandervashurin/semaphore/issues)
+- [Список изменений](./resources/changelog.md)
+- [Спецификация OpenAPI](../api-docs.yml)
+- [Коллекция Postman](../.postman/)
+
+## Разделы документации
+
+- 🚀 [Начало работы](./getting-started/quick-start.md) — установка и настройка
+- 🏗️ [Развёртывание](./deployment/docker-deployment.md) — Docker и Kubernetes
+- 🔌 [API](./api-reference/rest-api.md) — REST, GraphQL, WebSocket, MCP
+- 🏛️ [Архитектура](./architecture/system-overview.md) — устройство системы
+- 🛠️ [Разработка](./development/dev-setup.md) — настройка окружения
+- 🧩 [Расширения](./extensions/vscode.md) — VS Code, Terraform, плагины
+- 🐛 [Устранение проблем](./troubleshooting/common-issues.md) — FAQ и отладка
+- 🤝 [Участие](./contributing/contributing.md) — как внести вклад

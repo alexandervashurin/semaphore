@@ -1,12 +1,12 @@
-# Kubernetes Deployment
+# Развёртывание в Kubernetes
 
-> Deploy Velum to Kubernetes
+> Развёртывание Velum в Kubernetes
 >
-> 📖 See also: [[Docker Deployment]], [[Configuration]], [[Production Setup]], [[Kubernetes Integration]]
+> 📖 См. также: [Docker](./docker-deployment.md), [Конфигурация](../getting-started/configuration.md), [Продакшен](./production-setup.md), [Интеграция с Kubernetes](../architecture/kubernetes.md)
 
 ---
 
-## Quick Deploy
+## Быстрое развёртывание
 
 ```bash
 kubectl apply -f deploy/kubernetes/
@@ -14,7 +14,7 @@ kubectl apply -f deploy/kubernetes/
 
 ---
 
-## Helm Chart
+## Helm-чарт
 
 ```bash
 helm install velum ./deploy/kubernetes/helm/velum \
@@ -23,45 +23,49 @@ helm install velum ./deploy/kubernetes/helm/velum \
 
 ---
 
-## Components
+## Компоненты
 
-| Resource | Name | Purpose |
-|----------|------|---------|
-| Deployment | `velum-server` | Main application |
-| Service | `velum-service` | Internal cluster access |
-| Ingress | `velum-ingress` | External HTTP access |
-| ConfigMap | `velum-config` | Configuration |
-| Secret | `velum-secrets` | Sensitive data |
-| PVC | `velum-data` | Persistent storage |
+| Ресурс | Имя | Назначение |
+|--------|-----|-----------|
+| Deployment | `velum-server` | Основное приложение |
+| Service | `velum-service` | Внутренний доступ в кластере |
+| Ingress | `velum-ingress` | Внешний HTTP-доступ |
+| ConfigMap | `velum-config` | Конфигурация |
+| Secret | `velum-secrets` | Конфиденциальные данные |
+| PVC | `velum-data` | Постоянное хранилище |
 
 ---
 
 ## Kubernetes UI
 
-Velum includes **33 Kubernetes management pages**:
+Velum включает **33 страницы управления Kubernetes**:
 
-- Pods, Deployments, ReplicaSets, DaemonSets, StatefulSets
-- Services, ConfigMaps, Secrets, Ingress
-- RBAC, Helm, Jobs, CronJobs
-- Metrics, Events, Audit Logs
-- Backup/Restore, GitOps, Troubleshooting
+- Поды, Deployment, ReplicaSet, DaemonSet, StatefulSet
+- Сервисы, ConfigMap, Secret, Ingress
+- RBAC, Helm, Jobs, CronJob
+- Метрики, события, аудит-логи
+- Backup/Restore, GitOps, устранение проблем
 
-Access at: http://velum-url/kubernetes
+Доступ по адресу: `http://velum-url/kubernetes`
+
+См. также: [Интеграция с Kubernetes](../architecture/kubernetes.md)
 
 ---
 
-## Scaling
+## Масштабирование
 
 ```bash
 kubectl scale deployment velum-server --replicas=3
 ```
 
-With Redis HA mode, multiple instances share state via Redis pub/sub.
+С режимом HA через Redis несколько экземпляров разделяют состояние через Redis pub/sub.
+
+См. также: [Продакшен](./production-setup.md)
 
 ---
 
-## Next Steps
+## Следующие шаги
 
-- [[Docker Deployment]] — Docker Compose options
-- [[Production Setup]] — harden for production
-- [[Kubernetes Integration]] — K8s API details
+- [Docker](./docker-deployment.md) — варианты Docker Compose
+- [Продакшен](./production-setup.md) — усиление для продакшена
+- [Интеграция с Kubernetes](../architecture/kubernetes.md) — детали K8s API

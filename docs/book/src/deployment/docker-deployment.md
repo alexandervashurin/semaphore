@@ -1,38 +1,38 @@
-# Docker Deployment
+# Развёртывание в Docker
 
-> All Docker Compose deployment options
+> Все варианты развёртывания через Docker Compose
 >
-> 📖 See also: [[Quick Start]], [[Configuration]], [[Kubernetes Deployment]], [[Production Setup]]
+> 📖 См. также: [Быстрый старт](../getting-started/quick-start.md), [Конфигурация](../getting-started/configuration.md), [Kubernetes](./kubernetes-deployment.md), [Продакшен](./production-setup.md)
 
 ---
 
-## Available Compose Files
+## Доступные файлы Compose
 
-| File | Purpose | Port |
-|------|---------|------|
-| `docker-compose.demo.yml` | Quick demo with demo data | 8088 |
-| `docker-compose.dev.yml` | Development with hot reload | 3000 |
-| `docker-compose.yml` | Default production setup | 3000 |
-| `docker-compose.prod.yml` | Production hardening | 3000 |
-| `docker-compose.postgres.yml` | PostgreSQL only | — |
+| Файл | Назначение | Порт |
+|------|-----------|------|
+| `docker-compose.demo.yml` | Быстрое демо с демо-данными | 8088 |
+| `docker-compose.dev.yml` | Разработка с горячей перезагрузкой | 3000 |
+| `docker-compose.yml` | Стандартный продакшен | 3000 |
+| `docker-compose.prod.yml` | Продакшен с усилением | 3000 |
+| `docker-compose.postgres.yml` | Только PostgreSQL | — |
 
 ---
 
-## Demo Mode
+## Демо-режим
 
-Fastest way to try Velum:
+Самый быстрый способ попробовать Velum:
 
 ```bash
 docker compose -f docker-compose.demo.yml up -d
 ```
 
-Opens at http://localhost:8088 — Login: `admin` / `admin123`
+Открывается на http://localhost:8088 — Логин: `admin` / `admin123`
 
 ---
 
-## Development Mode
+## Режим разработки
 
-With hot code reload:
+С горячей перезагрузкой кода:
 
 ```bash
 docker compose -f docker-compose.dev.yml up -d
@@ -40,38 +40,38 @@ docker compose -f docker-compose.dev.yml up -d
 
 ---
 
-## Production Mode
+## Продакшен-режим
 
 ```bash
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-Includes:
-- Health checks
-- Resource limits
-- Restart policies
-- Volume persistence
+Включает:
+- Проверки здоровья (health checks)
+- Лимиты ресурсов
+- Политики перезапуска
+- Сохранение томов (volume persistence)
 
 ---
 
-## Docker Image
+## Docker-образ
 
-The optimized image is **~23MB** (FROM scratch + shared libraries):
+Оптимизированный образ весит **~23 МБ** (FROM scratch + общие библиотеки):
 
 ```bash
 docker pull ghcr.io/alexandervashurin/semaphore:latest
 ```
 
-### Multi-arch Support
+### Поддержка мультиархитектуры
 
-| Platform | Tag |
-|----------|-----|
+| Платформа | Тег |
+|-----------|-----|
 | Linux amd64 | `latest`, `linux-amd64` |
 | Linux arm64 | `latest`, `linux-arm64` |
 
 ---
 
-## Custom Build
+## Своя сборка
 
 ```bash
 docker build -t velum:local .
@@ -79,8 +79,9 @@ docker build -t velum:local .
 
 ---
 
-## Next Steps
+## Следующие шаги
 
-- [[Kubernetes Deployment]] — deploy to K8s
-- [[Production Setup]] — harden for production
-- [[Configuration]] — environment variables
+- [Kubernetes](./kubernetes-deployment.md) — развёртывание в K8s
+- [Продакшен](./production-setup.md) — усиление для продакшена
+- [Конфигурация](../getting-started/configuration.md) — переменные окружения
+- [Telegram-бот](../resources/telegram-bot.md) — настройка уведомлений

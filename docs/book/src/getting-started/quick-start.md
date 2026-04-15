@@ -1,45 +1,49 @@
-# Quick Start
+# Быстрый старт
 
-> **⏱️ 5 minutes** — from zero to running Velum instance
+> **⏱️ 5 минут** — от нуля до работающего экземпляра Velum
 >
-> 📖 See also: [[Configuration]], [[Docker Deployment]], [[First Project]]
+> 📖 См. также: [Конфигурация](./configuration.md), [Первый проект](./first-project.md), [Docker](../deployment/docker-deployment.md)
 
 ---
 
-## Prerequisites
+## Требования
 
-- Docker & Docker Compose **or** Rust 1.80+
-- PostgreSQL 15+ (if not using Docker)
+- Docker и Docker Compose **или** Rust 1.80+
+- PostgreSQL 15+ (если не используете Docker)
 
 ---
 
-## Option 1: Docker (Recommended)
+## Вариант 1: Docker (рекомендуется)
 
-### Demo Mode
+### Демо-режим
+
 ```bash
 docker compose -f docker-compose.demo.yml up -d
 ```
-Open http://localhost:8088 — Login: `admin` / `admin123`
 
-### Development Mode
+Откройте http://localhost:8088 — Логин: `admin` / `admin123`
+
+### Режим разработки
+
 ```bash
 docker compose -f docker-compose.dev.yml up -d
 ```
-Open http://localhost:3000
+
+Откройте http://localhost:3000
 
 ---
 
-## Option 2: From Source
+## Вариант 2: Из исходного кода
 
 ```bash
-# Clone
+# Клонирование
 git clone https://github.com/alexandervashurin/semaphore.git
 cd semaphore
 
-# Build
+# Сборка
 cd rust && cargo build --release
 
-# Run
+# Запуск
 VELUM_DB_DIALECT=postgres \
 VELUM_DB_URL="postgres://user:pass@localhost:5432/velum" \
 VELUM_JWT_SECRET="your-secret-key-32-bytes-long!!" \
@@ -51,16 +55,16 @@ VELUM_ADMIN_PASSWORD=admin123 \
 
 ---
 
-## Verify Installation
+## Проверка установки
 
 ```bash
-# Health check
+# Проверка здоровья
 curl http://localhost:3000/healthz
 
-# Ready check
+# Проверка готовности
 curl http://localhost:3000/readyz
 
-# Login
+# Вход
 curl -X POST http://localhost:3000/api/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"username":"admin","password":"admin123"}'
@@ -68,20 +72,20 @@ curl -X POST http://localhost:3000/api/auth/login \
 
 ---
 
-## Next Steps
+## Следующие шаги
 
-1. [[Configuration]] — customize your setup
-2. [[First Project]] — create a project and run your first task
-3. [[Docker Deployment]] — production deployment options
-4. [[API Reference]] — explore the full API
+1. [Конфигурация](./configuration.md) — настройка окружения
+2. [Первый проект](./first-project.md) — создайте проект и запустите первую задачу
+3. [Docker](../deployment/docker-deployment.md) — варианты развёртывания
+4. [REST API](../api-reference/rest-api.md) — изучите полное API
 
 ---
 
-## Platform Support
+## Поддержка платформ
 
-| Platform | Architecture | Status |
-|----------|-------------|--------|
-| Linux | amd64, arm64 | ✅ Native |
-| macOS | amd64 (Intel), arm64 (Apple Silicon) | ✅ Native |
-| Docker | linux/amd64, linux/arm64 | ✅ Multi-arch |
-| Kubernetes | amd64, arm64 | ✅ Helm + manifests |
+| Платформа | Архитектура | Статус |
+|-----------|-------------|--------|
+| Linux | amd64, arm64 | ✅ Нативно |
+| macOS | amd64 (Intel), arm64 (Apple Silicon) | ✅ Нативно |
+| Docker | linux/amd64, linux/arm64 | ✅ Мультиархитектура |
+| Kubernetes | amd64, arm64 | ✅ Helm + манифесты |

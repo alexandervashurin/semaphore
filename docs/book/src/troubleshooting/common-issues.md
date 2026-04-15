@@ -1,86 +1,89 @@
-# Troubleshooting
+# Устранение проблем
 
-> Common issues and solutions
+> Частые проблемы и решения
 >
-> 📖 See also: [[Debug Mode]], [[Migration Guide]], [[Configuration]]
+> 📖 См. также: [Режим отладки](./debug-mode.md), [Руководство по миграции](./migration.md), [Конфигурация](../getting-started/configuration.md)
 
 ---
 
-## Common Issues
+## Сервер не запускается
 
-### Server won't start
-
-**Check logs:**
+**Проверьте логи:**
 ```bash
 RUST_LOG=debug ./target/release/velum server
 ```
 
-**Common causes:**
-- Database not accessible — check `VELUM_DB_URL`
-- Port already in use — change `--port` flag
-- Missing web files — verify `VELUM_WEB_PATH`
+**Частые причины:**
+- База данных недоступна — проверьте `VELUM_DB_URL`
+- Порт уже занят — измените флаг `--port`
+- Отсутствуют веб-файлы — проверьте `VELUM_WEB_PATH`
 
-### Can't login
+## Не удаётся войти
 
-**Reset admin password:**
+**Сброс пароля администратора:**
 ```bash
 VELUM_ADMIN_PASSWORD=newpassword ./target/release/velum server
 ```
 
-### Tasks fail
+## Задачи завершаются с ошибкой
 
-**Check runner logs:**
+**Проверьте логи раннера:**
 ```bash
 RUST_LOG=velum=debug ./target/release/velum server
 ```
 
-**Common causes:**
-- Missing Ansible/Terraform — install on runner host
-- SSH key issues — verify access keys
-- Repository not accessible — check network
+**Частые причины:**
+- Отсутствует Ansible/Terraform — установите на хост раннера
+- Проблемы с SSH-ключом — проверьте ключи доступа
+- Репозиторий недоступен — проверьте сеть
 
 ---
 
-## Debug Mode
+## Режим отладки
 
-Enable verbose logging:
+Включите подробное логирование:
 ```bash
 RUST_LOG=velum=debug,tower_http=debug
 ```
 
+См. также: [Режим отладки](./debug-mode.md)
+
 ---
 
-## Database Issues
+## Проблемы с базой данных
 
-### Migration errors
+### Ошибки миграции
+
 ```bash
-# Check current schema
+# Проверка текущей схемы
 psql -U velum -d velum -c "\dt"
 
-# Reset (WARNING: deletes all data)
+# Сброс (ВНИМАНИЕ: удаляет все данные)
 psql -U velum -d velum -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
 ```
 
 ---
 
-## Docker Issues
+## Проблемы с Docker
 
-### Container won't start
+### Контейнер не запускается
+
 ```bash
 docker logs velum-server
 ```
 
-### Database not ready
+### База данных не готова
+
 ```bash
 docker compose -f docker-compose.yml up db -d
-sleep 10  # wait for DB
+sleep 10  # ждём БД
 docker compose -f docker-compose.yml up -d
 ```
 
 ---
 
-## Next Steps
+## Следующие шаги
 
-- [[Debug Mode]] — more debugging options
-- [[Configuration]] — environment variables
-- [[Development Setup]] — local dev environment
+- [Режим отладки](./debug-mode.md) — дополнительные варианты отладки
+- [Конфигурация](../getting-started/configuration.md) — переменные окружения
+- [Настройка окружения](../development/dev-setup.md) — локальное окружение

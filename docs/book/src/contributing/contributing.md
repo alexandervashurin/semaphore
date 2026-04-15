@@ -1,63 +1,63 @@
-# Contributing Guide
+# Руководство по участию
 
-> How to contribute to Velum
+> Как внести вклад в Velum
 >
-> 📖 See also: [[Code of Conduct]], [[Security Policy]], [[Development Setup]]
+> 📖 См. также: [Кодекс поведения](./code-of-conduct.md), [Политика безопасностиности](./security.md), [Настройка окружения](../development/dev-setup.md)
 
 ---
 
-## Getting Started
+## Начало работы
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feat/my-feature`
-3. Make your changes
-4. Run tests: `cargo test --all-features`
-5. Run clippy: `cargo clippy --all-features -- -D warnings`
-6. Commit and push
-7. Open a Pull Request
-
----
-
-## Code Style
-
-- **Rust**: Follow `rustfmt` conventions
-- **Commits**: Conventional commits (`feat:`, `fix:`, `docs:`, etc.)
-- **Tests**: Every new function should have tests
+1. Форкните репозиторий
+2. Создайте ветку: `git checkout -b feat/my-feature`
+3. Внесите изменения
+4. Запустите тесты: `cargo test --all-features`
+5. Запустите clippy: `cargo clippy --all-features -- -D warnings`
+6. Закоммитьте и запушьте
+7. Откройте Pull Request
 
 ---
 
-## Pull Request Process
+## Стиль кода
 
-1. Ensure all tests pass
-2. Update documentation if needed
-3. Add entry to `CHANGELOG.md`
-4. Request review from maintainers
+- **Rust**: следуйте соглашениям `rustfmt`
+- **Коммиты**: Conventional Commits (`feat:`, `fix:`, `docs:` и т.д.)
+- **Тесты**: каждая новая функция должна иметь тесты
 
 ---
 
-## Branch Protection
+## Процесс Pull Request
 
-- `main` — protected, requires PR review
-- `develop` — integration branch
-- `feat/*` — feature branches
-- `fix/*` — bug fix branches
+1. Убедитесь, что все тесты проходят
+2. Обновите документацию при необходимости
+3. Добавьте запись в [список изменений](../resources/changelog.md)
+4. Запросите ревью от мейнтейнеров
+
+---
+
+## Защита веток
+
+- `main` — защищена, требует PR-ревью
+- `develop` — интеграционная ветка
+- `feat/*` — ветки фич
+- `fix/*` — ветки исправлений
 
 ---
 
 ## CI/CD
 
-Every PR triggers:
-- Format check
-- Build + Clippy
-- Test suite (6551+ tests)
-- Security audit
+Каждый PR запускает:
+- Проверку форматирования
+- Сборку + Clippy
+- Набор тестов (6550+ тестов)
+- Аудит безопасностиности
 
-See [[Build Pipeline]] for details.
+См. [Build Pipeline](../../.github/workflows/ci-cd.yml)
 
 ---
 
-## Next Steps
+## Следующие шаги
 
-- [[Code of Conduct]] — community guidelines
-- [[Security Policy]] — report vulnerabilities
-- [[Development Setup]] — local dev environment
+- [Кодекс поведения](./code-of-conduct.md) — правила сообщества
+- [Политика безопасностиности](./security.md) — сообщение об уязвимостях
+- [Настройка окружения](../development/dev-setup.md) — локальное окружение

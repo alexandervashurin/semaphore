@@ -1,12 +1,12 @@
 # WebSocket API
 
-> Real-time event streaming via WebSocket
+> Потоковая передача событий в реальном времени через WebSocket
 >
-> 📖 See also: [[REST API]], [[GraphQL API]], [[MCP Server]]
+> 📖 См. также: [REST API](./rest-api.md), [GraphQL API](./graphql-api.md), [MCP сервер](./mcp-server.md), [Выполнение задач](../architecture/task-execution.md)
 
 ---
 
-## Connection
+## Подключение
 
 ```
 ws://localhost:3000/api/ws
@@ -14,27 +14,27 @@ ws://localhost:3000/api/ws
 
 ---
 
-## Events Stream
+## Поток событий
 
-### Subscribe to Cluster Events
+### Подписка на события кластера
 
 ```
 GET /api/kubernetes/events/stream
 ```
 
-Streams all Kubernetes events in the cluster.
+Передаёт все события Kubernetes в кластере.
 
-### Subscribe to Namespace Events
+### Подписка на события пространства имён
 
 ```
 GET /api/kubernetes/namespaces/{namespace}/events/stream
 ```
 
-Streams events for a specific namespace.
+Передаёт события для конкретного пространства имён.
 
 ---
 
-## Message Format
+## Формат сообщений
 
 ```json
 {
@@ -51,19 +51,19 @@ Streams events for a specific namespace.
 
 ---
 
-## Event Types
+## Типы событий
 
-| Type | Description |
-|------|-------------|
-| `Connected` | Connection established |
-| `Event` | Kubernetes event |
-| `Error` | Error message |
-| `Heartbeat` | Keep-alive ping |
+| Тип | Описание |
+|-----|----------|
+| `Connected` | Соединение установлено |
+| `Event` | Событие Kubernetes |
+| `Error` | Сообщение об ошибке |
+| `Heartbeat` | Keep-alive пинг |
 
 ---
 
-## Next Steps
+## Следующие шаги
 
-- [[REST API]] — traditional REST endpoints
-- [[GraphQL API]] — GraphQL subscriptions
-- [[Task Execution Flow]] — how task events are emitted
+- [REST API](./rest-api.md) — традиционные REST-эндпоинты
+- [GraphQL API](./graphql-api.md) — GraphQL-подписки
+- [Выполнение задач](../architecture/task-execution.md) — как emitятся события задач

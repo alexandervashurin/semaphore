@@ -1,63 +1,63 @@
-# Summary
+# Содержание
 
-- [Home](./README.md)
+- [Главная](./README.md)
 
-# Getting Started
+# Начало работы
 
-- [Quick Start](./getting-started/quick-start.md)
-- [Configuration](./getting-started/configuration.md)
-- [First Project](./getting-started/first-project.md)
+- [Быстрый старт](./getting-started/quick-start.md)
+- [Конфигурация](./getting-started/configuration.md)
+- [Первый проект](./getting-started/first-project.md)
 
-# Deployment
+# Развёртывание
 
-- [Docker Deployment](./deployment/docker-deployment.md)
-- [Kubernetes Deployment](./deployment/kubernetes-deployment.md)
-- [Production Setup](./deployment/production-setup.md)
+- [Docker](./deployment/docker-deployment.md)
+- [Kubernetes](./deployment/kubernetes-deployment.md)
+- [Продакшен](./deployment/production-setup.md)
 
-# API Reference
+# Справочник API
 
 - [REST API](./api-reference/rest-api.md)
 - [GraphQL API](./api-reference/graphql-api.md)
 - [WebSocket API](./api-reference/websocket-api.md)
-- [MCP Server](./api-reference/mcp-server.md)
-- [OpenAPI Spec](./api-reference/openapi.md)
+- [MCP сервер](./api-reference/mcp-server.md)
+- [OpenAPI](./api-reference/openapi.md)
 
-# Architecture
+# Архитектура
 
-- [System Overview](./architecture/system-overview.md)
-- [Database Schema](./architecture/database-schema.md)
-- [Auth & Security](./architecture/auth-security.md)
-- [Task Execution Flow](./architecture/task-execution.md)
-- [Kubernetes Integration](./architecture/kubernetes.md)
+- [Обзор системы](./architecture/system-overview.md)
+- [Схема базы данных](./architecture/database-schema.md)
+- [Аутентификация и безопасность](./architecture/auth-security.md)
+- [Выполнение задач](./architecture/task-execution.md)
+- [Интеграция с Kubernetes](./architecture/kubernetes.md)
 
-# Development
+# Разработка
 
-- [Development Setup](./development/dev-setup.md)
-- [Testing Guide](./development/testing.md)
-- [Code Structure](./development/code-structure.md)
-- [Rust API Docs](./development/rust-api.md) 🔗
+- [Настройка окружения](./development/dev-setup.md)
+- [Руководство по тестированию](./development/testing.md)
+- [Структура кода](./development/code-structure.md)
+- [Rust API](./development/rust-api.md) 🔗
 
-# Extensions
+# Расширения
 
-- [VS Code Extension](./extensions/vscode.md)
-- [Terraform Provider](./extensions/terraform.md)
-- [Plugin System](./extensions/plugins.md)
+- [VS Code](./extensions/vscode.md)
+- [Terraform](./extensions/terraform.md)
+- [Система плагинов](./extensions/plugins.md)
 
-# Troubleshooting
+# Устранение проблем
 
-- [Common Issues](./troubleshooting/common-issues.md)
-- [Debug Mode](./troubleshooting/debug-mode.md)
-- [Migration Guide](./troubleshooting/migration.md)
+- [Типовые проблемы](./troubleshooting/common-issues.md)
+- [Режим отладки](./troubleshooting/debug-mode.md)
+- [Руководство по миграции](./troubleshooting/migration.md)
 
-# Contributing
+# Участие в проекте
 
-- [Contributing Guide](./contributing/contributing.md)
-- [Code of Conduct](./contributing/code-of-conduct.md)
-- [Security Policy](./contributing/security.md)
+- [Руководство по участию](./contributing/contributing.md)
+- [Кодекс поведения](./contributing/code-of-conduct.md)
+- [Политика безопасностиности](./contributing/security.md)
 
-# Resources
+# Ресурсы
 
-- [Changelog](./resources/changelog.md)
-- [Releases](./resources/releases.md)
-- [Telegram Bot](./resources/telegram-bot.md)
-- [DEB Package](./resources/deb-package.md)
+- [Список изменений](./resources/changelog.md)
+- [Релизы](./resources/releases.md)
+- [Telegram-бот](./resources/telegram-bot.md)
+- [DEB-пакет](./resources/deb-package.md)

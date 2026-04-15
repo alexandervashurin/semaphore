@@ -1,24 +1,28 @@
-# OpenAPI Interactive Documentation
+# Интерактивная документация OpenAPI
 
-The Velum REST API is documented using OpenAPI 3.0 specification.
+> REST API Velum задокументирован в спецификации OpenAPI 3.0
+>
+> 📖 См. также: [REST API](./rest-api.md), [GraphQL API](./graphql-api.md), [WebSocket API](./websocket-api.md)
 
-## Interactive API Documentation
+---
 
-Below is the interactive API documentation powered by ReDoc.
+## Интерактивная документация
 
-<div id="redoc-container"></div>
+Интерактивная документация доступна на GitHub Pages после сборки.
 
-<script src="https://cdn.jsdelivr.net/npm/redoc@latest/bundles/redoc.standalone.js"></script>
-<script>
-  Redoc.init('../openapi.yml', {}, document.getElementById('redoc-container'));
-</script>
+## Файлы спецификации OpenAPI
 
-## OpenAPI Specification Files
+- [Формат YAML](../../openapi.yml)
+- [Формат Swagger](../../api-docs.yml)
 
-- [YAML format](../openapi.yml)
-- [Swagger format](../api-docs.yml)
+## Коллекция Postman
 
-## Postman Collection
+Коллекция Postman для тестирования API:
+[Коллекция Postman](../../.postman/)
 
-A Postman collection is available for testing the API:
-[Postman Collection](../.postman/)
+---
+
+## Следующие шаги
+
+- [REST API](./rest-api.md) — текстовая справка по эндпоинтам
+- [GraphQL API](./graphql-api.md) — альтернативный интерфейс запросов

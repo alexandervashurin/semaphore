@@ -1,84 +1,86 @@
 # REST API
 
-> Full REST API reference
+> Полная справка по REST API Velum
 >
-> 📖 See also: [[GraphQL API]], [[WebSocket API]], [[MCP Server]]
+> 📖 См. также: [GraphQL API](./graphql-api.md), [WebSocket API](./websocket-api.md), [MCP сервер](./mcp-server.md), [OpenAPI](./openapi.md)
 
 ---
 
-## Authentication
+## Аутентификация
 
-All API calls (except login) require a JWT token:
+Все вызовы API (кроме входа) требуют JWT-токен:
 
 ```
 Authorization: Bearer <token>
 ```
 
-### Login
+### Вход
 
-```bash
+```
 POST /api/auth/login
 Content-Type: application/json
 
 {"username": "admin", "password": "admin123"}
 ```
 
-Response: `{ "token": "jwt...", "user": {...} }`
+Ответ: `{ "token": "jwt...", "user": {...} }`
 
 ---
 
-## Core Endpoints
+## Основные эндпоинты
 
-### Projects
+### Проекты
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/api/projects` | List all projects |
-| `POST` | `/api/projects` | Create project |
-| `GET` | `/api/projects/{id}` | Get project |
-| `PUT` | `/api/projects/{id}` | Update project |
-| `DELETE` | `/api/projects/{id}` | Delete project |
+| Метод | Путь | Описание |
+|-------|------|----------|
+| `GET` | `/api/projects` | Список всех проектов |
+| `POST` | `/api/projects` | Создать проект |
+| `GET` | `/api/projects/{id}` | Получить проект |
+| `PUT` | `/api/projects/{id}` | Обновить проект |
+| `DELETE` | `/api/projects/{id}` | Удалить проект |
 
-### Templates
+### Шаблоны
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/api/templates` | List templates |
-| `POST` | `/api/templates` | Create template |
-| `PUT` | `/api/templates/{id}` | Update template |
-| `DELETE` | `/api/templates/{id}` | Delete template |
+| Метод | Путь | Описание |
+|-------|------|----------|
+| `GET` | `/api/templates` | Список шаблонов |
+| `POST` | `/api/templates` | Создать шаблон |
+| `PUT` | `/api/templates/{id}` | Обновить шаблон |
+| `DELETE` | `/api/templates/{id}` | Удалить шаблон |
 
-### Tasks
+### Задачи
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/api/tasks` | List tasks |
-| `POST` | `/api/tasks` | Run task |
-| `GET` | `/api/tasks/{id}` | Get task |
-| `GET` | `/api/tasks/{id}/output` | Get task logs |
-
----
-
-## Health Endpoints
-
-| Endpoint | Description |
-|----------|-------------|
-| `/healthz` | Liveness probe — returns "OK" |
-| `/readyz` | Readiness probe — returns JSON with checks |
-| `/api/health` | Full health status |
+| Метод | Путь | Описание |
+|-------|------|----------|
+| `GET` | `/api/tasks` | Список задач |
+| `POST` | `/api/tasks` | Запустить задачу |
+| `GET` | `/api/tasks/{id}` | Получить задачу |
+| `GET` | `/api/tasks/{id}/output` | Получить логи задачи |
 
 ---
 
-## OpenAPI Spec
+## Эндпоинты здоровья
 
-Full spec available at:
-- [`api-docs.yml`](../api-docs.yml)
-- Swagger UI at `/swagger` (when enabled)
+| Эндпоинт | Описание |
+|----------|----------|
+| `/healthz` | Liveness-зонд — возвращает "OK" |
+| `/readyz` | Readiness-зонд — возвращает JSON с проверками |
+| `/api/health` | Полный статус здоровья |
 
 ---
 
-## Next Steps
+## Спецификация OpenAPI
 
-- [[GraphQL API]] — alternative query interface
-- [[WebSocket API]] — real-time events
-- [[MCP Server]] — AI tool integration
+Полная спецификация доступна:
+- [Интерактивная документация (ReDoc)](./openapi.md)
+- [Файл YAML](../../openapi.yml)
+- [Файл Swagger](../../api-docs.yml)
+
+---
+
+## Следующие шаги
+
+- [GraphQL API](./graphql-api.md) — альтернативный интерфейс запросов
+- [WebSocket API](./websocket-api.md) — события в реальном времени
+- [MCP сервер](./mcp-server.md) — интеграция с AI
+- [OpenAPI](./openapi.md) — интерактивная документация

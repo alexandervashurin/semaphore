@@ -1,78 +1,67 @@
-# VS Code Extension
+# Расширение VS Code
 
-> IntelliSense, snippets, and API integration for Velum
+> IntelliSense, сниппеты и API-интеграция для Velum
 >
-> 📖 See also: [[Terraform Provider]], [[Plugin System]], [[Development Setup]]
+> 📖 См. также: [Terraform](./terraform.md), [Система плагинов](./plugins.md), [Настройка окружения](../development/dev-setup.md)
 
 ---
 
-## Features
+## Возможности
 
-### Task Templates IntelliSense
+### IntelliSense для шаблонов задач
 
-Auto-complete for Ansible and Terraform files:
-- Template names from your Velum server
-- Ansible task keys (`name`, `hosts`, `become`, `tasks`, etc.)
-- Ansible modules (`command`, `copy`, `service`, `k8s`, etc.)
-- Terraform blocks (`resource`, `variable`, `provider`, etc.)
+Автодополнение для файлов Ansible и Terraform:
+- Названия шаблонов с сервера Velum
+- Ключи задач Ansible (`name`, `hosts`, `become`, `tasks` и т.д.)
+- Модули Ansible (`command`, `copy`, `service`, `k8s` и т.д.)
+- Блоки Terraform (`resource`, `variable`, `provider` и т.д.)
 
-### Playbook Snippets
+### Сниппеты плейбуков
 
-| Prefix | Description |
-|--------|-------------|
-| `velum-playbook` | Full Ansible playbook scaffold |
-| `velum-task` | Single Ansible task |
-| `velum-role` | Include Ansible role |
-| `velum-handler` | Handler definition |
-| `velum-tf-provider` | Terraform provider block |
-| `velum-tf-resource` | Terraform resource block |
-| `velum-tf-variable` | Terraform variable with validation |
-| `velum-params` | Velum task parameters docs |
+| Префикс | Описание |
+|---------|----------|
+| `velum-playbook` | Шаблон полного плейбука Ansible |
+| `velum-task` | Отдельная задача Ansible |
+| `velum-role` | Подключение роли Ansible |
+| `velum-handler` | Определение обработчика |
+| `velum-tf-provider` | Блок провайдера Terraform |
+| `velum-tf-resource` | Блок ресурса Terraform |
+| `velum-tf-variable` | Переменная Terraform с валидацией |
+| `velum-params` | Документация параметров Velum |
 
-### Commands
+### Команды
 
-| Command | Description |
-|---------|-------------|
-| `Velum: Login to Velum Server` | Configure server URL and API token |
-| `Velum: List Projects` | Browse and select a project |
-| `Velum: List Templates` | View templates for the selected project |
-| `Velum: Run Task from Template` | Start a task from a template |
-| `Velum: View Task Logs` | View output logs of a task |
-
----
-
-## Installation
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/alexandervashurin/semaphore.git
-   ```
-
-2. Open `vscode-extension/` in VS Code
-
-3. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-4. Press `F5` to launch the Extension Development Host
+| Команда | Описание |
+|---------|----------|
+| `Velum: Login to Velum Server` | Настройка URL сервера и API-токена |
+| `Velum: List Projects` | Обзор и выбор проекта |
+| `Velum: List Templates` | Просмотр шаблонов проекта |
+| `Velum: Run Task from Template` | Запуск задачи из шаблона |
+| `Velum: View Task Logs` | Просмотр логов задачи |
 
 ---
 
-## Configuration
+## Установка
 
-Open Settings (`Ctrl+,`) and search for `velum`:
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `velum.serverUrl` | `http://localhost:3000` | Velum server URL |
-| `velum.apiToken` | *(empty)* | Your API token |
-| `velum.projectId` | *(none)* | Default project ID for completion |
+1. Склонируйте репозиторий
+2. Откройте `vscode-extension/` в VS Code
+3. Установите зависимости: `npm install`
+4. Нажмите `F5` для запуска Extension Development Host
 
 ---
 
-## Next Steps
+## Конфигурация
 
-- [[Terraform Provider]] — manage Velum via Terraform
-- [[Plugin System]] — writing custom plugins
-- [[Development Setup]] — local dev environment
+| Настройка | По умолчанию | Описание |
+|-----------|-------------|----------|
+| `velum.serverUrl` | `http://localhost:3000` | URL сервера Velum |
+| `velum.apiToken` | *(пусто)* | Ваш API-токен |
+| `velum.projectId` | *(нет)* | ID проекта по умолчанию |
+
+---
+
+## Следующие шаги
+
+- [Terraform](./terraform.md) — управление Velum через Terraform
+- [Система плагинов](./plugins.md) — написание своих плагинов
+- [Настройка окружения](../development/dev-setup.md) — локальное окружение

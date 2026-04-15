@@ -1,71 +1,78 @@
-# Configuration
+# Конфигурация
 
-> All configuration options for Velum
+> Все параметры конфигурации Velum
 >
-> 📖 See also: [[Quick Start]], [[Docker Deployment]], [[Auth & Security]]
+> 📖 См. также: [Быстрый старт](./quick-start.md), [Первый проект](./first-project.md), [Docker](../deployment/docker-deployment.md), [Аутентификация и безопасность](../architecture/auth-security.md)
 
 ---
 
-## Environment Variables
+## Переменные окружения
 
-### Required
+### Обязательные
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `VELUM_DB_URL` | PostgreSQL connection string | `postgres://user:pass@host:5432/velum` |
-| `VELUM_DB_DIALECT` | Database dialect | `postgres` |
-| `VELUM_JWT_SECRET` | JWT signing secret (min 32 chars) | `your-secret-key-32-bytes-long!!` |
-| `VELUM_WEB_PATH` | Path to web UI files | `/app/web/public` |
+| Переменная | Описание | Пример |
+|------------|----------|--------|
+| `VELUM_DB_URL` | Строка подключения к PostgreSQL | `postgres://user:pass@host:5432/velum` |
+| `VELUM_DB_DIALECT` | Диалект базы данных | `postgres` |
+| `VELUM_JWT_SECRET` | Секрет подписи JWT (мин. 32 символа) | `your-secret-key-32-bytes-long!!` |
+| `VELUM_WEB_PATH` | Путь к файлам веб-интерфейса | `/app/web/public` |
 
-### Admin User (First Run)
+### Администратор (первый запуск)
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `VELUM_ADMIN` | Admin username | `admin` |
-| `VELUM_ADMIN_PASSWORD` | Admin password | `admin123` |
-| `VELUM_ADMIN_NAME` | Admin display name | `Administrator` |
-| `VELUM_ADMIN_EMAIL` | Admin email | `admin@velum.local` |
+| Переменная | Описание | По умолчанию |
+|------------|----------|--------------|
+| `VELUM_ADMIN` | Имя администратора | `admin` |
+| `VELUM_ADMIN_PASSWORD` | Пароль администратора | `admin123` |
+| `VELUM_ADMIN_NAME` | Отображаемое имя | `Administrator` |
+| `VELUM_ADMIN_EMAIL` | Электронная почта | `admin@velum.local` |
 
-### Optional
+### Необязательные
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `VELUM_LDAP_*` | LDAP configuration | — |
-| `VELUM_OIDC_*` | OIDC providers | — |
-| `RUST_LOG` | Logging level | `info` |
-| `VELUM_HA_REDIS_HOST` | HA Redis host | — |
-| `VELUM_HA_REDIS_PORT` | HA Redis port | — |
-
----
-
-## Docker Configuration
-
-See [[Docker Deployment]] for all compose variants.
+| Переменная | Описание | По умолчанию |
+|------------|----------|--------------|
+| `VELUM_LDAP_*` | Настройки LDAP | — |
+| `VELUM_OIDC_*` | Провайдеры OIDC | — |
+| `RUST_LOG` | Уровень логирования | `info` |
+| `VELUM_HA_REDIS_HOST` | Хост Redis для HA | — |
+| `VELUM_HA_REDIS_PORT` | Порт Redis для HA | — |
 
 ---
 
-## Advanced
+## Конфигурация Docker
 
-### Redis Task Queue
+См. [Docker](../deployment/docker-deployment.md) для всех вариантов compose.
+
+---
+
+## Дополнительно
+
+### Очередь задач через Redis
+
 ```bash
 VELUM_REDIS_URL=redis://localhost:6379
 ```
 
-### Telegram Bot
+### Telegram-бот
+
 ```bash
-VELUM_TELEGRAM_TOKEN=your-bot-token
+VELUM_TELEGRAM_TOKEN=ваш-токен-бота
 VELUM_TELEGRAM_CHAT_ID=-1001234567890
 ```
 
-### Logging
+См. также: [Telegram-бот](../resources/telegram-bot.md)
+
+### Логирование
+
 ```bash
 RUST_LOG=velum=debug,tower_http=debug
 ```
 
+См. также: [Режим отладки](../troubleshooting/debug-mode.md)
+
 ---
 
-## Next Steps
+## Следующие шаги
 
-- [[First Project]] — create your first project
-- [[Auth & Security]] — configure LDAP, OIDC, TOTP
-- [[Production Setup]] — harden for production
+- [Первый проект](./first-project.md) — создайте свой первый проект
+- [Аутентификация и безопасность](../architecture/auth-security.md) — настройка LDAP, OIDC, TOTP
+- [Продакшен](../deployment/production-setup.md) — подготовка к продакшену
