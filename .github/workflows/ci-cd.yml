@@ -186,7 +186,7 @@ jobs:
           VELUM_ADMIN: admin
           VELUM_ADMIN_PASSWORD: admin123
         run: |
-          cd rust && cargo run --release -- \
+          cd rust && cargo run -- \
             server --host 0.0.0.0 --port 3000 &
           SERVER_PID=$!
           echo "SERVER_PID=$SERVER_PID" \
