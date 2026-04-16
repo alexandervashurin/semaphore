@@ -141,88 +141,91 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+e2e-smoke:
+  name: E2E Smoke Test
+  needs: [docker-latest]
+  runs-on: ubuntu-latest
+  if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  services:
+    postgres:
+      image: postgres:15-alpine
+      env:
+        POSTGRES_DB: velum
+        POSTGRES_USER: velum
+        POSTGRES_PASSWORD: velum_pass
+      ports:
+        - 5432:5432
+      options: >-
+        --health-cmd pg_isready
+        --health-interval 10s
+        --health-timeout 5s
+        --health-retries 5
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v4
 
-  e2e-smoke:
-    name: E2E Smoke Test
-    needs: [docker-latest]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_DB: velum
-          POSTGRES_USER: velum
-          POSTGRES_PASSWORD: velum_pass
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    - name: Установка Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
 
-      - name: Установка зависимостей
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y --no-install-recommends postgresql-client jq libssl-dev pkg-config libsqlite3-dev
+    - name: Установка системных зависимостей
+      run: |
+        sudo apt-get update -q
+        sudo apt-get install -y --no-install-recommends postgresql-client jq libssl-dev pkg-config libsqlite3-dev
 
-      - name: Ожидание БД
-        run: |
-          for i in $(seq 1 30); do
-            if PGPASSWORD=velum_pass psql -h localhost -p 5432 -U velum -d velum -c 'SELECT 1' >/dev/null 2>&1; then
-              echo "DB ready"
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "DB timeout"
-          exit 1
+    - name: Ожидание БД
+      run: |
+        for i in $(seq 1 30); do
+          if PGPASSWORD=velum_pass psql -h localhost -p 5432 -U velum -d velum -c 'SELECT 1' >/dev/null 2>&1; then
+            echo "DB ready"
+            exit 0
+          fi
+          sleep 2
+        done
+        echo "DB timeout"
+        exit 1
 
-      - name: Запуск сервера
-        env:
-          VELUM_DB_URL: postgres://velum:velum_pass@localhost:5432/velum
-          VELUM_DB_DIALECT: postgres
-          VELUM_JWT_SECRET: e2e-test-secret-key-32-bytes-long!
-          VELUM_WEB_PATH: ${{ github.workspace }}/web/public
-          VELUM_ADMIN: admin
-          VELUM_ADMIN_PASSWORD: admin123
-        run: |
-          cd rust && cargo run --bin velum -- \
-            server --host 0.0.0.0 --port 3000 &
-          SERVER_PID=$!
-          echo "SERVER_PID=$SERVER_PID" >> "$GITHUB_ENV"
-          for i in $(seq 1 60); do
-            if curl -sf http://localhost:3000/healthz >/dev/null 2>&1; then
-              echo "Server ready"
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "Server timeout"
-          kill "$SERVER_PID" 2>/dev/null || true
-          exit 1
+    - name: Запуск сервера
+      working-directory: rust
+      env:
+        VELUM_DB_URL: postgres://velum:velum_pass@localhost:5432/velum
+        VELUM_DB_DIALECT: postgres
+        VELUM_JWT_SECRET: e2e-test-secret-key-32-bytes-long!
+        VELUM_WEB_PATH: ${{ github.workspace }}/web/public
+        VELUM_ADMIN: admin
+        VELUM_ADMIN_PASSWORD: admin123
+      run: |
+        cargo run --bin velum --features postgres -- \
+          server --host 0.0.0.0 --port 3000 &
+        SERVER_PID=$!
+        echo "SERVER_PID=$SERVER_PID" >> "$GITHUB_ENV"
+        for i in $(seq 1 60); do
+          if curl -sf http://localhost:3000/healthz >/dev/null 2>&1; then
+            echo "Server ready"
+            exit 0
+          fi
+          sleep 2
+        done
+        echo "Server timeout"
+        kill "$SERVER_PID" 2>/dev/null || true
+        exit 1
 
-      - name: Health check
-        run: |
-          curl -sf http://localhost:3000/healthz
-          curl -sf http://localhost:3000/readyz
+    - name: Health check
+      run: |
+        curl -sf http://localhost:3000/healthz
+        curl -sf http://localhost:3000/readyz
 
-      - name: API smoke tests
-        run: |
-          TOKEN=$(curl -sf -X POST http://localhost:3000/api/auth/login \
-            -H 'Content-Type: application/json' \
-            -d '{"username":"admin","password":"admin123"}' \
-            | jq -r '.token')
-          echo "Got token: ${TOKEN:0:10}..."
-          AUTH="Authorization: Bearer $TOKEN"
-          curl -sf http://localhost:3000/api/projects -H "$AUTH"
-          curl -sf http://localhost:3000/api/templates -H "$AUTH"
-          echo "All smoke tests passed"
+    - name: API smoke tests
+      run: |
+        TOKEN=$(curl -sf -X POST http://localhost:3000/api/auth/login \
+          -H 'Content-Type: application/json' \
+          -d '{"username":"admin","password":"admin123"}' \
+          | jq -r '.token')
+        echo "Got token: ${TOKEN:0:10}..."
+        AUTH="Authorization: Bearer $TOKEN"
+        curl -sf http://localhost:3000/api/projects -H "$AUTH"
+        curl -sf http://localhost:3000/api/templates -H "$AUTH"
+        echo "All smoke tests passed"
 
-      - name: Очистка
-        if: always()
-        run: kill "$SERVER_PID" 2>/dev/null || true
+    - name: Очистка
+      if: always()
+      run: kill "${{ env.SERVER_PID }}" 2>/dev/null || true
