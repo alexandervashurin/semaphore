@@ -47,8 +47,12 @@ jobs:
       # yamllint disable rule:line-length
       - name: Импорт GPG ключа
         run: |
-          echo "${{ secrets.GPG_KEY }}" | tr " " "\n" | base64 -d | gpg --import --batch
-          gpg --sign -u "${{ vars.GPG_KEY_ID }}" --pinentry-mode loopback --yes --batch --passphrase "${{ secrets.GPG_PASS }}" --output unlock.sig --detach-sign README.md
+          echo "${{ secrets.GPG_KEY }}" | tr " " "\n" | base64 -d | \
+            gpg --import --batch
+          gpg --sign -u "${{ vars.GPG_KEY_ID }}" \
+            --pinentry-mode loopback --yes --batch \
+            --passphrase "${{ secrets.GPG_PASS }}" \
+            --output unlock.sig --detach-sign README.md
           rm -f unlock.sig
       # yamllint enable rule:line-length
       - name: Сброс состояния репозитория
