@@ -37,7 +37,8 @@ jobs:
       # yamllint disable rule:line-length
       - name: Добавление PRO-модуля
         run: |
-          git clone https://${{ secrets.GH_TOKEN }}@github.com/velum/velumpro-module.git \
+          git clone \
+            https://${{ secrets.GH_TOKEN }}@github.com/velum/velumpro-module.git \
             pro_impl
           go work init . ./pro_impl
       # yamllint enable rule:line-length
