@@ -278,7 +278,8 @@ jobs:
       - name: Системные зависимости
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y --no-install-recommends libssl-dev pkg-config libsqlite3-dev jq
+          sudo apt-get install -y --no-install-recommends \
+            libssl-dev pkg-config libsqlite3-dev jq
 
       - name: Ожидание готовности БД
         run: |
