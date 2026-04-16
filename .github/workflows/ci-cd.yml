@@ -32,7 +32,8 @@ jobs:
       - name: Системные зависимости
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y --no-install-recommends libssl-dev pkg-config libsqlite3-dev
+          sudo apt-get install -y --no-install-recommends \
+            libssl-dev pkg-config libsqlite3-dev
 
       - name: Проверка форматирования
         working-directory: rust
@@ -170,12 +171,14 @@ e2e-smoke:
     - name: Установка системных зависимостей
       run: |
         sudo apt-get update -q
-        sudo apt-get install -y --no-install-recommends postgresql-client jq libssl-dev pkg-config libsqlite3-dev
+        sudo apt-get install -y --no-install-recommends \
+          postgresql-client jq libssl-dev pkg-config libsqlite3-dev
 
     - name: Ожидание БД
       run: |
         for i in $(seq 1 30); do
-          if PGPASSWORD=velum_pass psql -h localhost -p 5432 -U velum -d velum -c 'SELECT 1' >/dev/null 2>&1; then
+          if PGPASSWORD=velum_pass psql -h localhost -p 5432 \
+            -U velum -d velum -c 'SELECT 1' >/dev/null 2>&1; then
             echo "DB ready"
             exit 0
           fi
