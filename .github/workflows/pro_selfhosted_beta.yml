@@ -139,10 +139,12 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.server.outputs.labels }}
+          # yamllint disable rule:line-length
           tags: |
             public.ecr.aws/semaphore/pro/server:${{ github.ref_name }}-ansible2.16.5
             public.ecr.aws/semaphore/server:${{ github.ref_name }}-ansible2.16.5
             velum/velum:${{ github.ref_name }}-ansible2.16.5
+          # yamllint enable rule:line-length
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false
