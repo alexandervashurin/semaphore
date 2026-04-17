@@ -49,7 +49,8 @@ jobs:
 
       - name: Импорт GPG ключа
         run: |
-          echo "${{ secrets.GPG_KEY }}" | tr " " "\n" | base64 -d | gpg --import --batch
+          echo "${{ secrets.GPG_KEY }}" | tr " " "\n" | \
+            base64 -d | gpg --import --batch
           gpg --sign -u "${{ vars.GPG_KEY_ID }}" --pinentry-mode loopback \
             --yes --batch --passphrase "${{ secrets.GPG_PASS }}" \
             --output unlock.sig --detach-sign README.md
