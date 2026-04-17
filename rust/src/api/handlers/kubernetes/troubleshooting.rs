@@ -250,7 +250,7 @@ async fn build_timeline(
     }
 
     // Сортируем по времени
-    events.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+    events.sort_by_key(|b| std::cmp::Reverse(b.timestamp));
 
     Ok(events)
 }

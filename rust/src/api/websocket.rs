@@ -201,11 +201,8 @@ async fn handle_socket(socket: WebSocket, ws_manager: Arc<WebSocketManager>) {
     let recv_task = tokio::spawn(async move {
         while let Some(Ok(msg)) = receiver.next().await {
             match msg {
-                axum::extract::ws::Message::Text(text) => {
-                    if text == "ping" {
-                        // Клиент может отправлять ping для проверки соединения
-                        info!("WebSocket ping received");
-                    }
+                axum::extract::ws::Message::Text(text) if text == "ping" => {
+                    info!("WebSocket ping received");
                 }
                 axum::extract::ws::Message::Close(_) => break,
                 _ => {}

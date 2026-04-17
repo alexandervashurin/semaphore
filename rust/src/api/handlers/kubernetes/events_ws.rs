@@ -175,12 +175,9 @@ async fn handle_event_stream(
                         }
                         break;
                     }
-                    Some(Ok(Message::Text(text))) => {
-                        // Обрабатываем текстовые сообщения (например, heartbeat запросы)
-                        if text == "heartbeat" {
-                            if let Ok(json) = serde_json::to_string(&EventStreamMessage::Heartbeat) {
-                                let _ = sender.send(Message::Text(json.into())).await;
-                            }
+                    Some(Ok(Message::Text(text))) if text == "heartbeat" => {
+                        if let Ok(json) = serde_json::to_string(&EventStreamMessage::Heartbeat) {
+                            let _ = sender.send(Message::Text(json.into())).await;
                         }
                     }
                     Some(Err(e)) => {

@@ -116,16 +116,8 @@ async fn handle_exec_socket(socket: WebSocket, attached: &mut kube::api::Attache
     let stdin_task = tokio::spawn(async move {
         while let Some(Ok(msg)) = ws_rx.next().await {
             match msg {
-                Message::Binary(data) => {
-                    if pod_stdin.write_all(&data).await.is_err() {
-                        break;
-                    }
-                }
-                Message::Text(text) => {
-                    if pod_stdin.write_all(text.as_bytes()).await.is_err() {
-                        break;
-                    }
-                }
+                Message::Binary(data) if pod_stdin.write_all(&data).await.is_err() => break,
+                Message::Text(text) if pod_stdin.write_all(text.as_bytes()).await.is_err() => break,
                 Message::Close(_) => break,
                 _ => {}
             }

@@ -59,7 +59,7 @@ pub async fn get_all_tasks(
     }
 
     // Сортируем по дате создания (новые первые)
-    all_tasks.sort_by(|a, b| b.task.created.cmp(&a.task.created));
+    all_tasks.sort_by_key(|b| std::cmp::Reverse(b.task.created));
 
     Ok(Json(all_tasks))
 }

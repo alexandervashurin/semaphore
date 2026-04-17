@@ -290,7 +290,7 @@ fn cleanup_old_backups(backup_path: &str, max_backups: usize) -> Result<()> {
         .collect();
 
     // Сортируем по времени (новые первые)
-    backups.sort_by(|a, b| b.1.cmp(&a.1));
+    backups.sort_by_key(|b| std::cmp::Reverse(b.1));
 
     // Удаляем старые если превышен лимит
     if backups.len() > max_backups {

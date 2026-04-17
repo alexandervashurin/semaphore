@@ -658,7 +658,7 @@ pub async fn get_deployment_history_detailed(
         .collect();
 
     // Сортируем по ревизии
-    revisions.sort_by(|a, b| b.revision.cmp(&a.revision));
+    revisions.sort_by_key(|b| std::cmp::Reverse(b.revision));
 
     Ok(Json(DetailedRolloutHistory {
         name,
