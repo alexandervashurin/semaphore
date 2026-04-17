@@ -39,8 +39,9 @@ jobs:
 
       - name: Подключение PRO-модуля
         run: |
-          git clone https://${{ secrets.GH_TOKEN }}@github.com/velum/velumpro-module.git \
-            pro_impl
+          REPO="https://${{ secrets.GH_TOKEN }}@github.com/"
+          REPO+="velum/velumpro-module.git"
+          git clone "$REPO" pro_impl
           go work init . ./pro_impl
 
       - name: Установка зависимостей
