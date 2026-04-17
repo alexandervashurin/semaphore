@@ -21,7 +21,8 @@ jobs:
       - name: Установка Go
         uses: actions/setup-go@v6
         with:
-          go-version: "^1.23"  # Стабильная LTS-версия. Верни 1.24.6, если используется nightly
+          # Стабильная LTS-версия. Верни 1.24.6, если используется nightly
+          go-version: "^1.23"
 
       - name: Установка Node.js
         uses: actions/setup-node@v5
