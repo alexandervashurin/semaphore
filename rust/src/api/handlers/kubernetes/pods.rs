@@ -235,16 +235,8 @@ where
     let ws_to_pod = tokio::spawn(async move {
         while let Some(Ok(msg)) = ws_rx.next().await {
             match msg {
-                Message::Binary(data) => {
-                    if pod_tx.write_all(&data).await.is_err() {
-                        break;
-                    }
-                }
-                Message::Text(text) => {
-                    if pod_tx.write_all(text.as_bytes()).await.is_err() {
-                        break;
-                    }
-                }
+                Message::Binary(data) if pod_tx.write_all(&data).await.is_err() => break,
+                Message::Text(text) if pod_tx.write_all(text.as_bytes()).await.is_err() => break,
                 Message::Close(_) => break,
                 _ => {}
             }
