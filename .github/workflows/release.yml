@@ -141,7 +141,7 @@ jobs:
             -m "Release ${{ steps.version.outputs.version }}"
           git push origin "${{ steps.version.outputs.version }}"
       - name: Загрузка артефактов
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
       - name: Создание релиза
         env:
           GH_TOKEN: ${{ github.token }}
