@@ -115,7 +115,7 @@ jobs:
               >> "$GITHUB_OUTPUT"
           fi
       - name: Загрузка артефактов
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           path: dist
       - name: Подготовка файлов релиза

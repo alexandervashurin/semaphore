@@ -63,7 +63,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Загрузка артефакта
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: semaphore
 
@@ -105,7 +105,7 @@ jobs:
           - 3306:3306
     steps:
       - name: Загрузка артефакта
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: semaphore
 
@@ -150,7 +150,7 @@ jobs:
           - 3306:3306
     steps:
       - name: Загрузка артефакта
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: semaphore
 
@@ -194,7 +194,7 @@ jobs:
           - 5432:5432
     steps:
       - name: Загрузка артефакта
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: semaphore
 
@@ -227,7 +227,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Загрузка артефакта
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: semaphore
 
@@ -269,7 +269,7 @@ jobs:
       - name: Установка go-task
         run: go install github.com/go-task/task/v3/cmd/task@latest
       - name: Загрузка артефакта
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with: {name: semaphore}
       - name: Подготовка stdin для setup
         run: |
@@ -335,7 +335,7 @@ jobs:
       - name: Установка go-task
         run: go install github.com/go-task/task/v3/cmd/task@latest
       - name: Загрузка артефакта
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with: {name: semaphore}
       - name: Подготовка stdin для setup
         run: |
@@ -404,7 +404,7 @@ jobs:
       - name: Установка go-task
         run: go install github.com/go-task/task/v3/cmd/task@latest
       - name: Загрузка артефакта
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with: {name: semaphore}
       - name: Подготовка stdin для setup
         run: |
@@ -472,7 +472,7 @@ jobs:
       - name: Установка go-task
         run: go install github.com/go-task/task/v3/cmd/task@latest
       - name: Загрузка артефакта
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with: {name: semaphore}
       - name: Подготовка stdin для setup
         run: |
@@ -526,7 +526,7 @@ jobs:
       - name: Установка go-task
         run: go install github.com/go-task/task/v3/cmd/task@latest
       - name: Загрузка артефакта
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with: {name: semaphore}
       - name: Подготовка stdin для setup
         run: |
