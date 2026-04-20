@@ -90,14 +90,14 @@ pub fn load_logging_from_env() -> LoggingConfig {
     use std::env;
     let mut config = LoggingConfig::new();
 
-    if let Ok(v) = env::var("VELUM_LOG_FORMAT") {
+    if let Ok(v) = env::var("VELUM_LOG_FORMAT").or_else(|_| env::var("SEMAPHORE_LOG_FORMAT")) {
         config.format = match v.trim().to_lowercase().as_str() {
             "json" => LogFormat::Json,
             _ => LogFormat::Text,
         };
     }
 
-    if let Ok(v) = env::var("VELUM_LOG_LEVEL") {
+    if let Ok(v) = env::var("VELUM_LOG_LEVEL").or_else(|_| env::var("SEMAPHORE_LOG_LEVEL")) {
         config.level = match v.trim().to_lowercase().as_str() {
             "debug" => LogLevel::Debug,
             "info" => LogLevel::Info,
@@ -107,30 +107,32 @@ pub fn load_logging_from_env() -> LoggingConfig {
         };
     }
 
-    if let Ok(v) = env::var("VELUM_LOG_FILE") {
+    if let Ok(v) = env::var("VELUM_LOG_FILE").or_else(|_| env::var("SEMAPHORE_LOG_FILE")) {
         let trimmed = v.trim().to_string();
         if !trimmed.is_empty() {
             config.file = Some(trimmed);
         }
     }
 
-    if let Ok(v) = env::var("VELUM_LOG_MAX_SIZE") {
+    if let Ok(v) = env::var("VELUM_LOG_MAX_SIZE").or_else(|_| env::var("SEMAPHORE_LOG_MAX_SIZE")) {
         if let Ok(val) = v.trim().parse() {
             config.max_size = val;
         }
     }
-    if let Ok(v) = env::var("VELUM_LOG_MAX_BACKUPS") {
+    if let Ok(v) =
+        env::var("VELUM_LOG_MAX_BACKUPS").or_else(|_| env::var("SEMAPHORE_LOG_MAX_BACKUPS"))
+    {
         if let Ok(val) = v.trim().parse() {
             config.max_backups = val;
         }
     }
-    if let Ok(v) = env::var("VELUM_LOG_MAX_AGE") {
+    if let Ok(v) = env::var("VELUM_LOG_MAX_AGE").or_else(|_| env::var("SEMAPHORE_LOG_MAX_AGE")) {
         if let Ok(val) = v.trim().parse() {
             config.max_age = val;
         }
     }
 
-    if let Ok(v) = env::var("VELUM_LOG_COMPRESS") {
+    if let Ok(v) = env::var("VELUM_LOG_COMPRESS").or_else(|_| env::var("SEMAPHORE_LOG_COMPRESS")) {
         config.compress = matches!(v.trim().to_lowercase().as_str(), "true" | "1" | "yes");
     }
 

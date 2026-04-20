@@ -146,8 +146,9 @@ mod tests {
     use chrono::Utc;
     use std::path::PathBuf;
     use std::sync::Arc;
+    // В модуле tests файла vault.rs
 
-    fn create_test_job() -> LocalJob {
+    fn create_test_job_with_dirs(work_dir: PathBuf, tmp_dir: PathBuf) -> LocalJob {
         let logger = Arc::new(BasicLogger::new());
         let key_installer = AccessKeyInstallerImpl::new();
 
@@ -174,9 +175,23 @@ mod tests {
             crate::models::Environment::default(),
             logger,
             key_installer,
-            PathBuf::from("/tmp/work"),
-            PathBuf::from("/tmp/tmp"),
+            work_dir,
+            tmp_dir,
         )
+    }
+
+    fn create_test_job() -> LocalJob {
+        // Для обратной совместимости используем tempfile и здесь
+        let tmp = tempfile::tempdir()
+            .ok()
+            .unwrap_or_else(|| tempfile::tempdir_in("/tmp").unwrap());
+        let work = tempfile::tempdir()
+            .ok()
+            .unwrap_or_else(|| tempfile::tempdir_in("/tmp").unwrap());
+
+        // Сохраняем директории, чтобы они не удалились преждевременно
+        // В реальном тесте нужно хранить _tmp и _work в структуре теста
+        create_test_job_with_dirs(work.into_path(), tmp.into_path())
     }
 
     #[test]
@@ -202,6 +217,33 @@ mod tests {
         let job = create_test_job();
         let result = job.create_vault_password_file("empty_vault", "").await;
         assert!(result.is_ok());
+    }
+    #[tokio::test]
+    async fn test_create_vault_password_file_very_long_password() {
+        // Создаём временные директории через tempfile (кроссплатформенно)
+        let tmp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+        let work_dir = tempfile::tempdir().expect("Failed to create work dir");
+
+        let job =
+            create_test_job_with_dirs(work_dir.path().to_path_buf(), tmp_dir.path().to_path_buf());
+
+        let long_password = "a".repeat(10000); // Без пробелов — 10000 символов
+        let result = job.create_vault_password_file("long", &long_password).await;
+
+        // ✅ Теперь тест пройдёт на всех платформах
+        assert!(
+            result.is_ok(),
+            "Failed to create vault password file: {:?}",
+            result.err()
+        );
+
+        let path = result.unwrap();
+        let content = tokio::fs::read_to_string(&path).await.unwrap();
+        assert_eq!(content.len(), 10000);
+
+        // 🔹 tempfile автоматически удалит директории при drop
+        // Но можно явно очистить, если нужно
+        drop(job);
     }
 
     #[test]
@@ -318,18 +360,6 @@ mod tests {
         let result = job.install_vault_key_files().await;
         assert!(result.is_ok());
         assert!(job.vault_file_installations.is_empty());
-    }
-
-    #[tokio::test]
-    async fn test_create_vault_password_file_very_long_password() {
-        let job = create_test_job();
-        let long_password = "a".repeat(10000);
-        let result = job.create_vault_password_file("long", &long_password).await;
-        assert!(result.is_ok());
-
-        let path = result.unwrap();
-        let content = std::fs::read_to_string(&path).unwrap();
-        assert_eq!(content.len(), 10000);
     }
 
     #[tokio::test]
