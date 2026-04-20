@@ -123,14 +123,9 @@ pub fn load_ha_from_env() -> HAConfigFull {
 
     config
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::env;
-
-    /// Мьютекс для синхронизации тестов, работающих с переменными окружения
-    static ENV_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
     #[test]
     fn test_ha_config_default() {
@@ -192,25 +187,22 @@ mod tests {
         assert_eq!(node_id.len(), 32);
     }
 
+    // ✅ ИЗОЛИРОВАННЫЙ ТЕСТ ЧЕРЕЗ temp_env
     #[test]
     fn test_load_ha_from_env() {
-        let _lock = ENV_MUTEX.lock().unwrap();
-        unsafe {
-            std::env::set_var("SEMAPHORE_HA_ENABLE", "true");
-            std::env::set_var("SEMAPHORE_HA_REDIS_HOST", "test.redis.host");
-            std::env::set_var("SEMAPHORE_HA_REDIS_PORT", "6380");
-        }
-
-        let config = load_ha_from_env();
-        assert!(config.is_enabled());
-        assert_eq!(config.redis.host, "test.redis.host");
-        assert_eq!(config.redis.port, 6380);
-
-        unsafe {
-            std::env::remove_var("SEMAPHORE_HA_ENABLE");
-            std::env::remove_var("SEMAPHORE_HA_REDIS_HOST");
-            std::env::remove_var("SEMAPHORE_HA_REDIS_PORT");
-        }
+        temp_env::with_vars(
+            [
+                ("SEMAPHORE_HA_ENABLE", Some("true")),
+                ("SEMAPHORE_HA_REDIS_HOST", Some("test.redis.host")),
+                ("SEMAPHORE_HA_REDIS_PORT", Some("6380")),
+            ],
+            || {
+                let config = load_ha_from_env();
+                assert!(config.is_enabled());
+                assert_eq!(config.redis.host, "test.redis.host");
+                assert_eq!(config.redis.port, 6380);
+            },
+        );
     }
 
     #[test]
@@ -377,67 +369,59 @@ mod tests {
         assert_eq!(node_id, "pre-existing-id");
     }
 
+    // ✅ ИЗОЛИРОВАННЫЙ ТЕСТ ЧЕРЕЗ temp_env
     #[test]
     fn test_load_ha_from_env_all_fields() {
-        let _lock = ENV_MUTEX.lock().unwrap();
-        unsafe {
-            std::env::set_var("SEMAPHORE_HA_ENABLE", "true");
-            std::env::set_var("SEMAPHORE_HA_REDIS_HOST", "full.redis.host");
-            std::env::set_var("SEMAPHORE_HA_REDIS_PORT", "6390");
-            std::env::set_var("SEMAPHORE_HA_REDIS_PASSWORD", "redis_password");
-            std::env::set_var("SEMAPHORE_HA_REDIS_DB", "5");
-        }
-
-        let config = load_ha_from_env();
-        assert!(config.enable);
-        assert_eq!(config.redis.host, "full.redis.host");
-        assert_eq!(config.redis.port, 6390);
-        assert_eq!(config.redis.password, "redis_password");
-        assert_eq!(config.redis.db, 5);
-
-        unsafe {
-            std::env::remove_var("SEMAPHORE_HA_ENABLE");
-            std::env::remove_var("SEMAPHORE_HA_REDIS_HOST");
-            std::env::remove_var("SEMAPHORE_HA_REDIS_PORT");
-            std::env::remove_var("SEMAPHORE_HA_REDIS_PASSWORD");
-            std::env::remove_var("SEMAPHORE_HA_REDIS_DB");
-        }
+        temp_env::with_vars(
+            [
+                ("SEMAPHORE_HA_ENABLE", Some("true")),
+                ("SEMAPHORE_HA_REDIS_HOST", Some("full.redis.host")),
+                ("SEMAPHORE_HA_REDIS_PORT", Some("6390")),
+                ("SEMAPHORE_HA_REDIS_PASSWORD", Some("redis_password")),
+                ("SEMAPHORE_HA_REDIS_DB", Some("5")),
+            ],
+            || {
+                let config = load_ha_from_env();
+                assert!(config.enable);
+                assert_eq!(config.redis.host, "full.redis.host");
+                assert_eq!(config.redis.port, 6390);
+                assert_eq!(config.redis.password, "redis_password");
+                assert_eq!(config.redis.db, 5);
+            },
+        );
     }
 
+    // ✅ ИЗОЛИРОВАННЫЙ ТЕСТ ЧЕРЕЗ temp_env
     #[test]
     fn test_load_ha_from_env_invalid_port() {
-        let _lock = ENV_MUTEX.lock().unwrap();
-        unsafe {
-            std::env::set_var("SEMAPHORE_HA_ENABLE", "true");
-            std::env::set_var("SEMAPHORE_HA_REDIS_PORT", "not_a_number");
-        }
-
-        let config = load_ha_from_env();
-        assert!(config.enable);
-        // При невалидном порте остаётся дефолтное значение (6379)
-        // Сравнение >= 0 удалено — для u16 оно всегда истинно
-
-        unsafe {
-            std::env::remove_var("SEMAPHORE_HA_ENABLE");
-            std::env::remove_var("SEMAPHORE_HA_REDIS_PORT");
-        }
+        temp_env::with_vars(
+            [
+                ("SEMAPHORE_HA_ENABLE", Some("true")),
+                ("SEMAPHORE_HA_REDIS_PORT", Some("not_a_number")),
+            ],
+            || {
+                let config = load_ha_from_env();
+                assert!(config.enable);
+                // При невалидном порте остаётся дефолтное значение (6379)
+                assert_eq!(config.redis.port, 6379);
+            },
+        );
     }
 
+    // ✅ ИЗОЛИРОВАННЫЙ ТЕСТ ЧЕРЕЗ temp_env
     #[test]
     fn test_load_ha_from_env_invalid_db() {
-        let _lock = ENV_MUTEX.lock().unwrap();
-        unsafe {
-            std::env::set_var("SEMAPHORE_HA_ENABLE", "true");
-            std::env::set_var("SEMAPHORE_HA_REDIS_DB", "not_a_number");
-        }
-
-        let config = load_ha_from_env();
-        assert_eq!(config.redis.db, 0); // default since parse failed
-
-        unsafe {
-            std::env::remove_var("SEMAPHORE_HA_ENABLE");
-            std::env::remove_var("SEMAPHORE_HA_REDIS_DB");
-        }
+        temp_env::with_vars(
+            [
+                ("SEMAPHORE_HA_ENABLE", Some("true")),
+                ("SEMAPHORE_HA_REDIS_DB", Some("not_a_number")),
+            ],
+            || {
+                let config = load_ha_from_env();
+                // При невалидном db остаётся дефолтное значение (0)
+                assert_eq!(config.redis.db, 0);
+            },
+        );
     }
 
     #[test]

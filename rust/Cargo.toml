@@ -207,6 +207,7 @@ mockall = "0.13"
 assert-json-diff = "2.0"
 criterion = { version = "0.6", features = ["html_reports"] }
 http-body-util = "0.1"
+temp_env = "0.3"
 
 # Build dependencies для gRPC
 [build-dependencies]
