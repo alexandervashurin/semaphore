@@ -86,7 +86,7 @@ jobs:
           EOF
 
       - name: Сохранение артефакта для GitHub Pages
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: public
 
