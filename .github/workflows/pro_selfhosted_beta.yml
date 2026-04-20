@@ -79,7 +79,7 @@ jobs:
         id: buildx
         uses: docker/setup-buildx-action@v3
       - name: Авторизация в ECR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         if: github.event_name != 'pull_request'
         with:
           registry: public.ecr.aws
@@ -88,7 +88,7 @@ jobs:
         env:
           AWS_REGION: us-east-1
       - name: Авторизация в Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         if: github.event_name != 'pull_request'
         with:
           username: ${{ secrets.DOCKER_USER }}
