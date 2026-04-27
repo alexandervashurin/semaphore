@@ -87,7 +87,7 @@ jobs:
 
       - name: Метаданные Server
         id: server
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           images: velum/velum-community
@@ -139,7 +139,7 @@ jobs:
 
       - name: Метаданные Runner
         id: runner
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           images: semaphoreui/runner-community
