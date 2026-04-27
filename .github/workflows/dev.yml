@@ -584,7 +584,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASS }}
       - name: Метаданные Server
         id: server
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           images: velum/velum-community
@@ -633,7 +633,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASS }}
       - name: Метаданные Runner
         id: runner
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           images: semaphoreui/runner-community

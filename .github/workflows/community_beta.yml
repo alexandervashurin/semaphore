@@ -82,7 +82,7 @@ jobs:
 
       - name: Метаданные Server
         id: server
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           images: |
@@ -109,7 +109,7 @@ jobs:
       - name: Метаданные Runner (отключено)
         if: false
         id: runner
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           images: |
