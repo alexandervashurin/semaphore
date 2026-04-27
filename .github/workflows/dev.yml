@@ -23,7 +23,7 @@ jobs:
           # Замени на '^1.24', если используется nightly
 
       - name: Установка Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'npm'
@@ -261,7 +261,7 @@ jobs:
         uses: actions/setup-go@v6
         with: {go-version: '^1.23'}
       - name: Установка Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'npm'
@@ -327,7 +327,7 @@ jobs:
         uses: actions/setup-go@v6
         with: {go-version: '^1.23'}
       - name: Установка Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'npm'
@@ -396,7 +396,7 @@ jobs:
         uses: actions/setup-go@v6
         with: {go-version: '^1.23'}
       - name: Установка Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'npm'
@@ -464,7 +464,7 @@ jobs:
         uses: actions/setup-go@v6
         with: {go-version: '^1.23'}
       - name: Установка Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'npm'
@@ -518,7 +518,7 @@ jobs:
         uses: actions/setup-go@v6
         with: {go-version: '^1.23'}
       - name: Установка Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'npm'

@@ -26,7 +26,7 @@ jobs:
           go-version: '^1.23'  # Стабильная ветка
 
       - name: Установка Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: '20'  # LTS-версия
           cache: 'npm'
