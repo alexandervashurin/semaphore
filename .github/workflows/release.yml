@@ -90,7 +90,7 @@ jobs:
           --skip api_integration
           --skip kubernetes_integration
       - name: Загрузка бинарника
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: velum-linux-amd64
           path: rust/target/release/velum
