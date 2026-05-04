@@ -50,7 +50,7 @@ jobs:
             "${{ matrix.asset_name }}"
           chmod +x "${{ matrix.asset_name }}"
       - name: Загрузка артефакта
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.asset_name }}
           path: ${{ matrix.asset_name }}
@@ -90,7 +90,7 @@ jobs:
             "${{ matrix.asset_name }}"
           chmod +x "${{ matrix.asset_name }}"
       - name: Загрузка артефакта
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.asset_name }}
           path: ${{ matrix.asset_name }}
