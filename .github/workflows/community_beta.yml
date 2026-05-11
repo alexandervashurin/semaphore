@@ -96,7 +96,7 @@ jobs:
             latest=false
 
       - name: Сборка Server
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -124,7 +124,7 @@ jobs:
 
       - name: Сборка Runner (отключено)
         if: false
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .

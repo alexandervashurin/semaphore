@@ -110,7 +110,7 @@ jobs:
           tags: type=raw,value=${{ github.ref_name }}
 
       - name: Server build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -127,7 +127,7 @@ jobs:
           provenance: false
 
       - name: Server build (Ansible 2.16.5)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -150,7 +150,7 @@ jobs:
           provenance: false
 
       - name: Server build (PowerShell 7.5.0)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -190,7 +190,7 @@ jobs:
           tags: type=raw,value=${{ github.ref_name }}
 
       - name: Runner build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -206,7 +206,7 @@ jobs:
           provenance: false
 
       - name: Runner build (Ansible 2.16.5)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -228,7 +228,7 @@ jobs:
           provenance: false
 
       - name: Runner build (PowerShell 7.5.0)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
