@@ -33,7 +33,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Установка Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Системные зависимости
@@ -71,7 +71,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Установка Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Системные зависимости
@@ -103,7 +103,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Определение тега релиза
         id: tag
         run: |

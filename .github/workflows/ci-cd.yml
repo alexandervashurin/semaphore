@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Установка Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -57,7 +57,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Установка Rust toolchain
         uses: dtolnay/rust-toolchain@stable
       - name: Установка cargo-audit
@@ -73,7 +73,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Настройка QEMU
         uses: docker/setup-qemu-action@v4
       - name: Настройка Buildx
@@ -103,7 +103,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Настройка QEMU
         uses: docker/setup-qemu-action@v4
       - name: Настройка Buildx
@@ -147,7 +147,7 @@ jobs:
           --health-retries 5
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Установка Rust toolchain
         uses: dtolnay/rust-toolchain@stable
       - name: Установка системных зависимостей

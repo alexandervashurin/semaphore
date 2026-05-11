@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout репозитория
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Установка Go
         uses: actions/setup-go@v6
@@ -256,7 +256,7 @@ jobs:
       SEMAPHORE_DB_OPTIONS: '{"sessionConnection": "true"}'
     steps:
       - name: Checkout репозитория
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Установка Go
         uses: actions/setup-go@v6
         with: {go-version: '^1.23'}
@@ -322,7 +322,7 @@ jobs:
           - 3306:3306
     steps:
       - name: Checkout репозитория
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Установка Go
         uses: actions/setup-go@v6
         with: {go-version: '^1.23'}
@@ -391,7 +391,7 @@ jobs:
           - 3306:3306
     steps:
       - name: Checkout репозитория
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Установка Go
         uses: actions/setup-go@v6
         with: {go-version: '^1.23'}
@@ -459,7 +459,7 @@ jobs:
           - 5432:5432
     steps:
       - name: Checkout репозитория
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Установка Go
         uses: actions/setup-go@v6
         with: {go-version: '^1.23'}
@@ -513,7 +513,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout репозитория
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Установка Go
         uses: actions/setup-go@v6
         with: {go-version: '^1.23'}
@@ -569,7 +569,7 @@ jobs:
     if: github.repository_owner == 'semaphoreui'
     steps:
       - name: Checkout репозитория
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Настройка QEMU
         id: qemu
         uses: docker/setup-qemu-action@v4
@@ -618,7 +618,7 @@ jobs:
     if: github.repository_owner == 'semaphoreui'
     steps:
       - name: Checkout репозитория
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Настройка QEMU
         id: qemu
         uses: docker/setup-qemu-action@v4

@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout репозитория
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Установка Go
         uses: actions/setup-go@v6
@@ -63,7 +63,7 @@ jobs:
     if: github.repository_owner == 'semaphoreui'
     steps:
       - name: Checkout репозитория
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Настройка QEMU
         id: qemu
