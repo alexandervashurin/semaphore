@@ -396,7 +396,7 @@ jobs:
     steps:
       - name: Публикация
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 
   collect-binaries:
     name: Collect Binaries
