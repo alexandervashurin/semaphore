@@ -98,7 +98,7 @@ jobs:
           flavor: latest=true
 
       - name: Сборка Server
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -109,7 +109,7 @@ jobs:
           tags: ${{ steps.server.outputs.tags }}
 
       - name: Сборка Server (Ansible 2.16.5)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -122,7 +122,7 @@ jobs:
             velum/velum-community:${{ github.ref_name }}-ansible2.16.5
 
       - name: Сборка Server (PowerShell 7.5.0)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -150,7 +150,7 @@ jobs:
           flavor: latest=true
 
       - name: Сборка Runner
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -161,7 +161,7 @@ jobs:
           tags: ${{ steps.runner.outputs.tags }}
 
       - name: Сборка Runner (Ansible 2.16.5)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -174,7 +174,7 @@ jobs:
             semaphoreui/runner-community:${{ github.ref_name }}-ansible2.16.5
 
       - name: Сборка Runner (PowerShell 7.5.0)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .

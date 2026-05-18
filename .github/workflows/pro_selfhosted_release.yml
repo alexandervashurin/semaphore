@@ -118,7 +118,7 @@ jobs:
             latest=true
 
       - name: Сборка Server
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -135,7 +135,7 @@ jobs:
           provenance: false
 
       - name: Сборка Server (Ansible 2.16.5)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -156,7 +156,7 @@ jobs:
           provenance: false
 
       - name: Сборка Server (PowerShell 7.5.0)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -196,7 +196,7 @@ jobs:
             latest=true
 
       - name: Сборка Runner
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -212,7 +212,7 @@ jobs:
           provenance: false
 
       - name: Сборка Runner (Ansible 2.16.5)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -232,7 +232,7 @@ jobs:
           provenance: false
 
       - name: Сборка Runner (PowerShell 7.5.0)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
