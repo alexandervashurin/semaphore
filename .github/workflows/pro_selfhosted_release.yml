@@ -19,7 +19,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Установка Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           # Стабильная LTS-версия. Верни 1.24.6, если используется nightly
           go-version: "^1.23"
